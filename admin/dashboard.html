@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Admin — LTC Paradigm</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #f0f0f0;
+      padding: 2rem;
+    }
+    h1 {
+      color: #0ff;
+      margin-bottom: 2rem;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: rgba(20, 20, 40, 0.6);
+      border: 1px solid rgba(0, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+    .stat-value {
+      font-size: 2rem;
+      color: #0ff;
+      font-weight: 600;
+    }
+    .stat-label {
+      color: #aaa;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(20, 20, 40, 0.6);
+      border: 1px solid rgba(0, 255, 255, 0.2);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+    }
+    th {
+      background: rgba(0, 255, 255, 0.1);
+      color: #0ff;
+      font-weight: 600;
+    }
+    tr:hover {
+      background: rgba(0, 255, 255, 0.05);
+    }
+    .empty {
+      text-align: center;
+      padding: 3rem;
+      color: #666;
+    }
+    button {
+      background: rgba(0, 255, 255, 0.2);
+      border: 1px solid #0ff;
+      color: #0ff;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    button:hover {
+      background: rgba(0, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 Dashboard de Accesos — Paradigma LTC</h1>
+  
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-value" id="totalAccesses">0</div>
+      <div class="stat-label">Total de Accesos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="todayAccesses">0</div>
+      <div class="stat-label">Accesos Hoy</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="uniqueEmails">0</div>
+      <div class="stat-label">Emails Únicos</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 1rem;">
+    <button onclick="exportData()">📥 Exportar CSV</button>
+    <button onclick="clearData()" style="background: rgba(255, 68, 68, 0.2); border-color: #ff4444; color: #ff4444;">
+      🗑️ Limpiar Datos
+    </button>
+  </div>
+
+  <table id="accessTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Fecha/Hora</th>
+        <th>Nombre</th>
+        <th>Email</th>
+        <th>Organización</th>
+        <th>Cargo</th>
+        <th>IP</th>
+        <th>Hash Doc</th>
+        <th>Dispositivo</th>
+      </tr>
+    </thead>
+    <tbody id="accessList">
+    </tbody>
+  </table>
+
+  <script>
+    function loadAccesses() {
+      const acceptances = JSON.parse(localStorage.getItem('ltc_nda_acceptances') || '[]');
+      const tbody = document.getElementById('accessList');
+      
+      if (acceptances.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay accesos registrados todavía.</td></tr>';
+        return;
+      }
+
+      // Stats
+      document.getElementById('totalAccesses').textContent = acceptances.length;
+      
+      const today = new Date().toDateString();
+      const todayCount = acceptances.filter(a => new Date(a.timestamp).toDateString() === today).length;
+      document.getElementById('todayAccesses').textContent = todayCount;
+      
+      const uniqueEmails = new Set(acceptances.map(a => a.email)).size;
+      document.getElementById('uniqueEmails').textContent = uniqueEmails;
+
+      // Table
+      tbody.innerHTML = acceptances.map(acc => `
+        <tr>
+          <td style="font-size: 0.8rem; color: #888;">${acc.id.substring(0, 16)}...</td>
+          <td>${new Date(acc.timestamp).toLocaleString('es-AR')}</td>
+          <td>${acc.name}</td>
+          <td>${acc.email}</td>
+          <td>${acc.organization}</td>
+          <td>${acc.role}</td>
+          <td>${acc.ip || 'unknown'}</td>
+          <td title="${acc.documentHash || 'N/A'}">${(acc.documentHash || 'N/A').substring(0, 8)}...</td>
+          <td>${acc.userAgent ? acc.userAgent.split(' ')[0].replace('(', '') : 'N/A'}</td>
+        </tr>
+      `).reverse().join('');
+    }
+
+    function exportData() {
+      const acceptances = JSON.parse(localStorage.getItem('ltc_nda_acceptances') || '[]');
+      
+      if (acceptances.length === 0) {
+        alert('No hay datos para exportar.');
+        return;
+      }
+
+      const csv = [
+        ['ID', 'Fecha', 'Nombre', 'Email', 'Organización', 'Cargo', 'IP'].join(','),
+        ...acceptances.map(a => [
+          a.id,
+          new Date(a.timestamp).toLocaleString('es-AR'),
+          a.name,
+          a.email,
+          a.organization,
+          a.role,
+          a.ip || 'unknown'
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ltc-nda-acceptances-${Date.now()}.csv`;
+      a.click();
+    }
+
+    function clearData() {
+      if (confirm('¿Está seguro? Esto eliminará TODOS los registros de acceso.')) {
+        if (confirm('Confirmación final: Esta acción NO se puede deshacer.')) {
+          localStorage.removeItem('ltc_nda_acceptances');
+          loadAccesses();
+          alert('✓ Datos eliminados correctamente.');
+        }
+      }
+    }
+
+    loadAccesses();
+    setInterval(loadAccesses, 5000); // Actualizar cada 5 segundos
+  </script>
+</body>
+</html>

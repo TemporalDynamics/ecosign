@@ -1,0 +1,19 @@
+{
+  "name": "livetemporalcomposition",
+  "version": "1.0.0",
+  "description": "Live Temporal Composition - LTC Document Access System",
+  "main": "index.js",
+  "scripts": {
+    "dev": "netlify dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["supabase", "netlify", "nda", "document-signing"],
+  "author": "Manuel S.",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "netlify-cli": "^23.9.5"
+  }
+}

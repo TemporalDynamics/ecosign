@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>verifysign — Certifica. Protege. Comparte con confianza.</title>
-  <meta name="description" content="Comparte documentos sensibles con NDA y firma digital. Todo queda sellado con hash forense, timestamp y anclaje en blockchain." />
+  <title>verifysign — Certificación Forense Innegable</title>
+  <meta name="description" content="Certificación forense innegable para tus archivos más valiosos. Prueba inmutable de quién, cuándo y bajo qué términos accedió a un documento." />
   <link rel="icon" href="/favicon.ico" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      line-height: 1.6;
-      color: #333;
+      font-family: 'Fira Sans', sans-serif;
       background-color: #f8f9fa;
+      color: #333;
       margin: 0;
       padding: 0;
     }
@@ -24,12 +23,53 @@
     header, main, footer {
       padding: 2rem 0;
     }
-    h1 {
-      font-size: 3rem;
+    .header-top {
+        background-color: #004C99; /* Azul Metálico */
+        padding: 1rem 0;
+        color: #fff;
+        text-align: center;
+    }
+    .header-top .logo {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #fff;
+        text-decoration: none;
+    }
+    .hero {
+      text-align: center;
+      padding: 5rem 0;
+      background-color: #1a1a1a; /* Fondo oscuro para el hero */
+      color: #f0f0f0;
+    }
+    .hero h1 {
+      font-size: 3.5rem;
       font-weight: 700;
       margin-bottom: 1rem;
-      color: #1a1a1a;
+      color: #0ff; /* Cian para el título principal */
       letter-spacing: -1.5px;
+    }
+    .hero .subtitle {
+        font-size: 1.25rem;
+        color: #aaa;
+        max-width: 800px;
+        margin: 0 auto 3rem;
+    }
+    .cta-button {
+      display: inline-block;
+      background: #004C99; /* Azul Metálico */
+      color: white;
+      padding: 1rem 3rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 1.2rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    .cta-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 20px rgba(0, 76, 153, 0.3);
     }
     h2 {
       font-size: 2.25rem;
@@ -38,46 +78,13 @@
       text-align: center;
       color: #2a2a2a;
     }
-    .hero {
-      text-align: center;
-      padding: 5rem 0;
-      background-color: #fff;
-      border-bottom: 1px solid #e0e0e0;
-    }
-    .subtitle {
-        font-size: 1.2rem;
-        color: #555;
-        max-width: 700px;
-        margin: 0 auto 2rem;
-    }
-    .cta-button {
-      display: inline-block;
-      background: linear-gradient(90deg, #1BA8FF, #009688);
-      color: white;
-      padding: 1rem 2.5rem;
-      border-radius: 0.5rem;
-      font-weight: 600;
-      text-decoration: none;
-      margin: 1rem 0.5rem;
-      font-size: 1.1rem;
-      transition: transform 0.2s, box-shadow 0.2s;
-      border: none;
-      cursor: pointer;
-    }
-    .cta-button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    }
-    .section {
-        padding: 4rem 0;
-    }
-    .explanation-grid {
+    .feature-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 2.5rem;
       margin-top: 3rem;
     }
-    .explanation-card {
+    .feature-card {
       background: #fff;
       padding: 2rem;
       border: 1px solid #e0e0e0;
@@ -85,55 +92,15 @@
       text-align: center;
       box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     }
-    .explanation-card .icon {
+    .feature-card .icon {
         font-size: 3rem;
         margin-bottom: 1rem;
-        color: #1BA8FF;
+        color: #004C99; /* Azul Metálico */
     }
-    .guarantee-section {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2rem;
-        background: #fff;
-        padding: 3rem;
-        border-radius: 1rem;
-        border: 1px solid #e0e0e0;
-    }
-    .guarantee-section h3 {
+    .feature-card h3 {
+        color: #004C99; /* Azul Metálico */
         font-size: 1.5rem;
-        color: #1BA8FF;
-        border-bottom: 2px solid #1BA8FF;
-        padding-bottom: 0.5rem;
-        margin-bottom: 1.5rem;
-    }
-    .guarantee-section ul {
-        list-style: none;
-        padding: 0;
-    }
-    .guarantee-section li {
         margin-bottom: 1rem;
-        display: flex;
-        align-items: flex-start;
-    }
-    .guarantee-section li::before {
-        content: '✓';
-        color: #009688;
-        font-weight: bold;
-        margin-right: 0.75rem;
-        font-size: 1.2rem;
-    }
-    .guarantee-section .not-guaranteed li::before {
-        content: '⚠️';
-        color: #f39c12;
-    }
-    .legal-note {
-        grid-column: 1 / -1;
-        margin-top: 2rem;
-        padding: 1.5rem;
-        background: #f1f3f5;
-        border-radius: 0.5rem;
-        font-size: 0.9rem;
-        text-align: center;
     }
     footer {
       text-align: center;
@@ -143,7 +110,7 @@
       color: #666;
     }
     footer a {
-        color: #1BA8FF;
+        color: #004C99;
         text-decoration: none;
     }
     footer a:hover {
@@ -152,61 +119,40 @@
   </style>
 </head>
 <body>
+  <div class="header-top">
+    <div class="container">
+      <a href="/" class="logo">VerifySign</a>
+    </div>
+  </div>
+
   <header class="hero">
     <div class="container">
-      <h1>Certifica y comparte tus archivos con confianza.</h1>
+      <h1>La Capa de Confianza Digital.<br>Certificación Forense Innegable para tus Archivos más Valiosos.</h1>
       <p class="subtitle">
-        Tu documento se encripta, firma y sella en blockchain para demostrar su autenticidad, incluso antes de que existan leyes que lo reconozcan por completo.
+        Deja de depender de IP’s y emails. Verifysign usa Anchoring criptográfico para probar quién, cuándo y bajo qué términos accedió a un documento.
       </p>
-      <div>
-        <a href="/admin/dashboard.html" class="cta-button">Crear mi primer NDA</a>
-      </div>
+      <a href="/admin/dashboard.html" class="cta-button">Empezar con la Certificación Forense</a>
     </div>
   </header>
 
   <main class="container">
     <section class="section">
-        <h2>Cómo funciona</h2>
-        <div class="explanation-grid">
-            <div class="explanation-card">
-                <div class="icon">1️⃣</div>
-                <h3>Sube tu archivo</h3>
-                <p>Sube tu archivo o proyecto (.zip, .pdf, .eco). Nosotros lo aseguramos.</p>
+        <h2>Beneficios de la Certificación Forense</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="icon">⛓️</div>
+                <h3>Anclaje Criptográfico</h3>
+                <p>Genera un Hash único de tu documento y el NDA, sellándolo en una Blockchain pública. Prueba inmutable de la fecha y hora de la firma, a prueba de litigios.</p>
             </div>
-            <div class="explanation-card">
-                <div class="icon">2️⃣</div>
-                <h3>Genera un enlace seguro</h3>
-                <p>Crea un enlace único con un NDA digital adjunto para compartir con tus receptores.</p>
+            <div class="feature-card">
+                <div class="icon">🛡️</div>
+                <h3>Registro de No-Repudiación</h3>
+                <p>Más que un email. Registramos la huella digital del navegador del receptor y el compromiso legal con el NDA. Garantiza que el firmante no puede negar el acceso o la aceptación de los términos.</p>
             </div>
-            <div class="explanation-card">
-                <div class="icon">3️⃣</div>
-                <h3>Recibe tu prueba</h3>
-                <p>Cuando firman, recibes un archivo .eco con hash, timestamp y trazabilidad completa.</p>
-            </div>
-        </div>
-    </section>
-
-    <section class="section">
-        <h2>Transparencia radical: Tu evidencia técnica</h2>
-        <div class="guarantee-section">
-            <div class="guaranteed">
-                <h3>Lo que SÍ garantiza</h3>
-                <ul>
-                    <li>Prueba verificable de integridad (hash + timestamp).</li>
-                    <li>Registro en cadena pública de tiempo (blockchain anchoring).</li>
-                    <li>Identidad autenticada del receptor vía NDA.</li>
-                </ul>
-            </div>
-            <div class="not-guaranteed">
-                <h3>Lo que AÚN no reemplaza</h3>
-                <ul>
-                    <li>Certificación oficial de un gobierno (ej. NOM-151).</li>
-                    <li>Firma electrónica avanzada (FEA) o firma notarial.</li>
-                    <li>Jurisprudencia establecida en todos los países.</li>
-                </ul>
-            </div>
-            <div class="legal-note">
-                ⚖️ <strong>En palabras simples:</strong> Hoy te damos evidencia técnica sólida. Cuando existan precedentes legales, esa evidencia podrá ser decisiva en un tribunal.
+            <div class="feature-card">
+                <div class="icon">🔍</div>
+                <h3>Trazabilidad Forense (.ECOX Ready)</h3>
+                <p>Diseñado para la Auditoría. Cada acceso queda ligado al Hash de tu archivo (.ecox), asegurando que solo se desbloquea la versión correcta y verificada.</p>
             </div>
         </div>
     </section>
@@ -216,10 +162,8 @@
     <div class="container">
       <p>© 2025 verifysign por Temporal Dynamics LLC. Estándar abierto .ECO.</p>
       <p>
-        <a href="/privacy">Privacidad</a> | 
-        <a href="/terms">Términos</a> | 
-        <a href="/nom-151">NOM-151</a> | 
-        <a href="/blockchain-anchoring">Blockchain Anchoring</a> | 
+        <a href="/privacy">Privacidad</a> • 
+        <a href="/terms">Términos</a> • 
         <a href="/contact">Contacto</a>
       </p>
     </div>

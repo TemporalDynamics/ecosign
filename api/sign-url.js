@@ -5,72 +5,74 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
-const HMAC_SECRET = process.env.HMAC_SIGN_SECRET || process.env.HMAC_SECRET || 'dev-secret';
-const SITE_URL = process.env.NETLIFY_SITE_URL || '';
+const HMAC_SECRET = process.env.HMAC_SIGN_SECRET || process.env.HMAC_SECRET;
+const SITE_URL = process.env.NETLIFY_SITE_URL || 'http://localhost:8888';
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing Supabase environment variables');
+// Enforce required environment variables in production
+if (process.env.NETLIFY_SITE_URL && (!HMAC_SECRET || !SUPABASE_URL || !SUPABASE_ANON_KEY)) {
+  throw new Error('Missing required environment variables in production: HMAC_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY');
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+if (!HMAC_SECRET) {
+  console.warn('⚠️ Missing HMAC_SECRET environment variable. Using a default "dev-secret". This is not secure for production.');
+}
+
+const hmacSecret = HMAC_SECRET || 'dev-secret';
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn('⚠️ Missing Supabase environment variables. Running in local development mode without database access.');
+}
+
+const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   db: { schema: 'api' },
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   }
-});
+}) : null;
 
 exports.handler = async (event) => {
   const { httpMethod } = event;
   
+  if (!supabase) {
+    return {
+      statusCode: 500,
+      headers: cors(),
+      body: JSON.stringify({ 
+        error: 'Supabase not configured. Feature disabled.',
+        requiresConfiguration: true
+      })
+    };
+  }
+  
   if (httpMethod === 'POST') {
-    // Crear nuevo enlace de firma
     try {
       const body = JSON.parse(event.body || '{}');
-      const ownerEmail = body.ownerEmail;
-      const sha256 = body.sha256;
-      const docType = body.docType || 'template';
-      const version = body.version || 1;
-      const expirySeconds = Number(body.expirySeconds) || 7 * 24 * 3600;
+      const { ownerEmail, sha256, docType = 'template', version = 1, expirySeconds = 7 * 24 * 3600, storageUrl = null } = body;
 
       if (!ownerEmail || !sha256) {
         return { statusCode: 400, headers: cors(), body: JSON.stringify({ error: 'ownerEmail and sha256 are required' }) };
       }
 
       const docId = crypto.randomUUID();
-      const createdAt = new Date().toISOString();
       
-      // Insert into Supabase
-      const { data: documentData, error } = await supabase
+      const { error } = await supabase
         .from('documents')
-        .insert([{
-          id: docId,
-          owner_email: ownerEmail,
-          type: docType,
-          version,
-          sha256,
-          storage_url: body.storageUrl || null
-        }]);
+        .insert([{ id: docId, owner_email: ownerEmail, type: docType, version, sha256, storage_url: storageUrl }]);
 
       if (error) {
         console.error('Error inserting document to Supabase:', error);
-        return {
-          statusCode: 500,
-          headers: cors(),
-          body: JSON.stringify({ error: 'Error interno al guardar el documento' })
-        };
+        return { statusCode: 500, headers: cors(), body: JSON.stringify({ error: 'Error interno al guardar el documento' }) };
       }
 
-      const shortId = crypto.randomBytes(4).toString('hex'); // 8 chars
-      const exp = Math.floor(Date.now() / 1000) + expirySeconds;
+      const shortId = crypto.randomBytes(4).toString('hex');
+      const exp = Math.floor(Date.now() / 1000) + Number(expirySeconds);
       const payload = `${shortId}.${docId}.${exp}`;
-      const sig = hmac(payload, HMAC_SECRET);
+      const sig = hmac(payload, hmacSecret);
 
-      // Prefer to return full URL for convenience
-      const base = SITE_URL || '';
-      const signUrl = `${base}/sign/${shortId}?doc=${docId}&exp=${exp}&sig=${sig}`;
+      const signUrl = `${SITE_URL}/sign/${shortId}?doc=${docId}&exp=${exp}&sig=${sig}`;
 
       return {
         statusCode: 200,
@@ -83,7 +85,6 @@ exports.handler = async (event) => {
       return { statusCode: 500, headers: cors(), body: JSON.stringify({ error: 'internal' }) };
     }
   } else if (httpMethod === 'GET') {
-    // Verificar token de firma (para la página sign.html)
     try {
       const { verify, doc, exp, sig } = event.queryStringParameters || {};
       
@@ -91,23 +92,18 @@ exports.handler = async (event) => {
         return { statusCode: 400, headers: cors(), body: JSON.stringify({ error: 'verify, doc, exp, and sig parameters are required' }) };
       }
 
-      // Verificar expiración
-      const currentTime = Math.floor(Date.now() / 1000);
-      const expirationTime = parseInt(exp);
-      
-      if (currentTime > expirationTime) {
+      if (Math.floor(Date.now() / 1000) > parseInt(exp)) {
         return { statusCode: 400, headers: cors(), body: JSON.stringify({ valid: false, error: 'Link expired' }) };
       }
 
-      // Verificar firma HMAC
       const payload = `${verify}.${doc}.${exp}`;
-      const expectedSig = hmac(payload, HMAC_SECRET);
+      const expectedSig = hmac(payload, hmacSecret);
       
       if (sig !== expectedSig) {
+        console.warn(`Invalid signature attempt. Got: ${sig}, Expected: ${expectedSig}`);
         return { statusCode: 400, headers: cors(), body: JSON.stringify({ valid: false, error: 'Invalid signature' }) };
       }
 
-      // Buscar documento en Supabase
       const { data: document, error } = await supabase
         .from('documents')
         .select('sha256, owner_email')

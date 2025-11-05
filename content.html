@@ -26,6 +26,13 @@
         try {
           const response = await fetch(`/.netlify/functions/verify-access?token=${encodeURIComponent(token)}`);
           const data = await response.json();
+          
+          // If backend returns that local check is needed, verify against localStorage
+          if (data.requiresLocalCheck) {
+            console.log('Backend unavailable, checking localStorage for token...');
+            return !!localStorage.getItem('ltc_access_token');
+          }
+          
           return data.valid;
         } catch (error) {
           console.error('Error verificando token:', error);

@@ -376,11 +376,17 @@
 
           if (response.ok) {
             const data = await response.json();
-            acceptance.id = data.accessToken || acceptance.id;
-            accessToken = data.accessToken;
-            success = true;
+            if (data.accessToken) {
+              acceptance.id = data.accessToken;
+              accessToken = data.accessToken;
+              success = true;
+            } else {
+              console.warn('Response did not contain access token:', data);
+            }
           } else {
-            console.warn('Error en API, usando fallback de localStorage');
+            console.error('API error response:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('Error details:', errorText);
           }
         } catch (apiError) {
           console.warn('API no disponible, usando fallback de localStorage:', apiError);

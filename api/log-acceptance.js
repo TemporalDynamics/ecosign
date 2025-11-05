@@ -5,20 +5,21 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SUPABASE_BUCKET_SIGNATURES = process.env.SUPABASE_BUCKET_SIGNATURES;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_BUCKET_SIGNATURES) {
-  throw new Error('Missing Supabase environment variables');
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_BUCKET_SIGNATURES) {
+  console.warn('⚠️ Missing Supabase environment variables. Running in local development mode.');
+  // In local development, we'll log warnings but allow the function to continue with mock data
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  db: { schema: 'api' },
+const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  db: { schema: 'public' },
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   }
-});
+}) : null;
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -58,76 +59,84 @@ exports.handler = async (event) => {
     const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
     const acceptanceId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
 
-    // Convertir dataURL de la firma en buffer y subirlo a Storage
-    const match = (data.signature || '').match(/^data:(image\/[-+\w.]+);base64,(.+)$/);
-    if (!match) {
-      return {
-        statusCode: 400,
-        headers: cors(),
-        body: JSON.stringify({ error: 'Formato de firma inválido' })
-      };
-    }
+    let signatureUrl = '';
+    
+    if (supabase) {
+      // Convertir dataURL de la firma en buffer y subirlo a Storage
+      const match = (data.signature || '').match(/^data:(image\/[-+\w.]+);base64,(.+)$/);
+      if (!match) {
+        return {
+          statusCode: 400,
+          headers: cors(),
+          body: JSON.stringify({ error: 'Formato de firma inválido' })
+        };
+      }
 
-    const [, mimeType, base64Payload] = match;
-    const extension = mimeType === 'image/png'
-      ? 'png'
-      : mimeType === 'image/jpeg'
-        ? 'jpg'
-        : 'bin';
+      const [, mimeType, base64Payload] = match;
+      const extension = mimeType === 'image/png'
+        ? 'png'
+        : mimeType === 'image/jpeg'
+          ? 'jpg'
+          : 'bin';
 
-    const signatureBuffer = Buffer.from(base64Payload, 'base64');
-    const signaturePath = `${acceptanceId}/signature.${extension}`;
+      const signatureBuffer = Buffer.from(base64Payload, 'base64');
+      const signaturePath = `${acceptanceId}/signature.${extension}`;
 
-    const { error: storageError } = await supabase.storage
-      .from(SUPABASE_BUCKET_SIGNATURES)
-      .upload(signaturePath, signatureBuffer, {
-        contentType: mimeType,
-        upsert: false
-      });
+      const { error: storageError } = await supabase.storage
+        .from(SUPABASE_BUCKET_SIGNATURES)
+        .upload(signaturePath, signatureBuffer, {
+          contentType: mimeType,
+          upsert: false
+        });
 
-    if (storageError) {
-      console.error('Error uploading signature to Supabase Storage:', storageError);
-      return {
-        statusCode: 500,
-        headers: cors(),
-        body: JSON.stringify({ error: 'No se pudo guardar la firma' })
-      };
-    }
+      if (storageError) {
+        console.error('Error uploading signature to Supabase Storage:', storageError);
+        return {
+          statusCode: 500,
+          headers: cors(),
+          body: JSON.stringify({ error: 'No se pudo guardar la firma' })
+        };
+      }
 
-    const { data: publicUrlData } = supabase.storage
-      .from(SUPABASE_BUCKET_SIGNATURES)
-      .getPublicUrl(signaturePath);
-    const signatureUrl = publicUrlData?.publicUrl || signaturePath;
+      const { data: publicUrlData } = supabase.storage
+        .from(SUPABASE_BUCKET_SIGNATURES)
+        .getPublicUrl(signaturePath);
+      signatureUrl = publicUrlData?.publicUrl || signaturePath;
 
-    // IP from headers (Netlify / proxies)
-    const ipHeader = event.headers['x-forwarded-for'] || event.headers['client-ip'] || event.headers['x-real-ip'] || 'unknown';
-    const ip = ipHeader.split(',')[0].trim();
-    const userAgent = event.headers['user-agent'] || 'unknown';
+      // IP from headers (Netlify / proxies)
+      const ipHeader = event.headers['x-forwarded-for'] || event.headers['client-ip'] || event.headers['x-real-ip'] || 'unknown';
+      const ip = ipHeader.split(',')[0].trim();
+      const userAgent = event.headers['user-agent'] || 'unknown';
 
-    // Insert into Supabase
-    const { error } = await supabase
-      .from('acceptances')
-      .insert([{
-        id: acceptanceId,
-        doc_id: data.docId || null,
-        party_name: data.name,
-        party_email: data.email,
-        signature_url: signatureUrl,
-        document_hash: documentHash,
-        access_token: accessToken,
-        ip_address: ip,
-        user_agent: userAgent,
-        expires_at: expiresAt,
-        created_at: acceptedAt
-      }]);
+      // Insert into Supabase
+      const { error } = await supabase
+        .from('acceptances')
+        .insert([{
+          id: acceptanceId,
+          doc_id: data.docId || null,
+          party_name: data.name,
+          party_email: data.email,
+          signature_url: signatureUrl,
+          document_hash: documentHash,
+          access_token: accessToken,
+          ip_address: ip,
+          user_agent: userAgent,
+          expires_at: expiresAt,
+          created_at: acceptedAt
+        }]);
 
-    if (error) {
-      console.error('Error inserting acceptance to Supabase:', error);
-      return {
-        statusCode: 500,
-        headers: cors(),
-        body: JSON.stringify({ error: 'Error interno al guardar la aceptación' })
-      };
+      if (error) {
+        console.error('Error inserting acceptance to Supabase:', error);
+        return {
+          statusCode: 500,
+          headers: cors(),
+          body: JSON.stringify({ error: 'Error interno al guardar la aceptación' })
+        };
+      }
+    } else {
+      // Supabase not configured - only save to localStorage on the frontend
+      console.log('⚠️ Supabase not configured. Acceptance data will only be stored in browser localStorage.');
+      signatureUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='; // Transparent 1x1 pixel
     }
 
     // Return token+meta

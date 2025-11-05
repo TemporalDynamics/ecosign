@@ -384,10 +384,16 @@
 
           if (response.ok) {
             const data = await response.json();
-            accessToken = data.accessToken;
-            success = true;
+            if (data.accessToken) {
+              accessToken = data.accessToken;
+              success = true;
+            } else {
+              console.warn('Response did not contain access token:', data);
+            }
           } else {
-            throw new Error('API error');
+            console.error('API error response:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('Error details:', errorText);
           }
         } catch (apiError) {
           console.warn('API no disponible, usando fallback de localStorage:', apiError);

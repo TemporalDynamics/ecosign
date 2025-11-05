@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso a Documento Confidencial - verifysign</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8f9fa;
+      color: #333;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 700px;
+      width: 100%;
+      background: #fff;
+      border-radius: 1rem;
+      box-shadow: 0 4px 25px rgba(0,0,0,0.1);
+      padding: 3rem;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      text-align: center;
+      color: #555;
+      margin-bottom: 2rem;
+    }
+    .warning-box {
+      background-color: #fffbe6;
+      border: 1px solid #ffe58f;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    input[type="text"], input[type="email"] {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+    }
+    .nda-box {
+      height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      background-color: #f1f3f5;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 2rem;
+    }
+    input[type="checkbox"] {
+      margin-top: 0.3rem;
+      margin-right: 0.75rem;
+    }
+    .btn {
+      width: 100%;
+      display: block;
+      background: linear-gradient(90deg, #1BA8FF, #009688);
+      color: white;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .error-message {
+        color: #e74c3c;
+        text-align: center;
+        margin-top: 1rem;
+        display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Acceso a Documento Confidencial</h1>
+    <p class="subtitle">Para continuar, por favor, identifíquese y acepte el Acuerdo de No Divulgación (NDA).</p>
+
+    <div class="warning-box">
+      <strong>Atención:</strong> Su aceptación quedará registrada con su identidad, firma, timestamp y un hash de verificación como prueba legalmente vinculante.
+    </div>
+
+    <form id="access-form">
+      <div class="form-group">
+        <label for="name">Nombre Completo</label>
+        <input type="text" id="name" required>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" required>
+      </div>
+
+      <div class="form-group">
+        <label>Acuerdo de No Divulgación (NDA)</label>
+        <div class="nda-box">
+          <p><strong>1. CONFIDENCIALIDAD:</strong> El destinatario ("Receptor") acepta que toda la información a la que accederá es estrictamente confidencial y propiedad exclusiva del divulgante.</p>
+          <p><strong>2. USO RESTRINGIDO:</strong> El Receptor se compromete a usar la información únicamente para evaluación, no para fines comerciales, y a no compartirla, copiarla o distribuirla sin autorización escrita.</p>
+          <p><strong>3. PROPIEDAD INTELECTUAL:</strong> El acceso no otorga derechos de uso, licencia o explotación sobre la propiedad intelectual contenida en el documento.</p>
+          <p><strong>4. REGISTRO DIGITAL:</strong> Al aceptar, el Receptor consiente que su identidad, timestamp y firma digital serán registrados como evidencia legal vinculante del acceso.</p>
+        </div>
+      </div>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="accept" required>
+        <label for="accept">He leído y acepto los términos del Acuerdo de No Divulgación. Entiendo que esta acción es legalmente vinculante.</label>
+      </div>
+
+      <button type="submit" class="btn" id="submit-btn">Acepto y Firmo para Desbloquear</button>
+
+      <p id="error-message" class="error-message"></p>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('access-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submit-btn');
+      const errorMessage = document.getElementById('error-message');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Procesando...';
+      errorMessage.style.display = 'none';
+
+      const name = document.getElementById('name').value;
+      const email = document.getElementById('email').value;
+      const accepted = document.getElementById('accept').checked;
+
+      if (!accepted) {
+        errorMessage.textContent = 'Debe aceptar los términos para continuar.';
+        errorMessage.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Acepto y Firmo para Desbloquear';
+        return;
+      }
+
+      // Obtener el caseId de la URL (ej: /access.html?case=CASE_ID)
+      const urlParams = new URLSearchParams(window.location.search);
+      const caseId = urlParams.get('case');
+
+      if (!caseId) {
+        errorMessage.textContent = 'Error: No se encontró identificador de caso.';
+        errorMessage.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Acepto y Firmo para Desbloquear';
+        return;
+      }
+
+      try {
+        const response = await fetch('/.netlify/functions/log-acceptance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            caseId: caseId,
+            name: name, 
+            email: email 
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Redirigir al contenido protegido
+          window.location.href = data.contentUrl || '/content-placeholder.html';
+        } else {
+          const errorData = await response.json();
+          errorMessage.textContent = `Error: ${errorData.error || 'No se pudo procesar la solicitud.'}`;
+          errorMessage.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Acepto y Firmo para Desbloquear';
+        }
+      } catch (error) {
+        errorMessage.textContent = 'Error de conexión. Por favor, intente de nuevo.';
+        errorMessage.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Acepto y Firmo para Desbloquear';
+      }
+    });
+  </script>
+
+</body>
+</html>

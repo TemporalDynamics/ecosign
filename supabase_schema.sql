@@ -1,40 +1,63 @@
--- supabase_schema.sql
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Supabase Schema for verifysign
 
-CREATE TABLE IF NOT EXISTS documents (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at timestamptz DEFAULT now(),
-  owner_email text,
-  title text,
-  type text, -- 'template'|'upload'
-  version int DEFAULT 1,
-  sha256 text,
-  storage_url text
+-- Create the cases table
+CREATE TABLE cases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id UUID REFERENCES auth.users(id) NOT NULL,
+  doc_storage_path TEXT,
+  doc_sha256 TEXT,
+  nda_text TEXT,
+  link_mode TEXT DEFAULT 'public_reusable',
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS acceptances (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at timestamptz DEFAULT now(),
-  doc_id uuid REFERENCES documents(id) ON DELETE SET NULL,
-  access_token text UNIQUE,
-  party_name text,
-  party_email text,
-  signature_url text,
-  document_hash text,
-  ip_address text,
-  user_agent text,
-  expires_at timestamptz,
-  mifiel_document_id text,
-  mifiel_certificate_url text,
-  nom151_timestamp timestamptz
+-- Create the recipients table
+CREATE TABLE recipients (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id UUID REFERENCES cases(id) NOT NULL,
+  email TEXT NOT NULL,
+  name TEXT,
+  otp_required BOOLEAN DEFAULT false,
+  otp_last_sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS read_logs (
-  id bigserial PRIMARY KEY,
-  created_at timestamptz DEFAULT now(),
-  access_token text,
-  seconds int
+-- Create the events table (forensic log)
+CREATE TABLE events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id UUID REFERENCES cases(id) NOT NULL,
+  recipient_id UUID REFERENCES recipients(id),
+  email TEXT,
+  name TEXT,
+  organization TEXT,
+  browser_fingerprint TEXT,
+  ip_city TEXT,
+  nda_sha256 TEXT,
+  doc_sha256 TEXT,
+  signature_svg TEXT,
+  timestamp_utc TIMESTAMPTZ DEFAULT now() NOT NULL,
+  anchor_txid TEXT,
+  eco_path TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_acceptances_doc_id ON acceptances(doc_id);
-CREATE INDEX IF NOT EXISTS idx_acceptances_token ON acceptances(access_token);
+-- RLS Policies
+
+-- Policies for cases table
+ALTER TABLE cases ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Owners can view their own cases" ON cases FOR SELECT USING (auth.uid() = owner_id);
+CREATE POLICY "Owners can insert their own cases" ON cases FOR INSERT WITH CHECK (auth.uid() = owner_id);
+
+-- Policies for recipients table
+ALTER TABLE recipients ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Owners can view recipients of their cases" ON recipients FOR SELECT USING (
+  auth.uid() = (SELECT owner_id FROM cases WHERE id = case_id)
+);
+
+-- Policies for events table
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Owners can view events of their cases" ON events FOR SELECT USING (
+  auth.uid() = (SELECT owner_id FROM cases WHERE id = case_id)
+);
+CREATE POLICY "Recipients can view their own events" ON events FOR SELECT USING (
+  auth.uid() = (SELECT user_id FROM recipients WHERE id = recipient_id) -- Assuming a user_id column on recipients
+);

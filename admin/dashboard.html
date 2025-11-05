@@ -2,201 +2,157 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard Admin — LTC Paradigm</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - verifysign</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: system-ui, sans-serif;
-      background: #0a0a0a;
-      color: #f0f0f0;
-      padding: 2rem;
+      font-family: 'Inter', sans-serif;
+      background-color: #f8f9fa;
+      color: #333;
+      margin: 0;
     }
-    h1 {
-      color: #0ff;
-      margin-bottom: 2rem;
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
     }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background-color: #fff;
+      border-bottom: 1px solid #e0e0e0;
     }
-    .stat-card {
-      background: rgba(20, 20, 40, 0.6);
-      border: 1px solid rgba(0, 255, 255, 0.2);
-      border-radius: 8px;
-      padding: 1.5rem;
+    .header h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1a1a1a;
     }
-    .stat-value {
-      font-size: 2rem;
-      color: #0ff;
+    .btn {
+      display: inline-block;
+      background: linear-gradient(90deg, #1BA8FF, #009688);
+      color: white;
+      padding: 0.8rem 1.5rem;
+      border-radius: 0.5rem;
       font-weight: 600;
-    }
-    .stat-label {
-      color: #aaa;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: rgba(20, 20, 40, 0.6);
-      border: 1px solid rgba(0, 255, 255, 0.2);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    th, td {
-      padding: 1rem;
-      text-align: left;
-      border-bottom: 1px solid rgba(0, 255, 255, 0.1);
-    }
-    th {
-      background: rgba(0, 255, 255, 0.1);
-      color: #0ff;
-      font-weight: 600;
-    }
-    tr:hover {
-      background: rgba(0, 255, 255, 0.05);
-    }
-    .empty {
-      text-align: center;
-      padding: 3rem;
-      color: #666;
-    }
-    button {
-      background: rgba(0, 255, 255, 0.2);
-      border: 1px solid #0ff;
-      color: #0ff;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
+      text-decoration: none;
+      border: none;
       cursor: pointer;
-      font-size: 0.85rem;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
-    button:hover {
-      background: rgba(0, 255, 255, 0.3);
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    .logout-btn {
+        background: none;
+        border: 1px solid #ccc;
+        color: #555;
+    }
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    .dashboard-header h2 {
+        font-size: 2rem;
+        font-weight: 600;
+    }
+    .case-list table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: #fff;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+    .case-list th, .case-list td {
+        padding: 1rem 1.5rem;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .case-list th {
+        background-color: #f1f3f5;
+        font-weight: 600;
+    }
+    .case-list tr:last-child td {
+        border-bottom: none;
+    }
+    .status-signed {
+        color: #009688;
+        font-weight: 600;
+    }
+    .status-pending {
+        color: #f39c12;
+        font-weight: 600;
+    }
+    .action-link {
+        color: #1BA8FF;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    .action-link:hover {
+        text-decoration: underline;
     }
   </style>
 </head>
 <body>
-  <h1>📊 Dashboard de Accesos — Paradigma LTC</h1>
-  
-  <div class="stats">
-    <div class="stat-card">
-      <div class="stat-value" id="totalAccesses">0</div>
-      <div class="stat-label">Total de Accesos</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value" id="todayAccesses">0</div>
-      <div class="stat-label">Accesos Hoy</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-value" id="uniqueEmails">0</div>
-      <div class="stat-label">Emails Únicos</div>
-    </div>
-  </div>
 
-  <div style="margin-bottom: 1rem;">
-    <button onclick="exportData()">📥 Exportar CSV</button>
-    <button onclick="clearData()" style="background: rgba(255, 68, 68, 0.2); border-color: #ff4444; color: #ff4444;">
-      🗑️ Limpiar Datos
-    </button>
-  </div>
+  <header class="header">
+    <h1>verifysign</h1>
+    <div>
+      <span style="margin-right: 1rem;">usuario@ejemplo.com</span>
+      <button class="btn logout-btn">Cerrar Sesión</button>
+    </div>
+  </header>
 
-  <table id="accessTable">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Fecha/Hora</th>
-        <th>Nombre</th>
-        <th>Email</th>
-        <th>Organización</th>
-        <th>Cargo</th>
-        <th>IP</th>
-        <th>Hash Doc</th>
-        <th>Dispositivo</th>
-      </tr>
-    </thead>
-    <tbody id="accessList">
-    </tbody>
-  </table>
+  <main class="container">
+    <div class="dashboard-header">
+      <h2>Tus Documentos Seguros</h2>
+      <button class="btn" id="create-link-btn">+ Crear enlace seguro</button>
+    </div>
+
+    <div class="case-list">
+      <table>
+        <thead>
+          <tr>
+            <th>Documento</th>
+            <th>Fecha de Creación</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Fila de ejemplo 1 -->
+          <tr>
+            <td>Proyecto_Secreto_Alpha.zip</td>
+            <td>04 Nov 2025</td>
+            <td class="status-signed">1 Firma</td>
+            <td><a href="#" class="action-link">Ver Manifiesto</a></td>
+          </tr>
+          <!-- Fila de ejemplo 2 -->
+          <tr>
+            <td>NDA_Inversores_Q4.pdf</td>
+            <td>01 Nov 2025</td>
+            <td class="status-pending">Pendiente</td>
+            <td><a href="#" class="action-link">Copiar Enlace</a></td>
+          </tr>
+          <!-- Las filas se llenarán dinámicamente -->
+        </tbody>
+      </table>
+    </div>
+  </main>
 
   <script>
-    function loadAccesses() {
-      const acceptances = JSON.parse(localStorage.getItem('ltc_nda_acceptances') || '[]');
-      const tbody = document.getElementById('accessList');
-      
-      if (acceptances.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">No hay accesos registrados todavía.</td></tr>';
-        return;
-      }
-
-      // Stats
-      document.getElementById('totalAccesses').textContent = acceptances.length;
-      
-      const today = new Date().toDateString();
-      const todayCount = acceptances.filter(a => new Date(a.timestamp).toDateString() === today).length;
-      document.getElementById('todayAccesses').textContent = todayCount;
-      
-      const uniqueEmails = new Set(acceptances.map(a => a.email)).size;
-      document.getElementById('uniqueEmails').textContent = uniqueEmails;
-
-      // Table
-      tbody.innerHTML = acceptances.map(acc => `
-        <tr>
-          <td style="font-size: 0.8rem; color: #888;">${acc.id.substring(0, 16)}...</td>
-          <td>${new Date(acc.timestamp).toLocaleString('es-AR')}</td>
-          <td>${acc.name}</td>
-          <td>${acc.email}</td>
-          <td>${acc.organization}</td>
-          <td>${acc.role}</td>
-          <td>${acc.ip || 'unknown'}</td>
-          <td title="${acc.documentHash || 'N/A'}">${(acc.documentHash || 'N/A').substring(0, 8)}...</td>
-          <td>${acc.userAgent ? acc.userAgent.split(' ')[0].replace('(', '') : 'N/A'}</td>
-        </tr>
-      `).reverse().join('');
-    }
-
-    function exportData() {
-      const acceptances = JSON.parse(localStorage.getItem('ltc_nda_acceptances') || '[]');
-      
-      if (acceptances.length === 0) {
-        alert('No hay datos para exportar.');
-        return;
-      }
-
-      const csv = [
-        ['ID', 'Fecha', 'Nombre', 'Email', 'Organización', 'Cargo', 'IP'].join(','),
-        ...acceptances.map(a => [
-          a.id,
-          new Date(a.timestamp).toLocaleString('es-AR'),
-          a.name,
-          a.email,
-          a.organization,
-          a.role,
-          a.ip || 'unknown'
-        ].join(','))
-      ].join('\n');
-
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ltc-nda-acceptances-${Date.now()}.csv`;
-      a.click();
-    }
-
-    function clearData() {
-      if (confirm('¿Está seguro? Esto eliminará TODOS los registros de acceso.')) {
-        if (confirm('Confirmación final: Esta acción NO se puede deshacer.')) {
-          localStorage.removeItem('ltc_nda_acceptances');
-          loadAccesses();
-          alert('✓ Datos eliminados correctamente.');
-        }
-      }
-    }
-
-    loadAccesses();
-    setInterval(loadAccesses, 5000); // Actualizar cada 5 segundos
+    // Lógica para el botón de crear enlace (más adelante)
+    document.getElementById('create-link-btn').addEventListener('click', () => {
+      alert('Funcionalidad para crear enlace seguro aún no implementada.');
+      // Aquí llamaremos a la función de backend para crear el caso
+    });
   </script>
+
 </body>
 </html>

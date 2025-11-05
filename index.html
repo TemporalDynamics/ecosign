@@ -1,466 +1,234 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Acceso Confidencial — Paradigma LTC</title>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>verifysign — Certifica. Protege. Comparte con confianza.</title>
+  <meta name="description" content="Comparte documentos sensibles con NDA y firma digital. Todo queda sellado con hash forense, timestamp y anclaje en blockchain." />
+  <link rel="icon" href="/favicon.ico" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Fira Sans', sans-serif;
-      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-      color: #f0f0f0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 0;
     }
     .container {
-      max-width: 600px;
-      background: rgba(20, 20, 40, 0.8);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(0, 255, 255, 0.2);
-      border-radius: 12px;
-      padding: 3rem;
-      box-shadow: 0 8px 32px rgba(0, 255, 255, 0.1);
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
     }
-    .logo {
-      text-align: center;
-      font-size: 3rem;
-      color: #0ff;
-      margin-bottom: 1rem;
+    header, main, footer {
+      padding: 2rem 0;
     }
     h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #1a1a1a;
+      letter-spacing: -1.5px;
+    }
+    h2 {
+      font-size: 2.25rem;
+      font-weight: 600;
+      margin: 4rem 0 2rem;
       text-align: center;
-      font-size: 1.8rem;
-      background: linear-gradient(90deg, #0ff, #0af);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 0.5rem;
+      color: #2a2a2a;
+    }
+    .hero {
+      text-align: center;
+      padding: 5rem 0;
+      background-color: #fff;
+      border-bottom: 1px solid #e0e0e0;
     }
     .subtitle {
-      text-align: center;
-      color: #aaa;
-      font-size: 0.9rem;
-      margin-bottom: 2rem;
-      letter-spacing: 1px;
+        font-size: 1.2rem;
+        color: #555;
+        max-width: 700px;
+        margin: 0 auto 2rem;
     }
-    .warning {
-      background: rgba(255, 200, 0, 0.1);
-      border-left: 3px solid #ffc800;
-      padding: 1rem;
-      margin-bottom: 2rem;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-    label {
-      display: block;
-      margin-bottom: 0.5rem;
-      color: #ccc;
-      font-size: 0.9rem;
-    }
-    input {
-      width: 100%;
-      padding: 0.8rem;
-      margin-bottom: 1.2rem;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(0, 255, 255, 0.3);
-      border-radius: 6px;
-      color: #fff;
-      font-size: 1rem;
-      transition: all 0.3s;
-    }
-    input:focus {
-      outline: none;
-      border-color: #0ff;
-      box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
-    }
-    .nda-box {
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(0, 255, 255, 0.2);
-      border-radius: 6px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-      max-height: 300px;
-      overflow-y: auto;
-      font-size: 0.85rem;
-      line-height: 1.8;
-    }
-    .nda-box h3 {
-      color: #0ff;
-      margin-bottom: 1rem;
-    }
-    .nda-box p {
-      margin-bottom: 1rem;
-      text-align: justify;
-    }
-    .checkbox-container {
-      display: flex;
-      align-items: flex-start;
-      margin-bottom: 1.5rem;
-      cursor: pointer;
-    }
-    .checkbox-container input[type="checkbox"] {
-      width: auto;
-      margin-right: 0.8rem;
-      margin-top: 0.2rem;
-      cursor: pointer;
-    }
-    .checkbox-container label {
-      margin: 0;
-      cursor: pointer;
-      flex: 1;
-    }
-    button {
-      width: 100%;
-      padding: 1rem;
-      background: linear-gradient(90deg, #0ff, #0af);
-      color: #000;
-      border: none;
-      border-radius: 6px;
-      font-size: 1rem;
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(90deg, #1BA8FF, #009688);
+      color: white;
+      padding: 1rem 2.5rem;
+      border-radius: 0.5rem;
       font-weight: 600;
+      text-decoration: none;
+      margin: 1rem 0.5rem;
+      font-size: 1.1rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: none;
       cursor: pointer;
-      transition: all 0.3s;
-      text-transform: uppercase;
-      letter-spacing: 1px;
     }
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 255, 255, 0.4);
+    .cta-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     }
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
+    .secondary-cta {
+        background: none;
+        border: 1px solid #ccc;
+        color: #555;
     }
-    .signature-pad {
-      width: 100%;
-      height: 150px;
-      border: 1px solid rgba(0, 255, 255, 0.3);
-      border-radius: 6px;
-      margin-bottom: 1rem;
-      background: rgba(255, 255, 255, 0.05);
+    .section {
+        padding: 4rem 0;
     }
-    .error {
-      color: #ff4444;
-      font-size: 0.85rem;
-      margin-top: -0.8rem;
-      margin-bottom: 1rem;
+    .explanation-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2.5rem;
+      margin-top: 3rem;
     }
-    .success {
-      color: #44ff44;
+    .explanation-card {
+      background: #fff;
+      padding: 2rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 0.75rem;
       text-align: center;
-      margin-top: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .explanation-card .icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #1BA8FF;
+    }
+    .guarantee-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        background: #fff;
+        padding: 3rem;
+        border-radius: 1rem;
+        border: 1px solid #e0e0e0;
+    }
+    .guarantee-section h3 {
+        font-size: 1.5rem;
+        color: #1BA8FF;
+        border-bottom: 2px solid #1BA8FF;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .guarantee-section ul {
+        list-style: none;
+        padding: 0;
+    }
+    .guarantee-section li {
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: flex-start;
+    }
+    .guarantee-section li::before {
+        content: '✓';
+        color: #009688;
+        font-weight: bold;
+        margin-right: 0.75rem;
+        font-size: 1.2rem;
+    }
+    .guarantee-section .not-guaranteed li::before {
+        content: '⚠️';
+        color: #f39c12;
+    }
+    .legal-note {
+        grid-column: 1 / -1;
+        margin-top: 2rem;
+        padding: 1.5rem;
+        background: #f1f3f5;
+        border-radius: 0.5rem;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    footer {
+      text-align: center;
+      border-top: 1px solid #eee;
+      padding: 2rem 0;
+      font-size: 0.9rem;
+      color: #666;
+    }
+    footer a {
+        color: #1BA8FF;
+        text-decoration: none;
+    }
+    footer a:hover {
+        text-decoration: underline;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="logo">⧖</div>
-    <h1>Paradigma LTC</h1>
-    <div class="subtitle">Acceso Restringido — Documento Confidencial</div>
-
-    <div class="warning">
-      ⚠️ <strong>Documento Confidencial:</strong> El acceso a este contenido requiere la aceptación de un Acuerdo de No Divulgación (NDA). Su identidad y aceptación serán registradas con timestamp y firma digital.
+  <header class="hero">
+    <div class="container">
+      <h1>Certifica y comparte tus archivos con confianza.</h1>
+      <p class="subtitle">
+        Tu documento se encripta, firma y sella en blockchain para demostrar su autenticidad, incluso antes de que existan leyes que lo reconozcan por completo.
+      </p>
+      <div>
+        <a href="/dashboard" class="cta-button">Probar ahora</a>
+        <a href="/access" class="cta-button secondary-cta">Acceder a documento</a>
+      </div>
     </div>
+  </header>
 
-    <form id="ndaForm">
-      <label for="name">Nombre Completo *</label>
-      <input type="text" id="name" name="name" required placeholder="Ej: Dr. Juan Pérez">
+  <main class="container">
+    <section class="section">
+        <h2>Cómo funciona</h2>
+        <div class="explanation-grid">
+            <div class="explanation-card">
+                <div class="icon">1️⃣</div>
+                <h3>Sube tu archivo</h3>
+                <p>Sube tu archivo o proyecto (.zip, .pdf, .eco). Nosotros lo aseguramos.</p>
+            </div>
+            <div class="explanation-card">
+                <div class="icon">2️⃣</div>
+                <h3>Genera un enlace seguro</h3>
+                <p>Crea un enlace único con un NDA digital adjunto para compartir con tus receptores.</p>
+            </div>
+            <div class="explanation-card">
+                <div class="icon">3️⃣</div>
+                <h3>Recibe tu prueba</h3>
+                <p>Cuando firman, recibes un archivo .eco con hash, timestamp y trazabilidad completa.</p>
+            </div>
+        </div>
+    </section>
 
-      <label for="email">Email *</label>
-      <input type="email" id="email" name="email" required placeholder="tu@email.com">
+    <section class="section">
+        <h2>Transparencia radical: Tu evidencia técnica</h2>
+        <div class="guarantee-section">
+            <div class="guaranteed">
+                <h3>Lo que SÍ garantiza</h3>
+                <ul>
+                    <li>Prueba verificable de integridad (hash + timestamp).</li>
+                    <li>Registro en cadena pública de tiempo (blockchain anchoring).</li>
+                    <li>Identidad autenticada del receptor vía NDA.</li>
+                </ul>
+            </div>
+            <div class="not-guaranteed">
+                <h3>Lo que AÚN no reemplaza</h3>
+                <ul>
+                    <li>Certificación oficial de un gobierno (ej. NOM-151).</li>
+                    <li>Firma electrónica avanzada (FEA) o firma notarial.</li>
+                    <li>Jurisprudencia establecida en todos los países.</li>
+                </ul>
+            </div>
+            <div class="legal-note">
+                ⚖️ <strong>En palabras simples:</strong> Hoy te damos evidencia técnica sólida. Cuando existan precedentes legales, esa evidencia podrá ser decisiva en un tribunal.
+            </div>
+        </div>
+    </section>
+  </main>
 
-      <label for="organization">Organización / Universidad *</label>
-      <input type="text" id="organization" name="organization" required placeholder="Ej: Universidad de Buenos Aires">
-
-      <label for="role">Cargo / Posición *</label>
-      <input type="text" id="role" name="role" required placeholder="Ej: Investigador Principal">
-
-      <div class="nda-box">
-        <h3>Acuerdo de No Divulgación (NDA)</h3>
-        
-        <p><strong>1. CONFIDENCIALIDAD</strong><br>
-        El destinatario ("Receptor") acepta que toda la información contenida en el documento "Paradigma LTC" es estrictamente confidencial y propiedad exclusiva de Manuel S. ("Divulgante").</p>
-
-        <p><strong>2. USO RESTRINGIDO</strong><br>
-        El Receptor se compromete a:<br>
-        • Usar la información ÚNICAMENTE para evaluación científica y/o colaboración académica<br>
-        • NO compartir, copiar, reproducir o distribuir el contenido sin autorización escrita<br>
-        • NO utilizar la información para fines comerciales sin acuerdo previo</p>
-
-        <p><strong>3. PROPIEDAD INTELECTUAL</strong><br>
-        El Receptor reconoce que:<br>
-        • El paradigma LTC está protegido por patente en trámite (Patent Pending)<br>
-        • Toda la propiedad intelectual pertenece al Divulgante<br>
-        • Este acceso NO otorga derechos de uso, licencia o explotación</p>
-
-        <p><strong>4. DURACIÓN</strong><br>
-        Este acuerdo permanece vigente durante 5 años desde la fecha de aceptación o hasta que la información se haga pública por el Divulgante, lo que ocurra primero.</p>
-
-        <p><strong>5. JURISDICCIÓN</strong><br>
-        Este acuerdo se rige por las leyes del Estado de Wyoming, USA.</p>
-
-        <p><strong>6. REGISTRO DIGITAL</strong><br>
-        Al aceptar, el Receptor consiente que:<br>
-        • Su identidad, timestamp y firma digital serán registrados<br>
-        • Esta aceptación constituye evidencia legal vinculante<br>
-        • El acceso al documento quedará registrado con fines de auditoría</p>
-      </div>
-
-      <div class="checkbox-container">
-        <input type="checkbox" id="accept" name="accept" required>
-        <label for="accept">
-          He leído y acepto todos los términos del Acuerdo de No Divulgación (NDA). Entiendo que esta aceptación es legalmente vinculante y será registrada con mi identidad, timestamp y firma digital.
-        </label>
-      </div>
-
-      <label for="signature">Firma Digital *</label>
-      <canvas id="signaturePad" class="signature-pad"></canvas>
-      <button type="button" id="clearSignature" style="background: rgba(255,255,255,0.1); margin-bottom: 1rem;">
-        Borrar Firma
-      </button>
-
-      <div id="error" class="error"></div>
-
-      <button type="submit" id="submitBtn">
-        ACCEDER AL DOCUMENTO
-      </button>
-
-      <div id="success" class="success"></div>
-    </form>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-  <script src="config.js"></script>
-  <script>
-    // Inicializar Signature Pad
-    const canvas = document.getElementById('signaturePad');
-    const signaturePad = new SignaturePad(canvas, {
-      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-      penColor: '#0ff'
-    });
-
-    // Ajustar canvas al tamaño correcto
-    function resizeCanvas() {
-      const ratio = Math.max(window.devicePixelRatio || 1, 1);
-      canvas.width = canvas.offsetWidth * ratio;
-      canvas.height = canvas.offsetHeight * ratio;
-      canvas.getContext('2d').scale(ratio, ratio);
-      signaturePad.clear();
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    // Botón limpiar firma
-    document.getElementById('clearSignature').addEventListener('click', () => {
-      signaturePad.clear();
-    });
-
-    // Función para mostrar error
-    function showError(message) {
-      const errorDiv = document.getElementById('error');
-      errorDiv.textContent = message;
-      errorDiv.style.display = 'block';
-      setTimeout(() => {
-        errorDiv.style.display = 'none';
-      }, 5000);
-    }
-
-    // Función para mostrar éxito
-    function showSuccess(message) {
-      const successDiv = document.getElementById('success');
-      successDiv.textContent = message;
-      successDiv.style.display = 'block';
-    }
-
-    // Función para generar ID único
-    function generateId() {
-      return 'NDA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    }
-
-    // Función para generar hash SHA-256 del contenido del documento
-    async function generateDocumentHash() {
-      try {
-        // Esto debería ser el hash del contenido real del documento
-        // En un sistema real, obtendrías el contenido de content.html
-        const content = "Paradigma LTC - Metodo de composición temporal - Documento confidencial";
-        const encoder = new TextEncoder();
-        const data = encoder.encode(content);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        return hashHex;
-      } catch (error) {
-        console.warn('Error generando hash del documento:', error);
-        // En caso de error, generar hash aleatorio como fallback
-        return crypto.getRandomValues(new Uint8Array(32)).reduce((acc, val) => acc + val.toString(16).padStart(2, '0'), '');
-      }
-    }
-
-    // Form submission
-    document.getElementById('ndaForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const errorDiv = document.getElementById('error');
-      const successDiv = document.getElementById('success');
-      const submitBtn = document.getElementById('submitBtn');
-
-      errorDiv.textContent = '';
-      successDiv.textContent = '';
-
-      // Validar firma
-      if (signaturePad.isEmpty()) {
-        showError('⚠️ Por favor, firme digitalmente en el recuadro.');
-        return;
-      }
-
-      // Validar checkbox
-      if (!document.getElementById('accept').checked) {
-        showError('⚠️ Debe aceptar los términos del NDA para continuar.');
-        return;
-      }
-
-      // Validación opcional de dominio de email - comentada para permitir cualquier email
-      // const userEmail = document.getElementById('email').value.toLowerCase();
-      // if (!isValidEmailDomain(userEmail)) {
-      //   console.log('Advertencia: El email no pertenece a una institución académica reconocida:', userEmail);
-      // }
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'PROCESANDO...';
-
-      try {
-        // Obtener IP del cliente (con fallback)
-        let clientIP = 'unknown';
-        try {
-          const ipResponse = await fetch('https://api.ipify.org?format=json');
-          if (ipResponse.ok) {
-            const ipData = await ipResponse.json();
-            clientIP = ipData.ip;
-          }
-        } catch (ipError) {
-          console.warn('Could not get IP address, using unknown');
-        }
-
-        // Generar hash del documento
-        const documentHash = await generateDocumentHash();
-
-        // Crear objeto de aceptación
-        const acceptance = {
-          id: generateId(),
-          name: document.getElementById('name').value,
-          email: document.getElementById('email').value,
-          organization: document.getElementById('organization').value,
-          role: document.getElementById('role').value,
-          signature: signaturePad.toDataURL('image/png'),
-          timestamp: new Date().toISOString(),
-          ip: clientIP,
-          userAgent: navigator.userAgent,
-          documentHash: documentHash // Hash del documento en el momento de la firma
-        };
-
-        // Intentar registrar en backend
-        let success = false;
-        let accessToken = null;
-        try {
-          const response = await fetch('/.netlify/functions/log-acceptance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(acceptance)
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.accessToken) {
-              acceptance.id = data.accessToken;
-              accessToken = data.accessToken;
-              success = true;
-            } else {
-              console.warn('Response did not contain access token:', data);
-            }
-          } else {
-            console.error('API error response:', response.status, response.statusText);
-            const errorText = await response.text();
-            console.error('Error details:', errorText);
-          }
-        } catch (apiError) {
-          console.warn('API no disponible, usando fallback de localStorage:', apiError);
-        }
-
-        if (!success) {
-          // Fallback: guardar en localStorage
-          const existingAcceptances = JSON.parse(localStorage.getItem('ltc_nda_acceptances') || '[]');
-          existingAcceptances.push(acceptance);
-          localStorage.setItem('ltc_nda_acceptances', JSON.stringify(existingAcceptances));
-        }
-
-        // Guardar token de acceso
-        if (success && accessToken) {
-          localStorage.setItem('ltc_access_token', accessToken);
-          localStorage.setItem('ltc_user_name', acceptance.name);
-          localStorage.setItem('ltc_user_email', acceptance.email);
-          localStorage.setItem('ltc_acceptance_date', acceptance.timestamp);
-          localStorage.setItem('ltc_document_hash', acceptance.documentHash);
-        } else {
-          // Fallback: guardar en localStorage
-          const existingAcceptances = JSON.parse(localStorage.getItem('ltc_nda_acceptances') || '[]');
-          existingAcceptances.push(acceptance);
-          localStorage.setItem('ltc_nda_acceptances', JSON.stringify(existingAcceptances));
-          localStorage.setItem('ltc_access_token', acceptance.id);
-          localStorage.setItem('ltc_user_name', acceptance.name);
-          localStorage.setItem('ltc_user_email', acceptance.email);
-          localStorage.setItem('ltc_acceptance_date', acceptance.timestamp);
-          localStorage.setItem('ltc_document_hash', acceptance.documentHash);
-        }
-
-        // Mostrar éxito
-        showSuccess('✓ NDA aceptado correctamente. Redirigiendo al documento...');
-
-        // Registrar en consola para auditoría
-        console.log('📋 NDA Acceptance Logged:', {
-          id: acceptance.id,
-          name: acceptance.name,
-          email: acceptance.email,
-          organization: acceptance.organization,
-          timestamp: acceptance.timestamp,
-          ip: acceptance.ip,
-          documentHash: acceptance.documentHash,
-          success: success
-        });
-
-        // Redirigir al documento
-        setTimeout(() => {
-          if (accessToken) {
-            window.location.href = `content.html?token=${encodeURIComponent(accessToken)}`;
-          } else {
-            window.location.href = 'content.html';
-          }
-        }, 2000);
-
-      } catch (error) {
-        console.error('Error:', error);
-        showError('❌ Error al procesar la solicitud. Por favor, intente nuevamente.');
-        submitBtn.disabled = false;
-        submitBtn.textContent = '🔒 ACEPTAR NDA Y ACCEDER AL DOCUMENTO';
-      }
-    });
-
-    // Prevenir acceso si ya está autenticado
-    if (localStorage.getItem('ltc_access_token')) {
-      if (confirm('Ya tiene una sesión activa. ¿Desea ir directamente al documento?')) {
-        window.location.href = 'content.html';
-      } else {
-        // Cerrar sesión
-        localStorage.removeItem('ltc_access_token');
-        localStorage.removeItem('ltc_user_name');
-        localStorage.removeItem('ltc_user_email');
-      }
-    }
-  </script>
+  <footer>
+    <div class="container">
+      <p>© 2025 verifysign por Temporal Dynamics LLC. Estándar abierto .ECO.</p>
+      <p>
+        <a href="/privacy">Privacidad</a> | 
+        <a href="/terms">Términos</a> | 
+        <a href="/nom-151">NOM-151</a> | 
+        <a href="/blockchain-anchoring">Blockchain Anchoring</a> | 
+        <a href="/contact">Contacto</a>
+      </p>
+    </div>
+  </footer>
 </body>
 </html>

@@ -4,68 +4,53 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nuevo Caso - verifysign</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f8f9fa;
-      color: #333;
+      font-family: 'Fira Sans', sans-serif;
+      background-color: #0a0a0a;
+      color: #f0f0f0;
       margin: 0;
     }
     .container {
       max-width: 800px;
       margin: 2rem auto;
-      padding: 2rem 1.5rem;
-    }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 1.5rem;
-      background-color: #fff;
-      border-bottom: 1px solid #e0e0e0;
+      padding: 2rem;
     }
     h1 {
-        font-size: 1.5rem;
-        font-weight: 600;
+      font-size: 2rem;
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #0ff;
     }
     .form-container {
-        background: #fff;
-        padding: 3rem;
-        border-radius: 1rem;
-        box-shadow: 0 4px 25px rgba(0,0,0,0.1);
+      background: #1a1a2e;
+      padding: 2rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(0, 255, 255, 0.2);
     }
-    .form-step {
-        margin-bottom: 2.5rem;
-    }
-    .form-step h2 {
-        font-size: 1.5rem;
-        font-weight: 600;
-        margin-bottom: 1.5rem;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 1rem;
+    .form-group {
+      margin-bottom: 1.5rem;
     }
     label {
       display: block;
       margin-bottom: 0.5rem;
       font-weight: 600;
     }
-    input[type="file"], textarea, select {
+    input[type="text"], input[type="file"] {
       width: 100%;
       padding: 0.8rem;
-      border: 1px solid #ccc;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(0, 255, 255, 0.3);
       border-radius: 0.5rem;
+      color: #fff;
       font-size: 1rem;
-    }
-    textarea {
-        min-height: 150px;
-        resize: vertical;
     }
     .btn {
       display: inline-block;
-      background: linear-gradient(90deg, #1BA8FF, #009688);
-      color: white;
-      padding: 1rem 2.5rem;
+      background: #0ff;
+      color: #0a0a0a;
+      padding: 1rem 2rem;
       border-radius: 0.5rem;
       font-weight: 600;
       text-decoration: none;
@@ -76,67 +61,82 @@
   </style>
 </head>
 <body>
-
-  <header class="header">
-    <h1><a href="/admin/dashboard.html" style="text-decoration: none; color: inherit;">verifysign</a> / Nuevo Caso</h1>
-  </header>
-
-  <main class="container">
+  <div class="container">
+    <h1>Crear Nuevo Caso de NDA</h1>
     <div class="form-container">
       <form id="new-case-form">
-        <div class="form-step">
-          <h2>Paso 1: Sube tu documento</h2>
-          <label for="document">Archivo (.zip, .pdf, .mp4, etc.)</label>
-          <input type="file" id="document" required>
+        <div class="form-group">
+          <label for="case-name">Nombre del Caso</label>
+          <input type="text" id="case-name" required placeholder="Ej: NDA para Inversores Q4">
         </div>
-
-        <div class="form-step">
-          <h2>Paso 2: Configura el NDA</h2>
-          <label for="nda-text">Texto del Acuerdo de No Divulgación</label>
-          <textarea id="nda-text" required>Este es un texto de ejemplo para el NDA. Al aceptar, te comprometes a mantener la confidencialidad del documento.</textarea>
+        <div class="form-group">
+          <label for="nda-pdf">Documento NDA (PDF)</label>
+          <input type="file" id="nda-pdf" accept=".pdf" required>
         </div>
-
-        <div class="form-step">
-          <h2>Paso 3: Modo de enlace</h2>
-          <label for="link-mode">Elige cómo compartir el enlace</label>
-          <select id="link-mode">
-            <option value="public_reusable" selected>Enlace reutilizable (público con NDA)</option>
-            <option value="per_recipient" disabled>Por destinatario (OTP, Próximamente)</option>
-          </select>
-        </div>
-
-        <button type="submit" class="btn">Generar Enlace Seguro</button>
+        <button type="submit" class="btn">Generar Enlace</button>
       </form>
     </div>
-  </main>
+  </div>
 
-  <script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Replace with your Supabase URL
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your Supabase anon key
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Check user session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      window.location.href = '/login.html';
+    }
+
+    // Function to calculate SHA-256 hash
+    async function sha256(file) {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    }
+
     document.getElementById('new-case-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      // En un futuro, aquí se calcularía el hash del documento
-      const doc_sha256 = 'placeholder_sha256_' + Date.now();
-      const nda_text = document.getElementById('nda-text').value;
+      const caseName = document.getElementById('case-name').value;
+      const fileInput = document.getElementById('nda-pdf');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert('Por favor, selecciona un archivo.');
+        return;
+      }
+
+      const doc_sha256 = await sha256(file);
+      const doc_name = file.name;
 
       const response = await fetch('/.netlify/functions/create-case', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
           body: JSON.stringify({ 
-              doc_sha256: doc_sha256,
-              nda_text: nda_text
+              case_name: caseName,
+              doc_name: doc_name,
+              doc_sha256: doc_sha256
           })
       });
 
       if (response.ok) {
           const result = await response.json();
-          // Guardar el link para mostrarlo en el dashboard
-          sessionStorage.setItem('newLink', result.secureLink);
+          sessionStorage.setItem('newLink', result.shareableLink);
           window.location.href = '/admin/dashboard.html';
       } else {
           alert('Error al crear el caso.');
       }
     });
   </script>
-
 </body>
 </html>

@@ -3,7 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY; // Use service key for admin actions
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   throw new Error('Missing Supabase environment variables');
@@ -22,17 +22,17 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { doc_storage_path, doc_sha256, nda_text } = JSON.parse(event.body);
-    const slug = crypto.randomBytes(6).toString('hex'); // 12-char slug
+    const { case_name, doc_name, doc_sha256 } = JSON.parse(event.body);
+    const unique_token = crypto.randomBytes(16).toString('hex');
 
     const { data, error } = await supabase
       .from('cases')
       .insert({
         owner_id: user.sub,
-        doc_storage_path: doc_storage_path || 'placeholder/document.pdf',
-        doc_sha256: doc_sha256 || 'placeholder_hash',
-        nda_text: nda_text || 'Default NDA text',
-        public_slug: slug,
+        case_name,
+        doc_name,
+        doc_sha256,
+        unique_token,
       })
       .select()
       .single();
@@ -43,14 +43,13 @@ exports.handler = async (event, context) => {
     }
 
     const siteUrl = process.env.URL || 'http://localhost:8888';
-    const secureLink = `${siteUrl}/p/${slug}`;
+    const shareableLink = `${siteUrl}/sign.html?token=${unique_token}`;
 
     return {
       statusCode: 200,
       body: JSON.stringify({ 
         success: true, 
-        caseId: data.id,
-        secureLink: secureLink
+        shareableLink: shareableLink
       }),
     };
   } catch (e) {

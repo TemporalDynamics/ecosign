@@ -171,11 +171,11 @@
         return;
       }
 
-      // Obtener el caseId de la URL (ej: /access.html?case=CASE_ID)
-      const urlParams = new URLSearchParams(window.location.search);
-      const caseId = urlParams.get('case');
+      // Obtener el slug de la URL (ej: /p/SLUG)
+      const path = window.location.pathname;
+      const slug = path.split('/').pop();
 
-      if (!caseId) {
+      if (!slug) {
         errorMessage.textContent = 'Error: No se encontró identificador de caso.';
         errorMessage.style.display = 'block';
         submitBtn.disabled = false;
@@ -188,7 +188,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            caseId: caseId,
+            slug: slug,
             name: name, 
             email: email 
           })

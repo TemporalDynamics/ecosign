@@ -1,12 +1,27 @@
 [build]
   functions = "api"
 
+# Redirects for the application flow
+
+# Dashboard routes (requires authentication)
 [[redirects]]
-  from = "/sign/*"
-  to = "/sign.html"
+  from = "/dashboard"
+  to = "/admin/dashboard.html"
   status = 200
 
 [[redirects]]
-  from = "/*"
+  from = "/dashboard/new"
+  to = "/admin/new-case.html"
+  status = 200
+
+# Public access portal for recipients
+[[redirects]]
+  from = "/p/:slug"
+  to = "/access.html?case=:slug"
+  status = 200
+
+# Fallback for root
+[[redirects]]
+  from = "/"
   to = "/index.html"
   status = 200

@@ -97,6 +97,13 @@
     .action-link:hover {
         text-decoration: underline;
     }
+    .new-link-notification {
+        background-color: #e6f7ff;
+        border: 1px solid #91d5ff;
+        padding: 1rem;
+        margin-bottom: 2rem;
+        border-radius: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -104,54 +111,103 @@
   <header class="header">
     <h1>verifysign</h1>
     <div>
-      <span style="margin-right: 1rem;">usuario@ejemplo.com</span>
-      <button class="btn logout-btn">Cerrar Sesión</button>
+      <span id="user-email" style="margin-right: 1rem;"></span>
+      <button id="logout-btn" class="btn logout-btn">Cerrar Sesión</button>
     </div>
   </header>
 
   <main class="container">
+    <div id="new-link-notification" class="new-link-notification" style="display: none;">
+      <strong>Nuevo enlace seguro creado:</strong> <span id="new-link-url"></span>
+    </div>
+
     <div class="dashboard-header">
       <h2>Tus Documentos Seguros</h2>
-      <button class="btn" id="create-link-btn">+ Crear enlace seguro</button>
+      <a href="/dashboard/new" class="btn">+ Nuevo Caso</a>
     </div>
 
     <div class="case-list">
       <table>
         <thead>
           <tr>
-            <th>Documento</th>
+            <th>Documento (Hash)</th>
             <th>Fecha de Creación</th>
-            <th>Estado</th>
+            <th>Enlace Seguro</th>
             <th>Acciones</th>
           </tr>
         </thead>
-        <tbody>
-          <!-- Fila de ejemplo 1 -->
-          <tr>
-            <td>Proyecto_Secreto_Alpha.zip</td>
-            <td>04 Nov 2025</td>
-            <td class="status-signed">1 Firma</td>
-            <td><a href="#" class="action-link">Ver Manifiesto</a></td>
-          </tr>
-          <!-- Fila de ejemplo 2 -->
-          <tr>
-            <td>NDA_Inversores_Q4.pdf</td>
-            <td>01 Nov 2025</td>
-            <td class="status-pending">Pendiente</td>
-            <td><a href="#" class="action-link">Copiar Enlace</a></td>
-          </tr>
+        <tbody id="cases-tbody">
           <!-- Las filas se llenarán dinámicamente -->
         </tbody>
       </table>
     </div>
   </main>
 
-  <script>
-    // Lógica para el botón de crear enlace (más adelante)
-    document.getElementById('create-link-btn').addEventListener('click', () => {
-      alert('Funcionalidad para crear enlace seguro aún no implementada.');
-      // Aquí llamaremos a la función de backend para crear el caso
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Replace with your Supabase URL
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your Supabase anon key
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Check user session
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      window.location.href = '/login.html';
+    } else {
+      document.getElementById('user-email').textContent = session.user.email;
+    }
+
+    // Logout button
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.href = '/login.html';
     });
+
+    // Show new link notification
+    const newLink = sessionStorage.getItem('newLink');
+    if (newLink) {
+      const notification = document.getElementById('new-link-notification');
+      document.getElementById('new-link-url').textContent = newLink;
+      notification.style.display = 'block';
+      sessionStorage.removeItem('newLink');
+    }
+
+    // Fetch and display cases
+    async function fetchCases() {
+      const { data: cases, error } = await supabase
+        .from('cases')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching cases:', error);
+        return;
+      }
+
+      const tbody = document.getElementById('cases-tbody');
+      tbody.innerHTML = ''; // Clear existing rows
+
+      cases.forEach(caseItem => {
+        const siteUrl = window.location.origin;
+        const secureLink = `${siteUrl}/p/${caseItem.id}`;
+
+        const row = `
+          <tr>
+            <td>${caseItem.doc_sha256.substring(0, 20)}...</td>
+            <td>${new Date(caseItem.created_at).toLocaleDateString()}</td>
+            <td><a href="${secureLink}" target="_blank" class="action-link">Copiar Enlace</a></td>
+            <td><a href="#" class="action-link">Descargar .ecox</a></td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+    }
+
+    fetchCases();
+
   </script>
 
 </body>

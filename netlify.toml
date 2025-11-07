@@ -17,7 +17,7 @@
 
 [[redirects]]
   from = "/p/:slug"
-  to = "/access.html?case=:slug"
+  to = "/app/access?case=:slug"
   status = 200
 
 [[redirects]]

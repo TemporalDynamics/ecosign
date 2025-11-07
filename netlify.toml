@@ -1,26 +1,22 @@
-# Base configuration for the main site (static landing page)
+# VerifySign - Netlify Configuration
+# React SPA with Vite
+
 [build]
-  publish = "/" # Publish the root directory
-  command = "" # No build command for the static site
-  functions = "api" # Functions for the static site
+  publish = "app/dist"
+  command = "cd app && npm install && npm run build"
+  functions = "netlify/functions"
 
-# Redirects for the main site (static landing page)
+# SPA redirects - send all routes to index.html for React Router
 [[redirects]]
-  from = "/dashboard"
-  to = "/admin/dashboard.html"
-  status = 200
-
-[[redirects]]
-  from = "/dashboard/new"
-  to = "/admin/new-case.html"
-  status = 200
-
-[[redirects]]
-  from = "/p/:slug"
-  to = "/app/access?case=:slug"
-  status = 200
-
-[[redirects]]
-  from = "/"
+  from = "/*"
   to = "/index.html"
   status = 200
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"

@@ -4,6 +4,7 @@ import { Card, Button } from "../components/ui";
 import { supabase } from "../lib/supabase";
 import { trackPurchase } from "../lib/analytics";
 import { getActiveVariant } from "../config/copyVariants";
+import SEO from "../components/SEO";
 
 interface PricingPlan {
   id: string;
@@ -129,8 +130,14 @@ function Pricing() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 dark:from-neutral-950 dark:to-blue-950 p-6">
-      <div className="w-full max-w-7xl mx-auto py-12">
+    <>
+      <SEO
+        title="Precios y Planes | VerifySign"
+        description="Elige el plan perfecto para tus necesidades de certificación digital. Desde certificados gratuitos hasta planes empresariales con blockchain real. Todos incluyen verificación ilimitada."
+        canonical="https://verifysign.com/pricing"
+      />
+      <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 dark:from-neutral-950 dark:to-blue-950 p-6">
+        <div className="w-full max-w-7xl mx-auto py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-4">
             Planes y Precios
@@ -262,7 +269,8 @@ function Pricing() {
           </p>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

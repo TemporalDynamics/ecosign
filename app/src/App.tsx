@@ -8,6 +8,7 @@ import NdaFlow from "./pages/NdaFlow";
 import Pricing from "./pages/Pricing";
 import LandingPage from "./pages/LandingPage";
 import Analytics from "./pages/Analytics";
+import Contact from "./pages/Contact";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 function App(){
@@ -24,6 +25,8 @@ function App(){
         <Route path="/app/pricing" element={<Pricing/>} />
         <Route path="/analytics" element={<ProtectedRoute><Analytics/></ProtectedRoute>} />
         <Route path="/app/analytics" element={<ProtectedRoute><Analytics/></ProtectedRoute>} />
+        <Route path="/contact" element={<Contact/>} />
+        <Route path="/app/contact" element={<Contact/>} />
 
         <Route path="/guest" element={<GuestFlow/>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>} />

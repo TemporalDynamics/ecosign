@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getCopyVariant, getActiveVariant } from "../config/copyVariants";
 import { trackPageView, trackCTAClick } from "../lib/analytics";
 import { Button } from "../components/ui";
+import SEO from "../components/SEO";
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -32,8 +33,14 @@ export function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-neutral-50 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900">
-      {/* Hero Section */}
+    <>
+      <SEO
+        title={variant.hero.title + " | VerifySign"}
+        description={variant.hero.subtitle}
+        canonical="https://verifysign.com"
+      />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-neutral-50 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900">
+        {/* Hero Section */}
       <div className="container mx-auto px-4 py-16 md:py-24">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-neutral-900 dark:text-neutral-100 mb-6 leading-tight">
@@ -133,7 +140,8 @@ export function LandingPage() {
       <div className="fixed bottom-4 right-4 bg-neutral-800 text-white px-3 py-1 rounded text-xs opacity-50">
         Variant: {variantId}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

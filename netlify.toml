@@ -1,9 +1,10 @@
+# Base configuration for the main site (static landing page)
 [build]
-  functions = "api"
+  publish = "/" # Publish the root directory
+  command = "" # No build command for the static site
+  functions = "api" # Functions for the static site
 
-# Redirects for the application flow
-
-# Dashboard routes (requires authentication)
+# Redirects for the main site (static landing page)
 [[redirects]]
   from = "/dashboard"
   to = "/admin/dashboard.html"
@@ -14,13 +15,11 @@
   to = "/admin/new-case.html"
   status = 200
 
-# Public access portal for recipients
 [[redirects]]
   from = "/p/:slug"
   to = "/access.html?case=:slug"
   status = 200
 
-# Fallback for root
 [[redirects]]
   from = "/"
   to = "/index.html"

@@ -9,7 +9,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, User, UserCheck, Lock, Check, Info } from "lucide-react";
+import { ShieldCheck, User, UserCheck, Info } from "lucide-react";
 import { Backdrop, Card, Button } from "../components/ui";
 
 type Mode = "guest" | "account" | null;

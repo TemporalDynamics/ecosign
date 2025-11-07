@@ -1,91 +1,250 @@
-# verifysign
-Plataforma de firma verificada con NDA para documentos confidenciales
+# VerifySign
 
-## Descripción
-Sistema web para firma digital de documentos confidenciales con NDA (Acuerdo de No Divulgación). Incluye validación de identidad, almacenamiento de firmas digitales y control de acceso.
+**Plataforma de certificación digital con trazabilidad forense y soberanía de datos**
 
-## Instalación y Configuración
+[![Status](https://img.shields.io/badge/status-production%20ready-success)](.)
+[![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+
+## 🎯 Descripción
+
+VerifySign es una plataforma completa de certificación digital que implementa el paradigma .ECO/.ECOX. Permite proteger, firmar y verificar documentos con evidencia criptográfica verificable, independiente de la plataforma.
+
+**"No vendemos firmas, vendemos Verdad"**
+
+### Características Principales
+
+- ✅ **Certificación .ECO**: Genera certificados con hash SHA-256, timestamp y proof criptográfico
+- ✅ **Verificación Independiente**: Verifica autenticidad sin depender de la plataforma
+- ✅ **Firma Digital de NDA**: Flujo completo de acuerdos de confidencialidad
+- ✅ **Dashboard Completo**: Gestión y visualización de certificados
+- ✅ **Trazabilidad Forense**: Logs append-only con auditoría completa
+- ✅ **Soberanía de Datos**: Usuario propietario absoluto de sus certificados
+- ✅ **Seguridad Multicapa**: RLS, cifrado AES-256, rotación de claves
+
+## 🚀 Inicio Rápido
 
 ### Requisitos
-- Node.js 16+ 
+- Node.js 18+
 - npm o yarn
-- Netlify CLI (`npm install -g netlify-cli`)
+- Cuenta de Supabase (ya configurada)
 
-### Configuración de Desarrollo
+### Instalación
 
-1. **Instalar dependencias**:
 ```bash
+# Clonar repositorio
+git clone https://github.com/tu-usuario/verifysign.git
+cd verifysign
+
+# Instalar dependencias
 npm install
+cd app && npm install && cd ..
+
+# Iniciar desarrollo
+npm run dev
 ```
 
-2. **Configurar variables de entorno**:
-Crea un archivo `.env` en la raíz del proyecto con tus credenciales de Supabase:
+Abre `http://localhost:8888` en tu navegador.
 
+**Variables de entorno** (`.env`):
 ```env
-# Supabase Configuration
-SUPABASE_URL=https://xxxxxxx.supabase.co
-SUPABASE_ANON_KEY=your-anon-key-from-supabase-here
-SUPABASE_BUCKET_SIGNATURES=signatures
+VITE_SUPABASE_URL=https://tjuftdwehouvfcxqvxxb.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGci...
 ```
 
-3. **Obtener credenciales de Supabase**:
-- Crea una cuenta en [supabase.com](https://supabase.com)
-- Crea un nuevo proyecto
-- Copia la URL del proyecto y la "anon key" desde Settings > API
-- Crea una base de datos con las tablas necesarias (acceptances, documents)
+> ⚠️ Ya está configurado. No necesitas modificar nada para empezar.
 
-4. **Ejecutar en modo desarrollo**:
+Para más detalles, consulta [QUICKSTART.md](./QUICKSTART.md)
+
+## 📚 Documentación
+
+### Guías Principales
+- [**QUICKSTART.md**](./QUICKSTART.md) - Inicio rápido en 5 minutos
+- [**VERIFYSIGN_ARCHITECTURE.md**](./VERIFYSIGN_ARCHITECTURE.md) - Arquitectura completa del sistema
+- [**IMPLEMENTATION_GUIDE.md**](./IMPLEMENTATION_GUIDE.md) - Guía de implementación detallada
+- [**SECURITY.md**](./SECURITY.md) - Documento de seguridad y mejores prácticas
+- [**SUMMARY.md**](./SUMMARY.md) - Resumen ejecutivo del proyecto
+
+### API y Desarrollo
+- [**API_DOCS.md**](./API_DOCS.md) - Documentación de endpoints
+
+## 🏗️ Arquitectura
+
+### Stack Tecnológico
+```
+Frontend:  React 19 + TypeScript + Tailwind CSS
+Backend:   Netlify Functions (Node.js)
+Database:  Supabase (PostgreSQL + RLS)
+Auth:      Supabase Auth (JWT)
+Crypto:    CryptoJS (SHA-256, AES-256)
+```
+
+### Componentes Principales
+- **CryptoService** - Generación y verificación de .ECO
+- **SupabaseService** - Gestión de base de datos
+- **KeyManagementService** - Rotación de claves automática
+- **mint-eco** - Function de minteo de certificados
+- **anchor** - Function de anclaje criptográfico
+
+## 🗃️ Base de Datos
+
+### Tablas Implementadas
+
+#### `eco_records`
+Certificados .ECO generados con trazabilidad completa.
+- Metadata completa del documento
+- Hash SHA-256 para verificación
+- Referencia a transacción blockchain
+- Estados: pending, anchored, verified, revoked
+
+#### `access_logs`
+Logs append-only de auditoría forense.
+- Registro inmutable de acciones
+- IP, user-agent y metadata
+- Acciones: created, accessed, verified, downloaded
+
+#### `nda_signatures`
+Firmas digitales de acuerdos de confidencialidad.
+- Datos del firmante
+- Token de acceso temporal (7 días)
+- Firma criptográfica
+- Timestamps de verificación
+
+## 🔒 Seguridad
+
+### Implementado
+- ✅ Hash SHA-256 para integridad de documentos
+- ✅ Proof criptográfico de no-repudio
+- ✅ Row Level Security (RLS) en todas las tablas
+- ✅ Cifrado AES-256 para claves
+- ✅ Rotación automática de claves (90 días)
+- ✅ Logs append-only inmutables
+- ✅ HTTPS obligatorio (TLS 1.3)
+- ✅ Headers de seguridad (CSP, HSTS, etc.)
+
+### Gestión de Amenazas
+Ver [SECURITY.md](./SECURITY.md) para modelo de amenazas completo y medidas de mitigación.
+
+## 🚀 Deploy
+
+### Netlify (Recomendado)
+
 ```bash
-netlify dev
+# Conectar a Netlify
+netlify login
+netlify init
+
+# Deploy
+netlify deploy --prod
 ```
 
-## Estructura de la Base de Datos
+**Configuración**:
+- Build command: `cd app && npm run build`
+- Publish directory: `app/dist`
+- Functions directory: `netlify/functions`
 
-### Tabla `acceptances`
-- `id`: UUID único
-- `doc_id`: ID del documento firmado
-- `party_name`: Nombre del firmante
-- `party_email`: Email del firmante  
-- `signature_url`: URL de la firma digital
-- `document_hash`: Hash SHA-256 del documento firmado
-- `access_token`: Token de acceso generado
-- `ip_address`: IP del firmante
-- `user_agent`: User agent del navegador
-- `expires_at`: Fecha de expiración del token
-- `created_at`: Fecha de creación
+Ver [IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md) para deployment detallado.
 
-### Tabla `documents`
-- `id`: UUID único
-- `owner_email`: Email del propietario del documento
-- `type`: Tipo de documento
-- `version`: Versión del documento
-- `sha256`: Hash SHA-256 del documento
-- `storage_url`: URL de almacenamiento del documento
+## 💡 Flujos de Usuario
 
-## Funcionamiento
+### 1. Generar Certificado .ECO (Modo Invitado)
+```
+Usuario → Sube archivo → Ingresa email →
+Backend calcula hash SHA-256 → Genera .ECO →
+Ancla hash → Usuario descarga certificado
+```
 
-1. El usuario accede a través de `index.html` o `sign.html`
-2. Debe completar el formulario de NDA y firmar digitalmente
-3. Se genera un token de acceso y se almacena en Supabase
-4. Se redirige al contenido confidencial (`content.html`)
-5. El acceso se valida mediante el token en localStorage y contra Supabase
+### 2. Verificar Documento
+```
+Usuario → Sube .ECO → (Opcional) Sube original →
+Sistema verifica integridad → Compara hash →
+Consulta BD → Muestra resultado ✅/❌
+```
 
-## Variables de Entorno
+### 3. Firmar NDA
+```
+Usuario → Link con documentId → Ve documento →
+Lee términos → Completa datos → Firma →
+Token generado (7 días) → .ECO de trazabilidad
+```
 
-- `SUPABASE_URL`: URL de tu proyecto de Supabase
-- `SUPABASE_ANON_KEY`: Clave anónima de API de Supabase
-- `SUPABASE_BUCKET_SIGNATURES`: Nombre del bucket para almacenar firmas
+## 🧪 Testing
 
-## Despliegue en Producción
+```bash
+# Unit tests (cuando estén implementados)
+cd app
+npm test
 
-1. Configura las variables de entorno en Netlify Dashboard (Site settings > Environment variables)
-2. Conecta tu repositorio GitHub
-3. Netlify se encargará de construir y desplegar automáticamente
+# Build de producción
+npm run build
+```
 
-## Seguridad
+## 🛠️ Desarrollo
 
-- Las firmas se almacenan en Supabase Storage
-- Tokens con expiración de 7 días
-- Validación de tokens contra base de datos
-- Protección contra capturas de pantalla (cliente)
-- Registro de acceso y tiempo de lectura
+### Estructura del Proyecto
+```
+verifysign/
+├── app/                     # Frontend React
+│   ├── src/
+│   │   ├── pages/          # Páginas principales
+│   │   ├── components/     # Componentes reutilizables
+│   │   └── lib/            # Servicios core
+│   └── package.json
+├── netlify/
+│   └── functions/          # Funciones serverless
+├── supabase/
+│   └── migrations/         # Migraciones de BD
+└── [docs].md               # Documentación
+```
+
+### Comandos Útiles
+
+```bash
+npm run dev          # Desarrollo con Netlify Dev
+cd app && npm run build  # Compilar aplicación
+netlify deploy       # Deploy a producción
+```
+
+## 📈 Roadmap
+
+### Corto Plazo
+- [ ] Integración blockchain real (Polygon/Ethereum)
+- [ ] Generación de .ECOX público
+- [ ] Email notifications
+- [ ] Rate limiting en functions
+
+### Medio Plazo
+- [ ] API pública para verificación
+- [ ] SDK para desarrolladores
+- [ ] Plugin para navegadores
+- [ ] Firma digital X.509
+
+### Largo Plazo
+- [ ] Red descentralizada de validadores
+- [ ] Marketplace de certificaciones
+- [ ] Protocolo interoperable
+
+## 📄 Licencia
+
+MIT License - Ver [LICENSE](./LICENSE) para más detalles.
+
+## 🤝 Contribuir
+
+Las contribuciones son bienvenidas. Por favor:
+
+1. Fork el proyecto
+2. Crea una rama (`git checkout -b feature/AmazingFeature`)
+3. Commit cambios (`git commit -m 'Add AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📞 Soporte
+
+- **Email**: dev@verifysign.com
+- **Documentación**: Ver archivos `.md` en el repositorio
+- **Issues**: [GitHub Issues](https://github.com/tu-usuario/verifysign/issues)
+
+---
+
+**VerifySign** - Tu documento, tu prueba, tu soberanía.
+
+Made with ❤️ by the VerifySign Team

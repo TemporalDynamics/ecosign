@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Button } from "../components/ui";
 import { supabase } from "../lib/supabase";
+import { trackSignup } from "../lib/analytics";
+import { getActiveVariant } from "../config/copyVariants";
 
 function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -24,8 +26,11 @@ function LoginPage() {
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
+
+        await trackSignup(getActiveVariant());
+
         alert("¡Registro exitoso! Por favor, revisa tu correo para confirmar tu cuenta.");
-        setIsLogin(true); // Switch to login after successful signup
+        setIsLogin(true);
       }
     } catch (err: any) {
       setError(err.message);

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VerifySign: La Capa de Confianza Digital</title>
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuración de color y fuente para Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'v-dark': '#0F172A', // Navy Dark
+                        'v-primary': '#06B6D4', // Cyan/Teal for accent
+                        'v-secondary': '#1E293B', // Darker background for sections
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+    </style>
+</head>
+<body class="bg-v-dark text-gray-100 font-sans antialiased">
+
+    <!-- HERO SECTION -->
+    <header class="py-16 md:py-24 relative overflow-hidden">
+        <div class="absolute inset-0 z-0 opacity-10">
+            <!-- Background pattern for security/tech feel -->
+            <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                        <path d="M 10 0 L 0 0 L 0 10" stroke="#0f172a" stroke-width="0.5"/>
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-6 lg:px-8 text-center relative z-10">
+            <h1 class="text-xs font-semibold uppercase tracking-widest text-v-primary mb-3">
+                VerifySign
+            </h1>
+            <h2 class="text-4xl sm:text-5xl lg:text-7xl font-extrabold mb-6 leading-tight">
+                La Capa de Confianza Digital
+            </h2>
+            <p class="text-xl text-gray-400 max-w-3xl mx-auto mb-10">
+                Evidencia Forense y Autenticidad Inmutable para tus archivos más valiosos. VerifySign crea pruebas verificables de autoría, acceso y acuerdos digitales.
+            </p>
+
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <a href="/login" class="bg-v-primary hover:bg-teal-500 text-v-dark font-bold py-3 px-8 rounded-xl shadow-lg transition duration-300 transform hover:scale-105 block">
+                    Firmar un Documento
+                </a>
+                <a href="/login" class="bg-transparent border-2 border-v-primary text-v-primary hover:bg-v-primary hover:text-v-dark font-bold py-3 px-8 rounded-xl transition duration-300 block">
+                    Verificar Documento
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- TRANSPARENCY SECTION -->
+    <section class="py-16 bg-v-secondary">
+        <div class="max-w-6xl mx-auto px-6 lg:px-8">
+            <div class="bg-gray-800 p-8 md:p-10 rounded-3xl shadow-2xl border border-v-primary/30">
+                <div class="flex items-start space-x-4">
+                    <!-- Balanza Icon (⚖️) -->
+                    <div class="text-4xl text-v-primary">⚖️</div>
+                    <div>
+                        <h3 class="text-3xl font-bold text-gray-50 mb-4">Transparencia ante Todo</h3>
+                        <p class="text-gray-300 mb-4">
+                            VerifySign no reemplaza certificaciones oficiales, notariales ni sellos gubernamentales. Su tecnología genera **evidencia técnica y trazabilidad verificable**, útil como prueba complementaria en procesos legales. La aceptación final siempre dependerá del juez o perito forense que evalúe el caso.
+                        </p>
+                        <p class="text-gray-300 font-medium">
+                            En Estados Unidos y otros países que reconocen la firma electrónica con *timestamp*, esta evidencia ya respalda reclamos de autoría, integridad o acceso. Nuestra misión es acelerar ese reconocimiento global, para que la justicia digital sea más accesible, económica y equitativa.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-8">
+                <a href="#" class="inline-flex items-center text-v-primary hover:text-teal-300 font-semibold transition duration-200">
+                    Quiero entender cómo funciona
+                    <!-- Arrow Right Icon (SVG) -->
+                    <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- TECHNOLOGY FEATURES SECTION -->
+    <section class="py-20">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <h3 class="text-4xl font-bold text-center mb-12">Nuestra Tecnología de Confianza</h3>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Feature 1: Certificación .ECO -->
+                <div class="bg-v-secondary p-8 rounded-2xl shadow-xl border-t-4 border-v-primary/70">
+                    <!-- Lock Icon (🔒) -->
+                    <div class="text-3xl text-v-primary mb-4">🔒</div>
+                    <h4 class="text-xl font-semibold mb-2">Certificación .ECO</h4>
+                    <p class="text-gray-400">Genera certificados con hash SHA-256, *timestamp* y *proof* criptográfico. Cada documento tiene una huella única e inmutable.</p>
+                </div>
+
+                <!-- Feature 2: Verificación Independiente -->
+                <div class="bg-v-secondary p-8 rounded-2xl shadow-xl border-t-4 border-v-primary/70">
+                    <!-- Magnifying Glass Icon (🔍) -->
+                    <div class="text-3xl text-v-primary mb-4">🔍</div>
+                    <h4 class="text-xl font-semibold mb-2">Verificación Independiente</h4>
+                    <p class="text-gray-400">Verifica autenticidad sin depender de la plataforma. Cualquier persona puede validar la integridad de un documento con .ECO.</p>
+                </div>
+
+                <!-- Feature 3: Firma Digital de NDA -->
+                <div class="bg-v-secondary p-8 rounded-2xl shadow-xl border-t-4 border-v-primary/70">
+                    <!-- Clipboard Icon (📋) -->
+                    <div class="text-3xl text-v-primary mb-4">📋</div>
+                    <h4 class="text-xl font-semibold mb-2">Firma Digital de NDA</h4>
+                    <p class="text-gray-400">Flujo completo de acuerdos de confidencialidad con registro de identidad y consentimiento verificable.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS SECTION (STEPS) -->
+    <section class="py-20 bg-gray-900">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <h3 class="text-4xl font-bold text-center mb-12 text-v-primary">Cómo Funciona</h3>
+
+            <div class="grid md:grid-cols-4 gap-8">
+                <!-- Step 1 -->
+                <div class="flex flex-col items-center text-center p-6 rounded-xl border border-gray-700/50">
+                    <div class="text-4xl text-v-primary mb-4">📁</div>
+                    <h4 class="text-xl font-semibold mb-2">1. Sube tu Documento</h4>
+                    <p class="text-gray-400">Admite cualquier tipo: PDF, imágenes, videos, código fuente. Generamos la huella digital única con SHA-256.</p>
+                </div>
+                <!-- Step 2 -->
+                <div class="flex flex-col items-center text-center p-6 rounded-xl border border-gray-700/50">
+                    <div class="text-4xl text-v-primary mb-4">🔗</div>
+                    <h4 class="text-xl font-semibold mb-2">2. Genera Enlace Seguro</h4>
+                    <p class="text-gray-400">Decide si compartir con un receptor bajo NDA o solo registrar tu autoría. Control total sobre acceso.</p>
+                </div>
+                <!-- Step 3 -->
+                <div class="flex flex-col items-center text-center p-6 rounded-xl border border-gray-700/50">
+                    <div class="text-4xl text-v-primary mb-4">✅</div>
+                    <h4 class="text-xl font-semibold mb-2">3. Sella tu Evidencia</h4>
+                    <p class="text-gray-400">Anclaje criptográfico, registro de no-repudiación, *timestamp* y firma digital en un solo paso.</p>
+                </div>
+                <!-- Step 4 -->
+                <div class="flex flex-col items-center text-center p-6 rounded-xl border border-gray-700/50">
+                    <div class="text-4xl text-v-primary mb-4">📥</div>
+                    <h4 class="text-xl font-semibold mb-2">4. Recibe tu .ECO</h4>
+                    <p class="text-gray-400">Prueba portable que incluye toda la trazabilidad y los sellos de tiempo verificables.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- WHO IS IT FOR (USE CASES) -->
+    <section class="py-20">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <h3 class="text-4xl font-bold text-center mb-12">Para Quién es VerifySign</h3>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Use Case 1: Creadores & Emprendedores -->
+                <div class="p-6 bg-v-secondary rounded-xl hover:bg-gray-800 transition duration-300">
+                    <div class="text-3xl text-v-primary mb-3">💡</div>
+                    <h4 class="text-xl font-semibold mb-1">Creadores & Emprendedores</h4>
+                    <p class="text-gray-400">Prueba de autoría y prioridad de ideas, código o diseño.</p>
+                </div>
+                <!-- Use Case 2: Empresas & Laboratorios -->
+                <div class="p-6 bg-v-secondary rounded-xl hover:bg-gray-800 transition duration-300">
+                    <div class="text-3xl text-v-primary mb-3">🏢</div>
+                    <h4 class="text-xl font-semibold mb-1">Empresas & Laboratorios</h4>
+                    <p class="text-gray-400">Acuerdos de propiedad intelectual compartida y evidencia de I+D.</p>
+                </div>
+                <!-- Use Case 3: Legal & Compliance -->
+                <div class="p-6 bg-v-secondary rounded-xl hover:bg-gray-800 transition duration-300">
+                    <div class="text-3xl text-v-primary mb-3">⚖️</div>
+                    <h4 class="text-xl font-semibold mb-1">Legal & Compliance</h4>
+                    <p class="text-gray-400">Registro forense previo a certificaciones oficiales y auditorías.</p>
+                </div>
+                <!-- Use Case 4: Desarrolladores & Makers -->
+                <div class="p-6 bg-v-secondary rounded-xl hover:bg-gray-800 transition duration-300">
+                    <div class="text-3xl text-v-primary mb-3">⚙️</div>
+                    <h4 class="text-xl font-semibold mb-1">Desarrolladores & Makers</h4>
+                    <p class="text-gray-400">Integración de *timestamping* y evidencia verificable en sus flujos.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- .ECO DEEP DIVE SECTION -->
+    <section class="py-20 bg-v-secondary">
+        <div class="max-w-6xl mx-auto px-6 lg:px-8">
+            <h3 class="text-4xl font-bold text-center mb-12 text-v-primary">Tecnología de Confianza .ECO</h3>
+
+            <div class="space-y-10">
+                <!-- Anclaje Criptográfico -->
+                <div class="flex flex-col md:flex-row items-center md:space-x-8">
+                    <div class="flex-shrink-0 text-5xl text-v-primary md:w-1/12 mb-4 md:mb-0">⛓️</div>
+                    <div class="md:w-11/12">
+                        <h4 class="text-2xl font-semibold mb-2">Anclaje Criptográfico</h4>
+                        <p class="text-gray-400">
+                            *Hash* único de tu archivo, sellado en **Blockchain pública**. Prueba inmutable de fecha y hora, a prueba de litigios, que establece una fecha cierta de creación.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Separator -->
+                <div class="h-px bg-gray-700/50"></div>
+
+                <!-- Registro de No-Repudiación -->
+                <div class="flex flex-col md:flex-row items-center md:space-x-8">
+                    <div class="flex-shrink-0 text-5xl text-v-primary md:w-1/12 mb-4 md:mb-0">🛡️</div>
+                    <div class="md:w-11/12">
+                        <h4 class="text-2xl font-semibold mb-2">Registro de No-Repudiación</h4>
+                        <p class="text-gray-400">
+                            Huella del navegador, identidad y compromiso con el documento. Nadie puede negar haber accedido, revisado o firmado el acuerdo.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Separator -->
+                <div class="h-px bg-gray-700/50"></div>
+
+                <!-- Trazabilidad Forense -->
+                <div class="flex flex-col md:flex-row items-center md:space-x-8">
+                    <div class="flex-shrink-0 text-5xl text-v-primary md:w-1/12 mb-4 md:mb-0">📜</div>
+                    <div class="md:w-11/12">
+                        <h4 class="text-2xl font-semibold mb-2">Trazabilidad Forense (.ECOX Ready)</h4>
+                        <p class="text-gray-400">
+                            Manifiesto verificable que registra cada acceso, firma y actualización. Diseñado para auditorías, propiedad intelectual y cumplimiento normativo.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MANIFESTO AND FINAL CTA -->
+    <section class="py-20">
+        <div class="max-w-5xl mx-auto px-6 lg:px-8 text-center">
+            <h3 class="text-3xl sm:text-4xl font-extrabold mb-6 text-gray-50">Por una Justicia Digital Abierta</h3>
+            <p class="text-xl text-gray-400 mb-8">
+                VerifySign nació para devolverle al ciudadano el poder de demostrar la verdad con sus propios medios. Cada prueba digital firmada, cada *timestamp*, es un paso hacia un sistema más justo y accesible. Menos burocracia, más transparencia.
+            </p>
+            <p class="text-2xl font-bold text-v-primary mb-10">
+                No vendemos firmas, vendemos Verdad.
+            </p>
+
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                <a href="/login" class="bg-v-primary hover:bg-teal-500 text-v-dark font-bold py-4 px-10 rounded-xl shadow-lg transition duration-300 transform hover:scale-105 text-lg block">
+                    Probar VerifySign Ahora
+                </a>
+                <a href="/login" class="bg-transparent border-2 border-gray-600 text-gray-300 hover:border-v-primary hover:text-v-primary font-bold py-4 px-10 rounded-xl transition duration-300 text-lg block">
+                    Unirme a la Revolución de la Confianza Digital
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="py-10 bg-v-secondary mt-12 border-t border-gray-700/50">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8 text-center text-sm text-gray-500">
+            <p class="mb-4">© 2025 VerifySign por Temporal Dynamics LLC. Infraestructura de Confianza Digital abierta — estándar .ECO.</p>
+            <div class="space-x-4">
+                <a href="#" class="hover:text-v-primary transition duration-200">Privacidad</a>
+                <span class="text-gray-700">|</span>
+                <a href="#" class="hover:text-v-primary transition duration-200">Términos de Uso</a>
+                <span class="text-gray-700">|</span>
+                <a href="#" class="hover:text-v-primary transition duration-200">Aviso Legal</a>
+                <span class="text-gray-700">|</span>
+                <a href="#" class="hover:text-v-primary transition duration-200">Contacto</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

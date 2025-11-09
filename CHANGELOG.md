@@ -9,7 +9,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-### 🔒 Seguridad (Semana 1 - En Progreso)
+### 🔒 Seguridad (Semana 1 - COMPLETADA ✅)
 - ✅ Protección de código fuente de `eco-packer` (patente en trámite)
 - ✅ Actualizado `.gitignore` para excluir archivos sensibles
 - ✅ **COMMIT 1**: Validación de entrada en VerifyPage
@@ -19,20 +19,53 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Mensajes de error visuales claros
 - ✅ **COMMIT 2**: CSP y headers de seguridad robustos
   - Content Security Policy completo
-  - Permissions Policy (hardware)
-  - HSTS con preload
+  - Permissions Policy (hardware bloqueado)
+  - HSTS con preload (1 año)
   - Headers separados app vs API
-  - CORS configurado para Functions
+  - CORS configurado para Netlify Functions
+- ✅ **COMMIT 3**: Estructura completa de Netlify Functions
+  - 4 endpoints: generate-link, verify-access, log-event, get-csrf-token
+  - 6 utilidades: supabase, response, validation, rateLimit, csrf, storage
+  - TypeScript strict mode + ES2022
+  - Rate limiting implementado (10-100 req/min por endpoint)
+  - CSRF protection con timing-attack prevention
+  - Input validation robusta
+  - README completo con documentación de API
+
+### 🗄️ Base de Datos (Supabase - COMPLETADA ✅)
+- ✅ Esquema SQL completo (`001_core_schema.sql`)
+  - 6 tablas con RLS habilitadas
+  - 15 índices optimizados
+  - 12 RLS policies
+  - Constraints de integridad
+- ✅ Storage policies (`002_storage_policies.sql`)
+  - 5 buckets configurados
+  - Lifecycle auto-delete (temp-uploads 24h)
+  - Public access para proofs
+- ✅ Guía de configuración completa (`SETUP.md`)
+  - Paso a paso desde cero
+  - Configuración Auth (SMTP + templates)
+  - Testing procedures
+  - Troubleshooting
+- ✅ Verificación de alineación (`ALIGNMENT.md`)
+  - 100% nombres TypeScript ↔ SQL alineados
+  - Event types, status, chain validados
 
 ### 📚 Documentación
 - ✅ Creado `CHANGELOG.md` para tracking de releases
-- ✅ Creado `supabase/PENDING.md` con configuración faltante (Auth + Storage)
+- ✅ Creado `supabase/PENDING.md` → migrado a `SETUP.md`
 - ✅ Creado `eco-packer/README-PUBLIC.md` (solo API pública)
+- ✅ Creado `netlify/README.md` (documentación de Functions)
+- ✅ Creado `supabase/SETUP.md` (guía completa de configuración)
+- ✅ Creado `supabase/ALIGNMENT.md` (verificación de nombres)
 
-### ⏳ Próximos Commits (Esta Semana)
-- [ ] **COMMIT 3**: Estructura de Netlify Functions con TypeScript
-- [ ] **COMMIT 4**: Rate limiting básico en Functions
-- [ ] **COMMIT 5**: CSRF protection
+### ⏳ Próximos Pasos (Semana 2)
+- [ ] Configurar Supabase Auth (SMTP + email templates)
+- [ ] Crear buckets en Supabase Storage
+- [ ] Ejecutar migrations SQL en Supabase Dashboard
+- [ ] Integrar eco-packer real en generate-link function
+- [ ] Implementar validación de OTP (2FA)
+- [ ] Testing E2E del flujo completo
 
 ---
 

@@ -1,5 +1,23 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Lock,
+  Search,
+  FileText,
+  Upload,
+  Link as LinkIcon,
+  CheckCircle,
+  Download,
+  Lightbulb,
+  Building2,
+  Scale,
+  Code,
+  Shield,
+  Anchor,
+  ScrollText
+} from 'lucide-react';
+import CardWithImage from '../components/CardWithImage';
+import Tooltip from '../components/Tooltip';
 
 function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -99,21 +117,21 @@ function LandingPage() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">Verificable por Cualquiera</span>
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed">
-            Crea evidencia forense digital inmutable con hash SHA-256, timestamp criptográfico y anclaje en blockchain. Protege tus documentos con tecnología .ECO.
+            Crea evidencia forense digital inmutable con <Tooltip term="hash SHA-256" definition="Huella digital única de 256 bits generada mediante algoritmo criptográfico. Cualquier cambio mínimo en el documento produce un hash completamente diferente, garantizando detección de alteraciones." />, <Tooltip term="timestamp criptográfico" definition="Marca de tiempo sellada que prueba la existencia del documento en una fecha y hora exacta. Imposible de falsificar retroactivamente." /> y <Tooltip term="anclaje en blockchain" definition="Registro permanente del hash en una red blockchain pública y descentralizada. Garantiza que la evidencia sea verificable por cualquier persona, sin depender de la plataforma." />. Protege tus documentos con tecnología .ECO.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6">
             <Link
-              to="/dashboard"
+              to="/login"
               className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-4 px-10 rounded-lg shadow-lg hover:shadow-xl transition duration-300 transform hover:-translate-y-0.5 text-lg"
             >
-              Certificar un Documento
+              Comenzar Gratis
             </Link>
             <Link
               to="/verify"
               className="bg-white border-2 border-gray-300 text-gray-700 hover:border-cyan-600 hover:text-cyan-600 font-bold py-4 px-10 rounded-lg shadow-md hover:shadow-lg transition duration-300 text-lg"
             >
-              Verificar Autenticidad
+              Verificar un Certificado
             </Link>
           </div>
         </div>
@@ -124,8 +142,10 @@ function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-8 md:p-12 rounded-2xl shadow-lg border border-amber-200">
             <div className="flex items-start space-x-6">
-              {/* Balanza Icon (⚖️) */}
-              <div className="text-5xl flex-shrink-0">⚖️</div>
+              {/* Balanza Icon */}
+              <div className="flex-shrink-0">
+                <Scale className="w-12 h-12 text-amber-600" strokeWidth={2.5} />
+              </div>
               <div>
                 <h3 className="text-3xl font-bold text-gray-900 mb-4">Transparencia ante Todo</h3>
                 <p className="text-gray-700 mb-4 leading-relaxed">
@@ -160,16 +180,16 @@ function LandingPage() {
             {/* Feature 1: Certificación .ECO */}
             <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200">
               <div className="w-14 h-14 bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-xl flex items-center justify-center mb-6">
-                <span className="text-3xl">🔒</span>
+                <Lock className="w-8 h-8 text-cyan-600" strokeWidth={2.5} />
               </div>
               <h4 className="text-2xl font-bold mb-3 text-gray-900">Certificación .ECO</h4>
-              <p className="text-gray-600 leading-relaxed">Genera certificados con hash SHA-256, <em>timestamp</em> y <em>proof</em> criptográfico. Cada documento tiene una huella única e inmutable.</p>
+              <p className="text-gray-600 leading-relaxed">Genera certificados con hash SHA-256, timestamp y <Tooltip term="proof criptográfico" definition="Prueba matemática verificable que demuestra la autenticidad del documento sin revelar su contenido. Basada en criptografía de clave pública." />. Cada documento tiene una huella única e inmutable.</p>
             </div>
 
             {/* Feature 2: Verificación Independiente */}
             <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200">
               <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center mb-6">
-                <span className="text-3xl">🔍</span>
+                <Search className="w-8 h-8 text-blue-600" strokeWidth={2.5} />
               </div>
               <h4 className="text-2xl font-bold mb-3 text-gray-900">Verificación Independiente</h4>
               <p className="text-gray-600 leading-relaxed">Verifica autenticidad sin depender de la plataforma. Cualquier persona puede validar la integridad de un documento con .ECO.</p>
@@ -178,7 +198,7 @@ function LandingPage() {
             {/* Feature 3: Firma Digital de NDA */}
             <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200">
               <div className="w-14 h-14 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl flex items-center justify-center mb-6">
-                <span className="text-3xl">📋</span>
+                <FileText className="w-8 h-8 text-indigo-600" strokeWidth={2.5} />
               </div>
               <h4 className="text-2xl font-bold mb-3 text-gray-900">Firma Digital de NDA</h4>
               <p className="text-gray-600 leading-relaxed">Flujo completo de acuerdos de confidencialidad con registro de identidad y consentimiento verificable.</p>
@@ -199,7 +219,7 @@ function LandingPage() {
             {/* Step 1 */}
             <div className="flex flex-col items-center text-center p-8 rounded-2xl bg-gradient-to-br from-cyan-50 to-cyan-100 shadow-md hover:shadow-lg transition-shadow duration-300">
               <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl">📁</span>
+                <Upload className="w-8 h-8 text-white" strokeWidth={2.5} />
               </div>
               <h4 className="text-xl font-semibold text-gray-900 mb-2">1. Sube tu Documento</h4>
               <p className="text-gray-600">Admite cualquier tipo: PDF, imágenes, videos, código fuente. Generamos la huella digital única con SHA-256.</p>
@@ -207,7 +227,7 @@ function LandingPage() {
             {/* Step 2 */}
             <div className="flex flex-col items-center text-center p-8 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 shadow-md hover:shadow-lg transition-shadow duration-300">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl">🔗</span>
+                <LinkIcon className="w-8 h-8 text-white" strokeWidth={2.5} />
               </div>
               <h4 className="text-xl font-semibold text-gray-900 mb-2">2. Genera Enlace Seguro</h4>
               <p className="text-gray-600">Decide si compartir con un receptor bajo NDA o solo registrar tu autoría. Control total sobre acceso.</p>
@@ -215,15 +235,15 @@ function LandingPage() {
             {/* Step 3 */}
             <div className="flex flex-col items-center text-center p-8 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 shadow-md hover:shadow-lg transition-shadow duration-300">
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl">✅</span>
+                <CheckCircle className="w-8 h-8 text-white" strokeWidth={2.5} />
               </div>
               <h4 className="text-xl font-semibold text-gray-900 mb-2">3. Sella tu Evidencia</h4>
-              <p className="text-gray-600">Anclaje criptográfico, registro de no-repudiación, <em>timestamp</em> y firma digital en un solo paso.</p>
+              <p className="text-gray-600">Anclaje criptográfico, <Tooltip term="no-repudiación" definition="Garantía técnica que impide que alguien niegue haber accedido, firmado o aprobado un documento. Incluye registro de identidad, navegador y acción realizada." />, timestamp y firma digital en un solo paso.</p>
             </div>
             {/* Step 4 */}
             <div className="flex flex-col items-center text-center p-8 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100 shadow-md hover:shadow-lg transition-shadow duration-300">
               <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl">📥</span>
+                <Download className="w-8 h-8 text-white" strokeWidth={2.5} />
               </div>
               <h4 className="text-xl font-semibold text-gray-900 mb-2">4. Recibe tu .ECO</h4>
               <p className="text-gray-600">Prueba portable que incluye toda la trazabilidad y los sellos de tiempo verificables.</p>
@@ -233,46 +253,49 @@ function LandingPage() {
       </section>
 
       {/* WHO IS IT FOR (USE CASES) */}
-      <section className="py-20 md:py-28 bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
+      <section className="py-20 md:py-28 bg-white">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <h3 className="text-4xl md:text-5xl font-bold text-center mb-4 text-gray-900">Para Quién es VerifySign</h3>
-          <p className="text-center text-gray-600 text-lg max-w-2xl mx-auto mb-16">
+          <p className="text-center text-gray-600 text-lg max-w-2xl mx-auto mb-20">
             Diseñado para cualquier persona que necesite proteger sus ideas y documentos
           </p>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Use Case 1: Creadores & Emprendedores */}
-            <div className="p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200">
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center mb-4">
-                <span className="text-3xl">💡</span>
-              </div>
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">Creadores & Emprendedores</h4>
-              <p className="text-gray-600">Prueba de autoría y prioridad de ideas, código o diseño.</p>
-            </div>
-            {/* Use Case 2: Empresas & Laboratorios */}
-            <div className="p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200">
-              <div className="w-14 h-14 bg-gradient-to-br from-pink-100 to-pink-200 rounded-xl flex items-center justify-center mb-4">
-                <span className="text-3xl">🏢</span>
-              </div>
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">Empresas & Laboratorios</h4>
-              <p className="text-gray-600">Acuerdos de propiedad intelectual compartida y evidencia de I+D.</p>
-            </div>
-            {/* Use Case 3: Legal & Compliance */}
-            <div className="p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200">
-              <div className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center mb-4">
-                <span className="text-3xl">⚖️</span>
-              </div>
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">Legal & Compliance</h4>
-              <p className="text-gray-600">Registro forense previo a certificaciones oficiales y auditorías.</p>
-            </div>
-            {/* Use Case 4: Desarrolladores & Makers */}
-            <div className="p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200">
-              <div className="w-14 h-14 bg-gradient-to-br from-amber-100 to-amber-200 rounded-xl flex items-center justify-center mb-4">
-                <span className="text-3xl">⚙️</span>
-              </div>
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">Desarrolladores & Makers</h4>
-              <p className="text-gray-600">Integración de <em>timestamping</em> y evidencia verificable en sus flujos.</p>
-            </div>
+          <div className="space-y-24">
+            {/* Use Case 1: Creadores & Emprendedores - Image Right */}
+            <CardWithImage
+              title="Creadores & Emprendedores"
+              description="Protege tu propiedad intelectual desde el primer día. Registra tus ideas, código fuente, diseños y proyectos creativos con evidencia forense inmutable. Demuestra autoría y prioridad temporal ante cualquier disputa legal o comercial."
+              imagePosition="right"
+              image="/assets/users/creadores-y-emprendedores.png"
+              icon={Lightbulb}
+            />
+
+            {/* Use Case 2: Empresas & Laboratorios - Image Left */}
+            <CardWithImage
+              title="Empresas & Laboratorios"
+              description="Gestiona acuerdos de propiedad intelectual compartida con trazabilidad completa. Registra resultados de I+D, experimentos científicos y desarrollos tecnológicos con certificación blockchain. Ideal para colaboraciones entre organizaciones que requieren evidencia verificable."
+              imagePosition="left"
+              image="/assets/users/empresas-y-laboratorios.png"
+              icon={Building2}
+            />
+
+            {/* Use Case 3: Legal & Compliance - Image Right */}
+            <CardWithImage
+              title="Legal & Compliance"
+              description="Crea evidencia técnica complementaria antes de procesos de certificación oficial. Registra contratos, documentos legales y evidencia forense con timestamp criptográfico. Acelera auditorías con trazabilidad inmutable y verificación pública independiente."
+              imagePosition="right"
+              image="/assets/users/legal-and-compliance.png"
+              icon={Scale}
+            />
+
+            {/* Use Case 4: Desarrolladores & Makers - Image Left */}
+            <CardWithImage
+              title="Desarrolladores & Makers"
+              description="Integra timestamping y evidencia verificable en tus flujos de trabajo. Certifica releases de software, commits críticos y documentación técnica. API pública para automatizar la generación de certificados .ECO en tus pipelines de CI/CD."
+              imagePosition="left"
+              image="/assets/users/desarrolladores-y-makers.png"
+              icon={Code}
+            />
           </div>
         </div>
       </section>
@@ -289,12 +312,12 @@ function LandingPage() {
             {/* Anclaje Criptográfico */}
             <div className="flex flex-col md:flex-row items-start md:space-x-8 p-8 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-2xl shadow-md">
               <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center mb-4 md:mb-0">
-                <span className="text-4xl">⛓️</span>
+                <Anchor className="w-9 h-9 text-white" strokeWidth={2.5} />
               </div>
               <div className="flex-1">
                 <h4 className="text-2xl font-semibold text-gray-900 mb-3">Anclaje Criptográfico</h4>
                 <p className="text-gray-700 leading-relaxed">
-                  <em>Hash</em> único de tu archivo, sellado en <strong>Blockchain pública</strong>. Prueba inmutable de fecha y hora, a prueba de litigios, que establece una fecha cierta de creación.
+                  Hash único de tu archivo, sellado en <Tooltip term="Blockchain pública" definition="Red descentralizada de miles de computadoras independientes que mantienen un registro compartido e inmutable. Nadie controla la red, por lo que la evidencia permanece verificable incluso si VerifySign dejara de existir." />. Prueba inmutable de fecha y hora, a prueba de litigios, que establece una fecha cierta de creación.
                 </p>
               </div>
             </div>
@@ -302,7 +325,7 @@ function LandingPage() {
             {/* Registro de No-Repudiación */}
             <div className="flex flex-col md:flex-row items-start md:space-x-8 p-8 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl shadow-md">
               <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center mb-4 md:mb-0">
-                <span className="text-4xl">🛡️</span>
+                <Shield className="w-9 h-9 text-white" strokeWidth={2.5} />
               </div>
               <div className="flex-1">
                 <h4 className="text-2xl font-semibold text-gray-900 mb-3">Registro de No-Repudiación</h4>
@@ -315,12 +338,12 @@ function LandingPage() {
             {/* Trazabilidad Forense */}
             <div className="flex flex-col md:flex-row items-start md:space-x-8 p-8 bg-gradient-to-br from-indigo-50 to-purple-100 rounded-2xl shadow-md">
               <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center mb-4 md:mb-0">
-                <span className="text-4xl">📜</span>
+                <ScrollText className="w-9 h-9 text-white" strokeWidth={2.5} />
               </div>
               <div className="flex-1">
                 <h4 className="text-2xl font-semibold text-gray-900 mb-3">Trazabilidad Forense (.ECOX Ready)</h4>
                 <p className="text-gray-700 leading-relaxed">
-                  Manifiesto verificable que registra cada acceso, firma y actualización. Diseñado para auditorías, propiedad intelectual y cumplimiento normativo.
+                  <Tooltip term="Manifiesto verificable" definition="Documento estructurado (.ECO) que contiene todos los metadatos, hashes, firmas y eventos relacionados con el documento original. Puede ser verificado de forma independiente sin necesidad de acceder a la plataforma." /> que registra cada acceso, firma y actualización. Diseñado para auditorías, propiedad intelectual y cumplimiento normativo.
                 </p>
               </div>
             </div>
@@ -341,16 +364,16 @@ function LandingPage() {
 
           <div className="flex flex-col sm:flex-row justify-center gap-6">
             <Link
-              to="/dashboard"
+              to="/login"
               className="bg-white hover:bg-gray-100 text-cyan-700 font-bold py-4 px-10 rounded-xl shadow-lg hover:shadow-xl transition duration-300 transform hover:-translate-y-0.5 text-lg"
             >
-              Probar VerifySign Ahora
+              Comenzar Gratis
             </Link>
             <Link
               to="/pricing"
               className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-cyan-700 font-bold py-4 px-10 rounded-xl transition duration-300 text-lg"
             >
-              Ver Planes y Precios
+              Ver Planes
             </Link>
           </div>
         </div>

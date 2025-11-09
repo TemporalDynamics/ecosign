@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Lock } from 'lucide-react';
 
 function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -26,27 +27,29 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">🔒</div>
-          <h1 className="text-3xl font-bold text-white mb-2">VerifySign</h1>
-          <p className="text-slate-400">Plataforma de certificación digital con trazabilidad forense</p>
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-cyan-100 to-blue-200 rounded-2xl mb-4">
+            <Lock className="w-10 h-10 text-cyan-600" strokeWidth={2.5} />
+          </div>
+          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600 mb-2">VerifySign</h1>
+          <p className="text-gray-600">Plataforma de certificación digital con trazabilidad forense</p>
         </div>
-        
-        <div className="bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700">
-          <h2 className="text-2xl font-bold text-center text-white mb-2">
+
+        <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
+          <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
             {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
           </h2>
-          <p className="text-slate-400 text-center mb-6">
-            {isLogin 
-              ? 'Accede a tu panel de control y gestiona tus evidencias.' 
+          <p className="text-gray-600 text-center mb-6">
+            {isLogin
+              ? 'Accede a tu panel de control y gestiona tus evidencias.'
               : 'Regístrate para acceder a todas las funciones de VerifySign.'}
           </p>
 
           <form onSubmit={handleSubmit}>
             <div className="mb-5">
-              <label htmlFor="email" className="block text-slate-300 mb-2">Email *</label>
+              <label htmlFor="email" className="block text-gray-700 font-medium mb-2">Email *</label>
               <input
                 type="email"
                 id="email"
@@ -54,13 +57,13 @@ function LoginPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 placeholder="tu@email.com"
               />
             </div>
-            
+
             <div className="mb-5">
-              <label htmlFor="password" className="block text-slate-300 mb-2">Contraseña *</label>
+              <label htmlFor="password" className="block text-gray-700 font-medium mb-2">Contraseña *</label>
               <input
                 type="password"
                 id="password"
@@ -68,14 +71,14 @@ function LoginPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 placeholder="••••••••"
               />
             </div>
-            
+
             {!isLogin && (
               <div className="mb-5">
-                <label htmlFor="confirmPassword" className="block text-slate-300 mb-2">Confirmar Contraseña *</label>
+                <label htmlFor="confirmPassword" className="block text-gray-700 font-medium mb-2">Confirmar Contraseña *</label>
                 <input
                   type="password"
                   id="confirmPassword"
@@ -83,47 +86,47 @@ function LoginPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                   placeholder="••••••••"
                 />
               </div>
             )}
 
-            <button 
-              type="submit" 
-              className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300"
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300"
             >
               {isLogin ? 'Iniciar Sesión' : 'Registrarse'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-slate-400">
-              {isLogin 
-                ? "¿No tienes cuenta? " 
+            <p className="text-gray-600">
+              {isLogin
+                ? "¿No tienes cuenta? "
                 : "¿Ya tienes cuenta? "}
-              <button 
+              <button
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-cyan-500 hover:text-cyan-400 font-medium"
+                className="text-cyan-600 hover:text-cyan-700 font-semibold"
               >
                 {isLogin ? 'Regístrate' : 'Inicia Sesión'}
               </button>
             </p>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-700 text-center">
-            <p className="text-slate-400 mb-3">¿Prefieres no crear cuenta?</p>
-            <Link 
-              to="/guest" 
-              className="inline-block bg-slate-700 hover:bg-slate-600 text-cyan-500 font-medium py-2 px-6 rounded-lg transition duration-300"
+          <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+            <p className="text-gray-600 mb-3">¿Prefieres no crear cuenta?</p>
+            <Link
+              to="/guest"
+              className="inline-block bg-gray-100 hover:bg-gray-200 text-cyan-600 font-semibold py-2 px-6 rounded-lg transition duration-300"
             >
               Continuar como invitado
             </Link>
           </div>
         </div>
-        
-        <div className="mt-8 text-center text-sm text-slate-500">
-          <p>Al continuar, aceptas nuestros <Link to="/terms" className="text-cyan-500 hover:underline">Términos de Servicio</Link> y <Link to="/privacy" className="text-cyan-500 hover:underline">Política de Privacidad</Link>.</p>
+
+        <div className="mt-8 text-center text-sm text-gray-500">
+          <p>Al continuar, aceptas nuestros <Link to="/terms" className="text-cyan-600 hover:underline">Términos de Servicio</Link> y <Link to="/privacy" className="text-cyan-600 hover:underline">Política de Privacidad</Link>.</p>
         </div>
       </div>
     </div>

@@ -9,9 +9,30 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
-### 🔒 Seguridad
-- Protección de código fuente de `eco-packer` (patente en trámite)
-- Actualizado `.gitignore` para excluir archivos sensibles
+### 🔒 Seguridad (Semana 1 - En Progreso)
+- ✅ Protección de código fuente de `eco-packer` (patente en trámite)
+- ✅ Actualizado `.gitignore` para excluir archivos sensibles
+- ✅ **COMMIT 1**: Validación de entrada en VerifyPage
+  - Validar extensiones (.eco, .ecox, .pdf, .zip)
+  - Límite de 50MB por archivo
+  - Validación de MIME types
+  - Mensajes de error visuales claros
+- ✅ **COMMIT 2**: CSP y headers de seguridad robustos
+  - Content Security Policy completo
+  - Permissions Policy (hardware)
+  - HSTS con preload
+  - Headers separados app vs API
+  - CORS configurado para Functions
+
+### 📚 Documentación
+- ✅ Creado `CHANGELOG.md` para tracking de releases
+- ✅ Creado `supabase/PENDING.md` con configuración faltante (Auth + Storage)
+- ✅ Creado `eco-packer/README-PUBLIC.md` (solo API pública)
+
+### ⏳ Próximos Commits (Esta Semana)
+- [ ] **COMMIT 3**: Estructura de Netlify Functions con TypeScript
+- [ ] **COMMIT 4**: Rate limiting básico en Functions
+- [ ] **COMMIT 5**: CSRF protection
 
 ---
 

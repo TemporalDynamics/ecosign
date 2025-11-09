@@ -59,13 +59,44 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - ✅ Creado `supabase/SETUP.md` (guía completa de configuración)
 - ✅ Creado `supabase/ALIGNMENT.md` (verificación de nombres)
 
+### 🎨 Frontend (Supabase Integration - COMPLETADA ✅)
+- ✅ Cliente Supabase para frontend (`supabaseClient.ts`)
+  - Singleton con auto-refresh tokens
+  - Database types completos
+  - Helpers: getCurrentUser, getCurrentSession, signOut
+- ✅ Hook `useAuth` para React
+  - signIn, signUp, signOut, resetPassword
+  - Loading states y error handling
+  - Session persistence
+- ✅ Componente `ProtectedRoute`
+  - HOC para rutas privadas
+  - Redirect automático a /login
+  - Loading spinner mientras verifica auth
+- ✅ `LoginPage` reescrito con Supabase Auth
+  - Login/Signup real (elimina mock)
+  - Password reset funcional
+  - Validación de inputs
+  - Mensajes de error/success visuales
+- ✅ API Client (`api.ts`)
+  - Helper para Netlify Functions
+  - Auto-manejo de CSRF tokens (caché)
+  - Auto-manejo de Authorization headers
+  - Endpoints: generateLink, verifyAccess, logEvent
+- ✅ Routes actualizadas
+  - Dashboard ahora es ruta protegida
+  - Separación clara público vs privado
+- ✅ Documentación
+  - `client/README.md` - Guía completa
+  - `.env.example` - Template de variables
+  - `DEPLOYMENT.md` - Guía paso a paso
+
 ### ⏳ Próximos Pasos (Semana 2)
-- [ ] Configurar Supabase Auth (SMTP + email templates)
-- [ ] Crear buckets en Supabase Storage
-- [ ] Ejecutar migrations SQL en Supabase Dashboard
+- [ ] Configurar Supabase (seguir SETUP.md o DEPLOYMENT.md)
+- [ ] Deploy a Netlify staging
 - [ ] Integrar eco-packer real en generate-link function
 - [ ] Implementar validación de OTP (2FA)
 - [ ] Testing E2E del flujo completo
+- [ ] Lanzar bug bounty program
 
 ---
 

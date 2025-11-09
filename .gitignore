@@ -50,3 +50,16 @@ temp/
 pnpm-lock.yaml
 yarn.lock
 .pnpm-store/
+
+# ====================================
+# PROPIEDAD INTELECTUAL PROTEGIDA
+# ====================================
+# eco-packer contiene algoritmos patentados
+# NO PUBLICAR en repositorio público
+eco-packer/src/
+eco-packer/dist/
+eco-packer/*.tsbuildinfo
+eco-packer/node_modules/
+
+# Versión antigua (backup local)
+eco-packer primera version/

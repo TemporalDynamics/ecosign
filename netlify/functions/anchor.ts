@@ -1,6 +1,6 @@
 import { Handler } from "@netlify/functions";
 
-const handler: Handler = async (event, context) => {
+const handler: Handler = async (event, _context) => {
   // Placeholder for anchor logic
   // This function would handle the logic for anchoring a hash to a blockchain.
 

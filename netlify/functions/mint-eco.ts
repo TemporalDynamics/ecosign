@@ -1,6 +1,6 @@
 import { Handler } from "@netlify/functions";
 
-const handler: Handler = async (event, context) => {
+const handler: Handler = async (event, _context) => {
   // Placeholder for mint-eco logic
   // This function would handle the logic for minting an .ECO certificate,
   // including hashing the document, interacting with a blockchain for anchoring,

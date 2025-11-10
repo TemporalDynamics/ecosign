@@ -62,7 +62,9 @@ export const handler: Handler = async (event: HandlerEvent) => {
       return validationError(validation.error!);
     }
 
-    const { token, otp } = validation.data!;
+    const { token } = validation.data!;
+    // TODO: OTP validation will be implemented in Week 2
+    // const { otp } = validation.data!;
 
     // Hash del token
     const tokenHash = createHash('sha256').update(token).digest('hex');

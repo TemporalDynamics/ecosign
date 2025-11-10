@@ -19,8 +19,11 @@ SIGN_RESP=$(curl -s -X POST "$BASE/.netlify/functions/sign-url" \
 echo "$SIGN_RESP" | ${JQ:-cat}
 DOCID=$(echo "$SIGN_RESP" | ${JQ:-cat} -r '.docId // empty')
 SIGNURL=$(echo "$SIGN_RESP" | ${JQ:-cat} -r '.signUrl // empty')
+SHORTID=$(echo "$SIGN_RESP" | ${JQ:-cat} -r '.shortId // empty')
+EXP=$(echo "$SIGN_RESP" | ${JQ:-cat} -r '.exp // empty')
+SIG=$(echo "$SIGN_RESP" | ${JQ:-cat} -r '.sig // empty')
 
-if [ -z "$DOCID" ] || [ -z "$SIGNURL" ]; then
+if [ -z "$DOCID" ] || [ -z "$SIGNURL" ] || [ -z "$SHORTID" ] || [ -z "$SIG" ] || [ -z "$EXP" ]; then
   echo "Fallo al generar sign-url. Response:"
   echo "$SIGN_RESP"
   exit 1
@@ -38,7 +41,10 @@ ACCEPT_RESP=$(curl -s -X POST "$BASE/.netlify/functions/log-acceptance" \
     \"organization\":\"Test Org\",
     \"signature\":\"$SIGNATURE_B64\",
     \"documentHash\":\"$DOCUMENT_HASH\",
-    \"docId\":\"$DOCID\"
+    \"docId\":\"$DOCID\",
+    \"shortId\":\"$SHORTID\",
+    \"exp\":$EXP,
+    \"sig\":\"$SIG\"
   }")
 
 echo "$ACCEPT_RESP" | ${JQ:-cat}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -9,6 +10,9 @@ function LoginPage() {
     password: '',
     confirmPassword: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -16,14 +20,78 @@ function LoginPage() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError(null); // Clear errors on input change
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement login/register logic
-    console.log('Form submitted:', { ...formData, isLogin });
-    // Simulate successful login
-    navigate('/dashboard');
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        // LOGIN
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (error) throw error;
+
+        console.log('✅ Login exitoso:', data.user.email);
+        setSuccess('¡Bienvenido de nuevo!');
+
+        // Redirigir al dashboard después de un breve delay
+        setTimeout(() => navigate('/dashboard'), 500);
+      } else {
+        // REGISTRO
+        // Validar que las contraseñas coincidan
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error('Las contraseñas no coinciden');
+        }
+
+        // Validar contraseña mínima (Supabase requiere 6+ caracteres)
+        if (formData.password.length < 6) {
+          throw new Error('La contraseña debe tener al menos 6 caracteres');
+        }
+
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+          }
+        });
+
+        if (error) throw error;
+
+        console.log('✅ Registro exitoso:', data.user?.email);
+        setSuccess('¡Cuenta creada! Por favor revisa tu email para confirmar tu cuenta.');
+
+        // Limpiar formulario
+        setFormData({ email: '', password: '', confirmPassword: '' });
+      }
+    } catch (err) {
+      console.error('❌ Error de autenticación:', err);
+
+      // Mensajes de error amigables
+      let errorMessage = err.message;
+
+      if (err.message.includes('Invalid login credentials')) {
+        errorMessage = 'Email o contraseña incorrectos';
+      } else if (err.message.includes('User already registered')) {
+        errorMessage = 'Este email ya está registrado';
+      } else if (err.message.includes('Email not confirmed')) {
+        errorMessage = 'Por favor confirma tu email antes de iniciar sesión';
+      } else if (err.message.includes('Password should be at least 6 characters')) {
+        errorMessage = 'La contraseña debe tener al menos 6 caracteres';
+      }
+
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,6 +114,20 @@ function LoginPage() {
               ? 'Accede a tu panel de control y gestiona tus evidencias.'
               : 'Regístrate para acceder a todas las funciones de VerifySign.'}
           </p>
+
+          {/* Mensaje de error */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 text-sm font-medium">⚠️ {error}</p>
+            </div>
+          )}
+
+          {/* Mensaje de éxito */}
+          {success && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-700 text-sm font-medium">✅ {success}</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="mb-5">
@@ -94,9 +176,22 @@ function LoginPage() {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300"
+              disabled={loading}
+              className={`w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300 ${
+                loading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              {isLogin ? 'Iniciar Sesión' : 'Registrarse'}
+              {loading ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {isLogin ? 'Iniciando sesión...' : 'Creando cuenta...'}
+                </span>
+              ) : (
+                isLogin ? 'Iniciar Sesión' : 'Registrarse'
+              )}
             </button>
           </form>
 

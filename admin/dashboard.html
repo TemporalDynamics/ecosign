@@ -3,7 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - verifysign</title>
+  
+  <!-- SEO Meta Tags -->
+  <title>Dashboard - VerifySign | Panel de Control de Documentos Certificados</title>
+  <meta name="title" content="Dashboard - VerifySign | Panel de Control de Documentos Certificados">
+  <meta name="description" content="Panel de control de VerifySign. Gestiona tus documentos certificados, verifica firmas electrónicas y accede al historial de verificaciones con tecnología blockchain.">
+  <meta name="keywords" content="dashboard, panel de control, verify sign, documentos certificados, gestión documentos, firma electrónica, historial verificaciones">
+  <meta name="author" content="VerifySign">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://your-vercel-domain.com/admin/dashboard.html" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://your-vercel-domain.com/admin/dashboard.html">
+  <meta property="og:title" content="Dashboard - VerifySign | Panel de Control de Documentos Certificados">
+  <meta property="og:description" content="Panel de control de VerifySign. Gestiona tus documentos certificados, verifica firmas electrónicas y accede al historial.">
+  <meta property="og:image" content="https://your-vercel-domain.com/og-image-dashboard.jpg">
+  <meta property="og:image:alt" content="Panel de control de VerifySign">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://your-vercel-domain.com/admin/dashboard.html">
+  <meta property="twitter:title" content="Dashboard - VerifySign | Panel de Control de Documentos Certificados">
+  <meta property="twitter:description" content="Panel de control de VerifySign. Gestiona tus documentos certificados, verifica firmas electrónicas y accede al historial.">
+  
   <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
     body {
@@ -105,8 +128,8 @@
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Replace with your Supabase URL
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your Supabase anon key
+    const SUPABASE_URL = 'https://tbxowirrvgtvfnxcdqks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRieG93aXJydmd0dmZueGNkcWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyOTQyMjgsImV4cCI6MjA3Nzg3MDIyOH0.GgVYH10zh--64FyGlNGYaZcbVXow3Bj9iZS3Zq9HWXQ';
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -126,25 +149,30 @@
     }
 
     async function fetchCases() {
-      const response = await fetch('/.netlify/functions/get-cases', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
+      // Fetch cases directly from Supabase
+      const { data: cases, error } = await supabase
+        .from('cases')
+        .select(`
+          id, 
+          case_name, 
+          created_at, 
+          unique_token, 
+          signatures(count)
+        `)
+        .eq('user_id', session.user.id); // Assuming cases are linked to user_id
 
-      if (!response.ok) {
-        console.error('Error fetching cases');
+      if (error) {
+        console.error('Error fetching cases from Supabase:', error);
         return;
       }
 
-      const cases = await response.json();
       const tbody = document.getElementById('cases-tbody');
       tbody.innerHTML = ''; // Clear existing rows
 
       cases.forEach(caseItem => {
         const shareableLink = `${window.location.origin}/sign.html?token=${caseItem.unique_token}`;
-        const status = caseItem.signatures.length > 0 ? `<span class="status-signed">${caseItem.signatures.length} Firma(s)</span>` : '<span class="status-pending">Pendiente</span>';
-        
+        const status = caseItem.signatures[0]?.count > 0 ? `<span class="status-signed">${caseItem.signatures[0].count} Firma(s)</span>` : '<span class="status-pending">Pendiente</span>';
+
         const row = `
           <tr>
             <td>${caseItem.case_name}</td>

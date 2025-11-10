@@ -64,3 +64,8 @@ eco-packer/node_modules/
 # Versión antigua (backup local)
 eco-packer primera version/
 client/.env
+
+# Private key files
+*.pem
+eco_signing_private.pem
+eco_signing_public.pem

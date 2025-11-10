@@ -136,6 +136,29 @@ private static encryptKeyPair(keyPair: KeyPair): string {
 }
 ```
 
+#### Firmas Ed25519
+```
+Propósito: Emitir constancias .ECO con respaldo criptográfico verificable
+Algoritmo: Ed25519 (RFC 8032)
+Material: ECO_SIGNING_PRIVATE_KEY / ECO_SIGNING_PUBLIC_KEY (PEM o Base64 DER)
+```
+
+**Implementación**:
+```javascript
+const ecoPayload = { caseId, documentHash, signerEmail, token, timestamp };
+const message = JSON.stringify(ecoPayload);
+const signatureBase64 = signPayload(message);
+
+return {
+  signature: {
+    algorithm: 'ed25519',
+    signature: signatureBase64,
+    publicKey: exportPublicKeyPem(),
+    fingerprint: publicKeyFingerprint(),
+  }
+};
+```
+
 #### Generación de Nonce
 ```
 Propósito: Prevenir ataques de repetición
@@ -225,10 +248,10 @@ interface KeyRotationPolicy {
 
 #### Almacenamiento de Claves
 ```
-Ubicación: LocalStorage (cifrado)
-Formato: JSON cifrado con AES-256
-Master Key: Derivado de user-agent + timestamp
-Backup: Export manual con verificación de integridad
+Ubicación: LocalStorage (cifrado con passphrase)
+Formato: JSON + PBKDF2 (100k iteraciones) + AES-256
+Master Key: Derivada de passphrase suministrada por el usuario (no se persiste)
+Backup: Export manual con fingerprint SHA-256
 ```
 
 **IMPORTANTE**: En producción, considerar:
@@ -257,7 +280,7 @@ Certificate Transparency: Habilitado
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
 ```
 
 ### 5. Auditoría y Trazabilidad
@@ -309,19 +332,17 @@ await SupabaseService.logAccess({
 
 ### 1. Almacenamiento de Claves en LocalStorage
 
-**Vulnerabilidad**: XSS puede acceder a localStorage.
+**Vulnerabilidad**: XSS podía derivar la master key al estar basada en `userAgent+timestamp`.
 
 **Mitigación Actual**:
-- React escapa automáticamente
-- No uso de `dangerouslySetInnerHTML`
-- CSP restrictivo
+- `KeyManagementService.configure(passphrase)` obliga a usar una passphrase >12 caracteres.
+- Master key derivada con PBKDF2 (100k iteraciones) + salt aleatorio.
+- Datos cifrados con AES-256 y fingerprint antes de exportar.
 
 **Mitigación Recomendada**:
-- Migrar a IndexedDB cifrado
-- Web Crypto API para operaciones sensibles
-- Considerar hardware tokens (WebAuthn)
+- Migrar a almacenamiento aislado (IndexedDB + WebCrypto) o HSM cuando haya backend dedicado.
 
-**Riesgo**: Bajo (con CSP y sanitización)
+**Riesgo**: Medio→Bajo (requiere robar passphrase en runtime)
 
 ### 2. Anclaje Blockchain Simulado
 

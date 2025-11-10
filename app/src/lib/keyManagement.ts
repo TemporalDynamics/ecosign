@@ -17,12 +17,14 @@ export interface KeyRotationPolicy {
 export class KeyManagementService {
   private static readonly KEY_STORAGE_PREFIX = 'verifysign_key_';
   private static readonly ACTIVE_KEY_VERSION = 'verifysign_active_key_version';
+  private static readonly MASTER_SALT_KEY = 'verifysign_master_salt';
   private static readonly DEFAULT_ROTATION_POLICY: KeyRotationPolicy = {
     maxAgeMs: 90 * 24 * 60 * 60 * 1000,
     rotationSchedule: 'monthly',
     retainOldKeys: true,
     maxOldKeysCount: 3,
   };
+  private static passphrase: string | null = null;
 
   static generateKeyPair(version: number): KeyPair {
     const privateKey = CryptoJS.lib.WordArray.random(32).toString();
@@ -36,7 +38,21 @@ export class KeyManagementService {
     };
   }
 
+  static configure(passphrase: string): void {
+    if (!passphrase || passphrase.length < 12) {
+      throw new Error('Passphrase must be at least 12 characters long');
+    }
+    this.passphrase = passphrase;
+  }
+
+  private static ensureConfigured(): void {
+    if (!this.passphrase) {
+      throw new Error('KeyManagementService is not configured. Call configure(passphrase) before using it.');
+    }
+  }
+
   static storeKeyPair(keyPair: KeyPair, isActive: boolean = true): void {
+    this.ensureConfigured();
     try {
       const encrypted = this.encryptKeyPair(keyPair);
       const storageKey = `${this.KEY_STORAGE_PREFIX}${keyPair.version}`;
@@ -55,6 +71,7 @@ export class KeyManagementService {
   }
 
   static getActiveKeyPair(): KeyPair | null {
+    this.ensureConfigured();
     try {
       const activeVersion = localStorage.getItem(this.ACTIVE_KEY_VERSION);
       if (!activeVersion) {
@@ -76,6 +93,7 @@ export class KeyManagementService {
   }
 
   static rotateKeys(policy: KeyRotationPolicy = this.DEFAULT_ROTATION_POLICY): KeyPair {
+    this.ensureConfigured();
     const currentKeyPair = this.getActiveKeyPair();
     const newVersion = currentKeyPair ? currentKeyPair.version + 1 : 1;
 
@@ -93,6 +111,7 @@ export class KeyManagementService {
   }
 
   static shouldRotateKeys(policy: KeyRotationPolicy = this.DEFAULT_ROTATION_POLICY): boolean {
+    this.ensureConfigured();
     const activeKeyPair = this.getActiveKeyPair();
 
     if (!activeKeyPair) {
@@ -104,6 +123,7 @@ export class KeyManagementService {
   }
 
   static cleanupOldKeys(maxKeysToRetain: number): void {
+    this.ensureConfigured();
     try {
       const allKeys = this.getAllKeyVersions();
       const activeVersion = parseInt(localStorage.getItem(this.ACTIVE_KEY_VERSION) || '0', 10);
@@ -125,12 +145,14 @@ export class KeyManagementService {
   }
 
   static revokeKeyPair(version: number): void {
+    this.ensureConfigured();
     const storageKey = `${this.KEY_STORAGE_PREFIX}${version}`;
     localStorage.removeItem(storageKey);
     console.log(`Key pair version ${version} revoked`);
   }
 
   static getAllKeyVersions(): number[] {
+    this.ensureConfigured();
     const versions: number[] = [];
 
     for (let i = 0; i < localStorage.length; i++) {
@@ -147,6 +169,7 @@ export class KeyManagementService {
   }
 
   static initializeKeys(): KeyPair {
+    this.ensureConfigured();
     let activeKeyPair = this.getActiveKeyPair();
 
     if (!activeKeyPair) {
@@ -159,6 +182,7 @@ export class KeyManagementService {
   }
 
   static exportKeyPairForBackup(keyPair: KeyPair): string {
+    this.ensureConfigured();
     const backup = {
       ...keyPair,
       exportedAt: new Date().toISOString(),
@@ -169,6 +193,7 @@ export class KeyManagementService {
   }
 
   static importKeyPairFromBackup(backupString: string): KeyPair {
+    this.ensureConfigured();
     try {
       const backup = JSON.parse(atob(backupString));
 
@@ -205,9 +230,22 @@ export class KeyManagementService {
   }
 
   private static getMasterKey(): string {
-    const userAgent = navigator.userAgent;
-    const timestamp = Date.now().toString().slice(0, -6);
-    return CryptoJS.SHA256(userAgent + timestamp + 'verifysign_v1').toString();
+    this.ensureConfigured();
+    const salt = this.getOrCreateSalt();
+    return CryptoJS.PBKDF2(this.passphrase as string, CryptoJS.enc.Hex.parse(salt), {
+      keySize: 256 / 32,
+      iterations: 100000,
+    }).toString();
+  }
+
+  private static getOrCreateSalt(): string {
+    let salt = localStorage.getItem(this.MASTER_SALT_KEY);
+    if (!salt) {
+      const random = CryptoJS.lib.WordArray.random(16).toString();
+      localStorage.setItem(this.MASTER_SALT_KEY, random);
+      salt = random;
+    }
+    return salt;
   }
 
   static getKeyMetadata(): {

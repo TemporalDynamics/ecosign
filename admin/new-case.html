@@ -3,7 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nuevo Caso - verifysign</title>
+  
+  <!-- SEO Meta Tags -->
+  <title>Nuevo Caso - VerifySign | Crear Documento para Certificación Digital</title>
+  <meta name="title" content="Nuevo Caso - VerifySign | Crear Documento para Certificación Digital">
+  <meta name="description" content="Crea un nuevo caso de certificación en VerifySign. Sube tus documentos para sellado criptográfico y seguimiento de verificaciones.">
+  <meta name="keywords" content="nuevo caso, crear documento, certificación digital, verify sign, sellado criptográfico, verificaciones, upload PDF">
+  <meta name="author" content="VerifySign">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://your-vercel-domain.com/admin/new-case.html" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://your-vercel-domain.com/admin/new-case.html">
+  <meta property="og:title" content="Nuevo Caso - VerifySign | Crear Documento para Certificación Digital">
+  <meta property="og:description" content="Crea un nuevo caso de certificación en VerifySign. Sube tus documentos para sellado criptográfico y seguimiento de verificaciones.">
+  <meta property="og:image" content="https://your-vercel-domain.com/og-image-new-case.jpg">
+  <meta property="og:image:alt" content="Crear nuevo caso en VerifySign">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://your-vercel-domain.com/admin/new-case.html">
+  <meta property="twitter:title" content="Nuevo Caso - VerifySign | Crear Documento para Certificación Digital">
+  <meta property="twitter:description" content="Crea un nuevo caso de certificación en VerifySign. Sube tus documentos para sellado criptográfico y seguimiento de verificaciones.">
+  
   <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
     body {
@@ -81,8 +104,8 @@
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Replace with your Supabase URL
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your Supabase anon key
+    const SUPABASE_URL = 'https://tbxowirrvgtvfnxcdqks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRieG93aXJydmd0dmZueGNkcWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyOTQyMjgsImV4cCI6MjA3Nzg3MDIyOH0.GgVYH10zh--64FyGlNGYaZcbVXow3Bj9iZS3Zq9HWXQ';
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -103,7 +126,7 @@
 
     document.getElementById('new-case-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const caseName = document.getElementById('case-name').value;
       const fileInput = document.getElementById('nda-pdf');
       const file = fileInput.files[0];
@@ -116,25 +139,27 @@
       const doc_sha256 = await sha256(file);
       const doc_name = file.name;
 
-      const response = await fetch('/.netlify/functions/create-case', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({ 
-              case_name: caseName,
-              doc_name: doc_name,
-              doc_sha256: doc_sha256
-          })
-      });
+      // Create case directly in Supabase
+      const { data, error } = await supabase
+        .from('cases')
+        .insert([{
+          case_name: caseName,
+          doc_name: doc_name,
+          doc_sha256: doc_sha256,
+          user_id: session.user.id, // Link to current user
+          unique_token: crypto.randomUUID(), // Generate unique token
+        }])
+        .select()
+        .single();
 
-      if (response.ok) {
-          const result = await response.json();
-          sessionStorage.setItem('newLink', result.shareableLink);
-          window.location.href = '/admin/dashboard.html';
+      if (error) {
+        console.error('Error creating case:', error);
+        alert('Error al crear el caso: ' + error.message);
       } else {
-          alert('Error al crear el caso.');
+        // Generate the shareable link
+        const shareableLink = `${window.location.origin}/sign.html?token=${data.unique_token}`;
+        sessionStorage.setItem('newLink', shareableLink);
+        window.location.href = '/admin/dashboard.html';
       }
     });
   </script>

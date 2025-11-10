@@ -3,7 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iniciar Sesión - verifysign</title>
+  
+  <!-- SEO Meta Tags -->
+  <title>Iniciar Sesión - VerifySign | Acceso Seguro a Plataforma de Certificación Digital</title>
+  <meta name="title" content="Iniciar Sesión - VerifySign | Acceso Seguro a Plataforma de Certificación Digital">
+  <meta name="description" content="Inicia sesión en VerifySign, la plataforma de certificación digital con trazabilidad forense. Accede a tus documentos certificados y verificados con tecnología blockchain.">
+  <meta name="keywords" content="iniciar sesión, login, verify sign, plataforma digital, certificación, documentos, acceso seguro">
+  <meta name="author" content="VerifySign">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://your-vercel-domain.com/login.html" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://your-vercel-domain.com/login.html">
+  <meta property="og:title" content="Iniciar Sesión - VerifySign | Acceso Seguro a Plataforma de Certificación Digital">
+  <meta property="og:description" content="Inicia sesión en VerifySign, la plataforma de certificación digital con trazabilidad forense.">
+  <meta property="og:image" content="https://your-vercel-domain.com/og-image-login.jpg">
+  <meta property="og:image:alt" content="Iniciar sesión en VerifySign">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://your-vercel-domain.com/login.html">
+  <meta property="twitter:title" content="Iniciar Sesión - VerifySign | Acceso Seguro a Plataforma de Certificación Digital">
+  <meta property="twitter:description" content="Inicia sesión en VerifySign, la plataforma de certificación digital con trazabilidad forense.">
+  
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     body {
@@ -76,11 +99,11 @@
     <form id="login-form">
       <div class="form-group">
         <label for="email">Email</label>
-        <input type="email" id="email" required>
+        <input type="email" id="email" autocomplete="email" required>
       </div>
       <div class="form-group">
         <label for="password">Contraseña</label>
-        <input type="password" id="password" required>
+        <input type="password" id="password" autocomplete="current-password" required>
       </div>
       <button type="submit" class="btn">Entrar</button>
     </form>
@@ -92,26 +115,33 @@
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Replace with your Supabase URL
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your Supabase anon key
+    const SUPABASE_URL = 'https://tbxowirrvgtvfnxcdqks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRieG93aXJydmd0dmZueGNkcWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyOTQyMjgsImV4cCI6MjA3Nzg3MDIyOH0.GgVYH10zh--64FyGlNGYaZcbVXow3Bj9iZS3Zq9HWXQ';
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = document.getElementById('email').value;
+      const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
 
-      if (error) {
-        alert(`Error: ${error.message}`);
-      } else {
-        // Redirect to dashboard on successful login
-        window.location.href = '/admin/dashboard.html';
+        if (error) {
+          console.error('Login error:', error);
+          alert(`Error de inicio de sesión: ${error.message}`);
+        } else {
+          console.log('Login successful:', data);
+          // Redirect to dashboard on successful login
+          window.location.href = '/admin/dashboard.html';
+        }
+      } catch (err) {
+        console.error('Unexpected error during login:', err);
+        alert(`Error inesperado: ${err.message}`);
       }
     });
   </script>

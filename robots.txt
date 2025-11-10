@@ -1,0 +1,30 @@
+# robots.txt for VerifySign
+# Created on 10 November 2025
+
+User-agent: *
+Disallow: /admin/
+Disallow: /login.html
+Disallow: /signup.html
+Disallow: /sign.html
+Disallow: /email-verification.html
+Allow: /
+
+# Sitemap
+Sitemap: https://your-vercel-domain.com/sitemap.xml
+
+# Crawl-delay: How long bots should wait between requests (in seconds)
+Crawl-delay: 5
+
+# Specific user agent rules (if needed)
+User-agent: Googlebot
+Disallow: /private/
+
+User-agent: AdsBot-Google
+Disallow: /admin/
+Disallow: /api/
+
+User-agent: Bingbot
+Crawl-delay: 10
+
+# Host directive (for search engines to know preferred domain)
+Host: your-vercel-domain.com

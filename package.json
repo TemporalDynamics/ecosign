@@ -1,19 +1,17 @@
 {
-  "name": "livetemporalcomposition",
+  "name": "verifysign",
   "version": "1.0.0",
-  "description": "Live Temporal Composition - LTC Document Access System",
+  "description": "VerifySign - Document Verification and Signing Platform",
   "main": "index.js",
   "scripts": {
-    "dev": "netlify dev",
+    "dev": "cd client && npm run dev",
+    "build": "cd client && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["supabase", "netlify", "nda", "document-signing"],
+  "keywords": ["supabase", "vercel", "nda", "document-signing"],
   "author": "Manuel S.",
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4"
-  },
-  "devDependencies": {
-    "netlify-cli": "^23.9.5"
   }
 }

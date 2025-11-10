@@ -1,0 +1,22 @@
+{
+  "name": "verifysign-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions para VerifySign - Backend serverless",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "netlify dev",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@netlify/functions": "^2.4.0",
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

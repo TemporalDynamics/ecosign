@@ -1,40 +1,54 @@
-import { pack, unpack } from '../index'; // Asumiendo implementación futura
-import { createProject, addAsset, addSegment } from '@vista/timeline-engine';
+import { pack, unpack } from '../index';
+import type { EcoProject } from '../types';
+import { generateEd25519KeyPair, sha256Hex } from '../eco-utils';
 
 // Este archivo demuestra el ciclo completo de empaquetar y desempaquetar un proyecto.
 
 async function main() {
-  // 1. Crear un proyecto de VISTA NEO de ejemplo.
-  let project = createProject('Proyecto para ECO');
-  const { newProject: p1, assetId } = addAsset(project, {
-    mediaType: 'video',
-    fileName: 'a.mp4',
-    duration: 60,
-    originalFileName: 'a.mp4',
-    src: 'file://a.mp4',
-    createdAt: Date.now()
-  });
-  project = p1;
-  const { newProject: p2 } = addSegment(project, { assetId, startTime: 10, endTime: 20, projectStartTime: 0 });
-  project = p2;
+  const project: EcoProject = {
+    id: 'demo-project',
+    name: 'Proyecto para ECO',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    version: '1.0.0',
+    assets: {
+      videoAsset: {
+        id: 'videoAsset',
+        mediaType: 'video',
+        fileName: 'a.mp4',
+        duration: 60,
+        originalFileName: 'a.mp4',
+        src: 'file://a.mp4',
+        createdAt: Date.now(),
+      },
+    },
+    timeline: [
+      {
+        id: 'segment-1',
+        assetId: 'videoAsset',
+        startTime: 10,
+        endTime: 20,
+        projectStartTime: 0,
+      },
+    ],
+  };
 
   console.log('Proyecto original:', project);
 
-  // 2. Empaquetar el proyecto en un archivo .eco
-  // La función `pack` necesitará una forma de resolver los `blob:URL` a datos reales.
+  // 2. Empaquetar el proyecto en un archivo .ecox firmando el manifiesto
   console.log('\nEmpaquetando el proyecto...');
-  // const ecoBlob = await pack(project, async (src) => {
-  //   const response = await fetch(src);
-  //   return response.blob();
-  // });
-  // console.log('Proyecto empaquetado en un Blob de tipo:', ecoBlob.type);
+  const { privateKey, publicKey } = generateEd25519KeyPair();
+  const assetHashes = new Map<string, string>();
+  assetHashes.set('videoAsset', sha256Hex('contenido-del-video'));
+  const ecoBuffer = await pack(project, assetHashes, { privateKey, keyId: 'demo-key' });
+  console.log('Proyecto empaquetado en un ArrayBuffer con bytes:', ecoBuffer.byteLength);
 
-  // 3. Desempaquetar el archivo .eco para reconstruir el proyecto
-  console.log('\nDesempaquetando el archivo .eco (simulado)...');
-  // const reconstructedProject = await unpack(ecoBlob);
-  // console.log('Proyecto reconstruido:', reconstructedProject);
+  // 3. Desempaquetar el archivo .ecox para verificar la integridad
+  console.log('\nDesempaquetando el archivo .ecox (simulado)...');
+  const manifest = await unpack(ecoBuffer, { publicKey });
+  console.log('Manifiesto verificado:', manifest);
 
-  // console.assert(reconstructedProject.name === project.name, 'La reconstrucción ha fallado!');
+  console.assert(manifest.projectId === project.id, 'La verificación ha fallado!');
 }
 
 main();

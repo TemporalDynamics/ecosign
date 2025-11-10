@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { pack, unpack } from '../index';
 import type { EcoManifest } from '../unpacker';
 import { generateEd25519KeyPair, sha256Hex } from '../eco-utils';
-import { Project } from '@vista/timeline-engine';
+import type { EcoProject } from '../types';
 
-const createTestProject = (): Project => ({
+const createTestProject = (): EcoProject => ({
   id: 'project_123',
   name: 'My Test Project',
-  assets: { // Assets should be an object, not an array, as per timeline-engine's Project type
-    'asset_1': {
+  assets: { // Assets map indexed por id
+    asset_1: {
       id: 'asset_1',
       mediaType: 'video',
       fileName: 'clip1.mp4',
@@ -19,7 +19,7 @@ const createTestProject = (): Project => ({
       height: 1080,
       createdAt: new Date('2025-10-31T09:50:00Z').getTime(), // Added
     },
-    'asset_2': {
+    asset_2: {
       id: 'asset_2',
       mediaType: 'audio',
       fileName: 'music.mp3',

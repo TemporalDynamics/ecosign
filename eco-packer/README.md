@@ -1,49 +1,68 @@
-# Librería: `@vistapulse/eco-packer`
+# @vistapulse/eco-packer
 
-## ¿Qué hace?
+Herramientas de empaquetado/validación para el formato **.ECOX** de VISTA NEO. Genera manifiestos firmados (Ed25519), valida su integridad y permite incrustar una versión pública (`packEcoFromEcoX`).
 
-Implementa la gestión del innovador formato de archivo `.eco`. Esta librería proporciona las herramientas para **empaquetar** un proyecto de VISTA NEO (manifiesto + assets) en un único archivo autocontenido, y para **desempaquetar** un archivo `.eco` y reconstruir el estado del proyecto en el editor. Es la tecnología clave para la portabilidad y colaboración.
+## Instalación
 
-## ¿Cómo se usa?
+### En este monorepo
+```bash
+cd librerias/eco-packer
+npm install
+npm run build
+```
+La app principal puede consumir la librería con los alias existentes (`@vistapulse/eco-packer`).
 
-```typescript
-import { pack, unpack } from '@vistapulse/eco-packer';
-import { useVistaStore } from '@vistapulse/state-store';
+### En otro proyecto (ej. `/home/manu/verifysign`)
+```bash
+# desde el proyecto destino
+npm install --save ../NEO/librerias/eco-packer
+```
+Esto copia el paquete compilado a `node_modules/@vistapulse/eco-packer`. TypeScript obtiene los tipos desde `dist/index.d.ts` sin configuración extra.
 
-async function handleExport() {
-  const project = useVistaStore.getState().project;
-  if (!project) return;
+## API principal
 
-  const assetResolver = async (src: string) => {
-    const response = await fetch(src);
-    if (!response.ok) {
-      throw new Error(`No se pudo recuperar el asset: ${src}`);
-    }
-    return await response.blob();
-  };
+```ts
+import { pack, unpack, packEcoFromEcoX } from '@vistapulse/eco-packer';
+import type { EcoProject } from '@vistapulse/eco-packer';
+import { generateEd25519KeyPair, sha256Hex } from '@vistapulse/eco-packer/eco-utils';
 
-  const ecoBlob = await pack(project, {
-    assetResolver,
-    onProgress: (progress) => console.log(`Empaquetando… ${Math.round(progress * 100)}%`),
-  });
+const project: EcoProject = { /* ... */ };
+const assetHashes = new Map<string, string>();
+assetHashes.set('asset-1', sha256Hex(actualBinaryData));
 
-  // ...luego, ofrecer ecoBlob para descarga...
-}
+const { privateKey, publicKey } = generateEd25519KeyPair();
+const ecoBuffer = await pack(project, assetHashes, { privateKey, keyId: 'tenant-key' });
+const manifest = await unpack(ecoBuffer, { publicKey, expectedKeyId: 'tenant-key' });
 
-async function handleImport(file: File) {
-  const revokers: Array<() => void> = [];
-
-  const project = await unpack(file, {
-    registerObjectURL: (_url, revoke) => revokers.push(revoke),
-  });
-
-  useVistaStore.getState().loadProject(project);
-
-  // Guardar revokers para liberar memoria cuando sea necesario:
-  // revokers.forEach((cleanup) => cleanup());
-}
+const publicEco = packEcoFromEcoX(manifest, manifest.signatures[0].signature);
 ```
 
-## ¿Por qué es diferente?
+### `pack(project, assetHashes, options)`
+- `project`: objeto `EcoProject`.
+- `assetHashes`: `Map<assetId, sha256>` con hashes hexadecimales.
+- `options`: `{ privateKey: Buffer; keyId: string }` (llaves DER Ed25519).
+- Devuelve `ArrayBuffer` del `.ecox` resultante.
 
-El formato `.eco` no es un simple `zip`. Está diseñado para ser un "caballo de Troya" creativo: externamente puede tener una vista previa como si fuera una imagen, pero internamente contiene un proyecto de edición no lineal completo. Esta librería maneja la complejidad de obtener los datos de los `blob:URL` de los assets, empaquetarlos de forma segura y reconstruir el entorno de trabajo al importarlo, una proeza técnica que la mayoría de editores web no ofrecen.
+### `unpack(ecoFile, options)`
+- `ecoFile`: `Blob | ArrayBuffer | Uint8Array`.
+- `options`: `{ publicKey: Buffer | string; expectedKeyId?: string }`.
+- Devuelve el `EcoManifest` validado (lanza error si la firma no coincide).
+
+### `packEcoFromEcoX(project, signature)`
+Genera una versión pública canónica para previews o auditorías sin exponer el proyecto completo.
+
+## Tipos expuestos
+- `EcoAsset`, `EcoSegment`, `EcoProject`.
+- `PackOptions`, `UnpackerOptions`, `EcoManifest`.
+
+## Scripts
+- `npm run build` – compila a `dist/`.
+- `npm run test` – ejecuta las pruebas de firma y roundtrip.
+
+## Prácticas recomendadas
+1. **Calcula hashes reales**: usa `sha256Hex` sobre los bytes del asset (no sobre strings arbitrarios).
+2. **Protege las llaves**: empaqueta en un entorno seguro; el `privateKey` no debería residir en el cliente final.
+3. **Reutiliza `packEcoFromEcoX`** para generar previews firmadas y almacenarlas junto al `.ecox`.
+
+## Licencia
+MIT.

@@ -1,6 +1,5 @@
 // librerias/eco-packer/src/eco-utils.ts
 import crypto from 'crypto';
-import fs from 'fs/promises';
 import path from 'path';
 
 /**

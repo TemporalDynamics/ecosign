@@ -9,6 +9,38 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### 💪 Robustez y Error Handling (POST-WEEK 1)
+- ✅ **ErrorBoundary component** - Captura errores de React sin romper la app
+  - UI de error amigable con opciones de recuperación
+  - Detalles técnicos en modo desarrollo
+  - Botones "Reintentar" y "Volver al inicio"
+
+- ✅ **Custom Error Classes** - Manejo estructurado de errores
+  - `NetworkError` - Errores de conexión
+  - `AuthenticationError` - No autenticado (401)
+  - `AuthorizationError` - Sin permisos (403)
+  - `ValidationError` - Datos inválidos (400)
+  - `RateLimitError` - Demasiadas requests (429)
+  - `ServerError` - Errores del servidor (5xx)
+
+- ✅ **Retry Logic con Exponential Backoff**
+  - Max 3 reintentos para errores transientes
+  - Backoff: 1s → 2s → 4s con jitter
+  - No reintenta errores de validación/auth
+
+- ✅ **Environment Variables Validation**
+  - Validación al startup de variables requeridas
+  - Detección de placeholders (YOUR_*, xxx, ...)
+  - Validación de formato (Supabase URL, JWT)
+  - Error UI visual si falta configuración
+
+- ✅ **Advanced Rate Limiting**
+  - Sliding window (más preciso que fixed window)
+  - Límites por IP + por usuario autenticado
+  - Blacklist automática después de N violaciones
+  - Métricas de tracking (total requests, blocked, etc.)
+  - Cleanup automático de datos expirados
+
 ### 🔧 Mantenimiento
 - ✅ Correcciones TypeScript en Netlify Functions (unused variables)
 - ✅ Creada guía de desarrollo local (LOCAL-DEV.md)

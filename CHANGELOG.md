@@ -9,6 +9,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### 🔧 Mantenimiento
+- ✅ Correcciones TypeScript en Netlify Functions (unused variables)
+- ✅ Creada guía de desarrollo local (LOCAL-DEV.md)
+- ✅ Build verificado exitosamente (client + functions)
+
+---
+
+## [0.2.0] - 2025-11-09 - WEEK 1 COMPLETE ✅
+
 ### 🔒 Seguridad (Semana 1 - COMPLETADA ✅)
 - ✅ Protección de código fuente de `eco-packer` (patente en trámite)
 - ✅ Actualizado `.gitignore` para excluir archivos sensibles

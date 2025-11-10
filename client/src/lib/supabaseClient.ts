@@ -6,16 +6,13 @@
  */
 
 import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
+import { validateEnvironment } from './envValidation';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Validar environment variables al cargar el módulo
+const env = validateEnvironment();
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing Supabase environment variables. ' +
-    'Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env'
-  );
-}
+const supabaseUrl = env.VITE_SUPABASE_URL;
+const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
 
 /**
  * Cliente singleton de Supabase

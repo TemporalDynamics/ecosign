@@ -5,9 +5,16 @@
  * - CSRF tokens
  * - Authorization headers
  * - Error handling
+ * - Retry logic con exponential backoff
  */
 
 import { supabase } from './supabaseClient';
+import {
+  parseApiError,
+  isRetryableError,
+  getRetryDelay,
+  AuthenticationError
+} from './apiErrors';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/.netlify/functions';
 
@@ -56,47 +63,77 @@ class ApiClient {
   }
 
   /**
-   * POST request genérico
+   * POST request genérico con retry logic
    */
   private async post<T>(
     endpoint: string,
     body: any,
-    options: { requireAuth?: boolean; requireCSRF?: boolean } = {}
+    options: {
+      requireAuth?: boolean;
+      requireCSRF?: boolean;
+      maxRetries?: number;
+    } = {}
   ): Promise<ApiResponse<T>> {
-    const { requireAuth = true, requireCSRF = true } = options;
+    const { requireAuth = true, requireCSRF = true, maxRetries = 3 } = options;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
+    let lastError: any;
 
-    // Agregar CSRF token si se requiere
-    if (requireCSRF) {
-      const csrfToken = await this.getCSRFToken();
-      headers['X-CSRF-Token'] = csrfToken;
-    }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json'
+        };
 
-    // Agregar Authorization si se requiere
-    if (requireAuth) {
-      const accessToken = await this.getAccessToken();
-      if (!accessToken) {
-        throw new Error('Not authenticated');
+        // Agregar CSRF token si se requiere
+        if (requireCSRF) {
+          const csrfToken = await this.getCSRFToken();
+          headers['X-CSRF-Token'] = csrfToken;
+        }
+
+        // Agregar Authorization si se requiere
+        if (requireAuth) {
+          const accessToken = await this.getAccessToken();
+          if (!accessToken) {
+            throw new AuthenticationError();
+          }
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body)
+        });
+
+        const result: ApiResponse<T> = await response.json();
+
+        if (!response.ok || !result.success) {
+          const error = parseApiError(result, response.status);
+          throw error;
+        }
+
+        return result;
+      } catch (error: any) {
+        lastError = error;
+
+        // No reintentar si es error de autenticación/validación
+        if (!isRetryableError(error)) {
+          throw error;
+        }
+
+        // Si es el último intento, lanzar el error
+        if (attempt === maxRetries) {
+          throw error;
+        }
+
+        // Esperar antes de reintentar (exponential backoff)
+        const delay = getRetryDelay(attempt);
+        console.warn(`API request failed (attempt ${attempt}/${maxRetries}). Retrying in ${delay}ms...`, error);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-      headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    });
-
-    const result: ApiResponse<T> = await response.json();
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || 'API request failed');
-    }
-
-    return result;
+    throw lastError;
   }
 
   /**

@@ -63,3 +63,4 @@ eco-packer/node_modules/
 
 # Versión antigua (backup local)
 eco-packer primera version/
+client/.env

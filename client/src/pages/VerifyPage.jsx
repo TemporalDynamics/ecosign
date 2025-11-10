@@ -2,16 +2,80 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Shield, CheckCircle, XCircle, ExternalLink, Upload, FileText, Lock, Anchor } from 'lucide-react';
 
+// Configuración de validación
+const ALLOWED_EXTENSIONS = ['.eco', '.ecox', '.pdf', '.zip'];
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_MIME_TYPES = [
+  'application/octet-stream', // .eco, .ecox
+  'application/pdf',
+  'application/zip',
+  'application/x-zip-compressed',
+  '' // Algunos navegadores no establecen MIME para archivos desconocidos
+];
+
 function VerifyPage() {
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [result, setResult] = useState(null);
+  const [validationError, setValidationError] = useState(null);
+
+  // Validar archivo
+  const validateFile = (file) => {
+    if (!file) {
+      return { valid: false, error: 'No se seleccionó ningún archivo' };
+    }
+
+    // Validar tamaño
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        valid: false,
+        error: `El archivo excede el límite de 50MB (tamaño: ${(file.size / 1024 / 1024).toFixed(2)}MB)`
+      };
+    }
+
+    // Validar tamaño mínimo (evitar archivos vacíos)
+    if (file.size === 0) {
+      return { valid: false, error: 'El archivo está vacío' };
+    }
+
+    // Validar extensión
+    const fileName = file.name.toLowerCase();
+    const ext = fileName.substring(fileName.lastIndexOf('.'));
+
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return {
+        valid: false,
+        error: `Extensión no permitida. Solo se aceptan: ${ALLOWED_EXTENSIONS.join(', ')}`
+      };
+    }
+
+    // Validar MIME type
+    if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
+      return {
+        valid: false,
+        error: `Tipo de archivo no permitido (${file.type})`
+      };
+    }
+
+    return { valid: true };
+  };
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
+
     if (selectedFile) {
+      const validation = validateFile(selectedFile);
+
+      if (!validation.valid) {
+        setValidationError(validation.error);
+        setFile(null);
+        setResult(null);
+        return;
+      }
+
       setFile(selectedFile);
+      setValidationError(null);
       setResult(null);
     }
   };
@@ -30,8 +94,19 @@ function VerifyPage() {
     e.preventDefault();
     setDragging(false);
     const droppedFile = e.dataTransfer.files[0];
+
     if (droppedFile) {
+      const validation = validateFile(droppedFile);
+
+      if (!validation.valid) {
+        setValidationError(validation.error);
+        setFile(null);
+        setResult(null);
+        return;
+      }
+
       setFile(droppedFile);
+      setValidationError(null);
       setResult(null);
     }
   };
@@ -150,7 +225,16 @@ function VerifyPage() {
               />
             </label>
 
-            {file && (
+            {validationError && (
+              <div className="mt-6 p-4 bg-red-50 border border-red-300 rounded-lg">
+                <p className="text-red-700 font-medium flex items-center justify-center">
+                  <XCircle className="w-5 h-5 mr-2" />
+                  {validationError}
+                </p>
+              </div>
+            )}
+
+            {file && !validationError && (
               <div className="mt-6 p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
                 <p className="text-cyan-700 font-medium flex items-center justify-center">
                   <FileText className="w-4 h-4 mr-2" />

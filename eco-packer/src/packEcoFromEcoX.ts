@@ -1,4 +1,3 @@
-import { Project } from '@vista/timeline-engine';
 import { canonicalize } from './eco-utils';
 
 // Helper to calculate total duration from segments (robust/simple)
@@ -38,7 +37,7 @@ export interface PublicEcoMetadata {
 /**
  * Packs a sanitized, public .ECO manifest from a full .ECOX project object.
  * The function is defensive about the exact Project shape coming from
- * different versions of @vista/timeline-engine.
+ * diferentes versiones de motores de timeline legacy.
  *
  * @param ecoXProject The full project object (may be typed or plain any)
  * @param ecoXSignature Signature string from the ECOX

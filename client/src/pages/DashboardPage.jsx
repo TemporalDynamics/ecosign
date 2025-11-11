@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, FileText, Shield, CheckCircle, Upload, X, Info } from 'lucide-react';
-import { certifyAndDownload } from '../lib/basicCertification';
+import { certifyAndDownload } from '../lib/basicCertificationBrowser';
 
 function DashboardPage() {
   const navigate = useNavigate();

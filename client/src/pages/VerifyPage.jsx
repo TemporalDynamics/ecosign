@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Shield, CheckCircle, XCircle, ExternalLink, Upload, FileText, Lock, Anchor } from 'lucide-react';
+import { extractEcoManifest, getVerificationResult, checkBlockchainAnchoring } from '../utils/verifyUtils';
+import LegalProtectionOptions from '../components/LegalProtectionOptions';
 
 // Configuración de validación
 const ALLOWED_EXTENSIONS = ['.eco', '.ecox', '.pdf', '.zip'];
@@ -116,29 +118,36 @@ function VerifyPage() {
 
     setVerifying(true);
 
-    // Simular verificación (aquí irá la lógica real con eco-packer)
-    setTimeout(() => {
-      // Simulación de resultado positivo
+    try {
+      // Extract manifest from the .ecox file
+      const { valid, manifest, error } = await extractEcoManifest(file);
+
+      if (!valid) {
+        setResult({
+          valid: false,
+          error: error || 'Archivo .ecox no válido'
+        });
+      } else {
+        // Get basic verification result from manifest
+        const basicResult = getVerificationResult(manifest);
+
+        // Check blockchain anchoring status
+        const blockchainResult = await checkBlockchainAnchoring(basicResult.hash);
+
+        // Combine results
+        setResult({
+          ...basicResult,
+          blockchain: blockchainResult
+        });
+      }
+    } catch (error) {
       setResult({
-        valid: true,
-        hash: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
-        timestamp: new Date().toISOString(),
-        author: 'usuario@ejemplo.com',
-        signatures: [
-          {
-            signer: 'juan.perez@empresa.com',
-            date: '2025-01-15T10:30:00Z',
-            verified: true
-          }
-        ],
-        blockchain: {
-          anchored: true,
-          network: 'Bitcoin',
-          txId: '0x1234567890abcdef...'
-        }
+        valid: false,
+        error: `Error al procesar el archivo: ${error.message}`
       });
-      setVerifying(false);
-    }, 2000);
+    }
+
+    setVerifying(false);
   };
 
   return (
@@ -327,31 +336,80 @@ function VerifyPage() {
                   )}
 
                   {/* Blockchain */}
-                  {result.blockchain && result.blockchain.anchored && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-cyan-600 mb-2">Anclaje en Blockchain</h4>
+                  {result.blockchain && (
+                    <div className={`bg-gray-50 border rounded-lg p-4 ${result.blockchain.anchored ? 'border-green-200' : 'border-gray-200'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-semibold text-cyan-600">Anclaje en Blockchain</h4>
+                        {result.blockchain.anchored ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Confirmado
+                          </span>
+                        ) : result.blockchain.status === 'pending' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Pendiente
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            No anclado
+                          </span>
+                        )}
+                      </div>
+                      
                       <div className="space-y-2">
                         <p className="text-gray-900">
-                          <span className="text-gray-600">Red:</span> {result.blockchain.network}
+                          <span className="text-gray-600">Red:</span> {result.blockchain.network || 'N/A'}
                         </p>
-                        <p className="text-gray-900">
-                          <span className="text-gray-600">TX ID:</span>{' '}
-                          <span className="font-mono text-sm">{result.blockchain.txId}</span>
-                        </p>
-                        <a
-                          href={`https://blockchair.com/search?q=${result.blockchain.txId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-cyan-600 hover:text-cyan-700 text-sm font-medium mt-2"
-                        >
-                          Verificar en explorador de blockchain
-                          <ExternalLink className="ml-1 w-4 h-4" />
-                        </a>
+                        
+                        {result.blockchain.txId && result.blockchain.txId !== 'N/A' && (
+                          <p className="text-gray-900">
+                            <span className="text-gray-600">TX ID:</span>{' '}
+                            <span className="font-mono text-sm">{result.blockchain.txId}</span>
+                          </p>
+                        )}
+                        
+                        {result.blockchain.calendarUrl && (
+                          <p className="text-gray-900 text-sm">
+                            <span className="text-gray-600">Calendario:</span>{' '}
+                            <span className="font-mono">{result.blockchain.calendarUrl}</span>
+                          </p>
+                        )}
+                        
+                        {result.blockchain.confirmedAt && (
+                          <p className="text-gray-900 text-sm">
+                            <span className="text-gray-600">Confirmado:</span>{' '}
+                            {new Date(result.blockchain.confirmedAt).toLocaleString('es-ES')}
+                          </p>
+                        )}
+                        
+                        {result.blockchain.txId && result.blockchain.txId !== 'N/A' && (
+                          <a
+                            href={`https://blockchair.com/bitcoin/transaction/${result.blockchain.txId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-cyan-600 hover:text-cyan-700 text-sm font-medium mt-2"
+                          >
+                            Verificar en explorador de blockchain
+                            <ExternalLink className="ml-1 w-4 h-4" />
+                          </a>
+                        )}
+                        
+                        {!result.blockchain.anchored && result.blockchain.status === 'not_found' && (
+                          <p className="text-sm text-gray-600 mt-2">
+                            Este documento no tiene anclaje en blockchain registrado en nuestro sistema.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
 
+                {/* Legal Protection Options - Show after successful verification */}
+                <LegalProtectionOptions 
+                  documentId={result.projectId}
+                  documentHash={result.hash}
+                  userId={null} // Would be the authenticated user ID in a real implementation
+                />
+                
                 <div className="mt-8 text-center">
                   <button
                     onClick={() => {

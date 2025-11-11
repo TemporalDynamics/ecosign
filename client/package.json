@@ -13,6 +13,7 @@
     "@noble/hashes": "^2.0.1",
     "@supabase/supabase-js": "^2.80.0",
     "@temporaldynamics/eco-packer": "file:../eco-packer",
+    "asn1.js": "^4.10.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.553.0",
     "react": "^18.2.0",

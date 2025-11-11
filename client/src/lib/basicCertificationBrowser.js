@@ -230,7 +230,8 @@ export async function certifyFile(file, options = {}) {
           ...(tsaResponse && tsaResponse.success ? {
             legalTimestamp: {
               standard: 'RFC 3161',
-              tsa: tsaResponse.tsaUrl,
+              tsa: tsaResponse.tsaName || tsaResponse.tsaUrl,
+              tsaUrl: tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
               token: tsaResponse.token,
               tokenSize: tsaResponse.tokenSize,
               algorithm: tsaResponse.algorithm,
@@ -272,7 +273,7 @@ export async function certifyFile(file, options = {}) {
       legalTimestamp: tsaResponse && tsaResponse.success ? {
         enabled: true,
         standard: 'RFC 3161',
-        tsa: tsaResponse.tsaUrl,
+        tsa: tsaResponse.tsaName || tsaResponse.tsaUrl,
         tokenSize: tsaResponse.tokenSize
       } : {
         enabled: false,

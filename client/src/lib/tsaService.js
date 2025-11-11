@@ -237,7 +237,8 @@ export async function requestSimpleTimestamp(hashHex) {
     return {
       success: true,
       timestamp: timestamp,
-      tsaUrl: 'FreeTSA.org (simplified)',
+      tsaName: 'FreeTSA.org (simulated)',
+      tsaUrl: 'https://freetsa.org/tsr',
       token: tokenBase64,
       tokenSize: tokenBase64.length,
       algorithm: 'SHA-256',

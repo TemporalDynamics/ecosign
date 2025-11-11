@@ -19,13 +19,8 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false
-      }
-    }
+    // No proxy for API routes - they will be handled by Vercel in production
+    // For local development, you would need to run a separate server or use Vercel CLI
   },
   build: {
     // Suppress chunk size warnings for now

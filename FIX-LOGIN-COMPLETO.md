@@ -36,7 +36,7 @@
 
 ## 🚀 CONFIGURACIÓN PASO A PASO
 
-### **Paso 1: Verificar Variables de Entorno** ✅
+### **Paso 1: Verificar Variables de Entorno** ✅x
 
 **Ya están configuradas en** `client/.env`:
 
@@ -58,7 +58,7 @@ Ve a tu **Supabase Dashboard** → **Authentication** → **URL Configuration**:
 https://verifysign.pro
 ```
 
-#### **B. Redirect URLs** (agregar todas estas):
+#### **B. Redirect URLs** (agregar todas estas):x
 ```
 https://verifysign.pro/**
 https://www.verifysign.pro/**

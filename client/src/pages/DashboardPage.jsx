@@ -1,26 +1,64 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, FileText, Shield, CheckCircle, Upload, X, Info } from 'lucide-react';
+import { certifyAndDownload } from '../lib/basicCertification';
 
 function DashboardPage() {
   const navigate = useNavigate();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [file, setFile] = useState(null);
   const [ndaRequired, setNdaRequired] = useState(true);
+  const [certifying, setCertifying] = useState(false);
+  const [certificationResult, setCertificationResult] = useState(null);
+  const [error, setError] = useState(null);
 
   const handleFileUpload = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
+      setError(null);
+      setCertificationResult(null);
     }
   };
 
-  const handleCreateLink = () => {
+  const handleCreateLink = async () => {
     if (!file) return;
-    // Aquí irá la lógica de creación del enlace seguro
-    alert('Enlace seguro creado exitosamente! (Funcionalidad en desarrollo)');
-    setShowUploadModal(false);
-    setFile(null);
+
+    setCertifying(true);
+    setError(null);
+    setCertificationResult(null);
+
+    try {
+      console.log('🚀 Starting certification process...');
+
+      // Get user email from Supabase if available
+      // For now, we'll use a placeholder
+      const options = {
+        userEmail: 'user@verifysign.pro',
+        userId: 'user-' + Date.now()
+      };
+
+      const result = await certifyAndDownload(file, options);
+
+      console.log('✅ Certification complete!', result);
+
+      setCertificationResult({
+        fileName: result.fileName,
+        hash: result.hash,
+        timestamp: result.timestamp,
+        ecoxFileName: result.downloadedFileName,
+        fileSize: result.fileSize,
+        ecoxSize: result.ecoxSize,
+        publicKey: result.publicKey
+      });
+
+      // Don't close modal - show success message
+    } catch (err) {
+      console.error('❌ Certification failed:', err);
+      setError(err.message || 'Error al certificar el documento');
+    } finally {
+      setCertifying(false);
+    }
   };
 
   const handleLogout = () => {
@@ -243,38 +281,102 @@ function DashboardPage() {
                 </button>
               </div>
 
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-700 font-medium">⚠️ {error}</p>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {certificationResult && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center mb-2">
+                    <CheckCircle className="w-5 h-5 text-green-600 mr-2" strokeWidth={2.5} />
+                    <h4 className="text-green-800 font-bold">✅ Certificado generado exitosamente!</h4>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Archivo:</span>
+                      <span className="font-mono text-gray-900">{certificationResult.fileName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tamaño original:</span>
+                      <span className="font-mono text-gray-900">{(certificationResult.fileSize / 1024).toFixed(2)} KB</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tamaño .ecox:</span>
+                      <span className="font-mono text-gray-900">{(certificationResult.ecoxSize / 1024).toFixed(2)} KB</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-600">Hash SHA-256:</span>
+                      <span className="font-mono text-xs text-gray-900 break-all max-w-[60%] text-right">{certificationResult.hash}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Timestamp:</span>
+                      <span className="font-mono text-xs text-gray-900">{new Date(certificationResult.timestamp).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-600">Clave pública:</span>
+                      <span className="font-mono text-xs text-gray-900 break-all max-w-[60%] text-right">{certificationResult.publicKey.substring(0, 40)}...</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-green-100 rounded p-3 mt-3">
+                    <p className="text-green-800 text-sm font-medium">
+                      📥 Descargado: <span className="font-mono">{certificationResult.ecoxFileName}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex space-x-4">
                 <button
                   onClick={handleCreateLink}
-                  disabled={!file}
+                  disabled={!file || certifying}
                   className={`flex-1 font-bold py-3 px-6 rounded-lg transition duration-300 ${
-                    file
+                    file && !certifying
                       ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  Generar Certificado
+                  {certifying ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Generando certificado...
+                    </span>
+                  ) : (
+                    'Generar Certificado'
+                  )}
                 </button>
                 <button
                   onClick={() => {
                     setShowUploadModal(false);
                     setFile(null);
+                    setCertificationResult(null);
+                    setError(null);
                   }}
                   className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition duration-300"
                 >
-                  Cancelar
+                  {certificationResult ? 'Cerrar' : 'Cancelar'}
                 </button>
               </div>
 
               {/* Info */}
-              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 flex items-start">
-                <Info className="w-5 h-5 text-cyan-600 mr-3 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                <p className="text-sm text-cyan-800">
-                  <strong>Información:</strong> El documento se procesará localmente. Generaremos un hash SHA-256,
-                  timestamp certificado y firma digital Ed25519. Opcionalmente, podemos anclar el hash en blockchain.
-                </p>
-              </div>
+              {!certificationResult && (
+                <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 flex items-start">
+                  <Info className="w-5 h-5 text-cyan-600 mr-3 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
+                  <p className="text-sm text-cyan-800">
+                    <strong>Información:</strong> El documento se procesará localmente. Generaremos un hash SHA-256,
+                    timestamp certificado y firma digital Ed25519. Opcionalmente, podemos anclar el hash en blockchain.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

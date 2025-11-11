@@ -16,6 +16,7 @@
     "asn1.js": "^4.10.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.553.0",
+    "opentimestamps": "^0.4.9",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-helmet-async": "^2.0.5",

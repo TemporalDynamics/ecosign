@@ -9,6 +9,7 @@ function DashboardPage() {
   const [file, setFile] = useState(null);
   const [ndaRequired, setNdaRequired] = useState(true);
   const [useLegalTimestamp, setUseLegalTimestamp] = useState(false);
+  const [useBlockchainAnchoring, setUseBlockchainAnchoring] = useState(false);
   const [certifying, setCertifying] = useState(false);
   const [certificationResult, setCertificationResult] = useState(null);
   const [error, setError] = useState(null);
@@ -37,7 +38,8 @@ function DashboardPage() {
       const options = {
         userEmail: 'user@verifysign.pro',
         userId: 'user-' + Date.now(),
-        useLegalTimestamp: useLegalTimestamp // RFC 3161 if enabled
+        useLegalTimestamp: useLegalTimestamp, // RFC 3161 if enabled
+        useBlockchainAnchoring: useBlockchainAnchoring // OpenTimestamps if enabled
       };
 
       const result = await certifyAndDownload(file, options);
@@ -52,7 +54,8 @@ function DashboardPage() {
         fileSize: result.fileSize,
         ecoxSize: result.ecoxSize,
         publicKey: result.publicKey,
-        legalTimestamp: result.legalTimestamp // Include legal timestamp info
+        legalTimestamp: result.legalTimestamp, // Include legal timestamp info
+        blockchainAnchoring: result.blockchainAnchoring // Include blockchain anchoring info
       });
 
       // Don't close modal - show success message
@@ -312,6 +315,34 @@ function DashboardPage() {
                 </button>
               </div>
 
+              {/* Blockchain Anchoring Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg border-2 border-orange-200">
+                <div>
+                  <h4 className="text-gray-900 font-semibold flex items-center">
+                    ⛓️ Anclaje en Blockchain (OpenTimestamps)
+                    <span className="ml-2 px-2 py-0.5 bg-orange-600 text-white text-xs rounded-full font-bold">BLOCKCHAIN</span>
+                  </h4>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Prueba inmutable en Bitcoin blockchain
+                  </p>
+                  <p className="text-xs text-orange-700 font-medium mt-1">
+                    🆓 Gratis • Confirmación en ~10 min • Permanente
+                  </p>
+                </div>
+                <button
+                  onClick={() => setUseBlockchainAnchoring(!useBlockchainAnchoring)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    useBlockchainAnchoring ? 'bg-orange-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      useBlockchainAnchoring ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
               {/* Error Message */}
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -375,6 +406,26 @@ function DashboardPage() {
                       </p>
                       <p className="text-xs text-green-700 mt-1">
                         Timestamp certificado por TSA • Aceptado en +100 países
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Blockchain anchoring badge */}
+                  {certificationResult.blockchainAnchoring && certificationResult.blockchainAnchoring.enabled && (
+                    <div className="bg-gradient-to-r from-orange-100 to-yellow-100 border-2 border-orange-300 rounded p-3 mt-3">
+                      <p className="text-orange-800 text-sm font-bold flex items-center">
+                        <Shield className="w-4 h-4 mr-2" />
+                        ⛓️ Anclado en {certificationResult.blockchainAnchoring.blockchain} Blockchain
+                      </p>
+                      <p className="text-xs text-orange-700 mt-1">
+                        {certificationResult.blockchainAnchoring.status === 'pending' ? (
+                          <>⏳ Esperando confirmación en blockchain (~10 min)</>
+                        ) : (
+                          <>✅ Confirmado en blockchain • Prueba permanente e inmutable</>
+                        )}
+                      </p>
+                      <p className="text-xs text-orange-600 mt-1 font-mono">
+                        Protocolo: {certificationResult.blockchainAnchoring.protocol}
                       </p>
                     </div>
                   )}

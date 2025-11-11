@@ -11,6 +11,7 @@ import * as ed from '@noble/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { requestSimpleTimestamp } from './tsaService.js';
+import { createBlockchainTimestamp } from './openTimestampsService.js';
 // Note: We're not using pack() from eco-packer because it has Node.js dependencies
 // Instead, we'll create a simple .ecox format manually
 
@@ -100,6 +101,7 @@ function base64ToUint8Array(base64) {
  * @param {string} options.userId - User ID (optional)
  * @param {string} options.userEmail - User email (optional)
  * @param {boolean} options.useLegalTimestamp - Request RFC 3161 timestamp (default: false)
+ * @param {boolean} options.useBlockchainAnchoring - Use OpenTimestamps blockchain anchoring (default: false)
  * @returns {Promise<Object>} Certification result with hash, timestamp, and .ecox data
  */
 export async function certifyFile(file, options = {}) {
@@ -152,6 +154,27 @@ export async function certifyFile(file, options = {}) {
       }
     } else {
       console.log('✅ Local timestamp:', timestamp);
+    }
+
+    // Step 4.5: Blockchain anchoring (with optional OpenTimestamps)
+    let blockchainResponse = null;
+
+    if (options.useBlockchainAnchoring) {
+      console.log('⛓️ Requesting blockchain anchoring (OpenTimestamps)...');
+      try {
+        blockchainResponse = await createBlockchainTimestamp(hash);
+        if (blockchainResponse.success) {
+          console.log('✅ Blockchain timestamp created!');
+          console.log('  Blockchain:', blockchainResponse.blockchain);
+          console.log('  Protocol:', blockchainResponse.protocol);
+          console.log('  Status:', blockchainResponse.status);
+        } else {
+          console.log('⚠️ Blockchain anchoring failed');
+        }
+      } catch (error) {
+        console.error('⚠️ Blockchain anchoring error:', error);
+        console.log('  Continuing without blockchain anchoring');
+      }
     }
 
     // Step 5: Create EcoProject manifest
@@ -238,6 +261,21 @@ export async function certifyFile(file, options = {}) {
               verified: tsaResponse.verified,
               note: tsaResponse.note
             }
+          } : {}),
+          // Blockchain anchoring (if requested)
+          ...(blockchainResponse && blockchainResponse.success ? {
+            blockchainAnchoring: {
+              blockchain: blockchainResponse.blockchain,
+              protocol: blockchainResponse.protocol,
+              status: blockchainResponse.status,
+              otsProof: blockchainResponse.otsProof,
+              otsProofSize: blockchainResponse.otsProofSize,
+              calendarServers: blockchainResponse.calendarServers,
+              timestamp: blockchainResponse.timestamp,
+              estimatedConfirmation: blockchainResponse.estimatedConfirmation,
+              verificationUrl: blockchainResponse.verificationUrl,
+              note: blockchainResponse.note
+            }
           } : {})
         }
       ],
@@ -245,7 +283,9 @@ export async function certifyFile(file, options = {}) {
         createdWith: 'VerifySign Browser Client',
         browserVersion: navigator.userAgent,
         hasLegalTimestamp: tsaResponse && tsaResponse.success,
-        timestampType: tsaResponse && tsaResponse.success ? 'RFC 3161 (Legal)' : 'Local (Informational)'
+        hasBlockchainAnchoring: blockchainResponse && blockchainResponse.success,
+        timestampType: tsaResponse && tsaResponse.success ? 'RFC 3161 (Legal)' : 'Local (Informational)',
+        anchoringType: blockchainResponse && blockchainResponse.success ? 'Bitcoin (OpenTimestamps)' : 'None'
       }
     };
 
@@ -278,6 +318,19 @@ export async function certifyFile(file, options = {}) {
       } : {
         enabled: false,
         note: 'Local timestamp only (informational)'
+      },
+      // Blockchain anchoring info (if requested)
+      blockchainAnchoring: blockchainResponse && blockchainResponse.success ? {
+        enabled: true,
+        blockchain: blockchainResponse.blockchain,
+        protocol: blockchainResponse.protocol,
+        status: blockchainResponse.status,
+        otsProofSize: blockchainResponse.otsProofSize,
+        estimatedConfirmation: blockchainResponse.estimatedConfirmation,
+        verificationUrl: blockchainResponse.verificationUrl
+      } : {
+        enabled: false,
+        note: 'No blockchain anchoring'
       }
     };
 

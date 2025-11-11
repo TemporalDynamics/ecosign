@@ -1,0 +1,295 @@
+/**
+ * Basic Certification Service - Browser Compatible
+ *
+ * Uses browser-compatible libraries instead of Node.js crypto:
+ * - @noble/ed25519 for signatures (pure JavaScript)
+ * - @noble/hashes for SHA-256 (pure JavaScript)
+ * - pack() from eco-packer (should work after polyfills)
+ */
+
+import * as ed from '@noble/ed25519';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
+// Note: We're not using pack() from eco-packer because it has Node.js dependencies
+// Instead, we'll create a simple .ecox format manually
+
+/**
+ * Reads a file and returns its ArrayBuffer
+ */
+async function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/**
+ * Generates a new Ed25519 key pair (browser-compatible)
+ * Returns keys as Uint8Array
+ */
+export async function generateKeys() {
+  const privateKey = ed.utils.randomPrivateKey();
+  const publicKey = await ed.getPublicKeyAsync(privateKey);
+
+  return {
+    privateKey: bytesToHex(privateKey),
+    publicKey: bytesToHex(publicKey)
+  };
+}
+
+/**
+ * Calculates SHA-256 hash (browser-compatible)
+ * @param {Uint8Array} data - Data to hash
+ * @returns {string} Hex string
+ */
+function calculateSHA256(data) {
+  const hash = sha256(data);
+  return bytesToHex(hash);
+}
+
+/**
+ * Signs a message with Ed25519 (browser-compatible)
+ * @param {string} message - Message to sign
+ * @param {string} privateKeyHex - Private key as hex string
+ * @returns {Promise<string>} Signature as hex string
+ */
+async function signMessage(message, privateKeyHex) {
+  const messageBytes = utf8ToBytes(message);
+  const privateKeyBytes = hexToBytes(privateKeyHex);
+  const signature = await ed.signAsync(messageBytes, privateKeyBytes);
+  return bytesToHex(signature);
+}
+
+/**
+ * Converts Uint8Array to base64 string
+ */
+function uint8ArrayToBase64(bytes) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Converts base64 string to Uint8Array
+ */
+function base64ToUint8Array(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Certifies a file and returns certification data
+ *
+ * @param {File} file - The file to certify
+ * @param {Object} options - Certification options
+ * @param {string} options.privateKey - Hex-encoded private key (optional, will generate if not provided)
+ * @param {string} options.publicKey - Hex-encoded public key (optional)
+ * @param {string} options.userId - User ID (optional)
+ * @param {string} options.userEmail - User email (optional)
+ * @returns {Promise<Object>} Certification result with hash, timestamp, and .ecox data
+ */
+export async function certifyFile(file, options = {}) {
+  try {
+    console.log('📄 Starting file certification (browser mode)...');
+    console.log('  File name:', file.name);
+    console.log('  File size:', file.size, 'bytes');
+
+    // Step 1: Read file as ArrayBuffer
+    const fileBuffer = await readFileAsArrayBuffer(file);
+    const fileArray = new Uint8Array(fileBuffer);
+    console.log('✅ File read successfully');
+
+    // Step 2: Calculate SHA-256 hash
+    const hash = calculateSHA256(fileArray);
+    console.log('✅ Hash calculated:', hash);
+
+    // Step 3: Generate or use provided keys
+    let privateKeyHex, publicKeyHex;
+    if (options.privateKey && options.publicKey) {
+      privateKeyHex = options.privateKey;
+      publicKeyHex = options.publicKey;
+    } else {
+      const keys = await generateKeys();
+      privateKeyHex = keys.privateKey;
+      publicKeyHex = keys.publicKey;
+    }
+    console.log('✅ Keys ready');
+    console.log('  Public key (hex):', publicKeyHex.substring(0, 32) + '...');
+
+    // Step 4: Create timestamp
+    const timestamp = new Date().toISOString();
+    console.log('✅ Timestamp:', timestamp);
+
+    // Step 5: Create EcoProject manifest
+    const assetId = `asset-${Date.now()}`;
+    const projectId = `doc-${Date.now()}`;
+
+    const project = {
+      version: '1.1.0',
+      projectId: projectId,
+      metadata: {
+        title: file.name,
+        description: `Certified document: ${file.name}`,
+        createdAt: timestamp,
+        modifiedAt: timestamp,
+        author: options.userEmail || 'anonymous',
+        tags: ['certified', 'verifysign', 'browser']
+      },
+      assets: [
+        {
+          assetId: assetId,
+          type: 'document',
+          name: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          size: file.size,
+          hash: hash,
+          metadata: {
+            originalName: file.name,
+            uploadedAt: timestamp
+          }
+        }
+      ],
+      segments: [
+        {
+          segmentId: 'seg-1',
+          startTime: 0,
+          duration: 0,
+          sourceAssetId: assetId,
+          metadata: {
+            description: 'Original document'
+          }
+        }
+      ],
+      timeline: {
+        duration: 0,
+        fps: 0,
+        segments: ['seg-1']
+      }
+    };
+
+    console.log('✅ Manifest created');
+
+    // Step 6: Create asset hashes map
+    const assetHashes = new Map();
+    assetHashes.set(assetId, hash);
+
+    // Step 7: Sign the manifest
+    const manifestJSON = JSON.stringify(project, null, 2);
+    const signature = await signMessage(manifestJSON, privateKeyHex);
+    console.log('✅ Manifest signed');
+
+    // Step 8: Create .ecox format manually (simplified version)
+    // Instead of using pack(), we create a JSON manifest with signature
+    const ecoxManifest = {
+      format: 'ecox',
+      version: '1.1.0',
+      manifest: project,
+      signatures: [
+        {
+          keyId: options.userId || 'temp-key',
+          signerId: options.userEmail || 'anonymous@verifysign.pro',
+          publicKey: publicKeyHex,
+          signature: signature,
+          algorithm: 'Ed25519',
+          timestamp: timestamp
+        }
+      ],
+      metadata: {
+        createdWith: 'VerifySign Browser Client',
+        browserVersion: navigator.userAgent
+      }
+    };
+
+    // Convert to ArrayBuffer
+    const ecoxJSON = JSON.stringify(ecoxManifest, null, 2);
+    const encoder = new TextEncoder();
+    const ecoxBuffer = encoder.encode(ecoxJSON).buffer;
+
+    console.log('✅ .ecox file created:', ecoxBuffer.byteLength, 'bytes');
+
+    // Return certification data
+    return {
+      success: true,
+      hash: hash,
+      timestamp: timestamp,
+      projectId: projectId,
+      fileName: file.name,
+      fileSize: file.size,
+      publicKey: publicKeyHex,
+      privateKey: privateKeyHex, // Include for debugging (remove in production!)
+      signature: signature,
+      ecoxBuffer: ecoxBuffer,
+      ecoxSize: ecoxBuffer.byteLength
+    };
+
+  } catch (error) {
+    console.error('❌ Certification error:', error);
+    console.error('Stack:', error.stack);
+    throw new Error(`Certification failed: ${error.message}`);
+  }
+}
+
+/**
+ * Downloads the .ecox file to the user's computer
+ *
+ * @param {ArrayBuffer} ecoxBuffer - The .ecox file data
+ * @param {string} originalFileName - Original file name (for naming the .ecox)
+ */
+export function downloadEcox(ecoxBuffer, originalFileName) {
+  try {
+    // Create blob from ArrayBuffer
+    const blob = new Blob([ecoxBuffer], { type: 'application/octet-stream' });
+
+    // Create download link
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    // Generate .ecox filename
+    const baseName = originalFileName.replace(/\.[^/.]+$/, ''); // Remove extension
+    const ecoxFileName = `${baseName}.ecox`;
+
+    link.href = url;
+    link.download = ecoxFileName;
+
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    console.log('✅ Download initiated:', ecoxFileName);
+    return ecoxFileName;
+
+  } catch (error) {
+    console.error('❌ Download error:', error);
+    throw new Error(`Download failed: ${error.message}`);
+  }
+}
+
+/**
+ * Complete certification flow: certify + download
+ *
+ * @param {File} file - The file to certify
+ * @param {Object} options - Certification options
+ * @returns {Promise<Object>} Certification result
+ */
+export async function certifyAndDownload(file, options = {}) {
+  const result = await certifyFile(file, options);
+  const downloadedFileName = downloadEcox(result.ecoxBuffer, result.fileName);
+
+  return {
+    ...result,
+    downloadedFileName: downloadedFileName
+  };
+}

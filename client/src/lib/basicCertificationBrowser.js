@@ -10,6 +10,7 @@
 import * as ed from '@noble/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
+import { requestSimpleTimestamp } from './tsaService.js';
 // Note: We're not using pack() from eco-packer because it has Node.js dependencies
 // Instead, we'll create a simple .ecox format manually
 
@@ -98,6 +99,7 @@ function base64ToUint8Array(base64) {
  * @param {string} options.publicKey - Hex-encoded public key (optional)
  * @param {string} options.userId - User ID (optional)
  * @param {string} options.userEmail - User email (optional)
+ * @param {boolean} options.useLegalTimestamp - Request RFC 3161 timestamp (default: false)
  * @returns {Promise<Object>} Certification result with hash, timestamp, and .ecox data
  */
 export async function certifyFile(file, options = {}) {
@@ -128,9 +130,29 @@ export async function certifyFile(file, options = {}) {
     console.log('✅ Keys ready');
     console.log('  Public key (hex):', publicKeyHex.substring(0, 32) + '...');
 
-    // Step 4: Create timestamp
-    const timestamp = new Date().toISOString();
-    console.log('✅ Timestamp:', timestamp);
+    // Step 4: Create timestamp (with optional RFC 3161 legal timestamp)
+    let timestamp = new Date().toISOString();
+    let tsaResponse = null;
+
+    if (options.useLegalTimestamp) {
+      console.log('🕐 Requesting RFC 3161 legal timestamp...');
+      try {
+        tsaResponse = await requestSimpleTimestamp(hash);
+        if (tsaResponse.success) {
+          timestamp = tsaResponse.timestamp;
+          console.log('✅ Legal timestamp received from TSA');
+          console.log('  TSA:', tsaResponse.tsaUrl);
+          console.log('  Standard:', tsaResponse.standard);
+        } else {
+          console.log('⚠️ TSA request failed, using local timestamp');
+        }
+      } catch (error) {
+        console.error('⚠️ TSA error:', error);
+        console.log('  Falling back to local timestamp');
+      }
+    } else {
+      console.log('✅ Local timestamp:', timestamp);
+    }
 
     // Step 5: Create EcoProject manifest
     const assetId = `asset-${Date.now()}`;
@@ -203,12 +225,26 @@ export async function certifyFile(file, options = {}) {
           publicKey: publicKeyHex,
           signature: signature,
           algorithm: 'Ed25519',
-          timestamp: timestamp
+          timestamp: timestamp,
+          // RFC 3161 legal timestamp (if requested)
+          ...(tsaResponse && tsaResponse.success ? {
+            legalTimestamp: {
+              standard: 'RFC 3161',
+              tsa: tsaResponse.tsaUrl,
+              token: tsaResponse.token,
+              tokenSize: tsaResponse.tokenSize,
+              algorithm: tsaResponse.algorithm,
+              verified: tsaResponse.verified,
+              note: tsaResponse.note
+            }
+          } : {})
         }
       ],
       metadata: {
         createdWith: 'VerifySign Browser Client',
-        browserVersion: navigator.userAgent
+        browserVersion: navigator.userAgent,
+        hasLegalTimestamp: tsaResponse && tsaResponse.success,
+        timestampType: tsaResponse && tsaResponse.success ? 'RFC 3161 (Legal)' : 'Local (Informational)'
       }
     };
 
@@ -231,7 +267,17 @@ export async function certifyFile(file, options = {}) {
       privateKey: privateKeyHex, // Include for debugging (remove in production!)
       signature: signature,
       ecoxBuffer: ecoxBuffer,
-      ecoxSize: ecoxBuffer.byteLength
+      ecoxSize: ecoxBuffer.byteLength,
+      // Legal timestamp info (if requested)
+      legalTimestamp: tsaResponse && tsaResponse.success ? {
+        enabled: true,
+        standard: 'RFC 3161',
+        tsa: tsaResponse.tsaUrl,
+        tokenSize: tsaResponse.tokenSize
+      } : {
+        enabled: false,
+        note: 'Local timestamp only (informational)'
+      }
     };
 
   } catch (error) {

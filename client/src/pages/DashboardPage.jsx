@@ -8,6 +8,7 @@ function DashboardPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [file, setFile] = useState(null);
   const [ndaRequired, setNdaRequired] = useState(true);
+  const [useLegalTimestamp, setUseLegalTimestamp] = useState(false);
   const [certifying, setCertifying] = useState(false);
   const [certificationResult, setCertificationResult] = useState(null);
   const [error, setError] = useState(null);
@@ -35,7 +36,8 @@ function DashboardPage() {
       // For now, we'll use a placeholder
       const options = {
         userEmail: 'user@verifysign.pro',
-        userId: 'user-' + Date.now()
+        userId: 'user-' + Date.now(),
+        useLegalTimestamp: useLegalTimestamp // RFC 3161 if enabled
       };
 
       const result = await certifyAndDownload(file, options);
@@ -49,7 +51,8 @@ function DashboardPage() {
         ecoxFileName: result.downloadedFileName,
         fileSize: result.fileSize,
         ecoxSize: result.ecoxSize,
-        publicKey: result.publicKey
+        publicKey: result.publicKey,
+        legalTimestamp: result.legalTimestamp // Include legal timestamp info
       });
 
       // Don't close modal - show success message
@@ -281,6 +284,34 @@ function DashboardPage() {
                 </button>
               </div>
 
+              {/* Legal Timestamp Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
+                <div>
+                  <h4 className="text-gray-900 font-semibold flex items-center">
+                    ⚖️ Timestamp con Validez Legal (RFC 3161)
+                    <span className="ml-2 px-2 py-0.5 bg-green-600 text-white text-xs rounded-full font-bold">LEGAL</span>
+                  </h4>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Timestamp certificado por Time Stamp Authority (TSA)
+                  </p>
+                  <p className="text-xs text-green-700 font-medium mt-1">
+                    ✅ Validez legal en +100 países • Cumple estándar RFC 3161
+                  </p>
+                </div>
+                <button
+                  onClick={() => setUseLegalTimestamp(!useLegalTimestamp)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    useLegalTimestamp ? 'bg-green-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      useLegalTimestamp ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
               {/* Error Message */}
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -317,11 +348,36 @@ function DashboardPage() {
                       <span className="text-gray-600">Timestamp:</span>
                       <span className="font-mono text-xs text-gray-900">{new Date(certificationResult.timestamp).toLocaleString()}</span>
                     </div>
+                    {/* Legal Timestamp Info */}
+                    {certificationResult.legalTimestamp && certificationResult.legalTimestamp.enabled && (
+                      <div className="flex justify-between items-start bg-green-50 -mx-2 px-2 py-2 rounded">
+                        <span className="text-green-700 font-semibold flex items-center">
+                          ⚖️ Validez Legal:
+                        </span>
+                        <div className="text-right">
+                          <span className="font-mono text-xs text-green-800 font-bold block">{certificationResult.legalTimestamp.standard}</span>
+                          <span className="text-xs text-green-600">{certificationResult.legalTimestamp.tsa}</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex justify-between items-start">
                       <span className="text-gray-600">Clave pública:</span>
                       <span className="font-mono text-xs text-gray-900 break-all max-w-[60%] text-right">{certificationResult.publicKey.substring(0, 40)}...</span>
                     </div>
                   </div>
+
+                  {/* Legal timestamp badge */}
+                  {certificationResult.legalTimestamp && certificationResult.legalTimestamp.enabled && (
+                    <div className="bg-gradient-to-r from-green-100 to-emerald-100 border-2 border-green-300 rounded p-3 mt-3">
+                      <p className="text-green-800 text-sm font-bold flex items-center">
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        ✅ Este certificado tiene VALIDEZ LEGAL internacional (RFC 3161)
+                      </p>
+                      <p className="text-xs text-green-700 mt-1">
+                        Timestamp certificado por TSA • Aceptado en +100 países
+                      </p>
+                    </div>
+                  )}
 
                   <div className="bg-green-100 rounded p-3 mt-3">
                     <p className="text-green-800 text-sm font-medium">

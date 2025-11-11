@@ -27,10 +27,13 @@ async function readFileAsArrayBuffer(file) {
 
 /**
  * Generates a new Ed25519 key pair (browser-compatible)
- * Returns keys as Uint8Array
+ * Returns keys as hex strings
  */
 export async function generateKeys() {
-  const privateKey = ed.utils.randomPrivateKey();
+  // In @noble/ed25519 v3.x, use crypto.getRandomValues for private key
+  const privateKey = new Uint8Array(32);
+  crypto.getRandomValues(privateKey);
+
   const publicKey = await ed.getPublicKeyAsync(privateKey);
 
   return {

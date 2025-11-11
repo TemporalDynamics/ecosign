@@ -24,7 +24,13 @@ function LoginPage() {
         if (error) throw error;
         navigate("/app/dashboard");
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin + '/dashboard'
+          }
+        });
         if (error) throw error;
 
         await trackSignup(getActiveVariant());

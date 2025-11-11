@@ -144,6 +144,10 @@
         const { data, error } = await supabase.auth.signUp({
           email: email,
           password: password,
+          options: {
+            // ESTO es lo que le dice a Supabase a dónde redirigir en el email
+            emailRedirectTo: window.location.origin + '/dashboard'
+          }
         });
 
         if (error) {

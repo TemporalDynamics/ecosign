@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VISTAPULSE .ECO Manifest v1",
+  "type": "object",
+  "required": ["specVersion","projectId","createdAt","author","assets","segments","operationLog"],
+  "additionalProperties": false,
+  "properties": {
+    "specVersion": { "type": "string", "pattern": "^1\\.0\\.0$" },
+    "projectId": { "type": "string" },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "author": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" }
+      },
+      "additionalProperties": false
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "required": ["id","mediaType","fileName","sha256"],
+        "properties": {
+          "id": { "type": "string" },
+          "mediaType": { "type": "string" },
+          "fileName": { "type": "string" },
+          "duration": { "type": "number" },
+          "width": { "type": "number" },
+          "height": { "type": "number" },
+          "sha256": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id","assetId","startTime","endTime","projectStartTime"],
+        "properties": {
+          "id": { "type": "string" },
+          "assetId": { "type": "string" },
+          "startTime": { "type": "number" },
+          "endTime": { "type": "number" },
+          "projectStartTime": { "type": "number" },
+          "speed": { "type": "number", "default": 1 },
+          "volume": { "type": "number", "default": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "operationLog": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["opId","type","timestamp","payload"],
+        "properties": {
+          "opId": { "type": "string" },
+          "type": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "payload": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "custom": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "signatures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["keyId","algorithm","signature","createdAt"],
+        "properties": {
+          "keyId": { "type": "string" },
+          "algorithm": { "type": "string" },
+          "signature": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

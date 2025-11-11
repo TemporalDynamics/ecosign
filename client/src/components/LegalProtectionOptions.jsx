@@ -1,0 +1,108 @@
+// client/src/components/LegalProtectionOptions.jsx
+import React, { useState } from 'react';
+import { Shield, FileText, ExternalLink, Zap } from 'lucide-react';
+import IntegrationModal from './IntegrationModal';
+import { requestMifielIntegration, requestSignNowIntegration } from '../utils/integrationUtils';
+
+const LegalProtectionOptions = ({ documentId, documentHash, userId }) => {
+  const [selectedIntegration, setSelectedIntegration] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalData, setModalData] = useState(null);
+
+  const handleMifielClick = async () => {
+    try {
+      const result = await requestMifielIntegration(documentId, 'nom-151', documentHash, userId);
+      setModalData(result);
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('Error requesting Mifiel integration:', error);
+      alert('Error connecting to Mifiel service. Please try again.');
+    }
+  };
+
+  const handleSignNowClick = async () => {
+    try {
+      const result = await requestSignNowIntegration(documentId, 'esignature', documentHash, userId);
+      setModalData(result);
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('Error requesting SignNow integration:', error);
+      alert('Error connecting to SignNow service. Please try again.');
+    }
+  };
+
+  const handleConfirm = async (paymentData) => {
+    // In a real implementation, this would finalize the payment and service request
+    console.log('Confirming integration:', paymentData);
+    alert(`Service confirmed! The ${paymentData.service} integration is being processed.`);
+  };
+
+  return (
+    <div className="mt-8">
+      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6">
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0">
+            <Zap className="w-6 h-6 text-amber-600" strokeWidth={2.5} />
+          </div>
+          <div>
+            <h3 className="text-gray-900 font-semibold mb-2">¿Necesitas blindaje legal adicional?</h3>
+            <p className="text-gray-700 text-sm mb-4">
+              Si necesitas cumplimiento legal avanzado o firmas electrónicas con valor jurídico reforzado, 
+              tenemos opciones de integración con servicios profesionales.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Mifiel Option */}
+              <button
+                onClick={handleMifielClick}
+                className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-cyan-300 hover:shadow-md transition-all group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <Shield className="w-5 h-5 text-green-600 group-hover:text-cyan-600" />
+                    <span className="font-medium text-gray-900">NOM-151 Certificate</span>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-cyan-500" />
+                </div>
+                <p className="text-sm text-gray-600 mb-2">Sellado de tiempo con cumplimiento legal mexicano (NOM-151)</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-green-700">$29.90</span>
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Mifiel</span>
+                </div>
+              </button>
+
+              {/* SignNow Option */}
+              <button
+                onClick={handleSignNowClick}
+                className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-cyan-300 hover:shadow-md transition-all group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-5 h-5 text-blue-600 group-hover:text-cyan-600" />
+                    <span className="font-medium text-gray-900">e-Signature</span>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-cyan-500" />
+                </div>
+                <p className="text-sm text-gray-600 mb-2">Firmas electrónicas con seguimiento de auditoría</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-700">$4.99</span>
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">SignNow</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Integration Modal */}
+      <IntegrationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        integrationData={modalData}
+        onConfirm={handleConfirm}
+      />
+    </div>
+  );
+};
+
+export default LegalProtectionOptions;

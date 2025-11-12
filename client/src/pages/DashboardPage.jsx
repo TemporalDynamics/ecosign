@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, FileText, Shield, CheckCircle, Upload, X, Info, Calendar, Hash, Eye, Download } from 'lucide-react';
-import { certifyAndDownload } from '../lib/basicCertificationBrowser';
 import { supabase, saveCertification, getUserCertifications } from '../lib/supabase';
 
 function DashboardPage() {
@@ -11,6 +10,7 @@ function DashboardPage() {
   const [ndaRequired, setNdaRequired] = useState(true);
   const [useLegalTimestamp, setUseLegalTimestamp] = useState(false);
   const [useBlockchainAnchoring, setUseBlockchainAnchoring] = useState(false);
+  const [usePolygonAnchoring, setUsePolygonAnchoring] = useState(false);
   const [certifying, setCertifying] = useState(false);
   const [certificationResult, setCertificationResult] = useState(null);
   const [error, setError] = useState(null);
@@ -27,6 +27,38 @@ function DashboardPage() {
     }
   };
 
+  const downloadEcox = (ecoxBase64, originalFileName) => {
+    try {
+      const byteCharacters = atob(ecoxBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/octet-stream' });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      const baseName = originalFileName.replace(/\.[^/.]+$/, '');
+      const ecoxFileName = `${baseName}.ecox`;
+
+      link.href = url;
+      link.download = ecoxFileName;
+
+      document.body.appendChild(link);
+      link.click();
+
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      return ecoxFileName;
+    } catch (error) {
+      console.error('Download error:', error);
+      throw new Error(`Download failed: ${error.message}`);
+    }
+  };
+
   const handleCreateLink = async () => {
     if (!file) return;
 
@@ -37,46 +69,55 @@ function DashboardPage() {
     try {
       console.log('🚀 Starting certification process...');
 
-      const options = {
-        userEmail: user?.email || 'user@verifysign.pro',
-        userId: user?.id || 'user-' + Date.now(),
-        useLegalTimestamp: useLegalTimestamp, // RFC 3161 if enabled
-        useBlockchainAnchoring: useBlockchainAnchoring, // OpenTimestamps if enabled
-        ndaRequired: ndaRequired
-      };
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('ndaRequired', ndaRequired);
+      formData.append('useLegalTimestamp', useLegalTimestamp);
+      formData.append('useBlockchainAnchoring', useBlockchainAnchoring);
+      formData.append('usePolygonAnchoring', usePolygonAnchoring);
+      formData.append('userEmail', user?.email || 'user@verifysign.pro');
+      formData.append('userId', user?.id || 'user-' + Date.now());
 
-      const result = await certifyAndDownload(file, options);
+      const response = await fetch('/api/certify', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Certification failed');
+      }
 
       console.log('✅ Certification complete!', result);
+
+      const downloadedFileName = downloadEcox(result.ecox, result.fileName);
 
       const certResult = {
         fileName: result.fileName,
         hash: result.hash,
         timestamp: result.timestamp,
-        ecoxFileName: result.downloadedFileName,
+        ecoxFileName: downloadedFileName,
         fileSize: result.fileSize,
         ecoxSize: result.ecoxSize,
         publicKey: result.publicKey,
-        legalTimestamp: result.legalTimestamp, // Include legal timestamp info
-        blockchainAnchoring: result.blockchainAnchoring, // Include blockchain anchoring info
-        ndaRequired: ndaRequired
+        legalTimestamp: result.legalTimestamp,
+        blockchainAnchoring: result.blockchainAnchoring,
+        polygonAnchoring: result.polygonAnchoring,
+        ndaRequired: ndaRequired,
       };
 
       setCertificationResult(certResult);
 
-      // Save to database if user is authenticated
       if (user) {
         await saveCertification({
           ...certResult,
-          signature: result.signature || '', // Add signature field if available
-          ecoxManifest: result.ecoxManifest || {} // Add full manifest if available
+          signature: result.signature || '',
+          ecoxManifest: result.ecoxManifest || {},
         }, user.id);
         
-        // Reload certifications to show the new one
         await loadCertifications(user.id);
       }
-
-      // Don't close modal - show success message
     } catch (err) {
       console.error('❌ Certification failed:', err);
       setError(err.message || 'Error al certificar el documento');
@@ -86,14 +127,12 @@ function DashboardPage() {
   };
 
   useEffect(() => {
-    // Get current user session
     const getUserSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setUser(session.user);
         loadCertifications(session.user.id);
       } else {
-        // Check if user signs in later
         const { data: { subscription } } = await supabase.auth.onAuthStateChange(
           (_event, session) => {
             if (session) {
@@ -469,6 +508,34 @@ function DashboardPage() {
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       useBlockchainAnchoring ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Polygon Anchoring Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border-2 border-purple-200">
+                <div>
+                  <h4 className="text-gray-900 font-semibold flex items-center">
+                    💎 Anclaje en Polygon
+                    <span className="ml-2 px-2 py-0.5 bg-purple-600 text-white text-xs rounded-full font-bold">POLYGON</span>
+                  </h4>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Prueba inmutable en Polygon blockchain
+                  </p>
+                  <p className="text-xs text-purple-700 font-medium mt-1">
+                    ⚡ Rápido • Bajo costo • Descentralizado
+                  </p>
+                </div>
+                <button
+                  onClick={() => setUsePolygonAnchoring(!usePolygonAnchoring)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    usePolygonAnchoring ? 'bg-purple-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      usePolygonAnchoring ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
                 </button>

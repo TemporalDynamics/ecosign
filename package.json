@@ -19,6 +19,7 @@
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
     "@supabase/supabase-js": "^2.81.0",
+    "formidable": "^3.5.4",
     "opentimestamps": "^0.4.9",
     "stripe": "^19.3.0"
   }

@@ -21,23 +21,24 @@ VerifySign es una plataforma de certificación digital forense que permite crear
 
 #### 2. **Página de Verificación Pública** (`/verify`)
 - Interfaz drag & drop para archivos .ECO
-- Verificación simulada que muestra:
+- Verificación que muestra:
   - Hash SHA-256
   - Timestamp certificado
   - Firmas digitales
   - Anclaje en blockchain
+  - Verificación byte-a-byte
 - Sin necesidad de registro
 - Procesamiento local (privacidad)
 - Información educativa sobre qué se verifica
 
 #### 3. **Dashboard Funcional** (`/dashboard`)
 - Estadísticas en tiempo real (simuladas)
-- Modal de creación de certificados .ECO
-- Opciones para:
+- Modal de creación de certificados .ECO con opciones avanzadas:
   - Certificar documentos
   - Crear enlaces con NDA
-  - Toggle para requerir NDA
-- Actividad reciente
+  - Timestamp con Validez Legal (RFC 3161)
+  - Anclaje en Blockchain (OpenTimestamps)
+- Actividad reciente (lista de certificaciones del usuario)
 - Navegación integrada
 
 #### 4. **Página de Pricing** (`/pricing`)
@@ -49,9 +50,9 @@ VerifySign es una plataforma de certificación digital forense que permite crear
 - Navegación consistente
 
 #### 5. **Sistema de Autenticación** (`/login`)
-- Login/Registro en una sola página
-- Opción de continuar como invitado
-- Simulación de autenticación (redirige a dashboard)
+- Login/Registro en una sola página con Supabase.
+- Opción de continuar como invitado.
+- Autenticación real, no simulada.
 
 ## 🚀 Cómo Ejecutar el MVP
 
@@ -129,13 +130,13 @@ npm run preview
 ## 🔐 Próximos Pasos (Post-MVP)
 
 ### Fase 1: Integración Backend
-- [ ] Conectar con Supabase para autenticación real
+- [x] Conectar con Supabase para autenticación real
 - [ ] Implementar eco-packer para generar certificados .ECO reales
 - [ ] Almacenamiento en Supabase Storage
 - [ ] API para generación de enlaces NDA
 
 ### Fase 2: Funcionalidades Avanzadas
-- [ ] Anclaje real en blockchain (Bitcoin/Polygon)
+- [x] Anclaje real en blockchain (Bitcoin/Polygon)
 - [ ] Integración con Mifiel para firmas FIEL
 - [ ] Sistema de notificaciones por email
 - [ ] Panel de analytics
@@ -184,11 +185,11 @@ npm audit fix
 
 ## 📝 Notas Importantes
 
-1. **Estado Actual**: MVP funcional con navegación completa y UX pulida
-2. **Backend**: Actualmente simulado - necesita integración con Supabase
-3. **Librería eco-packer**: Existe en `/eco-packer` pero no está integrada aún
-4. **Errores 404**: Todos los errores 404 han sido solucionados
-5. **CTAs**: Todas las CTAs redirigen correctamente
+1. **Estado Actual**: MVP funcional con navegación completa y UX pulida.
+2. **Backend**: Autenticación real con Supabase.
+3. **Librería eco-packer**: No está integrada en el cliente. Se genera un formato `.ecox` simplificado manualmente en el navegador.
+4. **Errores 404**: Todos los errores 404 han sido solucionados.
+5. **CTAs**: Todas las CTAs redirigen correctamente.
 
 ## 📧 Contacto
 
@@ -199,6 +200,6 @@ Para deployment y siguientes pasos, revisar la configuración de:
 
 ---
 
-**Versión**: 1.0.0-MVP
+**Versión**: 1.1.0-MVP
 **Fecha**: Noviembre 2025
 **Status**: ✅ Listo para demo y feedback de usuarios

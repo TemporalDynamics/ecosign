@@ -12,6 +12,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { requestSimpleTimestamp } from './tsaService.js';
 import { createBlockchainTimestamp } from './openTimestampsService.js';
+import { registerOnPolygon } from './polygonService.js';
 // Note: We're not using pack() from eco-packer because it has Node.js dependencies
 // Instead, we'll create a simple .ecox format manually
 
@@ -102,6 +103,7 @@ function base64ToUint8Array(base64) {
  * @param {string} options.userEmail - User email (optional)
  * @param {boolean} options.useLegalTimestamp - Request RFC 3161 timestamp (default: false)
  * @param {boolean} options.useBlockchainAnchoring - Use OpenTimestamps blockchain anchoring (default: false)
+ * @param {boolean} options.ndaRequired - Require NDA acceptance for verification (default: false)
  * @returns {Promise<Object>} Certification result with hash, timestamp, and .ecox data
  */
 export async function certifyFile(file, options = {}) {
@@ -177,6 +179,27 @@ export async function certifyFile(file, options = {}) {
       }
     }
 
+    // Step 4.6: Polygon anchoring (with optional Polygon blockchain)
+    let polygonResponse = null;
+
+    if (options.usePolygonAnchoring) {
+      console.log('💎 Requesting Polygon blockchain anchoring...');
+      try {
+        polygonResponse = await registerOnPolygon(hash);
+        if (polygonResponse.success) {
+          console.log('✅ Polygon blockchain anchoring created!');
+          console.log('  Blockchain:', polygonResponse.blockchain);
+          console.log('  Transaction:', polygonResponse.txHash);
+          console.log('  Block:', polygonResponse.blockNumber);
+        } else {
+          console.log('⚠️ Polygon anchoring failed');
+        }
+      } catch (error) {
+        console.error('⚠️ Polygon anchoring error:', error);
+        console.log('  Continuing without Polygon anchoring');
+      }
+    }
+
     // Step 5: Create EcoProject manifest
     const assetId = `asset-${Date.now()}`;
     const projectId = `doc-${Date.now()}`;
@@ -223,6 +246,32 @@ export async function certifyFile(file, options = {}) {
         segments: ['seg-1']
       }
     };
+
+    // Add NDA requirement if specified
+    if (options.ndaRequired) {
+      project.metadata.nda = {
+        required: true,
+        version: '1.0',
+        text: `
+          ACUERDO DE CONFIDENCIALIDAD
+
+          Al acceder a este documento, usted acepta:
+
+          1. Mantener confidencial toda la información contenida
+          2. No divulgar, copiar o distribuir este documento sin autorización
+          3. Usar la información únicamente para fines autorizados
+          4. Notificar inmediatamente cualquier acceso no autorizado
+
+          El incumplimiento puede resultar en acciones legales.
+
+          Timestamp: ${timestamp}
+          Hash: ${hash}
+        `,
+        acceptedAt: null // To be filled when the user accepts
+      };
+
+      console.log('✅ NDA requirement added to project metadata');
+    }
 
     console.log('✅ Manifest created');
 
@@ -276,6 +325,16 @@ export async function certifyFile(file, options = {}) {
               verificationUrl: blockchainResponse.verificationUrl,
               note: blockchainResponse.note
             }
+          } : {}),
+          // Polygon anchoring (if requested)
+          ...(polygonResponse && polygonResponse.success ? {
+            polygonAnchoring: {
+              blockchain: 'Polygon',
+              txHash: polygonResponse.txHash,
+              blockNumber: polygonResponse.blockNumber,
+              timestamp: polygonResponse.timestamp,
+              explorerUrl: polygonResponse.explorerUrl
+            }
           } : {})
         }
       ],
@@ -284,8 +343,14 @@ export async function certifyFile(file, options = {}) {
         browserVersion: navigator.userAgent,
         hasLegalTimestamp: tsaResponse && tsaResponse.success,
         hasBlockchainAnchoring: blockchainResponse && blockchainResponse.success,
+        hasPolygonAnchoring: polygonResponse && polygonResponse.success,
+        hasNDA: options.ndaRequired || false,
         timestampType: tsaResponse && tsaResponse.success ? 'RFC 3161 (Legal)' : 'Local (Informational)',
-        anchoringType: blockchainResponse && blockchainResponse.success ? 'Bitcoin (OpenTimestamps)' : 'None'
+        anchoringType: blockchainResponse && blockchainResponse.success 
+          ? 'Bitcoin (OpenTimestamps)' 
+          : polygonResponse && polygonResponse.success 
+            ? 'Polygon' 
+            : 'None'
       }
     };
 
@@ -309,6 +374,7 @@ export async function certifyFile(file, options = {}) {
       signature: signature,
       ecoxBuffer: ecoxBuffer,
       ecoxSize: ecoxBuffer.byteLength,
+      ndaRequired: options.ndaRequired || false,
       // Legal timestamp info (if requested)
       legalTimestamp: tsaResponse && tsaResponse.success ? {
         enabled: true,
@@ -331,6 +397,17 @@ export async function certifyFile(file, options = {}) {
       } : {
         enabled: false,
         note: 'No blockchain anchoring'
+      },
+      // Polygon anchoring info (if requested)
+      polygonAnchoring: polygonResponse && polygonResponse.success ? {
+        enabled: true,
+        blockchain: polygonResponse.blockchain,
+        txHash: polygonResponse.txHash,
+        blockNumber: polygonResponse.blockNumber,
+        explorerUrl: polygonResponse.explorerUrl
+      } : {
+        enabled: false,
+        note: 'No Polygon anchoring'
       }
     };
 

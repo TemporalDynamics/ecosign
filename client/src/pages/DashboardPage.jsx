@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lock, FileText, Shield, CheckCircle, Upload, X, Info } from 'lucide-react';
+import { Lock, FileText, Shield, CheckCircle, Upload, X, Info, Calendar, Hash, Eye, Download } from 'lucide-react';
 import { certifyAndDownload } from '../lib/basicCertificationBrowser';
+import { supabase, saveCertification, getUserCertifications } from '../lib/supabase';
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -13,6 +14,9 @@ function DashboardPage() {
   const [certifying, setCertifying] = useState(false);
   const [certificationResult, setCertificationResult] = useState(null);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+  const [certifications, setCertifications] = useState([]);
+  const [loadingCertifications, setLoadingCertifications] = useState(true);
 
   const handleFileUpload = (e) => {
     const selectedFile = e.target.files[0];
@@ -33,20 +37,19 @@ function DashboardPage() {
     try {
       console.log('🚀 Starting certification process...');
 
-      // Get user email from Supabase if available
-      // For now, we'll use a placeholder
       const options = {
-        userEmail: 'user@verifysign.pro',
-        userId: 'user-' + Date.now(),
+        userEmail: user?.email || 'user@verifysign.pro',
+        userId: user?.id || 'user-' + Date.now(),
         useLegalTimestamp: useLegalTimestamp, // RFC 3161 if enabled
-        useBlockchainAnchoring: useBlockchainAnchoring // OpenTimestamps if enabled
+        useBlockchainAnchoring: useBlockchainAnchoring, // OpenTimestamps if enabled
+        ndaRequired: ndaRequired
       };
 
       const result = await certifyAndDownload(file, options);
 
       console.log('✅ Certification complete!', result);
 
-      setCertificationResult({
+      const certResult = {
         fileName: result.fileName,
         hash: result.hash,
         timestamp: result.timestamp,
@@ -55,8 +58,23 @@ function DashboardPage() {
         ecoxSize: result.ecoxSize,
         publicKey: result.publicKey,
         legalTimestamp: result.legalTimestamp, // Include legal timestamp info
-        blockchainAnchoring: result.blockchainAnchoring // Include blockchain anchoring info
-      });
+        blockchainAnchoring: result.blockchainAnchoring, // Include blockchain anchoring info
+        ndaRequired: ndaRequired
+      };
+
+      setCertificationResult(certResult);
+
+      // Save to database if user is authenticated
+      if (user) {
+        await saveCertification({
+          ...certResult,
+          signature: result.signature || '', // Add signature field if available
+          ecoxManifest: result.ecoxManifest || {} // Add full manifest if available
+        }, user.id);
+        
+        // Reload certifications to show the new one
+        await loadCertifications(user.id);
+      }
 
       // Don't close modal - show success message
     } catch (err) {
@@ -64,6 +82,49 @@ function DashboardPage() {
       setError(err.message || 'Error al certificar el documento');
     } finally {
       setCertifying(false);
+    }
+  };
+
+  useEffect(() => {
+    // Get current user session
+    const getUserSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        loadCertifications(session.user.id);
+      } else {
+        // Check if user signs in later
+        const { data: { subscription } } = await supabase.auth.onAuthStateChange(
+          (_event, session) => {
+            if (session) {
+              setUser(session.user);
+              loadCertifications(session.user.id);
+            } else {
+              setUser(null);
+              setCertifications([]);
+            }
+          }
+        );
+        
+        return () => {
+          subscription.unsubscribe();
+        };
+      }
+    };
+    
+    getUserSession();
+  }, []);
+
+  const loadCertifications = async (userId) => {
+    try {
+      setLoadingCertifications(true);
+      const data = await getUserCertifications(userId);
+      setCertifications(data || []);
+    } catch (err) {
+      console.error('Error loading certifications:', err);
+      setCertifications([]);
+    } finally {
+      setLoadingCertifications(false);
     }
   };
 
@@ -190,23 +251,93 @@ function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Activity */}
+        {/* Certification List */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
-          <div className="space-y-4">
-            <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-              <div className="text-sm text-cyan-600 font-medium mb-1">Hoy, 10:30 AM</div>
-              <p className="text-gray-700">Documento "Proyecto Alpha" firmado por juan@empresa.com</p>
-            </div>
-            <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-              <div className="text-sm text-cyan-600 font-medium mb-1">Ayer, 3:45 PM</div>
-              <p className="text-gray-700">Enlace seguro creado para "Informe Confidencial"</p>
-            </div>
-            <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-              <div className="text-sm text-cyan-600 font-medium mb-1">12 Nov, 9:15 AM</div>
-              <p className="text-gray-700">Nuevo certificado .ECO generado para contrato</p>
-            </div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Mis Certificaciones</h2>
+            {loadingCertifications && (
+              <div className="text-sm text-cyan-600">Cargando...</div>
+            )}
           </div>
+          
+          {loadingCertifications ? (
+            <div className="flex justify-center items-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+            </div>
+          ) : certifications.length === 0 ? (
+            <div className="text-center py-8">
+              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600">No tienes certificaciones aún</p>
+              <p className="text-sm text-gray-500 mt-1">Crea tu primera certificación usando el botón de arriba</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {certifications.map((cert) => (
+                <div key={cert.id} className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center mb-1">
+                        <FileText className="w-5 h-5 text-cyan-600 mr-2 flex-shrink-0" />
+                        <h3 className="font-medium text-gray-900 truncate">{cert.file_name}</h3>
+                      </div>
+                      
+                      <div className="text-sm text-gray-600 mb-2">
+                        <div className="flex items-center mb-1">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          <span>{new Date(cert.created_at).toLocaleString()}</span>
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <Hash className="w-4 h-4 mr-1" />
+                          <span className="font-mono text-xs truncate">{cert.file_hash?.substring(0, 16)}...</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {cert.tsa_token && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle className="w-3 h-3 mr-1" /> RFC 3161
+                          </span>
+                        )}
+                        {cert.ots_status === 'confirmed' && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            <Shield className="w-3 h-3 mr-1" /> Confirmado en blockchain
+                          </span>
+                        )}
+                        {cert.ots_status === 'pending' && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <Info className="w-3 h-3 mr-1" /> Confirmando
+                          </span>
+                        )}
+                        {cert.nda_required && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            NDA
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex space-x-2 ml-4">
+                      <button 
+                        onClick={() => navigate(`/verify/${cert.file_hash}`)}
+                        className="p-2 text-gray-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-full transition duration-200"
+                        title="Verificar"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/verify/${cert.file_hash}`)}
+                        className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition duration-200"
+                        title="Copiar enlace"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
@@ -219,8 +350,8 @@ function DashboardPage() {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl border border-gray-200">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white rounded-2xl max-w-2xl w-full flex flex-col max-h-[90vh] shadow-2xl border border-gray-200">
+            <div className="p-8 flex justify-between items-center mb-0 border-b border-gray-200">
               <h3 className="text-2xl font-bold text-gray-900">Crear Certificado .ECO</h3>
               <button
                 onClick={() => {
@@ -233,7 +364,7 @@ function DashboardPage() {
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="overflow-y-auto flex-grow p-8 space-y-6">
               {/* File Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -438,7 +569,19 @@ function DashboardPage() {
                 </div>
               )}
 
-              {/* Action Buttons */}
+              {/* Info */}
+              {!certificationResult && (
+                <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 flex items-start">
+                  <Info className="w-5 h-5 text-cyan-600 mr-3 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
+                  <p className="text-sm text-cyan-800">
+                    <strong>Información:</strong> El documento se procesará localmente. Generaremos un hash SHA-256,
+                    timestamp certificado y firma digital Ed25519. Opcionalmente, podemos anclar el hash en blockchain.
+                  </p>
+                </div>
+              )}
+            </div>
+            {/* Action buttons remain outside scroll area */}
+            <div className="p-8 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
               <div className="flex space-x-4">
                 <button
                   onClick={handleCreateLink}
@@ -473,17 +616,6 @@ function DashboardPage() {
                   {certificationResult ? 'Cerrar' : 'Cancelar'}
                 </button>
               </div>
-
-              {/* Info */}
-              {!certificationResult && (
-                <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 flex items-start">
-                  <Info className="w-5 h-5 text-cyan-600 mr-3 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                  <p className="text-sm text-cyan-800">
-                    <strong>Información:</strong> El documento se procesará localmente. Generaremos un hash SHA-256,
-                    timestamp certificado y firma digital Ed25519. Opcionalmente, podemos anclar el hash en blockchain.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
         </div>

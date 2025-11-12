@@ -1,8 +1,19 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Shield, CheckCircle, XCircle, Upload, FileText, Lock, Anchor, AlertTriangle } from 'lucide-react';
 import { verifyEcoxFile } from '../lib/verificationService';
 import LegalProtectionOptions from '../components/LegalProtectionOptions';
+
+// Browser fingerprinting (simple)
+function getBrowserFingerprint() {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.textBaseline = 'top';
+  ctx.font = '14px Arial';
+  ctx.fillText('fingerprint', 2, 2);
+
+  return canvas.toDataURL().slice(-50); // Últimos 50 chars
+}
 
 // Configuración de validación
 const ALLOWED_EXTENSIONS = ['.eco', '.ecox', '.pdf', '.zip'];
@@ -22,6 +33,10 @@ function VerifyPage() {
   const [verifying, setVerifying] = useState(false);
   const [result, setResult] = useState(null);
   const [validationError, setValidationError] = useState(null);
+  const [scrollPercentage, setScrollPercentage] = useState(0);
+  const [ndaAccepted, setNdaAccepted] = useState(false);
+
+  const viewStartTime = useRef(Date.now());
 
   const verificationLayers = useMemo(() => ([
     {
@@ -56,6 +71,46 @@ function VerifyPage() {
       optional: true
     }
   ]), []);
+
+  // Track scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const percentage = Math.round((scrollTop / docHeight) * 100);
+      setScrollPercentage(Math.max(scrollPercentage, percentage));
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [scrollPercentage]);
+
+  // Track verification access
+  const trackAccess = async (documentHash, documentName) => {
+    const viewDuration = Math.floor((Date.now() - viewStartTime.current) / 1000);
+
+    try {
+      const response = await fetch('/api/track-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentHash: documentHash,
+          documentName: documentName,
+          userAgent: navigator.userAgent,
+          browserFingerprint: getBrowserFingerprint(),
+          viewedDuration: viewDuration,
+          scrollPercentage: scrollPercentage,
+          downloaded: false
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Error tracking verification:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error tracking verification:', error);
+    }
+  };
 
   // Validar archivo
   const validateFile = (file) => {
@@ -174,6 +229,17 @@ function VerifyPage() {
       console.log('✅ Verification complete:', verificationResult);
 
       setResult(verificationResult);
+
+      // Track successful verification
+      if (verificationResult.valid) {
+        const data = verificationResult.data || {};
+        const manifestHash = data.hash || data.assets?.[0]?.hash || null;
+        
+        await trackAccess(
+          manifestHash,
+          data.fileName || file.name
+        );
+      }
     } catch (error) {
       console.error('❌ Verification error:', error);
       setResult({
@@ -387,6 +453,80 @@ function VerifyPage() {
               
               const documentHash = manifestHash || 'No disponible';
 
+              // Check if NDA is required
+              const ndaRequired = data?.manifest?.metadata?.nda?.required;
+              const showNDA = ndaRequired && !ndaAccepted;
+
+              // If NDA is required and not accepted, show NDA screen first
+              if (showNDA) {
+                return (
+                  <div className="max-w-2xl mx-auto">
+                    <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6">
+                      <h2 className="text-2xl font-bold text-yellow-900 mb-4">
+                        ⚠️ Acuerdo de Confidencialidad Requerido
+                      </h2>
+
+                      <div className="bg-white p-4 rounded-lg border border-yellow-300 max-h-96 overflow-y-auto mb-4">
+                        <pre className="whitespace-pre-wrap text-sm text-gray-800">
+                          {data?.manifest?.metadata?.nda?.text}
+                        </pre>
+                      </div>
+
+                      <div className="flex items-center mb-4">
+                        <input
+                          type="checkbox"
+                          id="nda-accept"
+                          checked={ndaAccepted}
+                          onChange={(e) => setNdaAccepted(e.target.checked)}
+                          className="w-4 h-4 text-yellow-600"
+                        />
+                        <label htmlFor="nda-accept" className="ml-2 text-sm text-gray-700">
+                          He leído y acepto el Acuerdo de Confidencialidad
+                        </label>
+                      </div>
+
+                      <button
+                        disabled={!ndaAccepted}
+                        onClick={async () => {
+                          // Log NDA acceptance
+                          if (manifestHash) {
+                            try {
+                              const response = await fetch('/api/track-verification', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  documentHash: manifestHash,
+                                  documentName: data.fileName || file?.name || 'Documento',
+                                  userAgent: navigator.userAgent,
+                                  browserFingerprint: getBrowserFingerprint(),
+                                  viewedDuration: Math.floor((Date.now() - viewStartTime.current) / 1000),
+                                  scrollPercentage: scrollPercentage,
+                                  downloaded: false,
+                                  ndaAccepted: true
+                                })
+                              });
+                              
+                              if (response.ok) {
+                                console.log('✅ NDA acceptance logged');
+                              }
+                            } catch (error) {
+                              console.error('Error logging NDA acceptance:', error);
+                            }
+                          }
+                        }}
+                        className={`w-full ${
+                          ndaAccepted 
+                            ? 'bg-yellow-600 hover:bg-yellow-700' 
+                            : 'bg-gray-300 cursor-not-allowed'
+                        } text-white py-2 px-4 rounded disabled:opacity-50`}
+                      >
+                        Aceptar y Continuar
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
               const legalBadge = legalPassed ? (
                 <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                   RFC 3161
@@ -418,6 +558,11 @@ function VerifyPage() {
                       <p className="text-gray-900 font-medium">{data.fileName || file?.name || 'No especificado'}</p>
                       {data.author && (
                         <p className="text-sm text-gray-600">Autor: {data.author}</p>
+                      )}
+                      {ndaRequired && (
+                        <p className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          ⚠️ Requiere NDA
+                        </p>
                       )}
                     </div>
 

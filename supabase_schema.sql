@@ -1,87 +1,126 @@
--- Supabase Schema for verifysign (NDA Flow)
-
--- Create the cases table
-CREATE TABLE cases (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id UUID REFERENCES auth.users(id) NOT NULL,
-  case_name TEXT NOT NULL,
-  doc_name TEXT,
-  doc_sha256 TEXT,
-  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
-  unique_token TEXT NOT NULL UNIQUE
+-- Tabla de usuarios (extends Supabase auth.users)
+CREATE TABLE user_profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id),
+  email TEXT NOT NULL,
+  full_name TEXT,
+  company TEXT,
+  plan TEXT DEFAULT 'free', -- free, basic, premium, enterprise
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create the signatures table
-CREATE TABLE signatures (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  case_id UUID REFERENCES cases(id) NOT NULL,
-  signer_email TEXT NOT NULL,
-  signed_at TIMESTAMPTZ DEFAULT now() NOT NULL,
-  signature_hash TEXT NOT NULL,
-  eco_path TEXT
+-- Tabla de certificaciones
+CREATE TABLE certifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+
+  -- File info
+  file_name TEXT NOT NULL,
+  file_hash TEXT NOT NULL UNIQUE,
+  file_size INTEGER,
+  mime_type TEXT,
+
+  -- Certification data
+  public_key TEXT NOT NULL,
+  signature TEXT NOT NULL,
+  ecox_data JSONB, -- Full .ecox manifest
+
+  -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  local_timestamp TIMESTAMPTZ,
+
+  -- RFC 3161
+  tsa_token TEXT,
+  tsa_status TEXT DEFAULT 'success',
+  tsa_verified BOOLEAN DEFAULT FALSE,
+
+  -- OpenTimestamps
+  ots_proof TEXT,
+  ots_status TEXT DEFAULT 'pending', -- pending, confirmed, failed
+  ots_block_height INTEGER,
+  ots_confirmed_at TIMESTAMPTZ,
+  estimated_ots_confirmation TIMESTAMPTZ,
+
+  -- Polygon
+  polygon_tx_hash TEXT,
+  polygon_status TEXT DEFAULT 'none', -- none, pending, confirmed
+  polygon_block_number INTEGER,
+  polygon_confirmed_at TIMESTAMPTZ,
+
+  -- Metadata
+  nda_required BOOLEAN DEFAULT FALSE,
+  shared_url TEXT UNIQUE, -- Public verification URL
+  download_count INTEGER DEFAULT 0,
+  verification_count INTEGER DEFAULT 0
 );
 
--- Create the anchors table for blockchain anchoring
-CREATE TABLE anchors (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  document_id UUID REFERENCES cases(id), -- Link to a specific document/case if applicable
-  user_id UUID REFERENCES auth.users(id), -- Link to user who created the anchor
-  document_hash TEXT NOT NULL, -- The SHA-256 hash being anchored
-  anchor_type TEXT NOT NULL DEFAULT 'opentimestamps', -- e.g., 'opentimestamps', 'polygon', 'bitcoin'
-  anchor_status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'confirmed', 'failed'
-  raw_proof TEXT, -- Raw OpenTimestamps proof
-  calendar_url TEXT, -- URL of the OpenTimestamps calendar
-  bitcoin_tx_id TEXT, -- Bitcoin transaction ID (when confirmed)
-  confirmed_at TIMESTAMPTZ, -- When the anchor was confirmed on blockchain
-  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+-- Tabla de verificaciones (VerifyTracker)
+CREATE TABLE verification_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  certification_id UUID REFERENCES certifications(id),
+
+  -- Document
+  document_hash TEXT NOT NULL,
+  document_name TEXT,
+
+  -- Access
+  accessed_at TIMESTAMPTZ DEFAULT NOW(),
+  ip_address TEXT,
+  user_agent TEXT,
+  browser_fingerprint TEXT,
+  country TEXT,
+  city TEXT,
+
+  -- Interaction
+  viewed_duration_seconds INTEGER,
+  scroll_percentage INTEGER,
+  downloaded BOOLEAN DEFAULT FALSE,
+  nda_accepted BOOLEAN,
+  nda_accepted_at TIMESTAMPTZ,
+
+  -- Metadata
+  referer TEXT,
+  session_id TEXT
 );
 
--- Create the integration_requests table for external service integrations
-CREATE TABLE integration_requests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  service TEXT NOT NULL, -- 'mifiel', 'signnow', etc.
-  action TEXT NOT NULL, -- 'nom-151', 'certificate', 'esignature', etc.
-  document_id UUID REFERENCES cases(id), -- Link to document if applicable
-  user_id UUID REFERENCES auth.users(id), -- Link to user who initiated
-  document_hash TEXT, -- The hash of the document being processed
-  status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'paid', 'processing', 'completed', 'failed'
-  payment_intent_id TEXT, -- Stripe payment intent ID
-  external_service_id TEXT, -- ID from external service (Mifiel, SignNow, etc.)
-  metadata JSONB, -- Additional data specific to the integration
-  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+-- Tabla de API integrations
+CREATE TABLE api_integrations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id),
+
+  service TEXT NOT NULL, -- signnow, mifiel, etc.
+  api_key_encrypted TEXT,
+  status TEXT DEFAULT 'active', -- active, inactive
+  last_used TIMESTAMPTZ,
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable Row Level Security
-ALTER TABLE cases ENABLE ROW LEVEL SECURITY;
-ALTER TABLE signatures ENABLE ROW LEVEL SECURITY;
-ALTER TABLE anchors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE integration_requests ENABLE ROW LEVEL SECURITY;
+-- Indexes
+CREATE INDEX idx_certifications_user ON certifications(user_id);
+CREATE INDEX idx_certifications_hash ON certifications(file_hash);
+CREATE INDEX idx_certifications_ots_status ON certifications(ots_status, created_at);
+CREATE INDEX idx_verification_logs_hash ON verification_logs(document_hash);
+CREATE INDEX idx_verification_logs_accessed ON verification_logs(accessed_at DESC);
 
--- Policies for cases table
-CREATE POLICY "Owners can view their own cases" ON cases FOR SELECT USING (auth.uid() = owner_id);
-CREATE POLICY "Owners can insert their own cases" ON cases FOR INSERT WITH CHECK (auth.uid() = owner_id);
+-- RLS Policies
+ALTER TABLE certifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE verification_logs ENABLE ROW LEVEL SECURITY;
 
--- Policies for signatures table
-CREATE POLICY "Owners can view signatures on their cases" ON signatures FOR SELECT USING (
-  auth.uid() = (SELECT owner_id FROM cases WHERE id = case_id)
-);
+-- Users can only see their own certifications
+CREATE POLICY "Users can view own certifications"
+  ON certifications FOR SELECT
+  USING (auth.uid() = user_id);
 
--- Policies for anchors table
-CREATE POLICY "Users can view their own anchors" ON anchors FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own anchors" ON anchors FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Public can view anchors" ON anchors FOR SELECT USING (true); -- Allow public verification
+CREATE POLICY "Users can insert own certifications"
+  ON certifications FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
 
--- Policies for integration_requests table
-CREATE POLICY "Users can view their own integration requests" ON integration_requests FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own integration requests" ON integration_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
-
--- Indexes for performance
-CREATE INDEX idx_anchors_document_hash ON anchors(document_hash);
-CREATE INDEX idx_anchors_status ON anchors(anchor_status);
-CREATE INDEX idx_anchors_created_at ON anchors(created_at);
-CREATE INDEX idx_integration_requests_service ON integration_requests(service);
-CREATE INDEX idx_integration_requests_status ON integration_requests(status);
-CREATE INDEX idx_integration_requests_document ON integration_requests(document_id);
-CREATE INDEX idx_integration_requests_user ON integration_requests(user_id);
+-- Verification logs are public (read-only for users)
+CREATE POLICY "Users can view verification logs for own docs"
+  ON verification_logs FOR SELECT
+  USING (
+    certification_id IN (
+      SELECT id FROM certifications WHERE user_id = auth.uid()
+    )
+  );

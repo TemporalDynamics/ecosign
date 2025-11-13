@@ -2,28 +2,16 @@
 import { IncomingForm } from 'formidable';
 import { promises as fs } from 'fs';
 import { pack } from '@temporaldynamics/eco-packer';
-import { generateKeys, signMessage, calculateSHA256 } from '../lib/crypto';
-import blockchainTimestampHandler from './blockchain-timestamp';
-import polygonTimestampHandler from './polygon-timestamp';
+import { getPublicKey, signMessage, calculateSHA256 } from '../lib/crypto';
+import { stamp as otsStamp } from '../lib/opentimestamps';
+import { register as polygonRegister } from '../lib/polygon';
+import { fetchTimestamp as rfc3161Timestamp } from '../lib/rfc3161';
 
 export const config = {
   api: {
     bodyParser: false,
   },
 };
-
-async function callApi(handler, reqBody) {
-  let data = '';
-  const res = {
-    json: (_data) => {
-      data = _data;
-    },
-    status: () => res,
-    end: () => {},
-  };
-  await handler({ body: reqBody }, res);
-  return data;
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -50,23 +38,23 @@ export default async function handler(req, res) {
         userId,
       } = fields;
 
-      const { privateKey, publicKey } = await generateKeys();
+      const privateKey = process.env.SERVER_SIGNING_PRIVATE_KEY;
+      const publicKey = await getPublicKey(privateKey);
       const hash = calculateSHA256(fileContent);
+
+      let legalTimestampResponse = null;
+      if (useLegalTimestamp === 'true') {
+        legalTimestampResponse = await rfc3161Timestamp(hash);
+      }
 
       let blockchainResponse = null;
       if (useBlockchainAnchoring === 'true') {
-        blockchainResponse = await callApi(blockchainTimestampHandler, {
-          hash,
-          action: 'stamp',
-        });
+        blockchainResponse = await otsStamp(hash);
       }
 
       let polygonResponse = null;
       if (usePolygonAnchoring === 'true') {
-        polygonResponse = await callApi(polygonTimestampHandler, {
-          hash,
-          action: 'register',
-        });
+        polygonResponse = await polygonRegister(hash);
       }
 
       const project = {
@@ -115,6 +103,7 @@ export default async function handler(req, res) {
             publicKey,
             signature,
             algorithm: 'Ed25519',
+            ...(legalTimestampResponse && { legalTimestampResponse }),
             ...(blockchainResponse && { blockchainResponse }),
             ...(polygonResponse && { polygonResponse }),
           },
@@ -133,7 +122,7 @@ export default async function handler(req, res) {
         publicKey,
         signature,
         ecoxManifest: project,
-        legalTimestamp: null, // TODO: Implement legal timestamp
+        legalTimestamp: legalTimestampResponse,
         blockchainAnchoring: blockchainResponse,
         polygonAnchoring: polygonResponse,
       });

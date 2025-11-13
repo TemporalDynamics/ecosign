@@ -37,10 +37,15 @@ Thumbs.db
 # Netlify
 .netlify/
 
+# Vercel
+.vercel/
+
 # Temporary files
 *.tmp
 .tmp/
 temp/
+informe librerias VISTANEO
+verify sign api
 
 # Vite cache
 .vite/
@@ -69,3 +74,5 @@ client/.env
 *.pem
 eco_signing_private.pem
 eco_signing_public.pem
+verifysign_key
+verifysign_key.pub

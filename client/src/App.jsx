@@ -7,6 +7,7 @@ import PricingPage from './pages/PricingPage';
 import NdaPage from './pages/NdaPage';
 import GuestPage from './pages/GuestPage';
 import VerifyPage from './pages/VerifyPage';
+import DashboardVerifyPage from './pages/DashboardVerifyPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -20,6 +21,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/verify" element={<VerifyPage />} />
+        <Route path="/verify/:hash" element={<VerifyPage />} />
         <Route path="/nda" element={<NdaPage />} />
         <Route path="/guest" element={<GuestPage />} />
 
@@ -29,6 +31,22 @@ function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/verify"
+          element={
+            <ProtectedRoute>
+              <DashboardVerifyPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/verify/:hash"
+          element={
+            <ProtectedRoute>
+              <DashboardVerifyPage />
             </ProtectedRoute>
           }
         />

@@ -17,6 +17,12 @@ function DashboardPage() {
   const [user, setUser] = useState(null);
   const [certifications, setCertifications] = useState([]);
   const [loadingCertifications, setLoadingCertifications] = useState(true);
+  const [activeCertifications, setActiveCertifications] = useState(0);
+  const [totalDownloads, setTotalDownloads] = useState(0);
+  const [lastCertification, setLastCertification] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [sortOrder, setSortOrder] = useState('newest');
 
   const handleFileUpload = (e) => {
     const selectedFile = e.target.files[0];
@@ -157,11 +163,33 @@ function DashboardPage() {
   const loadCertifications = async (userId) => {
     try {
       setLoadingCertifications(true);
+      
+      // Load certifications
       const data = await getUserCertifications(userId);
       setCertifications(data || []);
+      
+      // Calculate metrics
+      if (data && data.length > 0) {
+        setActiveCertifications(data.length);
+        
+        // Calculate total downloads (sum of verification counts)
+        const totalDls = data.reduce((sum, cert) => sum + (cert.verification_count || 0), 0);
+        setTotalDownloads(totalDls);
+        
+        // Find the most recent certification
+        const sortedCerts = [...data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        setLastCertification(sortedCerts[0]);
+      } else {
+        setActiveCertifications(0);
+        setTotalDownloads(0);
+        setLastCertification(null);
+      }
     } catch (err) {
       console.error('Error loading certifications:', err);
       setCertifications([]);
+      setActiveCertifications(0);
+      setTotalDownloads(0);
+      setLastCertification(null);
     } finally {
       setLoadingCertifications(false);
     }
@@ -170,6 +198,42 @@ function DashboardPage() {
   const handleLogout = () => {
     navigate('/');
   };
+
+  // Filter and sort certifications
+  const filteredCertifications = certifications.filter(cert => {
+    // Apply search filter
+    const matchesSearch = !searchTerm || 
+      cert.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cert.file_hash?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Apply status filter
+    let matchesStatus = true;
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'confirmed') {
+        matchesStatus = cert.ots_status === 'confirmed';
+      } else if (filterStatus === 'pending') {
+        matchesStatus = cert.ots_status === 'pending';
+      } else if (filterStatus === 'timestampped') {
+        matchesStatus = !!cert.tsa_token;
+      } else if (filterStatus === 'nda') {
+        matchesStatus = cert.nda_required;
+      }
+    }
+    
+    return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    // Apply sort order
+    if (sortOrder === 'newest') {
+      return new Date(b.created_at) - new Date(a.created_at);
+    } else if (sortOrder === 'oldest') {
+      return new Date(a.created_at) - new Date(b.created_at);
+    } else if (sortOrder === 'most_verified') {
+      return (b.verification_count || 0) - (a.verification_count || 0);
+    } else if (sortOrder === 'name') {
+      return a.file_name.localeCompare(b.file_name);
+    }
+    return 0;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-cyan-50">
@@ -187,7 +251,7 @@ function DashboardPage() {
               <Link to="/dashboard" className="text-cyan-600 font-semibold transition duration-200">
                 Dashboard
               </Link>
-              <Link to="/verify" className="text-gray-600 hover:text-cyan-600 transition duration-200 font-medium">
+              <Link to="/dashboard/verify" className="text-gray-600 hover:text-cyan-600 transition duration-200 font-medium">
                 Verificar
               </Link>
               <Link to="/pricing" className="text-gray-600 hover:text-cyan-600 transition duration-200 font-medium">
@@ -205,130 +269,134 @@ function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Dashboard Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
-            <h3 className="text-gray-600 text-sm font-medium mb-1">Documentos Protegidos</h3>
-            <p className="text-3xl font-bold text-gray-900">12</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
-            <h3 className="text-gray-600 text-sm font-medium mb-1">Accesos Registrados</h3>
-            <p className="text-3xl font-bold text-gray-900">47</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
-            <h3 className="text-gray-600 text-sm font-medium mb-1">NDA Firmados</h3>
-            <p className="text-3xl font-bold text-gray-900">34</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
-            <h3 className="text-gray-600 text-sm font-medium mb-1">Confiabilidad</h3>
-            <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">99.9%</p>
-          </div>
-        </div>
-
-        {/* Welcome Section */}
+        {/* Welcome Section with Simplified Actions */}
         <div className="bg-gradient-to-r from-cyan-600 to-blue-600 rounded-xl p-8 mb-8 shadow-lg">
           <h2 className="text-3xl font-bold text-white mb-2">Bienvenido a VerifySign</h2>
           <p className="text-cyan-50 text-lg mb-6">
             Crea enlaces seguros, protege tus documentos y verifica su autenticidad con tecnología blockchain
           </p>
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="bg-white hover:bg-gray-100 text-cyan-700 font-bold py-3 px-8 rounded-lg shadow-md transition duration-300"
-          >
-            + Crear Nuevo Certificado .ECO
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="bg-white hover:bg-gray-100 text-cyan-700 font-bold py-3 px-8 rounded-lg shadow-md transition duration-300"
+            >
+              + Crear Nuevo Certificado .ECO
+            </button>
+            <Link
+              to="/dashboard/verify"
+              className="bg-transparent border-2 border-white text-white hover:bg-white/10 font-bold py-3 px-8 rounded-lg shadow-md transition duration-300"
+            >
+              Verificar .ECO
+            </Link>
+          </div>
         </div>
 
-        {/* Dashboard Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition duration-300">
-            <div className="w-12 h-12 bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-xl flex items-center justify-center mb-3">
-              <FileText className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Certificar Documento</h3>
-            <p className="text-gray-600 text-sm mb-4">
-              Crea un certificado .ECO con hash SHA-256 y timestamp
-            </p>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="text-cyan-600 hover:text-cyan-700 font-semibold text-sm"
-            >
-              Comenzar →
-            </button>
+        {/* Metrics Cards Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
+            <h3 className="text-gray-600 text-sm font-medium mb-1">Certificados Activos</h3>
+            <p className="text-3xl font-bold text-gray-900">{activeCertifications}</p>
           </div>
-
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition duration-300">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center mb-3">
-              <Shield className="w-6 h-6 text-blue-600" strokeWidth={2.5} />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Enlace con NDA</h3>
-            <p className="text-gray-600 text-sm mb-4">
-              Comparte documentos protegidos con acuerdos de confidencialidad
-            </p>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="text-cyan-600 hover:text-cyan-700 font-semibold text-sm"
-            >
-              Crear enlace →
-            </button>
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
+            <h3 className="text-gray-600 text-sm font-medium mb-1">Descargas Totales</h3>
+            <p className="text-3xl font-bold text-gray-900">{totalDownloads}</p>
           </div>
-
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition duration-300">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center mb-3">
-              <CheckCircle className="w-6 h-6 text-green-600" strokeWidth={2.5} />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Verificar .ECO</h3>
-            <p className="text-gray-600 text-sm mb-4">
-              Valida la autenticidad de cualquier certificado digital
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
+            <h3 className="text-gray-600 text-sm font-medium mb-1">Última Certificación</h3>
+            <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">
+              {lastCertification ? new Date(lastCertification.created_at).toLocaleDateString() : 'N/A'}
             </p>
-            <Link
-              to="/verify"
-              className="text-cyan-600 hover:text-cyan-700 font-semibold text-sm"
-            >
-              Ir a verificador →
-            </Link>
           </div>
         </div>
 
         {/* Certification List */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <h2 className="text-xl font-semibold text-gray-900">Mis Certificaciones</h2>
-            {loadingCertifications && (
-              <div className="text-sm text-cyan-600">Cargando...</div>
-            )}
+            
+            {/* Search and Filter Controls */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar certificaciones..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="confirmed">Confirmados</option>
+                  <option value="pending">Pendientes</option>
+                  <option value="timestampped">Con sello legal</option>
+                  <option value="nda">Con NDA</option>
+                </select>
+                
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                >
+                  <option value="newest">Más recientes</option>
+                  <option value="oldest">Más antiguos</option>
+                  <option value="most_verified">Más verificados</option>
+                  <option value="name">Por nombre</option>
+                </select>
+              </div>
+            </div>
           </div>
           
           {loadingCertifications ? (
             <div className="flex justify-center items-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
             </div>
-          ) : certifications.length === 0 ? (
+          ) : filteredCertifications.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600">No tienes certificaciones aún</p>
-              <p className="text-sm text-gray-500 mt-1">Crea tu primera certificación usando el botón de arriba</p>
+              <p className="text-gray-600">No tienes certificaciones que coincidan con los filtros</p>
+              <p className="text-sm text-gray-500 mt-1">Crea tu primera certificación o ajusta los filtros</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {certifications.map((cert) => (
+              {filteredCertifications.map((cert) => (
                 <div key={cert.id} className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-                  <div className="flex justify-between items-start">
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center mb-1">
+                      <div className="flex items-center mb-2">
                         <FileText className="w-5 h-5 text-cyan-600 mr-2 flex-shrink-0" />
-                        <h3 className="font-medium text-gray-900 truncate">{cert.file_name}</h3>
+                        <h3 
+                          className="font-medium text-gray-900 truncate cursor-pointer hover:text-cyan-600"
+                          onClick={() => navigate(`/dashboard/verify/${cert.file_hash}`)}
+                        >
+                          {cert.file_name}
+                        </h3>
                       </div>
-                      
-                      <div className="text-sm text-gray-600 mb-2">
-                        <div className="flex items-center mb-1">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          <span>{new Date(cert.created_at).toLocaleString()}</span>
-                        </div>
-                        
-                        <div className="flex items-center">
-                          <Hash className="w-4 h-4 mr-1" />
-                          <span className="font-mono text-xs truncate">{cert.file_hash?.substring(0, 16)}...</span>
+
+                      <div className="text-sm text-gray-600 mb-3">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <div className="flex items-center">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            <span>{new Date(cert.created_at).toLocaleString()}</span>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <Hash className="w-4 h-4 mr-1" />
+                            <span className="font-mono text-xs">{cert.file_hash?.substring(0, 16)}...</span>
+                          </div>
+                          
+                          {cert.verification_count !== undefined && (
+                            <div className="flex items-center">
+                              <Eye className="w-4 h-4 mr-1 text-gray-500" />
+                              <span>{cert.verification_count} verificaciones</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                       
@@ -356,16 +424,16 @@ function DashboardPage() {
                       </div>
                     </div>
                     
-                    <div className="flex space-x-2 ml-4">
+                    <div className="flex space-x-2">
                       <button 
-                        onClick={() => navigate(`/verify/${cert.file_hash}`)}
+                        onClick={() => navigate(`/dashboard/verify/${cert.file_hash}`)}
                         className="p-2 text-gray-500 hover:text-cyan-600 hover:bg-cyan-50 rounded-full transition duration-200"
                         title="Verificar"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/verify/${cert.file_hash}`)}
+                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/dashboard/verify/${cert.file_hash}`)}
                         className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full transition duration-200"
                         title="Copiar enlace"
                       >

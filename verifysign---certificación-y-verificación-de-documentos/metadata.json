@@ -1,5 +1,0 @@
-{
-  "name": "VerifySign - Certificación y Verificación de Documentos",
-  "description": "Una aplicación web completa para VerifySign, que permite la certificación y verificación de documentos .eco/.ecox. Incluye landing page, portal de acceso, verificador público, dashboard, precios, FAQ y páginas legales.",
-  "requestFramePermissions": []
-}

@@ -9,7 +9,7 @@
 
 **La Verdad de tus Documentos, Verificable por Cualquiera**
 
-[Demo Live](https://verifysign.netlify.app) · [Documentación](docs/) · [Reportar Bug](https://github.com/tuusuario/verifysign/issues)
+[Demo Live](https://verifysign.netlify.app) · [Documentación](docs/README.md) · [Reportar Bug](https://github.com/tuusuario/verifysign/issues)
 
 </div>
 
@@ -68,11 +68,30 @@ Genera certificados con:
 
 ## 🛠️ Stack Tecnológico
 
-- **Frontend**: React 18 + Vite + Tailwind CSS
-- **Backend**: Supabase (Auth + Database + Storage)
-- **Cryptography**: eco-packer (SHA-256, Ed25519, Merkle Trees)
+- **Frontend**: React 18 + Vite + Tailwind CSS (`client/`)
+- **Backend**: Supabase (Auth + Postgres + Storage + Edge Functions)
+- **Shared Library**: `eco-packer/` para empaquetar/verificar `.eco`
 - **Blockchain**: OpenTimestamps (Bitcoin) + Polygon
-- **E-Signature**: Mifiel API + SignNow API
+- **Integraciones**: Mifiel API + SignNow API (opcional)
+
+### Estructura del repositorio
+
+```
+verifysign/
+├── client/        # Único frontend (Vite + React)
+├── eco-packer/    # Librería compartida para certificados
+├── supabase/      # Migraciones + funciones edge
+├── docs/          # Documentación oficial (ver docs/README.md)
+├── scripts/       # Automatizaciones locales
+├── vercel.json
+└── README.md
+```
+
+Referencias clave:
+- `docs/architecture.md`: detalle del diseño JAMStack actual.
+- `docs/deployment.md`: builds locales, variables y despliegues.
+- `docs/api-reference.md`: contratos de funciones/SDK.
+- `docs/security.md`: modelo de amenazas, RLS y políticas.
 
 ---
 
@@ -85,15 +104,19 @@ Genera certificados con:
 git clone https://github.com/tuusuario/verifysign.git
 cd verifysign
 
-# Instalar dependencias del cliente
-cd client
+# Instalar dependencias del workspace (root + client + eco-packer)
 npm install
 
-# Configurar variables de entorno (opcional para MVP)
+# Variables de entorno del cliente
+cd client
 cp .env.example .env
 
-# Iniciar servidor de desarrollo
+# Iniciar el frontend (desde la raíz también puedes usar
+# `npm run dev --prefix client`)
 npm run dev
+
+# Arranca Supabase en paralelo si lo necesitas (CLI oficial)
+# supabase start
 
 # Abrir http://localhost:5173
 ```
@@ -101,8 +124,8 @@ npm run dev
 ### Build para Producción
 
 ```bash
-npm run build
-npm run preview
+npm run build --prefix client
+npm run preview --prefix client
 ```
 
 ---

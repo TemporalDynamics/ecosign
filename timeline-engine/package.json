@@ -1,8 +1,0 @@
-{
-  "name": "@vista/timeline-engine",
-  "version": "0.0.1",
-  "description": "Minimal stub for VerifySign eco-packer tests",
-  "main": "dist/index.js",
-  "types": "src/index.ts",
-  "license": "MIT"
-}

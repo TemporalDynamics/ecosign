@@ -287,17 +287,26 @@ export async function certifyFile(file, options = {}) {
     let anchorJob = null;
     if (options.useBitcoinAnchor) {
       try {
+        console.log('🔗 Requesting Bitcoin anchoring (OpenTimestamps)...');
+        console.log('⏱️  This process takes 4-24 hours for blockchain confirmation');
+
         // Import dynamically to avoid potential circular dependencies
         const { requestBitcoinAnchor } = await import('./opentimestamps');
         anchorJob = await requestBitcoinAnchor(hash, {
           documentId: projectId,
           userId: options.userId || null,
+          userEmail: options.userEmail || null,
           metadata: {
             requestedFrom: 'certifyFile',
             documentName: file.name,
             requestedBitcoinAnchor: true
           }
         });
+
+        if (anchorJob) {
+          console.log('✅ Bitcoin anchoring queued successfully');
+          console.log(`📧 Notification will be sent to: ${options.userEmail || 'No email provided'}`);
+        }
       } catch (anchorError) {
         console.warn('⚠️ Bitcoin anchoring request failed:', anchorError);
       }

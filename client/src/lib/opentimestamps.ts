@@ -9,6 +9,7 @@ export interface BitcoinAnchorResponse {
 interface AnchorContext {
   documentId?: string | null;
   userId?: string | null;
+  userEmail?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -24,6 +25,7 @@ export async function requestBitcoinAnchor(
     documentHash,
     documentId: context.documentId ?? null,
     userId: context.userId ?? null,
+    userEmail: context.userEmail ?? null,
     metadata: context.metadata ?? {}
   };
 

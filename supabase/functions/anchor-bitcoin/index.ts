@@ -5,6 +5,7 @@ type AnchorRequest = {
   documentHash: string;
   documentId?: string | null;
   userId?: string | null;
+  userEmail?: string | null;
   metadata?: Record<string, unknown>;
 };
 
@@ -53,7 +54,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json() as AnchorRequest;
-    const { documentHash, documentId = null, userId = null, metadata = {} } = body;
+    const { documentHash, documentId = null, userId = null, userEmail = null, metadata = {} } = body;
 
     if (!documentHash || typeof documentHash !== 'string') {
       return jsonResponse({ error: 'documentHash is required' }, 400);
@@ -74,6 +75,7 @@ serve(async (req) => {
         document_hash: documentHash,
         document_id: documentId,
         user_id: userId,
+        user_email: userEmail,
         anchor_type: 'opentimestamps',
         anchor_status: 'queued',
         metadata: enrichedMetadata
@@ -89,6 +91,10 @@ serve(async (req) => {
     return jsonResponse({
       anchorId: data.id,
       status: data.anchor_status,
+      estimatedTime: '4-24 hours',
+      message: 'Bitcoin anchoring queued. This process requires Bitcoin blockchain confirmation and may take 4-24 hours. You will receive an email notification when complete.',
+      willNotify: Boolean(userEmail),
+      notificationEmail: userEmail,
       record: data
     });
   } catch (error) {

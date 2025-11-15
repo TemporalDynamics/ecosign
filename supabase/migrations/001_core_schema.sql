@@ -1,7 +1,7 @@
 -- ========================================
 -- VerifySign - Core Database Schema
--- Version: 1.0.0
--- Date: 2025-11-09
+-- Version: 1.0.1 (Patched for robustness)
+-- Date: 2025-11-15
 -- ========================================
 -- Este esquema está alineado con:
 -- - Netlify Functions (generate-link, verify-access, log-event)
@@ -31,6 +31,18 @@ CREATE TABLE IF NOT EXISTS documents (
   created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
+
+-- ========================================
+-- SCHEMA PATCH (to fix sync issues)
+-- ========================================
+-- Add columns if they don't exist on an older version of the table
+ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS ecox_hash TEXT;
+-- Add other missing columns here if needed in the future, for example:
+-- ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS new_column_name TEXT;
+
+-- ========================================
+-- COMMENTS AND INDEXES
+-- ========================================
 
 COMMENT ON TABLE documents IS 'Documentos certificados por VerifySign';
 COMMENT ON COLUMN documents.eco_hash IS 'SHA-256 del certificado .ECO';

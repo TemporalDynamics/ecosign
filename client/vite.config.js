@@ -10,13 +10,17 @@ export default defineConfig({
       // Enable polyfills for Buffer (needed by eco-packer)
       globals: {
         Buffer: true,
-        global: false,
-        process: false,
+        global: true,  // Enable global object
+        process: true,  // Enable process object
       },
       // Only polyfill what we absolutely need
       protocolImports: false,
     })
   ],
+  define: {
+    global: 'globalThis',
+    process: 'globalThis.process',
+  },
   server: {
     port: 5173,
     // No proxy for API routes - they will be handled by Vercel in production

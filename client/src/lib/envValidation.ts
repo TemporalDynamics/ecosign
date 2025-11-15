@@ -43,7 +43,9 @@ function validateVar(name: string, value: string | undefined): boolean {
 function validateSupabaseUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.hostname.endsWith('.supabase.co') || parsed.hostname === 'localhost';
+    const isHosted = parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co');
+    const isLocalHost = ['localhost', '127.0.0.1'].includes(parsed.hostname) && ['http:', 'https:'].includes(parsed.protocol);
+    return isHosted || isLocalHost;
   } catch {
     return false;
   }
@@ -78,7 +80,7 @@ export function validateEnvironment(): EnvConfig {
   if (!validateVar('VITE_SUPABASE_URL', VITE_SUPABASE_URL)) {
     missingVars.push('VITE_SUPABASE_URL');
   } else if (!validateSupabaseUrl(VITE_SUPABASE_URL)) {
-    errors.push('VITE_SUPABASE_URL tiene formato inválido (debe ser https://xxx.supabase.co)');
+    errors.push('VITE_SUPABASE_URL tiene formato inválido (usa https://xxx.supabase.co o http://127.0.0.1:54321 en local)');
   }
 
   // Validar Supabase Anon Key

@@ -134,3 +134,6 @@ export async function verifyEcoFileComplete(ecoFile, originalFile = null) {
     originalFileMatches: null // No se puede verificar sin archivo original
   };
 }
+
+// Mantener compatibilidad con VerifyPage.jsx que importa verifyEcoxFile
+export const verifyEcoxFile = verifyEcoFileComplete;

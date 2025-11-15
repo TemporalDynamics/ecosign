@@ -4,6 +4,7 @@ import JSZip from 'jszip';
 /**
  * Extract manifest from .ecox file without verifying signature
  * This allows for public verification of the manifest contents
+ * Supports both ZIP format (with manifest.json inside) and JSON format
  */
 export async function extractEcoManifest(ecoFile) {
   if (!ecoFile) {
@@ -11,28 +12,36 @@ export async function extractEcoManifest(ecoFile) {
   }
 
   try {
-    let zip;
-    if (ecoFile instanceof Blob) {
-      const arrayBuffer = await ecoFile.arrayBuffer();
-      zip = await JSZip.loadAsync(arrayBuffer);
+    let manifest;
+
+    // Check if this is a ZIP file or a JSON file
+    const arrayBuffer = await ecoFile.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+
+    // Check if it's a ZIP file (starts with PK)
+    if (bytes[0] === 80 && bytes[1] === 75) { // 'PK' signature
+      // It's a ZIP file, extract manifest.json
+      const zip = await JSZip.loadAsync(arrayBuffer);
+
+      const manifestFile = zip.file('manifest.json');
+      if (!manifestFile) {
+        throw new Error('Invalid .ecox file: manifest.json not found.');
+      }
+
+      const manifestJson = await manifestFile.async('string');
+      manifest = JSON.parse(manifestJson);
     } else {
-      throw new Error('File must be a Blob');
+      // It's a JSON file, parse directly
+      const text = new TextDecoder().decode(bytes);
+      manifest = JSON.parse(text);
     }
-
-    const manifestFile = zip.file('manifest.json');
-    if (!manifestFile) {
-      throw new Error('Invalid .ecox file: manifest.json not found.');
-    }
-
-    const manifestJson = await manifestFile.async('string');
-    const manifest = JSON.parse(manifestJson);
 
     if (!manifest || typeof manifest !== 'object') {
       throw new Error('Invalid manifest structure.');
     }
 
     // Validate basic manifest structure
-    const requiredFields = ['specVersion', 'projectId', 'title', 'createdAt', 'author', 'assets', 'segments', 'operationLog', 'signatures'];
+    const requiredFields = ['version', 'projectId', 'metadata', 'assets', 'segments', 'timeline'];
     for (const field of requiredFields) {
       if (!(field in manifest)) {
         throw new Error(`Missing required field in manifest: ${field}`);

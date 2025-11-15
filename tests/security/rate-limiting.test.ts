@@ -1,96 +1,141 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { checkRateLimit } from '../../netlify/functions/utils/rateLimitPersistent';
+// tests/security/rate-limiting.test.ts
 
-// Mock de la base de datos para pruebas
-vi.mock('../../netlify/functions/utils/rateLimitPersistent', async () => {
-  const actual = await vi.importActual('../../netlify/functions/utils/rateLimitPersistent');
-  return {
-    ...actual,
-    checkRateLimit: vi.fn(),
-  };
-});
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit } from './utils/rateLimitPersistent.ts';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 describe('Rate Limiting Tests', () => {
-  const mockIdentifier = 'test-user-123';
-  const mockEndpoint = 'generate-link';
+  const testIdentifier = `test-user-${Date.now()}`;
+  const testEndpoint = 'generate-link';
 
-  beforeEach(() => {
-    vi.resetAllMocks();
+  // Clean up before and after all tests
+  beforeAll(async () => {
+    await supabase.from('rate_limits').delete().like('key', `%${testIdentifier}%`);
+    await supabase.from('rate_limit_blocks').delete().like('key', `%${testIdentifier}%`);
+  });
+
+  afterAll(async () => {
+    await supabase.from('rate_limits').delete().like('key', `%${testIdentifier}%`);
+    await supabase.from('rate_limit_blocks').delete().like('key', `%${testIdentifier}%`);
   });
 
   it('Permite requests dentro del límite', async () => {
-    // Mockear que las primeras 5 solicitudes están dentro del límite
-    const mockCheckRateLimit = vi.fn()
-      .mockResolvedValueOnce({ allowed: true, remaining: 5 })
-      .mockResolvedValueOnce({ allowed: true, remaining: 4 })
-      .mockResolvedValueOnce({ allowed: true, remaining: 3 })
-      .mockResolvedValueOnce({ allowed: true, remaining: 2 })
-      .mockResolvedValueOnce({ allowed: true, remaining: 1 });
-
+    const key = `${testIdentifier}:limit-ok`;
     for (let i = 0; i < 5; i++) {
-      const result = await mockCheckRateLimit(mockIdentifier, mockEndpoint, {
-        maxRequests: 5,
+      const result = await checkRateLimit(key, testEndpoint, {
+        maxRequests: 10,
         windowMinutes: 60
       });
       expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(10 - i - 1);
     }
   });
 
   it('Bloquea requests que exceden el límite', async () => {
-    // Simular que ya se alcanzó el límite
-    const mockCheckRateLimit = vi.fn().mockResolvedValue({ allowed: false, remaining: 0, resetAt: Date.now() + 3600000 });
+    const key = `${testIdentifier}:limit-exceeded`;
+    // Hacer 10 requests (límite)
+    for (let i = 0; i < 10; i++) {
+      await checkRateLimit(key, testEndpoint, {
+        maxRequests: 10,
+        windowMinutes: 60
+      });
+    }
 
-    const result = await mockCheckRateLimit(mockIdentifier, mockEndpoint, {
-      maxRequests: 5,
+    // Request #11 debe ser bloqueado
+    const result = await checkRateLimit(key, testEndpoint, {
+      maxRequests: 10,
       windowMinutes: 60
     });
-    
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
   });
 
-  it('Devuelve tiempo de reset correctamente', async () => {
-    const futureTime = Date.now() + 3600000; // 1 hora en el futuro
-    const mockCheckRateLimit = vi.fn().mockResolvedValue({ 
-      allowed: false, 
-      remaining: 0, 
-      resetAt: futureTime 
-    });
+  it('Resetea después de la ventana de tiempo', async () => {
+    const key = `${testIdentifier}:window-reset`;
+    // Hacer 10 requests
+    for (let i = 0; i < 10; i++) {
+      await checkRateLimit(key, testEndpoint, {
+        maxRequests: 10,
+        windowMinutes: 1 / 60 // 1 segundo para el test
+      });
+    }
 
-    const result = await mockCheckRateLimit(mockIdentifier, mockEndpoint, {
-      maxRequests: 5,
-      windowMinutes: 60
+    // Esperar 1.1 segundos
+    await new Promise(resolve => setTimeout(resolve, 1100));
+
+    // Debe permitir nuevamente
+    const result = await checkRateLimit(key, testEndpoint, {
+      maxRequests: 10,
+      windowMinutes: 1 / 60
     });
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(9);
+  });
+
+  it('Bloqueo temporal funciona correctamente', async () => {
+    const key = `${testIdentifier}:temp-block`;
+    // Hacer 10 requests para activar bloqueo
+    for (let i = 0; i < 10; i++) {
+      await checkRateLimit(key, testEndpoint, {
+        maxRequests: 10,
+        windowMinutes: 60,
+        blockMinutes: 1 / 30 // 2 segundos de bloqueo
+      });
+    }
+
+    // Request #11 activa bloqueo
+    const blocked = await checkRateLimit(key, testEndpoint, {
+      maxRequests: 10,
+      windowMinutes: 60,
+      blockMinutes: 1 / 30
+    });
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.resetAt).toBeDefined();
+
+    // Esperar 1 segundo (sin completar los 2 seg)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Debe seguir bloqueado
+    const stillBlocked = await checkRateLimit(key, testEndpoint, {
+      maxRequests: 10,
+      windowMinutes: 60,
+      blockMinutes: 1 / 30
+    });
+    expect(stillBlocked.allowed).toBe(false);
+
+    // Esperar otros 1.1 segundos (total > 2 seg)
+    await new Promise(resolve => setTimeout(resolve, 1100));
     
-    expect(result.resetAt).toBe(futureTime);
+    // Ya no debería estar bloqueado, pero el rate limit normal sigue aplicando
+    const notBlockedAnymore = await checkRateLimit(key, testEndpoint, {
+        maxRequests: 10,
+        windowMinutes: 60,
+        blockMinutes: 1/30
+    });
+    expect(notBlockedAnymore.allowed).toBe(false); // Sigue rate limited, pero no por el bloqueo temporal
+    expect(notBlockedAnymore.resetAt).toBeUndefined();
   });
 
   it('Límites por endpoint son independientes', async () => {
-    // Este test verificaría que los límites son por endpoint
-    const mockCheckRateLimit = vi.fn().mockResolvedValue({ allowed: true, remaining: 10 });
+    const key = `${testIdentifier}:independent-endpoints`;
+    // Agotar límite de generate-link
+    for (let i = 0; i < 10; i++) {
+      await checkRateLimit(key, 'generate-link', {
+        maxRequests: 10,
+        windowMinutes: 60
+      });
+    }
 
-    const result1 = await mockCheckRateLimit(mockIdentifier, 'generate-link', {
+    // verify-access debe seguir permitiendo
+    const result = await checkRateLimit(key, 'verify-access', {
       maxRequests: 10,
       windowMinutes: 60
     });
-    expect(result1.allowed).toBe(true);
-
-    const result2 = await mockCheckRateLimit(mockIdentifier, 'verify-access', {
-      maxRequests: 10,
-      windowMinutes: 60
-    });
-    expect(result2.allowed).toBe(true);
-  });
-
-  it('Calcula correctamente requests restantes', async () => {
-    const mockCheckRateLimit = vi.fn().mockResolvedValue({ allowed: true, remaining: 7 });
-
-    const result = await mockCheckRateLimit(mockIdentifier, mockEndpoint, {
-      maxRequests: 10,
-      windowMinutes: 60
-    });
-    
-    expect(result.remaining).toBe(7);
     expect(result.allowed).toBe(true);
   });
 });

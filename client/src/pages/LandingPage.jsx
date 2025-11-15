@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Anchor,
@@ -90,7 +90,6 @@ const solutionCards = [
     link: '#glossary'
   }
 ];
-
 const processSteps = [
   {
     title: '1. Subís tu documento',
@@ -218,7 +217,6 @@ const planCards = [
     cta: 'Contactar Ventas'
   }
 ];
-
 function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -238,7 +236,11 @@ function LandingPage() {
                   </button>
                   <div className="absolute top-full left-0 mt-2 w-56 rounded-3xl bg-white border border-gray-200 shadow-lg opacity-0 group-hover:opacity-100 transform scale-95 group-hover:scale-100 transition-all duration-200">
                     {dropdown.items.map(item => (
-                      <a key={item.label} href={item.href} className="block px-4 py-3 text-sm text-gray-700 hover:text-cyan-600 border-b last:border-0 border-gray-100">
+                      <a
+                        key={item.label}
+                        href={item.href}
+                        className="block px-4 py-3 text-sm text-gray-700 hover:text-cyan-600 border-b last:border-0 border-gray-100"
+                      >
                         {item.label}
                       </a>
                     ))}
@@ -402,7 +404,6 @@ function LandingPage() {
           </div>
         </div>
       </section>
-
       <section className="py-20 bg-slate-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -430,7 +431,6 @@ function LandingPage() {
           </div>
         </div>
       </section>
-
       <section id="verifytracker" className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-8">

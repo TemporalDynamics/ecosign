@@ -1,16 +1,18 @@
 /**
- * Basic Certification Service
+ * Basic Certification Service - Web Optimized
  *
- * Provides simple file certification using eco-packer:
- * - Upload file
- * - Calculate SHA-256 hash
- * - Generate .ecox with timestamp
- * - Download certified file
+ * Combines browser-compatible libraries with proper .ECOX format:
+ * - @noble/ed25519 for signatures (pure JavaScript)
+ * - @noble/hashes for SHA-256 (pure JavaScript)
+ * - Proper .ECOX format compatible with JSZip verification
  */
 
-import { generateEd25519KeyPair, sha256Hex } from '@temporaldynamics/eco-packer/eco-utils';
-import { pack } from '@temporaldynamics/eco-packer';
+import * as ed from '@noble/ed25519';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
+import JSZip from 'jszip';
 import { requestSimpleTimestamp } from './tsaService.js';
+import { requestBitcoinAnchor } from './opentimestamps';
 
 /**
  * Reads a file and returns its ArrayBuffer
@@ -25,15 +27,129 @@ async function readFileAsArrayBuffer(file) {
 }
 
 /**
- * Generates a new key pair for signing (temporary, for testing)
- * In production, this should use KeyManagementService to retrieve stored keys
+ * Generates a new Ed25519 key pair (browser-compatible)
+ * Returns keys as hex strings
  */
-export function generateKeys() {
-  const { privateKey, publicKey } = generateEd25519KeyPair();
+export async function generateKeys() {
+  // In @noble/ed25519 v3.x, use crypto.getRandomValues for private key
+  const privateKey = new Uint8Array(32);
+  crypto.getRandomValues(privateKey);
+
+  const publicKey = await ed.getPublicKeyAsync(privateKey);
+
   return {
-    privateKey: privateKey.toString('base64'),
-    publicKey: publicKey.toString('base64')
+    privateKey: bytesToHex(privateKey),
+    publicKey: bytesToHex(publicKey)
   };
+}
+
+/**
+ * Calculates SHA-256 hash (browser-compatible)
+ * @param {Uint8Array} data - Data to hash
+ * @returns {string} Hex string
+ */
+function calculateSHA256(data) {
+  const hash = sha256(data);
+  return bytesToHex(hash);
+}
+
+/**
+ * Signs a message with Ed25519 (browser-compatible)
+ * @param {string} message - Message to sign
+ * @param {string} privateKeyHex - Private key as hex string
+ * @returns {Promise<string>} Signature as hex string
+ */
+async function signMessage(message, privateKeyHex) {
+  const messageBytes = utf8ToBytes(message);
+  const privateKeyBytes = hexToBytes(privateKeyHex);
+  const signature = await ed.signAsync(messageBytes, privateKeyBytes);
+  return bytesToHex(signature);
+}
+
+/**
+ * Converts Uint8Array to base64 string
+ */
+function uint8ArrayToBase64(bytes) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Converts base64 string to Uint8Array
+ */
+function base64ToUint8Array(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Creates a proper ECOX format (ZIP with manifest.json for compatibility with verification)
+ *
+ * @param {Object} project - EcoProject manifest
+ * @param {string} publicKeyHex - Public key as hex string
+ * @param {string} signature - Signature as hex string
+ * @param {string} timestamp - Timestamp
+ * @param {Object} options - Additional options
+ * @returns {ArrayBuffer} ECOX file data
+ */
+async function createEcoXFormat(project, publicKeyHex, signature, timestamp, options = {}) {
+  // Create the manifest structure compatible with verification
+  const manifest = project;
+
+  // Create the signatures JSON
+  const signatures = [
+    {
+      keyId: options.userId || 'temp-key',
+      signerId: options.userEmail || 'anonymous@verifysign.pro',
+      publicKey: publicKeyHex,
+      signature: signature,
+      algorithm: 'Ed25519',
+      timestamp: timestamp,
+      // RFC 3161 legal timestamp (if requested)
+      ...(options.tsaResponse && options.tsaResponse.success ? {
+        legalTimestamp: {
+          standard: 'RFC 3161',
+          tsa: options.tsaResponse.tsaName || options.tsaResponse.tsaUrl,
+          tsaUrl: options.tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
+          token: options.tsaResponse.token,
+          tokenSize: options.tsaResponse.tokenSize,
+          algorithm: options.tsaResponse.algorithm,
+          verified: options.tsaResponse.verified,
+          note: options.tsaResponse.note
+        }
+      } : {})
+    }
+  ];
+
+  // Create a new JSZip instance
+  const zip = new JSZip();
+
+  // Add manifest.json
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+
+  // Add signatures.json
+  zip.file('signatures.json', JSON.stringify(signatures, null, 2));
+
+  // Add metadata.json
+  const metadata = {
+    createdWith: 'VerifySign Web Client',
+    browserVersion: navigator.userAgent,
+    hasLegalTimestamp: options.tsaResponse && options.tsaResponse.success,
+    timestampType: options.tsaResponse && options.tsaResponse.success ? 'RFC 3161 (Legal)' : 'Local (Informational)'
+  };
+  zip.file('metadata.json', JSON.stringify(metadata, null, 2));
+
+  // Generate the ZIP as an ArrayBuffer
+  const content = await zip.generateAsync({ type: 'arraybuffer' });
+  return content;
 }
 
 /**
@@ -41,7 +157,8 @@ export function generateKeys() {
  *
  * @param {File} file - The file to certify
  * @param {Object} options - Certification options
- * @param {string} options.privateKey - Base64-encoded private key (optional, will generate if not provided)
+ * @param {string} options.privateKey - Hex-encoded private key (optional, will generate if not provided)
+ * @param {string} options.publicKey - Hex-encoded public key (optional)
  * @param {string} options.userId - User ID (optional)
  * @param {string} options.userEmail - User email (optional)
  * @param {boolean} options.useLegalTimestamp - Request RFC 3161 timestamp (default: false)
@@ -49,32 +166,31 @@ export function generateKeys() {
  */
 export async function certifyFile(file, options = {}) {
   try {
-    console.log('📄 Starting file certification...');
+    console.log('📄 Starting file certification (web-optimized)...');
     console.log('  File name:', file.name);
     console.log('  File size:', file.size, 'bytes');
 
     // Step 1: Read file as ArrayBuffer
     const fileBuffer = await readFileAsArrayBuffer(file);
+    const fileArray = new Uint8Array(fileBuffer);
     console.log('✅ File read successfully');
 
     // Step 2: Calculate SHA-256 hash
-    const fileArray = new Uint8Array(fileBuffer);
-    const hash = sha256Hex(fileArray);
+    const hash = calculateSHA256(fileArray);
     console.log('✅ Hash calculated:', hash);
 
     // Step 3: Generate or use provided keys
-    let privateKey, publicKey;
-    if (options.privateKey) {
-      privateKey = Buffer.from(options.privateKey, 'base64');
-      // For now, we'll generate public key from private (in production, store both)
-      const keys = generateEd25519KeyPair();
-      publicKey = keys.publicKey;
+    let privateKeyHex, publicKeyHex;
+    if (options.privateKey && options.publicKey) {
+      privateKeyHex = options.privateKey;
+      publicKeyHex = options.publicKey;
     } else {
-      const keys = generateEd25519KeyPair();
-      privateKey = keys.privateKey;
-      publicKey = keys.publicKey;
+      const keys = await generateKeys();
+      privateKeyHex = keys.privateKey;
+      publicKeyHex = keys.publicKey;
     }
     console.log('✅ Keys ready');
+    console.log('  Public key (hex):', publicKeyHex.substring(0, 32) + '...');
 
     // Step 4: Create timestamp (with optional RFC 3161 legal timestamp)
     let timestamp = new Date().toISOString();
@@ -113,7 +229,7 @@ export async function certifyFile(file, options = {}) {
         createdAt: timestamp,
         modifiedAt: timestamp,
         author: options.userEmail || 'anonymous',
-        tags: ['certified', 'verifysign']
+        tags: ['certified', 'verifysign', 'web']
       },
       assets: [
         {
@@ -153,31 +269,23 @@ export async function certifyFile(file, options = {}) {
     const assetHashes = new Map();
     assetHashes.set(assetId, hash);
 
-    // Step 7: Pack into .ecox format
-    const ecoxBuffer = await pack(project, assetHashes, {
-      privateKey: privateKey,
-      keyId: options.userId || 'temp-key',
-      signerId: options.userEmail || 'anonymous@verifysign.pro',
-      // Include timestamp in the signature if we have a legal timestamp
-      additionalMetadata: tsaResponse && tsaResponse.success ? {
-        legalTimestamp: {
-          standard: 'RFC 3161',
-          tsa: tsaResponse.tsaName || tsaResponse.tsaUrl,
-          tsaUrl: tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
-          token: tsaResponse.token,
-          tokenSize: tsaResponse.tokenSize,
-          algorithm: tsaResponse.algorithm,
-          verified: tsaResponse.verified,
-          note: tsaResponse.note
-        }
-      } : {}
+    // Step 7: Sign the manifest
+    const manifestJSON = JSON.stringify(project, null, 2);
+    const signature = await signMessage(manifestJSON, privateKeyHex);
+    console.log('✅ Manifest signed');
+
+    // Step 8: Create .ecox format (compatible with verificationService)
+    const ecoxBuffer = await createEcoXFormat(project, publicKeyHex, signature, timestamp, {
+      userId: options.userId,
+      userEmail: options.userEmail,
+      tsaResponse
     });
 
     console.log('✅ .ecox file created:', ecoxBuffer.byteLength, 'bytes');
 
     let anchorJob = null;
     try {
-      // Only import when needed to avoid circular dependencies
+      // Import dynamically to avoid potential circular dependencies
       const { requestBitcoinAnchor } = await import('./opentimestamps');
       anchorJob = await requestBitcoinAnchor(hash, {
         documentId: projectId,
@@ -199,7 +307,8 @@ export async function certifyFile(file, options = {}) {
       projectId: projectId,
       fileName: file.name,
       fileSize: file.size,
-      publicKey: publicKey.toString('base64'),
+      publicKey: publicKeyHex,
+      signature: signature,
       ecoxBuffer: ecoxBuffer,
       ecoxSize: ecoxBuffer.byteLength,
       anchorRequest: anchorJob,
@@ -217,6 +326,7 @@ export async function certifyFile(file, options = {}) {
 
   } catch (error) {
     console.error('❌ Certification error:', error);
+    console.error('Stack:', error.stack);
     throw new Error(`Certification failed: ${error.message}`);
   }
 }

@@ -144,8 +144,16 @@ const CertificationFlow = ({ onClose }) => {
         {step === 1 && uploadedFile && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-              <p className="font-semibold">Paso recomendado</p>
-              <p>Firmá con SignNow para que tu documento tenga validez legal inmediata antes de certificarlo.</p>
+              <p className="font-semibold">🔐 Firma Legal (Recomendado)</p>
+              <p className="mb-2">
+                Firmá con SignNow para que tu documento tenga <strong>validez legal internacional</strong>:
+              </p>
+              <ul className="text-xs space-y-1 ml-4 list-disc">
+                <li>Audit trail completo (IP, timestamp, dispositivo)</li>
+                <li>Válido en 100+ países (ESIGN, eIDAS, UETA)</li>
+                <li>Certificate of Completion tamper-proof</li>
+                <li>No-repudiación: el firmante no puede negar la firma</li>
+              </ul>
             </div>
             <SignatureWorkshop
               originalFile={uploadedFile}
@@ -157,14 +165,20 @@ const CertificationFlow = ({ onClose }) => {
               onSuccess={handleSignSuccess}
               showSkipHint
             />
-            <div className="flex items-center justify-between text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <span>¿Preferís certificar sin firma legal?</span>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm text-yellow-800 mb-2">
+                <strong>⚠️ Solo Certificación (sin firma legal)</strong>
+              </p>
+              <p className="text-xs text-yellow-700 mb-3">
+                Si saltás este paso, tu documento tendrá un certificado .ECO con timestamp y hash,
+                pero <strong>NO tendrá validez legal</strong> como documento firmado.
+              </p>
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="text-cyan-600 hover:text-cyan-700 font-semibold flex items-center gap-1"
+                className="text-yellow-700 hover:text-yellow-900 font-semibold text-sm flex items-center gap-1 underline"
               >
-                Saltar firma <ArrowRight className="w-4 h-4" />
+                Continuar solo con certificación (sin firma) <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -205,11 +219,16 @@ const CertificationFlow = ({ onClose }) => {
             </div>
 
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border-2 border-amber-200">
-              <div>
+              <div className="flex-1">
                 <h4 className="text-gray-900 font-semibold flex items-center">
                   🔗 Anclaje en Bitcoin
                 </h4>
                 <p className="text-sm text-gray-600">Hash registrado en blockchain pública</p>
+                {useBitcoinAnchor && (
+                  <div className="mt-2 text-xs text-amber-700 bg-amber-100 rounded px-2 py-1">
+                    ⏱️ Proceso: 4-24 horas • Recibirás email cuando esté confirmado
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => setUseBitcoinAnchor(!useBitcoinAnchor)}
@@ -249,6 +268,17 @@ const CertificationFlow = ({ onClose }) => {
               <div>
                 <h4 className="text-emerald-800 font-semibold">Certificado generado correctamente</h4>
                 <p className="text-sm text-emerald-700">Guarda tu documento firmado y el archivo .ECO en la misma carpeta.</p>
+                {certResult.anchorRequest && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                    <p className="font-semibold text-amber-900">🔗 Anclaje en Bitcoin en proceso</p>
+                    <p className="text-amber-700 mt-1">
+                      El anclaje blockchain puede tardar 4-24 horas. Te notificaremos por email cuando esté confirmado.
+                    </p>
+                    <p className="text-xs text-amber-600 mt-2">
+                      ID de anclaje: {certResult.anchorRequest.anchorId?.substring(0, 8)}...
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

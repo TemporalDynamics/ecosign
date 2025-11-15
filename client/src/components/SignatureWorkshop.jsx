@@ -301,9 +301,22 @@ const SignatureWorkshop = ({
       onSuccess?.(result);
       return result;
     } catch (error) {
-      const message = error.message || 'Error conectando con SignNow';
-      setSignNowError(message);
-      onError?.(message);
+      console.error('SignNow error:', error);
+
+      // Check if it's the "not configured" error
+      const errorMessage = error.message || 'Error conectando con SignNow';
+
+      if (errorMessage.includes('SignNow integration is required') ||
+          errorMessage.includes('SIGNNOW_NOT_CONFIGURED')) {
+        setSignNowError(
+          '⚠️ La firma legal con SignNow no está configurada en este servidor. ' +
+          'Por favor contacta al administrador para habilitar firmas con validez legal internacional.'
+        );
+      } else {
+        setSignNowError(errorMessage);
+      }
+
+      onError?.(errorMessage);
       return null;
     } finally {
       setSignNowLoading(false);

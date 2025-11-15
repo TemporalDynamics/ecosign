@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "cd client && npm run dev",
     "build": "cd client && npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:security": "vitest run tests/security/",
+    "test:security:watch": "vitest tests/security/",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "supabase",
@@ -19,5 +24,11 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.81.0",
     "stripe": "^19.3.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^1.6.1",
+    "@vitest/ui": "^1.6.1",
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.1"
   }
 }

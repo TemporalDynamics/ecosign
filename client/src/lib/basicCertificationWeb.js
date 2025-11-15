@@ -162,6 +162,7 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
  * @param {string} options.userId - User ID (optional)
  * @param {string} options.userEmail - User email (optional)
  * @param {boolean} options.useLegalTimestamp - Request RFC 3161 timestamp (default: false)
+ * @param {boolean} options.useBitcoinAnchor - Request Bitcoin anchoring (default: false)
  * @returns {Promise<Object>} Certification result with hash, timestamp, and .ecox data
  */
 export async function certifyFile(file, options = {}) {
@@ -284,19 +285,22 @@ export async function certifyFile(file, options = {}) {
     console.log('✅ .ecox file created:', ecoxBuffer.byteLength, 'bytes');
 
     let anchorJob = null;
-    try {
-      // Import dynamically to avoid potential circular dependencies
-      const { requestBitcoinAnchor } = await import('./opentimestamps');
-      anchorJob = await requestBitcoinAnchor(hash, {
-        documentId: projectId,
-        userId: options.userId || null,
-        metadata: {
-          requestedFrom: 'certifyFile',
-          documentName: file.name
-        }
-      });
-    } catch (anchorError) {
-      console.warn('⚠️ Bitcoin anchoring request failed:', anchorError);
+    if (options.useBitcoinAnchor) {
+      try {
+        // Import dynamically to avoid potential circular dependencies
+        const { requestBitcoinAnchor } = await import('./opentimestamps');
+        anchorJob = await requestBitcoinAnchor(hash, {
+          documentId: projectId,
+          userId: options.userId || null,
+          metadata: {
+            requestedFrom: 'certifyFile',
+            documentName: file.name,
+            requestedBitcoinAnchor: true
+          }
+        });
+      } catch (anchorError) {
+        console.warn('⚠️ Bitcoin anchoring request failed:', anchorError);
+      }
     }
 
     // Return certification data

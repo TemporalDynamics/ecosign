@@ -50,7 +50,7 @@ const problemCards = [
   {
     title: 'Creadores',
     description:
-      'Compartís tu música, diseño o código y al día siguiente alguien lo presenta como suyo. Tu prueba es un chat, un Whatsapp o un email que cualquiera puede alterar.'
+      'Compartís tu música, diseño o código y al día siguiente alguien lo presenta como suyo. Tu prueba es un chat, un WhatsApp o un email que cualquiera puede alterar.'
   },
   {
     title: 'Legal & Compliance',
@@ -99,7 +99,7 @@ const processSteps = [
   },
   {
     title: '2. Decidís cómo compartirlo',
-    description: 'VerifyTracker genera un link NDA único para cada receptor',
+    description: 'VerifyTracker genera un link NDA único para cada receptor.',
     icon: LinkIcon
   },
   {
@@ -123,7 +123,7 @@ const useCases = [
     icon: Lightbulb,
     badge: 'Ver historias de creadores →',
     badgeColor: 'text-cyan-600',
-    anchor: '#case-creators',
+    anchorId: 'case-creators',
     imagePosition: 'right'
   },
   {
@@ -134,7 +134,7 @@ const useCases = [
     icon: Scale,
     badge: 'Leer más para abogados →',
     badgeColor: 'text-sky-500',
-    anchor: '#case-legal',
+    anchorId: 'case-legal',
     imagePosition: 'left'
   },
   {
@@ -145,7 +145,7 @@ const useCases = [
     icon: Building2,
     badge: 'Casos científicos →',
     badgeColor: 'text-indigo-500',
-    anchor: '#case-science',
+    anchorId: 'case-science',
     imagePosition: 'right'
   },
   {
@@ -156,7 +156,7 @@ const useCases = [
     icon: Code,
     badge: 'Integrar en mi pipeline →',
     badgeColor: 'text-purple-500',
-    anchor: '#case-devs',
+    anchorId: 'case-devs',
     imagePosition: 'left'
   }
 ];
@@ -169,8 +169,7 @@ const learningCards = [
   },
   {
     title: '¿Qué es SHA-256?',
-    description:
-      'Función matemática que genera una huella digital única de 256 bits. Si cambia un solo bit, el hash cambia por completo.'
+    description: 'Función matemática que genera una huella digital única de 256 bits. Si cambia un solo bit, el hash cambia por completo.'
   },
   {
     title: '¿Qué es un Timestamp Criptográfico?',
@@ -239,11 +238,7 @@ function LandingPage() {
                   </button>
                   <div className="absolute top-full left-0 mt-2 w-56 rounded-3xl bg-white border border-gray-200 shadow-lg opacity-0 group-hover:opacity-100 transform scale-95 group-hover:scale-100 transition-all duration-200">
                     {dropdown.items.map(item => (
-                      <a
-                        key={item.label}
-                        href={item.href}
-                        className="block px-4 py-3 text-sm text-gray-700 hover:text-cyan-600 border-b last:border-0 border-gray-100"
-                      >
+                      <a key={item.label} href={item.href} className="block px-4 py-3 text-sm text-gray-700 hover:text-cyan-600 border-b last:border-0 border-gray-100">
                         {item.label}
                       </a>
                     ))}
@@ -288,7 +283,7 @@ function LandingPage() {
         )}
       </nav>
 
-      <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-gradient-to-br from-cyan-50 via-white to-blue-50 relative overflow-hidden">
+      <header id="eco-format" className="pt-32 pb-24 md:pt-40 md:pb-32 bg-gradient-to-br from-cyan-50 via-white to-blue-50 relative overflow-hidden">
         <div className="absolute inset-0 opacity-70">
           <div className="absolute -top-16 right-10 w-60 h-60 bg-gradient-to-br from-cyan-300 to-transparent rounded-full blur-[140px]" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-br from-blue-300 to-transparent rounded-full blur-[160px]" />
@@ -301,7 +296,7 @@ function LandingPage() {
             Tu Trabajo Merece una Prueba que Nadie Pueda Cuestionar.
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto mb-6 leading-relaxed">
-            VerifySign convierte tus documentos en evidencia forense verificable sin exponer su contenido. Un archivo .ECO demuestra que existió, cuándo y cómo, solo con el archivo original.
+            VerifySign convierte tus documentos en evidencia forense verificable sin exponer su contenido. Combinamos <Tooltip term="hash SHA-256" definition="Huella digital de 256 bits que detecta cualquier cambio mínimo." /> + <Tooltip term="timestamp criptográfico" definition="Marca de tiempo RFC 3161 que respalda una fecha exacta." /> + <Tooltip term="anclaje blockchain" definition="Registramos el hash en Bitcoin o Polygon para lograr prueba inmutable." /> para entregar una prueba que cualquiera puede verificar.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 mb-3">
             <Link
@@ -339,10 +334,7 @@ function LandingPage() {
             {problemCards.map((card, index) => {
               const Icon = [Lightbulb, Scale, Building2, Code][index];
               return (
-                <div
-                  key={card.title}
-                  className="p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition duration-300 hover:-translate-y-1"
-                >
+                <div key={card.title} className="p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition duration-300 hover:-translate-y-1">
                   <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-cyan-100 to-blue-100 mb-4 text-cyan-600">
                     <Icon className="w-6 h-6" strokeWidth={2.2} />
                   </div>
@@ -419,20 +411,21 @@ function LandingPage() {
           </div>
           <div className="space-y-12">
             {useCases.map(useCase => (
-              <CardWithImage
-                key={useCase.title}
-                title={useCase.title}
-                description={useCase.description}
-                image={useCase.image}
-                imagePosition={useCase.imagePosition}
-                icon={useCase.icon}
-              >
-                <div className="mt-4 text-sm text-gray-600">
-                  <Link to={useCase.anchor} className={`font-semibold ${useCase.badgeColor} hover:underline`}>
-                    {useCase.badge}
-                  </Link>
-                </div>
-              </CardWithImage>
+              <section id={useCase.anchorId} key={useCase.title}>
+                <CardWithImage
+                  title={useCase.title}
+                  description={useCase.description}
+                  image={useCase.image}
+                  imagePosition={useCase.imagePosition}
+                  icon={useCase.icon}
+                >
+                  <div className="mt-4 text-sm text-gray-600">
+                    <a href={`#${useCase.anchorId}`} className={`font-semibold ${useCase.badgeColor} hover:underline`}>
+                      {useCase.badge}
+                    </a>
+                  </div>
+                </CardWithImage>
+              </section>
             ))}
           </div>
         </div>
@@ -446,9 +439,9 @@ function LandingPage() {
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             <div className="space-y-4 text-gray-600 text-sm">
-              <p>Para que el problema no sea solo probar que existía el documento, sino demostrar a quién y bajo qué condiciones lo mostraste.</p>
+              <p>Demostramos no solo que el documento existía, sino a quién y bajo qué condiciones lo mostraste.</p>
               <ul className="list-disc pl-5 space-y-2">
-                <li>Enlace único por receptor con campos obligatorios y NDA antes de la vista.</li>
+                <li>Enlace único por receptor con campos obligatorios y NDA previo.</li>
                 <li>Registro de identidad, firma, fecha, hora, IP y huella del documento.</li>
                 <li>Todo se impregna en el .ECOX reforzando la no-repudiación técnica y contractual.</li>
               </ul>
@@ -457,7 +450,7 @@ function LandingPage() {
             <div className="p-6 rounded-3xl bg-gradient-to-br from-cyan-600 to-blue-600 text-white shadow-2xl border border-cyan-700">
               <h3 className="text-xl font-semibold mb-2">Beneficio legal real</h3>
               <p className="leading-relaxed text-sm">
-                Si alguien filtra el contenido o niega haberlo recibido, tenés rastro técnico y contractual que se valida con blockchain.
+                Si alguien filtra el contenido o niega haberlo recibido, tenés rastro técnico y contractual en blockchain.
               </p>
               <Link to="/nda" className="inline-flex items-center mt-6 px-5 py-3 rounded-full bg-white text-cyan-700 font-semibold shadow-lg hover:shadow-xl transition">
                 Crear enlace VerifyTracker
@@ -491,10 +484,10 @@ function LandingPage() {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900">No reemplazamos a nadie. Empoderamos a todos.</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {differenceCards.map(point => (
-              <div key={point.title} className="p-6 rounded-3xl border border-gray-100 shadow-md hover:shadow-xl transition duration-300">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{point.title}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{point.description}</p>
+            {differenceCards.map(card => (
+              <div key={card.title} className="p-6 rounded-3xl border border-gray-100 shadow-md hover:shadow-xl transition duration-300">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{card.title}</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">{card.description}</p>
               </div>
             ))}
           </div>

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Upload, X, Info } from 'lucide-react';
 import { certifyAndDownload } from '../lib/basicCertificationBrowser';
+import DocumentList from '../components/DocumentList';
 import DashboardNav from '../components/DashboardNav';
 
 function DashboardPage() {
@@ -255,6 +256,17 @@ function DashboardPage() {
               <p className="text-gray-700">Nuevo certificado .ECO generado para contrato</p>
             </div>
           </div>
+        </section>
+
+        {/* Document List */}
+        <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Documentos Recientes</h2>
+            <button className="text-cyan-600 hover:text-cyan-700 font-medium text-sm">
+              Ver todos →
+            </button>
+          </div>
+          <DocumentList />
         </section>
       </main>
 

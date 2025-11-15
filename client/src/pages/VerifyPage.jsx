@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Shield, CheckCircle, XCircle, Upload, FileText, Lock, Anchor, AlertTriangle } from 'lucide-react';
+import { Search, Shield, CheckCircle, XCircle, Upload, FileText, Lock, Anchor, ArrowLeft } from 'lucide-react';
 import { verifyEcoxFile } from '../lib/verificationService';
 import LegalProtectionOptions from '../components/LegalProtectionOptions';
+import VerificationSummary from '../components/VerificationSummary';
 
 // Configuración de validación
 const ALLOWED_EXTENSIONS = ['.eco', '.ecox', '.pdf', '.zip'];
@@ -22,40 +23,6 @@ function VerifyPage() {
   const [verifying, setVerifying] = useState(false);
   const [result, setResult] = useState(null);
   const [validationError, setValidationError] = useState(null);
-
-  const verificationLayers = useMemo(() => ([
-    {
-      key: 'format',
-      title: 'Formato .ECOX',
-      description: 'Estructura del contenedor y manifiesto JSON'
-    },
-    {
-      key: 'manifest',
-      title: 'Manifiesto',
-      description: 'Campos obligatorios y assets declarados'
-    },
-    {
-      key: 'signature',
-      title: 'Firma Ed25519',
-      description: 'Integridad criptográfica (clave pública ↔ firma)'
-    },
-    {
-      key: 'hash',
-      title: 'Hash del Documento',
-      description: 'Comparación SHA-256 declarada vs. calculada'
-    },
-    {
-      key: 'timestamp',
-      title: 'Timestamp Forense',
-      description: 'Fecha y hora registradas en el certificado'
-    },
-    {
-      key: 'legalTimestamp',
-      title: 'Sello Legal (RFC 3161)',
-      description: 'Token TSR emitido por la Time Stamp Authority',
-      optional: true
-    }
-  ]), []);
 
   // Validar archivo
   const validateFile = (file) => {
@@ -196,9 +163,17 @@ function VerifyPage() {
       <nav className="bg-white/95 backdrop-blur-sm fixed w-full top-0 z-50 border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">VerifySign</span>
-            </Link>
+            <div className="flex items-center space-x-4">
+              <Link to="/" className="flex items-center space-x-3">
+                <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">VerifySign</span>
+              </Link>
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center text-sm text-gray-500 hover:text-cyan-600 transition"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" /> Volver al dashboard
+              </Link>
+            </div>
             <div className="flex items-center space-x-6">
               <Link to="/" className="text-gray-600 hover:text-cyan-600 transition duration-200 font-medium">
                 Inicio
@@ -354,287 +329,35 @@ function VerifyPage() {
 
         {/* Results */}
         {result && (
-          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
-            {(() => {
-              const checks = result.checks || {};
-              const data = result.data || {};
-              const manifestHash = data.hash || data.assets?.[0]?.hash || null;
-              const legalInfo = data.legalTimestampInfo;
-              const legalReport = data.legalTimestampReport;
-              const errorList = result.errors || [];
-              const firstFailed = verificationLayers.find(layer => {
-                if (layer.optional) return false;
-                const currentCheck = checks[layer.key];
-                return currentCheck && !currentCheck.passed;
-              });
+          <>
+            <VerificationSummary result={result} originalProvided={!!originalFile} />
 
-              const headerMessage = result.valid
-                ? 'La prueba pasó las 5 capas obligatorias de verificación'
-                : (firstFailed?.key && checks[firstFailed.key]?.message) ||
-                  'Se detectaron inconsistencias en el certificado';
+            {result.valid && (
+              <div className="mt-8">
+                <LegalProtectionOptions
+                  documentId={result.data?.projectId || null}
+                  documentHash={result.data?.hash || result.data?.manifestHash || null}
+                  userId={null}
+                />
+              </div>
+            )}
 
-              const documentTimestamp = data.createdAt ? new Date(data.createdAt) : null;
-
-              const documentHashLabel = checks.hash?.passed && checks.hash?.message?.includes('skipped')
-                ? 'Hash declarado en el manifiesto'
-                : 'Hash SHA-256 verificado';
-
-              const documentHashHelp = checks.hash?.message?.includes('skipped')
-                ? 'Carga el archivo original para comparar byte a byte'
-                : null;
-
-              const legalPassed = checks.legalTimestamp?.passed;
-              
-              const documentHash = manifestHash || 'No disponible';
-
-              const legalBadge = legalPassed ? (
-                <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                  RFC 3161
-                </span>
-              ) : null;
-
-              return (
-                <>
-                  <div className="flex items-center justify-center mb-6">
-                    <div className={`rounded-full p-4 border-2 ${result.valid ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}>
-                      {result.valid ? (
-                        <CheckCircle className="w-16 h-16 text-green-600" strokeWidth={2.5} />
-                      ) : (
-                        <XCircle className="w-16 h-16 text-red-600" strokeWidth={2.5} />
-                      )}
-                    </div>
-                  </div>
-
-                  <h2 className="text-3xl font-bold text-center text-gray-900 mb-2">
-                    {result.valid ? 'Documento Verificado' : 'Documento No Válido'}
-                  </h2>
-                  <p className={`text-center mb-8 ${result.valid ? 'text-gray-600' : 'text-red-600 font-medium'}`}>
-                    {headerMessage}
-                  </p>
-
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-cyan-600 mb-2">Nombre del Documento</h4>
-                      <p className="text-gray-900 font-medium">{data.fileName || file?.name || 'No especificado'}</p>
-                      {data.author && (
-                        <p className="text-sm text-gray-600">Autor: {data.author}</p>
-                      )}
-                    </div>
-
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-cyan-600 mb-2">Timestamp Certificado</h4>
-                      {documentTimestamp ? (
-                        <p className="text-gray-900">
-                          {documentTimestamp.toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'long' })}
-                        </p>
-                      ) : (
-                        <p className="text-gray-600">No disponible</p>
-                      )}
-                      {legalPassed && (
-                        <p className="mt-1 text-sm text-green-700 font-semibold flex items-center">
-                          <CheckCircle className="w-4 h-4 mr-1" /> Timestamp con validez legal
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 md:col-span-2">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-semibold text-cyan-600">{documentHashLabel}</h4>
-                        {documentHashHelp && (
-                          <span className="text-xs text-orange-600 flex items-center">
-                            <AlertTriangle className="w-4 h-4 mr-1" /> {documentHashHelp}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-900 font-mono break-all">
-                        {documentHash}
-                      </p>
-                      
-                      {/* Byte-to-byte comparison details */}
-                      {result.originalFileHash && result.manifestHash && (
-                        <div className="mt-3 pt-3 border-t border-gray-300">
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="font-medium text-gray-700">Verificación Byte-a-Byte:</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${result.originalFileHash === result.manifestHash ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              {result.originalFileHash === result.manifestHash ? 'Coincide' : 'Diferente'}
-                            </span>
-                          </div>
-                          
-                          <div className="mt-2 space-y-2">
-                            <div>
-                              <span className="text-xs text-gray-500">Hash del archivo original:</span>
-                              <p className="text-xs font-mono bg-gray-100 p-2 rounded break-all mt-1">
-                                {result.originalFileHash}
-                              </p>
-                            </div>
-                            
-                            <div>
-                              <span className="text-xs text-gray-500">Hash en el manifiesto:</span>
-                              <p className="text-xs font-mono bg-gray-100 p-2 rounded break-all mt-1">
-                                {result.manifestHash}
-                              </p>
-                            </div>
-                            
-                            {result.originalFileHash !== result.manifestHash && (
-                              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                <p className="text-red-700 text-sm font-medium flex items-center">
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  ¡Advertencia! El archivo ha sido modificado desde la certificación.
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {data.publicKey && (
-                    <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-cyan-600 mb-2">Clave Pública del Firmante</h4>
-                      <p className="text-xs text-gray-700 font-mono break-all">{data.publicKey}</p>
-                    </div>
-                  )}
-
-                  <div className="mt-8">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Capas de Verificación</h3>
-                    <div className="space-y-3">
-                      {verificationLayers.map(layer => {
-                        const check = checks[layer.key];
-                        const status = check?.passed === undefined ? 'pending' : check.passed ? 'success' : 'fail';
-                        const message = check?.message || 'Verificación no ejecutada';
-                        const containerClass =
-                          status === 'success'
-                            ? 'bg-green-50 border-green-200'
-                            : status === 'fail'
-                              ? 'bg-red-50 border-red-200'
-                              : 'bg-gray-50 border-gray-200';
-                        const icon = status === 'success'
-                          ? <CheckCircle className="w-5 h-5 text-green-600 mt-1" />
-                          : status === 'fail'
-                            ? <XCircle className="w-5 h-5 text-red-600 mt-1" />
-                            : <AlertTriangle className="w-5 h-5 text-gray-500 mt-1" />;
-
-                        return (
-                          <div
-                            key={layer.key}
-                            className={`flex items-start justify-between rounded-lg border px-4 py-3 ${containerClass} ${layer.optional ? 'opacity-90' : ''}`}
-                          >
-                            <div>
-                              <p className="text-sm font-semibold text-gray-900 flex items-center">
-                                {layer.title}
-                                {layer.optional && (
-                                  <span className="ml-2 text-xs font-medium text-gray-500">(Opcional)</span>
-                                )}
-                                {layer.key === 'legalTimestamp' && legalBadge}
-                              </p>
-                              <p className="text-xs text-gray-600">{layer.description}</p>
-                              <p className={`text-sm mt-1 ${
-                                status === 'success'
-                                  ? 'text-green-700'
-                                  : status === 'fail'
-                                    ? 'text-red-700 font-medium'
-                                    : 'text-gray-600'
-                              }`}>
-                                {message}
-                              </p>
-                            </div>
-                            {icon}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {legalInfo && (
-                    <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-5">
-                      <h4 className="text-green-800 font-semibold mb-2 flex items-center">
-                        ⚖️ Detalle del Sello Legal
-                      </h4>
-                      <dl className="grid md:grid-cols-2 gap-4 text-sm text-gray-800">
-                        <div>
-                          <dt className="font-semibold text-gray-700">TSA</dt>
-                          <dd>{legalInfo.tsa || 'No especificada'}</dd>
-                        </div>
-                        <div>
-                          <dt className="font-semibold text-gray-700">URL de Verificación</dt>
-                          <dd>{legalInfo.tsaUrl || 'N/A'}</dd>
-                        </div>
-                        <div>
-                          <dt className="font-semibold text-gray-700">Estándar</dt>
-                          <dd>{legalInfo.standard || 'RFC 3161'}</dd>
-                        </div>
-                        <div>
-                          <dt className="font-semibold text-gray-700">Token</dt>
-                          <dd className="font-mono text-xs break-all">
-                            {legalInfo.token ? `${legalInfo.token.slice(0, 64)}...` : 'No disponible'}
-                          </dd>
-                        </div>
-                      </dl>
-                      {legalReport && (
-                        <div className="mt-4 bg-white/70 border border-green-200 rounded-lg p-3 text-sm text-gray-800">
-                          <p className="font-semibold text-green-900">
-                            Estado del hash sellado:
-                            {legalReport.hashMatches === true && ' Coincide con el manifiesto ✅'}
-                            {legalReport.hashMatches === false && ' NO coincide ⚠️'}
-                            {legalReport.hashMatches === null && ' No se pudo comparar'}
-                          </p>
-                          <p className="mt-1 font-mono text-xs break-all">
-                            Hash manifiesto: {legalReport.expectedHash || manifestHash || 'N/A'}
-                          </p>
-                          <p className="font-mono text-xs break-all">
-                            Hash en TSR: {legalReport.tokenHash || 'N/A'}
-                          </p>
-                          {legalReport.message && (
-                            <p className="mt-1 text-xs text-green-800">{legalReport.message}</p>
-                          )}
-                        </div>
-                      )}
-                      <p className="mt-3 text-xs text-green-800">
-                        El token TSR (Base64) permite revalidar la evidencia ante un perito o tribunal sin depender de VerifySign.
-                      </p>
-                    </div>
-                  )}
-
-                  {(errorList.length > 0 || result.error) && (
-                    <div className="mt-8 bg-red-50 border border-red-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-red-800 mb-2">Detalle de inconsistencias</h4>
-                      <ul className="list-disc list-inside text-sm text-red-800 space-y-1">
-                        {result.error && <li>{result.error}</li>}
-                        {errorList.map((err, idx) => (
-                          <li key={idx}>{err}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {result.valid && (
-                    <div className="mt-8">
-                      <LegalProtectionOptions
-                        documentId={data.projectId || null}
-                        documentHash={manifestHash}
-                        userId={null}
-                      />
-                    </div>
-                  )}
-
-                  <div className="mt-8 text-center">
-                    <button
-                      onClick={() => {
-                        setFile(null);
-                        setResult(null);
-                      }}
-                      className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-8 py-3 rounded-lg transition duration-300 font-medium"
-                    >
-                      {result.valid ? 'Verificar Otro Documento' : 'Intentar Nuevamente'}
-                    </button>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
+            <div className="mt-8 text-center">
+              <button
+                onClick={() => {
+                  setFile(null);
+                  setOriginalFile(null);
+                  setResult(null);
+                }}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-8 py-3 rounded-lg transition duration-300 font-medium"
+              >
+                {result.valid ? 'Verificar otro documento' : 'Intentar nuevamente'}
+              </button>
+            </div>
+          </>
         )}
 
+        {/* Info Section */}
         {/* Info Section */}
         <div className="mt-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-8 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-900 mb-6">¿Qué verifica esta herramienta?</h3>
@@ -647,7 +370,7 @@ function VerifyPage() {
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Firma Criptográfica</h4>
                   <p className="text-gray-600 text-sm">
-                    Verifica que el documento fue sellado con la clave privada correcta (Ed25519)
+                    Comprueba que el certificado proviene de VerifySign y no fue adulterado.
                   </p>
                 </div>
               </div>
@@ -660,7 +383,7 @@ function VerifyPage() {
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Hash de Integridad</h4>
                   <p className="text-gray-600 text-sm">
-                    Confirma que ni un solo byte ha sido modificado desde su certificación
+                    Detecta si el archivo cambió aunque sea 1 byte desde la certificación.
                   </p>
                 </div>
               </div>
@@ -673,7 +396,7 @@ function VerifyPage() {
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Timestamp Certificado</h4>
                   <p className="text-gray-600 text-sm">
-                    Establece la fecha y hora exacta de creación del certificado
+                    Fija la fecha exacta en la que el documento existía con ese contenido.
                   </p>
                 </div>
               </div>
@@ -686,7 +409,7 @@ function VerifyPage() {
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Anclaje Blockchain</h4>
                   <p className="text-gray-600 text-sm">
-                    Valida la prueba de existencia en una red pública descentralizada
+                    Permite validar la prueba sin depender de VerifySign ni de nuestros servidores.
                   </p>
                 </div>
               </div>

@@ -338,6 +338,8 @@ function VerifyPage() {
                   documentId={result.data?.projectId || null}
                   documentHash={result.data?.hash || result.data?.manifestHash || null}
                   userId={null}
+                  originalFile={originalFile}
+                  documentName={result.data?.fileName || file?.name || 'Documento certificado'}
                 />
               </div>
             )}

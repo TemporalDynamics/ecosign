@@ -1,4 +1,4 @@
-# VerifySign Architecture
+a# VerifySign Architecture
 
 This document captures the current VerifySign architecture after the repo cleanup. The goal is a lean JAMStack setup centered on a single Vite/React frontend, Supabase for backend services, and a shared `eco-packer` package for certificate generation.
 

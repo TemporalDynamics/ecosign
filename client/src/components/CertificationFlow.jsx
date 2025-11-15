@@ -1,0 +1,288 @@
+import React, { useMemo, useState } from 'react';
+import { ArrowRight, CheckCircle, FileText, Shield, Upload, AlertTriangle } from 'lucide-react';
+import SignatureWorkshop from './SignatureWorkshop';
+import { certifyAndDownload } from '../lib/basicCertificationWeb';
+
+const steps = ['Subir documento', 'Firma legal', 'Certificar', 'Listo'];
+
+const CertificationFlow = ({ onClose }) => {
+  const [step, setStep] = useState(0);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [signResult, setSignResult] = useState(null);
+  const [signedFile, setSignedFile] = useState(null);
+  const [useLegalTimestamp, setUseLegalTimestamp] = useState(false);
+  const [useBitcoinAnchor, setUseBitcoinAnchor] = useState(false);
+  const [certResult, setCertResult] = useState(null);
+  const [certifying, setCertifying] = useState(false);
+  const [error, setError] = useState(null);
+
+  const targetFile = signedFile || uploadedFile;
+
+  const resetFlow = () => {
+    setStep(0);
+    setUploadedFile(null);
+    setSignResult(null);
+    setSignedFile(null);
+    setUseLegalTimestamp(false);
+    setCertResult(null);
+    setError(null);
+  };
+
+  const handleClose = () => {
+    resetFlow();
+    onClose?.();
+  };
+
+  const handleFileChange = (event) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      setUploadedFile(selectedFile);
+      setStep(1);
+      setError(null);
+      setSignResult(null);
+      setSignedFile(null);
+      setCertResult(null);
+    }
+  };
+
+  const base64ToFile = (base64, fileName) => {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i += 1) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    return new File([blob], fileName, { type: 'application/pdf' });
+  };
+
+  const handleSignSuccess = (result) => {
+    setSignResult(result);
+    if (result?.signed_pdf_base64) {
+      const suggestedName = `${(uploadedFile?.name || 'documento').replace(/\.pdf$/i, '')}-firmado.pdf`;
+      const signed = base64ToFile(result.signed_pdf_base64, suggestedName);
+      setSignedFile(signed);
+    }
+    setStep(2);
+  };
+
+  const handleCertify = async () => {
+    if (!targetFile) {
+      setError('Selecciona un documento para certificar.');
+      return;
+    }
+
+    setCertifying(true);
+    setError(null);
+    setCertResult(null);
+
+    try {
+      const result = await certifyAndDownload(targetFile, {
+        userEmail: 'user@verifysign.pro',
+        userId: 'user-' + Date.now(),
+        useLegalTimestamp,
+        useBitcoinAnchor
+      });
+      setCertResult(result);
+      setStep(3);
+    } catch (err) {
+      console.error('Certification error', err);
+      setError(err.message || 'No se pudo generar el certificado.');
+    } finally {
+      setCertifying(false);
+    }
+  };
+
+  const StepIndicator = useMemo(() => (
+    <div className="flex items-center justify-between mb-6">
+      {steps.map((label, index) => (
+        <div key={label} className="flex-1 flex items-center">
+          <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 font-semibold text-sm ${
+            index === step
+              ? 'border-cyan-600 bg-cyan-600 text-white'
+              : index < step
+                ? 'border-emerald-500 bg-emerald-500 text-white'
+                : 'border-gray-300 text-gray-400'
+          }`}>
+            {index < step ? '✓' : index + 1}
+          </div>
+          <div className="ml-3 text-sm font-medium text-gray-700">{label}</div>
+          {index < steps.length - 1 && (
+            <div className="flex-1 h-0.5 bg-gray-200 mx-4" />
+          )}
+        </div>
+      ))}
+    </div>
+  ), [step]);
+
+  return (
+    <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <h3 className="text-2xl font-bold text-gray-900">Certificar documento</h3>
+        <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">✕</button>
+      </div>
+
+      <div className="px-6 py-6">
+        {StepIndicator}
+
+        {step === 0 && (
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50">
+              <div className="w-16 h-16 bg-gradient-to-br from-cyan-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Upload className="w-8 h-8 text-cyan-600" strokeWidth={2.5} />
+              </div>
+              <p className="text-gray-700 mb-2">Selecciona el documento que deseas firmar y certificar</p>
+              <label htmlFor="cert-upload-input" className="cursor-pointer text-cyan-600 font-semibold">
+                Haz clic para seleccionar
+                <input id="cert-upload-input" type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" />
+              </label>
+              <p className="text-xs text-gray-500">Formato recomendado: PDF (para firma legal)</p>
+            </div>
+          </div>
+        )}
+
+        {step === 1 && uploadedFile && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+              <p className="font-semibold">Paso recomendado</p>
+              <p>Firmá con SignNow para que tu documento tenga validez legal inmediata antes de certificarlo.</p>
+            </div>
+            <SignatureWorkshop
+              originalFile={uploadedFile}
+              documentName={uploadedFile.name}
+              documentId={null}
+              documentHash={null}
+              userId={userIdFallback}
+              submitLabel="Firmar con SignNow"
+              onSuccess={handleSignSuccess}
+              showSkipHint
+            />
+            <div className="flex items-center justify-between text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <span>¿Preferís certificar sin firma legal?</span>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="text-cyan-600 hover:text-cyan-700 font-semibold flex items-center gap-1"
+              >
+                Saltar firma <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && targetFile && (
+          <div className="space-y-5">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <p className="text-sm text-gray-600">Documento listo</p>
+              <p className="font-semibold text-gray-900">{targetFile.name}</p>
+              <p className="text-xs text-gray-500">{(targetFile.size / 1024).toFixed(2)} KB</p>
+              {signedFile && (
+                <div className="mt-3 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-700 flex items-center gap-2">
+                  <Shield className="w-4 h-4" /> Documento firmado con SignNow
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
+              <div>
+                <h4 className="text-gray-900 font-semibold flex items-center">
+                  ⚖️ Timestamp con validez legal (RFC 3161)
+                </h4>
+                <p className="text-sm text-gray-600">Certificado por Time Stamp Authority</p>
+              </div>
+              <button
+                onClick={() => setUseLegalTimestamp(!useLegalTimestamp)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  useLegalTimestamp ? 'bg-green-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    useLegalTimestamp ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border-2 border-amber-200">
+              <div>
+                <h4 className="text-gray-900 font-semibold flex items-center">
+                  🔗 Anclaje en Bitcoin
+                </h4>
+                <p className="text-sm text-gray-600">Hash registrado en blockchain pública</p>
+              </div>
+              <button
+                onClick={() => setUseBitcoinAnchor(!useBitcoinAnchor)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  useBitcoinAnchor ? 'bg-amber-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    useBitcoinAnchor ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                {error}
+              </div>
+            )}
+
+            <button
+              onClick={handleCertify}
+              disabled={certifying}
+              className="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-xl font-semibold shadow hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50"
+            >
+              {certifying ? 'Generando certificado...' : 'Generar certificado .ECO'}
+            </button>
+          </div>
+        )}
+
+        {step === 3 && certResult && (
+          <div className="space-y-4">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
+              <CheckCircle className="w-6 h-6 text-emerald-600" />
+              <div>
+                <h4 className="text-emerald-800 font-semibold">Certificado generado correctamente</h4>
+                <p className="text-sm text-emerald-700">Guarda tu documento firmado y el archivo .ECO en la misma carpeta.</p>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {signResult && (
+                <div className="border border-blue-200 rounded-lg p-4">
+                  <FileText className="w-6 h-6 text-blue-500 mb-2" />
+                  <h5 className="font-semibold text-gray-900">Documento firmado</h5>
+                  <p className="text-sm text-gray-600 mb-3">Validez legal otorgada por SignNow.</p>
+                  <p className="text-xs text-gray-500">ID SignNow: {signResult.signnow_document_id || '—'}</p>
+                </div>
+              )}
+
+              <div className="border border-emerald-200 rounded-lg p-4">
+                <Shield className="w-6 h-6 text-emerald-500 mb-2" />
+                <h5 className="font-semibold text-gray-900">Certificado .ECO</h5>
+                <p className="text-sm text-gray-600">Hash: {certResult.hash}</p>
+                <p className="text-sm text-gray-600">Timestamp: {new Date(certResult.timestamp).toLocaleString()}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleClose}
+              className="w-full py-3 border border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const userIdFallback = 'user-dashboard-local';
+
+export default CertificationFlow;

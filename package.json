@@ -23,12 +23,18 @@
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.81.0",
+    "dompurify": "^3.3.0",
+    "jsdom": "^27.2.0",
     "stripe": "^19.3.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^1.6.1",
-    "@vitest/ui": "^1.6.1",
+    "@types/dompurify": "^3.0.5",
+    "@types/jsdom": "^27.0.0",
+    "@vitest/coverage-v8": "^4.0.9",
+    "@vitest/ui": "^4.0.9",
+    "dotenv": "^17.2.3",
+    "supabase": "^2.58.5",
     "typescript": "^5.9.3",
-    "vitest": "^1.6.1"
+    "vitest": "^4.0.9"
   }
 }

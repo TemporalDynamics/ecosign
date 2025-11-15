@@ -256,6 +256,20 @@ export async function certifyFile(file, options = {}) {
 
     console.log('✅ .ecox file created:', ecoxBuffer.byteLength, 'bytes');
 
+    let anchorJob = null;
+    try {
+      anchorJob = await requestBitcoinAnchor(hash, {
+        documentId: projectId,
+        userId: options.userId || null,
+        metadata: {
+          requestedFrom: 'certifyFile',
+          documentName: file.name
+        }
+      });
+    } catch (anchorError) {
+      console.warn('⚠️ Bitcoin anchoring request failed:', anchorError);
+    }
+
     // Return certification data
     return {
       success: true,
@@ -265,10 +279,11 @@ export async function certifyFile(file, options = {}) {
       fileName: file.name,
       fileSize: file.size,
       publicKey: publicKeyHex,
-      privateKey: privateKeyHex, // Include for debugging (remove in production!)
+      // IMPORTANT: Don't expose private key in production - removing for security
       signature: signature,
       ecoxBuffer: ecoxBuffer,
       ecoxSize: ecoxBuffer.byteLength,
+      anchorRequest: anchorJob,
       // Legal timestamp info (if requested)
       legalTimestamp: tsaResponse && tsaResponse.success ? {
         enabled: true,

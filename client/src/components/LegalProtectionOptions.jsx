@@ -2,9 +2,10 @@
 import React, { useState } from 'react';
 import { Shield, FileText, ExternalLink, Zap } from 'lucide-react';
 import IntegrationModal from './IntegrationModal';
-import { requestMifielIntegration, requestSignNowIntegration } from '../utils/integrationUtils';
+import { requestMifielIntegration } from '../utils/integrationUtils';
+import SignatureWorkshop from './SignatureWorkshop';
 
-const LegalProtectionOptions = ({ documentId, documentHash, userId }) => {
+const LegalProtectionOptions = ({ documentId, documentHash, userId, originalFile, documentName }) => {
   const [selectedIntegration, setSelectedIntegration] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState(null);
@@ -20,19 +21,11 @@ const LegalProtectionOptions = ({ documentId, documentHash, userId }) => {
     }
   };
 
-  const handleSignNowClick = async () => {
-    try {
-      const result = await requestSignNowIntegration(documentId, 'esignature', documentHash, userId);
-      setModalData(result);
-      setIsModalOpen(true);
-    } catch (error) {
-      console.error('Error requesting SignNow integration:', error);
-      alert('Error connecting to SignNow service. Please try again.');
-    }
+  const handleSignNowClick = () => {
+    setSelectedIntegration((prev) => (prev === 'signnow' ? null : 'signnow'));
   };
 
   const handleConfirm = async (paymentData) => {
-    // In a real implementation, this would finalize the payment and service request
     console.log('Confirming integration:', paymentData);
     alert(`Service confirmed! The ${paymentData.service} integration is being processed.`);
   };
@@ -44,15 +37,14 @@ const LegalProtectionOptions = ({ documentId, documentHash, userId }) => {
           <div className="flex-shrink-0">
             <Zap className="w-6 h-6 text-amber-600" strokeWidth={2.5} />
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="text-gray-900 font-semibold mb-2">¿Necesitas blindaje legal adicional?</h3>
             <p className="text-gray-700 text-sm mb-4">
-              Si necesitas cumplimiento legal avanzado o firmas electrónicas con valor jurídico reforzado, 
+              Si necesitas cumplimiento legal avanzado o firmas electrónicas con valor jurídico reforzado,
               tenemos opciones de integración con servicios profesionales.
             </p>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Mifiel Option */}
               <button
                 onClick={handleMifielClick}
                 className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-cyan-300 hover:shadow-md transition-all group"
@@ -71,7 +63,6 @@ const LegalProtectionOptions = ({ documentId, documentHash, userId }) => {
                 </div>
               </button>
 
-              {/* SignNow Option */}
               <button
                 onClick={handleSignNowClick}
                 className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-cyan-300 hover:shadow-md transition-all group"
@@ -90,11 +81,38 @@ const LegalProtectionOptions = ({ documentId, documentHash, userId }) => {
                 </div>
               </button>
             </div>
+
+            {selectedIntegration === 'signnow' && (
+              <div className="mt-6 bg-white border border-blue-100 rounded-xl p-5">
+                <h4 className="text-gray-900 font-semibold mb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  Preparar documento para firma
+                </h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  Completa los datos del firmante, dibuja tu firma y la incrustaremos en el PDF antes de enviarla a SignNow.
+                </p>
+
+                <SignatureWorkshop
+                  originalFile={originalFile}
+                  documentId={documentId}
+                  documentHash={documentHash}
+                  userId={userId}
+                  documentName={documentName}
+                  submitLabel="Solicitar firma con SignNow"
+                  showSkipHint
+                  onSuccess={(result) => {
+                    setModalData(result);
+                    setIsModalOpen(true);
+                    setSelectedIntegration(null);
+                  }}
+                  onError={(message) => console.error('Signature workshop error', message)}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Integration Modal */}
       <IntegrationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

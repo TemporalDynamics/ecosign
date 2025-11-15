@@ -3,6 +3,10 @@
  * Integration utilities for Mifiel and SignNow services
  */
 
+import { supabase } from '../lib/supabaseClient';
+
+const normalizeResponse = (result) => (result && typeof result === 'object' && 'data' in result ? result.data : result);
+
 // Function to request Mifiel integration (NOM-151 certificate)
 export async function requestMifielIntegration(documentId, action = 'nom-151', documentHash = null, userId = null) {
   try {
@@ -24,7 +28,7 @@ export async function requestMifielIntegration(documentId, action = 'nom-151', d
     }
 
     const result = await response.json();
-    return result;
+    return normalizeResponse(result);
   } catch (error) {
     console.error('Error requesting Mifiel integration:', error);
     throw error;
@@ -32,28 +36,33 @@ export async function requestMifielIntegration(documentId, action = 'nom-151', d
 }
 
 // Function to request SignNow integration (e-signatures)
-export async function requestSignNowIntegration(documentId, action = 'esignature', documentHash = null, userId = null, signers = []) {
+export async function requestSignNowIntegration(
+  documentId,
+  action = 'esignature',
+  documentHash = null,
+  userId = null,
+  signers = [],
+  options = {}
+) {
   try {
-    const response = await fetch('/api/integrations/signnow', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action,
-        documentId,
-        documentHash,
-        userId,
-        signers
-      }),
+    const payload = {
+      action,
+      documentId,
+      documentHash,
+      userId,
+      signers,
+      ...options
+    };
+
+    const { data, error } = await supabase.functions.invoke('signnow', {
+      body: payload
     });
 
-    if (!response.ok) {
-      throw new Error(`Error: ${response.status} - ${response.statusText}`);
+    if (error) {
+      throw new Error(error.message || 'Error invoking SignNow integration');
     }
 
-    const result = await response.json();
-    return result;
+    return data;
   } catch (error) {
     console.error('Error requesting SignNow integration:', error);
     throw error;

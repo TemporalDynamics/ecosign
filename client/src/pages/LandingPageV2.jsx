@@ -34,15 +34,15 @@ const benefitsSlides = [
   },
   {
     title: 'Firmá en un solo paso',
-    description: 'Subí tu archivo y recibís un PDF firmado digitalmente, válido en +90 países.'
+    description: 'Tu documento. Tu verdad. Tu privacidad. Validez legal en +90 países.'
   },
   {
     title: 'Tu autoría queda protegida para siempre',
     description: 'Cada documento genera un .ECO: tu "aquí y ahora" digital sellado en tiempo real.'
   },
   {
-    title: 'Subí cualquier formato',
-    description: 'Nosotros nos encargamos de convertir todo a un PDF claro y legal.'
+    title: 'Aceptamos todos los formatos',
+    description: 'Tu archivo nunca se expone. Nunca se almacena. La versión firmada se genera en el estándar legal internacional.'
   },
   {
     title: 'Privacidad real, sin vueltas',
@@ -293,8 +293,10 @@ const LandingPageV2 = () => {
             </div>
           </FadeInSection>
           <FadeInSection delay={600}>
-            <p className="text-xs text-gray-400 mt-8">
-              VerifySign complementa procesos legales. No reemplaza certificaciones oficiales.
+            <p className="text-xs text-gray-400 mt-8 max-w-xl mx-auto">
+              Llegado el caso, la última palabra es del juez, perito o tribunal.
+              <br />
+              VerifySign te da el mayor blindaje legal posible en el entorno digital actual.
             </p>
           </FadeInSection>
         </div>
@@ -321,7 +323,7 @@ const LandingPageV2 = () => {
       </section>
 
       {/* How It Works - 4 Steps */}
-      <section id="how-it-works" className="py-24 px-6">
+      <section id="how-it-works" className="py-32 px-6">
         <div className="max-w-5xl mx-auto">
           <FadeInSection>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-16">
@@ -335,12 +337,12 @@ const LandingPageV2 = () => {
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-900 font-semibold mb-4">
                   1
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900">Subís tu documento</h3>
+                <h3 className="text-xl font-semibold text-gray-900">Elegís tu archivo</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Cualquier formato. Lo convertimos a PDF automáticamente.
+                  Aceptamos todos los formatos. Tu documento nunca se expone ni se almacena.
                 </p>
                 <p className="text-xs text-gray-400">
-                  <Tooltip content="Conversión sin alterar contenido">
+                  <Tooltip content="El archivo se procesa localmente, no en nuestros servidores">
                     Ver más
                   </Tooltip>
                 </p>
@@ -352,12 +354,12 @@ const LandingPageV2 = () => {
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-900 font-semibold mb-4">
                   2
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900">Firmás con tu firma real</h3>
+                <h3 className="text-xl font-semibold text-gray-900">Firmás en un solo paso</h3>
                 <p className="text-gray-600 leading-relaxed">
                   Dibujás tu firma, la colocás donde quieras y queda legalizada.
                 </p>
                 <p className="text-xs text-gray-400">
-                  <Tooltip content="Cumple estándares eIDAS / ESIGN Act">
+                  <Tooltip content="Cumple estándares eIDAS / ESIGN Act - Válido en +90 países">
                     Ver más
                   </Tooltip>
                 </p>
@@ -369,9 +371,9 @@ const LandingPageV2 = () => {
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-900 font-semibold mb-4">
                   3
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900">Blindás tu evidencia</h3>
+                <h3 className="text-xl font-semibold text-gray-900">Sellás tu evidencia</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Elegís cuántas capas de verificación querés y si activar NDA con VerifyTracker.
+                  Elegís cuántas capas querés sumar: timestamp, anclaje, NDA tracking.
                 </p>
                 <p className="text-xs text-gray-400">
                   <Tooltip content="Verificación técnica independiente">
@@ -386,9 +388,9 @@ const LandingPageV2 = () => {
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-900 font-semibold mb-4">
                   4
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900">Recibís tu PDF firmado + tu .ECO</h3>
+                <h3 className="text-xl font-semibold text-gray-900">Guardás tus dos originales</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Tu verdad digital, privada, portable e irrefutable.
+                  Tu archivo original y tu versión firmada certifican la misma verdad.
                 </p>
                 <p className="text-xs text-gray-400">
                   <Tooltip content="Formato .ECO = huella + timestamp, no contenido">
@@ -402,7 +404,7 @@ const LandingPageV2 = () => {
       </section>
 
       {/* Benefits Slider */}
-      <section className="py-24 px-6 bg-gray-50">
+      <section className="py-32 px-6 bg-gray-50">
         <div className="max-w-5xl mx-auto">
           <FadeInSection>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-12">
@@ -416,23 +418,31 @@ const LandingPageV2 = () => {
       </section>
 
       {/* Central Statement */}
-      <section className="py-32 px-6">
+      <section className="py-40 px-6">
         <FadeInSection>
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-8">
               No vendemos firmas. Vendemos verdad.
             </h2>
-            <p className="text-xl text-gray-600 leading-relaxed">
+            <p className="text-xl text-gray-600 leading-relaxed mb-12">
               Cada documento se convierte en evidencia verificable, privada y portátil.
               <br />
               El formato .ECO asegura que la verdad se mantenga igual, siempre.
             </p>
+            <div className="border-t border-gray-200 pt-12 mt-12">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Nuestra Misión</h3>
+              <p className="text-gray-600 leading-relaxed max-w-2xl mx-auto">
+                Acercar el reconocimiento legal digital a más gente, haciendo que la justicia digital sea accesible, económica y equitativa.
+                <br />
+                <span className="text-cyan-600 font-medium">Cada timestamp, cada prueba digital firmada, es un paso hacia un sistema más justo.</span>
+              </p>
+            </div>
           </div>
         </FadeInSection>
       </section>
 
       {/* Use Cases */}
-      <section id="use-cases" className="py-24 px-6 bg-gray-50">
+      <section id="use-cases" className="py-32 px-6 bg-gray-50">
         <div className="max-w-5xl mx-auto">
           <FadeInSection>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-16">
@@ -488,146 +498,174 @@ const LandingPageV2 = () => {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section className="py-24 px-6">
+      {/* Pricing Section with Blue Background */}
+      <section className="bg-gradient-to-b from-cyan-600 to-blue-700 py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <FadeInSection>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-16">
-              Planes simples. Sin sorpresas.
-            </h2>
+            <div className="text-center mb-16">
+              <p className="text-cyan-100 text-sm font-medium mb-2">Por una Justicia Digital Abierta.</p>
+              <h2 className="text-3xl md:text-4xl font-bold text-white">
+                No vendemos firmas. Vendemos Verdad.
+              </h2>
+            </div>
           </FadeInSection>
 
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-4 gap-6">
             {/* Basic */}
             <FadeInSection delay={100}>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Básico</h3>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">Gratis</p>
-                  <p className="text-sm text-gray-500 mt-1">Para probar sin límite de tiempo.</p>
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 flex flex-col h-full">
+                <div className="mb-6">
+                  <h3 className="text-white/80 text-sm font-medium">Comunidad (Gratis)</h3>
+                  <p className="text-3xl font-bold text-white mt-2">$0/mes</p>
                 </div>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li>10 .ECO/mes</li>
-                  <li>1 firma legal</li>
-                  <li>1 triple anchoring</li>
-                  <li>3 enlaces VerifyTracker</li>
-                  <li>1GB almacenamiento</li>
+                <ul className="space-y-2 text-sm text-white/80 flex-grow">
+                  <li>• 5 certificaciones mensuales</li>
+                  <li>• Firma BÁSICA</li>
+                  <li>• Hash SHA-256</li>
+                  <li>• Timestamp local</li>
+                  <li>• 1GB de almacenamiento</li>
                 </ul>
                 <Link
                   to="/dashboard"
-                  className="block w-full text-center py-3 border border-gray-300 rounded-full text-gray-900 font-medium hover:bg-gray-50 transition-colors"
+                  className="mt-6 block w-full text-center py-3 bg-white text-cyan-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
                 >
                   Comenzar Gratis
                 </Link>
               </div>
             </FadeInSection>
 
-            {/* Creator */}
+            {/* Creator - Recommended */}
             <FadeInSection delay={200}>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Creador</h3>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">
-                    $9<span className="text-lg font-normal text-gray-500">/mes*</span>
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">Para creadores y freelancers.</p>
-                  <p className="text-xs text-gray-400">*$14/mes después del primer mes</p>
+              <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 flex flex-col h-full border-2 border-white/30">
+                <div className="mb-6">
+                  <h3 className="text-white text-sm font-medium">Creador (Recomendado)</h3>
+                  <p className="text-3xl font-bold text-white mt-2">$9.99/mes</p>
                 </div>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li>50 .ECO/mes</li>
-                  <li>20 firmas legales</li>
-                  <li>15 triple anchoring</li>
-                  <li>30 VerifyTracker</li>
-                  <li>25GB almacenamiento</li>
-                  <li>Sin marcas de agua</li>
-                  <li>Soporte prioritario</li>
+                <ul className="space-y-2 text-sm text-white/90 flex-grow">
+                  <li>• 50 certificaciones/mes</li>
+                  <li>• Timestamp RFC 3161</li>
+                  <li>• Acción de acceso</li>
+                  <li>• Soporte prioritario</li>
+                  <li>• Exportación IMATRIX.PND</li>
                 </ul>
                 <Link
                   to="/dashboard"
-                  className="block w-full text-center py-3 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-colors"
+                  className="mt-6 block w-full text-center py-3 bg-white text-cyan-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
                 >
-                  Elegir Creador
-                </Link>
-              </div>
-            </FadeInSection>
-
-            {/* Pro */}
-            <FadeInSection delay={300}>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Pro</h3>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">
-                    $19<span className="text-lg font-normal text-gray-500">/mes</span>
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">Para equipos y estudios.</p>
-                </div>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li>Certificaciones ilimitadas</li>
-                  <li>30 firmas legales</li>
-                  <li>50 triple anchoring</li>
-                  <li>100 VerifyTracker</li>
-                  <li>50GB almacenamiento</li>
-                  <li>API + Webhooks</li>
-                  <li>Soporte 24/7</li>
-                </ul>
-                <Link
-                  to="/dashboard"
-                  className="block w-full text-center py-3 border border-gray-300 rounded-full text-gray-900 font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Elegir Pro
+                  Probar 14 días gratis
                 </Link>
               </div>
             </FadeInSection>
 
             {/* Enterprise */}
-            <FadeInSection delay={400}>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Empresarial</h3>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">
-                    Desde $99<span className="text-lg font-normal text-gray-500">/mes</span>
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">SSO, volúmenes, SLA, auditorías.</p>
+            <FadeInSection delay={300}>
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 flex flex-col h-full">
+                <div className="mb-6">
+                  <h3 className="text-white/80 text-sm font-medium">Empresas</h3>
+                  <p className="text-3xl font-bold text-white mt-2">Contacto</p>
                 </div>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li>Todo de Pro +</li>
-                  <li>Single Sign-On</li>
-                  <li>SLA garantizado</li>
-                  <li>Auditorías de seguridad</li>
-                  <li>Onboarding personalizado</li>
-                  <li>Account manager dedicado</li>
+                <ul className="space-y-2 text-sm text-white/80 flex-grow">
+                  <li>• API de alto volumen</li>
+                  <li>• Contrato corporativo</li>
+                  <li>• Single sign-on (SSO)</li>
+                  <li>• Hosting IMATRIX 2025</li>
+                  <li>• Onboarding directo</li>
                 </ul>
                 <a
                   href="mailto:ventas@verifysign.pro"
-                  className="block w-full text-center py-3 border border-gray-300 rounded-full text-gray-900 font-medium hover:bg-gray-50 transition-colors"
+                  className="mt-6 block w-full text-center py-3 bg-white/20 text-white rounded-lg font-semibold hover:bg-white/30 transition-colors border border-white/30"
                 >
-                  Hablar con ventas
+                  Contactar Ventas
                 </a>
+              </div>
+            </FadeInSection>
+
+            {/* More info */}
+            <FadeInSection delay={400}>
+              <div className="flex flex-col justify-center h-full text-white/80 text-sm space-y-4">
+                <p>
+                  <strong className="text-white">¿Qué es el blockchain?</strong>
+                  <br />
+                  Es como un notario digital público.
+                </p>
+                <p>
+                  <strong className="text-white">¿Qué es no-repudiación?</strong>
+                  <br />
+                  Nadie puede negar que firmó.
+                </p>
+                <p>
+                  <strong className="text-white">¿Qué es un timestamp?</strong>
+                  <br />
+                  Prueba legal de fecha y hora.
+                </p>
               </div>
             </FadeInSection>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 px-6 border-t border-gray-100">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-gray-500 text-sm">
-            © 2025 VerifySign por Temporal Dynamics LLC
+      {/* Footer - Dark style */}
+      <footer className="bg-gray-900 py-16 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
+            {/* Brand */}
+            <div>
+              <h4 className="text-white font-bold text-lg mb-4">VerifySign</h4>
+              <p className="text-gray-400 text-sm leading-relaxed">
+                Infraestructura de Certificación Digital<br />
+                Formato .ECO
+              </p>
+            </div>
+
+            {/* Producto */}
+            <div>
+              <h5 className="text-white font-semibold mb-4">Producto</h5>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li><a href="#" className="hover:text-white transition-colors">Cómo funciona</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Formato .ECO</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">VerifyTracker</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Roadmap</a></li>
+              </ul>
+            </div>
+
+            {/* Casos de Uso */}
+            <div>
+              <h5 className="text-white font-semibold mb-4">Casos de Uso</h5>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li><a href="#" className="hover:text-white transition-colors">Legal & Compliance</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Científicos & Laboratorios</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Creadores & Makers</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Historias reales</a></li>
+              </ul>
+            </div>
+
+            {/* Aprender */}
+            <div>
+              <h5 className="text-white font-semibold mb-4">Aprender</h5>
+              <ul className="space-y-2 text-gray-400 text-sm">
+                <li><a href="#" className="hover:text-white transition-colors">¿Qué es el blockchain?</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">¿Qué es no-repudiación?</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Glosario técnico</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Documentación</a></li>
+              </ul>
+            </div>
           </div>
-          <div className="flex items-center gap-6 text-sm">
-            <a href="#" className="text-gray-500 hover:text-gray-900 transition-colors">
-              Términos
-            </a>
-            <a href="#" className="text-gray-500 hover:text-gray-900 transition-colors">
-              Privacidad
-            </a>
-            <a href="#" className="text-gray-500 hover:text-gray-900 transition-colors">
-              Docs Técnicos
-            </a>
-            <a href="#" className="text-gray-500 hover:text-gray-900 transition-colors">
-              Status
-            </a>
+
+          <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-gray-500 text-sm">
+              © 2025 VerifySign por Temporal Dynamics LLC. Todos los derechos reservados.
+            </p>
+            <div className="flex items-center gap-6 text-sm">
+              <a href="#" className="text-gray-500 hover:text-white transition-colors">
+                Términos de Servicio
+              </a>
+              <a href="#" className="text-gray-500 hover:text-white transition-colors">
+                Política de Privacidad
+              </a>
+              <a href="#" className="text-gray-500 hover:text-white transition-colors">
+                Status
+              </a>
+            </div>
           </div>
         </div>
       </footer>

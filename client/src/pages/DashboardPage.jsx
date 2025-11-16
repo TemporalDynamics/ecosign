@@ -1,52 +1,73 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import DocumentList from '../components/DocumentList';
 import DashboardNav from '../components/DashboardNav';
 import CertificationFlow from '../components/CertificationFlow';
+import { getUserDocuments } from '../utils/documentStorage';
 
 function DashboardPage() {
   const navigate = useNavigate();
   const [showCertificationFlow, setShowCertificationFlow] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'updatedAt', direction: 'desc' });
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const overviewStats = [
-    { label: 'Documentos protegidos', value: '12', helper: '+2 esta semana' },
-    { label: 'Accesos registrados', value: '47', helper: '+11 esta semana' },
-    { label: 'NDA firmados', value: '34', helper: '5 pendientes' },
-    { label: 'Legal timestamps', value: '9', helper: 'RFC 3161 activos' }
-  ];
+  // Load documents from Supabase
+  useEffect(() => {
+    loadDocuments();
+  }, []);
 
-  const certificationRows = [
-    {
-      fileName: 'Contrato NDA - NeoTech.pdf',
-      updatedAt: '2025-11-14T12:30:00Z',
-      nda: true,
-      legal: true,
-      concept: 'Pitch confidencial'
-    },
-    {
-      fileName: 'Demo Producto V2.mp4',
-      updatedAt: '2025-11-13T09:15:00Z',
-      nda: false,
-      legal: false,
-      concept: 'Entrega beta'
-    },
-    {
-      fileName: 'Informe IP - Laboratorio A.docx',
-      updatedAt: '2025-11-12T18:05:00Z',
-      nda: true,
-      legal: true,
-      concept: 'I+D conjunto'
-    },
-    {
-      fileName: 'Manual Usuario 1.3.pdf',
-      updatedAt: '2025-11-10T07:55:00Z',
-      nda: false,
-      legal: false,
-      concept: 'Documentación pública'
+  const loadDocuments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const docs = await getUserDocuments();
+      setDocuments(docs);
+    } catch (err) {
+      console.error('Error loading documents:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  // Refresh documents when certification flow closes
+  const handleCloseCertificationFlow = () => {
+    setShowCertificationFlow(false);
+    loadDocuments(); // Refresh the list
+  };
+
+  // Calculate stats from real data
+  const overviewStats = useMemo(() => {
+    const totalDocs = documents.length;
+    const legalTimestamps = documents.filter(d => d.has_legal_timestamp).length;
+    const bitcoinAnchors = documents.filter(d => d.has_bitcoin_anchor).length;
+    const signedDocs = documents.filter(d => d.signnow_document_id).length;
+
+    return [
+      { label: 'Documentos certificados', value: totalDocs.toString(), helper: 'Total guardados' },
+      { label: 'Firmados legalmente', value: signedDocs.toString(), helper: 'Con SignNow' },
+      { label: 'Legal timestamps', value: legalTimestamps.toString(), helper: 'RFC 3161' },
+      { label: 'Anclajes Bitcoin', value: bitcoinAnchors.toString(), helper: 'En blockchain' }
+    ];
+  }, [documents]);
+
+  // Transform documents into certification rows
+  const certificationRows = useMemo(() => {
+    return documents.map(doc => ({
+      id: doc.id,
+      fileName: doc.document_name,
+      updatedAt: doc.updated_at || doc.certified_at,
+      nda: false, // We don't have NDA tracking yet in this table
+      legal: doc.has_legal_timestamp,
+      concept: doc.notes || 'Documento certificado',
+      signedAt: doc.signed_at,
+      hasSignNow: !!doc.signnow_document_id,
+      hasBitcoinAnchor: doc.has_bitcoin_anchor
+    }));
+  }, [documents]);
 
   const sortedCertificationRows = useMemo(() => {
     const rows = [...certificationRows];
@@ -137,48 +158,76 @@ function DashboardPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead>
-                <tr className="text-xs uppercase tracking-wide text-gray-500 border-b">
-                  <th className="py-3 pr-4">
-                    <button onClick={() => requestSort('fileName')} className="inline-flex items-center gap-1 font-semibold text-gray-700">
-                      Documento
-                      <span className="text-xs text-gray-400">{sortConfig.key === 'fileName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
-                    </button>
-                  </th>
-                  <th className="py-3 pr-4">
-                    <button onClick={() => requestSort('updatedAt')} className="inline-flex items-center gap-1 font-semibold text-gray-700">
-                      Timestamp
-                      <span className="text-xs text-gray-400">{sortConfig.key === 'updatedAt' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
-                    </button>
-                  </th>
-                  <th className="py-3 pr-4">NDA</th>
-                  <th className="py-3 pr-4">Concepto</th>
-                  <th className="py-3">Legal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedCertificationRows.map((row) => (
-                  <tr key={row.fileName} className="border-b last:border-0">
-                    <td className="py-3 pr-4 font-medium text-gray-900">{row.fileName}</td>
-                    <td className="py-3 pr-4">{new Date(row.updatedAt).toLocaleString()}</td>
-                    <td className="py-3 pr-4">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.nda ? 'bg-cyan-50 text-cyan-700' : 'bg-gray-100 text-gray-600'}`}>
-                        {row.nda ? 'Sí, con NDA' : 'No requiere'}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4 text-gray-700">{row.concept}</td>
-                    <td className="py-3">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.legal ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                        {row.legal ? 'RFC 3161' : 'Timestamp estándar'}
-                      </span>
-                    </td>
+          {loading && (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+              <p className="text-gray-500 mt-4">Cargando documentos...</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              <p className="font-semibold">Error al cargar documentos</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+
+          {!loading && !error && certificationRows.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No tenés documentos certificados todavía.</p>
+              <button
+                onClick={() => setShowCertificationFlow(true)}
+                className="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg"
+              >
+                Certificar tu primer documento
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && certificationRows.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-gray-600">
+                <thead>
+                  <tr className="text-xs uppercase tracking-wide text-gray-500 border-b">
+                    <th className="py-3 pr-4">
+                      <button onClick={() => requestSort('fileName')} className="inline-flex items-center gap-1 font-semibold text-gray-700">
+                        Documento
+                        <span className="text-xs text-gray-400">{sortConfig.key === 'fileName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
+                      </button>
+                    </th>
+                    <th className="py-3 pr-4">
+                      <button onClick={() => requestSort('updatedAt')} className="inline-flex items-center gap-1 font-semibold text-gray-700">
+                        Timestamp
+                        <span className="text-xs text-gray-400">{sortConfig.key === 'updatedAt' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
+                      </button>
+                    </th>
+                    <th className="py-3 pr-4">Firma</th>
+                    <th className="py-3 pr-4">Concepto</th>
+                    <th className="py-3">Legal</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {sortedCertificationRows.map((row) => (
+                    <tr key={row.id} className="border-b last:border-0">
+                      <td className="py-3 pr-4 font-medium text-gray-900">{row.fileName}</td>
+                      <td className="py-3 pr-4">{new Date(row.updatedAt).toLocaleString()}</td>
+                      <td className="py-3 pr-4">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.hasSignNow ? 'bg-cyan-50 text-cyan-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {row.hasSignNow ? 'SignNow' : 'Sin firma'}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4 text-gray-700">{row.concept}</td>
+                      <td className="py-3">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.legal ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {row.legal ? 'RFC 3161' : 'Timestamp estándar'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
 
@@ -221,7 +270,7 @@ function DashboardPage() {
 
       {showCertificationFlow && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <CertificationFlow onClose={() => setShowCertificationFlow(false)} />
+          <CertificationFlow onClose={handleCloseCertificationFlow} />
         </div>
       )}
     </div>

@@ -54,14 +54,62 @@ export async function requestSignNowIntegration(
       ...options
     };
 
+    console.log('📤 Sending to SignNow function:', {
+      documentId,
+      action,
+      signerCount: signers.length,
+      hasSignature: !!options.signature
+    });
+
     const { data, error } = await supabase.functions.invoke('signnow', {
       body: payload
     });
 
+    console.log('📥 SignNow response:', { data, error });
+
     if (error) {
-      throw new Error(error.message || 'Error invoking SignNow integration');
+      // Try to extract the actual error message from the response
+      let errorMessage = error.message || 'Error invoking SignNow integration';
+
+      // The error context might have the response body
+      if (error.context && error.context instanceof Response) {
+        try {
+          const responseText = await error.context.text();
+          console.error('❌ Error response body:', responseText);
+
+          // Try to parse as JSON
+          try {
+            const errorData = JSON.parse(responseText);
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            }
+            console.error('❌ Parsed error data:', errorData);
+          } catch (jsonError) {
+            // Not JSON, use the text as-is
+            errorMessage = responseText || errorMessage;
+          }
+        } catch (readError) {
+          console.error('Could not read error response:', readError);
+        }
+      }
+
+      // If data contains an error field, use that instead
+      if (data && data.error) {
+        errorMessage = data.error;
+        console.error('Error in data:', data);
+      }
+
+      console.error('SignNow function error:', errorMessage, error, data);
+      throw new Error(errorMessage);
     }
 
+    // Even if no error, check if data contains an error field
+    if (data && data.error) {
+      console.error('SignNow returned error in data:', data.error, data);
+      throw new Error(data.error);
+    }
+
+    console.log('✅ SignNow success:', data);
     return data;
   } catch (error) {
     console.error('Error requesting SignNow integration:', error);

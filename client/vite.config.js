@@ -19,16 +19,26 @@ export default defineConfig({
   ],
   define: {
     global: 'globalThis',
-    process: 'globalThis.process',
   },
   server: {
     port: 5173,
     // No proxy for API routes - they will be handled by Vercel in production
     // For local development, you would need to run a separate server or use Vercel CLI
   },
+  optimizeDeps: {
+    exclude: ['@noble/hashes'],
+    esbuildOptions: {
+      define: {
+        global: 'globalThis'
+      }
+    }
+  },
   build: {
     // Suppress chunk size warnings for now
     chunkSizeWarningLimit: 1000,
+    commonjsOptions: {
+      transformMixedEsModules: true
+    },
     rollupOptions: {
       output: {
         // Disable code splitting for eco-packer to avoid polyfill issues

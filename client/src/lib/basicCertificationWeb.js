@@ -312,6 +312,44 @@ export async function certifyFile(file, options = {}) {
       }
     }
 
+    // Create signatures structure for DB storage
+    const signaturesData = [
+      {
+        keyId: options.userId || 'temp-key',
+        signerId: options.userEmail || 'anonymous@verifysign.pro',
+        publicKey: publicKeyHex,
+        signature: signature,
+        algorithm: 'Ed25519',
+        timestamp: timestamp,
+        // RFC 3161 legal timestamp (if requested)
+        ...(tsaResponse && tsaResponse.success ? {
+          legalTimestamp: {
+            standard: 'RFC 3161',
+            tsa: tsaResponse.tsaName || tsaResponse.tsaUrl,
+            tsaUrl: tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
+            token: tsaResponse.token,
+            tokenSize: tsaResponse.tokenSize,
+            algorithm: tsaResponse.algorithm,
+            verified: tsaResponse.verified,
+            note: tsaResponse.note
+          }
+        } : {})
+      }
+    ];
+
+    // ECO data structure for DB (JSONB column)
+    const ecoData = {
+      manifest: project,
+      signatures: signaturesData,
+      metadata: {
+        createdWith: 'VerifySign Web Client',
+        browserVersion: navigator.userAgent,
+        hasLegalTimestamp: tsaResponse && tsaResponse.success,
+        timestampType: tsaResponse && tsaResponse.success ? 'RFC 3161 (Legal)' : 'Local (Informational)',
+        certifiedAt: timestamp
+      }
+    };
+
     // Return certification data
     return {
       success: true,
@@ -324,6 +362,7 @@ export async function certifyFile(file, options = {}) {
       signature: signature,
       ecoxBuffer: ecoxBuffer,
       ecoxSize: ecoxBuffer.byteLength,
+      ecoData: ecoData,  // Structured data for DB storage
       anchorRequest: anchorJob,
       // Legal timestamp info (if requested)
       legalTimestamp: tsaResponse && tsaResponse.success ? {

@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { ArrowRight, CheckCircle, FileText, Shield, Upload, AlertTriangle } from 'lucide-react';
 import SignatureWorkshop from './SignatureWorkshop';
 import { certifyAndDownload } from '../lib/basicCertificationWeb';
+import { saveUserDocument } from '../utils/documentStorage';
+import { supabase } from '../lib/supabaseClient';
 
 const steps = ['Subir documento', 'Firma legal', 'Certificar', 'Listo'];
 
@@ -77,12 +79,45 @@ const CertificationFlow = ({ onClose }) => {
     setCertResult(null);
 
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Certify and download (downloads .ECO file)
       const result = await certifyAndDownload(targetFile, {
-        userEmail: 'user@verifysign.pro',
-        userId: 'user-' + Date.now(),
+        userEmail: user?.email || 'user@verifysign.pro',
+        userId: user?.id || 'user-' + Date.now(),
         useLegalTimestamp,
         useBitcoinAnchor
       });
+
+      // If user is authenticated, save to database
+      if (user) {
+        try {
+          console.log('💾 Saving document to cloud storage...');
+          const savedDoc = await saveUserDocument(targetFile, result.ecoData, {
+            signNowDocumentId: signResult?.signnow_document_id || null,
+            signNowStatus: signResult?.status || null,
+            signedAt: signResult ? new Date().toISOString() : null,
+            hasLegalTimestamp: useLegalTimestamp,
+            hasBitcoinAnchor: useBitcoinAnchor,
+            bitcoinAnchorId: result.anchorRequest?.anchorId || null,
+            tags: ['certified'],
+            notes: null
+          });
+          console.log('✅ Document saved:', savedDoc.id);
+          result.savedToCloud = true;
+          result.documentId = savedDoc.id;
+        } catch (saveError) {
+          console.error('⚠️ Failed to save to cloud:', saveError);
+          // Don't fail the whole process if cloud save fails
+          result.savedToCloud = false;
+          result.saveError = saveError.message;
+        }
+      } else {
+        console.log('ℹ️ User not authenticated - skipping cloud save');
+        result.savedToCloud = false;
+      }
+
       setCertResult(result);
       setStep(3);
     } catch (err) {
@@ -265,9 +300,29 @@ const CertificationFlow = ({ onClose }) => {
           <div className="space-y-4">
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
               <CheckCircle className="w-6 h-6 text-emerald-600" />
-              <div>
+              <div className="flex-1">
                 <h4 className="text-emerald-800 font-semibold">Certificado generado correctamente</h4>
-                <p className="text-sm text-emerald-700">Guarda tu documento firmado y el archivo .ECO en la misma carpeta.</p>
+                <p className="text-sm text-emerald-700">El archivo .ECO se descargó automáticamente.</p>
+
+                {certResult.savedToCloud && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                    <p className="font-semibold text-blue-900">☁️ Guardado en la nube</p>
+                    <p className="text-blue-700 mt-1">
+                      Tu documento firmado está guardado en tu cuenta de VerifySign.
+                      Podés accederlo desde tu dashboard en cualquier momento.
+                    </p>
+                  </div>
+                )}
+
+                {certResult.savedToCloud === false && certResult.saveError && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                    <p className="font-semibold text-yellow-900">⚠️ No se guardó en la nube</p>
+                    <p className="text-yellow-700 mt-1">
+                      {certResult.saveError}
+                    </p>
+                  </div>
+                )}
+
                 {certResult.anchorRequest && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
                     <p className="font-semibold text-amber-900">🔗 Anclaje en Bitcoin en proceso</p>

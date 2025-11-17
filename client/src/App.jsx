@@ -8,6 +8,7 @@ import NdaPage from './pages/NdaPage';
 import GuestPage from './pages/GuestPage';
 import VerifyPage from './pages/VerifyPage';
 import HowItWorksPage from './pages/HowItWorksPage';
+import NdaAccessPage from './pages/NdaAccessPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -24,6 +25,7 @@ function App() {
         <Route path="/nda" element={<NdaPage />} />
         <Route path="/guest" element={<GuestPage />} />
         <Route path="/how-it-works" element={<HowItWorksPage />} />
+        <Route path="/nda/:token" element={<NdaAccessPage />} />
 
         {/* Protected routes */}
         <Route

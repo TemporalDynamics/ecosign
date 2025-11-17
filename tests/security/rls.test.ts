@@ -1,75 +1,39 @@
 // tests/security/rls.test.ts
 
 import { test, expect, describe, beforeAll, afterAll } from 'vitest';
-import { createClient } from '@supabase/supabase-js';
+import { createTestUser, deleteTestUser, getAdminClient } from '../helpers/supabase-test-helpers';
 
 const TEST_TIMEOUT = 15000;
 
 describe('Row Level Security (RLS) Tests', () => {
-  let supabaseAdmin: ReturnType<typeof createClient>;
-  let supabaseUserA: ReturnType<typeof createClient>;
-  let supabaseUserB: ReturnType<typeof createClient>;
+  let adminClient: ReturnType<typeof getAdminClient>;
+  let userAClient: any;
+  let userBClient: any;
   let userAId: string;
   let userBId: string;
   let testDocumentId: string;
 
   beforeAll(async () => {
-    // Create admin client
-    supabaseAdmin = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    adminClient = getAdminClient();
+
+    // Create User A
+    const userA = await createTestUser(
+      `test-rls-a-${Date.now()}@example.com`,
+      'test-password-123'
     );
+    userAId = userA.userId;
+    userAClient = userA.client;
 
-    // Create test user A
-    const { data: userAData, error: userAError } = await supabaseAdmin.auth.admin.createUser({
-      email: `test-rls-a-${Date.now()}@example.com`,
-      password: 'test-password-123',
-      email_confirm: true
-    });
-
-    if (userAError || !userAData.user) {
-      console.error('Failed to create user A:', userAError);
-      throw new Error('Cannot create test user A');
-    }
-    userAId = userAData.user.id;
-
-    // Create test user B
-    const { data: userBData, error: userBError } = await supabaseAdmin.auth.admin.createUser({
-      email: `test-rls-b-${Date.now()}@example.com`,
-      password: 'test-password-123',
-      email_confirm: true
-    });
-
-    if (userBError || !userBData.user) {
-      console.error('Failed to create user B:', userBError);
-      throw new Error('Cannot create test user B');
-    }
-    userBId = userBData.user.id;
-
-    // Create authenticated clients for each user
-    supabaseUserA = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
+    // Create User B
+    const userB = await createTestUser(
+      `test-rls-b-${Date.now()}@example.com`,
+      'test-password-123'
     );
+    userBId = userB.userId;
+    userBClient = userB.client;
 
-    supabaseUserB = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
-
-    // Sign in as users
-    await supabaseUserA.auth.signInWithPassword({
-      email: userAData.user.email!,
-      password: 'test-password-123'
-    });
-
-    await supabaseUserB.auth.signInWithPassword({
-      email: userBData.user.email!,
-      password: 'test-password-123'
-    });
-
-    // Create a test document owned by User A (using admin to bypass RLS for setup)
-    const { data: docData, error: docError } = await supabaseAdmin
+    // Create test document owned by User A
+    const { data: docData, error: docError } = await adminClient
       .from('documents')
       .insert({
         title: 'Test Document for RLS',
@@ -80,26 +44,21 @@ describe('Row Level Security (RLS) Tests', () => {
       .single();
 
     if (docError) {
-      console.warn('Could not create test document (table may not exist):', docError.message);
-      // Don't throw - allow tests to run with limited functionality
+      console.warn('⚠️  documents table not available:', docError.message);
     } else if (docData) {
       testDocumentId = docData.id;
     }
   }, TEST_TIMEOUT);
 
   afterAll(async () => {
-    // Cleanup test document
+    // Cleanup document
     if (testDocumentId) {
-      await supabaseAdmin.from('documents').delete().eq('id', testDocumentId);
+      await adminClient.from('documents').delete().eq('id', testDocumentId);
     }
 
-    // Cleanup test users
-    if (userAId) {
-      await supabaseAdmin.auth.admin.deleteUser(userAId);
-    }
-    if (userBId) {
-      await supabaseAdmin.auth.admin.deleteUser(userBId);
-    }
+    // Cleanup users
+    if (userAId) await deleteTestUser(userAId);
+    if (userBId) await deleteTestUser(userBId);
   }, TEST_TIMEOUT);
 
   test('User A can read their own document', async () => {
@@ -108,7 +67,7 @@ describe('Row Level Security (RLS) Tests', () => {
       return;
     }
 
-    const { data, error } = await supabaseUserA
+    const { data, error } = await userAClient
       .from('documents')
       .select('*')
       .eq('id', testDocumentId)
@@ -125,13 +84,13 @@ describe('Row Level Security (RLS) Tests', () => {
       return;
     }
 
-    const { data, error } = await supabaseUserB
+    const { data, error } = await userBClient
       .from('documents')
       .select('*')
       .eq('id', testDocumentId)
       .single();
 
-    // RLS should block this - either error or no data
+    // RLS should block this
     expect(data).toBeNull();
   }, TEST_TIMEOUT);
 
@@ -141,12 +100,11 @@ describe('Row Level Security (RLS) Tests', () => {
       return;
     }
 
-    const { error } = await supabaseUserB
+    const { error } = await userBClient
       .from('documents')
-      .update({ title: 'Hacked Document' })
+      .update({ title: 'Hacked' })
       .eq('id', testDocumentId);
 
-    // RLS should block this update
     expect(error).not.toBeNull();
   }, TEST_TIMEOUT);
 
@@ -156,16 +114,15 @@ describe('Row Level Security (RLS) Tests', () => {
       return;
     }
 
-    const { error } = await supabaseUserB
+    const { error } = await userBClient
       .from('documents')
       .delete()
       .eq('id', testDocumentId);
 
-    // RLS should block this delete
     expect(error).not.toBeNull();
 
-    // Verify document still exists
-    const { data } = await supabaseAdmin
+    // Verify still exists
+    const { data } = await adminClient
       .from('documents')
       .select('*')
       .eq('id', testDocumentId)
@@ -174,48 +131,34 @@ describe('Row Level Security (RLS) Tests', () => {
     expect(data).not.toBeNull();
   }, TEST_TIMEOUT);
 
-  test('User can only insert documents with their own user_id', async () => {
-    // Try to insert a document claiming to be owned by User A, while signed in as User B
-    const { error } = await supabaseUserB
+  test('User cannot insert with fake owner_id', async () => {
+    const { error } = await userBClient
       .from('documents')
       .insert({
         title: 'Fake Document',
-        owner_id: userAId, // Trying to fake ownership
+        owner_id: userAId, // Trying to fake
         status: 'pending'
       });
 
-    // RLS should block this or auto-correct owner_id
-    // Depending on your RLS policy, this might error or insert with userBId
+    // Should error or auto-correct to userBId
     if (!error) {
-      // If insert succeeded, verify it was assigned to User B, not User A
-      const { data } = await supabaseUserB
+      const { data } = await userBClient
         .from('documents')
         .select('*')
         .eq('title', 'Fake Document')
         .single();
 
       if (data) {
-        expect(data.owner_id).toBe(userBId); // Should be corrected to actual user
-        // Cleanup
-        await supabaseUserB.from('documents').delete().eq('id', data.id);
+        expect(data.owner_id).toBe(userBId);
+        await userBClient.from('documents').delete().eq('id', data.id);
       }
     }
   }, TEST_TIMEOUT);
 
-  // Unit test for RLS logic validation (doesn't require DB)
-  test('Should validate RLS-like access control logic', () => {
-    interface Document {
-      id: string;
-      owner_id: string;
-    }
-
-    const hasAccessToDocument = (userId: string, document: Document) => {
-      return document.owner_id === userId;
-    };
-
-    const documentA: Document = { id: 'doc-1', owner_id: userAId };
-
-    expect(hasAccessToDocument(userAId, documentA)).toBe(true);
-    expect(hasAccessToDocument(userBId, documentA)).toBe(false);
+  test('RLS logic validation (unit test)', () => {
+    const hasAccess = (userId: string, ownerId: string) => userId === ownerId;
+    
+    expect(hasAccess(userAId, userAId)).toBe(true);
+    expect(hasAccess(userBId, userAId)).toBe(false);
   });
 });

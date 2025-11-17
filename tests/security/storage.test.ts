@@ -1,60 +1,133 @@
 // tests/security/storage.test.ts
 
-import { test, expect, describe } from 'vitest';
+import { test, expect, describe, beforeAll, afterAll } from 'vitest';
+import { createClient } from '@supabase/supabase-js';
 
-// Importar utilidades de prueba para detectar entorno
-import { shouldSkipRealSupabaseTests } from '../testUtils';
+const BUCKET_NAME = 'documents';
+const TEST_TIMEOUT = 15000;
 
 describe('Storage Security Tests', () => {
-  // Solo ejecutar estos tests si tenemos credenciales completas de Supabase
-  if (shouldSkipRealSupabaseTests()) {
-    test('Storage tests skipped due to environment constraints', () => {
-      console.log('Skipping storage security tests because real Supabase connection is not configured');
-      expect(true).toBe(true); // Test dummy para que no falle
+  let supabaseAdmin: ReturnType<typeof createClient>;
+  let supabaseUser: ReturnType<typeof createClient>;
+  let testUserId: string;
+  let testFilePath: string;
+
+  beforeAll(async () => {
+    // Create admin client
+    supabaseAdmin = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Create a test user
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: `test-storage-${Date.now()}@example.com`,
+      password: 'test-password-123',
+      email_confirm: true
     });
-  } else {
-    // Solo ejecutar los tests reales si se tiene un entorno completo configurado
-    test('Storage security tests should run in complete environment', async () => {
-      // Esto sería un test real cuando se tenga el entorno completo
-      // Los tests originales requerirían:
-      // 1. Usuarios de prueba con diferentes permisos
-      // 2. Configuración de RLS en Supabase
-      // 3. Buckets de almacenamiento configurados
-      
-      // Dado que estos tests son muy dependientes del entorno, 
-      // en un entorno de prueba limitado solo verificamos la configuración
-      expect(process.env.SUPABASE_URL).toBeDefined();
-      expect(process.env.SUPABASE_ANON_KEY).toBeDefined();
-      expect(process.env.SUPABASE_SERVICE_ROLE_KEY).toBeDefined();
+
+    if (authError || !authData.user) {
+      console.error('Failed to create test user:', authError);
+      throw new Error('Cannot create test user');
+    }
+
+    testUserId = authData.user.id;
+
+    // Create user client
+    supabaseUser = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!
+    );
+
+    // Sign in as test user
+    await supabaseUser.auth.signInWithPassword({
+      email: authData.user.email!,
+      password: 'test-password-123'
     });
-  }
 
-  // Tests unitarios de validación que no dependen de infraestructura real
-  test('Should validate file types correctly', () => {
-    const validExtensions = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.png'];
-    const invalidExtensions = ['.exe', '.bat', '.sh', '.js', '.html'];
-    
-    const isValidFile = (filename: string) => {
-      const ext = '.' + filename.split('.').pop()?.toLowerCase();
-      return validExtensions.includes(ext);
-    };
-    
-    expect(validExtensions.every(ext => isValidFile(`file${ext}`))).toBe(true);
-    expect(invalidExtensions.every(ext => !isValidFile(`file${ext}`))).toBe(true);
-  });
+    // Ensure bucket exists
+    const { data: bucket } = await supabaseAdmin.storage.getBucket(BUCKET_NAME);
+    if (!bucket) {
+      await supabaseAdmin.storage.createBucket(BUCKET_NAME, {
+        public: false,
+        fileSizeLimit: 100 * 1024 * 1024 // 100MB
+      });
+    }
+  }, TEST_TIMEOUT);
 
-  test('Should validate file sizes correctly', () => {
-    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-    const isValidFileSize = (size: number) => size <= MAX_FILE_SIZE;
-    
-    expect(isValidFileSize(10 * 1024 * 1024)).toBe(true); // 10MB
-    expect(isValidFileSize(100 * 1024 * 1024)).toBe(false); // 100MB
-  });
+  afterAll(async () => {
+    // Cleanup: remove test files
+    if (testFilePath) {
+      await supabaseAdmin.storage.from(BUCKET_NAME).remove([testFilePath]);
+    }
 
-  test('Should sanitize file paths correctly', () => {
+    // Delete test user
+    if (testUserId) {
+      await supabaseAdmin.auth.admin.deleteUser(testUserId);
+    }
+  }, TEST_TIMEOUT);
+
+  test('Bucket should be private (not public)', async () => {
+    const { data: bucket } = await supabaseAdmin.storage.getBucket(BUCKET_NAME);
+    expect(bucket?.public).toBe(false);
+  }, TEST_TIMEOUT);
+
+  test('User can upload file to their own folder', async () => {
+    const fileName = `test-${Date.now()}.txt`;
+    testFilePath = `${testUserId}/${fileName}`;
+    const fileContent = new Blob(['Test content'], { type: 'text/plain' });
+
+    const { error } = await supabaseUser.storage
+      .from(BUCKET_NAME)
+      .upload(testFilePath, fileContent);
+
+    expect(error).toBeNull();
+  }, TEST_TIMEOUT);
+
+  test('User cannot upload file to another users folder', async () => {
+    const otherUserId = 'other-user-id-12345';
+    const fileName = `unauthorized-${Date.now()}.txt`;
+    const filePath = `${otherUserId}/${fileName}`;
+    const fileContent = new Blob(['Unauthorized content'], { type: 'text/plain' });
+
+    const { error } = await supabaseUser.storage
+      .from(BUCKET_NAME)
+      .upload(filePath, fileContent);
+
+    // Should fail due to RLS policy
+    expect(error).not.toBeNull();
+  }, TEST_TIMEOUT);
+
+  test('Respects file size limit (100MB)', async () => {
+    const { data: bucket } = await supabaseAdmin.storage.getBucket(BUCKET_NAME);
+    expect(bucket?.fileSizeLimit).toBeLessThanOrEqual(100 * 1024 * 1024);
+  }, TEST_TIMEOUT);
+
+  test('Can create signed URL for owned file', async () => {
+    // First upload a file
+    const fileName = `signed-url-test-${Date.now()}.txt`;
+    const filePath = `${testUserId}/${fileName}`;
+    const fileContent = new Blob(['Content for signed URL'], { type: 'text/plain' });
+
+    await supabaseUser.storage.from(BUCKET_NAME).upload(filePath, fileContent);
+
+    // Create signed URL
+    const { data, error } = await supabaseUser.storage
+      .from(BUCKET_NAME)
+      .createSignedUrl(filePath, 60); // 60 seconds
+
+    expect(error).toBeNull();
+    expect(data?.signedUrl).toBeDefined();
+    expect(data?.signedUrl).toContain('token=');
+
+    // Cleanup
+    await supabaseAdmin.storage.from(BUCKET_NAME).remove([filePath]);
+  }, TEST_TIMEOUT);
+
+  test('Path traversal is prevented by sanitization', () => {
+    // This is a unit test for path sanitization logic
     const sanitizePath = (path: string) => {
-      // Remove any directory traversal attempts
-      return path.replace(/(\.\.\/|\.\/|\/\/)/g, '');
+      return path.replace(/(\.\.\/|\.\.\\)/g, '');
     };
     
     expect(sanitizePath('../../etc/passwd')).toBe('etc/passwd');

@@ -2,7 +2,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { vi } from 'vitest';
 
-// Load relevant .env files (root first, client overrides)
+// Load test environment first (for local Supabase), then fallback to others
+dotenv.config({ path: path.resolve(process.cwd(), '.env.test') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), 'client', '.env') });
 
@@ -67,42 +68,76 @@ if (typeof File === 'undefined') {
   global.Blob = Blob;
 }
 
-// --- Mock Supabase Client for tests that need it but don't require real connection ---
-// This allows tests to run even without real Supabase connection
-vi.mock('@supabase/supabase-js', async () => {
-  const actual = await import('@supabase/supabase-js');
+// --- Mock Supabase Client ONLY if not using local instance ---
+// If SUPABASE_URL points to localhost, use real Supabase client
+const isLocalSupabase = process.env.SUPABASE_URL?.includes('127.0.0.1') || 
+                        process.env.SUPABASE_URL?.includes('localhost');
 
-  // Create a mock Supabase client that simulates basic behavior
-  const mockSupabaseClient = {
-    from: vi.fn(() => ({
-      select: vi.fn(() => Promise.resolve({ data: [], error: null })),
-      insert: vi.fn(() => Promise.resolve({ data: [], error: null })),
-      update: vi.fn(() => Promise.resolve({ data: [], error: null })),
-      delete: vi.fn(() => Promise.resolve({ data: [], error: null })),
-    })),
-    rpc: vi.fn(() => Promise.resolve({ data: [], error: null })),
-    storage: {
-      from: vi.fn(() => ({
-        upload: vi.fn(() => Promise.resolve({ error: null })),
-        remove: vi.fn(() => Promise.resolve({ error: null })),
-        createSignedUrl: vi.fn(() => Promise.resolve({ data: { signedUrl: 'http://test.com/test.pdf' }, error: null })),
-      })),
-      getBucket: vi.fn(() => Promise.resolve({ data: { public: false }, error: null }))
-    },
-    auth: {
-      signInWithPassword: vi.fn(() => Promise.resolve({ data: { user: { id: 'test-user' } }, error: null })),
-      signOut: vi.fn(() => Promise.resolve({ error: null })),
-    },
-    functions: {
-      invoke: vi.fn(() => Promise.resolve({ data: {}, error: null }))
-    }
-  };
+if (!isLocalSupabase) {
+  console.log('⚠️  Using mocked Supabase client (no local instance detected)');
+  
+  vi.mock('@supabase/supabase-js', async () => {
+    const actual = await import('@supabase/supabase-js');
 
-  return {
-    ...actual,
-    createClient: vi.fn(() => mockSupabaseClient)
-  };
-});
+    // Create a chainable mock that supports .eq(), .gte(), etc.
+    const createChainableMock = () => {
+      const chain: any = {
+        select: vi.fn(() => chain),
+        insert: vi.fn(() => chain),
+        update: vi.fn(() => chain),
+        delete: vi.fn(() => chain),
+        upsert: vi.fn(() => chain),
+        eq: vi.fn(() => chain),
+        neq: vi.fn(() => chain),
+        gt: vi.fn(() => chain),
+        gte: vi.fn(() => chain),
+        lt: vi.fn(() => chain),
+        lte: vi.fn(() => chain),
+        like: vi.fn(() => chain),
+        ilike: vi.fn(() => chain),
+        in: vi.fn(() => chain),
+        is: vi.fn(() => chain),
+        order: vi.fn(() => chain),
+        limit: vi.fn(() => chain),
+        single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+        maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
+        // Final execution - return Promise
+        then: vi.fn((resolve) => resolve({ data: [], error: null })),
+      };
+      return chain;
+    };
+
+    const mockSupabaseClient = {
+      from: vi.fn(() => createChainableMock()),
+      rpc: vi.fn(() => Promise.resolve({ data: [], error: null })),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(() => Promise.resolve({ error: null })),
+          remove: vi.fn(() => Promise.resolve({ error: null })),
+          createSignedUrl: vi.fn(() => Promise.resolve({ data: { signedUrl: 'http://test.com/test.pdf' }, error: null })),
+          list: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
+        getBucket: vi.fn(() => Promise.resolve({ data: { public: false }, error: null }))
+      },
+      auth: {
+        signInWithPassword: vi.fn(() => Promise.resolve({ data: { user: { id: 'test-user' } }, error: null })),
+        signUp: vi.fn(() => Promise.resolve({ data: { user: { id: 'test-user' } }, error: null })),
+        signOut: vi.fn(() => Promise.resolve({ error: null })),
+        getUser: vi.fn(() => Promise.resolve({ data: { user: { id: 'test-user' } }, error: null })),
+      },
+      functions: {
+        invoke: vi.fn(() => Promise.resolve({ data: {}, error: null }))
+      }
+    };
+
+    return {
+      ...actual,
+      createClient: vi.fn(() => mockSupabaseClient)
+    };
+  });
+} else {
+  console.log('✅ Using REAL local Supabase instance at', process.env.SUPABASE_URL);
+}
 
 // --- Common test utilities ---
 // Provide utilities to conditionally run tests that require real connections

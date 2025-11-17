@@ -9,6 +9,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:security": "vitest run tests/security/",
+    "preview": "cd client && npm run preview"
+  },
     "test:security": "vitest run tests/security/",
     "test:security:watch": "vitest tests/security/",
     "test:coverage": "vitest run --coverage"

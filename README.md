@@ -130,6 +130,20 @@ npm run preview --prefix client
 
 ---
 
+## 🧪 Testing
+
+Vitest security suites rely on the `.env.local` file that `tests/setup.ts` loads before executing any tests. Copy `.env.example` to `.env.local` and populate `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`; the `CSRF_SECRET` and `NDA_ENCRYPTION_KEY` values already shown in `.env.example` are safe defaults but can be overridden per project. Keeping `client/.env` and `.env.local` in sync allows the suite to map Vite-prefixed variables automatically so the security tests run without missing vars errors.
+
+Run the suites with:
+
+```bash
+npm run test
+npm run test:security
+npm run test:coverage
+```
+
+---
+
 ## 🎨 Screenshots
 
 ### Landing Page
@@ -217,6 +231,43 @@ Estamos preparando un programa de recompensas por vulnerabilidades. Mientras tan
 - Manipulación de timestamps
 - XSS / SQL Injection
 - Vulnerabilidades en eco-packer
+
+---
+
+## 🧪 Testing
+
+Para ejecutar los test suites:
+
+### Setup de variables de entorno
+1. Copia el archivo `.env.example` a `.env.local`:
+   ```bash
+   cp .env.example .env.local
+   ```
+2. Configura las credenciales de Supabase en `.env.local`:
+   - `SUPABASE_URL` - URL de tu proyecto de Supabase
+   - `SUPABASE_ANON_KEY` - API anon key de Supabase
+   - `SUPABASE_SERVICE_ROLE_KEY` - Service role key de Supabase
+   - `CSRF_SECRET` - Secreto para tokens CSRF (mínimo 32 caracteres)
+   - `NDA_ENCRYPTION_KEY` - Clave de 32 bytes en hexadecimal para encriptación
+
+Los valores por defecto en `.env.example` son seguros para pruebas locales, pero para funcionalidades completas necesitas credenciales reales de tu proyecto de Supabase.
+
+### Ejecución de tests
+```bash
+# Ejecutar todos los tests
+npm run test
+
+# Ejecutar tests de seguridad
+npm run test:security
+
+# Ejecutar tests con cobertura
+npm run test:coverage
+```
+
+### Suites de test disponibles
+- `tests/unit/` - Tests unitarios
+- `tests/security/` - Tests de seguridad (RLS, CSRF, encriptación, etc.)
+- `tests/integration/` - Tests de integración
 
 ---
 

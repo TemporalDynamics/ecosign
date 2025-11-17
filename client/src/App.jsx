@@ -7,6 +7,7 @@ import PricingPage from './pages/PricingPage';
 import NdaPage from './pages/NdaPage';
 import GuestPage from './pages/GuestPage';
 import VerifyPage from './pages/VerifyPage';
+import HowItWorksPage from './pages/HowItWorksPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -22,6 +23,7 @@ function App() {
         <Route path="/verify" element={<VerifyPage />} />
         <Route path="/nda" element={<NdaPage />} />
         <Route path="/guest" element={<GuestPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
 
         {/* Protected routes */}
         <Route

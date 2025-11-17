@@ -100,9 +100,9 @@ const BenefitsSlider = () => {
                 </p>
                 <Link
                   to="/how-it-works"
-                  className="inline-flex items-center mt-6 text-cyan-600 hover:text-cyan-700 font-medium"
+                  className="inline-flex items-center mt-6 text-cyan-600 hover:text-cyan-700 font-medium group"
                 >
-                  <Plus className="w-5 h-5 mr-1" />
+                  <Plus className="w-5 h-5 mr-1 group-hover:rotate-90 transition-transform" />
                   <span>Cómo lo hacemos</span>
                 </Link>
               </div>
@@ -192,7 +192,7 @@ const Header = () => {
     {
       label: 'Aprender',
       items: [
-        { label: 'Cómo lo hacemos', href: '/how-it-works' },
+        { label: 'Cómo lo hacemos', href: '/how-it-works', isRoute: true },
         { label: 'Glosario técnico', href: '#glossary' }
       ]
     }
@@ -225,13 +225,23 @@ const Header = () => {
               {item.items && openDropdown === item.label && (
                 <div className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-lg py-2 min-w-[200px] animate-fade-in">
                   {item.items.map((subItem) => (
-                    <a
-                      key={subItem.label}
-                      href={subItem.href}
-                      className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-                    >
-                      {subItem.label}
-                    </a>
+                    subItem.isRoute ? (
+                      <Link
+                        key={subItem.label}
+                        to={subItem.href}
+                        className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                      >
+                        {subItem.label}
+                      </Link>
+                    ) : (
+                      <a
+                        key={subItem.label}
+                        href={subItem.href}
+                        className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                      >
+                        {subItem.label}
+                      </a>
+                    )
                   ))}
                 </div>
               )}
@@ -500,11 +510,19 @@ const LandingPageV2 = () => {
       <section className="py-24 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
           <FadeInSection>
-            <div className="text-center mb-16">
+            <div className="text-center mb-12">
               <p className="text-gray-500 text-sm font-medium mb-2">Por una Justicia Digital Abierta.</p>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
                 No vendemos firmas. Vendemos Verdad.
               </h2>
+              <div className="max-w-2xl mx-auto bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+                <p className="text-amber-900 font-semibold mb-1">Precios de lanzamiento</p>
+                <p className="text-amber-800">
+                  El precio de lista de VerifySign será Creador $20/mes y Pro $30/mes.
+                  <br />
+                  Hoy podés entrar con precios fundadores y te los respetamos mientras tu cuenta siga activa.
+                </p>
+              </div>
             </div>
           </FadeInSection>
 
@@ -515,14 +533,30 @@ const LandingPageV2 = () => {
                 <div className="mb-6">
                   <h3 className="text-gray-600 text-sm font-medium">Comunidad (Gratis)</h3>
                   <p className="text-3xl font-bold text-gray-900 mt-2">$0/mes</p>
+                  <p className="text-xs text-gray-500 mt-1">Para probar sin límite de tiempo</p>
                 </div>
-                <ul className="space-y-2 text-sm text-gray-600 flex-grow">
-                  <li>• 5 certificaciones mensuales</li>
-                  <li>• Firma BÁSICA</li>
-                  <li>• Hash SHA-256</li>
-                  <li>• Timestamp local</li>
-                  <li>• 1GB de almacenamiento</li>
-                </ul>
+                <div className="space-y-4 text-sm flex-grow">
+                  <div>
+                    <p className="font-semibold text-gray-900">Certificaciones .ECO</p>
+                    <p className="text-gray-600">10 al mes</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Triple anchoring</p>
+                    <p className="text-gray-600">1 sello completo</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Firmas legalizadas</p>
+                    <p className="text-gray-600">1 firma (eIDAS, ESIGN, UETA)</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">VerifyTracker</p>
+                    <p className="text-gray-600">3 enlaces con NDA</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Almacenamiento en tu nube</p>
+                    <p className="text-gray-600">1 GB</p>
+                  </div>
+                </div>
                 <Link
                   to="/dashboard"
                   className="mt-6 block w-full text-center py-3 border border-gray-300 text-gray-900 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
@@ -534,18 +568,41 @@ const LandingPageV2 = () => {
 
             {/* Creator - Recommended */}
             <FadeInSection delay={200}>
-              <div className="border-2 border-cyan-500 rounded-2xl p-6 flex flex-col h-full bg-cyan-50/30">
-                <div className="mb-6">
-                  <h3 className="text-cyan-700 text-sm font-medium">Creador (Recomendado)</h3>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">$9.99/mes</p>
+              <div className="border-2 border-cyan-500 rounded-2xl p-6 flex flex-col h-full bg-cyan-50/30 relative">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                  Recomendado
                 </div>
-                <ul className="space-y-2 text-sm text-gray-600 flex-grow">
-                  <li>• 50 certificaciones/mes</li>
-                  <li>• Timestamp RFC 3161</li>
-                  <li>• Acción de acceso</li>
-                  <li>• Soporte prioritario</li>
-                  <li>• Sin marcas de agua</li>
-                </ul>
+                <div className="mb-6">
+                  <h3 className="text-cyan-700 text-sm font-medium">Creador</h3>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">$9.99/mes</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Precio de lista: $20/mes
+                    <br />
+                    <span className="text-cyan-700 font-medium">Precio fundador por lanzamiento</span>
+                  </p>
+                </div>
+                <div className="space-y-4 text-sm flex-grow">
+                  <div>
+                    <p className="font-semibold text-gray-900">Certificaciones .ECO</p>
+                    <p className="text-gray-600">50 al mes</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Triple anchoring</p>
+                    <p className="text-gray-600">15 sellos completos</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Firmas legalizadas</p>
+                    <p className="text-gray-600">20 firmas (eIDAS, ESIGN, UETA)</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">VerifyTracker</p>
+                    <p className="text-gray-600">30 enlaces con NDA</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Almacenamiento en tu nube</p>
+                    <p className="text-gray-600">25 GB</p>
+                  </div>
+                </div>
                 <Link
                   to="/dashboard"
                   className="mt-6 block w-full text-center py-3 bg-cyan-600 text-white rounded-lg font-semibold hover:bg-cyan-700 transition-colors"
@@ -561,18 +618,44 @@ const LandingPageV2 = () => {
                 <div className="mb-6">
                   <h3 className="text-gray-600 text-sm font-medium">Pro</h3>
                   <p className="text-3xl font-bold text-gray-900 mt-2">$19/mes</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Precio de lista: $30/mes
+                    <br />
+                    <span className="text-gray-700 font-medium">Precio fundador para primeros usuarios</span>
+                  </p>
                 </div>
-                <ul className="space-y-2 text-sm text-gray-600 flex-grow">
-                  <li>• Certificaciones ilimitadas</li>
-                  <li>• 30 firmas legales</li>
-                  <li>• 50 triple anchoring</li>
-                  <li>• 100 VerifyTracker</li>
-                  <li>• API + Webhooks</li>
-                  <li>• Soporte 24/7</li>
-                </ul>
+                <div className="space-y-4 text-sm flex-grow">
+                  <div>
+                    <p className="font-semibold text-gray-900">Certificaciones .ECO</p>
+                    <p className="text-gray-600">Ilimitadas</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Triple anchoring</p>
+                    <p className="text-gray-600">50 sellos completos</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Firmas legalizadas</p>
+                    <p className="text-gray-600">30 firmas (eIDAS, ESIGN, UETA)</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">VerifyTracker</p>
+                    <p className="text-gray-600">100 enlaces + analytics</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Almacenamiento en tu nube</p>
+                    <p className="text-gray-600">50 GB</p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-xs text-gray-500">
+                    + API + Webhooks incluidos
+                    <br />
+                    + Soporte 24/7 prioritario
+                  </p>
+                </div>
                 <Link
                   to="/dashboard"
-                  className="mt-6 block w-full text-center py-3 border border-gray-300 text-gray-900 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                  className="mt-4 block w-full text-center py-3 border border-gray-300 text-gray-900 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
                 >
                   Elegir Pro
                 </Link>
@@ -584,18 +667,43 @@ const LandingPageV2 = () => {
               <div className="border border-gray-200 rounded-2xl p-6 flex flex-col h-full hover:border-gray-300 transition-colors">
                 <div className="mb-6">
                   <h3 className="text-gray-600 text-sm font-medium">Empresas</h3>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">Contacto</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">Desde $99/mes</p>
+                  <p className="text-xs text-gray-500 mt-1">Todo lo del Pro, adaptado a tu volumen</p>
                 </div>
-                <ul className="space-y-2 text-sm text-gray-600 flex-grow">
-                  <li>• API de alto volumen</li>
-                  <li>• Contrato corporativo</li>
-                  <li>• Single sign-on (SSO)</li>
-                  <li>• SLA garantizado</li>
-                  <li>• Onboarding directo</li>
-                </ul>
+                <div className="space-y-4 text-sm flex-grow">
+                  <div>
+                    <p className="font-semibold text-gray-900">Certificaciones .ECO</p>
+                    <p className="text-gray-600">Ilimitadas + batch</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Triple anchoring</p>
+                    <p className="text-gray-600">Volumen personalizado</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Firmas legalizadas</p>
+                    <p className="text-gray-600">Volumen personalizado</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">VerifyTracker</p>
+                    <p className="text-gray-600">Ilimitado + white-label</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Almacenamiento en tu nube</p>
+                    <p className="text-gray-600">Personalizado</p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-xs text-gray-500">
+                    + API de alto rendimiento
+                    <br />
+                    + SSO + Contrato corporativo
+                    <br />
+                    + SLA garantizado
+                  </p>
+                </div>
                 <a
                   href="mailto:ventas@verifysign.pro"
-                  className="mt-6 block w-full text-center py-3 border border-gray-300 text-gray-900 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                  className="mt-4 block w-full text-center py-3 border border-gray-300 text-gray-900 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
                 >
                   Contactar Ventas
                 </a>
@@ -644,10 +752,10 @@ const LandingPageV2 = () => {
             <div>
               <h5 className="text-white font-semibold mb-4">Aprender</h5>
               <ul className="space-y-2 text-gray-400 text-sm">
+                <li><Link to="/how-it-works" className="hover:text-white transition-colors">Cómo lo hacemos</Link></li>
                 <li><a href="#" className="hover:text-white transition-colors">¿Qué es el blockchain?</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">¿Qué es no-repudiación?</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Glosario técnico</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Documentación</a></li>
               </ul>
             </div>
           </div>

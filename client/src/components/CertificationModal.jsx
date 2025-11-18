@@ -42,6 +42,11 @@ const CertificationModal = ({ isOpen, onClose }) => {
     useBitcoinAnchor: false      // Bitcoin - opcional (24h)
   });
 
+  // Firmas múltiples (workflow)
+  const [multipleSignatures, setMultipleSignatures] = useState(false);
+  const [signers, setSigners] = useState([]);
+  const [newSignerEmail, setNewSignerEmail] = useState('');
+
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState('none'); // 'none', 'canvas', 'signnow'
   const { canvasRef, hasSignature, clearCanvas, getSignatureData, handlers } = useSignatureCanvas();
@@ -54,6 +59,39 @@ const CertificationModal = ({ isOpen, onClose }) => {
       setFile(selectedFile);
       console.log('Archivo seleccionado:', selectedFile.name);
     }
+  };
+
+  const handleAddSigner = () => {
+    if (!newSignerEmail.trim()) return;
+
+    // Validar formato de email básico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newSignerEmail)) {
+      alert('Por favor ingresá un email válido');
+      return;
+    }
+
+    // Evitar duplicados
+    if (signers.some(s => s.email === newSignerEmail.trim())) {
+      alert('Este email ya fue agregado');
+      return;
+    }
+
+    setSigners([...signers, {
+      email: newSignerEmail.trim(),
+      order: signers.length + 1,
+      requireLogin: true,
+      requireNda: true,
+      quickAccess: false
+    }]);
+    setNewSignerEmail('');
+  };
+
+  const handleRemoveSigner = (email) => {
+    const filtered = signers.filter(s => s.email !== email);
+    // Re-ordenar
+    const reordered = filtered.map((s, idx) => ({ ...s, order: idx + 1 }));
+    setSigners(reordered);
   };
 
   const handleCertify = async () => {
@@ -99,13 +137,18 @@ const CertificationModal = ({ isOpen, onClose }) => {
     setFile(null);
     setCertificateData(null);
     setSignatureMode('none');
+    setMultipleSignatures(false);
+    setSigners([]);
+    setNewSignerEmail('');
     clearCanvas();
     onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+      <div className={`bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl transition-all duration-300 ${
+        multipleSignatures ? 'max-w-5xl' : 'max-w-2xl'
+      }`}>
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">
@@ -183,10 +226,12 @@ const CertificationModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="px-6 py-6">
-          {/* PASO 1: ELEGIR ARCHIVO */}
-          {step === 1 && (
-            <div className="space-y-6">
+        <div className={`${multipleSignatures ? 'grid grid-cols-[1fr,400px]' : ''}`}>
+          {/* Columna principal */}
+          <div className="px-6 py-6">
+            {/* PASO 1: ELEGIR ARCHIVO */}
+            {step === 1 && (
+              <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Elegí tu archivo
@@ -225,6 +270,30 @@ const CertificationModal = ({ isOpen, onClose }) => {
                       </p>
                     </>
                   )}
+                </label>
+              </div>
+
+              {/* Switch: Firmas múltiples */}
+              <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-cyan-600" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      Firmas múltiples
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Crear workflow de firma secuencial
+                    </p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={multipleSignatures}
+                    onChange={(e) => setMultipleSignatures(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
                 </label>
               </div>
 
@@ -481,6 +550,104 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   Ver en mi panel
                 </button>
               </div>
+            </div>
+          )}
+          </div>
+
+          {/* Panel lateral de firmantes (solo visible si multipleSignatures está ON) */}
+          {multipleSignatures && (
+            <div className="bg-gray-50 border-l border-gray-200 px-6 py-6 overflow-y-auto">
+              <div className="sticky top-0 bg-gray-50 pb-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Firmantes
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Agregá los emails de las personas que deben firmar (en orden secuencial)
+                </p>
+
+                {/* Input para agregar firmante */}
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="email"
+                    value={newSignerEmail}
+                    onChange={(e) => setNewSignerEmail(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddSigner()}
+                    placeholder="email@ejemplo.com"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <button
+                    onClick={handleAddSigner}
+                    className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Agregar
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de firmantes */}
+              <div className="space-y-2">
+                {signers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No hay firmantes agregados</p>
+                    <p className="text-xs mt-1">Agregá al menos un email para crear el workflow</p>
+                  </div>
+                ) : (
+                  signers.map((signer, idx) => (
+                    <div
+                      key={signer.email}
+                      className="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between"
+                    >
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {signer.email}
+                          </p>
+                          <div className="flex gap-2 mt-1">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-cyan-50 text-cyan-700">
+                              Login requerido
+                            </span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700">
+                              NDA
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveSigner(signer.email)}
+                        className="text-gray-400 hover:text-red-600 transition-colors ml-2"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Info de seguridad por defecto */}
+              {signers.length > 0 && (
+                <div className="mt-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+                  <div className="flex gap-2">
+                    <Shield className="w-4 h-4 text-cyan-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-cyan-900">
+                        Seguridad máxima por defecto
+                      </p>
+                      <p className="text-xs text-cyan-700 mt-1">
+                        Todos los firmantes deberán:
+                      </p>
+                      <ul className="text-xs text-cyan-700 mt-1 space-y-0.5 ml-4 list-disc">
+                        <li>Iniciar sesión con su email</li>
+                        <li>Aceptar el NDA antes de ver el documento</li>
+                        <li>Firmar en orden secuencial</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

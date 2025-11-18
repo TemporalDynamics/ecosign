@@ -9,7 +9,11 @@ import {
   CheckCircle2,
   Loader2,
   Link as LinkIcon,
-  Users
+  Users,
+  Maximize2,
+  Minimize2,
+  Eye,
+  Pen
 } from 'lucide-react';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
@@ -35,11 +39,12 @@ const CertificationModal = ({ isOpen, onClose }) => {
   const [forensicPanelOpen, setForensicPanelOpen] = useState(false);
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
 
-  // Configuración de blindaje forense (por defecto activado)
+  // Configuración de blindaje forense (por defecto desactivado - usuario debe elegir conscientemente)
+  const [forensicEnabled, setForensicEnabled] = useState(false);
   const [forensicConfig, setForensicConfig] = useState({
-    useLegalTimestamp: true,    // RFC 3161 - gratis
-    usePolygonAnchor: true,      // Polygon - $0.001
-    useBitcoinAnchor: false      // Bitcoin - opcional (24h)
+    useLegalTimestamp: true,    // RFC 3161
+    usePolygonAnchor: true,      // Polygon
+    useBitcoinAnchor: false      // Bitcoin
   });
 
   // Firmas múltiples (workflow)
@@ -51,6 +56,11 @@ const CertificationModal = ({ isOpen, onClose }) => {
   const [signatureMode, setSignatureMode] = useState('none'); // 'none', 'canvas', 'signnow'
   const { canvasRef, hasSignature, clearCanvas, getSignatureData, handlers } = useSignatureCanvas();
 
+  // Preview del documento
+  const [documentPreview, setDocumentPreview] = useState(null);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [showSignatureOnPreview, setShowSignatureOnPreview] = useState(false);
+
   if (!isOpen) return null;
 
   const handleFileSelect = (e) => {
@@ -58,6 +68,22 @@ const CertificationModal = ({ isOpen, onClose }) => {
     if (selectedFile) {
       setFile(selectedFile);
       console.log('Archivo seleccionado:', selectedFile.name);
+
+      // Generar preview según el tipo de archivo
+      if (selectedFile.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setDocumentPreview(event.target.result);
+        };
+        reader.readAsDataURL(selectedFile);
+      } else if (selectedFile.type === 'application/pdf') {
+        // Para PDFs, usar el URL directo
+        const url = URL.createObjectURL(selectedFile);
+        setDocumentPreview(url);
+      } else {
+        // Para otros tipos, mostrar icono genérico
+        setDocumentPreview(null);
+      }
     }
   };
 
@@ -104,18 +130,18 @@ const CertificationModal = ({ isOpen, onClose }) => {
       // Obtener datos de firma si está en modo canvas
       const signatureData = signatureMode === 'canvas' ? getSignatureData() : null;
 
-      // 1. Certificar con blindaje forense
+      // 1. Certificar (con blindaje forense solo si está activado)
       const certResult = await certifyFile(file, {
-        useLegalTimestamp: forensicConfig.useLegalTimestamp,
-        usePolygonAnchor: forensicConfig.usePolygonAnchor,
-        useBitcoinAnchor: forensicConfig.useBitcoinAnchor,
+        useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+        usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
+        useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
         signatureData: signatureData
       });
 
       // 2. Guardar en Supabase
       await saveUserDocument(file, certResult.ecoData, {
-        hasLegalTimestamp: forensicConfig.useLegalTimestamp,
-        hasBitcoinAnchor: forensicConfig.useBitcoinAnchor
+        hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+        hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor
       });
 
       // 3. Preparar datos para download
@@ -142,6 +168,10 @@ const CertificationModal = ({ isOpen, onClose }) => {
     setMultipleSignatures(false);
     setSigners([]);
     setEmailInputs(['', '', '']); // Reset a 3 campos vacíos
+    setForensicEnabled(false);
+    setDocumentPreview(null);
+    setPreviewFullscreen(false);
+    setShowSignatureOnPreview(false);
     clearCanvas();
     onClose();
   };
@@ -239,40 +269,141 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   Elegí tu archivo
                 </h3>
 
-                {/* Zona de drop */}
-                <label className="block border-2 border-dashed border-gray-300 rounded-xl py-12 text-center hover:border-cyan-500 transition-colors cursor-pointer">
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                  />
+                {/* Zona de drop / Preview del documento */}
+                {!file ? (
+                  <label className="block border-2 border-dashed border-gray-300 rounded-xl py-12 text-center hover:border-cyan-500 transition-colors cursor-pointer">
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={handleFileSelect}
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                    />
+                    <FileText className="w-12 h-12 text-cyan-600 mx-auto mb-4" />
+                    <p className="text-sm text-gray-900 font-medium">
+                      Arrastrá tu documento o hacé clic para elegirlo
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      PDF, Word, Excel, imágenes (máx 50MB)
+                    </p>
+                  </label>
+                ) : (
+                  <div className="border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+                    {/* Header del preview */}
+                    <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {documentPreview && (
+                          <>
+                            <button
+                              onClick={() => setShowSignatureOnPreview(!showSignatureOnPreview)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                showSignatureOnPreview
+                                  ? 'bg-cyan-100 text-cyan-700'
+                                  : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                              title="Firmar documento"
+                            >
+                              <Pen className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setPreviewFullscreen(!previewFullscreen)}
+                              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Pantalla completa"
+                            >
+                              {previewFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                            </button>
+                          </>
+                        )}
+                        <label className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors cursor-pointer" title="Cambiar archivo">
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={handleFileSelect}
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                          />
+                          <Upload className="w-4 h-4" />
+                        </label>
+                      </div>
+                    </div>
 
-                  {file ? (
-                    <>
-                      <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                      <p className="text-sm text-gray-900 font-medium">
-                        {file.name}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                      <p className="text-xs text-cyan-600 mt-4">
-                        Hacé clic para cambiar el archivo
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="w-12 h-12 text-cyan-600 mx-auto mb-4" />
-                      <p className="text-sm text-gray-900 font-medium">
-                        Arrastrá tu documento o hacé clic para elegirlo
-                      </p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        PDF, Word, Excel, imágenes (máx 50MB)
-                      </p>
-                    </>
-                  )}
-                </label>
+                    {/* Preview del contenido */}
+                    <div className={`relative ${previewFullscreen ? 'h-[60vh]' : 'h-96'} bg-gray-100 flex items-center justify-center`}>
+                      {documentPreview ? (
+                        <>
+                          {file.type.startsWith('image/') ? (
+                            <img
+                              src={documentPreview}
+                              alt="Preview"
+                              className="max-w-full max-h-full object-contain"
+                            />
+                          ) : file.type === 'application/pdf' ? (
+                            <iframe
+                              src={documentPreview}
+                              className="w-full h-full"
+                              title="PDF Preview"
+                            />
+                          ) : null}
+
+                          {/* Canvas de firma sobre el preview */}
+                          {showSignatureOnPreview && (
+                            <div className="absolute inset-0 bg-black bg-opacity-5 flex items-center justify-center">
+                              <div className="bg-white rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4">
+                                <div className="flex justify-between items-center mb-4">
+                                  <h4 className="font-semibold text-gray-900">Firmá tu documento</h4>
+                                  <button
+                                    onClick={() => setShowSignatureOnPreview(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                  >
+                                    <X className="w-5 h-5" />
+                                  </button>
+                                </div>
+                                <canvas
+                                  ref={canvasRef}
+                                  className="w-full h-32 border-2 border-gray-300 rounded-lg cursor-crosshair bg-white"
+                                  {...handlers}
+                                />
+                                <div className="flex gap-2 mt-4">
+                                  <button
+                                    onClick={clearCanvas}
+                                    className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                  >
+                                    Limpiar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setShowSignatureOnPreview(false);
+                                      setSignatureMode('canvas');
+                                    }}
+                                    className="flex-1 py-2 px-4 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+                                    disabled={!hasSignature}
+                                  >
+                                    Aplicar firma
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-center text-gray-500">
+                          <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Vista previa no disponible</p>
+                          <p className="text-xs">El archivo se procesará al certificar</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Switch: Firmas múltiples */}
@@ -299,103 +430,124 @@ const CertificationModal = ({ isOpen, onClose }) => {
                 </label>
               </div>
 
-              {/* Panel Colapsable: Blindaje Forense */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setForensicPanelOpen(!forensicPanelOpen)}
-                  className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Shield className="w-5 h-5 text-cyan-600" />
-                    <div className="text-left">
-                      <p className="text-sm font-medium text-gray-900">
-                        Blindaje forense
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {forensicConfig.useLegalTimestamp && forensicConfig.usePolygonAnchor
-                          ? 'Activado (recomendado)'
-                          : 'Configurar'}
-                      </p>
-                    </div>
-                  </div>
-                  {forensicPanelOpen ? (
-                    <ChevronUp className="w-5 h-5 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-400" />
-                  )}
-                </button>
-
-                {forensicPanelOpen && (
-                  <div className="p-4 space-y-3 bg-white">
-                    <p className="text-sm text-gray-600 mb-4">
-                      Tu documento se certifica con múltiples capas de protección forense
+              {/* Switch: Blindaje Forense */}
+              <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Shield className="w-5 h-5 text-cyan-600" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      Blindaje forense
                     </p>
-
-                    {/* Timestamp Legal */}
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={forensicConfig.useLegalTimestamp}
-                        onChange={(e) => setForensicConfig({
-                          ...forensicConfig,
-                          useLegalTimestamp: e.target.checked
-                        })}
-                        className="mt-1 w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          Timestamp legal (recomendado)
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Certifica la fecha y hora exacta (estándar internacional RFC 3161)
-                        </p>
-                      </div>
-                    </label>
-
-                    {/* Blockchain */}
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={forensicConfig.usePolygonAnchor}
-                        onChange={(e) => setForensicConfig({
-                          ...forensicConfig,
-                          usePolygonAnchor: e.target.checked
-                        })}
-                        className="mt-1 w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          Registro blockchain (recomendado)
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Registra tu certificado en blockchain público (~$0.001)
-                        </p>
-                      </div>
-                    </label>
-
-                    {/* Bitcoin (opcional) */}
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={forensicConfig.useBitcoinAnchor}
-                        onChange={(e) => setForensicConfig({
-                          ...forensicConfig,
-                          useBitcoinAnchor: e.target.checked
-                        })}
-                        className="mt-1 w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          Registro en Bitcoin (opcional)
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Máxima inmutabilidad (proceso lento: 4-24 horas)
-                        </p>
-                      </div>
-                    </label>
+                    <p className="text-xs text-gray-500">
+                      Protección adicional con timestamps y blockchain
+                    </p>
                   </div>
-                )}
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={forensicEnabled}
+                    onChange={(e) => {
+                      setForensicEnabled(e.target.checked);
+                      if (e.target.checked) {
+                        setForensicPanelOpen(true);
+                      }
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                </label>
               </div>
+
+              {/* Panel de opciones de Blindaje Forense (solo cuando está ON) */}
+              {forensicEnabled && (
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setForensicPanelOpen(!forensicPanelOpen)}
+                    className="w-full px-4 py-3 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <p className="text-sm font-medium text-gray-700">
+                      Configurar opciones de blindaje
+                    </p>
+                    {forensicPanelOpen ? (
+                      <ChevronUp className="w-5 h-5 text-gray-400" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+
+                  {forensicPanelOpen && (
+                    <div className="p-4 space-y-3 bg-white border-t border-gray-200">
+                      <p className="text-xs text-gray-600 mb-3">
+                        Elegí las capas de protección forense para tu certificado
+                      </p>
+
+                      {/* RFC 3161 Timestamp */}
+                      <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={forensicConfig.useLegalTimestamp}
+                          onChange={(e) => setForensicConfig({
+                            ...forensicConfig,
+                            useLegalTimestamp: e.target.checked
+                          })}
+                          className="mt-1 w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            RFC 3161 Timestamp
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Sello de tiempo certificado por autoridad de confianza
+                          </p>
+                        </div>
+                      </label>
+
+                      {/* Polygon Blockchain */}
+                      <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={forensicConfig.usePolygonAnchor}
+                          onChange={(e) => setForensicConfig({
+                            ...forensicConfig,
+                            usePolygonAnchor: e.target.checked
+                          })}
+                          className="mt-1 w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            Polygon Blockchain
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Registro inmutable en blockchain pública (confirmación en 30 segundos)
+                          </p>
+                        </div>
+                      </label>
+
+                      {/* Bitcoin Blockchain */}
+                      <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={forensicConfig.useBitcoinAnchor}
+                          onChange={(e) => setForensicConfig({
+                            ...forensicConfig,
+                            useBitcoinAnchor: e.target.checked
+                          })}
+                          className="mt-1 w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            Bitcoin Blockchain
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Anclaje permanente en Bitcoin (confirmación en 4-24 horas)
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Botón Siguiente */}
               <button

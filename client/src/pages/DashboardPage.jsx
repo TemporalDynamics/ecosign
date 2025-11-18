@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import DocumentList from '../components/DocumentList';
 import DashboardNav from '../components/DashboardNav';
-import CertificationFlow from '../components/CertificationFlow';
+import CertificationModal from '../components/CertificationModal';
 import { getUserDocuments } from '../utils/documentStorage';
 
 function DashboardPage() {
@@ -268,11 +268,11 @@ function DashboardPage() {
         </div>
       </footer>
 
-      {showCertificationFlow && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <CertificationFlow onClose={handleCloseCertificationFlow} />
-        </div>
-      )}
+      {/* Nuevo modal de certificación con paneles colapsables */}
+      <CertificationModal
+        isOpen={showCertificationFlow}
+        onClose={handleCloseCertificationFlow}
+      />
     </div>
   );
 }

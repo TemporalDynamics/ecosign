@@ -13,7 +13,9 @@ import {
   Maximize2,
   Minimize2,
   Eye,
-  Pen
+  Pen,
+  Highlighter,
+  Type
 } from 'lucide-react';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
@@ -50,7 +52,11 @@ const CertificationModal = ({ isOpen, onClose }) => {
   // Firmas múltiples (workflow)
   const [multipleSignatures, setMultipleSignatures] = useState(false);
   const [signers, setSigners] = useState([]);
-  const [emailInputs, setEmailInputs] = useState(['', '', '']); // 3 campos por defecto
+  const [emailInputs, setEmailInputs] = useState([
+    { email: '', requireLogin: true, requireNda: true },
+    { email: '', requireLogin: true, requireNda: true },
+    { email: '', requireLogin: true, requireNda: true }
+  ]); // 3 campos por defecto con configuración
 
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState('none'); // 'none', 'canvas', 'signnow'
@@ -60,6 +66,8 @@ const CertificationModal = ({ isOpen, onClose }) => {
   const [documentPreview, setDocumentPreview] = useState(null);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [showSignatureOnPreview, setShowSignatureOnPreview] = useState(false);
+  const [annotationMode, setAnnotationMode] = useState(null); // 'signature', 'highlight', 'text'
+  const [annotations, setAnnotations] = useState([]); // Lista de anotaciones (highlights y textos)
 
   if (!isOpen) return null;
 
@@ -88,7 +96,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
   };
 
   const handleAddEmailField = () => {
-    setEmailInputs([...emailInputs, '']);
+    setEmailInputs([...emailInputs, { email: '', requireLogin: true, requireNda: true }]);
   };
 
   const handleRemoveEmailField = (index) => {
@@ -99,27 +107,42 @@ const CertificationModal = ({ isOpen, onClose }) => {
 
   const handleEmailChange = (index, value) => {
     const newInputs = [...emailInputs];
-    newInputs[index] = value;
+    newInputs[index] = { ...newInputs[index], email: value };
+    setEmailInputs(newInputs);
+  };
+
+  const handleToggleLogin = (index) => {
+    const newInputs = [...emailInputs];
+    newInputs[index] = { ...newInputs[index], requireLogin: !newInputs[index].requireLogin };
+    setEmailInputs(newInputs);
+  };
+
+  const handleToggleNda = (index) => {
+    const newInputs = [...emailInputs];
+    newInputs[index] = { ...newInputs[index], requireNda: !newInputs[index].requireNda };
     setEmailInputs(newInputs);
   };
 
   const buildSignersList = () => {
     // Construir lista de firmantes desde los campos con email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const validEmails = emailInputs
-      .map(email => email.trim())
-      .filter(email => email && emailRegex.test(email));
+    const validSigners = emailInputs
+      .filter(input => input.email.trim() && emailRegex.test(input.email.trim()))
+      .map((input, idx) => ({
+        email: input.email.trim(),
+        order: idx + 1,
+        requireLogin: input.requireLogin,
+        requireNda: input.requireNda,
+        quickAccess: false
+      }));
 
-    // Eliminar duplicados
-    const uniqueEmails = [...new Set(validEmails)];
-
-    return uniqueEmails.map((email, idx) => ({
-      email: email,
-      order: idx + 1,
-      requireLogin: true,
-      requireNda: true,
-      quickAccess: false
-    }));
+    // Eliminar duplicados por email
+    const seen = new Set();
+    return validSigners.filter(signer => {
+      if (seen.has(signer.email)) return false;
+      seen.add(signer.email);
+      return true;
+    });
   };
 
   const handleCertify = async () => {
@@ -167,11 +190,17 @@ const CertificationModal = ({ isOpen, onClose }) => {
     setSignatureMode('none');
     setMultipleSignatures(false);
     setSigners([]);
-    setEmailInputs(['', '', '']); // Reset a 3 campos vacíos
+    setEmailInputs([
+      { email: '', requireLogin: true, requireNda: true },
+      { email: '', requireLogin: true, requireNda: true },
+      { email: '', requireLogin: true, requireNda: true }
+    ]); // Reset a 3 campos vacíos
     setForensicEnabled(false);
     setDocumentPreview(null);
     setPreviewFullscreen(false);
     setShowSignatureOnPreview(false);
+    setAnnotationMode(null);
+    setAnnotations([]);
     clearCanvas();
     onClose();
   };
@@ -305,15 +334,40 @@ const CertificationModal = ({ isOpen, onClose }) => {
                         {documentPreview && (
                           <>
                             <button
-                              onClick={() => setShowSignatureOnPreview(!showSignatureOnPreview)}
+                              onClick={() => {
+                                setAnnotationMode(annotationMode === 'signature' ? null : 'signature');
+                                setShowSignatureOnPreview(annotationMode !== 'signature');
+                              }}
                               className={`p-2 rounded-lg transition-colors ${
-                                showSignatureOnPreview
+                                annotationMode === 'signature'
                                   ? 'bg-cyan-100 text-cyan-700'
                                   : 'text-gray-600 hover:bg-gray-100'
                               }`}
                               title="Firmar documento"
                             >
                               <Pen className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setAnnotationMode(annotationMode === 'highlight' ? null : 'highlight')}
+                              className={`p-2 rounded-lg transition-colors ${
+                                annotationMode === 'highlight'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                              title="Resaltar texto (marcar desacuerdos)"
+                            >
+                              <Highlighter className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setAnnotationMode(annotationMode === 'text' ? null : 'text')}
+                              className={`p-2 rounded-lg transition-colors ${
+                                annotationMode === 'text'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                              title="Agregar texto (modificaciones)"
+                            >
+                              <Type className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => setPreviewFullscreen(!previewFullscreen)}
@@ -718,87 +772,87 @@ const CertificationModal = ({ isOpen, onClose }) => {
                 Agregá los emails de las personas que deben firmar (en orden secuencial)
               </p>
 
-              {/* Campos de email */}
-              <div className="space-y-3 mb-4">
-                {emailInputs.map((email, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                      {index + 1}
+              {/* Campos de email con switches individuales */}
+              <div className="space-y-4 mb-4">
+                {emailInputs.map((input, index) => (
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
+                    {/* Header con número y campo email */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                        {index + 1}
+                      </div>
+                      <input
+                        type="email"
+                        value={input.email}
+                        onChange={(e) => handleEmailChange(index, e.target.value)}
+                        placeholder="email@ejemplo.com"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                      {emailInputs.length > 1 && (
+                        <button
+                          onClick={() => handleRemoveEmailField(index)}
+                          className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                          title="Eliminar firmante"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => handleEmailChange(index, e.target.value)}
-                      placeholder="email@ejemplo.com"
-                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    />
-                    {emailInputs.length > 1 && (
-                      <button
-                        onClick={() => handleRemoveEmailField(index)}
-                        className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                        title="Eliminar campo"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
+
+                    {/* Switches de seguridad */}
+                    <div className="flex gap-3 ml-8">
+                      {/* Switch Login */}
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={input.requireLogin}
+                          onChange={() => handleToggleLogin(index)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600 relative"></div>
+                        <span className={`text-xs font-medium ${input.requireLogin ? 'text-cyan-700' : 'text-gray-500'}`}>
+                          Login
+                        </span>
+                      </label>
+
+                      {/* Switch NDA */}
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={input.requireNda}
+                          onChange={() => handleToggleNda(index)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 relative"></div>
+                        <span className={`text-xs font-medium ${input.requireNda ? 'text-emerald-700' : 'text-gray-500'}`}>
+                          NDA
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 ))}
               </div>
 
-              {/* Botón para agregar más campos */}
+              {/* Botón para agregar más firmantes */}
               <button
                 onClick={handleAddEmailField}
-                className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-cyan-500 hover:text-cyan-600 transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-cyan-500 hover:text-cyan-600 transition-colors flex items-center justify-center gap-2 mb-4"
               >
                 <Users className="w-4 h-4" />
                 Agregar otro firmante
               </button>
 
-              {/* Preview de firmantes válidos */}
-              {buildSignersList().length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs font-medium text-gray-700 mb-2">
-                    Firmantes confirmados ({buildSignersList().length}):
-                  </p>
-                  <div className="space-y-2">
-                    {buildSignersList().map((signer, idx) => (
-                      <div
-                        key={signer.email}
-                        className="bg-white border border-gray-200 rounded-lg p-2 text-xs"
-                      >
-                        <p className="font-medium text-gray-900 truncate">
-                          {idx + 1}. {signer.email}
-                        </p>
-                        <div className="flex gap-1 mt-1">
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-50 text-cyan-700">
-                            Login
-                          </span>
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700">
-                            NDA
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Info de seguridad por defecto */}
-              <div className="mt-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+              {/* Info de seguridad */}
+              <div className="p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
                 <div className="flex gap-2">
                   <Shield className="w-4 h-4 text-cyan-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs font-medium text-cyan-900">
-                      Seguridad máxima por defecto
+                      Configuración por firmante
                     </p>
                     <p className="text-xs text-cyan-700 mt-1">
-                      Todos los firmantes deberán:
+                      Cada firmante puede tener diferentes requisitos de seguridad según tus necesidades
                     </p>
-                    <ul className="text-xs text-cyan-700 mt-1 space-y-0.5 ml-4 list-disc">
-                      <li>Iniciar sesión con su email</li>
-                      <li>Aceptar el NDA antes de ver el documento</li>
-                      <li>Firmar en orden secuencial</li>
-                    </ul>
                   </div>
                 </div>
               </div>

@@ -11,7 +11,7 @@ import {
   Link as LinkIcon,
   Users
 } from 'lucide-react';
-import { basicCertificationWeb } from '../lib/basicCertificationWeb';
+import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
 
@@ -65,7 +65,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
       const signatureData = signatureMode === 'canvas' ? getSignatureData() : null;
 
       // 1. Certificar con blindaje forense
-      const certResult = await basicCertificationWeb(file, {
+      const certResult = await certifyFile(file, {
         useLegalTimestamp: forensicConfig.useLegalTimestamp,
         usePolygonAnchor: forensicConfig.usePolygonAnchor,
         useBitcoinAnchor: forensicConfig.useBitcoinAnchor,
@@ -78,7 +78,13 @@ const CertificationModal = ({ isOpen, onClose }) => {
         hasBitcoinAnchor: forensicConfig.useBitcoinAnchor
       });
 
-      setCertificateData(certResult);
+      // 3. Preparar datos para download
+      setCertificateData({
+        ...certResult,
+        downloadUrl: URL.createObjectURL(new Blob([certResult.ecoxBuffer], { type: 'application/zip' })),
+        fileName: certResult.fileName
+      });
+
       setStep(3); // Ir a "Listo"
     } catch (error) {
       console.error('Error al certificar:', error);
@@ -463,10 +469,10 @@ const CertificationModal = ({ isOpen, onClose }) => {
               <div className="flex flex-col gap-3 max-w-sm mx-auto">
                 <a
                   href={certificateData.downloadUrl}
-                  download
-                  className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-block"
+                  download={certificateData.fileName}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-block text-center"
                 >
-                  Descargar .ECO
+                  Descargar .ECOX
                 </a>
                 <button
                   onClick={resetAndClose}

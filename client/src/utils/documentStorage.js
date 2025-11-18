@@ -50,25 +50,16 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     throw new Error(`Error al subir el documento: ${uploadError.message}`);
   }
 
-  // Create user_documents record
+  // TEMP FIX: Create record in 'documents' table (minimal fields)
+  // TODO: When migration 007 is applied, use 'user_documents' table for full metadata
   const { data: docData, error: docError } = await supabase
-    .from('user_documents')
+    .from('documents')
     .insert({
-      user_id: user.id,
-      document_name: pdfFile.name,
-      document_hash: documentHash,
-      document_size: pdfFile.size,
-      mime_type: pdfFile.type || 'application/pdf',
-      pdf_storage_path: uploadData.path,
-      eco_data: ecoData,
-      signnow_document_id: signNowDocumentId,
-      signnow_status: signNowStatus,
-      signed_at: signedAt,
-      has_legal_timestamp: hasLegalTimestamp,
-      has_bitcoin_anchor: hasBitcoinAnchor,
-      bitcoin_anchor_id: bitcoinAnchorId,
-      tags,
-      notes
+      owner_id: user.id,
+      title: pdfFile.name.replace('.pdf', ''),
+      eco_hash: documentHash,
+      status: 'active'
+      // Note: Not using original_filename since it may not exist in remote DB
     })
     .select()
     .single();
@@ -93,10 +84,11 @@ export async function getUserDocuments() {
     throw new Error('Usuario no autenticado');
   }
 
+  // TEMP FIX: Query simple solo con columnas que definitivamente existen
   const { data, error } = await supabase
-    .from('user_documents')
-    .select('*')
-    .eq('user_id', user.id)
+    .from('documents')
+    .select('id, title, eco_hash, status, created_at, updated_at')
+    .eq('owner_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -104,7 +96,16 @@ export async function getUserDocuments() {
     throw new Error(`Error al obtener documentos: ${error.message}`);
   }
 
-  return data || [];
+  // Transform to match expected format
+  return (data || []).map(doc => ({
+    id: doc.id,
+    document_name: doc.title, // Usar title porque original_filename puede no existir
+    document_hash: doc.eco_hash,
+    created_at: doc.created_at,
+    updated_at: doc.updated_at,
+    verification_count: 0, // TODO: Get count when relationships exist
+    status: doc.status
+  }));
 }
 
 /**
@@ -137,34 +138,26 @@ export async function deleteUserDocument(documentId) {
     throw new Error('Usuario no autenticado');
   }
 
-  // First get the document to find its storage path
+  // TEMP FIX: Use 'documents' table
+  // Note: 'documents' table doesn't have pdf_storage_path, so we can only delete DB record
   const { data: doc, error: fetchError } = await supabase
-    .from('user_documents')
-    .select('pdf_storage_path')
+    .from('documents')
+    .select('id')
     .eq('id', documentId)
-    .eq('user_id', user.id)
+    .eq('owner_id', user.id)
     .single();
 
   if (fetchError) {
     throw new Error(`Error al obtener el documento: ${fetchError.message}`);
   }
 
-  // Delete from storage
-  const { error: storageError } = await supabase.storage
-    .from('user-documents')
-    .remove([doc.pdf_storage_path]);
-
-  if (storageError) {
-    console.warn('Error deleting from storage:', storageError);
-    // Continue anyway - DB cleanup is more important
-  }
-
+  // TEMP FIX: Skip storage deletion since 'documents' table doesn't track storage paths
   // Delete from database
   const { error: deleteError } = await supabase
-    .from('user_documents')
+    .from('documents')
     .delete()
     .eq('id', documentId)
-    .eq('user_id', user.id);
+    .eq('owner_id', user.id);
 
   if (deleteError) {
     throw new Error(`Error al eliminar el documento: ${deleteError.message}`);

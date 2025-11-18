@@ -55,12 +55,13 @@ serve(async (req) => {
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
 
-    // Find the link by token hash
+    // Find the link by token hash (now includes recipient_id)
     const { data: link, error: linkError } = await supabase
       .from('links')
       .select(`
         id,
         document_id,
+        recipient_id,
         expires_at,
         revoked_at,
         require_nda,
@@ -136,14 +137,39 @@ serve(async (req) => {
       )
     }
 
-    // Get recipient info for this link
-    const { data: recipient, error: recipientError } = await supabase
-      .from('recipients')
-      .select('id, email, recipient_id')
-      .eq('document_id', link.document_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+    // Get recipient info using direct link (fixed attribution bug)
+    let recipient = null
+    let recipientError = null
+
+    // First try to get recipient from direct link reference (new links)
+    if (link.recipient_id) {
+      const { data: recipientData, error: recipientErr } = await supabase
+        .from('recipients')
+        .select('id, email, recipient_id')
+        .eq('id', link.recipient_id)
+        .single()
+
+      recipient = recipientData
+      recipientError = recipientErr
+    }
+
+    // Fallback for old links without recipient_id (backward compatibility)
+    if (!recipient) {
+      const { data: fallbackRecipient, error: fallbackError } = await supabase
+        .from('recipients')
+        .select('id, email, recipient_id')
+        .eq('document_id', link.document_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      recipient = fallbackRecipient
+      recipientError = fallbackError
+
+      if (recipient) {
+        console.warn(`Using fallback recipient lookup for link ${link.id} - consider running migration`)
+      }
+    }
 
     if (recipientError || !recipient) {
       throw new Error('Recipient not found')

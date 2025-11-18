@@ -121,11 +121,12 @@ serve(async (req) => {
       throw new Error('Failed to create recipient record')
     }
 
-    // Create link record
+    // Create link record with direct recipient reference
     const { data: link, error: linkError } = await supabase
       .from('links')
       .insert({
         document_id,
+        recipient_id: recipient.id, // Direct link to recipient for correct attribution
         token_hash: tokenHash,
         expires_at: expiresAt,
         require_nda

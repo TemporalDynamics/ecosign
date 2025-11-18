@@ -2,61 +2,79 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Link as LinkIcon, Download, Eye, Clock, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import LinkGenerator from './LinkGenerator';
+import { supabase } from '../lib/supabaseClient';
 
 const DocumentList = () => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [showLinkGenerator, setShowLinkGenerator] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Simular carga de documentos
+  // Cargar documentos reales desde Supabase
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        // Simular llamada a API
-        setTimeout(() => {
-          const mockDocuments = [
-            {
-              id: 'doc1',
-              title: 'Contrato de Servicios.pdf',
-              fileName: 'contrato_servicios.pdf',
-              createdAt: new Date('2025-01-15'),
-              ecoHash: 'a1b2c3d4e5f6...',
-              status: 'verified',
-              accessCount: 3,
-              lastAccess: new Date('2025-01-20')
-            },
-            {
-              id: 'doc2',
-              title: 'Especificaciones Técnicas.docx',
-              fileName: 'especificaciones_tecnicas.docx',
-              createdAt: new Date('2025-01-10'),
-              ecoHash: 'f6e5d4c3b2a1...',
-              status: 'pending',
-              accessCount: 0,
-              lastAccess: null
-            },
-            {
-              id: 'doc3',
-              title: 'Acuerdo de Confidencialidad.pdf',
-              fileName: 'acuerdo_confidencialidad.pdf',
-              createdAt: new Date('2025-01-05'),
-              ecoHash: 'z9y8x7w6v5u4...',
-              status: 'verified',
-              accessCount: 7,
-              lastAccess: new Date('2025-01-18')
-            }
-          ];
-          setDocuments(mockDocuments);
+        setError(null);
+
+        // Obtener usuario actual
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
           setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('Error fetching documents:', error);
+          setError('Debe iniciar sesión para ver sus documentos');
+          return;
+        }
+
+        // Obtener documentos del usuario (solo columnas que existen en todas las versiones)
+        const { data: docs, error: docsError } = await supabase
+          .from('documents')
+          .select('id, title, eco_hash, status, created_at, updated_at')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (docsError) {
+          throw docsError;
+        }
+
+        // Transformar datos para la UI
+        const transformedDocs = (docs || []).map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          fileName: doc.title, // Usar title directamente
+          createdAt: new Date(doc.created_at),
+          ecoHash: doc.eco_hash ? doc.eco_hash.substring(0, 12) + '...' : 'N/A',
+          status: doc.status === 'active' ? 'verified' : doc.status,
+          accessCount: 0, // TODO: Get from relationships when available
+          lastAccess: null
+        }));
+
+        setDocuments(transformedDocs);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching documents:', err);
+        setError(err.message || 'Error al cargar documentos');
         setLoading(false);
       }
     };
 
     fetchDocuments();
+
+    // Suscribirse a cambios en tiempo real
+    const subscription = supabase
+      .channel('documents_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'documents' },
+        () => {
+          // Recargar documentos cuando hay cambios
+          fetchDocuments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const getStatusIcon = (status) => {

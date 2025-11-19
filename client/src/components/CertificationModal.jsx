@@ -25,6 +25,7 @@ import { applySignatureToPDF, blobToFile, addSignatureSheet } from '../utils/pdf
 import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
 import { anchorToPolygon } from '../lib/polygonAnchor';
+import { supabase } from '../lib/supabaseClient';
 
 /**
  * Modal de Certificación - Diseño según Design System VerifySign

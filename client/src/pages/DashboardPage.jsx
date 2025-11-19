@@ -101,29 +101,29 @@ function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-cyan-50">
+    <div className="min-h-screen bg-white">
       <DashboardNav onLogout={handleLogout} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Welcome Section */}
-        <section className="bg-gradient-to-r from-cyan-600 to-blue-600 rounded-2xl p-8 shadow-lg">
+        <section className="bg-gray-900 rounded-2xl p-8 shadow-lg">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <h2 className="text-3xl font-bold text-white mb-2">Bienvenido a VerifySign</h2>
-              <p className="text-cyan-50 text-lg max-w-2xl">
+              <p className="text-gray-300 text-lg max-w-2xl">
                 Sellá tus documentos, controla cada NDA y verifica tus certificados sin salir del panel. Todo queda registrado en tu archivo .ECO.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setShowCertificationFlow(true)}
-                className="bg-white hover:bg-gray-100 text-cyan-700 font-bold py-3 px-8 rounded-xl shadow-md transition duration-300"
+                className="bg-white hover:bg-gray-100 text-gray-900 font-bold py-3 px-8 rounded-xl shadow-md transition duration-300"
               >
                 + Certificar documento
               </button>
               <button
                 onClick={() => navigate('/dashboard/verify')}
-                className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-cyan-700 font-bold py-3 px-8 rounded-xl transition duration-300"
+                className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-gray-900 font-bold py-3 px-8 rounded-xl transition duration-300"
               >
                 Verificar un .ECO
               </button>
@@ -148,7 +148,7 @@ function DashboardPage() {
         <section className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
             <div>
-              <p className="text-sm uppercase tracking-widest text-cyan-600 font-semibold">Panel de certificaciones</p>
+              <p className="text-sm uppercase tracking-widest text-gray-900 font-semibold">Panel de certificaciones</p>
               <h3 className="text-2xl font-bold text-gray-900">Estado de tus .ECO</h3>
               <p className="text-sm text-gray-500">Se actualiza automáticamente a medida que generás certificados</p>
             </div>
@@ -160,7 +160,7 @@ function DashboardPage() {
 
           {loading && (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
               <p className="text-gray-500 mt-4">Cargando documentos...</p>
             </div>
           )}
@@ -177,7 +177,7 @@ function DashboardPage() {
               <p className="text-gray-500 text-lg">No tenés documentos certificados todavía.</p>
               <button
                 onClick={() => setShowCertificationFlow(true)}
-                className="mt-4 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2 px-6 rounded-lg"
+                className="mt-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2 px-6 rounded-lg"
               >
                 Certificar tu primer documento
               </button>
@@ -212,13 +212,13 @@ function DashboardPage() {
                       <td className="py-3 pr-4 font-medium text-gray-900">{row.fileName}</td>
                       <td className="py-3 pr-4">{new Date(row.updatedAt).toLocaleString()}</td>
                       <td className="py-3 pr-4">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.hasSignNow ? 'bg-cyan-50 text-cyan-700' : 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.hasSignNow ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
                           {row.hasSignNow ? 'SignNow' : 'Sin firma'}
                         </span>
                       </td>
                       <td className="py-3 pr-4 text-gray-700">{row.concept}</td>
                       <td className="py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.legal ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.legal ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
                           {row.legal ? 'RFC 3161' : 'Timestamp estándar'}
                         </span>
                       </td>
@@ -236,15 +236,15 @@ function DashboardPage() {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
           <div className="space-y-4">
             <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-              <div className="text-sm text-cyan-600 font-medium mb-1">Hoy, 10:30 AM</div>
+              <div className="text-sm text-gray-900 font-medium mb-1">Hoy, 10:30 AM</div>
               <p className="text-gray-700">Documento "Proyecto Alpha" firmado por juan@empresa.com</p>
             </div>
             <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-              <div className="text-sm text-cyan-600 font-medium mb-1">Ayer, 3:45 PM</div>
+              <div className="text-sm text-gray-900 font-medium mb-1">Ayer, 3:45 PM</div>
               <p className="text-gray-700">Enlace seguro creado para "Informe Confidencial"</p>
             </div>
             <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-              <div className="text-sm text-cyan-600 font-medium mb-1">12 Nov, 9:15 AM</div>
+              <div className="text-sm text-gray-900 font-medium mb-1">12 Nov, 9:15 AM</div>
               <p className="text-gray-700">Nuevo certificado .ECO generado para contrato</p>
             </div>
           </div>
@@ -254,7 +254,7 @@ function DashboardPage() {
         <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Documentos Recientes</h2>
-            <button className="text-cyan-600 hover:text-cyan-700 font-medium text-sm">
+            <button className="text-gray-900 hover:text-gray-700 font-medium text-sm">
               Ver todos →
             </button>
           </div>

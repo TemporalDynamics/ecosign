@@ -10,7 +10,7 @@
 
 import { generateEd25519KeyPair, sha256Hex } from '@temporaldynamics/eco-packer/eco-utils';
 import { pack } from '@temporaldynamics/eco-packer';
-import { requestSimpleTimestamp } from './tsaService.js';
+import { requestLegalTimestamp } from './tsaService.js';
 
 /**
  * Reads a file and returns its ArrayBuffer
@@ -83,7 +83,7 @@ export async function certifyFile(file, options = {}) {
     if (options.useLegalTimestamp) {
       console.log('🕐 Requesting RFC 3161 legal timestamp...');
       try {
-        tsaResponse = await requestSimpleTimestamp(hash);
+        tsaResponse = await requestLegalTimestamp(hash);
         if (tsaResponse.success) {
           timestamp = tsaResponse.timestamp;
           console.log('✅ Legal timestamp received from TSA');

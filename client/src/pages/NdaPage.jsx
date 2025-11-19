@@ -36,7 +36,7 @@ function NdaPage() {
                     <h3 className="text-lg font-semibold text-amber-400 mb-2">Importante</h3>
                     <p className="text-slate-300">
                       Al firmar este acuerdo, aceptas mantener la confidencialidad de toda la información contenida en el documento. 
-                      Tu firma será registrada con sello de tiempo criptográfico y generará un certificado .ECO de trazabilidad forense.
+                      Tu firma será registrada con sello de tiempo y generará un certificado .ECO de trazabilidad.
                     </p>
                   </div>
                 </div>

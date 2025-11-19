@@ -10,7 +10,7 @@
 import * as ed from '@noble/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
-import { requestSimpleTimestamp } from './tsaService.js';
+import { requestLegalTimestamp } from './tsaService.js';
 // Note: We're not using pack() from eco-packer because it has Node.js dependencies
 // Instead, we'll create a simple .ecox format manually
 
@@ -137,7 +137,7 @@ export async function certifyFile(file, options = {}) {
     if (options.useLegalTimestamp) {
       console.log('🕐 Requesting RFC 3161 legal timestamp...');
       try {
-        tsaResponse = await requestSimpleTimestamp(hash);
+        tsaResponse = await requestLegalTimestamp(hash);
         if (tsaResponse.success) {
           timestamp = tsaResponse.timestamp;
           console.log('✅ Legal timestamp received from TSA');

@@ -1,139 +1,181 @@
 // client/src/lib/verificationService.js
-// Este archivo implementa las funciones de verificación de .ECO/.ECOX
+// Servicio de verificación REAL que conecta con Edge Functions de Supabase
+// NO utiliza mocks ni datos simulados
 
+import { supabase } from './supabaseClient';
+
+/**
+ * Verifica un archivo .ECO/.ECOX usando la Edge Function real
+ * @param {File} file - Archivo .ECO o .ECOX a verificar
+ * @returns {Promise<Object>} Resultado de verificación con datos reales
+ */
 export async function verifyEcoFile(file) {
-  return new Promise((resolve) => {
-    // Simulación de verificación de .ECO
-    // En una implementación real, aquí se leería el archivo .ECO
-    // y se verificarían los hashes, firmas y timestamps
-    
-    // Simular delay de verificación
-    setTimeout(() => {
-      try {
-        // Validar que sea un archivo .ECO/.ECOX
-        const fileName = file.name.toLowerCase();
-        if (!fileName.endsWith('.eco') && !fileName.endsWith('.ecox')) {
-          throw new Error('Formato de archivo no válido. Solo se aceptan .ECO y .ECOX');
-        }
-
-        // Simular análisis del archivo
-        const mockVerificationResult = {
-          valid: true,
-          fileName: file.name,
-          hash: generateMockHash(file.name),
-          timestamp: new Date().toISOString(),
-          timestampType: fileName.endsWith('.ecox') ? 'RFC 3161 Legal Timestamp' : 'Estándar',
-          anchorChain: fileName.endsWith('.ecox') ? 'bitcoin' : 'local',
-          signature: {
-            algorithm: 'Ed25519',
-            valid: true
-          },
-          documentIntegrity: true,
-          signatureValid: true,
-          timestampValid: true,
-          legalTimestamp: fileName.endsWith('.ecox') ? {
-            enabled: true,
-            standard: 'RFC 3161',
-            tsa: 'Verisign TSA'
-          } : {
-            enabled: false
-          }
-        };
-
-        resolve(mockVerificationResult);
-      } catch (error) {
-        resolve({
-          valid: false,
-          error: error.message
-        });
-      }
-    }, 1500); // Simular delay de 1.5 segundos
-  });
-}
-
-export async function verifyEcoWithOriginal(ecoFile, originalFile) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      try {
-        // Simular verificación byte-a-byte
-        const mockResult = {
-          valid: true,
-          fileName: ecoFile.name,
-          originalFileName: originalFile?.name || null,
-          hash: generateMockHash(ecoFile.name),
-          originalHash: originalFile ? generateMockHash(originalFile.name) : null,
-          timestamp: new Date().toISOString(),
-          timestampType: ecoFile.name.toLowerCase().endsWith('.ecox') ? 'RFC 3161 Legal Timestamp' : 'Estándar',
-          anchorChain: ecoFile.name.toLowerCase().endsWith('.ecox') ? 'bitcoin' : 'local',
-          signature: {
-            algorithm: 'Ed25519',
-            valid: true
-          },
-          documentIntegrity: true,
-          signatureValid: true,
-          timestampValid: true,
-          originalFileMatches: true, // Simular que el hash coincide con el del .ECO
-          legalTimestamp: ecoFile.name.toLowerCase().endsWith('.ecox') ? {
-            enabled: true,
-            standard: 'RFC 3161',
-            tsa: 'Verisign TSA'
-          } : {
-            enabled: false
-          }
-        };
-
-        resolve(mockResult);
-      } catch (error) {
-        resolve({
-          valid: false,
-          error: error.message
-        });
-      }
-    }, 2000);
-  });
-}
-
-function generateMockHash(fileName) {
-  // Generar un hash SHA-256 simulado basado en el nombre del archivo
-  const encoder = new TextEncoder();
-  const data = encoder.encode(fileName + Date.now());
-  
-  // En una implementación real, usaríamos crypto.subtle.digest
-  // Pero para fines de simulación, generamos un hash falso
-  const chars = 'abcdef0123456789';
-  let hash = '';
-  for (let i = 0; i < 64; i++) {
-    hash += chars.charAt(Math.floor(Math.random() * chars.length));
+  // Validar que sea un archivo .ECO/.ECOX
+  const fileName = file.name.toLowerCase();
+  if (!fileName.endsWith('.eco') && !fileName.endsWith('.ecox')) {
+    return {
+      valid: false,
+      error: 'Formato de archivo no válido. Solo se aceptan .ECO y .ECOX',
+      errors: ['Formato de archivo no válido'],
+      warnings: []
+    };
   }
-  return hash;
+
+  try {
+    // Crear FormData para enviar el archivo
+    const formData = new FormData();
+    formData.append('ecox', file);
+
+    // Llamar a la Edge Function real
+    const { data, error } = await supabase.functions.invoke('verify-ecox', {
+      body: formData
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Error al verificar el archivo');
+    }
+
+    if (!data) {
+      throw new Error('La verificación no devolvió datos');
+    }
+
+    // Transformar respuesta a formato compatible con UI existente
+    return {
+      valid: data.valid,
+      fileName: data.fileName || file.name,
+      hash: data.hash,
+      timestamp: data.timestamp,
+      timestampType: data.timestampType || 'Local',
+      anchorChain: data.legalTimestamp?.enabled ? 'legal' : 'local',
+      signature: {
+        algorithm: data.signature?.algorithm || 'Ed25519',
+        valid: data.signature?.valid || false
+      },
+      documentIntegrity: data.valid,
+      signatureValid: data.signature?.valid || false,
+      timestampValid: true,
+      legalTimestamp: data.legalTimestamp || { enabled: false },
+      manifest: data.manifest || null,
+      errors: data.errors || [],
+      warnings: data.warnings || []
+    };
+  } catch (error) {
+    console.error('Error de verificación:', error);
+    return {
+      valid: false,
+      error: error.message,
+      errors: [error.message],
+      warnings: []
+    };
+  }
 }
 
-// Función mejorada que combina verificación de .ECO con archivo original
+/**
+ * Verifica un archivo .ECO/.ECOX contra el documento original
+ * @param {File} ecoFile - Archivo .ECO o .ECOX
+ * @param {File} originalFile - Documento original para comparar huella digital
+ * @returns {Promise<Object>} Resultado de verificación completa
+ */
+export async function verifyEcoWithOriginal(ecoFile, originalFile) {
+  if (!ecoFile) {
+    return {
+      valid: false,
+      error: 'Archivo .ECO es requerido',
+      errors: ['Archivo .ECO es requerido'],
+      warnings: []
+    };
+  }
+
+  // Validar extensión
+  const fileName = ecoFile.name.toLowerCase();
+  if (!fileName.endsWith('.eco') && !fileName.endsWith('.ecox')) {
+    return {
+      valid: false,
+      error: 'Formato de archivo no válido. Solo se aceptan .ECO y .ECOX',
+      errors: ['Formato de archivo no válido'],
+      warnings: []
+    };
+  }
+
+  try {
+    // Crear FormData con ambos archivos
+    const formData = new FormData();
+    formData.append('ecox', ecoFile);
+    if (originalFile) {
+      formData.append('original', originalFile);
+    }
+
+    // Llamar a la Edge Function real
+    const { data, error } = await supabase.functions.invoke('verify-ecox', {
+      body: formData
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Error al verificar el archivo');
+    }
+
+    if (!data) {
+      throw new Error('La verificación no devolvió datos');
+    }
+
+    // Transformar respuesta
+    return {
+      valid: data.valid,
+      fileName: data.fileName || ecoFile.name,
+      originalFileName: originalFile?.name || null,
+      hash: data.hash,
+      originalHash: data.originalHash || null,
+      timestamp: data.timestamp,
+      timestampType: data.timestampType || 'Local',
+      anchorChain: data.legalTimestamp?.enabled ? 'legal' : 'local',
+      signature: {
+        algorithm: data.signature?.algorithm || 'Ed25519',
+        valid: data.signature?.valid || false
+      },
+      documentIntegrity: data.valid,
+      signatureValid: data.signature?.valid || false,
+      timestampValid: true,
+      originalFileMatches: data.originalFileMatches || false,
+      legalTimestamp: data.legalTimestamp || { enabled: false },
+      manifest: data.manifest || null,
+      errors: data.errors || [],
+      warnings: data.warnings || []
+    };
+  } catch (error) {
+    console.error('Error de verificación completa:', error);
+    return {
+      valid: false,
+      error: error.message,
+      errors: [error.message],
+      warnings: []
+    };
+  }
+}
+
+/**
+ * Función principal de verificación que combina ambos modos
+ * @param {File} ecoFile - Archivo .ECO o .ECOX
+ * @param {File|null} originalFile - Documento original (opcional)
+ * @returns {Promise<Object>} Resultado de verificación
+ */
 export async function verifyEcoFileComplete(ecoFile, originalFile = null) {
   if (!ecoFile) {
     throw new Error('Archivo .ECO es requerido');
   }
 
-  // Primero verificar el .ECO
-  const ecoResult = await verifyEcoFile(ecoFile);
-
-  if (!ecoResult.valid) {
-    return ecoResult;
-  }
-
   // Si se proporciona el archivo original, hacer verificación completa
   if (originalFile) {
-    const completeResult = await verifyEcoWithOriginal(ecoFile, originalFile);
-    return completeResult;
+    return await verifyEcoWithOriginal(ecoFile, originalFile);
   }
 
-  // Solo verificación parcial sin el archivo original
+  // Solo verificación del certificado
+  const result = await verifyEcoFile(ecoFile);
   return {
-    ...ecoResult,
+    ...result,
     originalFileProvided: false,
     originalFileMatches: null // No se puede verificar sin archivo original
   };
 }
 
-// Mantener compatibilidad con VerifyPage.jsx que importa verifyEcoxFile
+// Mantener compatibilidad con imports existentes
 export const verifyEcoxFile = verifyEcoFileComplete;

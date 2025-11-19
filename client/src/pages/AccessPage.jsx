@@ -1,7 +1,8 @@
 // client/src/pages/AccessPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { User, Mail, Building2, Briefcase, Lock, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import { User, Mail, Building2, Briefcase, Lock, Download, AlertCircle, CheckCircle, FileText } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 const AccessPage = () => {
   const { token } = useParams();
@@ -14,56 +15,74 @@ const AccessPage = () => {
     position: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [documentTitle, setDocumentTitle] = useState('');
+  const [linkData, setLinkData] = useState(null);
 
-  // Simular verificación del token al cargar
+  // Verificar token al cargar usando Edge Function real
   useEffect(() => {
     const verifyToken = async () => {
-      try {
-        // Simular llamada para verificar token
-        // En una implementación real, esto verificaría el token en el backend
-        const mockResponse = {
-          success: true,
-          requiresNDA: true, // Simular que requiere NDA
-          documentTitle: 'Documento de Ejemplo.pdf'
-        };
+      if (!token) {
+        setError('Token no proporcionado');
+        setIsLoading(false);
+        return;
+      }
 
-        if (mockResponse.success) {
-          setRequireNDA(mockResponse.requiresNDA);
-          setDocumentTitle(mockResponse.documentTitle);
-          
-          if (mockResponse.requiresNDA) {
-            setShowForm(true);
-          }
+      try {
+        // Llamar a verify-access para validar el token
+        const { data, error: verifyError } = await supabase.functions.invoke('verify-access', {
+          body: { token }
+        });
+
+        if (verifyError) {
+          throw new Error(verifyError.message || 'Error de verificación');
+        }
+
+        if (!data?.success) {
+          throw new Error(data?.error || 'Token inválido o expirado');
+        }
+
+        // Token válido - configurar estado
+        setLinkData(data);
+        setRequireNDA(data.require_nda);
+        setDocumentTitle(data.document_title || 'Documento protegido');
+
+        if (data.require_nda && !data.nda_accepted) {
+          setShowForm(true);
+        } else {
+          // NDA ya aceptado o no requerido - acceso directo
+          setDownloadUrl(data.download_url || '');
+          setSuccess(true);
         }
       } catch (err) {
-        setError('Token inválido o expirado');
+        console.error('Token verification error:', err);
+        setError(err.message || 'Token inválido o expirado');
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    if (token) {
-      verifyToken();
-    }
+    verifyToken();
   }, [token]);
 
   const validateFormData = () => {
     if (!formData.name.trim()) return 'Nombre es requerido';
     if (!formData.email.trim()) return 'Email es requerido';
     if (!formData.company.trim()) return 'Empresa es requerida';
-    
+
     // Validar email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) return 'Email inválido';
-    
+
     return null;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const validationError = validateFormData();
     if (validationError) {
       setError(validationError);
@@ -74,34 +93,34 @@ const AccessPage = () => {
     setError('');
 
     try {
-      const response = await fetch('/.netlify/functions/access-document', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Llamar a accept-nda Edge Function real
+      const { data, error: acceptError } = await supabase.functions.invoke('accept-nda', {
+        body: {
           token,
-          formData: {
+          acceptor: {
             name: formData.name.trim(),
             email: formData.email.trim(),
             company: formData.company.trim(),
-            position: formData.position.trim()
-          },
-          csrfToken: 'mock-csrf-token' // En implementación real, obtener de forma segura
-        })
+            position: formData.position.trim() || null
+          }
+        }
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al acceder al documento');
+      if (acceptError) {
+        throw new Error(acceptError.message || 'Error al aceptar NDA');
       }
 
-      setDownloadUrl(data.downloadUrl);
-      setDocumentTitle(data.documentTitle);
+      if (!data?.success) {
+        throw new Error(data?.error || 'Error al procesar la aceptación');
+      }
+
+      // NDA aceptado exitosamente
+      setDownloadUrl(data.download_url || '');
+      setDocumentTitle(data.document_title || documentTitle);
       setSuccess(true);
     } catch (err) {
-      setError(err.message);
+      console.error('NDA acceptance error:', err);
+      setError(err.message || 'Error al aceptar el NDA');
     } finally {
       setIsSubmitting(false);
     }
@@ -112,6 +131,19 @@ const AccessPage = () => {
       window.open(downloadUrl, '_blank');
     }
   };
+
+  // Estado de carga inicial
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
+          <div className="w-12 h-12 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Verificando acceso...</h2>
+          <p className="text-gray-600">Por favor espere mientras validamos su enlace</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error && !showForm) {
     return (

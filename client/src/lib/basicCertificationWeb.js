@@ -11,8 +11,9 @@ import * as ed from '@noble/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import JSZip from 'jszip';
-import { requestSimpleTimestamp } from './tsaService.js';
+import { requestLegalTimestamp } from './tsaService.js';
 import { requestBitcoinAnchor } from './opentimestamps';
+import { anchorToPolygon } from './polygonAnchor.js';
 
 /**
  * Reads a file and returns its ArrayBuffer
@@ -44,8 +45,8 @@ export async function generateKeys() {
 }
 
 /**
- * Calculates SHA-256 hash (browser-compatible)
- * @param {Uint8Array} data - Data to hash
+ * Calculates digital fingerprint (browser-compatible)
+ * @param {Uint8Array} data - Data to fingerprint
  * @returns {string} Hex string
  */
 function calculateSHA256(data) {
@@ -113,10 +114,10 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
       signature: signature,
       algorithm: 'Ed25519',
       timestamp: timestamp,
-      // RFC 3161 legal timestamp (if requested)
+      // Legal timestamp certification (if requested)
       ...(options.tsaResponse && options.tsaResponse.success ? {
         legalTimestamp: {
-          standard: 'RFC 3161',
+          standard: 'Legal Certification',
           tsa: options.tsaResponse.tsaName || options.tsaResponse.tsaUrl,
           tsaUrl: options.tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
           token: options.tsaResponse.token,
@@ -143,7 +144,7 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
     createdWith: 'VerifySign Web Client',
     browserVersion: navigator.userAgent,
     hasLegalTimestamp: options.tsaResponse && options.tsaResponse.success,
-    timestampType: options.tsaResponse && options.tsaResponse.success ? 'RFC 3161 (Legal)' : 'Local (Informational)'
+    timestampType: options.tsaResponse && options.tsaResponse.success ? 'Legal Certification' : 'Local (Informational)'
   };
   zip.file('metadata.json', JSON.stringify(metadata, null, 2));
 
@@ -161,9 +162,9 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
  * @param {string} options.publicKey - Hex-encoded public key (optional)
  * @param {string} options.userId - User ID (optional)
  * @param {string} options.userEmail - User email (optional)
- * @param {boolean} options.useLegalTimestamp - Request RFC 3161 timestamp (default: false)
- * @param {boolean} options.useBitcoinAnchor - Request Bitcoin anchoring (default: false)
- * @returns {Promise<Object>} Certification result with hash, timestamp, and .ecox data
+ * @param {boolean} options.useLegalTimestamp - Request legal timestamp certification (default: false)
+ * @param {boolean} options.useBitcoinAnchor - Request public verification (default: false)
+ * @returns {Promise<Object>} Certification result with fingerprint, timestamp, and .ecox data
  */
 export async function certifyFile(file, options = {}) {
   try {
@@ -176,9 +177,9 @@ export async function certifyFile(file, options = {}) {
     const fileArray = new Uint8Array(fileBuffer);
     console.log('✅ File read successfully');
 
-    // Step 2: Calculate SHA-256 hash
-    const hash = calculateSHA256(fileArray);
-    console.log('✅ Hash calculated:', hash);
+    // Step 2: Calculate digital fingerprint
+    const hash = calculateSHA256(fileArray); // "hash" is kept as variable name for code compatibility
+    console.log('✅ Fingerprint calculated:', hash);
 
     // Step 3: Generate or use provided keys
     let privateKeyHex, publicKeyHex;
@@ -193,14 +194,14 @@ export async function certifyFile(file, options = {}) {
     console.log('✅ Keys ready');
     console.log('  Public key (hex):', publicKeyHex.substring(0, 32) + '...');
 
-    // Step 4: Create timestamp (with optional RFC 3161 legal timestamp)
+    // Step 4: Create timestamp (with optional legal timestamp certification)
     let timestamp = new Date().toISOString();
     let tsaResponse = null;
 
     if (options.useLegalTimestamp) {
-      console.log('🕐 Requesting RFC 3161 legal timestamp...');
+      console.log('🕐 Requesting legal timestamp certification...');
       try {
-        tsaResponse = await requestSimpleTimestamp(hash);
+        tsaResponse = await requestLegalTimestamp(hash);
         if (tsaResponse.success) {
           timestamp = tsaResponse.timestamp;
           console.log('✅ Legal timestamp received from TSA');
@@ -285,6 +286,9 @@ export async function certifyFile(file, options = {}) {
     console.log('✅ .ecox file created:', ecoxBuffer.byteLength, 'bytes');
 
     let anchorJob = null;
+    let polygonAnchor = null;
+
+    // Bitcoin Anchoring (OpenTimestamps - 4-24h)
     if (options.useBitcoinAnchor) {
       try {
         console.log('🔗 Requesting Bitcoin anchoring (OpenTimestamps)...');
@@ -312,6 +316,35 @@ export async function certifyFile(file, options = {}) {
       }
     }
 
+    // Polygon Anchoring (Instant - 10-30s)
+    if (options.usePolygonAnchor) {
+      try {
+        console.log('🔗 Requesting Polygon anchoring (Mainnet)...');
+        console.log('⏱️  This process takes 10-30 seconds for blockchain confirmation');
+
+        polygonAnchor = await anchorToPolygon(hash, {
+          documentId: projectId,
+          userId: options.userId || null,
+          userEmail: options.userEmail || null,
+          metadata: {
+            requestedFrom: 'certifyFile',
+            documentName: file.name,
+            requestedPolygonAnchor: true
+          }
+        });
+
+        if (polygonAnchor?.success) {
+          console.log('✅ Polygon anchoring confirmed');
+          console.log(`🔍 Transaction: ${polygonAnchor.explorerUrl}`);
+          console.log(`📦 Block: ${polygonAnchor.blockNumber}`);
+        } else {
+          console.warn('⚠️ Polygon anchoring queued (pending confirmation)');
+        }
+      } catch (anchorError) {
+        console.warn('⚠️ Polygon anchoring request failed:', anchorError);
+      }
+    }
+
     // Create signatures structure for DB storage
     const signaturesData = [
       {
@@ -321,10 +354,10 @@ export async function certifyFile(file, options = {}) {
         signature: signature,
         algorithm: 'Ed25519',
         timestamp: timestamp,
-        // RFC 3161 legal timestamp (if requested)
+        // Legal timestamp certification (if requested)
         ...(tsaResponse && tsaResponse.success ? {
           legalTimestamp: {
-            standard: 'RFC 3161',
+            standard: 'Legal Certification',
             tsa: tsaResponse.tsaName || tsaResponse.tsaUrl,
             tsaUrl: tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
             token: tsaResponse.token,
@@ -345,7 +378,7 @@ export async function certifyFile(file, options = {}) {
         createdWith: 'VerifySign Web Client',
         browserVersion: navigator.userAgent,
         hasLegalTimestamp: tsaResponse && tsaResponse.success,
-        timestampType: tsaResponse && tsaResponse.success ? 'RFC 3161 (Legal)' : 'Local (Informational)',
+        timestampType: tsaResponse && tsaResponse.success ? 'Legal Certification' : 'Local (Informational)',
         certifiedAt: timestamp
       }
     };
@@ -363,11 +396,13 @@ export async function certifyFile(file, options = {}) {
       ecoxBuffer: ecoxBuffer,
       ecoxSize: ecoxBuffer.byteLength,
       ecoData: ecoData,  // Structured data for DB storage
-      anchorRequest: anchorJob,
+      // Blockchain anchoring
+      bitcoinAnchor: anchorJob,
+      polygonAnchor: polygonAnchor,
       // Legal timestamp info (if requested)
       legalTimestamp: tsaResponse && tsaResponse.success ? {
         enabled: true,
-        standard: 'RFC 3161',
+        standard: 'Legal Certification',
         tsa: tsaResponse.tsaName || tsaResponse.tsaUrl,
         tokenSize: tsaResponse.tokenSize
       } : {

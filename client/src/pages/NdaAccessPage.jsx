@@ -299,7 +299,7 @@ function NdaAccessPage() {
             </div>
 
             <p className="text-xs text-gray-500 mt-4">
-              🔒 Tu aceptación se registra con firma criptográfica para garantizar no-repudiación.
+              🔒 Tu aceptación se registra con firma digital para garantizar no-repudiación.
             </p>
           </div>
         )}

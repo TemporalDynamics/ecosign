@@ -25,7 +25,7 @@ function PricingPage() {
         'Documentos ilimitados',
         'Accesos ilimitados con NDA',
         'Certificados .ECO y .ECOX',
-        'Anclaje en blockchain',
+        'Verificación pública',
         'Panel de control avanzado',
         'Soporte prioritario'
       ],
@@ -135,13 +135,13 @@ function PricingPage() {
             <div>
               <h3 className="text-lg font-semibold text-cyan-700 mb-2">¿Qué es un certificado .ECO?</h3>
               <p className="text-gray-700 leading-relaxed">
-                El estándar .ECO es un formato de certificación digital que combina hash SHA-256, timestamp criptográfico y firma digital para crear pruebas de existencia, integridad y autoría verificables de forma independiente.
+                El estándar .ECO es un formato de certificación digital que combina huella digital, sello de tiempo y firma electrónica para crear pruebas de existencia, integridad y autoría verificables de forma independiente.
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-cyan-700 mb-2">¿Cómo funciona el anclaje en blockchain?</h3>
+              <h3 className="text-lg font-semibold text-cyan-700 mb-2">¿Cómo funciona la verificación pública?</h3>
               <p className="text-gray-700 leading-relaxed">
-                Después de generar el hash de tu documento, lo registramos en la cadena de bloques Polygon como prueba inmutable de la existencia del documento en un momento específico.
+                Después de generar la huella digital de tu documento, la registramos en la red pública como prueba duradera de la existencia del documento en un momento específico.
               </p>
             </div>
             <div>

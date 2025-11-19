@@ -218,7 +218,7 @@ body { background: --bg-main; }
         VerifySign
       </h1>
       <p className="text-sm text-text-muted text-center mb-8">
-        Plataforma de certificación digital con trazabilidad forense.
+        Plataforma de certificación digital con verificación transparente.
       </p>
       
       {/* Formulario */}
@@ -305,7 +305,7 @@ body { background: --bg-main; }
         Hola, Manu.
       </h1>
       <p className="text-sm text-text-muted mb-6">
-        Sellá tus documentos, controla cada NDA y verifica tus certificados desde un solo panel.
+        Protegé tus documentos, controla cada NDA y verifica tus certificados desde un solo panel.
       </p>
       
       {/* Botones alineados */}
@@ -323,18 +323,18 @@ body { background: --bg-main; }
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
       {/* Card KPI */}
       <div className="bg-white border border-border-soft rounded-xl p-4">
-        <p className="text-xs text-text-muted mb-1">Documentos certificados</p>
+        <p className="text-xs text-text-muted mb-1">Documentos verificados</p>
         <p className="text-2xl font-semibold text-text-main">0</p>
         <p className="text-xs text-text-muted mt-1">Total guardados</p>
       </div>
       
-      {/* Repetir para: Firmados legalmente, Legal Timestamps, Anclajes Bitcoin */}
+      {/* Repetir para: Firmados legalmente, Sellos de tiempo legales, Verificaciones públicas */}
     </div>
     
-    {/* Panel de Certificaciones */}
+    {/* Panel de Verificaciones */}
     <section className="mb-10">
       <h2 className="text-2xl font-semibold text-text-main mb-4">
-        Estado de tus certificaciones
+        Estado de tus verificaciones
       </h2>
       
       {/* Error (si existe) */}
@@ -411,7 +411,7 @@ body { background: --bg-main; }
         </button>
       </div>
       <p className="text-sm text-text-muted">
-        4 pasos sencillos para generar tu certificado .ECO.
+        4 pasos sencillos para generar tu archivo .ECO.
       </p>
     </div>
     
@@ -548,13 +548,18 @@ body { background: --bg-main; }
     <button className="w-full bg-accent text-white px-5 py-3 rounded-full font-medium text-sm hover:bg-accent-hover mt-6">
       Firmar con SignNow
     </button>
-    
+
+    {/* Micro-copy tranquilizador */}
+    <div className="text-xs text-text-muted text-center mt-3">
+      Al firmar, recibirás el documento firmado y tu constancia digital por email. Solo vos decidís con quién compartirlos.
+    </div>
+
     {/* Link alternativo */}
     <button className="w-full text-sm text-accent hover:underline mt-3">
-      Continuar solo con certificación (sin firma legal)
+      Continuar solo con verificación (sin firma legal)
     </button>
   </div>
-  
+
 </div>
 ```
 
@@ -567,11 +572,11 @@ body { background: --bg-main; }
     Elegí cómo querés sellar tu documento:
   </p>
   
-  {/* Opción 1: Timestamp */}
+  {/* Opción 1: Sello de tiempo */}
   <div className="border border-border-soft rounded-lg px-4 py-3 flex items-center justify-between hover:border-accent transition-colors">
     <div className="flex-1">
       <p className="text-sm font-medium text-text-main mb-1">
-        🕐 Timestamp con validez legal (RFC 3161)
+        🕐 Sello de tiempo con validez legal
       </p>
       <p className="text-xs text-text-muted">
         Sella la hora exacta en un servidor auditado.
@@ -583,14 +588,14 @@ body { background: --bg-main; }
     </label>
   </div>
   
-  {/* Opción 2: Blockchain */}
+  {/* Opción 2: Verificación pública */}
   <div className="border border-border-soft rounded-lg px-4 py-3 flex items-center justify-between hover:border-accent transition-colors">
     <div className="flex-1">
       <p className="text-sm font-medium text-text-main mb-1">
-        🔗 Anclaje en blockchain pública
+        🔗 Verificación pública
       </p>
       <p className="text-xs text-text-muted">
-        Hash registrado en blockchain pública.
+        Huella digital registrada en registro público.
       </p>
       <p className="text-xs text-warning mt-1">
         ⏱️ Proceso: 4-24 horas • Recibirás email cuando esté confirmado.
@@ -620,7 +625,7 @@ body { background: --bg-main; }
   
   {/* Botón final */}
   <button className="w-full bg-accent text-white px-5 py-3 rounded-full font-medium text-sm hover:bg-accent-hover mt-6">
-    Generar certificado
+    Generar archivo .ECO
   </button>
   
 </div>
@@ -672,7 +677,7 @@ body { background: --bg-main; }
       {/* Input 2 */}
       <div>
         <label className="block text-sm font-medium text-text-main mb-2">
-          Certificado .ECO
+          Archivo .ECO
         </label>
         <div className="border-2 border-dashed border-border-soft rounded-lg py-8 text-center hover:border-accent transition-colors cursor-pointer">
           <FileIcon className="w-8 h-8 text-accent mx-auto mb-2" />
@@ -693,7 +698,7 @@ body { background: --bg-main; }
           <div>
             <p className="text-sm font-medium text-text-main">Coincide</p>
             <p className="text-xs text-text-muted mt-1">
-              Este documento es idéntico al que se certificó con este archivo .ECO.
+              Este documento es idéntico al que se verificó con este archivo .ECO.
             </p>
           </div>
         </div>
@@ -706,7 +711,7 @@ body { background: --bg-main; }
           <div>
             <p className="text-sm font-medium text-text-main">No coincide</p>
             <p className="text-xs text-text-muted mt-1">
-              El documento no es igual al que se certificó con este archivo .ECO.
+              El documento no es igual al que se verificó con este archivo .ECO.
             </p>
           </div>
         </div>
@@ -775,7 +780,7 @@ body { background: --bg-main; }
           Privacidad total
         </h3>
         <p className="text-sm text-text-muted">
-          Solo el hash se registra públicamente. Tu contenido nunca se expone.
+          Solo la huella digital se registra públicamente. Tu contenido nunca se expone.
         </p>
       </div>
       
@@ -785,10 +790,10 @@ body { background: --bg-main; }
           <ClockIcon className="w-6 h-6 text-accent" />
         </div>
         <h3 className="text-lg font-semibold text-text-main mb-2">
-          Timestamp legal
+          Sello de tiempo legal
         </h3>
         <p className="text-sm text-text-muted">
-          Certificado RFC 3161 que prueba la hora exacta de creación.
+          Certificación que prueba la hora exacta de creación.
         </p>
       </div>
       
@@ -798,10 +803,10 @@ body { background: --bg-main; }
           <LinkIcon className="w-6 h-6 text-accent" />
         </div>
         <h3 className="text-lg font-semibold text-text-main mb-2">
-          Anclaje blockchain
+          Verificación pública
         </h3>
         <p className="text-sm text-text-muted">
-          Hash inmutable en Bitcoin, Ethereum y Arweave.
+          Huella digital inmutable en redes públicas.
         </p>
       </div>
       
@@ -845,7 +850,7 @@ body { background: --bg-main; }
           Firmás en un solo paso
         </h3>
         <p className="text-sm text-text-muted">
-          Firma legal con proveedores eIDAS/ESIGN o solo certificación.
+          Firma legal con proveedores eIDAS/ESIGN o solo verificación.
         </p>
       </div>
       
@@ -858,7 +863,7 @@ body { background: --bg-main; }
           Sellás tu evidencia
         </h3>
         <p className="text-sm text-text-muted">
-          Timestamp + anclaje blockchain + tracking opcional.
+          Sello de tiempo + verificación pública + tracking opcional.
         </p>
       </div>
       
@@ -900,14 +905,14 @@ body { background: --bg-main; }
         </div>
         <div>
           <h3 className="text-xl font-semibold text-text-main mb-3">
-            Generamos tu hash único
+            Generamos tu huella digital única
           </h3>
           <p className="text-text-muted mb-4">
-            Calculamos el hash SHA-256 de tu archivo. Este "fingerprint" digital es único e irrepetible: si cambiás un solo píxel, el hash cambia completamente.
+            Calculamos la huella digital de tu archivo. Esta identidad digital es única e irrepetible: si cambiás un solo píxel, la huella cambia completamente.
           </p>
           <div className="border-l-4 border-accent bg-accent-soft/30 p-4 rounded-r-lg">
             <p className="text-sm text-text-main">
-              El hash es como tu huella digital: identifica el archivo sin revelar su contenido.
+              La huella digital es como tu huella: identifica el archivo sin revelar su contenido.
             </p>
           </div>
         </div>
@@ -920,23 +925,43 @@ body { background: --bg-main; }
         </div>
         <div>
           <h3 className="text-xl font-semibold text-text-main mb-3">
-            Sellamos el timestamp
+            Múltiples firmas, en orden y sin fricción
           </h3>
           <p className="text-text-muted mb-4">
-            Consultamos un servidor Time Stamp Authority (TSA) certificado RFC 3161. Esto prueba que tu archivo existía en ese momento exacto.
+            ¿Necesitás que varias personas firmen el mismo documento? También podés hacerlo. Cargás los correos en el orden que necesites.
           </p>
           <div className="border-l-4 border-accent bg-accent-soft/30 p-4 rounded-r-lg">
             <p className="text-sm text-text-main">
-              El timestamp es legalmente válido en más de 100 países bajo convenios internacionales.
+              Cuando A firma → el sistema envía el documento firmado a B → luego a C → y así sucesivamente.
             </p>
           </div>
         </div>
       </div>
-      
+
       {/* Punto 5 */}
       <div className="flex gap-6">
         <div className="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center flex-shrink-0">
           <span className="text-accent font-semibold">5</span>
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold text-text-main mb-3">
+            Sellamos el sello de tiempo
+          </h3>
+          <p className="text-text-muted mb-4">
+            Consultamos un servidor certificado de autoridad de fechas. Esto prueba que tu archivo existía en ese momento exacto.
+          </p>
+          <div className="border-l-4 border-accent bg-accent-soft/30 p-4 rounded-r-lg">
+            <p className="text-sm text-text-main">
+              El sello de tiempo es legalmente válido en más de 100 países bajo convenios internacionales.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Punto 6 */}
+      <div className="flex gap-6">
+        <div className="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center flex-shrink-0">
+          <span className="text-accent font-semibold">6</span>
         </div>
         <div>
           <h3 className="text-xl font-semibold text-text-main mb-3">
@@ -950,27 +975,27 @@ body { background: --bg-main; }
               ¿Qué pasa si alguien modifica los archivos?
             </p>
             <p className="text-sm text-text-main">
-              Si alguien los manipula fuera de aquí, el certificado deja en evidencia la diferencia. El hash original no coincidirá.
+              Si alguien los manipula fuera de aquí, el archivo .ECO deja en evidencia la diferencia. La huella original no coincidirá.
             </p>
           </div>
         </div>
       </div>
-      
-      {/* Punto 6 */}
+
+      {/* Punto 7 */}
       <div className="flex gap-6">
         <div className="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center flex-shrink-0">
-          <span className="text-accent font-semibold">6</span>
+          <span className="text-accent font-semibold">7</span>
         </div>
         <div>
           <h3 className="text-xl font-semibold text-text-main mb-3">
-            Anclamos en blockchain pública (opcional)
+            Verificación pública (opcional)
           </h3>
           <p className="text-text-muted mb-4">
-            Registramos tu hash en Bitcoin, Ethereum y Arweave. Una vez anclado, es permanente e imposible de alterar.
+            Registramos tu huella digital en redes públicas. Una vez registrada, es permanente e imposible de alterar.
           </p>
           <div className="border-l-4 border-accent bg-accent-soft/30 p-4 rounded-r-lg">
             <p className="text-sm text-text-main">
-              El anclaje tarda 4-24 horas. Te avisamos por email cuando esté confirmado. Podés verificarlo en exploradores públicos como Blockchain.com.
+              La verificación pública tarda 4-24 horas. Te avisamos por email cuando esté confirmada. Podés verificarlo en exploradores públicos.
             </p>
           </div>
         </div>
@@ -1141,7 +1166,7 @@ client/src/components/ui/
     Hola, Manu.
   </h1>
   <p className="text-sm text-text-muted mb-6">
-    Sellá tus documentos, controla cada NDA y verifica tus certificados.
+    Protegé tus documentos, controla cada NDA y verifica tus verificaciones.
   </p>
   <div className="flex gap-3">
     <button className="bg-accent text-white px-5 py-2.5 rounded-full hover:bg-accent-hover">
@@ -1228,8 +1253,148 @@ Al finalizar, VerifySign tendrá:
 
 ---
 
-**Preparado por:** GitHub Copilot CLI  
-**Fecha:** 2025-11-17  
+## 8. EXPERIENCIA PARTY B - FIRMA TRANSPARENTE
+
+### 🛡️ "Acuerdo de Transparencia" Modal (Antes de firmar)
+
+**Objetivo:** Informar al firmante sobre la generación de su certificado .ECO privado antes de firmar
+
+```jsx
+<div className="fixed inset-0 bg-black/40 flex items-center justify-center p-6 z-50">
+  <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+
+    {/* Header */}
+    <div className="flex items-start gap-3 mb-4">
+      <Shield className="w-6 h-6 text-accent mt-1" />
+      <div>
+        <h2 className="text-lg font-semibold text-text-main mb-2">
+          Antes de firmar
+        </h2>
+        <p className="text-sm text-text-muted">
+          Para protegerte, VerifySign generará una copia firmada del documento y una constancia digital que te enviaremos a tu correo.
+        </p>
+      </div>
+    </div>
+
+    {/* Content */}
+    <div className="bg-bg-soft rounded-lg p-4 mb-6">
+      <p className="text-sm font-medium text-text-main mb-2">Esto significa que:</p>
+      <ul className="text-sm text-text-muted space-y-2">
+        <li className="flex items-start gap-2">
+          <span className="text-accent mt-1 flex-shrink-0">•</span>
+          <span>Tu documento no se almacena públicamente.</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-accent mt-1 flex-shrink-0">•</span>
+          <span>Tu firma se usa solo para este documento.</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-accent mt-1 flex-shrink-0">•</span>
+          <span>Recibís una constancia digital para que puedas demostrar lo que firmaste.</span>
+        </li>
+      </ul>
+    </div>
+
+    {/* Footer */}
+    <div className="flex justify-end gap-3">
+      <button className="border border-border-soft text-text-main bg-white px-5 py-2.5 rounded-full font-medium text-sm hover:bg-bg-soft">
+        Cancelar
+      </button>
+      <button className="bg-accent text-white px-5 py-2.5 rounded-full font-medium text-sm hover:bg-accent-hover">
+        Continuar
+      </button>
+    </div>
+
+  </div>
+</div>
+```
+
+### ✍️ Modal de Firma con Copy Tranquilizador
+
+**Objetivo:** Incluir micro-copy tranquilizador en el modal de firma
+
+```jsx
+{/* Micro-copy tranquilizador en el modal de firma */}
+<div className="text-xs text-text-muted text-center mt-4">
+  Al firmar, recibirás el documento firmado y tu constancia digital por email. Solo vos decidís con quién compartirlos.
+</div>
+```
+
+### ✅ Pantalla de Éxito para Party B
+
+**Objetivo:** Confirmar al firmante que su firma fue exitosa y qué recibirá
+
+```jsx
+<div className="min-h-screen bg-bg-main flex items-center justify-center px-6">
+  <div className="w-full max-w-md">
+    <div className="bg-white border border-border-soft rounded-xl shadow-sm p-8 text-center">
+
+      {/* Success Icon */}
+      <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
+        <CheckCircle className="w-8 h-8 text-success" />
+      </div>
+
+      <h1 className="text-xl font-semibold text-text-main mb-4">
+        ¡Firma realizada con éxito!
+      </h1>
+
+      <p className="text-sm text-text-muted mb-6">
+        Ya enviamos a tu email:
+      </p>
+
+      <div className="text-left space-y-3 mb-8">
+        <div className="flex items-start gap-3">
+          <Check className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
+          <span className="text-sm text-text-main">El documento firmado</span>
+        </div>
+        <div className="flex items-start gap-3">
+          <Check className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
+          <span className="text-sm text-text-main">Tu constancia digital (archivo .ECO)</span>
+        </div>
+      </div>
+
+      <p className="text-xs text-text-muted mb-6">
+        Podés cerrar esta ventana.
+        <br />
+        Si necesitás algo, buscá el email en tu bandeja.
+      </p>
+
+      <button className="w-full bg-accent text-white px-5 py-2.5 rounded-full font-medium text-sm hover:bg-accent-hover">
+        Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+```
+
+### ✉️ Email Template para Party B
+
+**Objetivo:** Email que recibe el firmante con su documento firmado y constancia digital
+
+```html
+Asunto: Tu documento firmado y tu constancia digital
+
+Cuerpo:
+
+Hola [Nombre],
+
+Ya firmaste el documento [nombre].
+
+Adjuntamos:
+✔ Tu copia firmada
+✔ Tu constancia digital (.ECO), que sirve como comprobante para demostrar qué versión del documento aceptaste.
+
+Nadie puede ver tus archivos desde VerifySign.
+Solo vos decidís con quién compartirlos.
+
+Gracias,
+VerifySign
+```
+
+---
+
+**Preparado por:** GitHub Copilot CLI
+**Fecha:** 2025-11-17
 **Status:** ✅ LISTO PARA IMPLEMENTAR
 
 **¡A unificar la experiencia!** 🎨✨

@@ -208,9 +208,9 @@ function VerifyPage() {
             <div>
               <h3 className="text-gray-900 font-semibold mb-2">Verificación Independiente y Transparente</h3>
               <p className="text-gray-700 text-sm">
-                Esta herramienta valida la firma criptográfica, hash SHA-256 y timestamp del documento.
-                La verificación se realiza localmente en tu navegador - el archivo nunca se sube a nuestros servidores.
-                Para máxima confianza, puedes verificar el anclaje en blockchain de forma independiente.
+                Esta herramienta valida la firma electrónica, huella digital y sello de tiempo del documento.
+                La verificación se realiza localmente en tu navegador - el archivo nunca se guarda en nuestros servidores.
+                Para máxima confianza, puedes verificar la constancia pública de forma independiente.
               </p>
             </div>
           </div>
@@ -322,7 +322,7 @@ function VerifyPage() {
           {verifying && (
             <div className="mt-6 text-center">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-600 mb-4"></div>
-              <p className="text-gray-700">Verificando integridad criptográfica...</p>
+              <p className="text-gray-700">Verificando integridad digital...</p>
             </div>
           )}
         </div>
@@ -370,7 +370,7 @@ function VerifyPage() {
                   <Lock className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <h4 className="text-gray-900 font-semibold mb-1">Firma Criptográfica</h4>
+                  <h4 className="text-gray-900 font-semibold mb-1">Firma Electrónica</h4>
                   <p className="text-gray-600 text-sm">
                     Comprueba que el certificado proviene de VerifySign y no fue adulterado.
                   </p>
@@ -383,7 +383,7 @@ function VerifyPage() {
                   <Shield className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <h4 className="text-gray-900 font-semibold mb-1">Hash de Integridad</h4>
+                  <h4 className="text-gray-900 font-semibold mb-1">Huella de Integridad</h4>
                   <p className="text-gray-600 text-sm">
                     Detecta si el archivo cambió aunque sea 1 byte desde la certificación.
                   </p>
@@ -409,7 +409,7 @@ function VerifyPage() {
                   <Anchor className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <h4 className="text-gray-900 font-semibold mb-1">Anclaje Blockchain</h4>
+                  <h4 className="text-gray-900 font-semibold mb-1">Verificación Pública</h4>
                   <p className="text-gray-600 text-sm">
                     Permite validar la prueba sin depender de VerifySign ni de nuestros servidores.
                   </p>

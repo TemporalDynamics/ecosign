@@ -184,7 +184,7 @@ const CertificationFlow = ({ onClose }) => {
                 Firmá con SignNow para que tu documento tenga <strong>validez legal internacional</strong>:
               </p>
               <ul className="text-xs space-y-1 ml-4 list-disc">
-                <li>Audit trail completo (IP, timestamp, dispositivo)</li>
+                <li>Audit trail completo (IP, hora, dispositivo)</li>
                 <li>Válido en 100+ países (ESIGN, eIDAS, UETA)</li>
                 <li>Certificate of Completion tamper-proof</li>
                 <li>No-repudiación: el firmante no puede negar la firma</li>
@@ -205,7 +205,7 @@ const CertificationFlow = ({ onClose }) => {
                 <strong>⚠️ Solo Certificación (sin firma legal)</strong>
               </p>
               <p className="text-xs text-yellow-700 mb-3">
-                Si saltás este paso, tu documento tendrá un certificado .ECO con timestamp y hash,
+                Si saltás este paso, tu documento tendrá un certificado .ECO con sello de tiempo y huella digital,
                 pero <strong>NO tendrá validez legal</strong> como documento firmado.
               </p>
               <button
@@ -235,9 +235,9 @@ const CertificationFlow = ({ onClose }) => {
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
               <div>
                 <h4 className="text-gray-900 font-semibold flex items-center">
-                  ⚖️ Timestamp con validez legal (RFC 3161)
+                  ⚖️ Sello de tiempo con validez legal
                 </h4>
-                <p className="text-sm text-gray-600">Certificado por Time Stamp Authority</p>
+                <p className="text-sm text-gray-600">Certificado por autoridad de fechas</p>
               </div>
               <button
                 onClick={() => setUseLegalTimestamp(!useLegalTimestamp)}
@@ -256,9 +256,9 @@ const CertificationFlow = ({ onClose }) => {
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border-2 border-amber-200">
               <div className="flex-1">
                 <h4 className="text-gray-900 font-semibold flex items-center">
-                  🔗 Anclaje en Bitcoin
+                  🔗 Verificación pública
                 </h4>
-                <p className="text-sm text-gray-600">Hash registrado en blockchain pública</p>
+                <p className="text-sm text-gray-600">Huella registrada en registro público</p>
                 {useBitcoinAnchor && (
                   <div className="mt-2 text-xs text-amber-700 bg-amber-100 rounded px-2 py-1">
                     ⏱️ Proceso: 4-24 horas • Recibirás email cuando esté confirmado
@@ -350,8 +350,8 @@ const CertificationFlow = ({ onClose }) => {
               <div className="border border-emerald-200 rounded-lg p-4">
                 <Shield className="w-6 h-6 text-emerald-500 mb-2" />
                 <h5 className="font-semibold text-gray-900">Certificado .ECO</h5>
-                <p className="text-sm text-gray-600">Hash: {certResult.hash}</p>
-                <p className="text-sm text-gray-600">Timestamp: {new Date(certResult.timestamp).toLocaleString()}</p>
+                <p className="text-sm text-gray-600">Huella: {certResult.hash}</p>
+                <p className="text-sm text-gray-600">Sello de tiempo: {new Date(certResult.timestamp).toLocaleString()}</p>
               </div>
             </div>
 

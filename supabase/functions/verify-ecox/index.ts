@@ -71,24 +71,58 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
   const errors: string[] = []
   const warnings: string[] = []
 
-  // Load ZIP
-  const zip = await JSZip.loadAsync(fileBuffer)
+  let manifest: any
+  let signatures: any[]
+  let metadata: any
+  let manifestJson: string
 
-  // Extract manifest.json
-  const manifestFile = zip.file('manifest.json')
-  if (!manifestFile) {
-    throw new Error('Archivo .ECOX corrupto: falta manifest.json')
-  }
-  const manifestJson = await manifestFile.async('string')
-  const manifest = JSON.parse(manifestJson)
+  // Try to parse as unified JSON format first (new format)
+  try {
+    const textContent = new TextDecoder().decode(fileBuffer)
+    const ecoData = JSON.parse(textContent)
 
-  // Extract signatures.json
-  const signaturesFile = zip.file('signatures.json')
-  if (!signaturesFile) {
-    throw new Error('Archivo .ECOX corrupto: falta signatures.json')
+    // Check if it's the new unified format
+    if (ecoData.version && ecoData.manifest && ecoData.signatures && ecoData.metadata) {
+      console.log('✅ Detected unified .eco format (JSON)')
+      manifest = ecoData.manifest
+      signatures = ecoData.signatures
+      metadata = ecoData.metadata
+      manifestJson = JSON.stringify(manifest, null, 2)
+    } else {
+      throw new Error('Not unified format')
+    }
+  } catch {
+    // If JSON parsing fails, try legacy ZIP format
+    console.log('📦 Trying legacy .ecox format (ZIP)')
+    try {
+      const zip = await JSZip.loadAsync(fileBuffer)
+
+      // Extract manifest.json
+      const manifestFile = zip.file('manifest.json')
+      if (!manifestFile) {
+        throw new Error('Archivo .ECOX corrupto: falta manifest.json')
+      }
+      manifestJson = await manifestFile.async('string')
+      manifest = JSON.parse(manifestJson)
+
+      // Extract signatures.json
+      const signaturesFile = zip.file('signatures.json')
+      if (!signaturesFile) {
+        throw new Error('Archivo .ECOX corrupto: falta signatures.json')
+      }
+      const signaturesJson = await signaturesFile.async('string')
+      signatures = JSON.parse(signaturesJson)
+
+      // Extract metadata.json (optional)
+      const metadataFile = zip.file('metadata.json')
+      if (metadataFile) {
+        const metadataJson = await metadataFile.async('string')
+        metadata = JSON.parse(metadataJson)
+      }
+    } catch (zipError) {
+      throw new Error('Formato de archivo no reconocido. Debe ser .eco (JSON) o .ecox (ZIP)')
+    }
   }
-  const signaturesJson = await signaturesFile.async('string')
-  const signatures = JSON.parse(signaturesJson)
 
   if (!Array.isArray(signatures) || signatures.length === 0) {
     throw new Error('No se encontraron firmas en el archivo')
@@ -138,32 +172,24 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
     } else if (lt.token) {
       warnings.push('Token TSA presente pero podría ser simulado')
     } else {
-      errors.push('Timestamp legal declarado pero sin token RFC 3161')
-      legalTimestamp.verified = false
+      // Don't mark as error if null, just disabled
+      if (lt.token === undefined) {
+        legalTimestamp.enabled = false
+      }
     }
   }
 
   // Determine timestamp type
   const timestampType = legalTimestamp.enabled
     ? 'RFC 3161 Legal Timestamp'
-    : 'Local (Informational)'
+    : metadata?.timestampType || 'Local (Informational)'
 
-  // Extract metadata
-  const metadataFile = zip.file('metadata.json')
-  let hasLegalTimestampMetadata = false
-  if (metadataFile) {
-    try {
-      const metadataJson = await metadataFile.async('string')
-      const metadata = JSON.parse(metadataJson)
-      hasLegalTimestampMetadata = metadata.hasLegalTimestamp === true
-    } catch {
-      warnings.push('No se pudo leer metadata.json')
-    }
-  }
+  // Check metadata for forensic info
+  const hasLegalTimestampMetadata = metadata?.forensicEnabled === true || metadata?.hasLegalTimestamp === true
 
   // Cross-check: metadata says legal timestamp but signature doesn't have it
   if (hasLegalTimestampMetadata && !legalTimestamp.enabled) {
-    errors.push('Inconsistencia: metadata indica timestamp legal pero no hay token')
+    warnings.push('Metadata indica blindaje forense pero timestamp legal no está presente')
   }
 
   const result: VerificationResult = {

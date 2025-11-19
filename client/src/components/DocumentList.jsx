@@ -40,11 +40,11 @@ const DocumentList = () => {
         // Transformar datos para la UI
         const transformedDocs = (docs || []).map(doc => ({
           id: doc.id,
-          title: doc.title,
-          fileName: doc.title, // Usar title directamente
+          title: doc.document_name || doc.title || 'Sin título',
+          fileName: doc.document_name || doc.title || 'Sin título',
           createdAt: new Date(doc.created_at),
-          ecoHash: doc.eco_hash ? doc.eco_hash.substring(0, 12) + '...' : 'N/A',
-          status: doc.status === 'active' ? 'verified' : doc.status,
+          ecoHash: doc.document_hash ? doc.document_hash.substring(0, 12) + '...' : 'N/A',
+          status: doc.status || 'verified',
           accessCount: 0, // TODO: Get from relationships when available
           lastAccess: null
         }));

@@ -9,7 +9,6 @@
  */
 
 import { generateEd25519KeyPair, sha256Hex } from '@temporaldynamics/eco-packer/eco-utils';
-import { pack } from '@temporaldynamics/eco-packer';
 import { requestLegalTimestamp } from './tsaService.js';
 
 /**
@@ -149,18 +148,29 @@ export async function certifyFile(file, options = {}) {
 
     console.log('✅ Manifest created');
 
-    // Step 6: Create asset hashes map
-    const assetHashes = new Map();
-    assetHashes.set(assetId, hash);
-
-    // Step 7: Pack into .ecox format
-    const ecoxBuffer = await pack(project, assetHashes, {
-      privateKey: privateKey,
-      keyId: options.userId || 'temp-key',
-      signerId: options.userEmail || 'anonymous@verifysign.pro',
-      // Include timestamp in the signature if we have a legal timestamp
-      additionalMetadata: tsaResponse && tsaResponse.success ? {
-        legalTimestamp: {
+    // Step 6: Create signatures array
+    const signatures = [
+      {
+        signatureId: `sig-${Date.now()}`,
+        signerId: options.userEmail || 'anonymous@verifysign.pro',
+        timestamp: timestamp,
+        algorithm: 'Ed25519',
+        publicKey: publicKey.toString('base64'),
+        // Sign the document hash
+        signature: Buffer.from(
+          await crypto.subtle.sign(
+            'Ed25519',
+            await crypto.subtle.importKey(
+              'raw',
+              privateKey,
+              { name: 'Ed25519' },
+              false,
+              ['sign']
+            ),
+            Buffer.from(hash, 'hex')
+          )
+        ).toString('base64'),
+        legalTimestamp: tsaResponse && tsaResponse.success ? {
           standard: 'RFC 3161',
           tsa: tsaResponse.tsaName || tsaResponse.tsaUrl,
           tsaUrl: tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
@@ -169,11 +179,40 @@ export async function certifyFile(file, options = {}) {
           algorithm: tsaResponse.algorithm,
           verified: tsaResponse.verified,
           note: tsaResponse.note
-        }
-      } : {}
-    });
+        } : null
+      }
+    ];
 
-    console.log('✅ .ecox file created:', ecoxBuffer.byteLength, 'bytes');
+    // Step 7: Create metadata
+    const metadata = {
+      certifiedAt: timestamp,
+      certifiedBy: 'VerifySign',
+      clientInfo: {
+        userAgent: navigator?.userAgent || 'Unknown',
+        platform: navigator?.platform || 'Unknown',
+        language: navigator?.language || 'Unknown'
+      },
+      forensicEnabled: options.useLegalTimestamp || options.usePolygonAnchor || options.useBitcoinAnchor || false,
+      anchoring: {
+        polygon: options.usePolygonAnchor || false,
+        bitcoin: options.useBitcoinAnchor || false
+      }
+    };
+
+    // Step 8: Create .eco file as single JSON
+    const ecoPayload = {
+      version: project.version,
+      projectId: projectId,
+      manifest: project,
+      signatures: signatures,
+      metadata: metadata
+    };
+
+    // Convert to buffer
+    const ecoJson = JSON.stringify(ecoPayload, null, 2);
+    const ecoxBuffer = new TextEncoder().encode(ecoJson);
+
+    console.log('✅ .eco file created:', ecoxBuffer.byteLength, 'bytes');
 
     let anchorJob = null;
     try {

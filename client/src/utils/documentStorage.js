@@ -50,16 +50,17 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     throw new Error(`Error al subir el documento: ${uploadError.message}`);
   }
 
-  // TEMP FIX: Create record in 'documents' table (minimal fields)
-  // TODO: When migration 007 is applied, use 'user_documents' table for full metadata
-  const { data: docData, error: docError } = await supabase
-    .from('documents')
+  // Create record in 'user_documents' table
+  const { data: docData, error: docError} = await supabase
+    .from('user_documents')
     .insert({
-      owner_id: user.id,
-      title: pdfFile.name.replace('.pdf', ''),
-      eco_hash: documentHash,
-      status: 'active'
-      // Note: Not using original_filename since it may not exist in remote DB
+      user_id: user.id,
+      document_name: pdfFile.name,
+      document_hash: documentHash,
+      document_size: pdfFile.size,
+      mime_type: pdfFile.type || 'application/pdf',
+      pdf_storage_path: uploadData.path,
+      eco_data: ecoData // Store the complete ECO manifest
     })
     .select()
     .single();
@@ -84,11 +85,11 @@ export async function getUserDocuments() {
     throw new Error('Usuario no autenticado');
   }
 
-  // TEMP FIX: Query simple solo con columnas que definitivamente existen
+  // Query user_documents table
   const { data, error } = await supabase
-    .from('documents')
-    .select('id, title, eco_hash, status, created_at, updated_at')
-    .eq('owner_id', user.id)
+    .from('user_documents')
+    .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -139,25 +140,36 @@ export async function deleteUserDocument(documentId) {
   }
 
   // TEMP FIX: Use 'documents' table
-  // Note: 'documents' table doesn't have pdf_storage_path, so we can only delete DB record
+  // Get document info including storage path
   const { data: doc, error: fetchError } = await supabase
-    .from('documents')
-    .select('id')
+    .from('user_documents')
+    .select('id, pdf_storage_path')
     .eq('id', documentId)
-    .eq('owner_id', user.id)
+    .eq('user_id', user.id)
     .single();
 
   if (fetchError) {
     throw new Error(`Error al obtener el documento: ${fetchError.message}`);
   }
 
-  // TEMP FIX: Skip storage deletion since 'documents' table doesn't track storage paths
+  // Delete from storage if path exists
+  if (doc.pdf_storage_path) {
+    const { error: storageError } = await supabase.storage
+      .from('user-documents')
+      .remove([doc.pdf_storage_path]);
+
+    if (storageError) {
+      console.warn('Error deleting from storage:', storageError);
+      // Continue with DB deletion even if storage fails
+    }
+  }
+
   // Delete from database
   const { error: deleteError } = await supabase
-    .from('documents')
+    .from('user_documents')
     .delete()
     .eq('id', documentId)
-    .eq('owner_id', user.id);
+    .eq('user_id', user.id);
 
   if (deleteError) {
     throw new Error(`Error al eliminar el documento: ${deleteError.message}`);

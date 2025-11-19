@@ -23,6 +23,8 @@ import { saveUserDocument } from '../utils/documentStorage';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
 import { applySignatureToPDF, blobToFile, addSignatureSheet } from '../utils/pdfSignature';
 import { signWithSignNow } from '../lib/signNowService';
+import { EventHelpers } from '../utils/eventLogger';
+import { anchorToPolygon } from '../lib/polygonAnchor';
 
 /**
  * Modal de Certificación - Diseño según Design System VerifySign
@@ -328,16 +330,73 @@ const CertificationModal = ({ isOpen, onClose }) => {
       }
 
       // 2. Guardar en Supabase
-      await saveUserDocument(file, certResult.ecoData, {
+      const savedDoc = await saveUserDocument(file, certResult.ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
         hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor
       });
 
-      // 3. Preparar datos para download
+      // 3. Registrar evento 'created' (ChainLog)
+      if (savedDoc?.id) {
+        await EventHelpers.logDocumentCreated(
+          savedDoc.id,
+          savedDoc.user_id,
+          {
+            filename: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            signatureType: signatureEnabled ? signatureType : 'none',
+            forensicEnabled: forensicEnabled,
+            polygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
+            bitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
+            legalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp
+          }
+        );
+      }
+
+      // 4. Blindaje Polygon (si está activado)
+      if (forensicEnabled && forensicConfig.usePolygonAnchor && certResult.ecoData?.documentHash) {
+        console.log('🔗 Iniciando anclaje en Polygon...');
+
+        // Llamar a Polygon anchor (no bloqueante - se procesa async)
+        anchorToPolygon(certResult.ecoData.documentHash, {
+          documentId: savedDoc?.id,
+          userId: savedDoc?.user_id,
+          metadata: {
+            filename: file.name,
+            signatureType: signatureEnabled ? signatureType : 'none'
+          }
+        }).then(result => {
+          if (result.success) {
+            console.log('✅ Polygon anchor exitoso:', result);
+
+            // Registrar evento 'anchored_polygon'
+            if (savedDoc?.id) {
+              EventHelpers.logPolygonAnchor(
+                savedDoc.id,
+                result.txHash,
+                result.blockNumber,
+                {
+                  documentHash: certResult.ecoData.documentHash,
+                  status: result.status,
+                  explorerUrl: result.explorerUrl
+                }
+              );
+            }
+          } else {
+            console.warn('⚠️ Polygon anchor falló (no crítico):', result.error);
+          }
+        }).catch(err => {
+          console.error('❌ Error en Polygon anchor:', err);
+          // No bloquear el flujo - el anchor es opcional
+        });
+      }
+
+      // 5. Preparar datos para download
       setCertificateData({
         ...certResult,
         downloadUrl: URL.createObjectURL(new Blob([certResult.ecoxBuffer], { type: 'application/zip' })),
-        fileName: certResult.fileName
+        fileName: certResult.fileName,
+        documentId: savedDoc?.id
       });
 
       setStep(2); // Ir a "Listo" (ahora es paso 2)
@@ -1178,6 +1237,16 @@ const CertificationModal = ({ isOpen, onClose }) => {
                 <a
                   href={certificateData.downloadUrl}
                   download={certificateData.fileName}
+                  onClick={() => {
+                    // Registrar evento 'downloaded'
+                    if (certificateData.documentId) {
+                      EventHelpers.logEcoDownloaded(
+                        certificateData.documentId,
+                        null, // TODO: Obtener userId del usuario autenticado
+                        null  // TODO: Obtener userEmail del usuario autenticado
+                      );
+                    }
+                  }}
                   className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-block text-center"
                 >
                   Descargar .ECOX

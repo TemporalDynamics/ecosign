@@ -134,7 +134,7 @@ const CertificationFlow = ({ onClose }) => {
         <div key={label} className="flex-1 flex items-center">
           <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 font-semibold text-sm ${
             index === step
-              ? 'border-cyan-600 bg-cyan-600 text-white'
+              ? 'border-black600 bg-black text-white'
               : index < step
                 ? 'border-emerald-500 bg-emerald-500 text-white'
                 : 'border-gray-300 text-gray-400'
@@ -163,11 +163,11 @@ const CertificationFlow = ({ onClose }) => {
         {step === 0 && (
           <div className="space-y-4">
             <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50">
-              <div className="w-16 h-16 bg-gradient-to-br from-cyan-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Upload className="w-8 h-8 text-cyan-600" strokeWidth={2.5} />
+              <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-3">
+                <Upload className="w-8 h-8 text-black" strokeWidth={2.5} />
               </div>
               <p className="text-gray-700 mb-2">Selecciona el documento que deseas firmar y certificar</p>
-              <label htmlFor="cert-upload-input" className="cursor-pointer text-cyan-600 font-semibold">
+              <label htmlFor="cert-upload-input" className="cursor-pointer text-black font-semibold">
                 Haz clic para seleccionar
                 <input id="cert-upload-input" type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" />
               </label>
@@ -289,7 +289,7 @@ const CertificationFlow = ({ onClose }) => {
             <button
               onClick={handleCertify}
               disabled={certifying}
-              className="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-xl font-semibold shadow hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-black to-gray-800 text-white rounded-xl font-semibold shadow hover:bg-gray-800  disabled:opacity-50"
             >
               {certifying ? 'Generando certificado...' : 'Generar certificado .ECO'}
             </button>

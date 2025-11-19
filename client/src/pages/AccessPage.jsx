@@ -135,9 +135,9 @@ const AccessPage = () => {
   // Estado de carga inicial
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-12 h-12 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-black600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Verificando acceso...</h2>
           <p className="text-gray-600">Por favor espere mientras validamos su enlace</p>
         </div>
@@ -147,7 +147,7 @@ const AccessPage = () => {
 
   if (error && !showForm) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Acceso Denegado</h2>
@@ -164,11 +164,11 @@ const AccessPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-white py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-cyan-600 to-blue-600 p-6 text-white">
+          <div className="bg-gradient-to-r from-black to-gray-800 p-6 text-white">
             <div className="flex items-center gap-3">
               <Lock className="w-8 h-8" />
               <div>
@@ -210,7 +210,7 @@ const AccessPage = () => {
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({...formData, name: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                             placeholder="Juan Pérez"
                           />
                         </div>
@@ -224,7 +224,7 @@ const AccessPage = () => {
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({...formData, email: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                             placeholder="email@ejemplo.com"
                           />
                         </div>
@@ -238,7 +238,7 @@ const AccessPage = () => {
                             type="text"
                             value={formData.company}
                             onChange={(e) => setFormData({...formData, company: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                             placeholder="Nombre de la empresa"
                           />
                         </div>
@@ -252,7 +252,7 @@ const AccessPage = () => {
                             type="text"
                             value={formData.position}
                             onChange={(e) => setFormData({...formData, position: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                             placeholder="Cargo en la empresa"
                           />
                         </div>
@@ -274,7 +274,7 @@ const AccessPage = () => {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full bg-gradient-to-r from-black to-gray-800 hover:bg-gray-800  text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {isSubmitting ? (
                         <>
@@ -294,7 +294,7 @@ const AccessPage = () => {
                 {!requireNDA && !showForm && (
                   <div className="text-center py-8">
                     <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <CheckCircle className="w-6 h-6 text-cyan-600" />
+                      <CheckCircle className="w-6 h-6 text-black" />
                     </div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Solicitud de Acceso</h3>
                     <p className="text-gray-600 mb-6">Estamos procesando su solicitud de acceso al documento. Por favor espere...</p>

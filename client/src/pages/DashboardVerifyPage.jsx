@@ -27,7 +27,7 @@ function DashboardVerifyPage() {
           </div>
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-gray-600 hover:text-cyan-600 font-medium"
+            className="flex items-center gap-2 text-gray-600 hover:text-black font-medium"
           >
             <ArrowLeft className="w-5 h-5" />
             Volver al dashboard
@@ -35,10 +35,10 @@ function DashboardVerifyPage() {
         </div>
 
         {/* Transparency Notice */}
-        <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl p-6 mb-8">
+        <div className="bg-gray-100 border border-black200 rounded-xl p-6 mb-8">
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">
-              <Info className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
+              <Info className="w-6 h-6 text-black" strokeWidth={2.5} />
             </div>
             <div>
               <h3 className="text-gray-900 font-semibold mb-2">Verificación Independiente</h3>
@@ -56,7 +56,7 @@ function DashboardVerifyPage() {
 
       <footer className="bg-gray-50 border-t border-gray-200 mt-12 py-6">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-600 text-sm">© 2025 VerifySign por Temporal Dynamics LLC. Todos los derechos reservados.</p>
+          <p className="text-gray-600 text-sm">© 2025 EcoSign por Temporal Dynamics LLC. Todos los derechos reservados.</p>
         </div>
       </footer>
     </div>

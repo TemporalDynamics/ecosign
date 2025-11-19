@@ -71,7 +71,7 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }) {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center">
-            <Link2 className="w-5 h-5 text-cyan-600" />
+            <Link2 className="w-5 h-5 text-black" />
           </div>
           <div>
             <h3 className="font-bold text-gray-900">Generar enlace seguro</h3>
@@ -92,7 +92,7 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }) {
               value={recipientEmail}
               onChange={(e) => setRecipientEmail(e.target.value)}
               placeholder="destinatario@email.com"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
             />
           </div>
 
@@ -103,7 +103,7 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }) {
             <select
               value={expiresInHours}
               onChange={(e) => setExpiresInHours(Number(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
             >
               <option value={24}>24 horas</option>
               <option value={72}>3 días</option>
@@ -121,7 +121,7 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }) {
             <button
               onClick={() => setRequireNda(!requireNda)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                requireNda ? 'bg-cyan-600' : 'bg-gray-300'
+                requireNda ? 'bg-black' : 'bg-gray-300'
               }`}
             >
               <span
@@ -141,7 +141,7 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }) {
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-black hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {generating ? (
               <>

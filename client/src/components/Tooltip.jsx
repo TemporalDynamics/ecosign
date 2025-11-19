@@ -7,7 +7,7 @@ function Tooltip({ term, definition }) {
   return (
     <span className="relative inline-block">
       <span
-        className="inline-flex items-center cursor-help border-b-2 border-dotted border-cyan-600 text-cyan-700 font-medium"
+        className="inline-flex items-center cursor-help border-b-2 border-dotted border-black600 text-cyan-700 font-medium"
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
         onClick={() => setIsVisible(!isVisible)}

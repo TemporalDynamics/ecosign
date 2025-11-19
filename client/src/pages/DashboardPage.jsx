@@ -109,7 +109,7 @@ function DashboardPage() {
         <section className="bg-gray-900 rounded-2xl p-8 shadow-lg">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
-              <h2 className="text-3xl font-bold text-white mb-2">Bienvenido a VerifySign</h2>
+              <h2 className="text-3xl font-bold text-white mb-2">Bienvenido a EcoSign</h2>
               <p className="text-gray-300 text-lg max-w-2xl">
                 Sellá tus documentos, controla cada NDA y verifica tus certificados sin salir del panel. Todo queda registrado en tu archivo .ECO.
               </p>
@@ -264,7 +264,7 @@ function DashboardPage() {
 
       <footer className="bg-gray-50 border-t border-gray-200 mt-12 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-600 text-sm">© 2025 VerifySign por Temporal Dynamics LLC. Todos los derechos reservados.</p>
+          <p className="text-gray-600 text-sm">© 2025 EcoSign por Temporal Dynamics LLC. Todos los derechos reservados.</p>
         </div>
       </footer>
 

@@ -1,16 +1,15 @@
 /**
  * Basic Certification Service - Web Optimized
  *
- * Combines browser-compatible libraries with proper .ECOX format:
+ * Combines browser-compatible libraries with unified .eco format:
  * - @noble/ed25519 for signatures (pure JavaScript)
  * - @noble/hashes for SHA-256 (pure JavaScript)
- * - Proper .ECOX format compatible with JSZip verification
+ * - Unified .eco format (single JSON file) for easy verification
  */
 
 import * as ed from '@noble/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
-import JSZip from 'jszip';
 import { requestLegalTimestamp } from './tsaService.js';
 import { requestBitcoinAnchor } from './opentimestamps';
 import { anchorToPolygon } from './polygonAnchor.js';
@@ -92,65 +91,78 @@ function base64ToUint8Array(base64) {
 }
 
 /**
- * Creates a proper ECOX format (ZIP with manifest.json for compatibility with verification)
+ * Creates a unified .eco format (single JSON file)
+ *
+ * Instead of ZIP with 3 files, this creates one JSON with:
+ * - manifest (document description + hash)
+ * - signatures (Ed25519 + RFC 3161 legal timestamp)
+ * - metadata (forensic info: browser, user-agent, anchoring)
  *
  * @param {Object} project - EcoProject manifest
  * @param {string} publicKeyHex - Public key as hex string
  * @param {string} signature - Signature as hex string
  * @param {string} timestamp - Timestamp
  * @param {Object} options - Additional options
- * @returns {ArrayBuffer} ECOX file data
+ * @returns {ArrayBuffer} .eco file data (JSON as ArrayBuffer)
  */
 async function createEcoXFormat(project, publicKeyHex, signature, timestamp, options = {}) {
-  // Create the manifest structure compatible with verification
-  const manifest = project;
-
-  // Create the signatures JSON
+  // Create the signatures array
   const signatures = [
     {
-      keyId: options.userId || 'temp-key',
+      signatureId: `sig-${Date.now()}`,
       signerId: options.userEmail || 'anonymous@verifysign.pro',
+      keyId: options.userId || 'temp-key',
       publicKey: publicKeyHex,
       signature: signature,
       algorithm: 'Ed25519',
       timestamp: timestamp,
       // Legal timestamp certification (if requested)
-      ...(options.tsaResponse && options.tsaResponse.success ? {
-        legalTimestamp: {
-          standard: 'Legal Certification',
-          tsa: options.tsaResponse.tsaName || options.tsaResponse.tsaUrl,
-          tsaUrl: options.tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
-          token: options.tsaResponse.token,
-          tokenSize: options.tsaResponse.tokenSize,
-          algorithm: options.tsaResponse.algorithm,
-          verified: options.tsaResponse.verified,
-          note: options.tsaResponse.note
-        }
-      } : {})
+      legalTimestamp: options.tsaResponse && options.tsaResponse.success ? {
+        standard: 'RFC 3161',
+        tsa: options.tsaResponse.tsaName || options.tsaResponse.tsaUrl,
+        tsaUrl: options.tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
+        token: options.tsaResponse.token,
+        tokenSize: options.tsaResponse.tokenSize,
+        algorithm: options.tsaResponse.algorithm,
+        verified: options.tsaResponse.verified,
+        note: options.tsaResponse.note
+      } : null
     }
   ];
 
-  // Create a new JSZip instance
-  const zip = new JSZip();
-
-  // Add manifest.json
-  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-
-  // Add signatures.json
-  zip.file('signatures.json', JSON.stringify(signatures, null, 2));
-
-  // Add metadata.json
+  // Create metadata with forensic information
   const metadata = {
-    createdWith: 'VerifySign Web Client',
-    browserVersion: navigator.userAgent,
-    hasLegalTimestamp: options.tsaResponse && options.tsaResponse.success,
-    timestampType: options.tsaResponse && options.tsaResponse.success ? 'Legal Certification' : 'Local (Informational)'
+    certifiedAt: timestamp,
+    certifiedBy: 'VerifySign',
+    clientInfo: {
+      userAgent: navigator?.userAgent || 'Unknown',
+      platform: navigator?.platform || 'Unknown',
+      language: navigator?.language || 'Unknown',
+      createdWith: 'VerifySign Web Client'
+    },
+    forensicEnabled: options.useLegalTimestamp || options.usePolygonAnchor || options.useBitcoinAnchor || false,
+    anchoring: {
+      polygon: options.usePolygonAnchor || false,
+      bitcoin: options.useBitcoinAnchor || false
+    },
+    timestampType: options.tsaResponse && options.tsaResponse.success ? 'RFC 3161 Legal' : 'Local (Informational)'
   };
-  zip.file('metadata.json', JSON.stringify(metadata, null, 2));
 
-  // Generate the ZIP as an ArrayBuffer
-  const content = await zip.generateAsync({ type: 'arraybuffer' });
-  return content;
+  // Create unified .eco structure
+  const ecoPayload = {
+    version: project.version || '1.1.0',
+    projectId: project.projectId,
+    manifest: project,
+    signatures: signatures,
+    metadata: metadata
+  };
+
+  // Convert to JSON string and then to ArrayBuffer
+  const ecoJson = JSON.stringify(ecoPayload, null, 2);
+  const encoder = new TextEncoder();
+  const arrayBuffer = encoder.encode(ecoJson);
+
+  return arrayBuffer.buffer;
 }
 
 /**

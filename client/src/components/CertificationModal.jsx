@@ -391,7 +391,23 @@ const CertificationModal = ({ isOpen, onClose }) => {
         });
       }
 
-      // 5. Preparar datos para download (PDF firmado + archivo .ECO)
+      // 5. Enviar notificación por email (no bloqueante)
+      if (savedDoc?.id) {
+        console.log('📧 Enviando notificación por email...');
+        supabase.functions.invoke('notify-document-certified', {
+          body: { documentId: savedDoc.id }
+        }).then(({ data, error }) => {
+          if (error) {
+            console.warn('⚠️ Error al enviar email (no crítico):', error);
+          } else {
+            console.log('✅ Email de notificación enviado:', data);
+          }
+        }).catch(err => {
+          console.warn('⚠️ No se pudo enviar email:', err);
+        });
+      }
+
+      // 6. Preparar datos para download (PDF firmado + archivo .ECO)
       setCertificateData({
         ...certResult,
         // URL para descargar el PDF firmado con audit trail

@@ -11,14 +11,16 @@
 ✅ Legal timestamp received from TSA (RFC 3161)
 ✅ Manifest created
 ✅ Manifest signed
-✅ .ecox file created: 9617 bytes
+✅ .eco file created (JSON único - NO ZIP)
 ✅ [EventLogger] Evento registrado exitosamente: created
 ✅ [EventLogger] Evento registrado exitosamente: downloaded
 ```
 
 **Resultado**: Los dos archivos se generan perfectamente:
-1. PDF firmado con audit trail sheet ✅
-2. Archivo .eco (JSON unificado) ✅
+1. ✅ PDF firmado con audit trail sheet
+2. ✅ Archivo .eco (JSON único, NO ZIP) - Legible con cualquier editor de texto
+
+**IMPORTANTE**: A partir de v1.3.0, el formato .eco es UN SOLO JSON con toda la información (manifest + signatures + metadata), NO un ZIP con 3 archivos separados. Esto hace el certificado mucho más fácil de leer y verificar.
 
 ### ⚠️ WARNINGS NO CRÍTICOS
 

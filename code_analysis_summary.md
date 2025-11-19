@@ -1,6 +1,6 @@
-# Comprehensive Code Analysis: VerifySign Platform
+# Comprehensive Code Analysis: EcoSign Platform
 
-The VerifySign platform is designed for digital certification with forensic traceability, leveraging a modern JAMStack architecture. Its core purpose is to allow users to certify documents, ensuring their integrity and providing verifiable proof of existence and authenticity, potentially using blockchain anchoring.
+The EcoSign platform is designed for digital certification with forensic traceability, leveraging a modern JAMStack architecture. Its core purpose is to allow users to certify documents, ensuring their integrity and providing verifiable proof of existence and authenticity, potentially using blockchain anchoring.
 
 ### 1. High-Level Architecture
 
@@ -104,4 +104,4 @@ The platform prioritizes security with multiple layers:
 
 ---
 
-This analysis provides a comprehensive map of the VerifySign codebase, detailing its architecture, technology stack, key functional flows, and security considerations.
+This analysis provides a comprehensive map of the EcoSign codebase, detailing its architecture, technology stack, key functional flows, and security considerations.

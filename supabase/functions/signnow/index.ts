@@ -245,7 +245,7 @@ const createSignNowInvite = async (
     })),
     from: signers[0]?.email || 'noreply@verifysign.com',
     cc: [],
-    subject: options.subject || 'Solicitud de firma - VerifySign',
+    subject: options.subject || 'Solicitud de firma - EcoSign',
     message: options.message || 'Por favor, firma este documento usando SignNow. Recibirás un email con las instrucciones.'
   };
 

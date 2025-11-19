@@ -233,7 +233,7 @@ Test Files  9 passed (9)
 
 > "Este hito representa no solo código que funciona, sino un compromiso con la calidad, la documentación y las mejores prácticas. Cada test que pasa es una promesa cumplida a nuestros usuarios de que el código hace exactamente lo que dice hacer."
 >
-> — VerifySign Team
+> — EcoSign Team
 
 ---
 
@@ -274,7 +274,7 @@ Test Files  9 passed (9)
    
    61 de 61 ✅✅✅
    
-   ¡Momento histórico para VerifySign!
+   ¡Momento histórico para EcoSign!
 ```
 
 ---

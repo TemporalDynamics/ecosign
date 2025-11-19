@@ -1,4 +1,4 @@
-name: VerifySign CI
+name: EcoSign CI
 
 on:
   push:

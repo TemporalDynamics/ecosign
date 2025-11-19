@@ -1,4 +1,4 @@
-# robots.txt for VerifySign
+# robots.txt for EcoSign
 # Created on 10 November 2025
 
 User-agent: *

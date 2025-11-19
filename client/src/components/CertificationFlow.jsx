@@ -308,7 +308,7 @@ const CertificationFlow = ({ onClose }) => {
                   <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
                     <p className="font-semibold text-blue-900">☁️ Guardado en la nube</p>
                     <p className="text-blue-700 mt-1">
-                      Tu documento firmado está guardado en tu cuenta de VerifySign.
+                      Tu documento firmado está guardado en tu cuenta de EcoSign.
                       Podés accederlo desde tu dashboard en cualquier momento.
                     </p>
                   </div>

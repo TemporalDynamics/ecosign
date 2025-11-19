@@ -1,4 +1,4 @@
-# 🎨 Sistema de Diseño VerifySign - Design System
+# 🎨 Sistema de Diseño EcoSign - Design System
 
 **Versión:** 1.0.0  
 **Fecha:** 2025-11-17  
@@ -215,7 +215,7 @@ body { background: --bg-main; }
       
       {/* Títulos */}
       <h1 className="text-xl font-semibold text-text-main text-center mb-2">
-        VerifySign
+        EcoSign
       </h1>
       <p className="text-sm text-text-muted text-center mb-8">
         Plataforma de certificación digital con verificación transparente.
@@ -289,7 +289,7 @@ body { background: --bg-main; }
   {/* Header */}
   <header className="bg-white border-b border-border-soft">
     <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-      <h1 className="text-xl font-semibold text-text-main">VerifySign</h1>
+      <h1 className="text-xl font-semibold text-text-main">EcoSign</h1>
       <button className="text-sm text-text-muted hover:text-text-main">
         Cerrar Sesión
       </button>
@@ -968,7 +968,7 @@ body { background: --bg-main; }
             Guardamos tu .ECO original en tu nube
           </h3>
           <p className="text-text-muted mb-4">
-            Tu documento original y tu .ECO quedan almacenados inalterados en tu espacio seguro dentro de VerifySign.
+            Tu documento original y tu .ECO quedan almacenados inalterados en tu espacio seguro dentro de EcoSign.
           </p>
           <div className="border-l-4 border-accent bg-accent-soft/30 p-4 rounded-r-lg">
             <p className="text-sm text-text-main font-medium mb-1">
@@ -1153,7 +1153,7 @@ client/src/components/ui/
 ```jsx
 // ❌ ANTES (Dashboard con caja azul)
 <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-8 rounded-lg">
-  <h1 className="text-white text-2xl">Bienvenido a VerifySign</h1>
+  <h1 className="text-white text-2xl">Bienvenido a EcoSign</h1>
   <p className="text-white/80">Sellá tus documentos...</p>
   <button className="bg-white text-blue-600 px-6 py-3 rounded-lg">
     + Certificar documento
@@ -1231,7 +1231,7 @@ import {
 
 ## 🎯 RESULTADO ESPERADO
 
-Al finalizar, VerifySign tendrá:
+Al finalizar, EcoSign tendrá:
 
 ✅ **Consistencia visual 100%**
 - Un solo color de acento (azul #2563eb)
@@ -1271,7 +1271,7 @@ Al finalizar, VerifySign tendrá:
           Antes de firmar
         </h2>
         <p className="text-sm text-text-muted">
-          Para protegerte, VerifySign generará una copia firmada del documento y una constancia digital que te enviaremos a tu correo.
+          Para protegerte, EcoSign generará una copia firmada del documento y una constancia digital que te enviaremos a tu correo.
         </p>
       </div>
     </div>
@@ -1384,11 +1384,11 @@ Adjuntamos:
 ✔ Tu copia firmada
 ✔ Tu constancia digital (.ECO), que sirve como comprobante para demostrar qué versión del documento aceptaste.
 
-Nadie puede ver tus archivos desde VerifySign.
+Nadie puede ver tus archivos desde EcoSign.
 Solo vos decidís con quién compartirlos.
 
 Gracias,
-VerifySign
+EcoSign
 ```
 
 ---

@@ -11,13 +11,13 @@
 
 ### Paso 1: Preparar el contrato
 1. Ve a https://remix.ethereum.org
-2. Crea nuevo archivo: `VerifySignAnchor.sol`
-3. Copia el contenido de `contracts/VerifySignAnchor.sol`
+2. Crea nuevo archivo: `EcoSignAnchor.sol`
+3. Copia el contenido de `contracts/EcoSignAnchor.sol`
 
 ### Paso 2: Compilar
 1. Click en "Solidity Compiler" (icono de S)
 2. Selecciona versión: `0.8.20` o superior
-3. Click "Compile VerifySignAnchor.sol"
+3. Click "Compile EcoSignAnchor.sol"
 4. Debe compilar sin errores
 
 ### Paso 3: Deploy
@@ -52,7 +52,7 @@ npx hardhat init
 # Selecciona "Create a JavaScript project"
 
 # Copiar contrato
-cp contracts/VerifySignAnchor.sol contracts/
+cp contracts/EcoSignAnchor.sol contracts/
 
 # Configurar hardhat.config.js
 ```
@@ -75,12 +75,12 @@ module.exports = {
 **scripts/deploy.js**:
 ```javascript
 async function main() {
-  const VerifySignAnchor = await ethers.getContractFactory("VerifySignAnchor");
-  const anchor = await VerifySignAnchor.deploy();
+  const EcoSignAnchor = await ethers.getContractFactory("EcoSignAnchor");
+  const anchor = await EcoSignAnchor.deploy();
   await anchor.waitForDeployment();
 
   const address = await anchor.getAddress();
-  console.log("VerifySignAnchor deployed to:", address);
+  console.log("EcoSignAnchor deployed to:", address);
 }
 
 main().catch((error) => {
@@ -92,7 +92,7 @@ main().catch((error) => {
 **Deploy**:
 ```bash
 npx hardhat run scripts/deploy.js --network polygon
-# Output: VerifySignAnchor deployed to: 0x...
+# Output: EcoSignAnchor deployed to: 0x...
 ```
 
 ---

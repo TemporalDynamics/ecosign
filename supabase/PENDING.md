@@ -23,7 +23,7 @@
 - [ ] Personalizar Email Templates
   - Template de confirmación de registro
   - Template de recuperación de contraseña
-  - Agregar logo y branding de VerifySign
+  - Agregar logo y branding de EcoSign
 
 - [ ] Configurar Email Auth
   ```sql

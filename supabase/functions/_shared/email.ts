@@ -109,7 +109,7 @@ export function buildSignerInvitationEmail(params: {
           <tr>
             <td style="background-color: #111827; padding: 32px; text-align: center;">
               <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                VerifySign
+                EcoSign
               </h1>
             </td>
           </tr>
@@ -165,7 +165,7 @@ export function buildSignerInvitationEmail(params: {
           <tr>
             <td style="background-color: #f9fafb; padding: 24px 32px; text-align: center; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0 0 8px; color: #6b7280; font-size: 12px;">
-                Este email fue enviado desde <strong>VerifySign</strong>
+                Este email fue enviado desde <strong>EcoSign</strong>
               </p>
               <p style="margin: 0; color: #9ca3af; font-size: 12px;">
                 Certificación y firma digital con blockchain
@@ -182,7 +182,7 @@ export function buildSignerInvitationEmail(params: {
   `;
 
   return {
-    from: 'VerifySign <no-reply@verifysign.app>',
+    from: 'EcoSign <no-reply@verifysign.app>',
     to: signerEmail,
     subject: `📄 Documento para firmar: ${documentName}`,
     html,
@@ -231,7 +231,7 @@ export function buildDocumentSignedEmail(params: {
           <tr>
             <td style="background-color: #111827; padding: 32px; text-align: center;">
               <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                VerifySign
+                EcoSign
               </h1>
             </td>
           </tr>
@@ -304,7 +304,7 @@ export function buildDocumentSignedEmail(params: {
           <tr>
             <td style="background-color: #f9fafb; padding: 24px 32px; text-align: center; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0 0 8px; color: #6b7280; font-size: 12px;">
-                Este email fue enviado desde <strong>VerifySign</strong>
+                Este email fue enviado desde <strong>EcoSign</strong>
               </p>
               <p style="margin: 0; color: #9ca3af; font-size: 12px;">
                 Certificación y firma digital con blockchain
@@ -321,7 +321,7 @@ export function buildDocumentSignedEmail(params: {
   `;
 
   return {
-    from: 'VerifySign <no-reply@verifysign.app>',
+    from: 'EcoSign <no-reply@verifysign.app>',
     to: ownerEmail,
     subject: `✅ Documento firmado: ${documentName}`,
     html
@@ -388,7 +388,7 @@ export function buildDocumentCertifiedEmail(params: {
           <tr>
             <td style="background-color: #111827; padding: 32px; text-align: center;">
               <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                VerifySign
+                EcoSign
               </h1>
             </td>
           </tr>
@@ -472,7 +472,7 @@ export function buildDocumentCertifiedEmail(params: {
           <tr>
             <td style="background-color: #f9fafb; padding: 24px 32px; text-align: center; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0 0 8px; color: #6b7280; font-size: 12px;">
-                Este email fue enviado desde <strong>VerifySign</strong>
+                Este email fue enviado desde <strong>EcoSign</strong>
               </p>
               <p style="margin: 0; color: #9ca3af; font-size: 12px;">
                 Certificación y firma digital con blockchain
@@ -489,7 +489,7 @@ export function buildDocumentCertifiedEmail(params: {
   `;
 
   return {
-    from: 'VerifySign <no-reply@verifysign.app>',
+    from: 'EcoSign <no-reply@verifysign.app>',
     to: ownerEmail,
     subject: `🎉 Tu documento "${documentName}" fue certificado`,
     html

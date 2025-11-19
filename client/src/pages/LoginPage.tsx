@@ -83,7 +83,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link to="/" className="inline-block">
             <span className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">
-              VerifySign
+              EcoSign
             </span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 mt-4">

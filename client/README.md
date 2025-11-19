@@ -1,6 +1,6 @@
-# VerifySign Client
+# EcoSign Client
 
-Frontend de VerifySign construido con **React + Vite + TypeScript + Tailwind CSS**.
+Frontend de EcoSign construido con **React + Vite + TypeScript + Tailwind CSS**.
 
 ---
 

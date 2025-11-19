@@ -23,7 +23,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-extrabold text-gray-900">VerifySign</span>
+              <span className="text-2xl font-extrabold text-gray-900">EcoSign</span>
             </Link>
             <div className="hidden md:flex items-center space-x-8">
               <Link to="/how-it-works" className="text-gray-700 hover:text-blue-600 font-medium transition duration-200">
@@ -118,7 +118,7 @@ const LandingPage = () => {
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <PlayIcon className="w-8 h-8 text-blue-600" />
                 </div>
-                <p className="text-gray-600">Demostración en vivo de VerifySign</p>
+                <p className="text-gray-600">Demostración en vivo de EcoSign</p>
                 <p className="text-sm text-gray-500 mt-2">Proceso de firma en menos de 30 segundos</p>
               </div>
             </div>
@@ -175,7 +175,7 @@ const LandingPage = () => {
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Verificación universal</h3>
-              <p className="text-gray-600">Cualquier persona puede validar tu .ECO sin cuenta y sin depender de VerifySign.</p>
+              <p className="text-gray-600">Cualquier persona puede validar tu .ECO sin cuenta y sin depender de EcoSign.</p>
             </div>
           </div>
         </div>
@@ -382,7 +382,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
-              <span className="text-2xl font-bold text-gray-900">VerifySign</span>
+              <span className="text-2xl font-bold text-gray-900">EcoSign</span>
               <p className="text-sm text-gray-600 mt-3">Infraestructura de Confianza Digital</p>
             </div>
             <div>
@@ -411,7 +411,7 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="border-t border-gray-200 pt-8 space-y-3 text-sm text-gray-600">
-            <p>© 2025 VerifySign por Temporal Dynamics LLC. Todos los derechos reservados.</p>
+            <p>© 2025 EcoSign por Temporal Dynamics LLC. Todos los derechos reservados.</p>
             <p>El formato .ECO y la arquitectura LTC están protegidos por PPA (US).</p>
           </div>
         </div>

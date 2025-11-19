@@ -2,7 +2,7 @@
 
 ## 🎯 OBJETIVO
 
-Preparar VerifySign para deploy a producción con las mejoras críticas solicitadas.
+Preparar EcoSign para deploy a producción con las mejoras críticas solicitadas.
 
 ---
 
@@ -312,7 +312,7 @@ Cliente recibe PDF firmado ✅
 
 ## 💬 RESUMEN EJECUTIVO
 
-Hoy implementamos **2 mejoras críticas** para VerifySign:
+Hoy implementamos **2 mejoras críticas** para EcoSign:
 
 1. **Anclaje Bitcoin** ahora es un sistema completo con:
    - Feedback claro al usuario (4-24 horas)

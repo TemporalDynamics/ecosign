@@ -28,7 +28,7 @@ import { anchorToPolygon } from '../lib/polygonAnchor';
 import { supabase } from '../lib/supabaseClient';
 
 /**
- * Modal de Certificación - Diseño según Design System VerifySign
+ * Modal de Certificación - Diseño según Design System EcoSign
  *
  * Características:
  * - Sin tecnicismos visibles

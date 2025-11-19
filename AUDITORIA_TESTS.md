@@ -1,4 +1,4 @@
-# 🔍 Auditoría de Tests - VerifySign
+# 🔍 Auditoría de Tests - EcoSign
 
 **Fecha:** 2025-11-17  
 **Commit Auditado:** b4bd93b8458a1dc43fa495ec96ad00952de50460  

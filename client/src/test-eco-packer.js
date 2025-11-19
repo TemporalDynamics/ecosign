@@ -14,7 +14,7 @@ try {
 
   // Test 2: Hash SHA-256
   console.log('Test 2: Computing SHA-256 hash...');
-  const testData = 'Hello, VerifySign!';
+  const testData = 'Hello, EcoSign!';
   const hash = sha256Hex(Buffer.from(testData));
   console.log('✅ Hash computed successfully!');
   console.log('  Input:', testData);

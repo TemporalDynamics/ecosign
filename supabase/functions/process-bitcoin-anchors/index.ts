@@ -172,7 +172,7 @@ async function sendConfirmationEmail(
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'VerifySign <noreply@verifysign.com>',
+        from: 'EcoSign <noreply@verifysign.com>',
         to: [email],
         subject: '✅ Tu documento ha sido anclado en Bitcoin',
         html: `
@@ -192,7 +192,7 @@ async function sendConfirmationEmail(
 
           <hr>
           <p style="color: #666; font-size: 12px;">
-            Este es un mensaje automático de VerifySign. Para verificar tu certificado,
+            Este es un mensaje automático de EcoSign. Para verificar tu certificado,
             visita <a href="https://verifysign.com/verify">verifysign.com/verify</a>
           </p>
         `

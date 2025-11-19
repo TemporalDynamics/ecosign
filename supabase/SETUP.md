@@ -142,7 +142,7 @@ Settings > Authentication > SMTP Settings
 
 **Confirm Signup**:
 ```html
-<h2>Bienvenido a VerifySign</h2>
+<h2>Bienvenido a EcoSign</h2>
 <p>Haz click en el siguiente enlace para confirmar tu cuenta:</p>
 <p><a href="{{ .ConfirmationURL }}">Confirmar Email</a></p>
 

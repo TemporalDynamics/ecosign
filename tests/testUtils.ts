@@ -1,5 +1,5 @@
 /**
- * Test utilities for VerifySign
+ * Test utilities for EcoSign
  * 
  * Helper functions and constants to make tests more reliable and environment-aware
  */

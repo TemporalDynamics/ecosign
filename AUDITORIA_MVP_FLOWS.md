@@ -13,7 +13,7 @@
 
 **Calificación:** ⭐⭐⭐⭐⭐ (9/10)
 
-Este branch representa un salto cualitativo enorme en VerifySign. No solo agrega código, sino que **cierra gaps críticos** que tenían el MVP a medio camino. La implementación es profesional, bien pensada y lista para beta.
+Este branch representa un salto cualitativo enorme en EcoSign. No solo agrega código, sino que **cierra gaps críticos** que tenían el MVP a medio camino. La implementación es profesional, bien pensada y lista para beta.
 
 ---
 
@@ -277,7 +277,7 @@ La experiencia del invitado (NdaAccessPage) es **ejemplar**:
 **Comparación con competencia:**
 - DocuSign: 6 clics, UI confusa
 - Adobe Sign: requiere login
-- VerifySign: 2 clics, cero fricción ✅
+- EcoSign: 2 clics, cero fricción ✅
 
 ### 3. **Documentación de Calidad** ⭐⭐⭐⭐⭐
 

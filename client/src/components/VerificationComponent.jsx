@@ -214,7 +214,7 @@ const VerificationComponent = ({ initialFile = null }) => {
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-gray-600">Validador</p>
-                    <p className="font-medium">VerifySign .ECO Standard</p>
+                    <p className="font-medium">EcoSign .ECO Standard</p>
                   </div>
                 </div>
               </div>

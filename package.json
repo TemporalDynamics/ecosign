@@ -1,7 +1,7 @@
 {
   "name": "verifysign",
   "version": "1.0.0",
-  "description": "VerifySign - Document Verification and Signing Platform",
+  "description": "EcoSign - Document Verification and Signing Platform",
   "main": "index.js",
   "scripts": {
     "dev": "cd client && npm run dev",

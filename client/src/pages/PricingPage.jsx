@@ -57,7 +57,7 @@ function PricingPage() {
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center space-x-4">
               <Link to="/" className="flex items-center space-x-3">
-                <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">VerifySign</span>
+                <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">EcoSign</span>
               </Link>
               <Link
                 to="/dashboard"
@@ -162,7 +162,7 @@ function PricingPage() {
       <footer className="bg-gray-50 border-t border-gray-200 mt-12 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-gray-600 text-sm">
-            © 2025 VerifySign por Temporal Dynamics LLC. Todos los derechos reservados.
+            © 2025 EcoSign por Temporal Dynamics LLC. Todos los derechos reservados.
           </p>
         </div>
       </footer>

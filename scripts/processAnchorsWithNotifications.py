@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bitcoin anchoring processor with email notifications for VerifySign.
+"""Bitcoin anchoring processor with email notifications for EcoSign.
 
 Usage:
   SUPABASE_URL=https://xxx.supabase.co \\
@@ -126,7 +126,7 @@ def send_completion_email(user_email, document_hash, anchor_id):
         resend.api_key = RESEND_API_KEY
         
         params = {
-            "from": "VerifySign <onboarding@resend.dev>",
+            "from": "EcoSign <onboarding@resend.dev>",
             "to": [user_email],
             "subject": "✅ Su documento ha sido anclado en Bitcoin",
             "html": f"""
@@ -136,8 +136,8 @@ def send_completion_email(user_email, document_hash, anchor_id):
             ha sido anclado con éxito en la blockchain de Bitcoin.</p>
             <p>El ID de su anclaje es: <strong>{anchor_id}</strong></p>
             <p>Este anclaje proporciona una prueba de existencia inmutable que cualquiera puede verificar.</p>
-            <p>Gracias por usar VerifySign.</p>
-            <p>Saludos,<br>El equipo de VerifySign</p>
+            <p>Gracias por usar EcoSign.</p>
+            <p>Saludos,<br>El equipo de EcoSign</p>
             """
         }
 

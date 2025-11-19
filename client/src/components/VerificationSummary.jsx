@@ -21,7 +21,7 @@ const layersConfig = [
   {
     key: 'signature',
     title: 'Firma Ed25519',
-    description: 'Valida que la firma provenga de VerifySign y no haya sido alterada.',
+    description: 'Valida que la firma provenga de EcoSign y no haya sido alterada.',
     icon: ShieldCheck
   },
   {

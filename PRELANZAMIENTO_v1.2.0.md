@@ -9,7 +9,7 @@
 
 ## 🎉 ¡HITO HISTÓRICO ALCANZADO!
 
-**El MVP de VerifySign está 95% completo y listo para beta privada**
+**El MVP de EcoSign está 95% completo y listo para beta privada**
 
 Este es el momento más importante del proyecto hasta ahora:
 - ✅ 3 flujos end-to-end funcionales
@@ -108,7 +108,7 @@ Invitado → /nda/:token → verify-access → Metadata forense
 ```
 DocuSign:    6 clics + login obligatorio
 Adobe Sign:  5 clics + login obligatorio
-VerifySign:  2 clics + cero fricción ✅
+EcoSign:  2 clics + cero fricción ✅
 ```
 
 ### 3. Verificar Público (100%)
@@ -507,7 +507,7 @@ Pendiente:
 
 ### Propuesta de Valor
 ```
-"VerifySign permite a profesionales certificar, compartir y verificar
+"EcoSign permite a profesionales certificar, compartir y verificar
 documentos con seguridad legal y trazabilidad blockchain, en 2 clics."
 ```
 
@@ -538,7 +538,7 @@ documentos con seguridad legal y trazabilidad blockchain, en 2 clics."
 **TAM (Total Addressable Market):**
 - Mercado global de e-signature: $4.1B (2024)
 - CAGR: 25% anual
-- VerifySign apunta a: $10M ARR (0.25% market share)
+- EcoSign apunta a: $10M ARR (0.25% market share)
 
 **ICP (Ideal Customer Profile):**
 - Freelancers y consultores
@@ -609,7 +609,7 @@ documentos con seguridad legal y trazabilidad blockchain, en 2 clics."
 
 ## 🎉 MENSAJE FINAL
 
-Este prelanzamiento marca un momento histórico para VerifySign:
+Este prelanzamiento marca un momento histórico para EcoSign:
 
 **Por primera vez, el MVP está completo y funcional end-to-end.**
 

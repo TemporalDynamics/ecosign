@@ -21,7 +21,7 @@ Toda la información contenida en el documento compartido, incluyendo pero no li
 Las obligaciones de confidencialidad permanecerán vigentes por un período de 5 años desde la fecha de aceptación.
 
 4. REGISTRO Y TRAZABILIDAD
-VerifySign registra: fecha, hora, dirección IP, navegador y país desde donde se acepta este acuerdo. Esta información constituye evidencia digital de la aceptación.
+EcoSign registra: fecha, hora, dirección IP, navegador y país desde donde se acepta este acuerdo. Esta información constituye evidencia digital de la aceptación.
 
 5. JURISDICCIÓN
 Este acuerdo se rige por las leyes aplicables y cualquier disputa será resuelta en los tribunales competentes.
@@ -173,7 +173,7 @@ function NdaAccessPage() {
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-xl font-bold text-gray-900">
-              VerifySign
+              EcoSign
             </Link>
             <div className="text-sm text-gray-500">
               Acceso seguro a documento
@@ -344,7 +344,7 @@ function NdaAccessPage() {
                 💡 ¿Querés guardar tus .ECO en la nube?
               </p>
               <p className="text-xs text-blue-700 mb-3">
-                Creá tu cuenta gratis en VerifySign y tené acceso a tus certificados desde cualquier lugar.
+                Creá tu cuenta gratis en EcoSign y tené acceso a tus certificados desde cualquier lugar.
               </p>
               <Link
                 to="/login"
@@ -361,7 +361,7 @@ function NdaAccessPage() {
       <footer className="bg-white border-t border-gray-200 py-6 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <p className="text-gray-500 text-sm">
-            © 2025 VerifySign por Temporal Dynamics LLC
+            © 2025 EcoSign por Temporal Dynamics LLC
           </p>
         </div>
       </footer>

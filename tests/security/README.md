@@ -1,6 +1,6 @@
 # Suite de Tests de Seguridad
 
-Esta carpeta contiene la suite completa de tests de seguridad para VerifySign.
+Esta carpeta contiene la suite completa de tests de seguridad para EcoSign.
 
 ## Tests Implementados
 
@@ -72,7 +72,7 @@ SUPABASE_SERVICE_ROLE_KEY=SERVICE_ROLE_KEY_DE_SUPABASE
 
 ## Filosofía de Seguridad
 
-VerifySign implementa múltiples capas de seguridad:
+EcoSign implementa múltiples capas de seguridad:
 
 1. **Autenticación robusta** - Supabase Auth con JWT
 2. **Autorización precisa** - Row Level Security en la base de datos

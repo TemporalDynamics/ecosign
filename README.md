@@ -1,8 +1,8 @@
-# VerifySign - Open Source Digital Trust Layer
+# EcoSign - Open Source Digital Trust Layer
 
 <div align="center">
 
-![VerifySign](https://img.shields.io/badge/VerifySign-v1.0.0-blue)
+![EcoSign](https://img.shields.io/badge/EcoSign-v1.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![React](https://img.shields.io/badge/React-18.2-blue)
 ![Vite](https://img.shields.io/badge/Vite-4.5-purple)
@@ -15,9 +15,9 @@
 
 ---
 
-## 🎯 ¿Qué es VerifySign?
+## 🎯 ¿Qué es EcoSign?
 
-VerifySign es una plataforma **open source** de certificación digital forense que crea evidencia técnica inmutable y verificable públicamente. A diferencia de soluciones cerradas como DocuSign o Adobe Sign, VerifySign:
+EcoSign es una plataforma **open source** de certificación digital forense que crea evidencia técnica inmutable y verificable públicamente. A diferencia de soluciones cerradas como DocuSign o Adobe Sign, EcoSign:
 
 ✅ **Es completamente auditable** - Código abierto para máxima transparencia
 ✅ **Verificación pública** - Cualquiera puede validar sin cuenta
@@ -52,7 +52,7 @@ Genera certificados con:
 
 ## 🆚 Comparativa
 
-| Característica | VerifySign | DocuSign | OpenSign | Mifiel |
+| Característica | EcoSign | DocuSign | OpenSign | Mifiel |
 |----------------|------------|----------|----------|--------|
 | **Open Source** | ✅ | ❌ | ✅ | ❌ |
 | **Verificación Pública** | ✅ | ❌ | ❌ | ⚠️ |
@@ -62,7 +62,7 @@ Genera certificados con:
 | **Self-Hostable** | ✅ | ❌ | ✅ | ❌ |
 | **Costo** | Gratis | $$$ | Gratis | $$ |
 
-> **Nota**: VerifySign complementa (no reemplaza) certificaciones oficiales. La validez legal depende de la jurisdicción.
+> **Nota**: EcoSign complementa (no reemplaza) certificaciones oficiales. La validez legal depende de la jurisdicción.
 
 ---
 
@@ -217,7 +217,7 @@ npm run test:coverage
 
 ## 🐛 Bug Bounty
 
-**¡Queremos que intentes romper VerifySign!**
+**¡Queremos que intentes romper EcoSign!**
 
 Estamos preparando un programa de recompensas por vulnerabilidades. Mientras tanto:
 
@@ -236,7 +236,7 @@ Estamos preparando un programa de recompensas por vulnerabilidades. Mientras tan
 
 ## 🧪 Testing
 
-VerifySign cuenta con una suite completa de **61 tests automatizados** que validan seguridad, funcionalidad y rendimiento.
+EcoSign cuenta con una suite completa de **61 tests automatizados** que validan seguridad, funcionalidad y rendimiento.
 
 ### 🚀 Quick Start
 
@@ -374,14 +374,14 @@ Este proyecto está bajo licencia MIT - ver [LICENSE](LICENSE) para detalles.
 ## 💬 Comunidad
 
 - **Discord**: [Próximamente]
-- **Twitter**: [@VerifySignHQ](https://twitter.com/verifysignhq)
+- **Twitter**: [@EcoSignHQ](https://twitter.com/verifysignhq)
 - **Email**: contact@verifysign.com
 
 ---
 
 ## 🙏 Agradecimientos
 
-VerifySign está inspirado en proyectos como:
+EcoSign está inspirado en proyectos como:
 - [OpenTimestamps](https://opentimestamps.org/) - Timestamping blockchain
 - [OpenSign](https://opensignlabs.com/) - E-signature open source
 - [Blockcerts](https://www.blockcerts.org/) - Certificados en blockchain
@@ -390,7 +390,7 @@ VerifySign está inspirado en proyectos como:
 
 ## 📊 Proyecto por Temporal Dynamics LLC
 
-VerifySign es parte del ecosistema **VistaNeo/LTC** y el estándar de archivos .ECO/.ECOX.
+EcoSign es parte del ecosistema **VistaNeo/LTC** y el estándar de archivos .ECO/.ECOX.
 
 **¿Por qué Open Source?**
 
@@ -402,6 +402,6 @@ Creemos que la confianza digital debe ser transparente y auditable. No vendemos 
 
 **⭐ Si te gusta el proyecto, dale una estrella en GitHub ⭐**
 
-Made with ❤️ by the VerifySign community
+Made with ❤️ by the EcoSign community
 
 </div>

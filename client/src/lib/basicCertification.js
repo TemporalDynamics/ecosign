@@ -186,7 +186,7 @@ export async function certifyFile(file, options = {}) {
     // Step 7: Create metadata
     const metadata = {
       certifiedAt: timestamp,
-      certifiedBy: 'VerifySign',
+      certifiedBy: 'EcoSign',
       clientInfo: {
         userAgent: navigator?.userAgent || 'Unknown',
         platform: navigator?.platform || 'Unknown',

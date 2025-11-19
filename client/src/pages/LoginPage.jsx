@@ -101,7 +101,7 @@ function LoginPage() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-cyan-100 to-blue-200 rounded-2xl mb-4">
             <Lock className="w-10 h-10 text-cyan-600" strokeWidth={2.5} />
           </div>
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600 mb-2">VerifySign</h1>
+          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600 mb-2">EcoSign</h1>
           <p className="text-gray-600">Plataforma de certificación digital con trazabilidad forense</p>
         </div>
 
@@ -112,7 +112,7 @@ function LoginPage() {
           <p className="text-gray-600 text-center mb-6">
             {isLogin
               ? 'Accede a tu panel de control y gestiona tus evidencias.'
-              : 'Regístrate para acceder a todas las funciones de VerifySign.'}
+              : 'Regístrate para acceder a todas las funciones de EcoSign.'}
           </p>
 
           {/* Mensaje de error */}

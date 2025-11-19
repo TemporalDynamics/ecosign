@@ -242,7 +242,7 @@ export async function certifyFile(file, options = {}) {
         }
       ],
       metadata: {
-        createdWith: 'VerifySign Browser Client',
+        createdWith: 'EcoSign Browser Client',
         browserVersion: navigator.userAgent,
         hasLegalTimestamp: tsaResponse && tsaResponse.success,
         timestampType: tsaResponse && tsaResponse.success ? 'RFC 3161 (Legal)' : 'Local (Informational)'

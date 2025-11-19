@@ -56,7 +56,7 @@ function DashboardVerifyPage() {
 
       <footer className="bg-gray-50 border-t border-gray-200 mt-12 py-6">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-600 text-sm">© 2025 VerifySign por Temporal Dynamics LLC. Todos los derechos reservados.</p>
+          <p className="text-gray-600 text-sm">© 2025 EcoSign por Temporal Dynamics LLC. Todos los derechos reservados.</p>
         </div>
       </footer>
     </div>

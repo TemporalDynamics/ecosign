@@ -623,7 +623,7 @@ echo "coverage/" >> .gitignore
 ```bash
 cd ~/verifysign
 cat > TEST_RESULTS.md << 'EOF'
-# 🧪 Resultados de Tests - VerifySign
+# 🧪 Resultados de Tests - EcoSign
 
 **Fecha:** $(date +%Y-%m-%d)
 **Commit:** $(git rev-parse --short HEAD)

@@ -165,7 +165,7 @@ function VerifyPage() {
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center space-x-4">
               <Link to="/" className="flex items-center space-x-3">
-                <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">VerifySign</span>
+                <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">EcoSign</span>
               </Link>
               <Link
                 to="/dashboard"
@@ -194,7 +194,7 @@ function VerifyPage() {
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Verificador Público .ECO</h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Verifica la autenticidad e integridad de cualquier documento certificado con VerifySign.
+            Verifica la autenticidad e integridad de cualquier documento certificado con EcoSign.
             Sin registro, sin pagos, sin barreras.
           </p>
         </div>
@@ -372,7 +372,7 @@ function VerifyPage() {
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Firma Electrónica</h4>
                   <p className="text-gray-600 text-sm">
-                    Comprueba que el certificado proviene de VerifySign y no fue adulterado.
+                    Comprueba que el certificado proviene de EcoSign y no fue adulterado.
                   </p>
                 </div>
               </div>
@@ -411,7 +411,7 @@ function VerifyPage() {
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Verificación Pública</h4>
                   <p className="text-gray-600 text-sm">
-                    Permite validar la prueba sin depender de VerifySign ni de nuestros servidores.
+                    Permite validar la prueba sin depender de EcoSign ni de nuestros servidores.
                   </p>
                 </div>
               </div>
@@ -424,7 +424,7 @@ function VerifyPage() {
       <footer className="bg-gray-900 border-t border-gray-800 mt-12 py-6">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-gray-400 text-sm">
-            © 2025 VerifySign. Verificación independiente y transparente.
+            © 2025 EcoSign. Verificación independiente y transparente.
           </p>
         </div>
       </footer>

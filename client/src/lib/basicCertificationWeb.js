@@ -133,12 +133,12 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
   // Create metadata with forensic information
   const metadata = {
     certifiedAt: timestamp,
-    certifiedBy: 'VerifySign',
+    certifiedBy: 'EcoSign',
     clientInfo: {
       userAgent: navigator?.userAgent || 'Unknown',
       platform: navigator?.platform || 'Unknown',
       language: navigator?.language || 'Unknown',
-      createdWith: 'VerifySign Web Client'
+      createdWith: 'EcoSign Web Client'
     },
     forensicEnabled: options.useLegalTimestamp || options.usePolygonAnchor || options.useBitcoinAnchor || false,
     anchoring: {
@@ -387,7 +387,7 @@ export async function certifyFile(file, options = {}) {
       manifest: project,
       signatures: signaturesData,
       metadata: {
-        createdWith: 'VerifySign Web Client',
+        createdWith: 'EcoSign Web Client',
         browserVersion: navigator.userAgent,
         hasLegalTimestamp: tsaResponse && tsaResponse.success,
         timestampType: tsaResponse && tsaResponse.success ? 'Legal Certification' : 'Local (Informational)',

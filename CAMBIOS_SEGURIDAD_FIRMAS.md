@@ -334,5 +334,5 @@ Es mucho más barato que alternativas (DocuSign: $25/mes).
 
 ---
 
-Implementado con 🔐 por VerifySign
+Implementado con 🔐 por EcoSign
 Fecha: 15 Noviembre 2025

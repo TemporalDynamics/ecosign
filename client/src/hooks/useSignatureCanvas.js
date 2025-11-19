@@ -15,11 +15,11 @@ export const useSignatureCanvas = () => {
 
     const ctx = canvas.getContext('2d');
 
-    // Configurar canvas con dimensiones correctas
+    // Configurar canvas con dimensiones correctas SIN escalar
+    // Esto evita el offset del cursor
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    canvas.width = rect.width;
+    canvas.height = rect.height;
 
     // Estilo de la línea
     ctx.strokeStyle = '#1f2937'; // gray-800

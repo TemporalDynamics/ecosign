@@ -26,7 +26,7 @@ function DashboardNav({ onLogout = () => {} }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <Link to="/dashboard/start" className="flex items-center space-x-3">
-            <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">VerifySign</span>
+            <span className="text-2xl font-extrabold text-gray-900">VerifySign</span>
           </Link>
           <nav className="hidden md:flex items-center space-x-6">
             {navItems.map((item) => (
@@ -34,7 +34,7 @@ function DashboardNav({ onLogout = () => {} }) {
                 key={item.to}
                 to={item.to}
                 className={`transition duration-200 font-medium ${
-                  location.pathname === item.to ? 'text-cyan-600 font-semibold' : 'text-gray-600 hover:text-cyan-600'
+                  location.pathname === item.to ? 'text-gray-900 font-semibold' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {item.label}
@@ -42,7 +42,7 @@ function DashboardNav({ onLogout = () => {} }) {
             ))}
             <button
               onClick={handleLogout}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition duration-200 font-medium"
+              className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition duration-200 font-medium"
             >
               Cerrar Sesión
             </button>
@@ -50,7 +50,7 @@ function DashboardNav({ onLogout = () => {} }) {
           <div className="md:hidden">
             <button
               onClick={handleLogout}
-              className="text-gray-600 hover:text-cyan-600 text-sm font-semibold"
+              className="text-gray-600 hover:text-gray-900 text-sm font-semibold"
             >
               Cerrar
             </button>

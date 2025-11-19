@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import LandingPageV2 from './pages/LandingPageV2';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import PricingPage from './pages/PricingPage';
@@ -18,7 +18,7 @@ function App() {
       <div className="App">
         <Routes>
         {/* Public routes */}
-        <Route path="/" element={<LandingPageV2 />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/verify" element={<VerifyPage />} />

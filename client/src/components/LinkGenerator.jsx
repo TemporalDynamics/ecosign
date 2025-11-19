@@ -1,6 +1,7 @@
 // client/src/components/LinkGenerator.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Lock, Link as LinkIcon, FileText, User, Mail, Building2, Briefcase, CheckCircle, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 const LinkGenerator = ({ documentId, onLinkGenerated }) => {
   const [requireNDA, setRequireNDA] = useState(true);
@@ -15,29 +16,15 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
   const [success, setSuccess] = useState(false);
   const [generatedLink, setGeneratedLink] = useState('');
 
-  // Obtener CSRF token
-  const [csrfToken, setCsrfToken] = useState('');
-
-  useEffect(() => {
-    // Simular obtención de CSRF token
-    const fetchCsrfToken = async () => {
-      // En una implementación real, esto vendría de una función backend
-      const token = 'generated-csrf-token'; // Esto debería generarse de forma segura en el backend
-      setCsrfToken(token);
-    };
-
-    fetchCsrfToken();
-  }, []);
-
   const validateFormData = () => {
     if (requireNDA) {
-      if (!formData.name.trim()) return 'Name is required';
-      if (!formData.email.trim()) return 'Email is required';
-      if (!formData.company.trim()) return 'Company is required';
-      
+      if (!formData.name.trim()) return 'El nombre es requerido';
+      if (!formData.email.trim()) return 'El email es requerido';
+      if (!formData.company.trim()) return 'La empresa es requerida';
+
       // Validar email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) return 'Invalid email format';
+      if (!emailRegex.test(formData.email)) return 'Formato de email inválido';
     }
     return null;
   };
@@ -55,34 +42,32 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
     setIsGenerating(true);
 
     try {
-      const response = await fetch('/.netlify/functions/generate-link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documentId,
-          requireNDA,
-          formData: requireNDA ? {
+      // Llamar a la Edge Function real de Supabase
+      const { data, error: invokeError } = await supabase.functions.invoke('generate-link', {
+        body: {
+          document_id: documentId,
+          require_nda: requireNDA,
+          recipient: requireNDA ? {
             name: formData.name.trim(),
             email: formData.email.trim(),
             company: formData.company.trim(),
-            position: formData.position.trim()
-          } : null,
-          csrfToken
-        })
+            position: formData.position.trim() || null
+          } : null
+        }
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate link');
+      if (invokeError) {
+        throw new Error(invokeError.message || 'Error al generar enlace');
       }
 
-      setGeneratedLink(data.accessUrl);
+      if (!data?.success) {
+        throw new Error(data?.error || 'Error desconocido al generar enlace');
+      }
+
+      setGeneratedLink(data.access_url);
       setSuccess(true);
       onLinkGenerated && onLinkGenerated(data);
-      
+
       // Limpiar formulario si no se requiere NDA
       if (!requireNDA) {
         setFormData({
@@ -93,7 +78,8 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
         });
       }
     } catch (err) {
-      setError(err.message);
+      console.error('Error generating link:', err);
+      setError(err.message || 'Error al generar enlace');
     } finally {
       setIsGenerating(false);
     }

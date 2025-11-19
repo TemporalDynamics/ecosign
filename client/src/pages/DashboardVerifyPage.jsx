@@ -43,7 +43,7 @@ function DashboardVerifyPage() {
             <div>
               <h3 className="text-gray-900 font-semibold mb-2">Verificación Independiente</h3>
               <p className="text-gray-700 text-sm">
-                Esta herramienta valida la firma criptográfica, hash SHA-256 y timestamp del documento.
+                Esta herramienta valida la firma electrónica, huella digital y sello de tiempo del documento.
                 La verificación se realiza localmente en tu navegador - el archivo nunca se sube a nuestros servidores.
               </p>
             </div>

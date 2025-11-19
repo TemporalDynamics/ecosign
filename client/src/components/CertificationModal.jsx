@@ -15,11 +15,14 @@ import {
   Eye,
   Pen,
   Highlighter,
-  Type
+  Type,
+  FileCheck
 } from 'lucide-react';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
+import { applySignatureToPDF, blobToFile, addSignatureSheet } from '../utils/pdfSignature';
+import { signWithSignNow } from '../lib/signNowService';
 
 /**
  * Modal de Certificación - Diseño según Design System VerifySign
@@ -53,13 +56,44 @@ const CertificationModal = ({ isOpen, onClose }) => {
   const [multipleSignatures, setMultipleSignatures] = useState(false);
   const [signers, setSigners] = useState([]);
   const [emailInputs, setEmailInputs] = useState([
-    { email: '', requireLogin: true, requireNda: true },
-    { email: '', requireLogin: true, requireNda: true },
     { email: '', requireLogin: true, requireNda: true }
-  ]); // 3 campos por defecto con configuración
+  ]); // 1 campo por defecto - usuarios agregan más según necesiten
+
+  // Firma digital (EcoSign o Legal)
+  const [signatureEnabled, setSignatureEnabled] = useState(false);
+  const [signatureType, setSignatureType] = useState('ecosign'); // 'ecosign' | 'signnow'
+
+  // Saldos de firma (mock data - en producción viene de la DB)
+  const [ecosignUsed, setEcosignUsed] = useState(30); // Firmas usadas
+  const [ecosignTotal, setEcosignTotal] = useState(50); // Total del plan
+  const [signnowUsed, setSignnowUsed] = useState(5); // Firmas usadas
+  const [signnowTotal, setSignnowTotal] = useState(15); // Total del plan
+  const [isEnterprisePlan, setIsEnterprisePlan] = useState(false); // Plan enterprise tiene ilimitadas
+
+  // Datos del firmante (para Hoja de Auditoría - solo EcoSign)
+  // Caso A (multipleSignatures OFF): Yo firmo → prellenar con usuario logueado
+  // Caso B (multipleSignatures ON): Otros firman → enviar links
+  const [signerName, setSignerName] = useState('');
+  const [signerEmail, setSignerEmail] = useState('');
+  const [signerCompany, setSignerCompany] = useState('');
+  const [signerJobTitle, setSignerJobTitle] = useState('');
+
+  // TODO: En producción, prellenar con datos del usuario autenticado cuando multipleSignatures = false
+  // useEffect(() => {
+  //   if (!multipleSignatures && currentUser) {
+  //     setSignerName(currentUser.full_name || currentUser.email);
+  //     setSignerEmail(currentUser.email);
+  //   } else {
+  //     setSignerName('');
+  //     setSignerEmail('');
+  //   }
+  // }, [multipleSignatures, currentUser]);
 
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState('none'); // 'none', 'canvas', 'signnow'
+  const [signatureTab, setSignatureTab] = useState('draw'); // 'draw', 'type', 'upload'
+  const [typedSignature, setTypedSignature] = useState('');
+  const [uploadedSignature, setUploadedSignature] = useState(null);
   const { canvasRef, hasSignature, clearCanvas, getSignatureData, handlers } = useSignatureCanvas();
 
   // Preview del documento
@@ -68,6 +102,17 @@ const CertificationModal = ({ isOpen, onClose }) => {
   const [showSignatureOnPreview, setShowSignatureOnPreview] = useState(false);
   const [annotationMode, setAnnotationMode] = useState(null); // 'signature', 'highlight', 'text'
   const [annotations, setAnnotations] = useState([]); // Lista de anotaciones (highlights y textos)
+
+  // Helper: Convertir base64 a Blob
+  const base64ToBlob = (base64) => {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: 'application/pdf' });
+  };
 
   if (!isOpen) return null;
 
@@ -111,18 +156,6 @@ const CertificationModal = ({ isOpen, onClose }) => {
     setEmailInputs(newInputs);
   };
 
-  const handleToggleLogin = (index) => {
-    const newInputs = [...emailInputs];
-    newInputs[index] = { ...newInputs[index], requireLogin: !newInputs[index].requireLogin };
-    setEmailInputs(newInputs);
-  };
-
-  const handleToggleNda = (index) => {
-    const newInputs = [...emailInputs];
-    newInputs[index] = { ...newInputs[index], requireNda: !newInputs[index].requireNda };
-    setEmailInputs(newInputs);
-  };
-
   const buildSignersList = () => {
     // Construir lista de firmantes desde los campos con email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -150,16 +183,149 @@ const CertificationModal = ({ isOpen, onClose }) => {
 
     setLoading(true);
     try {
-      // Obtener datos de firma si está en modo canvas
+      // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
+      if (multipleSignatures) {
+        // Validar que haya al menos un email
+        const validEmails = emailInputs.filter(input => input.email.trim() !== '');
+        if (validEmails.length === 0) {
+          alert('Agregá al menos un email para enviar el documento a firmar');
+          setLoading(false);
+          return;
+        }
+
+        // Para EcoSign: crear .ECO en estado PENDIENTE_DE_FIRMA
+        // TODO: Implementar lógica de envío de links únicos
+        console.log('📧 Caso B - Enviando invitaciones a:', validEmails);
+        console.log('Estado del documento: PENDIENTE_DE_FIRMA');
+
+        // Simular delay
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        alert(`Invitaciones enviadas a ${validEmails.length} firmante(s)\n\nCada firmante recibirá un link único para identificarse y firmar el documento.`);
+
+        // Cerrar modal
+        resetAndClose();
+        onClose();
+        setLoading(false);
+        return;
+      }
+
+      // FLUJO 2: Firma Individual (Caso A) - Yo firmo ahora
+      console.log('✍️ Caso A - Usuario logueado firma el documento');
+
+      // Obtener datos de firma si está en modo canvas (ya aplicada al PDF)
       const signatureData = signatureMode === 'canvas' ? getSignatureData() : null;
 
-      // 1. Certificar (con blindaje forense solo si está activado)
-      const certResult = await certifyFile(file, {
-        useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
-        usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
-        useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
-        signatureData: signatureData
-      });
+      // Preparar archivo con Hoja de Auditoría (SOLO para EcoSign)
+      let fileToProcess = file;
+
+      // Solo agregar Hoja de Auditoría si es EcoSign (NO para SignNow)
+      if (signatureEnabled && signatureType === 'ecosign') {
+        // Validar nombre del firmante (obligatorio para Hoja de Auditoría)
+        if (!signerName.trim()) {
+          alert('Por favor, completá tu nombre para generar la Hoja de Auditoría');
+          setLoading(false);
+          return;
+        }
+
+        // Preparar datos forenses para la hoja de firmas
+        const forensicData = {
+          forensicEnabled: forensicEnabled,
+          legalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+          polygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
+          bitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
+          timestamp: new Date().toISOString(),
+          // Datos del firmante
+          signerName: signerName.trim(),
+          signerEmail: signerEmail.trim() || null,
+          signerCompany: signerCompany.trim() || null,
+          signerJobTitle: signerJobTitle.trim() || null,
+          // Metadata del documento
+          documentName: file.name,
+          documentPages: null, // TODO: Calcular páginas del PDF
+          documentSize: file.size,
+          // El hash se calculará después de la certificación
+        };
+
+        // Agregar Hoja de Auditoría al PDF
+        const pdfWithSheet = await addSignatureSheet(file, signatureData, forensicData);
+        fileToProcess = blobToFile(pdfWithSheet, file.name);
+      }
+
+      // 1. Certificar con o sin SignNow según tipo de firma seleccionado
+      let certResult;
+      let signedPdfFromSignNow = null;
+
+      if (signatureEnabled && signatureType === 'signnow') {
+        // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
+        console.log('🔐 Usando SignNow API para firma legalizada');
+
+        try {
+          // Llamar a SignNow con la firma ya embebida
+          const signNowResult = await signWithSignNow(fileToProcess, {
+            documentName: fileToProcess.name,
+            action: 'esignature',
+            userEmail: 'user@example.com', // TODO: Obtener del usuario autenticado
+            userName: 'Usuario', // TODO: Obtener del perfil
+            signature: signatureData ? {
+              image: signatureData,
+              placement: {
+                page: 1, // Última página (ya está en Hoja de Firmas)
+                xPercent: 0.1,
+                yPercent: 0.8,
+                widthPercent: 0.3,
+                heightPercent: 0.1
+              }
+            } : null,
+            requireNdaEmbed: false,
+            metadata: {
+              forensicEnabled: forensicEnabled,
+              useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+              usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
+              useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor
+            }
+          });
+
+          console.log('✅ SignNow completado:', signNowResult);
+
+          // Obtener el PDF firmado desde SignNow
+          if (signNowResult.signed_pdf_base64) {
+            // Convertir base64 a File
+            const signedBlob = base64ToBlob(signNowResult.signed_pdf_base64);
+            signedPdfFromSignNow = blobToFile(signedBlob, fileToProcess.name);
+          }
+
+          // Usar el archivo firmado por SignNow para certificar
+          certResult = await certifyFile(signedPdfFromSignNow || fileToProcess, {
+            useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+            usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
+            useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
+            signatureData: null, // Ya está firmado por SignNow
+            signNowDocumentId: signNowResult.signnow_document_id
+          });
+
+        } catch (signNowError) {
+          console.error('❌ Error con SignNow:', signNowError);
+          alert(`Error al procesar firma legal con SignNow: ${signNowError.message}\n\nSe usará firma estándar.`);
+
+          // Fallback a firma estándar
+          certResult = await certifyFile(fileToProcess, {
+            useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+            usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
+            useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
+            signatureData: signatureData
+          });
+        }
+      } else {
+        // ✅ Usar motor interno (EcoSign)
+        console.log('📝 Usando motor interno EcoSign');
+        certResult = await certifyFile(fileToProcess, {
+          useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+          usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
+          useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
+          signatureData: signatureData
+        });
+      }
 
       // 2. Guardar en Supabase
       await saveUserDocument(file, certResult.ecoData, {
@@ -174,7 +340,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
         fileName: certResult.fileName
       });
 
-      setStep(3); // Ir a "Listo"
+      setStep(2); // Ir a "Listo" (ahora es paso 2)
     } catch (error) {
       console.error('Error al certificar:', error);
       alert('Hubo un problema al certificar tu documento. Por favor intentá de nuevo.');
@@ -189,12 +355,11 @@ const CertificationModal = ({ isOpen, onClose }) => {
     setCertificateData(null);
     setSignatureMode('none');
     setMultipleSignatures(false);
+    setLegalSignatureEnabled(false);
     setSigners([]);
     setEmailInputs([
-      { email: '', requireLogin: true, requireNda: true },
-      { email: '', requireLogin: true, requireNda: true },
       { email: '', requireLogin: true, requireNda: true }
-    ]); // Reset a 3 campos vacíos
+    ]); // Reset a 1 campo vacío
     setForensicEnabled(false);
     setDocumentPreview(null);
     setPreviewFullscreen(false);
@@ -223,14 +388,14 @@ const CertificationModal = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Progress Steps */}
+        {/* Progress Steps - Solo 2 pasos */}
         <div className="px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center justify-between max-w-md mx-auto">
-            {/* Paso 1 */}
+          <div className="flex items-center justify-center max-w-xs mx-auto">
+            {/* Paso 1: Configurar */}
             <div className="flex items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                 step >= 1
-                  ? 'bg-cyan-600 text-white'
+                  ? 'bg-gray-900 text-white'
                   : 'border-2 border-gray-300 text-gray-400'
               }`}>
                 {step > 1 ? <CheckCircle2 className="w-5 h-5" /> : '1'}
@@ -238,49 +403,28 @@ const CertificationModal = ({ isOpen, onClose }) => {
               <span className={`ml-2 text-sm ${
                 step >= 1 ? 'text-gray-900 font-medium' : 'text-gray-400'
               }`}>
-                Paso 1
+                Configurar
               </span>
             </div>
 
             {/* Línea conectora */}
             <div className={`flex-1 h-px mx-4 ${
-              step > 1 ? 'bg-cyan-600' : 'bg-gray-200'
+              step > 1 ? 'bg-gray-900' : 'bg-gray-200'
             }`}></div>
 
-            {/* Paso 2 */}
+            {/* Paso 2: Listo */}
             <div className="flex items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                 step >= 2
-                  ? 'bg-cyan-600 text-white'
+                  ? 'bg-gray-900 text-white'
                   : 'border-2 border-gray-300 text-gray-400'
               }`}>
-                {step > 2 ? <CheckCircle2 className="w-5 h-5" /> : '2'}
+                {step >= 2 ? <CheckCircle2 className="w-5 h-5" /> : '2'}
               </div>
               <span className={`ml-2 text-sm ${
                 step >= 2 ? 'text-gray-900 font-medium' : 'text-gray-400'
               }`}>
-                Paso 2
-              </span>
-            </div>
-
-            {/* Línea conectora */}
-            <div className={`flex-1 h-px mx-4 ${
-              step > 2 ? 'bg-cyan-600' : 'bg-gray-200'
-            }`}></div>
-
-            {/* Paso 3 */}
-            <div className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step >= 3
-                  ? 'bg-cyan-600 text-white'
-                  : 'border-2 border-gray-300 text-gray-400'
-              }`}>
-                3
-              </div>
-              <span className={`ml-2 text-sm ${
-                step >= 3 ? 'text-gray-900 font-medium' : 'text-gray-400'
-              }`}>
-                Paso 3
+                Listo
               </span>
             </div>
           </div>
@@ -300,14 +444,14 @@ const CertificationModal = ({ isOpen, onClose }) => {
 
                 {/* Zona de drop / Preview del documento */}
                 {!file ? (
-                  <label className="block border-2 border-dashed border-gray-300 rounded-xl py-12 text-center hover:border-cyan-500 transition-colors cursor-pointer">
+                  <label className="block border-2 border-dashed border-gray-300 rounded-xl py-12 text-center hover:border-gray-900 transition-colors cursor-pointer">
                     <input
                       type="file"
                       className="hidden"
                       onChange={handleFileSelect}
                       accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                     />
-                    <FileText className="w-12 h-12 text-cyan-600 mx-auto mb-4" />
+                    <FileText className="w-12 h-12 text-gray-900 mx-auto mb-4" />
                     <p className="text-sm text-gray-900 font-medium">
                       Arrastrá tu documento o hacé clic para elegirlo
                     </p>
@@ -340,7 +484,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                               }}
                               className={`p-2 rounded-lg transition-colors ${
                                 annotationMode === 'signature'
-                                  ? 'bg-cyan-100 text-cyan-700'
+                                  ? 'bg-gray-900 text-white'
                                   : 'text-gray-600 hover:bg-gray-100'
                               }`}
                               title="Firmar documento"
@@ -351,7 +495,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                               onClick={() => setAnnotationMode(annotationMode === 'highlight' ? null : 'highlight')}
                               className={`p-2 rounded-lg transition-colors ${
                                 annotationMode === 'highlight'
-                                  ? 'bg-yellow-100 text-yellow-700'
+                                  ? 'bg-gray-900 text-white'
                                   : 'text-gray-600 hover:bg-gray-100'
                               }`}
                               title="Resaltar texto (marcar desacuerdos)"
@@ -362,7 +506,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                               onClick={() => setAnnotationMode(annotationMode === 'text' ? null : 'text')}
                               className={`p-2 rounded-lg transition-colors ${
                                 annotationMode === 'text'
-                                  ? 'bg-blue-100 text-blue-700'
+                                  ? 'bg-gray-900 text-white'
                                   : 'text-gray-600 hover:bg-gray-100'
                               }`}
                               title="Agregar texto (modificaciones)"
@@ -378,7 +522,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                             </button>
                           </>
                         )}
-                        <label className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors cursor-pointer" title="Cambiar archivo">
+                        <label className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Cambiar archivo">
                           <input
                             type="file"
                             className="hidden"
@@ -408,38 +552,198 @@ const CertificationModal = ({ isOpen, onClose }) => {
                             />
                           ) : null}
 
-                          {/* Canvas de firma sobre el preview */}
+                          {/* Modal de firma con tabs */}
                           {showSignatureOnPreview && (
-                            <div className="absolute inset-0 bg-black bg-opacity-5 flex items-center justify-center">
-                              <div className="bg-white rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4">
+                            <div className="absolute inset-0 bg-black bg-opacity-5 flex items-center justify-center p-4">
+                              <div className="bg-white rounded-xl shadow-2xl p-6 max-w-xl w-full">
                                 <div className="flex justify-between items-center mb-4">
                                   <h4 className="font-semibold text-gray-900">Firmá tu documento</h4>
                                   <button
-                                    onClick={() => setShowSignatureOnPreview(false)}
+                                    onClick={() => {
+                                      setShowSignatureOnPreview(false);
+                                      setSignatureTab('draw');
+                                    }}
                                     className="text-gray-400 hover:text-gray-600"
                                   >
                                     <X className="w-5 h-5" />
                                   </button>
                                 </div>
-                                <canvas
-                                  ref={canvasRef}
-                                  className="w-full h-32 border-2 border-gray-300 rounded-lg cursor-crosshair bg-white"
-                                  {...handlers}
-                                />
-                                <div className="flex gap-2 mt-4">
+
+                                {/* Tabs */}
+                                <div className="flex border-b border-gray-200 mb-4">
                                   <button
-                                    onClick={clearCanvas}
+                                    onClick={() => setSignatureTab('draw')}
+                                    className={`px-4 py-2 font-medium transition-colors ${
+                                      signatureTab === 'draw'
+                                        ? 'text-gray-900 border-b-2 border-gray-900'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                                  >
+                                    Dibujar
+                                  </button>
+                                  <button
+                                    onClick={() => setSignatureTab('type')}
+                                    className={`px-4 py-2 font-medium transition-colors ${
+                                      signatureTab === 'type'
+                                        ? 'text-gray-900 border-b-2 border-gray-900'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                                  >
+                                    Teclear
+                                  </button>
+                                  <button
+                                    onClick={() => setSignatureTab('upload')}
+                                    className={`px-4 py-2 font-medium transition-colors ${
+                                      signatureTab === 'upload'
+                                        ? 'text-gray-900 border-b-2 border-gray-900'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                                  >
+                                    Subir
+                                  </button>
+                                </div>
+
+                                {/* Contenido según tab activo */}
+                                <div className="mb-4">
+                                  {signatureTab === 'draw' && (
+                                    <canvas
+                                      ref={canvasRef}
+                                      className="w-full h-40 border-2 border-gray-300 rounded-lg cursor-crosshair bg-white"
+                                      {...handlers}
+                                    />
+                                  )}
+
+                                  {signatureTab === 'type' && (
+                                    <div className="space-y-4">
+                                      <input
+                                        type="text"
+                                        value={typedSignature}
+                                        onChange={(e) => setTypedSignature(e.target.value)}
+                                        placeholder="Escribí tu nombre"
+                                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                                      />
+                                      {typedSignature && (
+                                        <div className="h-40 border-2 border-gray-300 rounded-lg bg-white flex items-center justify-center">
+                                          <p className="text-5xl" style={{ fontFamily: "'Dancing Script', cursive" }}>
+                                            {typedSignature}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {signatureTab === 'upload' && (
+                                    <div className="space-y-4">
+                                      <label className="block">
+                                        <div className="h-40 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer flex flex-col items-center justify-center">
+                                          {uploadedSignature ? (
+                                            <img
+                                              src={uploadedSignature}
+                                              alt="Firma"
+                                              className="max-h-32 max-w-full object-contain"
+                                            />
+                                          ) : (
+                                            <>
+                                              <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                                              <p className="text-sm text-gray-600">Click para subir firma (PNG/JPG)</p>
+                                            </>
+                                          )}
+                                        </div>
+                                        <input
+                                          type="file"
+                                          className="hidden"
+                                          accept="image/png,image/jpeg,image/jpg"
+                                          onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                              const reader = new FileReader();
+                                              reader.onload = (event) => {
+                                                setUploadedSignature(event.target.result);
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Botones */}
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      if (signatureTab === 'draw') {
+                                        clearCanvas();
+                                      } else if (signatureTab === 'type') {
+                                        setTypedSignature('');
+                                      } else if (signatureTab === 'upload') {
+                                        setUploadedSignature(null);
+                                      }
+                                    }}
                                     className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                                   >
                                     Limpiar
                                   </button>
                                   <button
-                                    onClick={() => {
-                                      setShowSignatureOnPreview(false);
-                                      setSignatureMode('canvas');
+                                    onClick={async () => {
+                                      if (!file) return;
+
+                                      try {
+                                        let signatureData = null;
+
+                                        // Obtener firma según el tab activo
+                                        if (signatureTab === 'draw') {
+                                          if (!hasSignature) return;
+                                          signatureData = getSignatureData();
+                                        } else if (signatureTab === 'type') {
+                                          if (!typedSignature) return;
+                                          // Convertir texto a imagen
+                                          const canvas = document.createElement('canvas');
+                                          canvas.width = 600;
+                                          canvas.height = 200;
+                                          const ctx = canvas.getContext('2d');
+                                          ctx.fillStyle = 'white';
+                                          ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                          ctx.fillStyle = '#1f2937';
+                                          ctx.font = "80px 'Dancing Script', cursive";
+                                          ctx.textAlign = 'center';
+                                          ctx.textBaseline = 'middle';
+                                          ctx.fillText(typedSignature, canvas.width / 2, canvas.height / 2);
+                                          signatureData = canvas.toDataURL('image/png');
+                                        } else if (signatureTab === 'upload') {
+                                          if (!uploadedSignature) return;
+                                          signatureData = uploadedSignature;
+                                        }
+
+                                        if (!signatureData) return;
+
+                                        // Aplicar firma al PDF
+                                        const signedPdfBlob = await applySignatureToPDF(file, signatureData);
+                                        const signedPdfFile = blobToFile(signedPdfBlob, file.name);
+
+                                        // Actualizar el archivo con la versión firmada
+                                        setFile(signedPdfFile);
+
+                                        // Actualizar la vista previa
+                                        const newPreviewUrl = URL.createObjectURL(signedPdfBlob);
+                                        setDocumentPreview(newPreviewUrl);
+
+                                        // Cerrar el modo firma
+                                        setShowSignatureOnPreview(false);
+                                        setSignatureMode('canvas');
+                                        setSignatureTab('draw');
+                                      } catch (error) {
+                                        console.error('Error al aplicar firma:', error);
+                                        alert('Error al aplicar la firma al PDF. Por favor, inténtalo de nuevo.');
+                                      }
                                     }}
-                                    className="flex-1 py-2 px-4 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
-                                    disabled={!hasSignature}
+                                    className="flex-1 py-2 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+                                    disabled={
+                                      (signatureTab === 'draw' && !hasSignature) ||
+                                      (signatureTab === 'type' && !typedSignature) ||
+                                      (signatureTab === 'upload' && !uploadedSignature)
+                                    }
                                   >
                                     Aplicar firma
                                   </button>
@@ -463,7 +767,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
               {/* Switch: Firmas múltiples */}
               <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-cyan-600" />
+                  <Users className="w-5 h-5 text-gray-900" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">
                       Firmas múltiples
@@ -480,14 +784,167 @@ const CertificationModal = ({ isOpen, onClose }) => {
                     onChange={(e) => setMultipleSignatures(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
                 </label>
+              </div>
+
+              {/* Switch: Firma Digital */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FileCheck className="w-5 h-5 text-gray-900" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Firmar documento
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Agregar firma digital al certificado
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={signatureEnabled}
+                      onChange={(e) => setSignatureEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+                  </label>
+                </div>
+
+                {/* Radio buttons: Tipo de Firma (solo si signatureEnabled) */}
+                {signatureEnabled && (
+                  <div className="pl-4 space-y-2 border-l-2 border-gray-200">
+                    {/* Opción 1: EcoSign */}
+                    <label className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="signatureType"
+                          value="ecosign"
+                          checked={signatureType === 'ecosign'}
+                          onChange={(e) => setSignatureType(e.target.value)}
+                          className="w-4 h-4 text-gray-900 focus:ring-gray-900"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            Firma EcoSign {!isEnterprisePlan && <span className="text-gray-500 font-normal">({ecosignUsed}/{ecosignTotal})</span>}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Recomendado para gestión interna, RRHH y aprobaciones
+                          </p>
+                        </div>
+                      </div>
+                      {isEnterprisePlan && (
+                        <span className="text-xs font-semibold px-2 py-1 rounded bg-gray-900 text-white">
+                          Ilimitada
+                        </span>
+                      )}
+                    </label>
+
+                    {/* Opción 2: SignNow */}
+                    <label className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="signatureType"
+                          value="signnow"
+                          checked={signatureType === 'signnow'}
+                          onChange={(e) => setSignatureType(e.target.value)}
+                          className="w-4 h-4 text-gray-900 focus:ring-gray-900"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            Firma Legal (SignNow) <span className="text-gray-500 font-normal">({signnowUsed}/{signnowTotal})</span>
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Para contratos externos con validez eIDAS/UETA
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+
+                    {/* Formulario de datos del firmante (solo para EcoSign) */}
+                    {signatureType === 'ecosign' && !multipleSignatures && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">✍️</span>
+                          <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">
+                            Tus datos (para Hoja de Auditoría)
+                          </p>
+                        </div>
+
+                        {/* Nombre completo - OBLIGATORIO */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Nombre completo <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={signerName}
+                            onChange={(e) => setSignerName(e.target.value)}
+                            placeholder="Ej: Juan Pérez"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* Email - OPCIONAL */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Email (opcional)
+                          </label>
+                          <input
+                            type="email"
+                            value={signerEmail}
+                            onChange={(e) => setSignerEmail(e.target.value)}
+                            placeholder="Ej: juan@empresa.com"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* Empresa y Puesto (en la misma línea) - OPCIONAL */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Empresa (opcional)
+                            </label>
+                            <input
+                              type="text"
+                              value={signerCompany}
+                              onChange={(e) => setSignerCompany(e.target.value)}
+                              placeholder="Ej: Acme Inc."
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Puesto (opcional)
+                            </label>
+                            <input
+                              type="text"
+                              value={signerJobTitle}
+                              onChange={(e) => setSignerJobTitle(e.target.value)}
+                              placeholder="Ej: Director"
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-blue-700 italic flex items-start gap-1">
+                          <span className="mt-0.5">ℹ️</span>
+                          <span>Estos datos aparecerán en la Hoja de Auditoría al final del documento</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Switch: Blindaje Forense */}
               <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Shield className="w-5 h-5 text-cyan-600" />
+                  <Shield className="w-5 h-5 text-gray-900" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">
                       Blindaje forense
@@ -509,7 +966,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                     }}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
                 </label>
               </div>
 
@@ -545,7 +1002,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                             ...forensicConfig,
                             useLegalTimestamp: e.target.checked
                           })}
-                          className="mt-1 w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
+                          className="mt-1 w-4 h-4 text-gray-900 rounded focus:ring-gray-500"
                         />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
@@ -566,7 +1023,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                             ...forensicConfig,
                             usePolygonAnchor: e.target.checked
                           })}
-                          className="mt-1 w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
+                          className="mt-1 w-4 h-4 text-gray-900 rounded focus:ring-gray-500"
                         />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
@@ -587,7 +1044,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                             ...forensicConfig,
                             useBitcoinAnchor: e.target.checked
                           })}
-                          className="mt-1 w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
+                          className="mt-1 w-4 h-4 text-gray-900 rounded focus:ring-gray-500"
                         />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
@@ -603,134 +1060,108 @@ const CertificationModal = ({ isOpen, onClose }) => {
                 </div>
               )}
 
-              {/* Botón Siguiente */}
+              {/* Smart Feedback - Resumen Dinámico de Seguridad */}
+              {(() => {
+                // Lógica para determinar el nivel de seguridad
+                const hasSignature = signatureEnabled;
+                const isLegalSignature = signatureEnabled && signatureType === 'signnow';
+                const hasForensic = forensicEnabled;
+
+                // Mensajes más amigables y educativos
+                let title = '';
+                let description = '';
+                let emoji = '';
+                let bgColor = 'bg-blue-50';
+                let borderColor = 'border-blue-200';
+                let textColor = 'text-blue-800';
+
+                if (hasForensic && isLegalSignature) {
+                  // MÁXIMO: SignNow + Blindaje Forense
+                  emoji = '⚖️';
+                  title = 'Validez legal + evidencia forense';
+                  description = 'Firma con normas eIDAS/ESIGN/UETA y blindaje criptográfico adicional. Ideal para contratos formales con terceros.';
+                  bgColor = 'bg-purple-50';
+                  borderColor = 'border-purple-200';
+                  textColor = 'text-purple-800';
+                } else if (hasForensic && hasSignature && signatureType === 'ecosign') {
+                  // ALTO: EcoSign + Blindaje Forense
+                  emoji = '🔒';
+                  title = 'Protección avanzada activa';
+                  description = 'Tu documento tendrá trazabilidad interna + registro criptográfico (hash + blockchain). Ideal para procesos internos, NDAs y aprobaciones.';
+                  bgColor = 'bg-blue-50';
+                  borderColor = 'border-blue-200';
+                  textColor = 'text-blue-800';
+                } else if (hasForensic) {
+                  // Solo Blindaje Forense (sin firma)
+                  emoji = '🔒';
+                  title = 'Protección avanzada activa';
+                  description = 'Registro criptográfico con hash + blockchain. Ideal para certificar documentos sin necesidad de firma.';
+                  bgColor = 'bg-blue-50';
+                  borderColor = 'border-blue-200';
+                  textColor = 'text-blue-800';
+                } else if (isLegalSignature) {
+                  // Solo SignNow (sin blindaje)
+                  emoji = '⚖️';
+                  title = 'Firma legal internacional';
+                  description = 'Validez legal con normas eIDAS/ESIGN/UETA. Ideal para contratos formales. Podés activar el blindaje para máxima trazabilidad.';
+                  bgColor = 'bg-indigo-50';
+                  borderColor = 'border-indigo-200';
+                  textColor = 'text-indigo-800';
+                } else if (hasSignature && signatureType === 'ecosign') {
+                  // Solo EcoSign (sin blindaje)
+                  emoji = 'ℹ️';
+                  title = 'Firma interna sin blindaje extra';
+                  description = 'La firma será visible en el PDF y quedará registrada en EcoSign, pero sin anclaje en blockchain ni sello de tiempo legal. Podés activar el blindaje si necesitás máxima trazabilidad.';
+                  bgColor = 'bg-gray-50';
+                  borderColor = 'border-gray-200';
+                  textColor = 'text-gray-700';
+                } else {
+                  // Sin firma y sin blindaje
+                  emoji = 'ℹ️';
+                  title = 'Certificado básico';
+                  description = 'El documento quedará registrado en EcoSign sin firma ni blindaje forense. Activá la firma o el blindaje para mayor seguridad.';
+                  bgColor = 'bg-gray-50';
+                  borderColor = 'border-gray-200';
+                  textColor = 'text-gray-700';
+                }
+
+                return (
+                  <div className={`${bgColor} ${borderColor} border rounded-lg p-4 mb-4`}>
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl">{emoji}</span>
+                      <div className="flex-1">
+                        <p className={`text-sm font-semibold ${textColor} mb-1`}>
+                          {title}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Botón principal - cambia según configuración */}
               <button
-                onClick={() => setStep(2)}
-                disabled={!file}
-                className="w-full bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors"
+                onClick={handleCertify}
+                disabled={!file || loading}
+                className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
               >
-                Siguiente
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    {multipleSignatures ? 'Enviando invitaciones...' : 'Certificando...'}
+                  </>
+                ) : (
+                  multipleSignatures ? 'Enviar para firmar' : 'Certificar documento'
+                )}
               </button>
             </div>
           )}
 
-          {/* PASO 2: FIRMAR */}
-          {step === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Firma legal (opcional)
-                </h3>
-                <p className="text-sm text-gray-600 mb-6">
-                  Podés agregar tu firma para darle validez legal al documento
-                </p>
-
-                {/* Opciones de firma */}
-                <div className="space-y-3">
-                  <label className="flex items-start gap-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-cyan-500 transition-colors">
-                    <input
-                      type="radio"
-                      name="signature-mode"
-                      checked={signatureMode === 'none'}
-                      onChange={() => setSignatureMode('none')}
-                      className="mt-1"
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Solo certificación (sin firma)
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Certifica que el documento existe en esta fecha sin firmarlo
-                      </p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start gap-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-cyan-500 transition-colors">
-                    <input
-                      type="radio"
-                      name="signature-mode"
-                      checked={signatureMode === 'signnow'}
-                      onChange={() => setSignatureMode('signnow')}
-                      className="mt-1"
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Firma legal con SignNow (recomendado)
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Firma con validez legal internacional (eIDAS, ESIGN, UETA)
-                      </p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start gap-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-cyan-500 transition-colors">
-                    <input
-                      type="radio"
-                      name="signature-mode"
-                      checked={signatureMode === 'canvas'}
-                      onChange={() => setSignatureMode('canvas')}
-                      className="mt-1"
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Firma manual simple
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Dibujá tu firma (solo para uso interno)
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              {/* Canvas de firma manual */}
-              {signatureMode === 'canvas' && (
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <p className="text-xs text-gray-600 mb-2">
-                    Firmá aquí con tu dedo o mouse
-                  </p>
-                  <canvas
-                    ref={canvasRef}
-                    className="w-full h-32 border border-gray-300 rounded bg-white cursor-crosshair"
-                    {...handlers}
-                  ></canvas>
-                  <button
-                    onClick={clearCanvas}
-                    className="mt-2 text-xs text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    Limpiar
-                  </button>
-                </div>
-              )}
-
-              {/* Botones */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg px-5 py-3 font-medium transition-colors"
-                >
-                  Atrás
-                </button>
-                <button
-                  onClick={handleCertify}
-                  disabled={loading}
-                  className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-300 text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Certificando...
-                    </>
-                  ) : (
-                    'Certificar'
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* PASO 3: LISTO */}
-          {step === 3 && certificateData && (
+          {/* PASO 2: LISTO */}
+          {step === 2 && certificateData && (
             <div className="text-center py-8">
               <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
 
@@ -747,13 +1178,13 @@ const CertificationModal = ({ isOpen, onClose }) => {
                 <a
                   href={certificateData.downloadUrl}
                   download={certificateData.fileName}
-                  className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-block text-center"
+                  className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-block text-center"
                 >
                   Descargar .ECOX
                 </a>
                 <button
                   onClick={resetAndClose}
-                  className="border border-cyan-600 text-cyan-600 hover:bg-cyan-50 rounded-lg px-5 py-3 font-medium transition-colors"
+                  className="border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg px-5 py-3 font-medium transition-colors"
                 >
                   Ver en mi panel
                 </button>
@@ -769,7 +1200,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                 Firmantes
               </h3>
               <p className="text-xs text-gray-500 mb-4">
-                Agregá los emails de las personas que deben firmar (en orden secuencial)
+                Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
               </p>
 
               {/* Campos de email con switches individuales */}
@@ -777,8 +1208,8 @@ const CertificationModal = ({ isOpen, onClose }) => {
                 {emailInputs.map((input, index) => (
                   <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
                     {/* Header con número y campo email */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-6 h-6 rounded-full bg-cyan-600 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
                         {index + 1}
                       </div>
                       <input
@@ -786,7 +1217,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                         value={input.email}
                         onChange={(e) => handleEmailChange(index, e.target.value)}
                         placeholder="email@ejemplo.com"
-                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
                       />
                       {emailInputs.length > 1 && (
                         <button
@@ -798,37 +1229,6 @@ const CertificationModal = ({ isOpen, onClose }) => {
                         </button>
                       )}
                     </div>
-
-                    {/* Switches de seguridad */}
-                    <div className="flex gap-3 ml-8">
-                      {/* Switch Login */}
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={input.requireLogin}
-                          onChange={() => handleToggleLogin(index)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600 relative"></div>
-                        <span className={`text-xs font-medium ${input.requireLogin ? 'text-cyan-700' : 'text-gray-500'}`}>
-                          Login
-                        </span>
-                      </label>
-
-                      {/* Switch NDA */}
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={input.requireNda}
-                          onChange={() => handleToggleNda(index)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 relative"></div>
-                        <span className={`text-xs font-medium ${input.requireNda ? 'text-emerald-700' : 'text-gray-500'}`}>
-                          NDA
-                        </span>
-                      </label>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -836,22 +1236,22 @@ const CertificationModal = ({ isOpen, onClose }) => {
               {/* Botón para agregar más firmantes */}
               <button
                 onClick={handleAddEmailField}
-                className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-cyan-500 hover:text-cyan-600 transition-colors flex items-center justify-center gap-2 mb-4"
+                className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 mb-4"
               >
                 <Users className="w-4 h-4" />
                 Agregar otro firmante
               </button>
 
               {/* Info de seguridad */}
-              <div className="p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+              <div className="p-3 bg-gray-100 border border-gray-200 rounded-lg">
                 <div className="flex gap-2">
-                  <Shield className="w-4 h-4 text-cyan-600 flex-shrink-0 mt-0.5" />
+                  <Shield className="w-4 h-4 text-gray-900 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-medium text-cyan-900">
-                      Configuración por firmante
+                    <p className="text-xs font-medium text-gray-900">
+                      Seguridad obligatoria
                     </p>
-                    <p className="text-xs text-cyan-700 mt-1">
-                      Cada firmante puede tener diferentes requisitos de seguridad según tus necesidades
+                    <p className="text-xs text-gray-700 mt-1">
+                      Todos los firmantes requieren login y aceptación de NDA antes de firmar
                     </p>
                   </div>
                 </div>

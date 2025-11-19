@@ -14,7 +14,7 @@ import {
 const layersConfig = [
   {
     key: 'hash',
-    title: 'Hash del documento',
+    title: 'Huella del documento',
     description: 'Comprueba que el archivo original coincida byte a byte con lo declarado en el certificado.',
     icon: Fingerprint
   },
@@ -26,14 +26,14 @@ const layersConfig = [
   },
   {
     key: 'timestamp',
-    title: 'Timestamp forense',
+    title: 'Sello de tiempo',
     description: 'Corrobora la fecha exacta registrada en el certificado.',
     icon: Clock3
   },
   {
     key: 'legalTimestamp',
-    title: 'Sello legal (RFC 3161)',
-    description: 'Opcional. Prueba emitida por la Time Stamp Authority.',
+    title: 'Sello legal',
+    description: 'Opcional. Certificación emitida por autoridad de fechas.',
     icon: Stamp,
     optional: true
   },
@@ -68,7 +68,7 @@ const statusStyles = {
     icon: <Info className="w-6 h-6 text-sky-600" />,
     title: 'Verificación parcial',
     subtitle: 'El certificado es válido, falta comparar el archivo original.',
-    detail: 'Nivel de evidencia: criptográfica, sin archivo.'
+    detail: 'Nivel de evidencia: digital, sin archivo.'
   },
   invalid: {
     border: 'border-red-200',

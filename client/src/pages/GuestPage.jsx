@@ -53,7 +53,7 @@ function GuestPage() {
               <div>
                 <h3 className="text-lg font-semibold text-cyan-700 mb-2">¿Qué es un certificado .ECO?</h3>
                 <p className="text-gray-700 leading-relaxed">
-                  El estándar .ECO es un formato de certificación digital que combina hash SHA-256, timestamp criptográfico y firma digital para crear pruebas de existencia, integridad y autoría verificables de forma independiente.
+                  El estándar .ECO es un formato de certificación digital que combina huella digital, sello de tiempo y firma digital para crear pruebas de existencia, integridad y autoría verificables de forma independiente.
                 </p>
               </div>
             </div>

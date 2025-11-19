@@ -26,11 +26,11 @@ const DocumentList = () => {
           return;
         }
 
-        // Obtener documentos del usuario (solo columnas que existen en todas las versiones)
+        // Obtener documentos del usuario
         const { data: docs, error: docsError } = await supabase
-          .from('documents')
-          .select('id, title, eco_hash, status, created_at, updated_at')
-          .eq('owner_id', user.id)
+          .from('user_documents')
+          .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (docsError) {

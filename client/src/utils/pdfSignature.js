@@ -374,7 +374,7 @@ export async function addSignatureSheet(pdfFile, signatureDataUrl = null, forens
       currentY -= 20;
 
       if (forensicData.legalTimestamp) {
-        signaturePage.drawText('✓ RFC 3161 Legal Timestamp', {
+        signaturePage.drawText('[ X ] RFC 3161 Legal Timestamp', {
           x: 60,
           y: currentY,
           size: 9,
@@ -385,7 +385,7 @@ export async function addSignatureSheet(pdfFile, signatureDataUrl = null, forens
       }
 
       if (forensicData.polygonAnchor) {
-        signaturePage.drawText('✓ Anclaje en Polygon Blockchain', {
+        signaturePage.drawText('[ X ] Anclaje en Polygon Blockchain', {
           x: 60,
           y: currentY,
           size: 9,
@@ -407,7 +407,7 @@ export async function addSignatureSheet(pdfFile, signatureDataUrl = null, forens
       }
 
       if (forensicData.bitcoinAnchor) {
-        signaturePage.drawText('✓ Anclaje en Bitcoin Blockchain (pendiente)', {
+        signaturePage.drawText('[ X ] Anclaje en Bitcoin Blockchain (pendiente)', {
           x: 60,
           y: currentY,
           size: 9,

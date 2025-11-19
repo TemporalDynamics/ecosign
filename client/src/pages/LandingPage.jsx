@@ -306,8 +306,9 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="pt-8 space-y-3 text-sm text-gray-600">
-            <p>© 2025 VerifySign por Temporal Dynamics LLC. Todos los derechos reservados.</p>
-            <p>El formato .ECO y la arquitectura LTC están protegidos por PPA (US).</p>
+            <p>© 2025 EcoSign. Todos los derechos reservados.</p>
+            <p>EcoSign es un servicio independiente de certificación y firma digital.</p>
+            <p>El formato .ECO y los procesos forenses están sujetos a protección de propiedad intelectual en trámite.</p>
           </div>
         </div>
       </footer>

@@ -1,78 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xhtml="http://www.w3.org/1999/xhtml"
-        xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0"
-        xmlns:video="http://www.google.com/schemas/sitemap-video/1.0"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
-        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
-  <!-- Main landing page -->
   <url>
-    <loc>https://your-vercel-domain.com/</loc>
-    <lastmod>2025-11-10</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://ecosign.app/</loc>
     <priority>1.0</priority>
   </url>
 
-  <!-- Public informational pages -->
   <url>
-    <loc>https://your-vercel-domain.com/client/index.html</loc>
-    <lastmod>2025-11-10</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://ecosign.app/how-it-works</loc>
     <priority>0.9</priority>
   </url>
 
-  <!-- Login and signup pages (not critical but included for completeness) -->
   <url>
-    <loc>https://your-vercel-domain.com/login.html</loc>
-    <lastmod>2025-11-10</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://ecosign.app/verify</loc>
+    <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://your-vercel-domain.com/signup.html</loc>
-    <lastmod>2025-11-10</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-
-  <!-- Email verification page -->
-  <url>
-    <loc>https://your-vercel-domain.com/email-verification.html</loc>
-    <lastmod>2025-11-10</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.2</priority>
-  </url>
-
-  <!-- Include static content if applicable -->
-  <url>
-    <loc>https://your-vercel-domain.com/README.md</loc>
-    <lastmod>2025-11-10</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://ecosign.app/pricing</loc>
+    <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://your-vercel-domain.com/SECURITY.md</loc>
-    <lastmod>2025-11-10</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-
-  <url>
-    <loc>https://your-vercel-domain.com/CONTRIBUTING.md</loc>
-    <lastmod>2025-11-10</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-
-  <!-- API documentation if publicly accessible -->
-  <url>
-    <loc>https://your-vercel-domain.com/API_DOCS.md</loc>
-    <lastmod>2025-11-10</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://ecosign.app/login</loc>
     <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://ecosign.app/terms</loc>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://ecosign.app/privacy</loc>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://ecosign.app/security</loc>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://ecosign.app/help</loc>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://ecosign.app/contact</loc>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://ecosign.app/status</loc>
+    <priority>0.5</priority>
   </url>
 
 </urlset>

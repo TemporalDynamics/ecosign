@@ -52,23 +52,14 @@ const layersConfig = [
 ];
 
 const statusStyles = {
-  full: {
+  valid: {
     border: 'border-emerald-200',
     bg: 'bg-emerald-50',
     text: 'text-emerald-900',
     icon: <CheckCircle2 className="w-6 h-6 text-emerald-600" />,
-    title: 'Verificación completa',
-    subtitle: 'Coinciden certificado, firma y archivo original.',
-    detail: 'Nivel de evidencia: forense completo.'
-  },
-  partial: {
-    border: 'border-sky-200',
-    bg: 'bg-sky-50',
-    text: 'text-sky-900',
-    icon: <Info className="w-6 h-6 text-sky-600" />,
-    title: 'Verificación parcial',
-    subtitle: 'El certificado es válido, falta comparar el archivo original.',
-    detail: 'Nivel de evidencia: digital, sin archivo.'
+    title: 'Documento Auténtico',
+    subtitle: 'La firma digital y la integridad del documento son válidas.',
+    detail: 'El certificado no ha sido alterado.'
   },
   invalid: {
     border: 'border-red-200',
@@ -76,28 +67,41 @@ const statusStyles = {
     text: 'text-red-900',
     icon: <AlertTriangle className="w-6 h-6 text-red-600" />,
     title: 'Documento no válido',
-    subtitle: 'El archivo que cargaste no coincide con el certificado.',
-    detail: 'Posibles causas: edición del archivo, descarga incompleta o certificado equivocado.'
+    subtitle: 'El certificado o la firma no son válidos.',
+    detail: 'Posibles causas: edición del archivo, certificado corrupto o falsificado.'
   }
 };
 
 function determineStatus(result, originalProvided) {
   if (!result) return null;
+  // Lógica binaria: Si es válido → Verde, Si no es válido → Rojo
+  // El archivo original es información adicional, no afecta la validez del certificado
   if (!result.valid) return statusStyles.invalid;
-  if (originalProvided && result.data?.originalFileHash) return statusStyles.full;
-  return statusStyles.partial;
+  return statusStyles.valid;
 }
 
 function layerTone(layerKey, layerState, result) {
   if (!result) return { border: 'border-gray-200', bg: 'bg-white', text: 'text-gray-700', tag: 'Sin datos' };
 
-  if (layerKey === 'hash' && !result.data?.originalFileHash) {
-    return {
-      border: 'border-sky-200',
-      bg: 'bg-sky-50',
-      text: 'text-sky-800',
-      tag: 'Pendiente: falta archivo original'
-    };
+  // Si el certificado es válido, el hash está verificado automáticamente
+  if (layerKey === 'hash') {
+    if (result.valid) {
+      return {
+        border: 'border-emerald-200',
+        bg: 'bg-emerald-50',
+        text: 'text-emerald-800',
+        tag: result.data?.originalFileHash
+          ? 'Verificado con archivo original'
+          : 'Hash certificado verificado'
+      };
+    } else {
+      return {
+        border: 'border-red-200',
+        bg: 'bg-red-50',
+        text: 'text-red-800',
+        tag: 'Hash no coincide o certificado inválido'
+      };
+    }
   }
 
   if (!layerState) {

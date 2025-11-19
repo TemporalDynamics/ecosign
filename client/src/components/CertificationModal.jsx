@@ -329,8 +329,8 @@ const CertificationModal = ({ isOpen, onClose }) => {
         });
       }
 
-      // 2. Guardar en Supabase
-      const savedDoc = await saveUserDocument(file, certResult.ecoData, {
+      // 2. Guardar en Supabase (guardar el PDF procesado, no el original)
+      const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
         hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor
       });
@@ -391,10 +391,15 @@ const CertificationModal = ({ isOpen, onClose }) => {
         });
       }
 
-      // 5. Preparar datos para download
+      // 5. Preparar datos para download (PDF firmado + archivo .ECO)
       setCertificateData({
         ...certResult,
-        downloadUrl: URL.createObjectURL(new Blob([certResult.ecoxBuffer], { type: 'application/zip' })),
+        // URL para descargar el PDF firmado con audit trail
+        signedPdfUrl: URL.createObjectURL(fileToProcess),
+        signedPdfName: fileToProcess.name.replace(/\.pdf$/i, '_signed.pdf'),
+        // URL para descargar el archivo .ECO
+        ecoDownloadUrl: URL.createObjectURL(new Blob([certResult.ecoxBuffer], { type: 'application/octet-stream' })),
+        ecoFileName: certResult.fileName.replace(/\.[^/.]+$/, '.eco'),
         fileName: certResult.fileName,
         documentId: savedDoc?.id
       });
@@ -414,7 +419,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
     setCertificateData(null);
     setSignatureMode('none');
     setMultipleSignatures(false);
-    setLegalSignatureEnabled(false);
+    setSignatureEnabled(false);
     setSigners([]);
     setEmailInputs([
       { email: '', requireLogin: true, requireNda: true }
@@ -1229,14 +1234,29 @@ const CertificationModal = ({ isOpen, onClose }) => {
               </h3>
 
               <p className="text-sm text-gray-600 mb-8 max-w-md mx-auto">
-                Guardamos tu documento original y tu certificado .ECO en tu cuenta. Podés descargarlos cuando quieras
+                Guardamos tu documento firmado y tu certificado .ECO en tu cuenta. Descargá ambos archivos ahora
               </p>
 
               {/* Botones de acción */}
               <div className="flex flex-col gap-3 max-w-sm mx-auto">
+                {/* Descargar PDF Firmado con Audit Trail */}
+                {certificateData.signedPdfUrl && (
+                  <a
+                    href={certificateData.signedPdfUrl}
+                    download={certificateData.signedPdfName}
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Descargar PDF Firmado
+                  </a>
+                )}
+
+                {/* Descargar archivo .ECO */}
                 <a
-                  href={certificateData.downloadUrl}
-                  download={certificateData.fileName}
+                  href={certificateData.ecoDownloadUrl}
+                  download={certificateData.ecoFileName}
                   onClick={() => {
                     // Registrar evento 'downloaded'
                     if (certificateData.documentId) {
@@ -1247,10 +1267,15 @@ const CertificationModal = ({ isOpen, onClose }) => {
                       );
                     }
                   }}
-                  className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-block text-center"
+                  className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
                 >
-                  Descargar .ECOX
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Descargar Certificado .ECO
                 </a>
+
+                {/* Volver al dashboard */}
                 <button
                   onClick={resetAndClose}
                   className="border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg px-5 py-3 font-medium transition-colors"

@@ -203,6 +203,8 @@ export async function certifyFile(file, options = {}) {
       ecoxBuffer: ecoxBuffer,
       ecoxSize: ecoxBuffer.byteLength,
       anchorRequest: anchorJob,
+      // Return the original file for download
+      signedPdfFile: file,
       // Legal timestamp info (if requested)
       legalTimestamp: tsaResponse && tsaResponse.success ? {
         enabled: true,
@@ -212,6 +214,15 @@ export async function certifyFile(file, options = {}) {
       } : {
         enabled: false,
         note: 'Local timestamp only (informational)'
+      },
+      // Full ECO data for storage
+      ecoData: {
+        documentHash: hash,
+        timestamp: timestamp,
+        projectId: projectId,
+        manifest: project,
+        publicKey: publicKey.toString('base64'),
+        legalTimestamp: tsaResponse && tsaResponse.success ? tsaResponse : null
       }
     };
 

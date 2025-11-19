@@ -1,218 +1,151 @@
-COMO LO HACEMOS VERSION TECNICA PARA DESARROLLADORES.
+⚙️ Cómo lo hacemos (versión técnica para desarrolladores)
 
-1. INTRODUCCIÓN
-El formato .eco es un contenedor criptográfico diseñado para conservar evidencia digital verificable sin exponer el contenido original del documento.
+Nota: Esta documentación describe los principios técnicos generales.
+No se revelan algoritmos propios, optimizaciones internas o partes cubiertas por la PPA.
 
-Contiene:
-Un conjunto de metadatos estructurados
-Hashes criptográficos
-Sellos de tiempo certificados
-Pruebas de anclaje en blockchain
-Registro de accesos/verificaciones (opcional, si se usa VerifyTracker)
-Una firma criptográfica del propio archivo .eco
-El objetivo principal es garantizar integridad, autenticidad, no-repudiación técnica y verificabilidad independiente, incluso si VerifySign deja de existir.
-2. ESPECIFICACIÓN DEL FORMATO
-2.1 Serialización
-El .eco utiliza JSON Canonicalization Scheme (JCS), o equivalente (opcional CBOR en futuras versiones).
-Requisitos:
+📌 1. Hash del documento (Client-side SHA-256)
 
-Claves ordenadas alfabéticamente
-Strings UTF-8
-Sin espacios ni saltos adicionales
-Estructura fija para evitar inconsistencias entre plataformas
-Ejemplo de estructura mínima:
+El hash se calcula completamente en el navegador:
 
+// client/src/utils/fileHashUtils.js
+export async function calculateFileHash(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const uint8 = new Uint8Array(arrayBuffer);
+  const hash = sha256(uint8);
+  return bytesToHex(hash);
+}
+
+
+Nunca enviamos el archivo al servidor.
+
+Solo transmitimos el hash SHA-256.
+
+📌 2. Certificación del documento
+
+Pseudo-código neutral (no patentable):
+
+function certify(file):
+    buffer = readLocal(file)
+    hash = SHA256(buffer)
+    timestamp = requestRFC3161(hash)
+    blockchainRecord = anchorToPolygon(hash)
+    auditPage = renderAuditTrail(hash, timestamp, blockchainRecord)
+    pdf = appendAuditPage(file, auditPage)
+    ecox = packageEvidence(hash, timestamp, blockchainRecord)
+    return { pdf, ecox }
+
+
+Compatibilidad con el repo:
+
+// client/src/lib/basicCertificationWeb.js (fragmento)
+const fileArray = new Uint8Array(fileBuffer);
+const hash = calculateSHA256(fileArray);
+
+📌 3. Timestamp legal (RFC 3161)
+
+El servidor obtiene un sello RFC 3161:
+
+POST /tsa/timestamp
+Input: SHA256(file)
+Output: DER-encoded timestamp token
+
+
+Guardar en el manifest del .ECOX:
 
 {
-  "version": "1.0.0",
-  "document": {
-    "sha256": "<hex>",
-    "original_filename": "contrato.docx",
-    "filesize": 248192,
-    "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  },
-  "timestamp": {
-    "rfc3161": "<base64_tsr>",
-    "provider": "sectigo|globalsign|digicert"
-  },
-  "anchoring": {
-    "bitcoin": {
-      "txid": "<hash>",
-      "network": "mainnet"
-    },
-    "polygon": {
-      "txid": "<hash>",
-      "contract": "<address>"
-    }
-  },
-  "signature": {
-    "algorithm": "Ed25519",
-    "public_key": "<base64>",
-    "signature": "<base64>"
-  },
-  "meta": {
-    "created_at": "2025-11-15T04:33:21Z",
-    "app_version": "verifysign-2025.11",
-    "tracker_enabled": true
+  "legalTimestamp": {
+    "standard": "RFC 3161",
+    "tsa": "ExampleTSA",
+    "verified": true
   }
 }
-3. HASH DEL DOCUMENTO (INTEGRITY ROOT)
-El .eco no contiene el documento original.
 
-Sólo su huella criptográfica:
+📌 4. Registro descentralizado (Polygon o Bitcoin)
+Polygon (rápido, económico)
 
-sha256 = SHA-256(file_bytes)
-Requisitos:
+Pseudo-código:
 
-Hash en hexadecimal
-Bytes originales, sin normalización
-Si el documento se convierte a PDF para firma legal, el hash registrado es SIEMPRE del archivo original, nunca del PDF firmado.
-Esto permite determinar si un archivo presentado años después coincide bit a bit con el original.
-4. TIMESTAMP RFC 3161
-Se genera una solicitud TSA (Time-Stamp Authority):
+tx = polygon.send({
+    data: hash,
+    to: smartContractAddress
+})
 
+Bitcoin (OpenTimestamps)
+ots = opentimestamps.stamp(hash)
 
-tsr = TSA.sign(sha256_digest)
-El sello debe contener:
+📌 5. Firma interna (EcoSign)
 
-hash original
-fecha y hora UTC
-firma privada de la autoridad
-certificado X.509 de la TSA
-Formato: DER codificado en Base64
-Validación:
+EcoSign no usa claves del servidor.
+El usuario firma con:
 
+firma dibujada,
 
-verify_tsa(tsr, sha256_digest) -> true/false
-5. ANCLAJE BLOCKCHAIN
-Se deriva un hash reducido para optimizar costo de anclaje:
+firma tipeada, o
 
+imagen cargada.
 
-anchor_hash = RIPEMD160(SHA256(document_bytes))
-Bitcoin (OP_RETURN)
-Se publica anchor_hash como payload
-Se obtiene txid del bloque donde queda registrado
-Polygon (evento)
-Evento Anchored(hash anchor_hash, address signer)
-Permite validación rápida vía RPC o explorador
-La verificación consiste en:
-
-
-validate_blockchain(hash) -> true/false
-6. FIRMA DEL ARCHIVO .ECO (CORE INMUTABILITY)
-El .eco completo, sin el bloque de firma, se serializa de forma canónica:
-
-
-canonical = JCS.serialize(eco_without_signature)hash_meta = SHA256(canonical)signature = Ed25519.sign(hash_meta, private_key)
-El bloque signature contiene:
-
+Luego se registra en Hoja de Auditoría:
 
 {
-  "algorithm": "Ed25519",
-  "public_key": "<base64>",
-  "signature": "<base64>"}
-Validación:
+  "signature": "base64png",
+  "signedAt": "ISO-8601",
+  "identity": {
+    "name": "...",
+    "email": "...",
+    "company": "...",
+    "role": "..."
+  }
+}
+
+📌 6. Formato .ECOX (contenedor seguro)
+
+Estructura conceptual:
+
+/manifest.json
+/signatures.json
+/audit-trail.pdf
+/timestamps/
+   rfc3161.token
+/blockchain/
+   polygon.tx
+   bitcoin.ots
 
 
-Ed25519.verify(hash_meta, signature, public_key)
-Si cualquier byte del .eco cambia, hash_meta cambia y la firma deja de validar.
-7. VERIFYTRACKER (OPCIONAL)
-Si el usuario habilita VerifyTracker, el .eco incluye:
+Ejemplo real (extraído del repo):
 
-ID del enlace generado
-Hash del acuerdo NDA
-Lista de accesos (hashes, timestamps, ip-hash)
-Firma del receptor
-Prueba de condiciones aceptadas
-Los registros se agregan como un log protegido por Merkle:
+// eco-packer/API.md
+interface EcoManifest {
+  signatures: Array<{
+    keyId: string;
+    signature: string;
+    algorithm: 'Ed25519';
+  }>;
+  assetHashes: Map<string, string>;
+}
+
+📌 7. Hoja de Auditoría (PDF)
+
+Generación:
+
+// client/src/utils/pdfSignature.js (fragmento)
+const auditPDF = await pdfLib.createPage({
+  hash,
+  signerName,
+  timestamps,
+  blockchainRecords,
+});
 
 
-entries = [event1, event2, ...]mtree_root = MerkleRoot(entries)
-El Merkle Root se firma dentro de signature.
-8. VALIDACIÓN COMPLETA (ALGORITMO)
-Entrada:
-Archivo original file
-Archivo .eco
-Proceso:
+La Hoja contiene:
 
-1. recalculated_hash = SHA256(file)2. if recalculated_hash != eco.document.sha256:
-       return "El documento no coincide con el certificado"3. is_tsa_valid = verify_tsa(eco.timestamp.rfc3161, recalculated_hash)
-   if !is_tsa_valid:
-       return "Timestamp alterado o inválido"4. is_blockchain_valid = validate_blockchain(eco.anchoring)
-   if !is_blockchain_valid:
-       return "Anclaje no coincide"5. eco_without_signature = remove_signature_block(eco)
-   canonical = JCS.serialize(eco_without_signature)
-   meta_hash = SHA256(canonical)6. if !Ed25519.verify(meta_hash, eco.signature.signature, eco.signature.public_key):
-       return "El .ECO fue modificado"7. return "VÁLIDO"
-9. PROPIEDAD INDEPENDIENTE DE VERIFY SIGN
-El .eco está diseñado de forma que:
+nombre del firmante
 
-cualquier perito
-cualquier auditor
-cualquier juez
-cualquier parte
-cualquier software
-pueda validar un .eco sin VerifySign,
+hash del documento
 
-con librerías estándar:
-Ed25519
-SHA256
-RFC 3161
-RIPEMD160
-JSON canonizado
-Esto evita un vendor lock-in y garantiza independencia técnica.
-10. MODELO DE AMENAZAS Y RESISTENCIAS
-❌ Intento: Modificar el .eco
-Resultado: falla la firma Ed25519.
+timestamps
 
-❌ Intento: Alterar el documento original
-Resultado: falla el hash SHA-256.
+registros blockchain
 
-❌ Intento: Duplicar o falsificar .eco
-Resultado: sin clave privada → firma inválida.
+QR de verificación
 
-❌ Intento: Timestamp falso
-Resultado: falla la validación RFC 3161.
-
-❌ Intento: crear anclaje falso
-Resultado: no existe en blockchain → invalidación instantánea.
-
-❌ Intento: falsificar accesos
-Resultado: falla Merkle Root.
-11. GARANTÍAS CRIPTOGRÁFICAS
-ComponenteAlgoritmoSeguridadHashSHA-2562¹²⁸ seguridad efectivaTimestampRFC 3161 + firma X.509Depende de CA; robustoBlockchainBitcoin / PolygonInmutabilidad globalFirma archivo .ecoEd255192¹²⁸ seguridadMerkle (Tracker)Keccak / SHAIntegridad por árbol
-12. BLINDAJE FORENSE (COMBINACIÓN)
-La fuerza del .eco no está en un único mecanismo, sino en la convergencia:
-SHA-256 (integridad)
-
-+
-RFC 3161 (existencia temporal)
-
-+
-Bitcoin / Polygon (notarización pública)
-
-+
-Ed25519 (inmutabilidad del contenedor)
-
-+
-Opcional: VerifyTracker (no-repudiación técnica)
-Esto cubre:
-
-integridad
-timestamp
-anclaje
-autenticidad
-inmutabilidad
-cadena de custodia básica
-13. REFERENCIAS
-RFC 3161: Time-Stamp Protocol
-RFC 8032: Ed25519
-NIST SP 800-102: Digital Signatures
-ETSI EN 319 421 / 319 422: Time-stamping
-Bitcoin Script OP_RETURN
-Merkle Trees (Ralph Merkle, 1979)
-14. CONCLUSIÓN
-El formato .eco combina técnicas probadas y estándares globales para ofrecer un contenedor de evidencia digital compacto, verificable, portable y matemáticamente resistente.
-No es perfecto.
-
-Pero está diseñado para fallar de manera honesta, detectable y a favor del usuario, que es exactamente lo que exige un sistema de justicia digital serio.
+firma autógrafa (si aplica)

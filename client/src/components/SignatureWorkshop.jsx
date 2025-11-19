@@ -460,7 +460,7 @@ const SignatureWorkshop = ({
           type="text"
           value={signNowForm.documentTitle}
           onChange={(e) => setSignNowForm((prev) => ({ ...prev, documentTitle: e.target.value }))}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black500"
           placeholder="Contrato NDA.pdf"
         />
       </div>
@@ -475,7 +475,7 @@ const SignatureWorkshop = ({
             type="text"
             value={signNowForm.signerName}
             onChange={(e) => setSignNowForm((prev) => ({ ...prev, signerName: e.target.value }))}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black500"
             placeholder="María López"
           />
         </div>
@@ -489,7 +489,7 @@ const SignatureWorkshop = ({
             required
             value={signNowForm.signerEmail}
             onChange={(e) => setSignNowForm((prev) => ({ ...prev, signerEmail: e.target.value }))}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black500"
             placeholder="firma@empresa.com"
           />
         </div>

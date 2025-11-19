@@ -82,7 +82,7 @@ function NdaPage() {
                   <input 
                     type="text" 
                     placeholder="Tu nombre completo" 
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-black500 focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -90,7 +90,7 @@ function NdaPage() {
                   <input 
                     type="email" 
                     placeholder="tu@email.com" 
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-black500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -115,14 +115,14 @@ function NdaPage() {
 
             <div className="mb-8">
               <div className="flex items-start mb-6 bg-slate-700/50 p-4 rounded-lg">
-                <input type="checkbox" id="accept-terms" className="mt-1 mr-3 h-5 w-5 text-cyan-600 rounded focus:ring-cyan-500" />
+                <input type="checkbox" id="accept-terms" className="mt-1 mr-3 h-5 w-5 text-black rounded focus:ring-black500" />
                 <label htmlFor="accept-terms" className="text-slate-300">
                   He leído y acepto los términos del acuerdo de confidencialidad. Entiendo que mi acceso será registrado y que este acuerdo tiene validez legal.
                 </label>
               </div>
 
               <div className="flex items-start mb-6">
-                <input type="checkbox" id="data-consent" className="mt-1 mr-3 h-5 w-5 text-cyan-600 rounded focus:ring-cyan-500" />
+                <input type="checkbox" id="data-consent" className="mt-1 mr-3 h-5 w-5 text-black rounded focus:ring-black500" />
                 <label htmlFor="data-consent" className="text-slate-300">
                   Consentimiento para procesamiento de datos: Acepto que mis datos personales sean tratados conforme a la política de privacidad para fines de verificación y cumplimiento legal.
                 </label>
@@ -137,7 +137,7 @@ function NdaPage() {
                 Cancelar
               </Link>
               <button 
-                className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg transition duration-300"
+                className="flex-1 bg-black hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg transition duration-300"
               >
                 Firmar y Acceder al Documento
               </button>

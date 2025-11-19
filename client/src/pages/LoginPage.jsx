@@ -95,24 +95,24 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-cyan-100 to-blue-200 rounded-2xl mb-4">
-            <Lock className="w-10 h-10 text-cyan-600" strokeWidth={2.5} />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-full mb-4">
+            <Lock className="w-8 h-8 text-white" strokeWidth={2.5} />
           </div>
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600 mb-2">VerifySign</h1>
-          <p className="text-gray-600">Plataforma de certificación digital con trazabilidad forense</p>
+          <h1 className="text-3xl font-bold text-black mb-2">EcoSign</h1>
+          <p className="text-gray-600">Certificación digital con privacidad total</p>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
-          <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
+        <div className="bg-white p-8 rounded-xl border-2 border-gray-200">
+          <h2 className="text-2xl font-bold text-center text-black mb-2">
             {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
           </h2>
           <p className="text-gray-600 text-center mb-6">
             {isLogin
-              ? 'Accede a tu panel de control y gestiona tus evidencias.'
-              : 'Regístrate para acceder a todas las funciones de VerifySign.'}
+              ? 'Accede a tu panel de control y gestiona tus documentos.'
+              : 'Regístrate para acceder a todas las funciones de EcoSign.'}
           </p>
 
           {/* Mensaje de error */}
@@ -139,7 +139,7 @@ function LoginPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                 placeholder="tu@email.com"
               />
             </div>
@@ -153,7 +153,7 @@ function LoginPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                 placeholder="••••••••"
               />
             </div>
@@ -168,7 +168,7 @@ function LoginPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                   placeholder="••••••••"
                 />
               </div>
@@ -177,7 +177,7 @@ function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300 ${
+              className={`w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition duration-300 ${
                 loading ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
@@ -202,7 +202,7 @@ function LoginPage() {
                 : "¿Ya tienes cuenta? "}
               <button
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-cyan-600 hover:text-cyan-700 font-semibold"
+                className="text-black hover:underline font-semibold"
               >
                 {isLogin ? 'Regístrate' : 'Inicia Sesión'}
               </button>
@@ -213,7 +213,7 @@ function LoginPage() {
             <p className="text-gray-600 mb-3">¿Prefieres no crear cuenta?</p>
             <Link
               to="/guest"
-              className="inline-block bg-gray-100 hover:bg-gray-200 text-cyan-600 font-semibold py-2 px-6 rounded-lg transition duration-300"
+              className="inline-block bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-2 px-6 rounded-lg transition duration-300"
             >
               Continuar como invitado
             </Link>
@@ -221,7 +221,7 @@ function LoginPage() {
         </div>
 
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Al continuar, aceptas nuestros <Link to="/terms" className="text-cyan-600 hover:underline">Términos de Servicio</Link> y <Link to="/privacy" className="text-cyan-600 hover:underline">Política de Privacidad</Link>.</p>
+          <p>Al continuar, aceptas nuestros <Link to="/terms" className="text-black hover:underline font-medium">Términos de Servicio</Link> y <Link to="/privacy" className="text-black hover:underline font-medium">Política de Privacidad</Link>.</p>
         </div>
       </div>
     </div>

@@ -137,9 +137,9 @@ function NdaAccessPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-600 mb-4"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black600 mb-4"></div>
           <p className="text-gray-600">Verificando enlace de acceso...</p>
         </div>
       </div>
@@ -148,7 +148,7 @@ function NdaAccessPage() {
 
   if (error && !linkData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-8 h-8 text-red-600" />
@@ -157,7 +157,7 @@ function NdaAccessPage() {
           <p className="text-gray-600 mb-6">{error}</p>
           <Link
             to="/"
-            className="text-cyan-600 hover:text-cyan-700 font-medium"
+            className="text-black hover:text-cyan-700 font-medium"
           >
             Volver al inicio
           </Link>
@@ -167,7 +167,7 @@ function NdaAccessPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 py-4">
         <div className="max-w-4xl mx-auto px-4">
@@ -187,7 +187,7 @@ function NdaAccessPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 bg-cyan-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <FileText className="w-6 h-6 text-cyan-600" />
+              <FileText className="w-6 h-6 text-black" />
             </div>
             <div className="flex-1">
               <h1 className="text-xl font-bold text-gray-900 mb-1">
@@ -224,7 +224,7 @@ function NdaAccessPage() {
             <div className="mb-6">
               <button
                 onClick={() => setShowNdaText(!showNdaText)}
-                className="text-cyan-600 hover:text-cyan-700 font-medium text-sm"
+                className="text-black hover:text-cyan-700 font-medium text-sm"
               >
                 {showNdaText ? 'Ocultar texto del NDA' : 'Leer texto completo del NDA'}
               </button>
@@ -251,7 +251,7 @@ function NdaAccessPage() {
                     value={signerName}
                     onChange={(e) => setSignerName(e.target.value)}
                     placeholder="Tu nombre completo"
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                   />
                 </div>
               </div>
@@ -265,7 +265,7 @@ function NdaAccessPage() {
                   value={signerEmail}
                   onChange={(e) => setSignerEmail(e.target.value)}
                   placeholder="tu@email.com"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                 />
               </div>
 
@@ -275,7 +275,7 @@ function NdaAccessPage() {
                   id="accept-terms"
                   checked={termsAccepted}
                   onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="mt-1 w-4 h-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+                  className="mt-1 w-4 h-4 text-black border-gray-300 rounded focus:ring-black500"
                 />
                 <label htmlFor="accept-terms" className="text-sm text-gray-700">
                   He leído y acepto los términos del Acuerdo de Confidencialidad.
@@ -292,7 +292,7 @@ function NdaAccessPage() {
               <button
                 onClick={handleAcceptNda}
                 disabled={accepting || !termsAccepted || !signerName || !signerEmail}
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-black hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {accepting ? 'Procesando...' : 'Acepto los términos del NDA'}
               </button>
@@ -324,7 +324,7 @@ function NdaAccessPage() {
             <div className="space-y-3">
               <button
                 onClick={handleDownload}
-                className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition"
+                className="w-full flex items-center justify-center gap-2 bg-black hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition"
               >
                 <Download className="w-5 h-5" />
                 Descargar documento

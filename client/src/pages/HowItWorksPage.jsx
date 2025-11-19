@@ -41,7 +41,7 @@ Si necesitás ayuda extra copiar toda esta página y mostrársela a tu IA de con
 ( icono semitransparente de copy presente en todo momento de esta pagina debe arrancar en el mismo renglon  que mostrasela a tu ia de confianza pero en el margen derecho cerca del edge y que acompañe al usuario en todo momento a medida que va scroll sube y baja con el scroll)
 
 
-Así funciona VerifySign, de principio a fin:
+Así funciona EcoSign, de principio a fin:
 Elegí tu archivo: Nunca lo subimos ni lo almacenamos. Tu contenido permanece siempre con vos.
 Firmá en un solo paso: Aplicamos una firma digital con validez legal internacional.
 Sellá tu evidencia: Sumamos Sello de Tiempo legal, huella digital y anclaje público.
@@ -72,7 +72,7 @@ Después de firmar, podés elegir cuántas capas de verificación querés sumar:
 Capa de Verificación    Descripción    Validez Técnica
 Huella Digital (Hash)    La identidad única del contenido.    Probamos la integridad (que nada cambió).
 Sello de Tiempo Legal (Timestamp)    Emitido por una TSA bajo el estándar RFC 3161.    Probamos el momento exacto en el que existió el archivo, con validez forense.
-Anclaje Público (Blockchain)    Registro descentralizado e inmutable en redes públicas.    Verificable por peritos sin depender de VerifySign.
+Anclaje Público (Blockchain)    Registro descentralizado e inmutable en redes públicas.    Verificable por peritos sin depender de EcoSign.
 VerifyTracker (opcional)    Registramos accesos sin ver el contenido.    Probamos la trazabilidad y la no-repudiación.
 Cada capa suma una barrera contra el fraude. Esto es blindaje forense total.
 
@@ -84,7 +84,7 @@ No se puede "arreglar", "rearmar" ni "copiar". Nadie tiene la clave privada para
 No podemos evitar que alguien intente tocar el archivo, pero sí evitamos que pase desapercibido. Y eso es lo que te protege.
 
 🗂️ 5. La Garantía: Tu .ECO Original
-Tu panel de VerifySign siempre conservará la versión que importa:
+Tu panel de EcoSign siempre conservará la versión que importa:
 Tu archivo original
 Tu PDF legal firmado
 Tu certificado .ECO original
@@ -148,7 +148,7 @@ const HowItWorksPage = () => {
             <span className="font-medium">Volver al inicio</span>
           </Link>
           <Link to="/" className="text-xl font-bold text-gray-900">
-            VerifySign
+            EcoSign
           </Link>
           <Link
             to="/dashboard"
@@ -192,9 +192,9 @@ const HowItWorksPage = () => {
         <div className="space-y-16">
           {/* Overview Section */}
           <FadeInSection>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
-                Así funciona VerifySign, de principio a fin
+                Así funciona EcoSign, de principio a fin
               </h2>
               <div className="text-gray-700 leading-relaxed space-y-4">
                 <p>• <strong>Elegís tu archivo:</strong> Nunca lo subimos ni lo almacenamos. Tu contenido permanece siempre con vos.</p>
@@ -208,7 +208,7 @@ const HowItWorksPage = () => {
 
           {/* Section 1 */}
           <FadeInSection delay={100}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 1. Tu Archivo Nunca Pierde Su Forma
               </h2>
@@ -231,7 +231,7 @@ const HowItWorksPage = () => {
 
           {/* Section 2 */}
           <FadeInSection delay={200}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 2. Tu Firma Digital Legal, Sin Vueltas
               </h2>
@@ -254,7 +254,7 @@ const HowItWorksPage = () => {
 
           {/* Section 3 - Single signature section (renumbered as 3) */}
           <FadeInSection delay={250}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 3. Tu Firma Digital Legal, Sin Vueltas
               </h2>
@@ -277,7 +277,7 @@ const HowItWorksPage = () => {
 
           {/* Section 4 - Multiple signatures section (new, was requested) */}
           <FadeInSection delay={300}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 4. Múltiples Firmas, En Orden y Sin Fricción
               </h2>
@@ -304,7 +304,7 @@ const HowItWorksPage = () => {
 
           {/* Section 5 - Evidence Protection */}
           <FadeInSection delay={350}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 5. Blindamos Tu Evidencia con Sellos Irrompibles
               </h2>
@@ -334,7 +334,7 @@ const HowItWorksPage = () => {
                       <tr>
                         <td className="px-4 py-3 font-medium">Anclaje Público (Blockchain)</td>
                         <td className="px-4 py-3">Registro en redes descentralizadas como Bitcoin o Polygon.</td>
-                        <td className="px-4 py-3">Validación pública, independiente de VerifySign.</td>
+                        <td className="px-4 py-3">Validación pública, independiente de EcoSign.</td>
                       </tr>
                       <tr>
                         <td className="px-4 py-3 font-medium">VerifyTracker (opcional)</td>
@@ -353,7 +353,7 @@ const HowItWorksPage = () => {
 
           {/* Section 6 - Document Evolution (new section) */}
           <FadeInSection delay={400}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 6. Documentos Dinámicos: Cambios Sin Perder Evidencia
               </h2>
@@ -373,7 +373,7 @@ const HowItWorksPage = () => {
 
           {/* Section 7 */}
           <FadeInSection delay={450}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 7. Creamos Tu Archivo .ECO: Tu Verdad Digital
               </h2>
@@ -406,12 +406,12 @@ const HowItWorksPage = () => {
 
           {/* Section 8 */}
           <FadeInSection delay={500}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 8. La Garantía: Tu .ECO Original Siempre Disponible
               </h2>
               <div className="text-gray-700 leading-relaxed space-y-4">
-                <p>Tu panel de VerifySign siempre mantiene las tres piezas clave:</p>
+                <p>Tu panel de EcoSign siempre mantiene las tres piezas clave:</p>
                 <ul className="list-disc pl-6 mt-4 space-y-2">
                   <li>Tu archivo original (si lo cargaste)</li>
                   <li>Tu PDF legal firmado</li>
@@ -424,7 +424,7 @@ const HowItWorksPage = () => {
 
           {/* Section 9 */}
           <FadeInSection delay={600}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 9. ¿Si un Juez o Perito Solicita Todo?
               </h2>
@@ -443,7 +443,7 @@ const HowItWorksPage = () => {
 
           {/* Section 10 */}
           <FadeInSection delay={700}>
-            <div className="border-l-4 border-cyan-500 pl-8">
+            <div className="border-l-4 border-black500 pl-8">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 10. ¿Por qué explicamos cada paso?
               </h2>
@@ -483,7 +483,7 @@ const HowItWorksPage = () => {
                 </Link>
                 <Link
                   to="/how-it-works"
-                  className="border border-gray-300 text-gray-700 hover:border-cyan-600 hover:text-cyan-600 px-8 py-3 rounded-full font-medium transition-colors text-lg"
+                  className="border border-gray-300 text-gray-700 hover:border-black600 hover:text-black px-8 py-3 rounded-full font-medium transition-colors text-lg"
                 >
                   Ver cómo funciona
                 </Link>
@@ -497,7 +497,7 @@ const HowItWorksPage = () => {
       <footer className="bg-gray-50 border-t border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <p className="text-gray-600 text-sm">
-            © 2025 VerifySign por Temporal Dynamics LLC. Todos los derechos reservados.
+            © 2025 EcoSign por Temporal Dynamics LLC. Todos los derechos reservados.
           </p>
         </div>
       </footer>

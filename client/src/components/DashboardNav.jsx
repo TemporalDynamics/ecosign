@@ -26,7 +26,7 @@ function DashboardNav({ onLogout = () => {} }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <Link to="/dashboard/start" className="flex items-center space-x-3">
-            <span className="text-2xl font-extrabold text-gray-900">VerifySign</span>
+            <span className="text-2xl font-extrabold text-gray-900">EcoSign</span>
           </Link>
           <nav className="hidden md:flex items-center space-x-6">
             {navItems.map((item) => (

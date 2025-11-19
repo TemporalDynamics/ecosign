@@ -77,9 +77,9 @@ const IntegrationModal = ({ isOpen, onClose, integrationData, onConfirm }) => {
           <div className="flex items-center space-x-3">
             <div className="bg-cyan-100 p-2 rounded-lg">
               {integrationData.service === 'mifiel' ? (
-                <Shield className="w-6 h-6 text-cyan-600" />
+                <Shield className="w-6 h-6 text-black" />
               ) : (
-                <FileText className="w-6 h-6 text-cyan-600" />
+                <FileText className="w-6 h-6 text-black" />
               )}
             </div>
             <div>
@@ -111,7 +111,7 @@ const IntegrationModal = ({ isOpen, onClose, integrationData, onConfirm }) => {
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
             <div className="flex justify-between items-center mb-2">
               <span className="font-medium text-gray-900">Amount</span>
-              <span className="text-2xl font-bold text-cyan-600">
+              <span className="text-2xl font-bold text-black">
                 ${integrationData.amount} {integrationData.currency}
               </span>
             </div>
@@ -186,7 +186,7 @@ const IntegrationModal = ({ isOpen, onClose, integrationData, onConfirm }) => {
             <button
               onClick={handlePayment}
               disabled={isProcessing}
-              className="flex-1 py-3 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-black to-gray-800 hover:bg-gray-800  text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
                 <span className="flex items-center justify-center">

@@ -110,7 +110,7 @@ const DocumentList = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-black600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -131,7 +131,7 @@ const DocumentList = () => {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-start gap-3">
-                    <FileText className="w-6 h-6 text-cyan-600 flex-shrink-0 mt-1" />
+                    <FileText className="w-6 h-6 text-black flex-shrink-0 mt-1" />
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 text-lg mb-1">
                         {document.title}
@@ -168,7 +168,7 @@ const DocumentList = () => {
                       setSelectedDocument(document);
                       setShowLinkGenerator(true);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition duration-200 text-sm font-medium"
+                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-cyan-500 transition duration-200 text-sm font-medium"
                   >
                     <LinkIcon className="w-4 h-4" />
                     Generar Enlace

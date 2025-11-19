@@ -94,7 +94,7 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
     <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
-          <LinkIcon className="w-5 h-5 text-cyan-600" />
+          <LinkIcon className="w-5 h-5 text-black" />
         </div>
         <h3 className="text-xl font-bold text-gray-900">Generar Enlace de Acceso</h3>
       </div>
@@ -107,7 +107,7 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
               type="checkbox"
               checked={requireNDA}
               onChange={(e) => setRequireNDA(e.target.checked)}
-              className="w-4 h-4 text-cyan-600 rounded focus:ring-cyan-500"
+              className="w-4 h-4 text-black rounded focus:ring-black500"
             />
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 text-gray-600" />
@@ -137,7 +137,7 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                   placeholder="Juan Pérez"
                 />
               </div>
@@ -151,7 +151,7 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                   placeholder="email@ejemplo.com"
                 />
               </div>
@@ -165,7 +165,7 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
                   type="text"
                   value={formData.company}
                   onChange={(e) => setFormData({...formData, company: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                   placeholder="Nombre de la empresa"
                 />
               </div>
@@ -179,7 +179,7 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
                   type="text"
                   value={formData.position}
                   onChange={(e) => setFormData({...formData, position: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
                   placeholder="Cargo en la empresa"
                 />
               </div>
@@ -191,7 +191,7 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
         <button
           onClick={handleGenerateLink}
           disabled={isGenerating}
-          className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full bg-gradient-to-r from-black to-gray-800 hover:bg-gray-800  text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isGenerating ? (
             <>
@@ -232,7 +232,7 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
                 />
                 <button
                   onClick={handleCopyLink}
-                  className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition duration-200 text-sm font-medium"
+                  className="px-4 py-2 bg-black text-white rounded-lg hover:bg-cyan-500 transition duration-200 text-sm font-medium"
                 >
                   Copiar
                 </button>

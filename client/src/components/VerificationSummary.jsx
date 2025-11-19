@@ -21,7 +21,7 @@ const layersConfig = [
   {
     key: 'signature',
     title: 'Firma Ed25519',
-    description: 'Valida que la firma provenga de VerifySign y no haya sido alterada.',
+    description: 'Valida que la firma provenga de EcoSign y no haya sido alterada.',
     icon: ShieldCheck
   },
   {
@@ -177,7 +177,7 @@ function VerificationSummary({ result, originalProvided = false }) {
             <div key={key} className={`p-5 rounded-2xl border ${tone.border} ${tone.bg} ${tone.text}`}>
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-9 h-9 rounded-xl bg-white/80 flex items-center justify-center">
-                  <IconComp className="w-5 h-5 text-cyan-600" />
+                  <IconComp className="w-5 h-5 text-black" />
                 </div>
                 <p className="font-semibold text-gray-900">{title}</p>
               </div>
@@ -187,13 +187,13 @@ function VerificationSummary({ result, originalProvided = false }) {
                 <button
                   type="button"
                   onClick={() => setShowLegalDetails((prev) => !prev)}
-                  className="mt-3 text-xs font-semibold text-cyan-600"
+                  className="mt-3 text-xs font-semibold text-black"
                 >
                   {showLegalDetails ? 'Ocultar detalle TSA' : 'Ver detalle TSA'}
                 </button>
               )}
               {key === 'legalTimestamp' && showLegalDetails && result.data?.legalTimestampReport && (
-                <pre className="mt-3 text-xs bg-white/80 rounded-lg p-3 border border-cyan-100 text-gray-700 overflow-x-auto">
+                <pre className="mt-3 text-xs bg-white/80 rounded-lg p-3 border border-black100 text-gray-700 overflow-x-auto">
 {JSON.stringify(result.data.legalTimestampReport, null, 2)}
                 </pre>
               )}

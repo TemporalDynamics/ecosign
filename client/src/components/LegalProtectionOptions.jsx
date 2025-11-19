@@ -47,11 +47,11 @@ const LegalProtectionOptions = ({ documentId, documentHash, userId, originalFile
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 onClick={handleMifielClick}
-                className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-cyan-300 hover:shadow-md transition-all group"
+                className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-black300 hover:shadow-md transition-all group"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
-                    <Shield className="w-5 h-5 text-green-600 group-hover:text-cyan-600" />
+                    <Shield className="w-5 h-5 text-green-600 group-hover:text-black" />
                     <span className="font-medium text-gray-900">NOM-151 Certificate</span>
                   </div>
                   <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-cyan-500" />
@@ -65,11 +65,11 @@ const LegalProtectionOptions = ({ documentId, documentHash, userId, originalFile
 
               <button
                 onClick={handleSignNowClick}
-                className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-cyan-300 hover:shadow-md transition-all group"
+                className="bg-white border border-gray-200 rounded-lg p-4 text-left hover:border-black300 hover:shadow-md transition-all group"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
-                    <FileText className="w-5 h-5 text-blue-600 group-hover:text-cyan-600" />
+                    <FileText className="w-5 h-5 text-blue-600 group-hover:text-black" />
                     <span className="font-medium text-gray-900">e-Signature</span>
                   </div>
                   <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-cyan-500" />

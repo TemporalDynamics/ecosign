@@ -948,10 +948,10 @@ const CertificationModal = ({ isOpen, onClose }) => {
 
                     {/* Formulario de datos del firmante (solo para EcoSign) */}
                     {signatureType === 'ecosign' && !multipleSignatures && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">✍️</span>
-                          <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">
+                          <p className="text-xs font-semibold text-gray-900 uppercase tracking-wide">
                             Tus datos (para Hoja de Auditoría)
                           </p>
                         </div>
@@ -966,7 +966,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                             value={signerName}
                             onChange={(e) => setSignerName(e.target.value)}
                             placeholder="Ej: Juan Pérez"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                           />
                         </div>
 
@@ -980,7 +980,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                             value={signerEmail}
                             onChange={(e) => setSignerEmail(e.target.value)}
                             placeholder="Ej: juan@empresa.com"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                           />
                         </div>
 
@@ -995,7 +995,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                               value={signerCompany}
                               onChange={(e) => setSignerCompany(e.target.value)}
                               placeholder="Ej: Acme Inc."
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                             />
                           </div>
                           <div>
@@ -1007,12 +1007,12 @@ const CertificationModal = ({ isOpen, onClose }) => {
                               value={signerJobTitle}
                               onChange={(e) => setSignerJobTitle(e.target.value)}
                               placeholder="Ej: Director"
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                             />
                           </div>
                         </div>
 
-                        <p className="text-xs text-blue-700 italic flex items-start gap-1">
+                        <p className="text-xs text-gray-700 italic flex items-start gap-1">
                           <span className="mt-0.5">ℹ️</span>
                           <span>Estos datos aparecerán en la Hoja de Auditoría al final del documento</span>
                         </p>
@@ -1261,7 +1261,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   <a
                     href={certificateData.signedPdfUrl}
                     download={certificateData.signedPdfName}
-                    className="bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
+                    className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />

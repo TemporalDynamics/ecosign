@@ -61,12 +61,12 @@ const VerificationComponent = ({ initialFile = null }) => {
     <div className="space-y-6">
       {/* Upload Section */}
       <div 
-        className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-cyan-500 transition-colors duration-300 bg-gray-50"
+        className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-gray-900 transition-colors duration-300 bg-gray-50"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
-        <div className="w-16 h-16 bg-gradient-to-br from-cyan-100 to-blue-200 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Upload className="w-8 h-8 text-cyan-600" strokeWidth={2.5} />
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Upload className="w-8 h-8 text-gray-900" strokeWidth={2.5} />
         </div>
         
         <h3 className="text-xl font-semibold text-gray-900 mb-2">
@@ -78,7 +78,7 @@ const VerificationComponent = ({ initialFile = null }) => {
         </p>
         
         <label htmlFor="eco-upload" className="cursor-pointer">
-          <span className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-300">
+          <span className="bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition duration-300">
             Seleccionar archivo
           </span>
           <input
@@ -91,8 +91,8 @@ const VerificationComponent = ({ initialFile = null }) => {
         </label>
         
         {file && (
-          <div className="mt-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg inline-block">
-            <p className="text-cyan-700 font-medium flex items-center gap-2">
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg inline-block">
+            <p className="text-green-700 font-medium flex items-center gap-2">
               <FileText className="w-4 h-4" />
               {file.name} ({(file.size / 1024).toFixed(2)} KB)
             </p>
@@ -117,7 +117,7 @@ const VerificationComponent = ({ initialFile = null }) => {
           <button
             onClick={handleVerify}
             disabled={isVerifying}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition duration-300 flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition duration-300 flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isVerifying ? (
               <>

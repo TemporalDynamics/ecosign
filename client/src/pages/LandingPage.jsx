@@ -315,7 +315,7 @@ const LandingPage = () => {
                 <li>✓ 2 Usuarios</li>
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 5 GB almacenamiento</li>
-                <li>✓ EcoSign ILIMITADAS</li>
+                <li>✓ 100 Docs EcoSign/mes</li>
                 <li>✓ 20 Firmas Legales/mes</li>
               </ul>
             </div>

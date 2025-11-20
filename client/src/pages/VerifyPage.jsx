@@ -159,27 +159,42 @@ function VerifyPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white fixed w-full top-0 z-50 border-b border-gray-100">
+      {/* Navigation - Same as Landing */}
+      <nav className="bg-white fixed w-full top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center space-x-4">
-              <Link to="/" className="flex items-center space-x-3">
-                <span className="text-2xl font-bold text-black">EcoSign</span>
+            <Link to="/" className="flex items-center space-x-3">
+              <span className="text-2xl font-bold text-black">EcoSign</span>
+            </Link>
+            <div className="hidden md:flex items-center space-x-8">
+              <Link to="/how-it-works" className="text-gray-600 hover:text-black font-medium transition duration-200">
+                Cómo funciona
+              </Link>
+              <Link to="/verify" className="text-black font-semibold transition duration-200">
+                Verificar
+              </Link>
+              <Link to="/pricing" className="text-gray-600 hover:text-black font-medium transition duration-200">
+                Precios
+              </Link>
+              <Link to="/login" className="text-gray-600 hover:text-black font-medium transition duration-200">
+                Iniciar Sesión
               </Link>
               <Link
-                to="/dashboard"
-                className="inline-flex items-center text-sm text-gray-600 hover:text-black transition"
+                to="/login"
+                className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300"
               >
-                <ArrowLeft className="w-4 h-4 mr-1" /> Volver al dashboard
+                Comenzar Gratis
               </Link>
             </div>
-            <div className="flex items-center space-x-6">
-              <Link to="/" className="text-gray-600 hover:text-black transition duration-200 font-medium">
-                Inicio
+            <div className="md:hidden flex items-center space-x-4">
+              <Link to="/login" className="text-gray-600 hover:text-black text-sm font-semibold">
+                Login
               </Link>
-              <Link to="/login" className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300">
-                Iniciar Sesión
+              <Link
+                to="/login"
+                className="bg-black hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+              >
+                Gratis
               </Link>
             </div>
           </div>

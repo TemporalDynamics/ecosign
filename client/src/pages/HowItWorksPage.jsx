@@ -192,7 +192,7 @@ function HowItWorksPage() {
         {/* I. Privacidad ante Todo */}
         <section className="mb-20">
           <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
-            <span className="text-gray-400">I.</span> Privacidad ante Todo
+            <span className="text-black">I.</span> Privacidad ante Todo
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
@@ -207,14 +207,14 @@ function HowItWorksPage() {
         {/* II. El Proceso en 3 Pasos Simples */}
         <section className="mb-20">
           <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">
-            <span className="text-gray-400">II.</span> El Proceso en 3 Pasos Simples
+            <span className="text-black">II.</span> El Proceso en 3 Pasos Simples
           </h2>
           
           <div className="space-y-10">
             {/* Paso 1 */}
-            <div className="border-l-4 border-black pl-6">
+            <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                1. Huella Digital (Hash)
+                <span className="text-gray-400">1.</span> Huella Digital (Hash)
               </h3>
               <ul className="space-y-2 text-lg text-gray-700">
                 <li>• Tu navegador calcula automáticamente el SHA-256 del archivo.</li>
@@ -223,9 +223,9 @@ function HowItWorksPage() {
             </div>
 
             {/* Paso 2 */}
-            <div className="border-l-4 border-black pl-6">
+            <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                2. Firma y Trazabilidad
+                <span className="text-gray-400">2.</span> Firma y Trazabilidad
               </h3>
               <p className="text-lg text-gray-700 mb-3">
                 Según el tipo de firma elegido (EcoSign o LegalSign), el sistema registra:
@@ -242,9 +242,9 @@ function HowItWorksPage() {
             </div>
 
             {/* Paso 3 */}
-            <div className="border-l-4 border-black pl-6">
+            <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                3. Blindaje Forense (Opcional)
+                <span className="text-gray-400">3.</span> Blindaje Forense (Opcional)
               </h3>
               <p className="text-lg text-gray-700 mb-3">
                 Podés activar el <strong>Blindaje Forense</strong> para añadir:
@@ -264,7 +264,7 @@ function HowItWorksPage() {
         {/* III. Tipos de Firma */}
         <section className="mb-20">
           <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">
-            <span className="text-gray-400">III.</span> Tipos de Firma
+            <span className="text-black">III.</span> Tipos de Firma
           </h2>
           
           <div className="overflow-x-auto">
@@ -299,7 +299,7 @@ function HowItWorksPage() {
         {/* IV. El Certificado .ECO */}
         <section className="mb-20">
           <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
-            <span className="text-gray-400">IV.</span> El Certificado .ECO
+            <span className="text-black">IV.</span> El Certificado .ECO
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
@@ -321,7 +321,7 @@ function HowItWorksPage() {
         {/* V. Transparencia Técnica */}
         <section className="mb-20">
           <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
-            <span className="text-gray-400">V.</span> Transparencia Técnica
+            <span className="text-black">V.</span> Transparencia Técnica
           </h2>
           <div className="bg-gray-50 border-l-4 border-black p-8 rounded-r-lg space-y-6">
             <p className="text-lg text-gray-700 leading-relaxed">

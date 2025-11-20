@@ -84,36 +84,42 @@ function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white/95 backdrop-blur-sm fixed w-full top-0 z-50 border-b border-gray-200 shadow-sm">
+      {/* Navigation - Same as Landing */}
+      <nav className="bg-white fixed w-full top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center space-x-4">
-              <Link to="/" className="flex items-center space-x-3">
-                <span className="text-2xl font-extrabold text-black">EcoSign</span>
+            <Link to="/" className="flex items-center space-x-3">
+              <span className="text-2xl font-bold text-black">EcoSign</span>
+            </Link>
+            <div className="hidden md:flex items-center space-x-8">
+              <Link to="/how-it-works" className="text-gray-600 hover:text-black font-medium transition duration-200">
+                Cómo funciona
               </Link>
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center text-sm text-gray-500 hover:text-black transition"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1" /> Volver al dashboard
-              </Link>
-            </div>
-            <div className="flex items-center space-x-6">
-              <Link to="/" className="text-gray-600 hover:text-black transition duration-200 font-medium">
-                Inicio
-              </Link>
-              <Link to="/verify" className="text-gray-600 hover:text-black transition duration-200 font-medium">
+              <Link to="/verify" className="text-gray-600 hover:text-black font-medium transition duration-200">
                 Verificar
               </Link>
-              <Link to="/login" className="text-gray-600 hover:text-black transition duration-200 font-medium">
+              <Link to="/pricing" className="text-black font-semibold transition duration-200">
+                Precios
+              </Link>
+              <Link to="/login" className="text-gray-600 hover:text-black font-medium transition duration-200">
                 Iniciar Sesión
               </Link>
               <Link
                 to="/login"
-                className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300 shadow-md hover:shadow-lg"
+                className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300"
               >
                 Comenzar Gratis
+              </Link>
+            </div>
+            <div className="md:hidden flex items-center space-x-4">
+              <Link to="/login" className="text-gray-600 hover:text-black text-sm font-semibold">
+                Login
+              </Link>
+              <Link
+                to="/login"
+                className="bg-black hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+              >
+                Gratis
               </Link>
             </div>
           </div>

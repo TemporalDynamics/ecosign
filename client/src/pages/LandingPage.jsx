@@ -23,7 +23,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-black">VerifySign</span>
+              <span className="text-2xl font-bold text-black">EcoSign</span>
             </Link>
             <div className="hidden md:flex items-center space-x-8">
               <Link to="/how-it-works" className="text-gray-600 hover:text-black font-medium transition duration-200">

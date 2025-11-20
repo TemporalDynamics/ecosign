@@ -11,12 +11,12 @@ function PricingPage() {
       subtitle: 'Muestra',
       description: 'Prueba la plataforma',
       features: [
-        { text: 'Usuarios con Acceso al Panel', value: '1' },
+        { text: 'Usuarios', value: '1' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
-        { text: 'Almacenamiento en la Nube', value: '1 GB' },
-        { text: 'Firma EcoSign', value: '3 Docs/mes' },
-        { text: 'Firma Legal (SignNow)', value: '1 Firma/mes' },
-        { text: 'Blindaje Forense', value: 'Básico (Polygon)' },
+        { text: 'Almacenamiento', value: '1 GB' },
+        { text: 'Firma EcoSign', value: '3 por mes' },
+        { text: 'Firma Legal', value: '1 por mes' },
+        { text: 'Blindaje Forense', value: 'Básico' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
       ],
@@ -26,16 +26,16 @@ function PricingPage() {
     {
       name: 'PRO',
       subtitle: 'Profesional/Pyme',
-      price: '$19',
+      price: '$15',
       period: ' USD',
       originalPrice: '$40',
       description: 'Promoción de lanzamiento',
       features: [
-        { text: 'Usuarios con Acceso al Panel', value: '2' },
+        { text: 'Usuarios', value: '2' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
-        { text: 'Almacenamiento en la Nube', value: '5 GB' },
-        { text: 'Firma EcoSign', value: '100 Documentos/mes' },
-        { text: 'Firma Legal (SignNow)', value: '20 Firmas/mes' },
+        { text: 'Almacenamiento', value: '5 GB' },
+        { text: 'Firma EcoSign', value: '100 por mes' },
+        { text: 'Firma Legal', value: '20 por mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -46,15 +46,16 @@ function PricingPage() {
     {
       name: 'BUSINESS',
       subtitle: 'Alto Volumen/Equipos',
-      price: '$99',
+      price: '$49',
       period: ' USD',
+      originalPrice: '$69',
       description: 'Para empresas en crecimiento',
       features: [
-        { text: 'Usuarios con Acceso al Panel', value: '5' },
+        { text: 'Usuarios', value: '5' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
-        { text: 'Almacenamiento en la Nube', value: '25 GB' },
+        { text: 'Almacenamiento', value: '25 GB' },
         { text: 'Firma EcoSign', value: 'ILIMITADAS' },
-        { text: 'Firma Legal (SignNow)', value: '100 Firmas/mes' },
+        { text: 'Firma Legal', value: '100 por mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Limitado' }
@@ -64,15 +65,15 @@ function PricingPage() {
     },
     {
       name: 'ENTERPRISE',
-      price: 'Personalizado',
+      price: 'Custom',
       period: '',
       description: 'Solución a medida',
       features: [
-        { text: 'Usuarios con Acceso al Panel', value: 'Ilimitados' },
+        { text: 'Usuarios', value: 'Ilimitados' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
-        { text: 'Almacenamiento en la Nube', value: 'Personalizado' },
+        { text: 'Almacenamiento', value: 'Personalizado' },
         { text: 'Firma EcoSign', value: 'ILIMITADAS' },
-        { text: 'Firma Legal (SignNow)', value: 'Personalizado' },
+        { text: 'Firma Legal', value: 'Personalizado' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Completo' }
@@ -128,10 +129,8 @@ function PricingPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 pt-32">
         <header className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Planes de Servicio de EcoSign.app</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Elige el plan que mejor se adapte a tus necesidades de firma y almacenamiento
-          </p>
+          <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Planes de Servicio EcoSign</h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">Elegí el plan que mejor se adapte a tus necesidades. Precios claros, sin excedentes y sin sorpresas.</p>
         </header>
 
         {/* Pricing Cards */}
@@ -143,27 +142,29 @@ function PricingPage() {
                   MÁS POPULAR
                 </div>
               )}
-              <div className="p-6">
-                <h2 className="text-2xl font-bold text-black mb-1">{plan.name}</h2>
-                {plan.subtitle && (
-                  <p className="text-sm text-gray-600 mb-3">{plan.subtitle}</p>
-                )}
-                <div className="mb-3">
-                  <div className="flex items-baseline">
-                    <span className="text-4xl font-bold text-black">{plan.price}</span>
-                    {plan.period && <span className="text-lg text-gray-600">{plan.period}</span>}
-                  </div>
-                  {plan.originalPrice && (
-                    <div className="text-sm text-gray-500 mt-1">
-                      Valor Real: <span className="line-through">{plan.originalPrice} USD</span>
-                    </div>
+              <div className="p-6 flex flex-col h-full">
+                <div className="flex-shrink-0 mb-6 min-h-[170px]">
+                  <h2 className="text-2xl font-bold text-black mb-1">{plan.name}</h2>
+                  {plan.subtitle && (
+                    <p className="text-sm text-gray-600 mb-3">{plan.subtitle}</p>
                   )}
+                  <div className="mb-3">
+                    <div className="flex items-baseline">
+                      <span className="text-4xl font-bold text-black">{plan.price}</span>
+                      {plan.period && <span className="text-lg text-gray-600">{plan.period}</span>}
+                    </div>
+                    {plan.originalPrice && (
+                      <div className="text-sm text-gray-500 mt-1">
+                        Valor Real: <span className="line-through">{plan.originalPrice} USD</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600">{plan.description}</p>
                 </div>
-                <p className="text-sm text-gray-600 mb-6">{plan.description}</p>
 
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-3 mb-8 flex-grow">
                   {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start text-sm">
+                    <li key={idx} className="flex items-start text-sm relative group"> {/* Added relative group */}
                       {feature.value === true ? (
                         <Check className="w-4 h-4 text-black mr-2 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
                       ) : feature.value === false ? (
@@ -172,9 +173,27 @@ function PricingPage() {
                         <Check className="w-4 h-4 text-black mr-2 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
                       )}
                       <div className="flex-1">
-                        <span className="text-gray-700 font-medium">{feature.text}:</span>
-                        {feature.value !== true && feature.value !== false && (
-                          <span className="text-black ml-1">{feature.value}</span>
+                        {feature.text === 'Firma Legal' ? (
+                          <div className="relative inline-block"> {/* Tooltip trigger */}
+                            <span className="text-gray-700 font-medium cursor-pointer group-hover:text-[#0E4B8B]" tabIndex="0">
+                              {feature.text}:
+                            </span>
+                            {feature.value !== true && feature.value !== false && (
+                              <span className="text-black ml-1">{feature.value}</span>
+                            )}
+                            {/* Tooltip content */}
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden w-64 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-10 group-hover:block group-focus-within:block">
+                              Usamos la API de SignNow que cumple con los estándares eIDAS, ESIGN, UETA con aceptación en más de 90 países.
+                              <div className="absolute left-1/2 -translate-x-1/2 h-2 w-2 bg-gray-800 rotate-45 -bottom-1"></div> {/* Tooltip arrow */}
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-gray-700 font-medium">{feature.text}:</span>
+                            {feature.value !== true && feature.value !== false && (
+                              <span className="text-black ml-1">{feature.value}</span>
+                            )}
+                          </>
                         )}
                       </div>
                     </li>
@@ -193,124 +212,84 @@ function PricingPage() {
           ))}
         </div>
 
-        {/* Comparison Table */}
-        <div className="bg-gray-50 p-8 md:p-12 rounded-2xl border border-gray-200 mb-12">
-          <h2 className="text-3xl font-bold text-black mb-8 text-center">Comparativa Detallada de Características</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b-2 border-gray-300">
-                  <th className="p-4 text-black font-bold">Característica</th>
-                  <th className="p-4 text-center text-black font-bold">FREE</th>
-                  <th className="p-4 text-center text-black font-bold bg-gray-100">PRO</th>
-                  <th className="p-4 text-center text-black font-bold">BUSINESS</th>
-                  <th className="p-4 text-center text-black font-bold">ENTERPRISE</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-black">Precio Mensual</td>
-                  <td className="p-4 text-center text-gray-700">$0</td>
-                  <td className="p-4 text-center text-gray-700 bg-gray-50 font-semibold">$19 USD</td>
-                  <td className="p-4 text-center text-gray-700">$99 USD</td>
-                  <td className="p-4 text-center text-gray-700">Personalizado</td>
-                </tr>
-                <tr className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-black">Valor Real del Plan</td>
-                  <td className="p-4 text-center text-gray-700">—</td>
-                  <td className="p-4 text-center text-gray-700 bg-gray-50">
-                    <div>
-                      <span className="line-through text-gray-500">$40 USD</span>
-                      <div className="text-xs text-green-700 font-semibold mt-1">50% OFF</div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-center text-gray-700">—</td>
-                  <td className="p-4 text-center text-gray-700">—</td>
-                </tr>
-                <tr className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-black">
-                    <div className="flex items-center">
-                      <Users className="w-4 h-4 mr-2" />
-                      Usuarios con Acceso al Panel
-                    </div>
-                  </td>
-                  <td className="p-4 text-center text-gray-700">1</td>
-                  <td className="p-4 text-center text-gray-700 bg-gray-50 font-semibold">2</td>
-                  <td className="p-4 text-center text-gray-700">5</td>
-                  <td className="p-4 text-center text-gray-700">Ilimitados</td>
-                </tr>
-                <tr className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-black">
-                    <div className="flex items-center">
-                      <HardDrive className="w-4 h-4 mr-2" />
-                      Almacenamiento en la Nube
-                    </div>
-                  </td>
-                  <td className="p-4 text-center text-gray-700">1 GB</td>
-                  <td className="p-4 text-center text-gray-700 bg-gray-50 font-semibold">5 GB</td>
-                  <td className="p-4 text-center text-gray-700">25 GB</td>
-                  <td className="p-4 text-center text-gray-700">Personalizado</td>
-                </tr>
-                <tr className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-black">
-                    <div className="flex items-center">
-                      <FileText className="w-4 h-4 mr-2" />
-                      Firma EcoSign (Uso Interno)
-                    </div>
-                  </td>
-                  <td className="p-4 text-center text-gray-700">3 Docs/mes</td>
-                  <td className="p-4 text-center text-gray-700 bg-gray-50 font-semibold">100 Docs/mes</td>
-                  <td className="p-4 text-center text-gray-700 font-bold">ILIMITADA</td>
-                  <td className="p-4 text-center text-gray-700 font-bold">ILIMITADA</td>
-                </tr>
-                <tr className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-black">
-                    <div className="flex items-center">
-                      <Lock className="w-4 h-4 mr-2" />
-                      Firma Legal (SignNow)
-                    </div>
-                  </td>
-                  <td className="p-4 text-center text-gray-700">1 Firma/mes</td>
-                  <td className="p-4 text-center text-gray-700 bg-gray-50 font-semibold">20 Firmas/mes</td>
-                  <td className="p-4 text-center text-gray-700">100 Firmas/mes</td>
-                  <td className="p-4 text-center text-gray-700">Personalizado</td>
-                </tr>
-                <tr className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-black">
-                    <div className="flex items-center">
-                      <Shield className="w-4 h-4 mr-2" />
-                      Blindaje Forense
-                    </div>
-                  </td>
-                  <td className="p-4 text-center text-gray-700">Básico (Polygon)</td>
-                  <td className="p-4 text-center text-gray-700 bg-gray-50 font-semibold">Completo</td>
-                  <td className="p-4 text-center text-gray-700">Completo</td>
-                  <td className="p-4 text-center text-gray-700">Completo</td>
-                </tr>
-                <tr className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-4 font-medium text-black">
-                    <div className="flex items-center">
-                      <BarChart3 className="w-4 h-4 mr-2" />
-                      Panel de Auditoría Avanzado
-                    </div>
-                  </td>
-                  <td className="p-4 text-center">
-                    <X className="w-5 h-5 text-gray-400 inline-block" />
-                  </td>
-                  <td className="p-4 text-center bg-gray-50">
-                    <X className="w-5 h-5 text-gray-400 inline-block" />
-                  </td>
-                  <td className="p-4 text-center">
-                    <Check className="w-5 h-5 text-black inline-block" strokeWidth={2.5} />
-                  </td>
-                  <td className="p-4 text-center">
-                    <Check className="w-5 h-5 text-black inline-block" strokeWidth={2.5} />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <section className="mb-20">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">Transparencia ante todo</h2>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
+            En EcoSign no hay cargos ocultos, excedentes ni facturación inesperada.
+          </p>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
+            Pagás solo lo que usás y siempre sabés cuántas firmas tenés disponibles.
+          </p>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
+            El sistema te avisa antes de superar cualquier límite.
+          </p>
+        </section>
+
+        <section className="mb-20">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">Acumulación inteligente</h2>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
+            Si un mes no usás todas tus firmas legales, no las perdés.
+          </p>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
+            Podés usarlas durante los próximos 60 días, y tu panel siempre muestra cuántas te quedan.
+          </p>
+          <div className="bg-gray-50 p-6 rounded-lg max-w-3xl mx-auto mb-4">
+            <p className="font-semibold text-black mb-2">Ejemplo simple:</p>
+            <p className="text-lg text-gray-700 leading-relaxed">
+              Si tu plan incluye 20 firmas y este mes usaste 15, el próximo mes empezás con 25.
+            </p>
+            <p className="text-lg text-gray-700 leading-relaxed">
+              Las firmas más antiguas se vencen a los 60 días, para mantener tu cuenta ordenada.
+            </p>
           </div>
-        </div>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
+            Así de claro.
+          </p>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
+            Así de simple.
+          </p>
+        </section>
+
+        <section className="mb-20">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">¿Por qué EcoSign puede ofrecer precios tan accesibles?</h2>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
+            Porque optimizamos los costos reales sin sacrificar seguridad:
+          </p>
+          <ul className="space-y-2 text-xl text-gray-700 max-w-3xl mx-auto mb-4">
+            <li>• No subimos tu archivo → menos infraestructura.</li>
+            <li>• El hash se calcula en tu dispositivo → costo cero.</li>
+            <li>• Timestamp legal y blockchain → costos mínimos y verificados.</li>
+            <li>• Solo pagamos firmas legales cuando las usás.</li>
+          </ul>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
+            Eso nos permite darte un servicio premium, privado y seguro—sin abusos ni letra chica.
+          </p>
+        </section>
+
+        <section className="mb-20">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">Beneficios exclusivos</h2>
+          <ul className="space-y-2 text-xl text-gray-700 max-w-3xl mx-auto mb-4">
+            <li>• Precio protegido: tu tarifa queda fija mientras mantengas tu suscripción.</li>
+            <li>• Soporte prioritario: respuestas claras, humanas y sin bots genéricos.</li>
+            <li>• Acumulación inteligente: nunca perdés tus firmas sin usar.</li>
+            <li>• Auditoría avanzada y blindaje completo: transparencia certificada.</li>
+          </ul>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
+            Ideal para profesionales, creadores, estudios jurídicos y PyMEs que necesitan seguridad real sin pagar de más.
+          </p>
+        </section>
+
+        <section className="mb-20">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">Hecho para quienes valoran claridad</h2>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
+            Sin “sobres”, sin trucos, sin facturación extra.
+          </p>
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
+            EcoSign es un servicio pensado para trabajar con vos, no contra vos.
+          </p>
+        </section>
+
+        
 
         <div className="bg-white p-8 md:p-12 rounded-2xl border-2 border-gray-200 mb-12">
           <h2 className="text-3xl font-bold text-black mb-8 text-center">Preguntas Frecuentes</h2>

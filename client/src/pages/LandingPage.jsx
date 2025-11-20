@@ -311,7 +311,7 @@ const LandingPage = () => {
               <h3 className="text-2xl font-bold text-black mb-1">PRO</h3>
               <p className="text-sm text-gray-600 mb-2">Profesional/Pyme</p>
               <div className="flex items-baseline justify-center mb-1">
-                <span className="text-4xl font-bold text-black">$19</span>
+                <span className="text-4xl font-bold text-black">$15</span>
                 <span className="text-lg text-gray-600"> USD</span>
               </div>
               <p className="text-xs text-gray-500 mb-4 line-through">Valor real: $40 USD</p>
@@ -334,7 +334,7 @@ const LandingPage = () => {
               <h3 className="text-2xl font-bold text-black mb-1">BUSINESS</h3>
               <p className="text-sm text-gray-600 mb-4">Alto Volumen</p>
               <div className="flex items-baseline justify-center mb-4">
-                <span className="text-4xl font-bold text-black">$99</span>
+                <span className="text-4xl font-bold text-black">$49</span>
                 <span className="text-lg text-gray-600"> USD</span>
               </div>
               <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">

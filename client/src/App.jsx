@@ -21,12 +21,15 @@ import ContactPage from './pages/ContactPage';
 import StatusPage from './pages/StatusPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
+import FloatingVideoPlayer from './components/FloatingVideoPlayer';
+import { VideoPlayerProvider, useVideoPlayer } from './contexts/VideoPlayerContext';
 
-function App() {
+function AppRoutes() {
+  const { showFloatingVideo, setShowFloatingVideo } = useVideoPlayer();
+
   return (
-    <ErrorBoundary>
-      <div className="App">
-        <Routes>
+    <>
+      <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -83,7 +86,26 @@ function App() {
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </div>
+
+      {/* Global Floating Video Player - persists across pages */}
+      {showFloatingVideo && (
+        <FloatingVideoPlayer
+          videoSrc="/videos/EcoSign__Verdad_Verificable.mp4"
+          onClose={() => setShowFloatingVideo(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <VideoPlayerProvider>
+        <div className="App">
+          <AppRoutes />
+        </div>
+      </VideoPlayerProvider>
     </ErrorBoundary>
   );
 }

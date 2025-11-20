@@ -13,11 +13,11 @@ import {
   Users,
   Play
 } from 'lucide-react';
-import FloatingVideoPlayer from '../components/FloatingVideoPlayer';
+import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 
 const LandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showFloatingVideo, setShowFloatingVideo] = useState(false);
+  const { setShowFloatingVideo } = useVideoPlayer();
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -411,14 +411,6 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
-
-      {/* Floating Video Player */}
-      {showFloatingVideo && (
-        <FloatingVideoPlayer
-          videoSrc="/videos/EcoSign__Verdad_Verificable.mp4"
-          onClose={() => setShowFloatingVideo(false)}
-        />
-      )}
     </div>
   );
 };

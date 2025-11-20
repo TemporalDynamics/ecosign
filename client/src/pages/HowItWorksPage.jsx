@@ -1,6 +1,73 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Shield, Clock, Lock, CheckCircle, Hash, Anchor } from 'lucide-react';
+import { FileText, Shield, Clock, Lock, CheckCircle, Hash, Anchor, Copy } from 'lucide-react';
+
+// Copy to Clipboard Button Component
+const CopyToClipboardButton = () => {
+  const [isCopied, setIsCopied] = useState(false);
+  
+  const fullText = `Cómo Lo Hacemos - EcoSign
+
+Si necesitás ayuda extra, copiá toda esta página y mostrásela a tu IA de confianza.
+
+Así funciona EcoSign, de principio a fin:
+• Elegí tu archivo: Nunca lo subimos ni lo almacenamos. Tu contenido permanece siempre con vos.
+• Firmá en un solo paso: Aplicamos una firma digital con validez legal internacional.
+• Sellá tu evidencia: Sumamos Sello de Tiempo legal, huella digital y anclaje público.
+• Guardá tu .ECO: Esta es tu evidencia con fecha y hora inmutable.
+
+Eso es todo lo que necesitás para blindar tu trabajo.
+
+1. Tu Archivo Nunca Pierde Su Forma
+Aceptamos cualquier formato. Trabajá como siempre: Word, Excel, Photoshop, CAD, lo que necesites.
+Para que la firma sea legal, el estándar exige un formato estático. Por ello, generamos una copia temporal en PDF, solo para aplicar el sello legal.
+Tu archivo original queda intacto, sin ser tocado. El PDF es tu copia legal sellada.
+
+2. Elegí Tu Archivo
+Seleccionás el documento que querés proteger. Puede ser cualquier formato: PDF, Word, Excel, imagen, video, código fuente.
+Nunca se sube a nuestros servidores. Todo el proceso ocurre en tu navegador.
+
+3. Firmás en Un Solo Paso
+Aplicamos firma digital con validez legal bajo normas eIDAS/ESIGN. Firmás en un solo paso, con total certeza legal.
+
+4. Sellamos la Evidencia
+Generamos tres capas de protección:
+- Huella Digital (Hash SHA-256): Identidad única del contenido
+- Sello de Tiempo Legal RFC 3161: Momento exacto de existencia
+- Anclaje en Blockchain: Registro público inmutable (Polygon + Bitcoin)
+
+5. Creamos Tu .ECO
+El archivo .ECO es tu certificado ligero que contiene todas las pruebas: hash, timestamp, anclaje y cadena de registros.
+Está firmado digitalmente: si alguien modifica un byte, la firma se rompe y el verificador lo detecta al instante.
+
+Verificación Universal:
+Cualquiera puede verificar tu documento en ecosign.app/verify sin necesidad de cuenta.
+Solo arrastra el PDF original o el .ECO y el sistema confirma su autenticidad.
+
+EcoSign - Certificación digital con privacidad total
+ecosign.app`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(fullText);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg border-2 border-gray-200 hover:bg-white hover:border-black transition-all duration-200 group"
+      title="Copiar todo el contenido de la página"
+      aria-label="Copiar contenido"
+    >
+      {isCopied ? (
+        <CheckCircle className="w-5 h-5 text-green-600" />
+      ) : (
+        <Copy className="w-5 h-5 text-gray-600 group-hover:text-black transition" />
+      )}
+    </button>
+  );
+};
 
 function HowItWorksPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -73,6 +140,18 @@ function HowItWorksPage() {
           </p>
         </div>
       </header>
+
+      {/* Sticky Copy Button - Fixed Right Side */}
+      <div className="fixed right-6 top-1/2 transform -translate-y-1/2 z-40 hidden md:block">
+        <CopyToClipboardButton />
+      </div>
+
+      {/* Help Text - Visible on scroll */}
+      <div className="fixed right-6 top-1/3 transform -translate-y-1/2 z-40 hidden lg:block max-w-xs">
+        <p className="text-xs text-gray-500 text-right mb-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-sm">
+          ¿Necesitás ayuda? Copiá todo y mostráselo a tu IA de confianza →
+        </p>
+      </div>
 
       {/* Proceso Simple */}
       <section className="py-24 bg-white">

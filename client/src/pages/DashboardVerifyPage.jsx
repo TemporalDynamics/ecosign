@@ -13,7 +13,7 @@ function DashboardVerifyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-cyan-50">
+    <div className="min-h-screen bg-white">
       <DashboardNav onLogout={handleLogout} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -27,7 +27,7 @@ function DashboardVerifyPage() {
           </div>
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-gray-600 hover:text-cyan-600 font-medium"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium"
           >
             <ArrowLeft className="w-5 h-5" />
             Volver al dashboard
@@ -35,10 +35,10 @@ function DashboardVerifyPage() {
         </div>
 
         {/* Transparency Notice */}
-        <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl p-6 mb-8">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8">
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">
-              <Info className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
+              <Info className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
             </div>
             <div>
               <h3 className="text-gray-900 font-semibold mb-2">Verificación Independiente</h3>

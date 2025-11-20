@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, Check, ArrowLeft, X, Users, HardDrive, FileText, Shield, BarChart3 } from 'lucide-react';
+import FooterPublic from '../components/FooterPublic';
 
 function PricingPage() {
   const plans = [
@@ -136,9 +137,9 @@ function PricingPage() {
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
           {plans.map((plan, index) => (
-            <div key={index} className={`relative bg-white rounded-xl shadow-lg overflow-hidden border-2 ${plan.popular ? 'border-black' : 'border-gray-200'}`}>
+            <div key={index} className={`relative bg-white rounded-xl overflow-hidden border-2 ${plan.popular ? 'border-[#0E4B8B] shadow-[0_4px_25px_-5px_rgba(14,75,139,0.2)]' : 'border-gray-200 shadow-lg'}`}>
               {plan.popular && (
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black text-white text-xs font-bold px-4 py-1 rounded-full">
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#0E4B8B] text-white text-xs font-bold px-4 py-1 rounded-full">
                   MÁS POPULAR
                 </div>
               )}
@@ -297,7 +298,7 @@ function PricingPage() {
             <div>
               <h3 className="text-lg font-semibold text-black mb-2">¿Qué incluye la promoción de lanzamiento del plan PRO?</h3>
               <p className="text-gray-700 leading-relaxed">
-                El plan PRO tiene un valor real de $40 USD, pero lo ofrecemos a $19 USD como parte de nuestra promoción de lanzamiento. Esto representa un ahorro del 50% para los primeros usuarios.
+                El plan PRO tiene un valor real de $40 USD, pero lo ofrecemos a $15 USD como parte de nuestra promoción de lanzamiento. Esto representa un ahorro del 50% para los primeros usuarios.
               </p>
             </div>
             <div>
@@ -326,46 +327,7 @@ function PricingPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-black py-12 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-              <p className="text-sm text-gray-400 mt-3">Certificación digital con privacidad total</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Producto</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</Link></li>
-                <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
-                <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificar</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/terms" className="hover:text-[#0E4B8B] hover:underline transition">Términos</Link></li>
-                <li><Link to="/privacy" className="hover:text-[#0E4B8B] hover:underline transition">Privacidad</Link></li>
-                <li><Link to="/security" className="hover:text-[#0E4B8B] hover:underline transition">Seguridad</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Soporte</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/help" className="hover:text-[#0E4B8B] hover:underline transition">Ayuda</Link></li>
-                <li><Link to="/contact" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</Link></li>
-                <li><Link to="/status" className="hover:text-[#0E4B8B] hover:underline transition">Estado</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 space-y-3 text-sm text-gray-400 border-t border-gray-800">
-            <p>© 2025 EcoSign. Todos los derechos reservados.</p>
-            <p>EcoSign es un servicio independiente de certificación y firma digital.</p>
-            <p>El formato .ECO y los procesos forenses están sujetos a protección de propiedad intelectual en trámite.</p>
-          </div>
-        </div>
-      </footer>
+      <FooterPublic />
     </div>
   );
 }

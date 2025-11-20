@@ -1,5 +1,7 @@
-import { Link } from 'react-router-dom';
-import { Activity, CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
+import HeaderPublic from '../components/HeaderPublic';
+import FooterPublic from '../components/FooterPublic';
+import PageTitle from '../components/PageTitle';
 
 const StatusPage = () => {
   const services = [
@@ -12,46 +14,25 @@ const StatusPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white fixed w-full top-0 z-50 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-black">VerifySign</span>
-            </Link>
-            <Link
-              to="/"
-              className="text-gray-600 hover:text-black font-medium transition duration-200"
-            >
-              Volver al inicio
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-white flex flex-col">
+      <HeaderPublic />
 
       {/* Content */}
-      <main className="pt-32 pb-24 bg-white">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <Activity className="w-12 h-12 text-black mx-auto mb-6" />
-            <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">
-              Estado del Servicio
-            </h1>
-            <p className="text-xl text-gray-700">
-              Aquí podrás consultar la disponibilidad de nuestros servicios
-            </p>
-          </div>
+      <main className="flex-grow pt-24">
+        <div className="max-w-3xl mx-auto px-4 pb-24">
+          <PageTitle subtitle="Aquí podrás consultar la disponibilidad de nuestros servicios">
+            Estado del Servicio
+          </PageTitle>
 
-          <div className="space-y-4 mb-12">
+          <div className="space-y-3 mb-8 mt-8">
             {services.map((service, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-6 border border-gray-200 rounded-lg"
+                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
               >
-                <span className="text-lg font-medium text-black">{service.name}</span>
+                <span className="text-base font-medium text-black">{service.name}</span>
                 <div className="flex items-center space-x-2">
-                  <CheckCircle className="w-5 h-5 text-black" />
+                  <CheckCircle className="w-5 h-5 text-[#0A66C2]" />
                   <span className="text-gray-700">Operativo</span>
                 </div>
               </div>
@@ -64,16 +45,11 @@ const StatusPage = () => {
             </p>
           </div>
 
-          <div className="mt-12 pt-8 border-t border-gray-200 text-center">
-            <Link
-              to="/"
-              className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg transition duration-300"
-            >
-              Volver al inicio
-            </Link>
-          </div>
+
         </div>
       </main>
+
+      <FooterPublic />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Shield, Clock, Lock, CheckCircle, Hash, Anchor, Copy } from 'lucide-react';
+import FooterPublic from '../components/FooterPublic';
 
 // Copy to Clipboard Button Component
 const CopyToClipboardButton = () => {
@@ -189,10 +190,10 @@ function HowItWorksPage() {
           </p>
         </div>
 
-        {/* I. Privacidad ante Todo */}
+        {/* Privacidad ante Todo */}
         <section className="mb-20">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
-            <span className="text-black">I.</span> Privacidad ante Todo
+            Privacidad ante Todo
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
@@ -204,10 +205,10 @@ function HowItWorksPage() {
           </div>
         </section>
 
-        {/* II. El Proceso en 3 Pasos Simples */}
+        {/* El Proceso en 3 Pasos Simples */}
         <section className="mb-20">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-8">
-            <span className="text-black">II.</span> El Proceso en 3 Pasos Simples
+            El Proceso en 3 Pasos Simples
           </h2>
           
           <div className="space-y-10">
@@ -261,10 +262,10 @@ function HowItWorksPage() {
           </div>
         </section>
 
-        {/* III. Tipos de Firma */}
+        {/* Tipos de Firma */}
         <section className="mb-20">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-8">
-            <span className="text-black">III.</span> Tipos de Firma
+            Tipos de Firma
           </h2>
           
           <div className="space-y-10">
@@ -299,10 +300,10 @@ function HowItWorksPage() {
           </p>
         </section>
 
-        {/* IV. El Certificado .ECO */}
+        {/* El Certificado .ECO */}
         <section className="mb-20">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
-            <span className="text-black">IV.</span> El Certificado .ECO
+            El Certificado .ECO
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
@@ -321,10 +322,10 @@ function HowItWorksPage() {
           </div>
         </section>
 
-        {/* V. Transparencia Técnica */}
+        {/* Transparencia Técnica */}
         <section className="mb-20">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
-            <span className="text-black">V.</span> Transparencia Técnica
+            Transparencia Técnica
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
@@ -368,46 +369,7 @@ function HowItWorksPage() {
 
       </main>
 
-      {/* Footer - Same as Landing */}
-      <footer className="bg-black py-12 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-              <p className="text-sm text-gray-400 mt-3">Infraestructura de Confianza Digital</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Producto</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</Link></li>
-                <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
-                <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificar</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/terms" className="hover:text-[#0E4B8B] hover:underline transition">Términos</Link></li>
-                <li><Link to="/privacy" className="hover:text-[#0E4B8B] hover:underline transition">Privacidad</Link></li>
-                <li><Link to="/security" className="hover:text-[#0E4B8B] hover:underline transition">Seguridad</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Soporte</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/help" className="hover:text-[#0E4B8B] hover:underline transition">Ayuda</Link></li>
-                <li><Link to="/contact" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</Link></li>
-                <li><Link to="/status" className="hover:text-[#0E4B8B] hover:underline transition">Estado</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 space-y-3 text-sm text-gray-400 border-t border-gray-800">
-            <p>© 2025 EcoSign. Todos los derechos reservados.</p>
-            <p>EcoSign es un servicio independiente de certificación y firma digital.</p>
-            <p>El formato .ECO y los procesos forenses están sujetos a protección de propiedad intelectual en trámite.</p>
-          </div>
-        </div>
-      </footer>
+      <FooterPublic />
     </div>
   );
 }

@@ -143,7 +143,7 @@ serve(async (req) => {
     }
 
     // Build the access URL (token is in the URL, not stored)
-    const appUrl = Deno.env.get('APP_URL') || 'https://app.verifysign.pro'
+    const appUrl = Deno.env.get('APP_URL') || 'https://ecosign.app'
     const accessUrl = `${appUrl}/nda/${token}`
 
     // Log the link creation event

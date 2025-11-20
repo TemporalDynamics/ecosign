@@ -37,17 +37,17 @@ Se ha añadido una funcionalidad completa de verificación byte-a-byte que permi
 ## 🧪 Cómo funciona
 
 ### **Caso 1: Usuario sube ambos archivos**
-1. Usuario sube `.documento.ecox`
-2. Usuario sube `documento.pdf` (archivo original)
-3. Sistema calcula hash SHA-256 de `documento.pdf`
-4. Sistema extrae hash del manifiesto en `.ecox`
-5. Sistema compara ambos hashes
-6. Resultado: ✅ "Coincide" o ❌ "Diferente"
+- Usuario sube `.documento.ecox`
+- Usuario sube `documento.pdf` (archivo original)
+- Sistema calcula hash SHA-256 de `documento.pdf`
+- Sistema extrae hash del manifiesto en `.ecox`
+- Sistema compara ambos hashes
+- Resultado: ✅ "Coincide" o ❌ "Diferente"
 
 ### **Caso 2: Usuario sube solo .ecox**
-1. Usuario sube `.documento.ecox`
-2. Sistema extrae hash del manifiesto
-3. Resultado: "Hash declarado en el manifiesto"
+- Usuario sube `.documento.ecox`
+- Sistema extrae hash del manifiesto
+- Resultado: "Hash declarado en el manifiesto"
 
 ## 🎨 Interfaz de Usuario
 
@@ -90,11 +90,11 @@ Se ha añadido una funcionalidad completa de verificación byte-a-byte que permi
 
 ## 🚀 Beneficios
 
-1. **Transparencia total** - Se ven ambos hashes para verificación
-2. **Seguridad reforzada** - Confirmación de integridad
-3. **Experiencia clara** - Resultados fáciles de entender
-4. **Funcionalidad completa** - Todo en la interfaz web
-5. **Verificación forense** - Evidencia criptográfica sólida
+- Transparencia total - Se ven ambos hashes para verificación
+- Seguridad reforzada - Confirmación de integridad
+- Experiencia clara - Resultados fáciles de entender
+- Funcionalidad completa - Todo en la interfaz web
+- Verificación forense - Evidencia criptográfica sólida
 
 ## 📝 Notas Técnicas
 
@@ -107,8 +107,8 @@ Se ha añadido una funcionalidad completa de verificación byte-a-byte que permi
 ## 🎯 Resultado Final
 
 Los usuarios ahora pueden:
-✅ Subir un archivo .ecox y el archivo original
-✅ Verificar que ambos coinciden exactamente  
-✅ Obtener evidencia criptográfica de integridad
-✅ Confirmar que el documento no ha sido modificado desde la certificación
-✅ Ver resultados visuales claros de la comparación
+- Subir un archivo .ecox y el archivo original
+- Verificar que ambos coinciden exactamente  
+- Obtener evidencia criptográfica de integridad
+- Confirmar que el documento no ha sido modificado desde la certificación
+- Ver resultados visuales claros de la comparación

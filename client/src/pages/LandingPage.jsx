@@ -14,10 +14,11 @@ import {
   Play
 } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
+import FooterPublic from '../components/FooterPublic';
 
 const LandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { setShowFloatingVideo } = useVideoPlayer();
+  const { playVideo } = useVideoPlayer();
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -94,7 +95,7 @@ const LandingPage = () => {
               Comenzar Gratis
             </Link>
             <button
-              onClick={() => setShowFloatingVideo(true)}
+              onClick={() => playVideo('you-dont-need-to-trust')}
               className="bg-transparent border-2 border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg inline-flex items-center justify-center gap-2"
             >
               <Play className="w-5 h-5" />
@@ -249,7 +250,7 @@ const LandingPage = () => {
             <div className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center">
               <div className="text-center">
                 <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
-                  <PlayIcon className="w-10 h-10 text-white" />
+                  <Play className="w-10 h-10 text-white" />
                 </div>
                 <p className="text-gray-700 font-medium">Video de demostración</p>
               </div>
@@ -376,58 +377,9 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-black py-12 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-              <p className="text-sm text-gray-400 mt-3">Certificación digital con privacidad total</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Producto</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</a></li>
-                <li><a href="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</a></li>
-                <li><a href="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificar</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="/terms" className="hover:text-[#0E4B8B] hover:underline transition">Términos</a></li>
-                <li><a href="/privacy" className="hover:text-[#0E4B8B] hover:underline transition">Privacidad</a></li>
-                <li><a href="/security" className="hover:text-[#0E4B8B] hover:underline transition">Seguridad</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Soporte</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="/help" className="hover:text-[#0E4B8B] hover:underline transition">Ayuda</a></li>
-                <li><a href="/contact" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</a></li>
-                <li><a href="/status" className="hover:text-[#0E4B8B] hover:underline transition">Estado</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 space-y-3 text-sm text-gray-400">
-            <p>© 2025 EcoSign. Todos los derechos reservados.</p>
-            <p>EcoSign es un servicio independiente de certificación y firma digital.</p>
-            <p>El formato .ECO y los procesos forenses están sujetos a protección de propiedad intelectual en trámite.</p>
-          </div>
-        </div>
-      </footer>
+      <FooterPublic />
     </div>
   );
 };
-
-// Icon components (since lucide react icons are not imported in the actual way)
-function PlayIcon({ className }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
 
 export default LandingPage;

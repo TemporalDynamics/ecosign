@@ -19,16 +19,24 @@ import SecurityPage from './pages/SecurityPage';
 import HelpPage from './pages/HelpPage';
 import ContactPage from './pages/ContactPage';
 import StatusPage from './pages/StatusPage';
+import ReportPage from './pages/ReportPage';
+import ReportIssuePage from './pages/ReportIssuePage';
+import DocumentationPage from './pages/DocumentationPage';
+import QuickGuidePage from './pages/QuickGuidePage';
+import FAQPage from './pages/FAQPage';
+import UseCasesPage from './pages/UseCasesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import FloatingVideoPlayer from './components/FloatingVideoPlayer';
+import ScrollToTop from './components/ScrollToTop';
 import { VideoPlayerProvider, useVideoPlayer } from './contexts/VideoPlayerContext';
 
 function AppRoutes() {
-  const { showFloatingVideo, setShowFloatingVideo } = useVideoPlayer();
+  const { videoState, closeVideo } = useVideoPlayer();
 
   return (
     <>
+      <ScrollToTop />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
@@ -48,6 +56,14 @@ function AppRoutes() {
         <Route path="/help" element={<HelpPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/status" element={<StatusPage />} />
+        <Route path="/report" element={<ReportPage />} />
+        <Route path="/report-issue" element={<ReportIssuePage />} />
+        
+        {/* Resources routes */}
+        <Route path="/documentation" element={<DocumentationPage />} />
+        <Route path="/quick-guide" element={<QuickGuidePage />} />
+        <Route path="/faq" element={<FAQPage />} />
+        <Route path="/use-cases" element={<UseCasesPage />} />
 
         {/* Protected routes */}
         <Route
@@ -88,10 +104,11 @@ function AppRoutes() {
       </Routes>
 
       {/* Global Floating Video Player - persists across pages */}
-      {showFloatingVideo && (
+      {videoState.isPlaying && videoState.videoSrc && (
         <FloatingVideoPlayer
-          videoSrc="/videos/EcoSign__Verdad_Verificable.mp4"
-          onClose={() => setShowFloatingVideo(false)}
+          videoSrc={videoState.videoSrc}
+          videoTitle={videoState.videoTitle}
+          onClose={closeVideo}
         />
       )}
     </>

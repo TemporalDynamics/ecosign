@@ -368,39 +368,39 @@ const LandingPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white py-12">
+      <footer className="bg-black py-12">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
-              <span className="text-2xl font-bold text-black">EcoSign</span>
-              <p className="text-sm text-gray-600 mt-3">Certificación digital con privacidad total</p>
+              <span className="text-2xl font-bold text-white">EcoSign</span>
+              <p className="text-sm text-gray-400 mt-3">Certificación digital con privacidad total</p>
             </div>
             <div>
-              <h4 className="font-semibold text-black mb-3">Producto</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#how-it-works" className="hover:text-black">Cómo funciona</a></li>
-                <li><a href="/pricing" className="hover:text-black">Precios</a></li>
-                <li><a href="/verify" className="hover:text-black">Verificar</a></li>
+              <h4 className="font-semibold text-white mb-3">Producto</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><a href="#how-it-works" className="hover:text-white transition">Cómo funciona</a></li>
+                <li><a href="/pricing" className="hover:text-white transition">Precios</a></li>
+                <li><a href="/verify" className="hover:text-white transition">Verificar</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-black mb-3">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="/terms" className="hover:text-black">Términos</a></li>
-                <li><a href="/privacy" className="hover:text-black">Privacidad</a></li>
-                <li><a href="/security" className="hover:text-black">Seguridad</a></li>
+              <h4 className="font-semibold text-white mb-3">Legal</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><a href="/terms" className="hover:text-white transition">Términos</a></li>
+                <li><a href="/privacy" className="hover:text-white transition">Privacidad</a></li>
+                <li><a href="/security" className="hover:text-white transition">Seguridad</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-black mb-3">Soporte</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="/help" className="hover:text-black">Ayuda</a></li>
-                <li><a href="/contact" className="hover:text-black">Contacto</a></li>
-                <li><a href="/status" className="hover:text-black">Estado</a></li>
+              <h4 className="font-semibold text-white mb-3">Soporte</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><a href="/help" className="hover:text-white transition">Ayuda</a></li>
+                <li><a href="/contact" className="hover:text-white transition">Contacto</a></li>
+                <li><a href="/status" className="hover:text-white transition">Estado</a></li>
               </ul>
             </div>
           </div>
-          <div className="pt-8 space-y-3 text-sm text-gray-600">
+          <div className="pt-8 space-y-3 text-sm text-gray-400">
             <p>© 2025 EcoSign. Todos los derechos reservados.</p>
             <p>EcoSign es un servicio independiente de certificación y firma digital.</p>
             <p>El formato .ECO y los procesos forenses están sujetos a protección de propiedad intelectual en trámite.</p>

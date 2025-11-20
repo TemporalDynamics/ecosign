@@ -272,6 +272,101 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* Pricing Preview Section */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-black mb-4">
+              Planes diseñados para cada necesidad
+            </h2>
+            <p className="text-xl text-gray-700 max-w-3xl mx-auto">
+              Desde prueba gratuita hasta soluciones empresariales
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-6 mb-12">
+            {/* FREE */}
+            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 text-center">
+              <h3 className="text-2xl font-bold text-black mb-1">FREE</h3>
+              <p className="text-sm text-gray-600 mb-4">Muestra</p>
+              <div className="text-4xl font-bold text-black mb-4">$0</div>
+              <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
+                <li>✓ 1 Usuario</li>
+                <li>✓ Firmantes ilimitados</li>
+                <li>✓ 1 GB almacenamiento</li>
+                <li>✓ 3 Docs EcoSign/mes</li>
+                <li>✓ 1 Firma Legal/mes</li>
+              </ul>
+            </div>
+
+            {/* PRO */}
+            <div className="bg-white border-2 border-black rounded-xl p-6 text-center relative">
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black text-white text-xs font-bold px-4 py-1 rounded-full">
+                MÁS POPULAR
+              </div>
+              <h3 className="text-2xl font-bold text-black mb-1">PRO</h3>
+              <p className="text-sm text-gray-600 mb-2">Profesional/Pyme</p>
+              <div className="flex items-baseline justify-center mb-1">
+                <span className="text-4xl font-bold text-black">$19</span>
+                <span className="text-lg text-gray-600"> USD</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-4 line-through">Valor real: $40 USD</p>
+              <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
+                <li>✓ 2 Usuarios</li>
+                <li>✓ Firmantes ilimitados</li>
+                <li>✓ 5 GB almacenamiento</li>
+                <li>✓ EcoSign ILIMITADAS</li>
+                <li>✓ 20 Firmas Legales/mes</li>
+              </ul>
+            </div>
+
+            {/* BUSINESS */}
+            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 text-center">
+              <h3 className="text-2xl font-bold text-black mb-1">BUSINESS</h3>
+              <p className="text-sm text-gray-600 mb-4">Alto Volumen</p>
+              <div className="flex items-baseline justify-center mb-4">
+                <span className="text-4xl font-bold text-black">$99</span>
+                <span className="text-lg text-gray-600"> USD</span>
+              </div>
+              <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
+                <li>✓ 5 Usuarios</li>
+                <li>✓ Firmantes ilimitados</li>
+                <li>✓ 25 GB almacenamiento</li>
+                <li>✓ EcoSign ILIMITADAS</li>
+                <li>✓ 100 Firmas Legales/mes</li>
+                <li>✓ Panel de Auditoría</li>
+                <li>✓ API Limitado</li>
+              </ul>
+            </div>
+
+            {/* ENTERPRISE */}
+            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 text-center">
+              <h3 className="text-2xl font-bold text-black mb-1">ENTERPRISE</h3>
+              <p className="text-sm text-gray-600 mb-4">A medida</p>
+              <div className="text-3xl font-bold text-black mb-4">Custom</div>
+              <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
+                <li>✓ Usuarios ilimitados</li>
+                <li>✓ Firmantes ilimitados</li>
+                <li>✓ Almacenamiento custom</li>
+                <li>✓ EcoSign ILIMITADAS</li>
+                <li>✓ Firmas Legales custom</li>
+                <li>✓ Panel de Auditoría</li>
+                <li>✓ API Completo</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link
+              to="/pricing"
+              className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg transition duration-300"
+            >
+              Ver Comparación Completa
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="bg-white py-12">
         <div className="max-w-7xl mx-auto px-6 text-center">

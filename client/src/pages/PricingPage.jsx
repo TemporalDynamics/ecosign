@@ -8,14 +8,17 @@ function PricingPage() {
       name: 'FREE',
       price: '$0',
       period: '',
-      description: 'Característica Gratuita',
+      subtitle: 'Muestra',
+      description: 'Prueba la plataforma',
       features: [
         { text: 'Usuarios con Acceso al Panel', value: '1' },
+        { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento en la Nube', value: '1 GB' },
         { text: 'Firma EcoSign (Uso Interno)', value: '3 Docs/mes' },
         { text: 'Firma Legal (SignNow)', value: '1 Firma/mes' },
         { text: 'Blindaje Forense', value: 'Básico (Polygon)' },
-        { text: 'Panel de Auditoría Avanzado', value: false }
+        { text: 'Panel de Auditoría Avanzado', value: false },
+        { text: 'Acceso a API', value: false }
       ],
       buttonText: 'Empezar Gratis',
       popular: false
@@ -29,11 +32,13 @@ function PricingPage() {
       description: 'Promoción de lanzamiento',
       features: [
         { text: 'Usuarios con Acceso al Panel', value: '2' },
+        { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento en la Nube', value: '5 GB' },
-        { text: 'Firma EcoSign (Uso Interno)', value: '100 Documentos/mes' },
+        { text: 'Firma EcoSign (Uso Interno)', value: 'ILIMITADAS' },
         { text: 'Firma Legal (SignNow)', value: '20 Firmas/mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
-        { text: 'Panel de Auditoría Avanzado', value: false }
+        { text: 'Panel de Auditoría Avanzado', value: false },
+        { text: 'Acceso a API', value: false }
       ],
       buttonText: 'Comenzar PRO',
       popular: true
@@ -46,11 +51,13 @@ function PricingPage() {
       description: 'Para empresas en crecimiento',
       features: [
         { text: 'Usuarios con Acceso al Panel', value: '5' },
+        { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento en la Nube', value: '25 GB' },
-        { text: 'Firma EcoSign (Uso Interno)', value: 'ILIMITADA' },
+        { text: 'Firma EcoSign (Uso Interno)', value: 'ILIMITADAS' },
         { text: 'Firma Legal (SignNow)', value: '100 Firmas/mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
-        { text: 'Panel de Auditoría Avanzado', value: true }
+        { text: 'Panel de Auditoría Avanzado', value: true },
+        { text: 'Acceso a API', value: 'Limitado' }
       ],
       buttonText: 'Comenzar BUSINESS',
       popular: false
@@ -62,11 +69,13 @@ function PricingPage() {
       description: 'Solución a medida',
       features: [
         { text: 'Usuarios con Acceso al Panel', value: 'Ilimitados' },
+        { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento en la Nube', value: 'Personalizado' },
-        { text: 'Firma EcoSign (Uso Interno)', value: 'ILIMITADA' },
+        { text: 'Firma EcoSign (Uso Interno)', value: 'ILIMITADAS' },
         { text: 'Firma Legal (SignNow)', value: 'Personalizado' },
         { text: 'Blindaje Forense', value: 'Completo' },
-        { text: 'Panel de Auditoría Avanzado', value: true }
+        { text: 'Panel de Auditoría Avanzado', value: true },
+        { text: 'Acceso a API', value: 'Completo' }
       ],
       buttonText: 'Contactar Ventas',
       popular: false

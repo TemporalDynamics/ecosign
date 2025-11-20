@@ -5,17 +5,17 @@
 import { supabase } from './supabaseClient';
 
 /**
- * Verifica un archivo .ECO/.ECOX usando la Edge Function real
- * @param {File} file - Archivo .ECO o .ECOX a verificar
+ * Verifica un archivo .ECO usando la Edge Function real
+ * @param {File} file - Archivo .ECO a verificar
  * @returns {Promise<Object>} Resultado de verificación con datos reales
  */
 export async function verifyEcoFile(file) {
-  // Validar que sea un archivo .ECO/.ECOX
+  // Validar que sea un archivo .ECO
   const fileName = file.name.toLowerCase();
-  if (!fileName.endsWith('.eco') && !fileName.endsWith('.ecox')) {
+  if (!fileName.endsWith('.eco')) {
     return {
       valid: false,
-      error: 'Formato de archivo no válido. Solo se aceptan .ECO y .ECOX',
+      error: 'Formato de archivo no válido. Solo se aceptan archivos .ECO',
       errors: ['Formato de archivo no válido'],
       warnings: []
     };
@@ -71,8 +71,8 @@ export async function verifyEcoFile(file) {
 }
 
 /**
- * Verifica un archivo .ECO/.ECOX contra el documento original
- * @param {File} ecoFile - Archivo .ECO o .ECOX
+ * Verifica un archivo .ECO contra el documento original
+ * @param {File} ecoFile - Archivo .ECO
  * @param {File} originalFile - Documento original para comparar huella digital
  * @returns {Promise<Object>} Resultado de verificación completa
  */
@@ -88,10 +88,10 @@ export async function verifyEcoWithOriginal(ecoFile, originalFile) {
 
   // Validar extensión
   const fileName = ecoFile.name.toLowerCase();
-  if (!fileName.endsWith('.eco') && !fileName.endsWith('.ecox')) {
+  if (!fileName.endsWith('.eco')) {
     return {
       valid: false,
-      error: 'Formato de archivo no válido. Solo se aceptan .ECO y .ECOX',
+      error: 'Formato de archivo no válido. Solo se aceptan archivos .ECO',
       errors: ['Formato de archivo no válido'],
       warnings: []
     };
@@ -154,7 +154,7 @@ export async function verifyEcoWithOriginal(ecoFile, originalFile) {
 
 /**
  * Función principal de verificación que combina ambos modos
- * @param {File} ecoFile - Archivo .ECO o .ECOX
+ * @param {File} ecoFile - Archivo .ECO
  * @param {File|null} originalFile - Documento original (opcional)
  * @returns {Promise<Object>} Resultado de verificación
  */

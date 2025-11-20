@@ -46,7 +46,7 @@ const VerificationComponent = ({ initialFile = null }) => {
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (droppedFile.name.endsWith('.eco') || droppedFile.name.endsWith('.ecox'))) {
+    if (droppedFile && droppedFile.name.endsWith('.eco')) {
       setFile(droppedFile);
       setVerificationResult(null);
       setError(null);
@@ -74,7 +74,7 @@ const VerificationComponent = ({ initialFile = null }) => {
         </h3>
         
         <p className="text-gray-600 mb-4">
-          Arrastra y suelta tu archivo .ECO o .ECOX aquí, o haz clic para seleccionar
+          Arrastra y suelta tu archivo .ECO aquí, o haz clic para seleccionar
         </p>
         
         <label htmlFor="eco-upload" className="cursor-pointer">
@@ -84,7 +84,7 @@ const VerificationComponent = ({ initialFile = null }) => {
           <input
             id="eco-upload"
             type="file"
-            accept=".eco,.ecox"
+            accept=".eco"
             onChange={handleFileChange}
             className="hidden"
           />

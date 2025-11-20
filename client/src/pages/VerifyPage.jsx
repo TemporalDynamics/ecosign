@@ -6,10 +6,10 @@ import LegalProtectionOptions from '../components/LegalProtectionOptions';
 import VerificationSummary from '../components/VerificationSummary';
 
 // Configuración de validación
-const ALLOWED_EXTENSIONS = ['.eco', '.ecox', '.pdf', '.zip'];
+const ALLOWED_EXTENSIONS = ['.eco', '.pdf', '.zip'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_MIME_TYPES = [
-  'application/octet-stream', // .eco, .ecox
+  'application/octet-stream', // .eco
   'application/pdf',
   'application/zip',
   'application/x-zip-compressed',
@@ -82,7 +82,7 @@ function VerifyPage() {
       setFile(selectedFile);
       setValidationError(null);
       setResult(null);
-      setOriginalFile(null); // Reset original file when new .ecox is selected
+      setOriginalFile(null); // Reset original file when new .eco is selected
     }
   };
 
@@ -248,18 +248,18 @@ function VerifyPage() {
               <Upload className="w-8 h-8 text-white" strokeWidth={2.5} />
             </div>
             <h3 className="text-xl font-semibold text-black mb-2">
-              Arrastra tu archivo .ECOX aquí
+              Arrastra tu archivo .ECO aquí
             </h3>
             <p className="text-gray-600 mb-6">o haz clic para seleccionar</p>
 
             <label htmlFor="file-upload" className="cursor-pointer">
               <span className="bg-black hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg inline-block transition duration-300">
-                Seleccionar .ECOX
+                Seleccionar .ECO
               </span>
               <input
                 id="file-upload"
                 type="file"
-                accept=".eco,.ecox"
+                accept=".eco"
                 onChange={handleFileChange}
                 className="hidden"
               />

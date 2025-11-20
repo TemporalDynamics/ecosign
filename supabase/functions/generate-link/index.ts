@@ -4,6 +4,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
+import { sendEmail, buildSignerInvitationEmail } from '../_shared/email.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,8 +68,8 @@ serve(async (req) => {
 
     // Verify document belongs to user
     const { data: doc, error: docError } = await supabase
-      .from('documents')
-      .select('id, owner_id, title')
+      .from('user_documents')
+      .select('id, user_id, document_name')
       .eq('id', document_id)
       .single()
 
@@ -76,7 +77,7 @@ serve(async (req) => {
       throw new Error('Document not found')
     }
 
-    if (doc.owner_id !== user.id) {
+    if (doc.user_id !== user.id) {
       throw new Error('Not authorized to share this document')
     }
 
@@ -148,6 +149,27 @@ serve(async (req) => {
     // Log the link creation event
     console.log(`Link created: ${link.id} for document ${document_id} to ${recipient_email}`)
 
+    // --- Send Email Invitation ---
+    let emailSent = false;
+    try {
+      const senderName = user.user_metadata?.full_name || user.email; // Get sender name from user metadata or email
+      const emailPayload = buildSignerInvitationEmail({
+        signerEmail: recipient_email,
+        documentName: doc.document_name,
+        signLink: accessUrl,
+        expiresAt: expiresAt || '', // Ensure expiresAt is a string
+        senderName: senderName
+      });
+      const emailResult = await sendEmail(emailPayload);
+      emailSent = emailResult.success;
+      if (!emailSent) {
+        console.error('Failed to send email:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('Error sending email:', emailError);
+    }
+    // --- End Send Email Invitation ---
+
     // Return the plaintext token URL (only time it's available)
     return new Response(
       JSON.stringify({
@@ -157,8 +179,9 @@ serve(async (req) => {
         access_url: accessUrl,
         expires_at: expiresAt,
         require_nda,
-        document_title: doc.title,
-        recipient_email
+        document_title: doc.document_name,
+        recipient_email,
+        email_sent: emailSent // Indicate if email was sent
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

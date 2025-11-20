@@ -26,19 +26,19 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-black">EcoSign</span>
+              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
             </Link>
             <div className="hidden md:flex items-center space-x-8">
-              <Link to="/how-it-works" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/how-it-works" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Cómo funciona
               </Link>
-              <Link to="/verify" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/verify" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Verificar
               </Link>
-              <Link to="/pricing" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Precios
               </Link>
-              <Link to="/login" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/login" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Iniciar Sesión
               </Link>
               <Link
@@ -79,11 +79,11 @@ const LandingPage = () => {
       {/* 1. HERO PRINCIPAL - Directo, minimalista, blanco y negro */}
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
+          <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
             No vendemos firmas.<br />Vendemos certeza.
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Cada documento firmado o certificado genera evidencia verificable, sin exponer tu archivo y sin depender de nosotros.
+            Tu archivo nunca se expone. Tu evidencia siempre se puede verificar.
           </p>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 mb-8">
@@ -95,14 +95,14 @@ const LandingPage = () => {
             </Link>
             <button
               onClick={() => setShowFloatingVideo(true)}
-              className="bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg inline-flex items-center justify-center gap-2"
+              className="bg-transparent border-2 border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg inline-flex items-center justify-center gap-2"
             >
               <Play className="w-5 h-5" />
               Ver cómo funciona
             </button>
           </div>
           
-          <p className="text-sm text-gray-500 max-w-2xl mx-auto">
+          <p className="text-[13px] text-gray-500 max-w-2xl mx-auto">
             Tu contenido nunca se sube. Solo generamos la evidencia.
           </p>
         </div>
@@ -122,19 +122,19 @@ const LandingPage = () => {
 
           <div className="grid md:grid-cols-3 gap-16 text-center">
             <div>
-              <Lock className="w-10 h-10 text-black mx-auto mb-4" />
+              <Lock className="w-10 h-10 text-[#0E4B8B] mx-auto mb-4" strokeWidth={1.5} />
               <h3 className="text-xl font-semibold text-black mb-3">Privacidad total</h3>
               <p className="text-gray-600">No vemos tu archivo, no lo guardamos.</p>
             </div>
             
             <div>
-              <Shield className="w-10 h-10 text-black mx-auto mb-4" />
+              <Shield className="w-10 h-10 text-[#0E4B8B] mx-auto mb-4" strokeWidth={1.5} />
               <h3 className="text-xl font-semibold text-black mb-3">Evidencia infalsificable</h3>
               <p className="text-gray-600">Hash + timestamp legal + blockchain.</p>
             </div>
             
             <div>
-              <CheckCircle className="w-10 h-10 text-black mx-auto mb-4" />
+              <CheckCircle className="w-10 h-10 text-[#0E4B8B] mx-auto mb-4" strokeWidth={1.5} />
               <h3 className="text-xl font-semibold text-black mb-3">Verificación universal</h3>
               <p className="text-gray-600">Cualquiera puede validar el sello sin una cuenta.</p>
             </div>
@@ -288,7 +288,7 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-6 mb-12">
+          <div className="grid md:grid-cols-4 gap-7 mb-12">
             {/* FREE */}
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 text-center">
               <h3 className="text-2xl font-bold text-black mb-1">FREE</h3>
@@ -304,8 +304,8 @@ const LandingPage = () => {
             </div>
 
             {/* PRO */}
-            <div className="bg-white border-2 border-black rounded-xl p-6 text-center relative">
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black text-white text-xs font-bold px-4 py-1 rounded-full">
+            <div className="bg-white border-2 border-[#0E4B8B] rounded-xl p-6 text-center relative shadow-[0_4px_25px_-5px_rgba(14,75,139,0.2)]">
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#0E4B8B] text-white text-xs font-bold px-4 py-1 rounded-full">
                 MÁS POPULAR
               </div>
               <h3 className="text-2xl font-bold text-black mb-1">PRO</h3>
@@ -322,6 +322,11 @@ const LandingPage = () => {
                 <li>✓ 100 Docs EcoSign/mes</li>
                 <li>✓ 20 Firmas Legales/mes</li>
               </ul>
+              <div className="text-center pt-4 mt-auto">
+                <div className="inline-block bg-[#0E4B8B]/[0.12] text-[#0E4B8B] font-medium text-xs px-3 py-1 rounded-md">
+                  Tu tarifa queda protegida para siempre
+                </div>
+              </div>
             </div>
 
             {/* BUSINESS */}
@@ -372,35 +377,35 @@ const LandingPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-black py-12">
+      <footer className="bg-black py-12 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
-              <span className="text-2xl font-bold text-white">EcoSign</span>
+              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
               <p className="text-sm text-gray-400 mt-3">Certificación digital con privacidad total</p>
             </div>
             <div>
               <h4 className="font-semibold text-white mb-3">Producto</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#how-it-works" className="hover:text-white transition">Cómo funciona</a></li>
-                <li><a href="/pricing" className="hover:text-white transition">Precios</a></li>
-                <li><a href="/verify" className="hover:text-white transition">Verificar</a></li>
+                <li><a href="#how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</a></li>
+                <li><a href="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</a></li>
+                <li><a href="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificar</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-white mb-3">Legal</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="/terms" className="hover:text-white transition">Términos</a></li>
-                <li><a href="/privacy" className="hover:text-white transition">Privacidad</a></li>
-                <li><a href="/security" className="hover:text-white transition">Seguridad</a></li>
+                <li><a href="/terms" className="hover:text-[#0E4B8B] hover:underline transition">Términos</a></li>
+                <li><a href="/privacy" className="hover:text-[#0E4B8B] hover:underline transition">Privacidad</a></li>
+                <li><a href="/security" className="hover:text-[#0E4B8B] hover:underline transition">Seguridad</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-white mb-3">Soporte</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="/help" className="hover:text-white transition">Ayuda</a></li>
-                <li><a href="/contact" className="hover:text-white transition">Contacto</a></li>
-                <li><a href="/status" className="hover:text-white transition">Estado</a></li>
+                <li><a href="/help" className="hover:text-[#0E4B8B] hover:underline transition">Ayuda</a></li>
+                <li><a href="/contact" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</a></li>
+                <li><a href="/status" className="hover:text-[#0E4B8B] hover:underline transition">Estado</a></li>
               </ul>
             </div>
           </div>

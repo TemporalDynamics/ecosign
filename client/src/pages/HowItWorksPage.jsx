@@ -102,19 +102,19 @@ function HowItWorksPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-black">EcoSign</span>
+              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
             </Link>
             <div className="hidden md:flex items-center space-x-8">
-              <Link to="/how-it-works" className="text-black font-semibold transition duration-200">
+              <Link to="/how-it-works" className="text-black font-medium text-[17px] transition duration-200">
                 Cómo funciona
               </Link>
-              <Link to="/verify" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/verify" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Verificar
               </Link>
-              <Link to="/pricing" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Precios
               </Link>
-              <Link to="/login" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/login" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Iniciar Sesión
               </Link>
               <Link
@@ -155,7 +155,7 @@ function HowItWorksPage() {
       {/* Hero */}
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
+          <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
             Cómo Funciona EcoSign
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-6 leading-relaxed">
@@ -191,7 +191,7 @@ function HowItWorksPage() {
 
         {/* I. Privacidad ante Todo */}
         <section className="mb-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
             <span className="text-black">I.</span> Privacidad ante Todo
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
@@ -206,7 +206,7 @@ function HowItWorksPage() {
 
         {/* II. El Proceso en 3 Pasos Simples */}
         <section className="mb-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8">
             <span className="text-black">II.</span> El Proceso en 3 Pasos Simples
           </h2>
           
@@ -263,7 +263,7 @@ function HowItWorksPage() {
 
         {/* III. Tipos de Firma */}
         <section className="mb-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8">
             <span className="text-black">III.</span> Tipos de Firma
           </h2>
           
@@ -301,7 +301,7 @@ function HowItWorksPage() {
 
         {/* IV. El Certificado .ECO */}
         <section className="mb-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
             <span className="text-black">IV.</span> El Certificado .ECO
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
@@ -323,7 +323,7 @@ function HowItWorksPage() {
 
         {/* V. Transparencia Técnica */}
         <section className="mb-20">
-          <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
             <span className="text-black">V.</span> Transparencia Técnica
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
@@ -369,35 +369,35 @@ function HowItWorksPage() {
       </main>
 
       {/* Footer - Same as Landing */}
-      <footer className="bg-black py-12">
+      <footer className="bg-black py-12 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
-              <span className="text-2xl font-bold text-white">EcoSign</span>
+              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
               <p className="text-sm text-gray-400 mt-3">Infraestructura de Confianza Digital</p>
             </div>
             <div>
               <h4 className="font-semibold text-white mb-3">Producto</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/how-it-works" className="hover:text-white">Cómo funciona</Link></li>
-                <li><Link to="/pricing" className="hover:text-white">Precios</Link></li>
-                <li><Link to="/verify" className="hover:text-white">Verificar</Link></li>
+                <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</Link></li>
+                <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
+                <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificar</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-white mb-3">Legal</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/terms" className="hover:text-white">Términos</Link></li>
-                <li><Link to="/privacy" className="hover:text-white">Privacidad</Link></li>
-                <li><Link to="/security" className="hover:text-white">Seguridad</Link></li>
+                <li><Link to="/terms" className="hover:text-[#0E4B8B] hover:underline transition">Términos</Link></li>
+                <li><Link to="/privacy" className="hover:text-[#0E4B8B] hover:underline transition">Privacidad</Link></li>
+                <li><Link to="/security" className="hover:text-[#0E4B8B] hover:underline transition">Seguridad</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-white mb-3">Soporte</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/help" className="hover:text-white">Ayuda</Link></li>
-                <li><Link to="/contact" className="hover:text-white">Contacto</Link></li>
-                <li><Link to="/status" className="hover:text-white">Estado</Link></li>
+                <li><Link to="/help" className="hover:text-[#0E4B8B] hover:underline transition">Ayuda</Link></li>
+                <li><Link to="/contact" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</Link></li>
+                <li><Link to="/status" className="hover:text-[#0E4B8B] hover:underline transition">Estado</Link></li>
               </ul>
             </div>
           </div>

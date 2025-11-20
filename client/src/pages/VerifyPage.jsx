@@ -164,19 +164,19 @@ function VerifyPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-black">EcoSign</span>
+              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
             </Link>
             <div className="hidden md:flex items-center space-x-8">
-              <Link to="/how-it-works" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/how-it-works" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Cómo funciona
               </Link>
-              <Link to="/verify" className="text-black font-semibold transition duration-200">
+              <Link to="/verify" className="text-black font-medium text-[17px] transition duration-200">
                 Verificar
               </Link>
-              <Link to="/pricing" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Precios
               </Link>
-              <Link to="/login" className="text-gray-600 hover:text-black font-medium transition duration-200">
+              <Link to="/login" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Iniciar Sesión
               </Link>
               <Link
@@ -436,11 +436,43 @@ function VerifyPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 border-t border-gray-800 mt-12 py-6">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-gray-400 text-sm">
-            © 2025 EcoSign. Verificación independiente y transparente.
-          </p>
+      <footer className="bg-black py-12 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
+              <p className="text-sm text-gray-400 mt-3">Certificación digital con privacidad total</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-3">Producto</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</Link></li>
+                <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
+                <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificar</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-3">Legal</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link to="/terms" className="hover:text-[#0E4B8B] hover:underline transition">Términos</Link></li>
+                <li><Link to="/privacy" className="hover:text-[#0E4B8B] hover:underline transition">Privacidad</Link></li>
+                <li><Link to="/security" className="hover:text-[#0E4B8B] hover:underline transition">Seguridad</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-3">Soporte</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link to="/help" className="hover:text-[#0E4B8B] hover:underline transition">Ayuda</Link></li>
+                <li><Link to="/contact" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</Link></li>
+                <li><Link to="/status" className="hover:text-[#0E4B8B] hover:underline transition">Estado</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="pt-8 space-y-3 text-sm text-gray-400 border-t border-gray-800">
+            <p>© 2025 EcoSign. Todos los derechos reservados.</p>
+            <p>EcoSign es un servicio independiente de certificación y firma digital.</p>
+            <p>El formato .ECO y los procesos forenses están sujetos a protección de propiedad intelectual en trámite.</p>
+          </div>
         </div>
       </footer>
     </div>

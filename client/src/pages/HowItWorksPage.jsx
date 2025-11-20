@@ -6,43 +6,66 @@ import { FileText, Shield, Clock, Lock, CheckCircle, Hash, Anchor, Copy } from '
 const CopyToClipboardButton = () => {
   const [isCopied, setIsCopied] = useState(false);
   
-  const fullText = `Cómo Lo Hacemos - EcoSign
+  const fullText = `Cómo Funciona EcoSign - Verdad Verificable y Privacidad Absoluta
 
-Si necesitás ayuda extra, copiá toda esta página y mostrásela a tu IA de confianza.
+Si necesitás ayuda extra, copiá toda esta página y mostrásela a tu IA de confianza (ChatGPT, Claude, Gemini).
 
-Así funciona EcoSign, de principio a fin:
-• Elegí tu archivo: Nunca lo subimos ni lo almacenamos. Tu contenido permanece siempre con vos.
-• Firmá en un solo paso: Aplicamos una firma digital con validez legal internacional.
-• Sellá tu evidencia: Sumamos Sello de Tiempo legal, huella digital y anclaje público.
-• Guardá tu .ECO: Esta es tu evidencia con fecha y hora inmutable.
+EcoSign no es solo una herramienta de firma. Es una nueva manera de garantizar la autenticidad documental sin sacrificar tu privacidad.
 
-Eso es todo lo que necesitás para blindar tu trabajo.
+Nuestro sistema se basa en el principio Zero-Knowledge: tu archivo nunca se sube a nuestros servidores. Todo el proceso ocurre en tu dispositivo.
 
-1. Tu Archivo Nunca Pierde Su Forma
-Aceptamos cualquier formato. Trabajá como siempre: Word, Excel, Photoshop, CAD, lo que necesites.
-Para que la firma sea legal, el estándar exige un formato estático. Por ello, generamos una copia temporal en PDF, solo para aplicar el sello legal.
-Tu archivo original queda intacto, sin ser tocado. El PDF es tu copia legal sellada.
+I. Privacidad ante Todo
+Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo calcula su huella digital criptográfica (SHA-256) directamente en tu navegador.
+Ese hash es único, irreversible y suficiente para certificar la integridad del documento.
 
-2. Elegí Tu Archivo
-Seleccionás el documento que querés proteger. Puede ser cualquier formato: PDF, Word, Excel, imagen, video, código fuente.
-Nunca se sube a nuestros servidores. Todo el proceso ocurre en tu navegador.
+II. El Proceso en 3 Pasos Simples
 
-3. Firmás en Un Solo Paso
-Aplicamos firma digital con validez legal bajo normas eIDAS/ESIGN. Firmás en un solo paso, con total certeza legal.
+1. Huella Digital (Hash)
+• Tu navegador calcula automáticamente el SHA-256 del archivo
+• EcoSign nunca ve el contenido
 
-4. Sellamos la Evidencia
-Generamos tres capas de protección:
-- Huella Digital (Hash SHA-256): Identidad única del contenido
-- Sello de Tiempo Legal RFC 3161: Momento exacto de existencia
-- Anclaje en Blockchain: Registro público inmutable (Polygon + Bitcoin)
+2. Firma y Trazabilidad
+Según el tipo de firma elegido (EcoSign o LegalSign), el sistema registra:
+• Nombre
+• Fecha/hora
+• Dirección IP
+• Evento de firma
+Todo queda guardado en un ChainLog inmutable.
 
-5. Creamos Tu .ECO
-El archivo .ECO es tu certificado ligero que contiene todas las pruebas: hash, timestamp, anclaje y cadena de registros.
-Está firmado digitalmente: si alguien modifica un byte, la firma se rompe y el verificador lo detecta al instante.
+3. Blindaje Forense (Opcional)
+Podés activar el Blindaje Forense para añadir:
+• Sello de Tiempo Legal (RFC 3161)
+• Registro en Blockchain (Polygon)
+• (Próximamente) Anclaje en Bitcoin via OpenTimestamps
+Este proceso garantiza la fecha cierta legal y la inalterabilidad futura.
 
-Verificación Universal:
-Cualquiera puede verificar tu documento en ecosign.app/verify sin necesidad de cuenta.
-Solo arrastra el PDF original o el .ECO y el sistema confirma su autenticidad.
+III. Tipos de Firma
+
+EcoSign (Ilimitada)
+- Propósito: Trazabilidad interna
+- Características: Hoja de Auditoría, registro completo, privacidad absoluta
+
+LegalSign
+- Propósito: Contratos externos
+- Características: Cumple eIDAS, ESIGN, UETA. Basado en SignNow
+
+Ambas pueden blindarse con el Triple Anclaje.
+
+IV. El Certificado .ECO
+Cada certificación genera:
+• Tu PDF firmado
+• Un archivo .ECO con toda la evidencia forense
+
+El .ECO no contiene el documento original. Solo incluye la prueba criptográfica y la cronología de eventos.
+Cualquier auditor puede verificar tu .ECO sin depender de EcoSign.
+
+V. Transparencia Técnica
+Si querés profundizar en los detalles de hashing, blockchain o auditoría, podés copiar este texto y analizarlo con tu IA de confianza.
+
+Algunas partes del proyecto serán abiertas para la comunidad de desarrolladores a medida que la plataforma evolucione.
+
+Para desarrolladores y usuarios técnicos:
+https://github.com/TemporalDynamics/verifysign/blob/main/COMO%20LO%20HACEMOS
 
 EcoSign - Certificación digital con privacidad total
 ecosign.app`;
@@ -133,10 +156,13 @@ function HowItWorksPage() {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            Cómo Lo Hacemos
+            Cómo Funciona EcoSign
           </h1>
-          <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Sin tecnicismos innecesarios. Así funciona EcoSign, de principio a fin.
+          <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-6 leading-relaxed">
+            Verdad verificable. Privacidad absoluta.
+          </p>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            EcoSign no es solo una herramienta de firma. Es una nueva manera de garantizar la autenticidad documental sin sacrificar tu privacidad.
           </p>
         </div>
       </header>
@@ -153,148 +179,182 @@ function HowItWorksPage() {
         </p>
       </div>
 
-      {/* Proceso Simple */}
-      <section className="py-24 bg-white">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-16 text-center">
-            El proceso en 4 pasos
-          </h2>
-          
-          <div className="space-y-12">
-            <div className="text-center md:text-left">
-              <div className="inline-block bg-black text-white text-3xl font-bold w-14 h-14 rounded-full flex items-center justify-center mb-4">
-                1
-              </div>
-              <h3 className="text-2xl font-semibold text-black mb-2">Elegí tu archivo</h3>
-              <p className="text-lg text-gray-600">
-                Nunca lo subimos ni lo almacenamos. Tu contenido permanece siempre con vos.
-              </p>
-            </div>
-            
-            <div className="text-center md:text-left">
-              <div className="inline-block bg-black text-white text-3xl font-bold w-14 h-14 rounded-full flex items-center justify-center mb-4">
-                2
-              </div>
-              <h3 className="text-2xl font-semibold text-black mb-2">Firmá en un solo paso</h3>
-              <p className="text-lg text-gray-600">
-                Aplicamos una firma digital con validez legal internacional.
-              </p>
-            </div>
-            
-            <div className="text-center md:text-left">
-              <div className="inline-block bg-black text-white text-3xl font-bold w-14 h-14 rounded-full flex items-center justify-center mb-4">
-                3
-              </div>
-              <h3 className="text-2xl font-semibold text-black mb-2">Sellá tu evidencia</h3>
-              <p className="text-lg text-gray-600">
-                Sumamos Sello de Tiempo legal, huella digital y anclaje público.
-              </p>
-            </div>
-
-            <div className="text-center md:text-left">
-              <div className="inline-block bg-black text-white text-3xl font-bold w-14 h-14 rounded-full flex items-center justify-center mb-4">
-                4
-              </div>
-              <h3 className="text-2xl font-semibold text-black mb-2">Guardá tu .ECO</h3>
-              <p className="text-lg text-gray-600">
-                Esta es tu evidencia con fecha y hora inmutable.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Tu Archivo Nunca Pierde Su Forma */}
-      <section className="py-24 bg-white">
-        <div className="max-w-5xl mx-auto px-6 lg:px-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">
-            Tu Archivo Nunca Pierde Su Forma
-          </h2>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-16 text-center leading-relaxed">
-            Aceptamos cualquier formato. Trabajá como siempre: Word, Excel, Photoshop, CAD, lo que necesites.
+      {/* Main Content */}
+      <main className="max-w-4xl mx-auto px-6 lg:px-8 pb-24">
+        
+        {/* Subtitle */}
+        <div className="mb-16 text-center">
+          <p className="text-lg text-gray-700 italic">
+            Nuestro sistema se basa en el principio <strong>Zero-Knowledge</strong>: tu archivo nunca se sube a nuestros servidores. Todo el proceso ocurre en tu dispositivo.
           </p>
-
-          <div className="grid md:grid-cols-3 gap-16 text-center">
-            <div>
-              <FileText className="w-10 h-10 text-black mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-black mb-3">Cualquier formato</h3>
-              <p className="text-gray-600">Tu archivo original queda intacto, sin ser tocado.</p>
-            </div>
-            
-            <div>
-              <Shield className="w-10 h-10 text-black mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-black mb-3">PDF legal</h3>
-              <p className="text-gray-600">Generamos copia temporal en PDF solo para el sello legal.</p>
-            </div>
-            
-            <div>
-              <Lock className="w-10 h-10 text-black mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-black mb-3">Control total</h3>
-              <p className="text-gray-600">No se expone, no se almacena. Todo bajo tu control.</p>
-            </div>
-          </div>
         </div>
-      </section>
 
-      {/* Blindaje Forense */}
-      <section className="py-24 bg-white">
-        <div className="max-w-5xl mx-auto px-6 lg:px-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">
-            Blindamos Tu Evidencia con Sellos Irrompibles
+        {/* I. Privacidad ante Todo */}
+        <section className="mb-20">
+          <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
+            <span className="text-gray-400">I.</span> Privacidad ante Todo
           </h2>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-16 text-center leading-relaxed">
-            Después de firmar, podés elegir cuántas capas de verificación querés sumar.
-          </p>
-
-          <div className="space-y-8">
-            <div className="flex items-start space-x-4">
-              <Hash className="w-8 h-8 text-black flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-xl font-semibold text-black mb-2">Huella Digital (Hash)</h3>
-                <p className="text-gray-600">La identidad única del contenido. Probamos la integridad (que nada cambió).</p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-4">
-              <Clock className="w-8 h-8 text-black flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-xl font-semibold text-black mb-2">Sello de Tiempo Legal (Timestamp)</h3>
-                <p className="text-gray-600">Emitido por una TSA bajo el estándar RFC 3161. Probamos el momento exacto con validez forense.</p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-4">
-              <Anchor className="w-8 h-8 text-black flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-xl font-semibold text-black mb-2">Anclaje Público (Blockchain)</h3>
-                <p className="text-gray-600">Registro descentralizado e inmutable. Verificable por peritos sin depender de EcoSign.</p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-4">
-              <CheckCircle className="w-8 h-8 text-black flex-shrink-0 mt-1" />
-              <div>
-                <h3 className="text-xl font-semibold text-black mb-2">VerifyTracker (opcional)</h3>
-                <p className="text-gray-600">Registramos accesos sin ver el contenido. Probamos trazabilidad y no-repudiación.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-12 text-center">
-            <p className="text-xl font-semibold text-black">
-              Cada capa suma una barrera contra el fraude. Esto es blindaje forense total.
+          <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
+            <p>
+              Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo calcula su <strong>huella digital criptográfica (SHA-256)</strong> directamente en tu navegador.
+            </p>
+            <p>
+              Ese hash es único, irreversible y suficiente para certificar la integridad del documento.
             </p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA Final */}
-      <section className="py-24 bg-white">
-        <div className="max-w-4xl mx-auto px-6 text-center">
+        {/* II. El Proceso en 3 Pasos Simples */}
+        <section className="mb-20">
+          <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">
+            <span className="text-gray-400">II.</span> El Proceso en 3 Pasos Simples
+          </h2>
+          
+          <div className="space-y-10">
+            {/* Paso 1 */}
+            <div className="border-l-4 border-black pl-6">
+              <h3 className="text-2xl font-semibold text-black mb-3">
+                1. Huella Digital (Hash)
+              </h3>
+              <ul className="space-y-2 text-lg text-gray-700">
+                <li>• Tu navegador calcula automáticamente el SHA-256 del archivo.</li>
+                <li>• EcoSign nunca ve el contenido.</li>
+              </ul>
+            </div>
+
+            {/* Paso 2 */}
+            <div className="border-l-4 border-black pl-6">
+              <h3 className="text-2xl font-semibold text-black mb-3">
+                2. Firma y Trazabilidad
+              </h3>
+              <p className="text-lg text-gray-700 mb-3">
+                Según el tipo de firma elegido (EcoSign o LegalSign), el sistema registra:
+              </p>
+              <ul className="space-y-2 text-lg text-gray-700 ml-4">
+                <li>• Nombre</li>
+                <li>• Fecha/hora</li>
+                <li>• Dirección IP</li>
+                <li>• Evento de firma</li>
+              </ul>
+              <p className="text-lg text-gray-700 mt-3">
+                Todo queda guardado en un <strong>ChainLog inmutable</strong>.
+              </p>
+            </div>
+
+            {/* Paso 3 */}
+            <div className="border-l-4 border-black pl-6">
+              <h3 className="text-2xl font-semibold text-black mb-3">
+                3. Blindaje Forense (Opcional)
+              </h3>
+              <p className="text-lg text-gray-700 mb-3">
+                Podés activar el <strong>Blindaje Forense</strong> para añadir:
+              </p>
+              <ul className="space-y-2 text-lg text-gray-700 ml-4">
+                <li>• Sello de Tiempo Legal (RFC 3161)</li>
+                <li>• Registro en Blockchain (Polygon)</li>
+                <li>• (Próximamente) Anclaje en Bitcoin via OpenTimestamps</li>
+              </ul>
+              <p className="text-lg text-gray-700 mt-3">
+                Este proceso garantiza la <strong>fecha cierta legal</strong> y la inalterabilidad futura.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* III. Tipos de Firma */}
+        <section className="mb-20">
+          <h2 className="text-3xl md:text-4xl font-bold text-black mb-8">
+            <span className="text-gray-400">III.</span> Tipos de Firma
+          </h2>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b-2 border-black">
+                  <th className="text-left py-4 px-4 font-semibold text-black">Tipo</th>
+                  <th className="text-left py-4 px-4 font-semibold text-black">Propósito</th>
+                  <th className="text-left py-4 px-4 font-semibold text-black">Características</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-700">
+                <tr className="border-b border-gray-200">
+                  <td className="py-4 px-4 font-semibold">EcoSign<br /><span className="text-sm text-gray-500">(Ilimitada)</span></td>
+                  <td className="py-4 px-4">Trazabilidad interna</td>
+                  <td className="py-4 px-4">Hoja de Auditoría, registro completo, privacidad absoluta</td>
+                </tr>
+                <tr className="border-b border-gray-200">
+                  <td className="py-4 px-4 font-semibold">LegalSign</td>
+                  <td className="py-4 px-4">Contratos externos</td>
+                  <td className="py-4 px-4">Cumple eIDAS, ESIGN, UETA. Basado en SignNow</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-lg text-gray-700 mt-6 font-semibold">
+            Ambas pueden blindarse con el Triple Anclaje.
+          </p>
+        </section>
+
+        {/* IV. El Certificado .ECO */}
+        <section className="mb-20">
+          <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
+            <span className="text-gray-400">IV.</span> El Certificado .ECO
+          </h2>
+          <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
+            <p>
+              Cada certificación genera:
+            </p>
+            <ul className="space-y-2 ml-4">
+              <li>• Tu <strong>PDF firmado</strong></li>
+              <li>• Un archivo <strong>.ECO</strong> con toda la evidencia forense</li>
+            </ul>
+            <p className="mt-4">
+              El <strong>.ECO</strong> no contiene el documento original. Solo incluye la prueba criptográfica y la cronología de eventos.
+            </p>
+            <p>
+              Cualquier auditor puede verificar tu .ECO sin depender de EcoSign.
+            </p>
+          </div>
+        </section>
+
+        {/* V. Transparencia Técnica */}
+        <section className="mb-20">
+          <h2 className="text-3xl md:text-4xl font-bold text-black mb-6">
+            <span className="text-gray-400">V.</span> Transparencia Técnica
+          </h2>
+          <div className="bg-gray-50 border-l-4 border-black p-8 rounded-r-lg space-y-6">
+            <p className="text-lg text-gray-700 leading-relaxed">
+              Si querés profundizar en los detalles de hashing, blockchain o auditoría, podés <strong>copiar este texto</strong> y analizarlo con tu IA de confianza (ChatGPT, Claude, Gemini).
+            </p>
+            <div className="pt-4 border-t border-gray-300">
+              <p className="text-gray-700 mb-4">
+                Algunas partes del proyecto serán abiertas para la comunidad de desarrolladores a medida que la plataforma evolucione.
+              </p>
+              <p className="text-gray-700 mb-4">
+                Para desarrolladores y usuarios técnicos que deseen verificar nuestros protocolos:
+              </p>
+              <a
+                href="https://github.com/TemporalDynamics/verifysign/blob/main/COMO%20LO%20HACEMOS"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition font-medium"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+                </svg>
+                Ver Documentación Técnica en GitHub
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Final */}
+        <section className="text-center pt-12">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
             ¿Listo para proteger tu trabajo?
           </h2>
-          <p className="text-xl text-gray-700 mb-12 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
             Comenzá gratis hoy mismo. Sin tarjeta de crédito, sin vueltas.
           </p>
           <Link
@@ -303,8 +363,9 @@ function HowItWorksPage() {
           >
             Comenzar Gratis
           </Link>
-        </div>
-      </section>
+        </section>
+
+      </main>
 
       {/* Footer - Same as Landing */}
       <footer className="bg-white py-12">

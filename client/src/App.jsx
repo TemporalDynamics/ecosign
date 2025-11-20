@@ -3,6 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import DashboardStartPage from './pages/DashboardStartPage';
+import DashboardVerifyPage from './pages/DashboardVerifyPage';
+import DashboardPricingPage from './pages/DashboardPricingPage';
 import PricingPage from './pages/PricingPage';
 import NdaPage from './pages/NdaPage';
 import GuestPage from './pages/GuestPage';
@@ -49,6 +52,30 @@ function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/start"
+          element={
+            <ProtectedRoute>
+              <DashboardStartPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/verify"
+          element={
+            <ProtectedRoute>
+              <DashboardVerifyPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/pricing"
+          element={
+            <ProtectedRoute>
+              <DashboardPricingPage />
             </ProtectedRoute>
           }
         />

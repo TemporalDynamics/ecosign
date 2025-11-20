@@ -1,44 +1,29 @@
-import { Link } from 'react-router-dom';
-import { Shield, Lock, Clock, Eye, Anchor } from 'lucide-react';
+import { Shield, Lock, Clock, Eye } from 'lucide-react';
+import HeaderPublic from '../components/HeaderPublic';
+import FooterPublic from '../components/FooterPublic';
+import PageTitle from '../components/PageTitle';
 
 const SecurityPage = () => {
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white fixed w-full top-0 z-50 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-black">VerifySign</span>
-            </Link>
-            <Link
-              to="/"
-              className="text-gray-600 hover:text-black font-medium transition duration-200"
-            >
-              Volver al inicio
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-white flex flex-col">
+      <HeaderPublic />
 
       {/* Content */}
-      <main className="pt-32 pb-24 bg-white">
-        <div className="max-w-5xl mx-auto px-6 lg:px-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">
+      <main className="flex-grow pt-24">
+        <div className="max-w-3xl mx-auto px-4 pb-24">
+          <PageTitle subtitle="Construimos EcoSign sobre estándares internacionales usados por bancos, laboratorios y organismos legales.">
             Seguridad en EcoSign
-          </h1>
-          
-          <p className="text-xl text-gray-700 text-center mb-16 max-w-3xl mx-auto leading-relaxed">
-            Construimos EcoSign sobre estándares internacionales usados por bancos, laboratorios y organismos legales.
-          </p>
+          </PageTitle>
 
-          <div className="space-y-16">
-            <div className="text-center">
-              <Lock className="w-10 h-10 text-black mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-black mb-3">
-                Protección del Documento
-              </h2>
-              <div className="text-lg text-gray-700 max-w-2xl mx-auto space-y-2">
+          <div className="space-y-12 mt-8">
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <Lock className="w-6 h-6 text-[#0A66C2]" />
+                <h2 className="text-xl font-semibold text-black">
+                  Protección del Documento
+                </h2>
+              </div>
+              <div className="text-base text-gray-700 space-y-2 pl-9">
                 <p>El archivo nunca se expone ni se sube a ningún servidor.</p>
                 <p>Su integridad se representa mediante un hash SHA-256 (huella digital irreversible).</p>
               </div>
@@ -46,7 +31,7 @@ const SecurityPage = () => {
 
             <div className="text-center">
               <Clock className="w-10 h-10 text-black mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-black mb-3">
+              <h2 className="text-xl font-semibold text-black mb-2">
                 Prueba de Existencia Legal
               </h2>
               <div className="text-lg text-gray-700 max-w-2xl mx-auto space-y-3">
@@ -61,7 +46,7 @@ const SecurityPage = () => {
 
             <div className="text-center">
               <Shield className="w-10 h-10 text-black mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-black mb-3">
+              <h2 className="text-xl font-semibold text-black mb-2">
                 Trazabilidad Completa
               </h2>
               <div className="text-lg text-gray-700 max-w-2xl mx-auto">
@@ -78,7 +63,7 @@ const SecurityPage = () => {
 
             <div className="text-center">
               <Eye className="w-10 h-10 text-black mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-black mb-3">
+              <h2 className="text-xl font-semibold text-black mb-2">
                 Verificación Universal
               </h2>
               <p className="text-lg text-gray-700 max-w-2xl mx-auto">
@@ -87,16 +72,11 @@ const SecurityPage = () => {
             </div>
           </div>
 
-          <div className="mt-16 pt-8 border-t border-gray-200 text-center">
-            <Link
-              to="/"
-              className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg transition duration-300"
-            >
-              Volver al inicio
-            </Link>
-          </div>
+
         </div>
       </main>
+
+      <FooterPublic />
     </div>
   );
 };

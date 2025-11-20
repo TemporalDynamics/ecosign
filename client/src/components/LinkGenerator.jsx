@@ -46,13 +46,9 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
       const { data, error: invokeError } = await supabase.functions.invoke('generate-link', {
         body: {
           document_id: documentId,
-          require_nda: requireNDA,
-          recipient: requireNDA ? {
-            name: formData.name.trim(),
-            email: formData.email.trim(),
-            company: formData.company.trim(),
-            position: formData.position.trim() || null
-          } : null
+          recipient_email: formData.email.trim(),
+          expires_in_hours: 72,
+          require_nda: requireNDA
         }
       });
 

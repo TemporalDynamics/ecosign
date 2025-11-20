@@ -1,40 +1,24 @@
-import { Link } from 'react-router-dom';
+import HeaderPublic from '../components/HeaderPublic';
+import FooterPublic from '../components/FooterPublic';
+import PageTitle from '../components/PageTitle';
 
 const PrivacyPage = () => {
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white fixed w-full top-0 z-50 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-black">VerifySign</span>
-            </Link>
-            <Link
-              to="/"
-              className="text-gray-600 hover:text-black font-medium transition duration-200"
-            >
-              Volver al inicio
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-white flex flex-col">
+      <HeaderPublic />
 
       {/* Content */}
-      <main className="pt-32 pb-24 bg-white">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-black mb-12">
+      <main className="flex-grow pt-24">
+        <div className="max-w-3xl mx-auto px-4 pb-24">
+          <PageTitle subtitle="En EcoSign tu privacidad es prioritaria. Estas son nuestras prácticas:">
             Privacidad
-          </h1>
+          </PageTitle>
 
-          <div className="space-y-8 text-lg text-gray-700 leading-relaxed">
-            <p>
-              En EcoSign tu privacidad es prioritaria. Estas son nuestras prácticas:
-            </p>
+          <div className="space-y-6 text-base text-gray-700 leading-relaxed mt-8">
 
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-semibold text-black mb-3">
+                <h2 className="text-xl font-semibold text-black mb-2">
                   Información que NO recopilamos
                 </h2>
                 <ul className="list-disc list-inside space-y-2">
@@ -44,7 +28,7 @@ const PrivacyPage = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-semibold text-black mb-3">
+                <h2 className="text-xl font-semibold text-black mb-2">
                   Información que sí recopilamos
                 </h2>
                 <p className="mb-3">Para operar el servicio:</p>
@@ -56,7 +40,7 @@ const PrivacyPage = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-semibold text-black mb-3">
+                <h2 className="text-xl font-semibold text-black mb-2">
                   Cómo usamos tu información
                 </h2>
                 <ul className="list-disc list-inside space-y-2">
@@ -67,7 +51,7 @@ const PrivacyPage = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-semibold text-black mb-3">
+                <h2 className="text-xl font-semibold text-black mb-2">
                   ¿Compartimos tu información?
                 </h2>
                 <p>
@@ -76,7 +60,7 @@ const PrivacyPage = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-semibold text-black mb-3">
+                <h2 className="text-xl font-semibold text-black mb-2">
                   Eliminación de datos
                 </h2>
                 <p>
@@ -89,7 +73,7 @@ const PrivacyPage = () => {
               </div>
 
               <div>
-                <h2 className="text-2xl font-semibold text-black mb-3">
+                <h2 className="text-xl font-semibold text-black mb-2">
                   Cambios
                 </h2>
                 <p>
@@ -99,16 +83,11 @@ const PrivacyPage = () => {
             </div>
           </div>
 
-          <div className="mt-12 pt-8 border-t border-gray-200">
-            <Link
-              to="/"
-              className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg transition duration-300"
-            >
-              Volver al inicio
-            </Link>
-          </div>
+
         </div>
       </main>
+
+      <FooterPublic />
     </div>
   );
 };

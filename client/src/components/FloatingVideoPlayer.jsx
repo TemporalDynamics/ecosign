@@ -1,10 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Maximize2, Minimize2, Maximize } from 'lucide-react';
 
-function FloatingVideoPlayer({ videoSrc, onClose }) {
+function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }) {
+  const sizes = {
+    small: { width: 320, label: 'Pequeño' },
+    medium: { width: 480, label: 'Mediano' },
+    large: { width: 640, label: 'Grande' }
+  };
+
   const [isDragging, setIsDragging] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [position, setPosition] = useState({ x: window.innerWidth - 420, y: window.innerHeight - 300 });
+  const [size, setSize] = useState('medium');
+  const [position, setPosition] = useState({ x: window.innerWidth - sizes.medium.width - 20, y: window.innerHeight - 320 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -26,8 +33,9 @@ function FloatingVideoPlayer({ videoSrc, onClose }) {
       const newY = e.clientY - dragStart.y;
       
       // Limitar a la pantalla
-      const maxX = window.innerWidth - (containerRef.current?.offsetWidth || 400);
-      const maxY = window.innerHeight - (containerRef.current?.offsetHeight || 250);
+      const currentWidth = containerRef.current?.offsetWidth || sizes[size].width;
+      const maxX = window.innerWidth - currentWidth;
+      const maxY = window.innerHeight - (containerRef.current?.offsetHeight || 300);
       
       setPosition({
         x: Math.max(0, Math.min(newX, maxX)),
@@ -38,6 +46,23 @@ function FloatingVideoPlayer({ videoSrc, onClose }) {
 
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  const toggleSize = () => {
+    const sizeOrder = ['small', 'medium', 'large'];
+    const currentIndex = sizeOrder.indexOf(size);
+    const nextSize = sizeOrder[(currentIndex + 1) % sizeOrder.length];
+    setSize(nextSize);
+    
+    // Ajustar posición si el nuevo tamaño se sale de la pantalla
+    const newWidth = sizes[nextSize].width;
+    const maxX = window.innerWidth - newWidth;
+    const maxY = window.innerHeight - 300;
+    
+    setPosition(prev => ({
+      x: Math.min(prev.x, maxX),
+      y: Math.min(prev.y, maxY)
+    }));
   };
 
   useEffect(() => {
@@ -54,8 +79,9 @@ function FloatingVideoPlayer({ videoSrc, onClose }) {
   // Ajustar posición en resize
   useEffect(() => {
     const handleResize = () => {
-      const maxX = window.innerWidth - (containerRef.current?.offsetWidth || 400);
-      const maxY = window.innerHeight - (containerRef.current?.offsetHeight || 250);
+      const currentWidth = sizes[size].width;
+      const maxX = window.innerWidth - currentWidth;
+      const maxY = window.innerHeight - 300;
       
       setPosition(prev => ({
         x: Math.min(prev.x, maxX),
@@ -65,17 +91,18 @@ function FloatingVideoPlayer({ videoSrc, onClose }) {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [size]);
 
   return (
     <div
       ref={containerRef}
       className={`fixed z-50 bg-black rounded-lg shadow-2xl border-2 border-gray-800 overflow-hidden transition-all duration-200 ${
         isDragging ? 'cursor-grabbing' : ''
-      } ${isMinimized ? 'w-80 h-14' : 'w-96 md:w-[28rem]'}`}
+      } ${isMinimized ? 'h-14' : ''}`}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
+        width: isMinimized ? '320px' : `${sizes[size].width}px`
       }}
     >
       {/* Header draggable */}
@@ -83,18 +110,27 @@ function FloatingVideoPlayer({ videoSrc, onClose }) {
         className="drag-handle bg-gray-900 px-3 py-2 flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
         onMouseDown={handleMouseDown}
       >
-        <span className="text-white text-sm font-semibold">Cómo funciona EcoSign</span>
-        <div className="flex items-center gap-2">
+        <span className="text-white text-sm font-semibold truncate flex-1 mr-2">{videoTitle}</span>
+        <div className="flex items-center gap-1">
+          {!isMinimized && (
+            <button
+              onClick={toggleSize}
+              className="text-gray-400 hover:text-white transition p-1 hover:bg-gray-800 rounded"
+              title={`Tamaño: ${sizes[size].label}`}
+            >
+              <Maximize className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => setIsMinimized(!isMinimized)}
-            className="text-gray-400 hover:text-white transition p-1"
+            className="text-gray-400 hover:text-white transition p-1 hover:bg-gray-800 rounded"
             title={isMinimized ? "Maximizar" : "Minimizar"}
           >
             {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
           </button>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition p-1"
+            className="text-gray-400 hover:text-white transition p-1 hover:bg-gray-800 rounded"
             title="Cerrar"
           >
             <X className="w-4 h-4" />

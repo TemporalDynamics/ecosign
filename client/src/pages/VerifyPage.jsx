@@ -4,6 +4,7 @@ import { Search, Shield, CheckCircle, XCircle, Upload, FileText, Lock, Anchor, A
 import { verifyEcoxFile } from '../lib/verificationService';
 import LegalProtectionOptions from '../components/LegalProtectionOptions';
 import VerificationSummary from '../components/VerificationSummary';
+import FooterPublic from '../components/FooterPublic';
 
 // Configuración de validación
 const ALLOWED_EXTENSIONS = ['.eco', '.pdf', '.zip'];
@@ -233,105 +234,152 @@ function VerifyPage() {
 
         {/* Upload Area */}
         <div className="bg-white rounded-xl p-8 border-2 border-gray-200 mb-8">
-          {/* .ECOX File Upload */}
-          <div
-            className={`border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300 ${
-              dragging
-                ? 'border-black bg-gray-100'
-                : 'border-gray-300 hover:border-black bg-white'
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-full mb-4">
-              <Upload className="w-8 h-8 text-white" strokeWidth={2.5} />
-            </div>
-            <h3 className="text-xl font-semibold text-black mb-2">
-              Arrastra tu archivo .ECO aquí
-            </h3>
-            <p className="text-gray-600 mb-6">o haz clic para seleccionar</p>
-
-            <label htmlFor="file-upload" className="cursor-pointer">
-              <span className="bg-black hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg inline-block transition duration-300">
-                Seleccionar .ECO
-              </span>
-              <input
-                id="file-upload"
-                type="file"
-                accept=".eco"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </label>
-
-            {validationError && (
-              <div className="mt-6 p-4 bg-red-50 border border-red-300 rounded-lg">
-                <p className="text-red-700 font-medium flex items-center justify-center">
-                  <XCircle className="w-5 h-5 mr-2" />
-                  {validationError}
-                </p>
-              </div>
-            )}
-
-            {file && !validationError && (
-              <div className="mt-6 p-4 bg-gray-100 border border-gray-200 rounded-lg">
-                <p className="text-black font-medium flex items-center justify-center">
-                  <FileText className="w-4 h-4 mr-2" />
-                  {file.name} ({(file.size / 1024).toFixed(2)} KB)
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Original File Upload for Hash Verification */}
-          {file && !result && (
-            <div className="mt-6 p-6 bg-gray-100 border border-gray-200 rounded-xl">
-              <div className="flex items-center space-x-3 mb-4">
-                <Lock className="w-5 h-5 text-black" />
-                <h4 className="text-lg font-semibold text-black">Verificación Byte-a-Byte</h4>
-              </div>
-              
-              <p className="text-gray-600 mb-4 text-sm">
-                Sube el archivo original para verificar que coincide exactamente con el certificado. 
-                Esto confirma que no ha sido modificado desde la certificación.
-              </p>
-              
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600 mb-3">Arrastra el archivo original aquí</p>
-                
-                <label htmlFor="original-file-upload" className="cursor-pointer">
-                  <span className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 font-medium px-6 py-2 rounded-lg inline-block transition duration-300 text-sm">
-                    Seleccionar Archivo Original
-                  </span>
-                  <input
-                    id="original-file-upload"
-                    type="file"
-                    onChange={handleOriginalFileChange}
-                    className="hidden"
-                  />
-                </label>
-                
-                {originalFile && (
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-green-700 font-medium flex items-center justify-center text-sm">
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      {originalFile.name} ({(originalFile.size / 1024).toFixed(2)} KB)
-                    </p>
-                  </div>
+          <h2 className="text-2xl font-bold text-black mb-6 text-center">Carga ambos archivos para verificar</h2>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* .ECO File Upload */}
+            <div
+              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
+                dragging
+                  ? 'border-[#0E4B8B] bg-blue-50'
+                  : file 
+                  ? 'border-green-500 bg-green-50'
+                  : 'border-gray-300 hover:border-[#0E4B8B] bg-white'
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div className={`inline-flex items-center justify-center w-14 h-14 rounded-full mb-3 ${
+                file ? 'bg-green-500' : 'bg-[#0E4B8B]'
+              }`}>
+                {file ? (
+                  <CheckCircle className="w-7 h-7 text-white" strokeWidth={2.5} />
+                ) : (
+                  <Shield className="w-7 h-7 text-white" strokeWidth={2.5} />
                 )}
               </div>
+              
+              <h3 className="text-lg font-semibold text-black mb-2">
+                Certificado .ECO
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">Arrastra o selecciona</p>
+
+              <label htmlFor="file-upload" className="cursor-pointer">
+                <span className={`font-semibold px-6 py-2.5 rounded-lg inline-block transition duration-300 text-sm ${
+                  file 
+                    ? 'bg-green-500 hover:bg-green-600 text-white' 
+                    : 'bg-[#0E4B8B] hover:bg-[#0A66C2] text-white'
+                }`}>
+                  {file ? 'Cambiar .ECO' : 'Seleccionar .ECO'}
+                </span>
+                <input
+                  id="file-upload"
+                  type="file"
+                  accept=".eco"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </label>
+
+              {file && !validationError && (
+                <div className="mt-4 p-3 bg-white border border-green-300 rounded-lg">
+                  <p className="text-green-700 font-medium flex items-center justify-center text-sm">
+                    <FileText className="w-4 h-4 mr-2" />
+                    {file.name}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(file.size / 1024).toFixed(2)} KB
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* PDF File Upload */}
+            <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
+              originalFile 
+                ? 'border-green-500 bg-green-50'
+                : file 
+                ? 'border-gray-300 hover:border-[#0E4B8B] bg-white'
+                : 'border-gray-200 bg-gray-50'
+            }`}>
+              <div className={`inline-flex items-center justify-center w-14 h-14 rounded-full mb-3 ${
+                originalFile ? 'bg-green-500' : file ? 'bg-[#0E4B8B]' : 'bg-gray-400'
+              }`}>
+                {originalFile ? (
+                  <CheckCircle className="w-7 h-7 text-white" strokeWidth={2.5} />
+                ) : (
+                  <FileText className="w-7 h-7 text-white" strokeWidth={2.5} />
+                )}
+              </div>
+              
+              <h3 className="text-lg font-semibold text-black mb-2">
+                PDF Firmado
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">
+                {file ? 'Arrastra o selecciona' : 'Primero carga el .ECO'}
+              </p>
+              
+              <label htmlFor="original-file-upload" className={`cursor-pointer ${!file ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <span className={`font-semibold px-6 py-2.5 rounded-lg inline-block transition duration-300 text-sm ${
+                  !file 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : originalFile 
+                    ? 'bg-green-500 hover:bg-green-600 text-white' 
+                    : 'bg-[#0E4B8B] hover:bg-[#0A66C2] text-white'
+                }`}>
+                  {originalFile ? 'Cambiar PDF' : 'Seleccionar PDF'}
+                </span>
+                <input
+                  id="original-file-upload"
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleOriginalFileChange}
+                  className="hidden"
+                  disabled={!file}
+                />
+              </label>
+              
+              {originalFile && (
+                <div className="mt-4 p-3 bg-white border border-green-300 rounded-lg">
+                  <p className="text-green-700 font-medium flex items-center justify-center text-sm">
+                    <FileText className="w-4 h-4 mr-2" />
+                    {originalFile.name}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(originalFile.size / 1024).toFixed(2)} KB
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {validationError && (
+            <div className="mt-6 p-4 bg-red-50 border border-red-300 rounded-lg">
+              <p className="text-red-700 font-medium flex items-center justify-center">
+                <XCircle className="w-5 h-5 mr-2" />
+                {validationError}
+              </p>
             </div>
           )}
 
-          {file && !verifying && !result && (
+          {file && originalFile && !verifying && !result && (
             <button
               onClick={verifyFile}
-              className="w-full mt-6 bg-black hover:bg-gray-800 text-white font-bold py-4 rounded-lg transition duration-300"
+              className="w-full mt-6 bg-black hover:bg-gray-800 text-white font-bold py-4 rounded-lg transition duration-300 flex items-center justify-center space-x-2"
             >
-              Verificar Documento
+              <Shield className="w-5 h-5" />
+              <span>Verificar Integridad del Documento</span>
             </button>
+          )}
+          
+          {file && !originalFile && !result && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-800 text-center font-medium flex items-center justify-center">
+                <Upload className="w-5 h-5 mr-2" />
+                Carga el PDF firmado para continuar con la verificación
+              </p>
+            </div>
           )}
 
           {verifying && (
@@ -435,46 +483,7 @@ function VerifyPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-black py-12 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-              <p className="text-sm text-gray-400 mt-3">Certificación digital con privacidad total</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Producto</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</Link></li>
-                <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
-                <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificar</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/terms" className="hover:text-[#0E4B8B] hover:underline transition">Términos</Link></li>
-                <li><Link to="/privacy" className="hover:text-[#0E4B8B] hover:underline transition">Privacidad</Link></li>
-                <li><Link to="/security" className="hover:text-[#0E4B8B] hover:underline transition">Seguridad</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-3">Soporte</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/help" className="hover:text-[#0E4B8B] hover:underline transition">Ayuda</Link></li>
-                <li><Link to="/contact" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</Link></li>
-                <li><Link to="/status" className="hover:text-[#0E4B8B] hover:underline transition">Estado</Link></li>
-              </ul>
-            </div>
-          </div>
-          <div className="pt-8 space-y-3 text-sm text-gray-400 border-t border-gray-800">
-            <p>© 2025 EcoSign. Todos los derechos reservados.</p>
-            <p>EcoSign es un servicio independiente de certificación y firma digital.</p>
-            <p>El formato .ECO y los procesos forenses están sujetos a protección de propiedad intelectual en trámite.</p>
-          </div>
-        </div>
-      </footer>
+      <FooterPublic />
     </div>
   );
 }

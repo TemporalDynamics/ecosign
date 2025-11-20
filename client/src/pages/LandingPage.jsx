@@ -10,11 +10,14 @@ import {
   Eye,
   Anchor,
   Clock,
-  Users
+  Users,
+  X,
+  Play
 } from 'lucide-react';
 
 const LandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -90,12 +93,13 @@ const LandingPage = () => {
             >
               Comenzar Gratis
             </Link>
-            <Link
-              to="/how-it-works"
-              className="bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
+            <button
+              onClick={() => setVideoModalOpen(true)}
+              className="bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg inline-flex items-center justify-center gap-2"
             >
+              <Play className="w-5 h-5" />
               Ver cómo funciona
-            </Link>
+            </button>
           </div>
           
           <p className="text-sm text-gray-500 max-w-2xl mx-auto">
@@ -407,6 +411,34 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+
+      {/* Video Modal */}
+      {videoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4">
+          <div className="relative w-full max-w-6xl">
+            {/* Close Button */}
+            <button
+              onClick={() => setVideoModalOpen(false)}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition"
+              aria-label="Cerrar video"
+            >
+              <X className="w-8 h-8" />
+            </button>
+            
+            {/* Video Player */}
+            <div className="bg-black rounded-lg overflow-hidden shadow-2xl">
+              <video
+                controls
+                autoPlay
+                className="w-full h-auto"
+                src="/videos/EcoSign__Verdad_Verificable.mp4"
+              >
+                Tu navegador no soporta la reproducción de video.
+              </video>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -13,10 +13,15 @@ function DashboardNav({ onLogout = () => {} }) {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error al cerrar sesión:', error);
+      }
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     } finally {
+      // Always call onLogout to redirect, even if there's an error
+      // This ensures the user is redirected away from protected pages
       onLogout();
     }
   };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Shield, CheckCircle, XCircle, Upload, FileText, Lock, Anchor, ArrowLeft } from 'lucide-react';
+import { Search, Shield, CheckCircle, XCircle, Upload, FileText, Lock, Anchor } from 'lucide-react';
 import { verifyEcoxFile } from '../lib/verificationService';
 import LegalProtectionOptions from '../components/LegalProtectionOptions';
 import VerificationSummary from '../components/VerificationSummary';
@@ -163,22 +163,20 @@ function VerifyPage() {
       <nav className="bg-white/95 backdrop-blur-sm fixed w-full top-0 z-50 border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center space-x-4">
-              <Link to="/" className="flex items-center space-x-3">
-                <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600">VerifySign</span>
-              </Link>
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center text-sm text-gray-500 hover:text-cyan-600 transition"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1" /> Volver al dashboard
-              </Link>
-            </div>
+            <Link to="/" className="flex items-center space-x-3">
+              <span className="text-2xl font-extrabold text-gray-900">VerifySign</span>
+            </Link>
             <div className="flex items-center space-x-6">
-              <Link to="/" className="text-gray-600 hover:text-cyan-600 transition duration-200 font-medium">
+              <Link to="/" className="text-gray-600 hover:text-gray-900 transition duration-200 font-medium">
                 Inicio
               </Link>
-              <Link to="/login" className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300 shadow-md hover:shadow-lg">
+              <Link to="/how-it-works" className="text-gray-600 hover:text-gray-900 transition duration-200 font-medium">
+                Cómo funciona
+              </Link>
+              <Link to="/pricing" className="text-gray-600 hover:text-gray-900 transition duration-200 font-medium">
+                Precios
+              </Link>
+              <Link to="/login" className="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300 shadow-md">
                 Iniciar Sesión
               </Link>
             </div>
@@ -189,8 +187,8 @@ function VerifyPage() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-cyan-100 to-blue-200 rounded-full mb-6">
-            <Search className="w-10 h-10 text-cyan-600" strokeWidth={2.5} />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-6">
+            <Search className="w-10 h-10 text-gray-900" strokeWidth={2.5} />
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Verificador Público .ECO</h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -200,10 +198,10 @@ function VerifyPage() {
         </div>
 
         {/* Transparency Notice */}
-        <div className="bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl p-6 mb-8">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8">
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">
-              <Shield className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
+              <Shield className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
             </div>
             <div>
               <h3 className="text-gray-900 font-semibold mb-2">Verificación Independiente y Transparente</h3>
@@ -222,15 +220,15 @@ function VerifyPage() {
           <div
             className={`border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300 ${
               dragging
-                ? 'border-cyan-500 bg-cyan-50'
-                : 'border-gray-300 hover:border-cyan-400 bg-gray-50'
+                ? 'border-gray-900 bg-gray-50'
+                : 'border-gray-300 hover:border-gray-900 bg-gray-50'
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-cyan-100 to-blue-200 rounded-full mb-4">
-              <Upload className="w-8 h-8 text-cyan-600" strokeWidth={2.5} />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+              <Upload className="w-8 h-8 text-gray-900" strokeWidth={2.5} />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Arrastra tu archivo .ECOX aquí
@@ -238,7 +236,7 @@ function VerifyPage() {
             <p className="text-gray-600 mb-6">o haz clic para seleccionar</p>
 
             <label htmlFor="file-upload" className="cursor-pointer">
-              <span className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold px-8 py-3 rounded-lg inline-block transition duration-300">
+              <span className="bg-gray-900 hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg inline-block transition duration-300">
                 Seleccionar .ECOX
               </span>
               <input
@@ -260,8 +258,8 @@ function VerifyPage() {
             )}
 
             {file && !validationError && (
-              <div className="mt-6 p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
-                <p className="text-cyan-700 font-medium flex items-center justify-center">
+              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-700 font-medium flex items-center justify-center">
                   <FileText className="w-4 h-4 mr-2" />
                   {file.name} ({(file.size / 1024).toFixed(2)} KB)
                 </p>
@@ -273,7 +271,7 @@ function VerifyPage() {
           {file && !result && (
             <div className="mt-6 p-6 bg-gray-50 border border-gray-200 rounded-xl">
               <div className="flex items-center space-x-3 mb-4">
-                <Lock className="w-5 h-5 text-cyan-600" />
+                <Lock className="w-5 h-5 text-gray-900" />
                 <h4 className="text-lg font-semibold text-gray-900">Verificación Byte-a-Byte</h4>
               </div>
               
@@ -313,7 +311,7 @@ function VerifyPage() {
           {file && !verifying && !result && (
             <button
               onClick={verifyFile}
-              className="w-full mt-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-4 rounded-lg transition duration-300 shadow-md hover:shadow-lg"
+              className="w-full mt-6 bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 rounded-lg transition duration-300 shadow-md"
             >
               Verificar Documento
             </button>
@@ -321,7 +319,7 @@ function VerifyPage() {
 
           {verifying && (
             <div className="mt-6 text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-600 mb-4"></div>
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900 mb-4"></div>
               <p className="text-gray-700">Verificando integridad digital...</p>
             </div>
           )}
@@ -360,14 +358,13 @@ function VerifyPage() {
         )}
 
         {/* Info Section */}
-        {/* Info Section */}
-        <div className="mt-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-8 border border-gray-200">
+        <div className="mt-12 bg-gray-50 rounded-xl p-8 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-900 mb-6">¿Qué verifica esta herramienta?</h3>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <div className="flex items-start space-x-3 mb-4">
                 <div className="flex-shrink-0">
-                  <Lock className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
+                  <Lock className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
                 </div>
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Firma Electrónica</h4>
@@ -380,7 +377,7 @@ function VerifyPage() {
             <div>
               <div className="flex items-start space-x-3 mb-4">
                 <div className="flex-shrink-0">
-                  <Shield className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
+                  <Shield className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
                 </div>
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Huella de Integridad</h4>
@@ -393,7 +390,7 @@ function VerifyPage() {
             <div>
               <div className="flex items-start space-x-3 mb-4">
                 <div className="flex-shrink-0">
-                  <CheckCircle className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
+                  <CheckCircle className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
                 </div>
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Timestamp Certificado</h4>
@@ -406,7 +403,7 @@ function VerifyPage() {
             <div>
               <div className="flex items-start space-x-3 mb-4">
                 <div className="flex-shrink-0">
-                  <Anchor className="w-6 h-6 text-cyan-600" strokeWidth={2.5} />
+                  <Anchor className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
                 </div>
                 <div>
                   <h4 className="text-gray-900 font-semibold mb-1">Verificación Pública</h4>

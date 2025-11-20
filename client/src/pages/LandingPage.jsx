@@ -26,16 +26,16 @@ const LandingPage = () => {
               <span className="text-2xl font-extrabold text-gray-900">VerifySign</span>
             </Link>
             <div className="hidden md:flex items-center space-x-8">
-              <Link to="/how-it-works" className="text-gray-700 hover:text-blue-600 font-medium transition duration-200">
+              <Link to="/how-it-works" className="text-gray-700 hover:text-gray-900 font-medium transition duration-200">
                 Cómo funciona
               </Link>
-              <Link to="/verify" className="text-gray-700 hover:text-blue-600 font-medium transition duration-200">
+              <Link to="/verify" className="text-gray-700 hover:text-gray-900 font-medium transition duration-200">
                 Verificar
               </Link>
-              <Link to="/pricing" className="text-gray-700 hover:text-blue-600 font-medium transition duration-200">
+              <Link to="/pricing" className="text-gray-700 hover:text-gray-900 font-medium transition duration-200">
                 Precios
               </Link>
-              <Link to="/login" className="text-gray-700 hover:text-blue-600 font-medium transition duration-200">
+              <Link to="/login" className="text-gray-700 hover:text-gray-900 font-medium transition duration-200">
                 Iniciar Sesión
               </Link>
               <Link
@@ -46,7 +46,7 @@ const LandingPage = () => {
               </Link>
             </div>
             <button
-              className="md:hidden text-gray-700 hover:text-blue-600"
+              className="md:hidden text-gray-700 hover:text-gray-900"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -58,10 +58,10 @@ const LandingPage = () => {
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100">
             <div className="px-4 pt-2 pb-4 space-y-2">
-              <Link to="/how-it-works" className="block text-gray-700 hover:text-blue-600 px-3 py-2 rounded-lg">Cómo funciona</Link>
-              <Link to="/verify" className="block text-gray-700 hover:text-blue-600 px-3 py-2 rounded-lg">Verificar</Link>
-              <Link to="/pricing" className="block text-gray-700 hover:text-blue-600 px-3 py-2 rounded-lg">Precios</Link>
-              <Link to="/login" className="block text-gray-700 hover:text-blue-600 px-3 py-2 rounded-lg">Iniciar Sesión</Link>
+              <Link to="/how-it-works" className="block text-gray-700 hover:text-gray-900 px-3 py-2 rounded-lg">Cómo funciona</Link>
+              <Link to="/verify" className="block text-gray-700 hover:text-gray-900 px-3 py-2 rounded-lg">Verificar</Link>
+              <Link to="/pricing" className="block text-gray-700 hover:text-gray-900 px-3 py-2 rounded-lg">Precios</Link>
+              <Link to="/login" className="block text-gray-700 hover:text-gray-900 px-3 py-2 rounded-lg">Iniciar Sesión</Link>
               <Link
                 to="/login"
                 className="block bg-gray-900 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-center mt-2"

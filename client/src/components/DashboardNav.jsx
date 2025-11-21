@@ -8,7 +8,7 @@ function DashboardNav({ onLogout = () => {} }) {
     { label: 'Inicio', to: '/dashboard/start' },
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Verificar', to: '/dashboard/verify' },
-    { label: 'Precios', to: '/dashboard/pricing' }
+    { label: 'Planes', to: '/dashboard/pricing' }
   ];
 
   const handleLogout = async () => {

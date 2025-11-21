@@ -25,6 +25,16 @@ import DocumentationPage from './pages/DocumentationPage';
 import QuickGuidePage from './pages/QuickGuidePage';
 import FAQPage from './pages/FAQPage';
 import UseCasesPage from './pages/UseCasesPage';
+import ServiceStatusPage from './pages/ServiceStatusPage';
+import VideosPage from './pages/VideosPage';
+import HelpCenterPage from './pages/HelpCenterPage';
+import VideoLibraryPage from './pages/VideoLibraryPage';
+import DocumentationInternalPage from './pages/dashboard/DocumentationInternalPage';
+import QuickGuideInternalPage from './pages/dashboard/QuickGuideInternalPage';
+import UseCasesInternalPage from './pages/dashboard/UseCasesInternalPage';
+import ReportIssueInternalPage from './pages/dashboard/ReportIssueInternalPage';
+import RoadmapPage from './pages/RoadmapPage';
+import UpdatesPage from './pages/UpdatesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import FloatingVideoPlayer from './components/FloatingVideoPlayer';
@@ -95,6 +105,136 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <DashboardPricingPage />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Dashboard internal routes */}
+        <Route
+          path="/dashboard/status"
+          element={
+            <ProtectedRoute>
+              <ServiceStatusPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/videos"
+          element={
+            <ProtectedRoute>
+              <VideoLibraryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/help-center"
+          element={
+            <ProtectedRoute>
+              <HelpCenterPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/contact"
+          element={
+            <ProtectedRoute>
+              <ContactPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/report-issue"
+          element={
+            <ProtectedRoute>
+              <ReportIssueInternalPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/documentation"
+          element={
+            <ProtectedRoute>
+              <DocumentationInternalPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/quick-guide"
+          element={
+            <ProtectedRoute>
+              <QuickGuideInternalPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/use-cases"
+          element={
+            <ProtectedRoute>
+              <UseCasesInternalPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/roadmap"
+          element={
+            <ProtectedRoute>
+              <RoadmapPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/updates"
+          element={
+            <ProtectedRoute>
+              <UpdatesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/terms"
+          element={
+            <ProtectedRoute>
+              <TermsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/privacy"
+          element={
+            <ProtectedRoute>
+              <PrivacyPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/security"
+          element={
+            <ProtectedRoute>
+              <SecurityPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/documentation"
+          element={
+            <ProtectedRoute>
+              <DocumentationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/quick-guide"
+          element={
+            <ProtectedRoute>
+              <QuickGuidePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/use-cases"
+          element={
+            <ProtectedRoute>
+              <UseCasesPage />
             </ProtectedRoute>
           }
         />

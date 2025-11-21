@@ -1,14 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import HeaderPublic from '../components/HeaderPublic';
-import FooterPublic from '../components/FooterPublic';
-import PageTitle from '../components/PageTitle';
+import DashboardNav from '../../components/DashboardNav';
+import FooterInternal from '../../components/FooterInternal';
+import PageTitle from '../../components/PageTitle';
 import { FileText, Database, Clock, Shield, CheckCircle } from 'lucide-react';
 
-export default function DocumentationPage() {
+export default function DocumentationInternalPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <DashboardNav />
       
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
@@ -49,24 +49,22 @@ export default function DocumentationPage() {
           </section>
 
           {/* Registro de Operaciones */}
-          <section className="mb-16">
-            <div className="flex items-center gap-3 mb-6">
-              <Database className="w-8 h-8 text-[#0A66C2]" />
-              <h2 className="text-3xl font-bold text-black">Registro de Operaciones (ChainLog)</h2>
+          <section className="mb-12">
+            <div className="flex items-center gap-3 mb-4">
+              <Database className="w-6 h-6 text-[#0A66C2]" />
+              <h2 className="text-2xl font-bold text-black">Registro de Operaciones (ChainLog)</h2>
             </div>
             <p className="text-lg text-gray-700 mb-4">
               Cada acción relevante (firma, envío, apertura, validación) se registra en un log append-only.
-            </p>
-            <p className="text-lg text-gray-700">
               Esto garantiza una Cadena de Custodia clara y una trazabilidad imposible de modificar.
             </p>
           </section>
 
           {/* Triple Anclaje */}
-          <section className="mb-16">
-            <div className="flex items-center gap-3 mb-6">
-              <Shield className="w-8 h-8 text-[#0A66C2]" />
-              <h2 className="text-3xl font-bold text-black">Triple Anclaje Criptográfico</h2>
+          <section className="mb-12">
+            <div className="flex items-center gap-3 mb-4">
+              <Shield className="w-6 h-6 text-[#0A66C2]" />
+              <h2 className="text-2xl font-bold text-black">Triple Anclaje Criptográfico</h2>
             </div>
             <p className="text-lg text-gray-700 mb-4">
               EcoSign utiliza una combinación de:
@@ -91,37 +89,36 @@ export default function DocumentationPage() {
           </section>
 
           {/* Verificación Independiente */}
-          <section className="mb-16">
-            <div className="flex items-center gap-3 mb-6">
-              <CheckCircle className="w-8 h-8 text-[#0A66C2]" />
-              <h2 className="text-3xl font-bold text-black">Verificación Independiente</h2>
+          <section className="mb-12">
+            <div className="flex items-center gap-3 mb-4">
+              <CheckCircle className="w-6 h-6 text-[#0A66C2]" />
+              <h2 className="text-2xl font-bold text-black">Verificación Independiente</h2>
             </div>
-            <p className="text-lg text-gray-700 mb-4">
-              Cualquier persona puede validar un archivo .ECO sin depender de EcoSign.
-            </p>
             <p className="text-lg text-gray-700">
+              Cualquier persona puede validar un archivo .ECO sin depender de EcoSign.
               El verificador reproduce la evidencia y determina si el documento fue alterado.
             </p>
           </section>
 
-          {/* CTA */}
-          <div className="text-center pt-8 border-t border-gray-200">
-            <p className="text-lg text-gray-700 mb-6">
-              Para profundizar en los detalles técnicos de implementación:
+          {/* Link a GitHub */}
+          <div className="mt-12 p-6 bg-gray-50 border border-gray-200 rounded-lg">
+            <h3 className="text-xl font-bold text-black mb-3">Para Desarrolladores</h3>
+            <p className="text-gray-700 mb-4">
+              Si querés profundizar en los detalles técnicos, revisá nuestra documentación completa en GitHub:
             </p>
             <a
               href="https://github.com/TemporalDynamics/verifysign/blob/main/COMO%20LO%20HACEMOS"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-black text-white px-8 py-4 rounded-lg font-semibold hover:bg-gray-800 transition"
+              className="inline-flex items-center gap-2 text-[#0A66C2] hover:underline font-medium"
             >
-              Ver Documentación en GitHub
+              Ver Documentación Técnica Completa →
             </a>
           </div>
         </div>
       </main>
 
-      <FooterPublic />
+      <FooterInternal />
     </div>
   );
 }

@@ -7,16 +7,8 @@ export default function FooterPublic() {
   return (
     <footer className="bg-black py-12 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-8 mb-8">
-          {/* Logo y Lema */}
-          <div className="text-left">
-            <div className="mb-4">
-              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-              <p className="text-sm text-gray-400 mt-1">Certificación digital</p>
-              <p className="text-sm text-gray-400">con privacidad total</p>
-            </div>
-          </div>
-
+        {/* Grid de columnas */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-12">
           {/* Columna 1: Producto */}
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Producto</h4>
@@ -98,12 +90,13 @@ export default function FooterPublic() {
           </div>
         </div>
 
-        {/* Copyright */}
-        <div className="pt-8 border-t border-white/10 text-left">
-          <div className="space-y-2 text-sm text-gray-400">
-            <p>EcoSign es un servicio independiente de certificación y firma digital. El formato .ECO y los procesos asociados están en proceso de registro de propiedad intelectual.</p>
-            <p>© 2025 EcoSign. Todos los derechos reservados.</p>
-          </div>
+        {/* Línea divisoria y texto legal centrado */}
+        <div className="pt-8 border-t border-white/10 text-center">
+          <p className="text-sm text-gray-400 mb-2">
+            EcoSign es un servicio independiente de certificación y firma digital. 
+            El formato .ECO y los procesos asociados están en proceso de registro de propiedad intelectual.
+          </p>
+          <p className="text-sm text-gray-400">© 2025 EcoSign. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>

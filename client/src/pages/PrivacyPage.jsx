@@ -1,15 +1,23 @@
+import { useLocation } from 'react-router-dom';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
+import DashboardNav from '../components/DashboardNav';
+import FooterInternal from '../components/FooterInternal';
 import PageTitle from '../components/PageTitle';
 
 const PrivacyPage = () => {
+  const location = useLocation();
+  const isDashboard = location.pathname.startsWith('/dashboard');
+  const Header = isDashboard ? DashboardNav : HeaderPublic;
+  const Footer = isDashboard ? FooterInternal : FooterPublic;
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <Header />
 
       {/* Content */}
-      <main className="flex-grow pt-24">
-        <div className="max-w-3xl mx-auto px-4 pb-24">
+      <main className="flex-grow pt-16">
+        <div className="max-w-4xl mx-auto px-4 pb-24">
           <PageTitle subtitle="En EcoSign tu privacidad es prioritaria. Estas son nuestras prácticas:">
             Privacidad
           </PageTitle>
@@ -87,7 +95,7 @@ const PrivacyPage = () => {
         </div>
       </main>
 
-      <FooterPublic />
+      <Footer />
     </div>
   );
 };

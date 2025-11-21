@@ -57,7 +57,7 @@ export default function FAQPage() {
     <div className="min-h-screen bg-white flex flex-col">
       <HeaderPublic />
       
-      <main className="flex-grow pt-24">
+      <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
           <PageTitle subtitle="Respuestas claras sobre privacidad, firmas legales y verificación.">
             Preguntas Frecuentes

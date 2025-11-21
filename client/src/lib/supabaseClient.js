@@ -8,6 +8,10 @@ console.log('🔍🔍🔍 SUPABASE CLIENT LOADING 🔍🔍🔍');
 console.log('URL:', supabaseUrl, '| Type:', typeof supabaseUrl);
 console.log('Key:', supabaseAnonKey.substring(0, 20) + '...', '| Type:', typeof supabaseAnonKey);
 console.log('createClient function:', typeof createClient);
+console.log('Global fetch:', typeof globalThis.fetch);
+console.log('Global Headers:', typeof globalThis.Headers);
+console.log('Window fetch:', typeof window?.fetch);
+console.log('Window Headers:', typeof window?.Headers);
 
 let supabaseInstance;
 try {

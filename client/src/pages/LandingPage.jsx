@@ -293,14 +293,15 @@ const LandingPage = () => {
             {/* FREE */}
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 text-center">
               <h3 className="text-2xl font-bold text-black mb-1">FREE</h3>
-              <p className="text-sm text-gray-600 mb-4">Muestra</p>
+              <p className="text-sm text-gray-600 mb-1">Probá la plataforma</p>
+              <p className="text-xs text-gray-500 mb-4">Pagás solo lo que necesitás</p>
               <div className="text-4xl font-bold text-black mb-4">$0</div>
               <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
                 <li>✓ 1 Usuario</li>
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 1 GB almacenamiento</li>
                 <li>✓ 3 Docs EcoSign/mes</li>
-                <li>✓ 1 Firma Legal/mes</li>
+                <li>✓ Firma Legal: Pago por uso</li>
               </ul>
             </div>
 
@@ -315,7 +316,7 @@ const LandingPage = () => {
                 <span className="text-4xl font-bold text-black">$15</span>
                 <span className="text-lg text-gray-600"> USD</span>
               </div>
-              <p className="text-xs text-gray-500 mb-4 line-through">Valor real: $40 USD</p>
+              <p className="text-xs text-gray-500 mb-4 line-through">Valor real: $39 USD</p>
               <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
                 <li>✓ 2 Usuarios</li>
                 <li>✓ Firmantes ilimitados</li>
@@ -333,11 +334,12 @@ const LandingPage = () => {
             {/* BUSINESS */}
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 text-center">
               <h3 className="text-2xl font-bold text-black mb-1">BUSINESS</h3>
-              <p className="text-sm text-gray-600 mb-4">Alto Volumen</p>
-              <div className="flex items-baseline justify-center mb-4">
+              <p className="text-sm text-gray-600 mb-2">Alto Volumen</p>
+              <div className="flex items-baseline justify-center mb-1">
                 <span className="text-4xl font-bold text-black">$49</span>
                 <span className="text-lg text-gray-600"> USD</span>
               </div>
+              <p className="text-xs text-gray-500 mb-4 line-through">Valor real: $89 USD</p>
               <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
                 <li>✓ 5 Usuarios</li>
                 <li>✓ Firmantes ilimitados</li>

@@ -18,7 +18,7 @@ const StatusPage = () => {
       <HeaderPublic />
 
       {/* Content */}
-      <main className="flex-grow pt-24">
+      <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
           <PageTitle subtitle="Aquí podrás consultar la disponibilidad de nuestros servicios">
             Estado del Servicio

@@ -1,13 +1,13 @@
 import React from 'react';
-import HeaderPublic from '../components/HeaderPublic';
-import FooterPublic from '../components/FooterPublic';
-import PageTitle from '../components/PageTitle';
+import DashboardNav from '../../components/DashboardNav';
+import FooterInternal from '../../components/FooterInternal';
+import PageTitle from '../../components/PageTitle';
 import { Upload, FileCheck, Download, Shield } from 'lucide-react';
 
-export default function QuickGuidePage() {
+export default function QuickGuideInternalPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <DashboardNav />
       
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
@@ -111,7 +111,7 @@ export default function QuickGuidePage() {
         </div>
       </main>
 
-      <FooterPublic />
+      <FooterInternal />
     </div>
   );
 }

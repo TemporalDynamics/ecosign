@@ -44,8 +44,8 @@ function LoginPage() {
         console.log('✅ Login exitoso:', data.user.email);
         setSuccess('¡Bienvenido de nuevo!');
 
-        // Redirigir al dashboard después de un breve delay
-        setTimeout(() => navigate('/dashboard'), 500);
+        // Redirigir a la página de inicio después de un breve delay
+        setTimeout(() => navigate('/dashboard/start'), 500);
       } else {
         // REGISTRO
         // Validar que las contraseñas coincidan

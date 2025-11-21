@@ -1,22 +1,157 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, Check, ArrowLeft, X, Users, HardDrive, FileText, Shield, BarChart3 } from 'lucide-react';
+import { Lock, Check, ArrowLeft, X, Users, HardDrive, FileText, Shield, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 import FooterPublic from '../components/FooterPublic';
 
 function PricingPage() {
+  const [openFAQ, setOpenFAQ] = useState(null);
+
+  const toggleFAQ = (index) => {
+    setOpenFAQ(openFAQ === index ? null : index);
+  };
+
+  const faqs = [
+    {
+      question: "¿Cuál es la diferencia entre FREE, PRO y BUSINESS?",
+      answer: (
+        <>
+          <p className="text-gray-700 leading-relaxed">
+            FREE es ideal para empezar sin costos.
+          </p>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            PRO está pensado para profesionales y PyMEs que firman con regularidad.
+          </p>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            BUSINESS está hecho para equipos que necesitan más usuarios, auditoría avanzada y API.
+          </p>
+        </>
+      )
+    },
+    {
+      question: "¿Qué incluye la promoción de lanzamiento?",
+      answer: (
+        <>
+          <p className="text-gray-700 leading-relaxed">
+            Los primeros 10.000 usuarios mantienen su precio de por vida mientras no cambien de plan.
+          </p>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            PRO: valor real $40 → $15 USD
+          </p>
+          <p className="text-gray-700 leading-relaxed">
+            BUSINESS: valor real $89 → $49 USD
+          </p>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            Es una ventaja permanente para quienes se suman en esta etapa.
+          </p>
+        </>
+      )
+    },
+    {
+      question: "Si tengo el plan FREE, ¿puedo comprar firmas sin suscribirme?",
+      answer: (
+        <p className="text-gray-700 leading-relaxed">
+          Sí. Podés comprar paquetes cuando los necesitás. No te forzamos a subir de plan. Elegís según tu uso real.
+        </p>
+      )
+    },
+    {
+      question: "¿Me conviene comprar paquetes o pasarme a PRO/BUSINESS?",
+      answer: (
+        <>
+          <p className="text-gray-700 leading-relaxed">
+            Depende de tu volumen:
+          </p>
+          <ul className="text-gray-700 leading-relaxed mt-2 space-y-1 ml-4">
+            <li>• Hasta 10 firmas legales/mes → FREE + paquetes</li>
+            <li>• 10–20 firmas legales/mes → PRO conviene mucho más</li>
+            <li>• Equipos o múltiples usuarios → BUSINESS directamente</li>
+          </ul>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            La plataforma no empuja upgrades. Te mostramos lo que realmente te conviene.
+          </p>
+        </>
+      )
+    },
+    {
+      question: "¿Qué pasa si un mes no uso todas mis firmas legales?",
+      answer: (
+        <p className="text-gray-700 leading-relaxed">
+          Se acumulan por 60 días. Las ves reflejadas en tu panel y nunca se pierden sin aviso.
+        </p>
+      )
+    },
+    {
+      question: "¿Puedo cambiar de plan en cualquier momento?",
+      answer: (
+        <>
+          <p className="text-gray-700 leading-relaxed">
+            Sí, y es simple:
+          </p>
+          <ul className="text-gray-700 leading-relaxed mt-2 space-y-1 ml-4">
+            <li>• Si ya pagaste tu plan actual, solo abonás la diferencia para subir de plan.</li>
+            <li>• Tu ciclo de facturación no cambia.</li>
+            <li>• Tus firmas disponibles mantienen sus 60 días aunque cambie el plan.</li>
+          </ul>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            Sin confusiones, sin recargos ocultos.
+          </p>
+        </>
+      )
+    },
+    {
+      question: "¿Puedo pedir un reembolso si no estoy conforme?",
+      answer: (
+        <>
+          <p className="text-gray-700 leading-relaxed">
+            Sí. Aunque es raro que ocurra, si no estás satisfecho podés solicitar un reembolso desde tu panel o escribiendo a soporte.
+          </p>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            Un ejecutivo de cuentas te contactará rápidamente para confirmar el proceso. La devolución depende del método de pago externo (Stripe u otros), pero te mantenemos informado en todo momento y no demoramos ninguna aprobación de nuestra parte.
+          </p>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            Tu tranquilidad es prioridad.
+          </p>
+        </>
+      )
+    },
+    {
+      question: "¿Hay cargos ocultos o facturación inesperada?",
+      answer: (
+        <p className="text-gray-700 leading-relaxed">
+          No. No tenemos excedentes automáticos ni sorpresas. Si estás por llegar a un límite, la plataforma te avisa antes.
+        </p>
+      )
+    },
+    {
+      question: "¿Cómo funciona la cancelación?",
+      answer: (
+        <p className="text-gray-700 leading-relaxed">
+          Podés cancelar cuando quieras. Tu cuenta queda activa hasta el final del período ya pagado.
+        </p>
+      )
+    },
+    {
+      question: "¿Dónde puedo contactarlos si tengo dudas?",
+      answer: (
+        <p className="text-gray-700 leading-relaxed">
+          Escribinos a support@ecosign.app. Respondemos en forma clara y humana —sin bots genéricos.
+        </p>
+      )
+    }
+  ];
   const plans = [
     {
       name: 'FREE',
       price: '$0',
       period: '',
       subtitle: 'Muestra',
-      description: 'Prueba la plataforma',
+      description: 'Probá la plataforma. Pagás solo lo que necesitás.',
       features: [
         { text: 'Usuarios', value: '1' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '1 GB' },
         { text: 'Firma EcoSign', value: '3 por mes' },
-        { text: 'Firma Legal', value: '1 por mes' },
+        { text: 'Firma Legal', value: 'Pago por uso' },
         { text: 'Blindaje Forense', value: 'Básico' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -49,7 +184,7 @@ function PricingPage() {
       subtitle: 'Alto Volumen/Equipos',
       price: '$49',
       period: ' USD',
-      originalPrice: '$69',
+      originalPrice: '$89',
       description: 'Para empresas en crecimiento',
       features: [
         { text: 'Usuarios', value: '5' },
@@ -135,11 +270,11 @@ function PricingPage() {
         </header>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 mt-8">
           {plans.map((plan, index) => (
-            <div key={index} className={`relative bg-white rounded-xl overflow-hidden border-2 ${plan.popular ? 'border-[#0E4B8B] shadow-[0_4px_25px_-5px_rgba(14,75,139,0.2)]' : 'border-gray-200 shadow-lg'}`}>
+            <div key={index} className={`relative bg-white rounded-xl overflow-visible border-2 ${plan.popular ? 'border-[#0E4B8B] shadow-[0_4px_25px_-5px_rgba(14,75,139,0.2)]' : 'border-gray-200 shadow-lg'}`}>
               {plan.popular && (
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#0E4B8B] text-white text-xs font-bold px-4 py-1 rounded-full">
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#0E4B8B] text-white text-xs font-bold px-4 py-1 rounded-full shadow-md z-20">
                   MÁS POPULAR
                 </div>
               )}
@@ -213,117 +348,92 @@ function PricingPage() {
           ))}
         </div>
 
-        <section className="mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">Transparencia ante todo</h2>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
-            En EcoSign no hay cargos ocultos, excedentes ni facturación inesperada.
+        {/* Transparencia ante todo */}
+        <div className="max-w-4xl mx-auto px-4 py-24">
+          <h2 className="text-4xl font-bold text-center mb-6">Transparencia ante todo</h2>
+          <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-12">
+            En EcoSign no hay cargos ocultos ni facturación inesperada.<br />
+            Pagás solo lo que usás y tu panel siempre muestra cuántas firmas te quedan.<br />
+            El sistema te avisa antes de alcanzar cualquier límite.
           </p>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
-            Pagás solo lo que usás y siempre sabés cuántas firmas tenés disponibles.
-          </p>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
-            El sistema te avisa antes de superar cualquier límite.
-          </p>
-        </section>
+        </div>
 
-        <section className="mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">Acumulación inteligente</h2>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
-            Si un mes no usás todas tus firmas legales, no las perdés.
+        {/* Acumulación inteligente */}
+        <div className="max-w-4xl mx-auto px-4 py-24">
+          <h2 className="text-4xl font-bold text-center mb-6">Acumulación inteligente</h2>
+          <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-12">
+            Si un mes no usás todas tus firmas legales, no las perdés.<br />
+            Se acumulan por 60 días y siempre ves cuántas tenés disponibles.
           </p>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
-            Podés usarlas durante los próximos 60 días, y tu panel siempre muestra cuántas te quedan.
-          </p>
-          <div className="bg-gray-50 p-6 rounded-lg max-w-3xl mx-auto mb-4">
-            <p className="font-semibold text-black mb-2">Ejemplo simple:</p>
-            <p className="text-lg text-gray-700 leading-relaxed">
-              Si tu plan incluye 20 firmas y este mes usaste 15, el próximo mes empezás con 25.
+          <div className="bg-gray-50 p-6 rounded-lg max-w-3xl mx-auto mb-6 text-center">
+            <p className="font-semibold text-black mb-2">Ejemplo:</p>
+            <p className="text-base text-gray-700 leading-relaxed mb-2">
+              Si tu plan incluye 20 firmas y usaste 15, el mes siguiente empezás con 25.
             </p>
-            <p className="text-lg text-gray-700 leading-relaxed">
-              Las firmas más antiguas se vencen a los 60 días, para mantener tu cuenta ordenada.
+            <p className="text-base text-gray-700 leading-relaxed">
+              Las más antiguas vencen a los 60 días para mantener tu cuenta ordenada.
             </p>
           </div>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
-            Así de claro.
-          </p>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
-            Así de simple.
-          </p>
-        </section>
+        </div>
 
-        <section className="mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">¿Por qué EcoSign puede ofrecer precios tan accesibles?</h2>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
-            Porque optimizamos los costos reales sin sacrificar seguridad:
+        {/* Beneficio Founders */}
+        <div className="max-w-4xl mx-auto px-4 py-24">
+          <h2 className="text-4xl font-bold text-center mb-6">Beneficio Founders</h2>
+          <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-12">
+            Los primeros 10.000 usuarios mantienen su precio de por vida<br />
+            mientras continúen en su plan.
           </p>
-          <ul className="space-y-2 text-xl text-gray-700 max-w-3xl mx-auto mb-4">
-            <li>• No subimos tu archivo → menos infraestructura.</li>
-            <li>• El hash se calcula en tu dispositivo → costo cero.</li>
-            <li>• Timestamp legal y blockchain → costos mínimos y verificados.</li>
-            <li>• Solo pagamos firmas legales cuando las usás.</li>
-          </ul>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
-            Eso nos permite darte un servicio premium, privado y seguro—sin abusos ni letra chica.
-          </p>
-        </section>
+        </div>
 
-        <section className="mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">Beneficios exclusivos</h2>
-          <ul className="space-y-2 text-xl text-gray-700 max-w-3xl mx-auto mb-4">
-            <li>• Precio protegido: tu tarifa queda fija mientras mantengas tu suscripción.</li>
-            <li>• Soporte prioritario: respuestas claras, humanas y sin bots genéricos.</li>
-            <li>• Acumulación inteligente: nunca perdés tus firmas sin usar.</li>
-            <li>• Auditoría avanzada y blindaje completo: transparencia certificada.</li>
-          </ul>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
-            Ideal para profesionales, creadores, estudios jurídicos y PyMEs que necesitan seguridad real sin pagar de más.
+        {/* ¿Por qué EcoSign? */}
+        <div className="max-w-4xl mx-auto px-4 py-24">
+          <h2 className="text-4xl font-bold text-center mb-6">¿Por qué EcoSign?</h2>
+          <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-12">
+            No guardamos tu archivo.<br />
+            No vemos tu contenido.<br />
+            No pedimos confianza: te damos evidencia.
           </p>
-        </section>
+        </div>
 
-        <section className="mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">Hecho para quienes valoran claridad</h2>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-4 text-center leading-relaxed">
-            Sin “sobres”, sin trucos, sin facturación extra.
-          </p>
-          <p className="text-xl text-gray-700 max-w-3xl mx-auto text-center leading-relaxed">
+        <div className="max-w-4xl mx-auto px-4 py-24">
+          <h2 className="text-4xl font-bold text-center mb-6">Hecho para quienes valoran claridad</h2>
+          <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto text-center mb-12">
             EcoSign es un servicio pensado para trabajar con vos, no contra vos.
           </p>
-        </section>
+        </div>
 
         
 
         <div className="bg-white p-8 md:p-12 rounded-2xl border-2 border-gray-200 mb-12">
           <h2 className="text-3xl font-bold text-black mb-8 text-center">Preguntas Frecuentes</h2>
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-black mb-2">¿Qué incluye la promoción de lanzamiento del plan PRO?</h3>
-              <p className="text-gray-700 leading-relaxed">
-                El plan PRO tiene un valor real de $40 USD, pero lo ofrecemos a $15 USD como parte de nuestra promoción de lanzamiento. Esto representa un ahorro del 50% para los primeros usuarios.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-black mb-2">¿Qué es la Firma EcoSign y en qué se diferencia de SignNow?</h3>
-              <p className="text-gray-700 leading-relaxed">
-                La Firma EcoSign es nuestra solución interna para uso corporativo y gestión de documentos. SignNow es nuestra integración para firmas legalmente vinculantes con validez jurídica completa.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-black mb-2">¿Qué es el Blindaje Forense?</h3>
-              <p className="text-gray-700 leading-relaxed">
-                El Blindaje Forense es nuestra tecnología de protección blockchain. El nivel básico utiliza Polygon para registro de huellas digitales, mientras que el Completo incluye verificación multi-cadena y certificación notarial digital.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-black mb-2">¿Puedo cambiar de plan en cualquier momento?</h3>
-              <p className="text-gray-700 leading-relaxed">
-                Sí, puedes actualizar o cambiar tu plan en cualquier momento desde tu panel de control. Los cambios se aplican inmediatamente y se prorratean según corresponda.
-              </p>
-            </div>
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <div key={index} className="border-b border-gray-200">
+                <button
+                  onClick={() => toggleFAQ(index)}
+                  className="w-full flex justify-between items-center py-4 text-left hover:bg-gray-50 transition-colors px-2"
+                >
+                  <h3 className="text-base md:text-lg font-medium text-black pr-4">
+                    {faq.question}
+                  </h3>
+                  {openFAQ === index ? (
+                    <ChevronUp className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                  )}
+                </button>
+                {openFAQ === index && (
+                  <div className="pb-4 px-2 animate-fadeIn text-base text-gray-700 leading-relaxed">
+                    {faq.answer}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
         <div className="text-center text-gray-600 mb-8">
-          <p>¿Tienes preguntas? <a href="mailto:contact@ecosign.app" className="text-black hover:text-gray-700 font-semibold underline">Contáctanos</a> para una demostración personalizada.</p>
+          <p>¿Te quedaron dudas? Puedes contactarnos a <a href="mailto:support@ecosign.app" className="text-black hover:text-gray-700 font-semibold underline">support@ecosign.app</a></p>
         </div>
       </div>
 

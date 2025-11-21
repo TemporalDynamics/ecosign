@@ -1,15 +1,16 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardNav from '../components/DashboardNav';
+import FooterInternal from '../components/FooterInternal';
 
 function DashboardStartPage() {
   const navigate = useNavigate();
   const handleLogout = () => navigate('/');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-cyan-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-white via-cyan-50 to-blue-50 flex flex-col">
       <DashboardNav onLogout={handleLogout} />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-12">
+      <main className="flex-grow max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 pb-24 space-y-12">
         <section className="text-center bg-white/80 rounded-3xl p-10 shadow-lg border border-black100">
           <p className="text-black font-semibold tracking-[0.2em] uppercase mb-4">workspace</p>
           <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6">Tu centro de evidencias .ECO</h1>
@@ -24,11 +25,13 @@ function DashboardStartPage() {
               Verificar un .ECO
             </Link>
             <Link to="/dashboard/pricing" className="bg-white border-2 border-gray-200 text-gray-700 hover:border-black600 hover:text-black font-semibold px-8 py-3 rounded-xl shadow-sm transition text-center">
-              Ver planes internos
+              Ver Planes
             </Link>
           </div>
         </section>
       </main>
+
+      <FooterInternal />
     </div>
   );
 }

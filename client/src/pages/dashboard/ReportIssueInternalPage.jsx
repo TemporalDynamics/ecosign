@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { AlertCircle, CheckCircle, Upload } from 'lucide-react';
-import HeaderPublic from '../components/HeaderPublic';
-import FooterPublic from '../components/FooterPublic';
-import PageTitle from '../components/PageTitle';
+import DashboardNav from '../../components/DashboardNav';
+import FooterInternal from '../../components/FooterInternal';
+import PageTitle from '../../components/PageTitle';
 
-export default function ReportIssuePage() {
+export default function ReportIssueInternalPage() {
   const [formData, setFormData] = useState({
     email: '',
     issueType: '',
@@ -37,7 +37,7 @@ export default function ReportIssuePage() {
   if (submitted) {
     return (
       <div className="min-h-screen flex flex-col bg-white">
-        <HeaderPublic />
+        <DashboardNav />
         <main className="flex-grow">
           <div className="max-w-3xl mx-auto px-4 pt-24 pb-24">
             <div className="text-center">
@@ -59,14 +59,14 @@ export default function ReportIssuePage() {
             </div>
           </div>
         </main>
-        <FooterPublic />
+        <FooterInternal />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <HeaderPublic />
+      <DashboardNav />
       <main className="flex-grow">
         <div className="max-w-3xl mx-auto px-4 pt-24 pb-24">
           <PageTitle>Reportar un Problema</PageTitle>
@@ -181,7 +181,7 @@ export default function ReportIssuePage() {
           </form>
         </div>
       </main>
-      <FooterPublic />
+      <FooterInternal />
     </div>
   );
 }

@@ -1,13 +1,13 @@
 import React from 'react';
-import HeaderPublic from '../components/HeaderPublic';
-import FooterPublic from '../components/FooterPublic';
-import PageTitle from '../components/PageTitle';
+import DashboardNav from '../../components/DashboardNav';
+import FooterInternal from '../../components/FooterInternal';
+import PageTitle from '../../components/PageTitle';
 import { Briefcase, FlaskConical, Palette, Building2 } from 'lucide-react';
 
-export default function UseCasesPage() {
+export default function UseCasesInternalPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <DashboardNav />
       
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
@@ -216,7 +216,7 @@ export default function UseCasesPage() {
         </div>
       </main>
 
-      <FooterPublic />
+      <FooterInternal />
     </div>
   );
 }

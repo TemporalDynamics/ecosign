@@ -7,6 +7,7 @@ function DashboardNav({ onLogout = () => {} }) {
   const navItems = [
     { label: 'Inicio', to: '/dashboard/start' },
     { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Documentos', to: '/dashboard/documents' },
     { label: 'Verificar', to: '/dashboard/verify' },
     { label: 'Planes', to: '/dashboard/pricing' }
   ];

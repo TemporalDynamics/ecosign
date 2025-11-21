@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import DashboardStartPage from './pages/DashboardStartPage';
 import DashboardVerifyPage from './pages/DashboardVerifyPage';
 import DashboardPricingPage from './pages/DashboardPricingPage';
+import DocumentsPage from './pages/DocumentsPage';
 import PricingPage from './pages/PricingPage';
 import NdaPage from './pages/NdaPage';
 import GuestPage from './pages/GuestPage';
@@ -105,6 +106,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <DashboardPricingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/documents"
+          element={
+            <ProtectedRoute>
+              <DocumentsPage />
             </ProtectedRoute>
           }
         />

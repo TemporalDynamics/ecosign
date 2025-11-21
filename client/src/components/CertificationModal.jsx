@@ -331,9 +331,13 @@ const CertificationModal = ({ isOpen, onClose }) => {
       }
 
       // 2. Guardar en Supabase (guardar el PDF procesado, no el original)
+      // Status inicial: 'signed' si ya se firmó, 'draft' si no hay firmantes
+      const initialStatus = signatureEnabled ? 'signed' : 'draft';
+      
       const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
-        hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor
+        hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
+        initialStatus: initialStatus
       });
 
       // 3. Registrar evento 'created' (ChainLog)

@@ -21,7 +21,8 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     hasBitcoinAnchor = false,
     bitcoinAnchorId = null,
     tags = [],
-    notes = null
+    notes = null,
+    initialStatus = 'draft'
   } = options;
 
   // Get current user
@@ -50,6 +51,15 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     throw new Error(`Error al subir el documento: ${uploadError.message}`);
   }
 
+  // Determine file type from MIME type
+  const getFileType = (mimeType) => {
+    if (!mimeType) return 'pdf';
+    if (mimeType.includes('pdf')) return 'pdf';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'docx';
+    if (mimeType.includes('image')) return 'img';
+    return 'pdf';
+  };
+
   // Create record in 'user_documents' table
   const { data: docData, error: docError} = await supabase
     .from('user_documents')
@@ -60,7 +70,10 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
       document_size: pdfFile.size,
       mime_type: pdfFile.type || 'application/pdf',
       pdf_storage_path: uploadData.path,
-      eco_data: ecoData // Store the complete ECO manifest
+      eco_data: ecoData, // Store the complete ECO manifest
+      status: initialStatus, // Use the provided initial status
+      file_type: getFileType(pdfFile.type),
+      last_event_at: new Date().toISOString()
     })
     .select()
     .single();
@@ -107,6 +120,37 @@ export async function getUserDocuments() {
     verification_count: 0, // TODO: Get count when relationships exist
     status: doc.status
   }));
+}
+
+/**
+ * Update document status
+ * @param {string} documentId - The document ID
+ * @param {string} newStatus - The new status ('draft', 'sent', 'pending', 'signed', 'rejected', 'expired')
+ * @returns {Promise<Object>} Updated document
+ */
+export async function updateDocumentStatus(documentId, newStatus) {
+  const validStatuses = ['draft', 'sent', 'pending', 'signed', 'rejected', 'expired'];
+  
+  if (!validStatuses.includes(newStatus)) {
+    throw new Error(`Invalid status: ${newStatus}`);
+  }
+
+  const { data, error } = await supabase
+    .from('user_documents')
+    .update({
+      status: newStatus,
+      last_event_at: new Date().toISOString()
+    })
+    .eq('id', documentId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating document status:', error);
+    throw new Error(`Error al actualizar estado: ${error.message}`);
+  }
+
+  return data;
 }
 
 /**

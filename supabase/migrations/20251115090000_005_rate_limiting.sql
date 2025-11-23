@@ -26,10 +26,10 @@ BEGIN
     PERFORM cron.schedule(
       'cleanup-rate-limits',
       '*/15 * * * *',
-      $$
+      $cleanup$
         DELETE FROM rate_limits WHERE timestamp < NOW() - INTERVAL '1 hour';
         DELETE FROM rate_limit_blocks WHERE blocked_until < NOW();
-      $$
+      $cleanup$
     );
   END IF;
 END

@@ -113,11 +113,11 @@ export async function getUserDocuments() {
   // Transform to match expected format
   return (data || []).map(doc => ({
     id: doc.id,
-    document_name: doc.title, // Usar title porque original_filename puede no existir
-    document_hash: doc.eco_hash,
+    document_name: doc.document_name,
+    document_hash: doc.document_hash,
     created_at: doc.created_at,
     updated_at: doc.updated_at,
-    verification_count: 0, // TODO: Get count when relationships exist
+    verification_count: doc.verification_count || 0,
     status: doc.status
   }));
 }

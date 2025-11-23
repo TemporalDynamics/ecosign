@@ -44,7 +44,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Table: eco_records
 CREATE TABLE IF NOT EXISTS eco_records (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS eco_records (
 
 -- Table: access_logs
 CREATE TABLE IF NOT EXISTS access_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   document_id TEXT NOT NULL,
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS access_logs (
 
 -- Table: nda_signatures
 CREATE TABLE IF NOT EXISTS nda_signatures (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   document_id TEXT NOT NULL,

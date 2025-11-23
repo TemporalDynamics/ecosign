@@ -232,8 +232,6 @@ USING (
 -- ========================================
 -- RLS POLICIES: nda_acceptances
 -- ========================================
-
--- Owners pueden ver NDA acceptances de sus documentos
 CREATE POLICY "Owners can view NDA acceptances"
 ON nda_acceptances FOR SELECT
 TO authenticated
@@ -241,17 +239,15 @@ USING (
   auth.uid() = (
     SELECT d.owner_id FROM documents d
     JOIN recipients r ON r.document_id = d.id
-    WHERE r.id = recipient_id
+    WHERE r.id = nda_acceptances.recipient_id  --
   )
 );
-
 -- Service role puede insertar (via Netlify Functions)
 -- No policy necesaria aquí, se hace con service_role_key
 
 -- ========================================
 -- RLS POLICIES: access_events
 -- ========================================
-
 -- Owners pueden ver access events de sus documentos
 CREATE POLICY "Owners can view access events"
 ON access_events FOR SELECT
@@ -260,10 +256,9 @@ USING (
   auth.uid() = (
     SELECT d.owner_id FROM documents d
     JOIN recipients r ON r.document_id = d.id
-    WHERE r.id = recipient_id
+    WHERE r.id = access_events.recipient_id  -- ✅ ARREGLADO
   )
 );
-
 -- Service role puede insertar (via Netlify Functions)
 -- NOTA: Esta tabla es APPEND-ONLY desde el punto de vista del usuario
 
@@ -304,16 +299,29 @@ EXECUTE FUNCTION update_updated_at_column();
 -- VERIFICACIÓN DE INTEGRIDAD
 -- ========================================
 
--- Constraint: No se pueden crear links para documentos revocados
-ALTER TABLE links ADD CONSTRAINT links_document_active_check
-CHECK (
-  NOT EXISTS (
-    SELECT 1 FROM documents
-    WHERE id = document_id AND status = 'revoked'
-  )
-);
 
--- Constraint: expires_at debe ser futuro
+-- Función para validar que el documento no esté revocado
+CREATE OR REPLACE FUNCTION check_document_not_revoked()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM documents
+    WHERE id = NEW.document_id AND status = 'revoked'
+  ) THEN
+    RAISE EXCEPTION 'Cannot create link for revoked document';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger para validar en INSERT
+DROP TRIGGER IF EXISTS validate_document_not_revoked ON links;
+CREATE TRIGGER validate_document_not_revoked
+  BEFORE INSERT ON links
+  FOR EACH ROW
+  EXECUTE FUNCTION check_document_not_revoked();
+
+-- Constraint: expires_at debe ser futuro (este sí se puede hacer con CHECK)
 ALTER TABLE links ADD CONSTRAINT links_expires_at_future_check
 CHECK (expires_at IS NULL OR expires_at > created_at);
 

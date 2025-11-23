@@ -1,62 +1,76 @@
--- Habilitar RLS en las tablas si no está habilitado
-ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.access_links ENABLE ROW LEVEL SECURITY;
+-- ========================================
+-- RLS POLICIES (Simplified)
+-- ========================================
 
--- Eliminar políticas antiguas para evitar conflictos
+-- Enable RLS on core tables
+ALTER TABLE IF EXISTS public.documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.recipients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.nda_acceptances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.access_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.anchors ENABLE ROW LEVEL SECURITY;
+
+-- Documents policies
 DROP POLICY IF EXISTS "Users can view their own documents." ON public.documents;
-DROP POLICY IF EXISTS "Users can insert their own documents." ON public.documents;
-DROP POLICY IF EXISTS "Users can update their own documents." ON public.documents;
-DROP POLICY IF EXISTS "Users can delete their own documents." ON public.documents;
-
-DROP POLICY IF EXISTS "Users can manage links for their own documents." ON public.access_links;
-
--- ----------------------------------------------------------------------------
--- Políticas para la tabla 'documents'
--- ----------------------------------------------------------------------------
-
--- 1. Política de SELECT: Los usuarios pueden ver sus propios documentos.
 CREATE POLICY "Users can view their own documents."
 ON public.documents FOR SELECT
-USING (auth.uid() = user_id);
+USING (auth.uid() = owner_id);
 
--- 2. Política de INSERT: Los usuarios pueden crear documentos para sí mismos.
+DROP POLICY IF EXISTS "Users can insert their own documents." ON public.documents;
 CREATE POLICY "Users can insert their own documents."
 ON public.documents FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+WITH CHECK (auth.uid() = owner_id);
 
--- 3. Política de UPDATE: Los usuarios pueden actualizar sus propios documentos.
+DROP POLICY IF EXISTS "Users can update their own documents." ON public.documents;
 CREATE POLICY "Users can update their own documents."
 ON public.documents FOR UPDATE
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
+USING (auth.uid() = owner_id);
 
--- 4. Política de DELETE: Los usuarios pueden eliminar sus propios documentos.
-CREATE POLICY "Users can delete their own documents."
-ON public.documents FOR DELETE
-USING (auth.uid() = user_id);
-
-
--- ----------------------------------------------------------------------------
--- Políticas para la tabla 'access_links'
--- ----------------------------------------------------------------------------
-
--- 1. Política General: Los usuarios solo pueden gestionar (ver, crear, borrar)
---    enlaces para los documentos que les pertenecen.
---    Esto se comprueba haciendo un JOIN implícito para ver si el auth.uid()
---    coincide con el user_id del documento al que el enlace apunta.
-CREATE POLICY "Users can manage links for their own documents."
-ON public.access_links FOR ALL
+-- Links policies (for documents.links table, not access_links)
+DROP POLICY IF EXISTS "Users can view links for their documents" ON public.links;
+CREATE POLICY "Users can view links for their documents"
+ON public.links FOR SELECT
 USING (
-  (
-    SELECT user_id
-    FROM public.documents
-    WHERE id = access_links.document_id
-  ) = auth.uid()
-)
-WITH CHECK (
-  (
-    SELECT user_id
-    FROM public.documents
-    WHERE id = access_links.document_id
-  ) = auth.uid()
+  EXISTS (
+    SELECT 1 FROM public.documents
+    WHERE id = links.document_id
+    AND owner_id = auth.uid()
+  )
+);
+
+-- Recipients policies
+DROP POLICY IF EXISTS "Users can view recipients for their documents" ON public.recipients;
+CREATE POLICY "Users can view recipients for their documents"
+ON public.recipients FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.documents
+    WHERE id = recipients.document_id
+    AND owner_id = auth.uid()
+  )
+);
+
+-- Access events policies
+DROP POLICY IF EXISTS "Users can view access events" ON public.access_events;
+CREATE POLICY "Users can view access events"
+ON public.access_events FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.documents d
+    JOIN public.recipients r ON r.document_id = d.id
+    WHERE r.id = access_events.recipient_id
+    AND d.owner_id = auth.uid()
+  )
+);
+
+-- Anchors policies
+DROP POLICY IF EXISTS "Users can view anchors" ON public.anchors;
+CREATE POLICY "Users can view anchors"
+ON public.anchors FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.documents
+    WHERE id = anchors.document_id
+    AND owner_id = auth.uid()
+  )
 );

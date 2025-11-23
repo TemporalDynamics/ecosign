@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // HARDCODEADO TEMPORAL
-const supabaseUrl = 'https://tbxowirrvgtvfnxcdqks.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRieG93aXJydmd0dmZueGNkcWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyOTQyMjgsImV4cCI6MjA3Nzg3MDIyOH0.GgVYH10zh--64FyGlNGYaZcbVXow3Bj9iZS3Zq9HWXQ';
+const supabaseUrl = 'https://uiyojopjbhooxrmamaiw.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzAyMTUsImV4cCI6MjA3OTI0NjIxNX0.3xQ3db1dmTyAsbOtdJt4zpplG8RcnkxqCQR5wWkvFxk';
 
 console.log('🔍🔍🔍 SUPABASE CLIENT LOADING 🔍🔍🔍');
 console.log('URL:', supabaseUrl, '| Type:', typeof supabaseUrl);

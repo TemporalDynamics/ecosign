@@ -45,7 +45,7 @@ function DocumentsPage() {
           *,
           events(id, event_type, timestamp, metadata),
           signer_links(id, signer_email, status, signed_at),
-          anchors(id, status, tx_hash, confirmed_at)
+          anchors!user_document_id(id, anchor_status, bitcoin_tx_id, confirmed_at)
         `)
         .eq("user_id", user.id)
         .order("last_event_at", { ascending: false });
@@ -494,16 +494,16 @@ function ForensicTab({ documents, formatDate, copyToClipboard }) {
                 <div key={anchor.id} className="bg-gray-50 p-4 rounded">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">TX Hash:</span>
-                    <code className="text-xs text-gray-600">{anchor.tx_hash}</code>
+                    <code className="text-xs text-gray-600">{anchor.bitcoin_tx_id || 'Pendiente'}</code>
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-sm font-medium">Estado:</span>
                     <span className={`text-xs px-2 py-1 rounded ${
-                      anchor.status === "confirmed"
+                      anchor.anchor_status === "confirmed"
                         ? "bg-green-100 text-green-700"
                         : "bg-yellow-100 text-yellow-700"
                     }`}>
-                      {anchor.status}
+                      {anchor.anchor_status}
                     </span>
                   </div>
                   {anchor.confirmed_at && (

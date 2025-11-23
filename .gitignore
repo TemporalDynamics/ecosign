@@ -71,3 +71,4 @@ eco_signing_private.pem
 eco_signing_public.pem
 client/.env
 client/.env
+.vercel

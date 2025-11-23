@@ -94,15 +94,22 @@ const CertificationFlow = ({ onClose }) => {
       if (user) {
         try {
           console.log('💾 Saving document to cloud storage...');
+
+          // Determine initial status based on download status
+          const documentStatus = result.downloadStatus === 'pending_bitcoin_anchor'
+            ? 'pending' // Bitcoin anchoring in progress
+            : 'signed'; // Ready for download
+
           const savedDoc = await saveUserDocument(targetFile, result.ecoData, {
             signNowDocumentId: signResult?.signnow_document_id || null,
             signNowStatus: signResult?.status || null,
             signedAt: signResult ? new Date().toISOString() : null,
             hasLegalTimestamp: useLegalTimestamp,
             hasBitcoinAnchor: useBitcoinAnchor,
-            bitcoinAnchorId: result.anchorRequest?.anchorId || null,
+            bitcoinAnchorId: result.bitcoinAnchor?.anchorId || result.anchorRequest?.anchorId || null,
             tags: ['certified'],
-            notes: null
+            notes: null,
+            initialStatus: documentStatus
           });
           console.log('✅ Document saved:', savedDoc.id);
           result.savedToCloud = true;
@@ -298,18 +305,28 @@ const CertificationFlow = ({ onClose }) => {
 
         {step === 3 && certResult && (
           <div className="space-y-4">
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
-              <CheckCircle className="w-6 h-6 text-emerald-600" />
+            <div className={`${certResult.downloadStatus === 'pending_bitcoin_anchor' ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'} border rounded-lg p-4 flex items-start gap-3`}>
+              <CheckCircle className={`w-6 h-6 ${certResult.downloadStatus === 'pending_bitcoin_anchor' ? 'text-amber-600' : 'text-emerald-600'}`} />
               <div className="flex-1">
-                <h4 className="text-emerald-800 font-semibold">Certificado generado correctamente</h4>
-                <p className="text-sm text-emerald-700">El archivo .ECO se descargó automáticamente.</p>
+                <h4 className={`${certResult.downloadStatus === 'pending_bitcoin_anchor' ? 'text-amber-800' : 'text-emerald-800'} font-semibold`}>
+                  {certResult.downloadStatus === 'pending_bitcoin_anchor'
+                    ? 'Certificado en proceso de anclaje Bitcoin'
+                    : 'Certificado generado correctamente'}
+                </h4>
+                <p className={`text-sm ${certResult.downloadStatus === 'pending_bitcoin_anchor' ? 'text-amber-700' : 'text-emerald-700'}`}>
+                  {certResult.downloadStatus === 'pending_bitcoin_anchor'
+                    ? certResult.downloadMessage || 'Tu documento está siendo anclado en la blockchain de Bitcoin. Recibirás un email cuando esté listo para descargar (4-24 horas).'
+                    : 'El archivo .ECO se descargó automáticamente.'}
+                </p>
 
                 {certResult.savedToCloud && (
                   <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
                     <p className="font-semibold text-blue-900">☁️ Guardado en la nube</p>
                     <p className="text-blue-700 mt-1">
                       Tu documento firmado está guardado en tu cuenta de VerifySign.
-                      Podés accederlo desde tu dashboard en cualquier momento.
+                      {certResult.downloadStatus === 'pending_bitcoin_anchor'
+                        ? ' Podrás descargarlo desde tu dashboard cuando el anclaje de Bitcoin esté completo.'
+                        : ' Podés accederlo desde tu dashboard en cualquier momento.'}
                     </p>
                   </div>
                 )}

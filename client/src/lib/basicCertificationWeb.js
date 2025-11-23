@@ -472,16 +472,36 @@ export function downloadEcox(ecoxBuffer, originalFileName) {
 /**
  * Complete certification flow: certify + download
  *
+ * IMPORTANT: If Bitcoin anchoring is requested, the .eco file will NOT be downloaded
+ * immediately. Instead, it will be saved to the database and made available for download
+ * after the Bitcoin blockchain confirmation (4-24 hours).
+ *
  * @param {File} file - The file to certify
  * @param {Object} options - Certification options
  * @returns {Promise<Object>} Certification result
  */
 export async function certifyAndDownload(file, options = {}) {
   const result = await certifyFile(file, options);
-  const downloadedFileName = downloadEcox(result.ecoxBuffer, result.fileName);
 
+  // Check if Bitcoin anchoring was requested
+  const bitcoinPending = options.useBitcoinAnchor && result.bitcoinAnchor;
+
+  // Only download immediately if Bitcoin anchoring is NOT pending
+  if (!bitcoinPending) {
+    const downloadedFileName = downloadEcox(result.ecoxBuffer, result.fileName);
+    return {
+      ...result,
+      downloadedFileName: downloadedFileName,
+      downloadStatus: 'completed'
+    };
+  }
+
+  // Bitcoin anchoring is pending - DO NOT download yet
+  console.log('⏳ Bitcoin anchoring pending - .eco file will be available after blockchain confirmation (4-24h)');
   return {
     ...result,
-    downloadedFileName: downloadedFileName
+    downloadStatus: 'pending_bitcoin_anchor',
+    downloadMessage: 'Your document is being anchored to the Bitcoin blockchain. This process takes 4-24 hours. You will receive an email notification when ready for download.',
+    estimatedCompletionTime: '4-24 hours'
   };
 }

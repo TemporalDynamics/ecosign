@@ -20,6 +20,10 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     hasLegalTimestamp = false,
     hasBitcoinAnchor = false,
     bitcoinAnchorId = null,
+    bitcoinStatus = null,
+    overallStatus = 'draft',
+    downloadEnabled = true,
+    ecoFileData = null,
     tags = [],
     notes = null,
     initialStatus = 'draft'
@@ -72,6 +76,11 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
       pdf_storage_path: uploadData.path,
       eco_data: ecoData, // Store the complete ECO manifest
       status: initialStatus, // Use the provided initial status
+      overall_status: overallStatus, // Combined status (signatures + anchoring)
+      bitcoin_status: bitcoinStatus, // Bitcoin anchoring status (pending/confirmed)
+      bitcoin_anchor_id: bitcoinAnchorId,
+      download_enabled: downloadEnabled, // Controls if .eco can be downloaded
+      eco_file_data: ecoFileData, // Store .eco buffer for deferred download
       file_type: getFileType(pdfFile.type),
       last_event_at: new Date().toISOString()
     })

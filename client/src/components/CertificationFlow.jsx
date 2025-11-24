@@ -96,9 +96,9 @@ const CertificationFlow = ({ onClose }) => {
           console.log('💾 Saving document to cloud storage...');
 
           // Determine initial status based on download status
-          const documentStatus = result.downloadStatus === 'pending_bitcoin_anchor'
-            ? 'pending' // Bitcoin anchoring in progress
-            : 'signed'; // Ready for download
+          const bitcoinPending = result.downloadStatus === 'pending_bitcoin_anchor';
+          const documentStatus = bitcoinPending ? 'pending' : 'signed';
+          const overallStatus = bitcoinPending ? 'pending_anchor' : 'certified';
 
           const savedDoc = await saveUserDocument(targetFile, result.ecoData, {
             signNowDocumentId: signResult?.signnow_document_id || null,
@@ -107,6 +107,15 @@ const CertificationFlow = ({ onClose }) => {
             hasLegalTimestamp: useLegalTimestamp,
             hasBitcoinAnchor: useBitcoinAnchor,
             bitcoinAnchorId: result.bitcoinAnchor?.anchorId || result.anchorRequest?.anchorId || null,
+            bitcoinStatus: bitcoinPending ? 'pending' : null,
+            overallStatus: overallStatus,
+            downloadEnabled: !bitcoinPending,
+            // Store .eco buffer for deferred download when Bitcoin pending
+            ecoFileData: bitcoinPending ? {
+              buffer: Array.from(new Uint8Array(result.ecoxBuffer)),
+              fileName: result.fileName,
+              createdAt: new Date().toISOString()
+            } : null,
             tags: ['certified'],
             notes: null,
             initialStatus: documentStatus

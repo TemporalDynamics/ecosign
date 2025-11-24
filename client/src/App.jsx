@@ -36,6 +36,7 @@ import UseCasesInternalPage from './pages/dashboard/UseCasesInternalPage';
 import ReportIssueInternalPage from './pages/dashboard/ReportIssueInternalPage';
 import RoadmapPage from './pages/RoadmapPage';
 import UpdatesPage from './pages/UpdatesPage';
+import InvitePage from './pages/InvitePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import FloatingVideoPlayer from './components/FloatingVideoPlayer';
@@ -59,7 +60,8 @@ function AppRoutes() {
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/nda/:token" element={<NdaAccessPage />} />
         <Route path="/sign/:token" element={<SignDocumentPage />} />
-        
+        <Route path="/invite/:token" element={<InvitePage />} />
+
         {/* Legal and Support routes */}
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />

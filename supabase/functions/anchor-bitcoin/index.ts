@@ -64,6 +64,16 @@ serve(async (req) => {
     const client = ensureClient();
     const nowIso = new Date().toISOString();
 
+    // Validate UUID format if userId is provided
+    const isValidUUID = (uuid: string | null) => {
+      if (!uuid) return false;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return uuidRegex.test(uuid);
+    };
+
+    // Only use userId if it's a valid UUID, otherwise set to null
+    const validUserId = userId && isValidUUID(userId) ? userId : null;
+
     const enrichedMetadata = {
       ...metadata,
       requestedAt: nowIso,
@@ -76,7 +86,7 @@ serve(async (req) => {
         document_hash: documentHash,
         document_id: documentId,
         user_document_id: userDocumentId,
-        user_id: userId,
+        user_id: validUserId,
         user_email: userEmail,
         anchor_type: 'opentimestamps',
         anchor_status: 'queued',
@@ -87,7 +97,12 @@ serve(async (req) => {
 
     if (error || !data) {
       console.error('Failed to insert anchor request', error);
-      return jsonResponse({ error: 'Unable to create anchor request' }, 500);
+      return jsonResponse({
+        error: 'Unable to create anchor request',
+        details: error?.message || 'Unknown error',
+        code: error?.code,
+        hint: error?.hint
+      }, 500);
     }
 
     return jsonResponse({

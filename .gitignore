@@ -42,6 +42,28 @@ Thumbs.db
 .tmp/
 temp/
 
+# Analysis and temporary documentation
+ANALISIS_*.md
+AUDITORIA_*.md
+CODE_QUALITY_*.md
+DEUDA_TECNICA_*.md
+ROADMAP_*.md
+RESUMEN_*.md
+*_STATUS.md
+*_REVIEW.md
+*_COMPLETE.md
+DEPLOY_*.md
+FIX_*.md
+INSTALL_*.md
+SETUP_*.md
+PLAN_*.md
+PROGRESO_*.md
+PRELANZAMIENTO_*.md
+MILESTONE_*.md
+PASOS_*.md
+MONITORING_*.md
+PERFORMANCE_*.md
+
 # Vite cache
 .vite/
 */.vite/

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { FileText, Filter, Search, Download, Eye, Copy, CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
+import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 
 const STATUS_CONFIG = {
@@ -23,6 +25,7 @@ const OVERALL_STATUS_CONFIG = {
 };
 
 function DocumentsPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("all");
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +34,10 @@ function DocumentsPage() {
     fileType: "all",
     search: ""
   });
+
+  const handleLogout = () => {
+    navigate('/');
+  };
 
   useEffect(() => {
     loadDocuments();
@@ -113,10 +120,11 @@ function DocumentsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
+      <DashboardNav onLogout={handleLogout} />
       <div className="flex-grow">
-        <main className="max-w-7xl mx-auto px-4 pt-16 pb-24">
+        <main className="max-w-7xl mx-auto px-4 pt-8 pb-24">
           {/* Header */}
-          <header className="mt-[-1.5rem] mb-10">
+          <header className="mb-10">
             <h1 className="mt-0 text-3xl md:text-4xl font-semibold tracking-tight text-center">
               Mis Documentos
             </h1>

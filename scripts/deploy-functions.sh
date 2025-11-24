@@ -37,8 +37,8 @@ fi
 echo -e "${GREEN}✅ Autenticado${NC}"
 echo ""
 
-# Project ref
-PROJECT_REF="tbxowirrvgtvfnxcdqks"
+# Project ref - Proyecto actual
+PROJECT_REF="uiyojopjbhooxrmamaiw"
 
 # Check if linked
 echo "🔗 Verificando conexión al proyecto..."

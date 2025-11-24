@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import { EventHelpers } from '../utils/eventLogger';
 import { Shield, CheckCircle2, Loader2, Pen, Type, Upload as UploadIcon } from 'lucide-react';
@@ -130,12 +131,12 @@ function SignDocumentPage() {
 
     // Validaciones
     if (!formData.name.trim()) {
-      alert('Por favor, ingresá tu nombre completo');
+      toast.error('Por favor, ingresá tu nombre completo');
       return;
     }
 
     if (!formData.ndaAccepted) {
-      alert('Debés aceptar el acuerdo de confidencialidad para continuar');
+      toast.error('Debés aceptar el acuerdo de confidencialidad para continuar');
       return;
     }
 
@@ -165,7 +166,7 @@ function SignDocumentPage() {
 
     } catch (err) {
       console.error('Error al guardar identificación:', err);
-      alert('Error al guardar tus datos. Por favor, intentá nuevamente.');
+      toast.error('Error al guardar tus datos. Por favor, intentá nuevamente.');
     }
   };
 
@@ -175,7 +176,7 @@ function SignDocumentPage() {
 
     // Validar tipo
     if (!file.type.startsWith('image/')) {
-      alert('Por favor, subí una imagen válida');
+      toast.error('Por favor, subí una imagen válida');
       return;
     }
 
@@ -215,7 +216,7 @@ function SignDocumentPage() {
     const signatureDataUrl = getSignatureDataUrl();
 
     if (!signatureDataUrl) {
-      alert('Por favor, aplicá tu firma antes de continuar');
+      toast.error('Por favor, aplicá tu firma antes de continuar');
       return;
     }
 
@@ -267,7 +268,7 @@ function SignDocumentPage() {
 
     } catch (err) {
       console.error('Error al guardar firma:', err);
-      alert('Error al guardar la firma. Por favor, intentá nuevamente.');
+      toast.error('Error al guardar la firma. Por favor, intentá nuevamente.');
     } finally {
       setSubmitting(false);
     }

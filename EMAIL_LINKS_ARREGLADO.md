@@ -55,4 +55,4 @@ Si algo falla, revisa los logs:
 npx supabase functions logs generate-link
 ```
 
-O verifica en: https://supabase.com/dashboard/project/tbxowirrvgtvfnxcdqks/functions
+O verifica en: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/functions

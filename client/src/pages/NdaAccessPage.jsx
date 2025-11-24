@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Shield, FileText, CheckCircle, AlertTriangle, Download, User, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -131,8 +132,10 @@ function NdaAccessPage() {
       body: { token, event_type: 'download' }
     }).catch(console.error);
 
-    // Trigger download (in real implementation, this would fetch the actual file)
-    alert('En esta versión demo, el documento se descargaría aquí.\n\nEl sistema registró tu acción de descarga.');
+    // TODO: Implementar descarga real del documento
+    toast.info('Funcionalidad de descarga próximamente. El sistema registró tu acción.', {
+      duration: 5000
+    });
   };
 
   if (loading) {

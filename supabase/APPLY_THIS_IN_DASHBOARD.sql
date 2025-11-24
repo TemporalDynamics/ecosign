@@ -2,7 +2,7 @@
 -- VerifySign - Complete Database Setup
 -- ============================================
 -- Ejecuta este SQL en: Supabase Dashboard → SQL Editor
--- Proyecto: https://supabase.com/dashboard/project/tbxowirrvgtvfnxcdqks
+-- Proyecto: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw
 -- ============================================
 
 -- STEP 1: Drop old anchors table if exists

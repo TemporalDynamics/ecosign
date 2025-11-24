@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import { FileText, CheckCircle, XCircle, Clock, Shield, AlertCircle } from 'lucide-react';
 
@@ -77,7 +78,7 @@ export default function InvitePage() {
 
   async function handleAcceptNDA() {
     if (!ndaCheckbox) {
-      alert('Debes aceptar los términos del NDA para continuar');
+      toast.error('Debes aceptar los términos del NDA para continuar');
       return;
     }
 
@@ -110,7 +111,7 @@ export default function InvitePage() {
 
     } catch (err) {
       console.error('Error accepting NDA:', err);
-      alert(err.message || 'Failed to accept NDA');
+      toast.error(err.message || 'Error al aceptar el NDA');
     } finally {
       setLoading(false);
     }
@@ -322,7 +323,7 @@ export default function InvitePage() {
 
               {invite.role === 'signer' && (
                 <button
-                  onClick={() => alert('Funcionalidad de firma próximamente')}
+                  onClick={() => toast.info('Funcionalidad de firma próximamente', { duration: 3000 })}
                   className="flex-1 px-6 py-3 border border-black text-black rounded-lg hover:bg-gray-50 flex items-center justify-center"
                 >
                   <Shield className="h-5 w-5 mr-2" />

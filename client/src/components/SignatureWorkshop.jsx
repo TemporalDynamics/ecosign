@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { File, Mail, PenLine, Trash2, User } from 'lucide-react';
 import { requestSignNowIntegration } from '../utils/integrationUtils';
 
@@ -132,7 +133,7 @@ const SignatureWorkshop = ({
     const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     const hasInk = pixels.some((value, index) => (index % 4 === 3 ? value > 0 : false));
     if (!hasInk) {
-      alert('Dibuja tu firma antes de guardarla.');
+      toast.error('Dibuja tu firma antes de guardarla.');
       return;
     }
     const dataUrl = canvas.toDataURL('image/png');

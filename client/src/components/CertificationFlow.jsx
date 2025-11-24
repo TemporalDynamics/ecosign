@@ -6,6 +6,8 @@ import { saveUserDocument } from '../utils/documentStorage';
 import { supabase } from '../lib/supabaseClient';
 
 const steps = ['Subir documento', 'Firma legal', 'Certificar', 'Listo'];
+const SUPPORTED_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'rar'];
+const FILE_PICKER_ACCEPT = SUPPORTED_EXTENSIONS.map(ext => `.${ext}`).join(',');
 
 const CertificationFlow = ({ onClose }) => {
   const [step, setStep] = useState(0);
@@ -19,6 +21,10 @@ const CertificationFlow = ({ onClose }) => {
   const [error, setError] = useState(null);
 
   const targetFile = signedFile || uploadedFile;
+  const isPdfSelected = Boolean(uploadedFile && (
+    (uploadedFile.type || '').toLowerCase().includes('pdf') ||
+    uploadedFile.name?.toLowerCase().endsWith('.pdf')
+  ));
 
   const resetFlow = () => {
     setStep(0);
@@ -185,37 +191,58 @@ const CertificationFlow = ({ onClose }) => {
               <p className="text-gray-700 mb-2">Selecciona el documento que deseas firmar y certificar</p>
               <label htmlFor="cert-upload-input" className="cursor-pointer text-black font-semibold">
                 Haz clic para seleccionar
-                <input id="cert-upload-input" type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" />
+                <input
+                  id="cert-upload-input"
+                  type="file"
+                  accept={FILE_PICKER_ACCEPT}
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
               </label>
-              <p className="text-xs text-gray-500">Formato recomendado: PDF (para firma legal)</p>
+              <p className="text-xs text-gray-500">
+                Formatos admitidos: {SUPPORTED_EXTENSIONS.join(', ').toUpperCase()}. Para firma legal con SignNow se requiere PDF,
+                pero podés certificar cualquier formato.
+              </p>
             </div>
           </div>
         )}
 
         {step === 1 && uploadedFile && (
           <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-              <p className="font-semibold">🔐 Firma Legal (Recomendado)</p>
-              <p className="mb-2">
-                Firmá con SignNow para que tu documento tenga <strong>validez legal internacional</strong>:
-              </p>
-              <ul className="text-xs space-y-1 ml-4 list-disc">
-                <li>Audit trail completo (IP, hora, dispositivo)</li>
-                <li>Válido en 100+ países (ESIGN, eIDAS, UETA)</li>
-                <li>Certificate of Completion tamper-proof</li>
-                <li>No-repudiación: el firmante no puede negar la firma</li>
-              </ul>
-            </div>
-            <SignatureWorkshop
-              originalFile={uploadedFile}
-              documentName={uploadedFile.name}
-              documentId={null}
-              documentHash={null}
-              userId={userIdFallback}
-              submitLabel="Firmar con SignNow"
-              onSuccess={handleSignSuccess}
-              showSkipHint
-            />
+            {isPdfSelected ? (
+              <>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
+                  <p className="font-semibold">🔐 Firma Legal (Recomendado)</p>
+                  <p className="mb-2">
+                    Firmá con SignNow para que tu documento tenga <strong>validez legal internacional</strong>:
+                  </p>
+                  <ul className="text-xs space-y-1 ml-4 list-disc">
+                    <li>Audit trail completo (IP, hora, dispositivo)</li>
+                    <li>Válido en 100+ países (ESIGN, eIDAS, UETA)</li>
+                    <li>Certificate of Completion tamper-proof</li>
+                    <li>No-repudiación: el firmante no puede negar la firma</li>
+                  </ul>
+                </div>
+                <SignatureWorkshop
+                  originalFile={uploadedFile}
+                  documentName={uploadedFile.name}
+                  documentId={null}
+                  documentHash={null}
+                  userId={userIdFallback}
+                  submitLabel="Firmar con SignNow"
+                  onSuccess={handleSignSuccess}
+                  showSkipHint
+                />
+              </>
+            ) : (
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-700">
+                <p className="font-semibold">📄 Firma legal disponible solo para PDF</p>
+                <p className="text-xs mt-1">
+                  Este archivo se puede certificar o anclar, pero la integración con SignNow requiere que sea PDF. Podés continuar con el
+                  sello forense igualmente y, si necesitás firma legal, convertí el archivo a PDF antes de repetir el proceso.
+                </p>
+              </div>
+            )}
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <p className="text-sm text-yellow-800 mb-2">
                 <strong>⚠️ Solo Certificación (sin firma legal)</strong>

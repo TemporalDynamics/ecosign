@@ -131,7 +131,7 @@ POLYGON_CONTRACT_ADDRESS=0x1234...abcd
 
 ```bash
 # Asegúrate de estar en el proyecto correcto
-supabase link --project-ref tbxowirrvgtvfnxcdqks
+supabase link --project-ref uiyojopjbhooxrmamaiw
 
 # Configurar secrets
 supabase secrets set POLYGON_RPC_URL="https://polygon-mainnet.g.alchemy.com/v2/OBJkEAhQmQDkgNiqFE-En"
@@ -148,7 +148,7 @@ supabase secrets set POLYGON_CONTRACT_ADDRESS="0x..."
 supabase functions deploy anchor-polygon --no-verify-jwt
 
 # Probar con curl
-curl -X POST "https://tbxowirrvgtvfnxcdqks.supabase.co/functions/v1/anchor-polygon" \
+curl -X POST "https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/anchor-polygon" \
   -H "Content-Type: application/json" \
   -d '{
     "documentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

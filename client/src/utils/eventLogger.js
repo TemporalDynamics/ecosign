@@ -28,26 +28,15 @@ export const EVENT_TYPES = {
 };
 
 /**
- * Captura la IP del cliente (mejor esfuerzo)
- * En producción, esto debería hacerse desde el backend
- * @returns {Promise<string|null>}
+ * Get Supabase Functions URL from environment
+ * @returns {string}
  */
-async function getClientIP() {
-  try {
-    // Usar servicio público para obtener IP
-    const response = await fetch('https://api.ipify.org?format=json', {
-      method: 'GET',
-      cache: 'no-cache'
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return data.ip || null;
-  } catch (error) {
-    console.warn('No se pudo obtener IP del cliente:', error);
-    return null;
+function getSupabaseFunctionsUrl() {
+  const url = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || import.meta.env.VITE_SUPABASE_URL;
+  if (url.includes('.supabase.co')) {
+    return url.replace('.supabase.co', '.supabase.co/functions/v1');
   }
+  return url.endsWith('/functions/v1') ? url : `${url}/functions/v1`;
 }
 
 /**
@@ -76,21 +65,14 @@ export async function logEvent(eventType, documentId, options = {}) {
       throw new Error('documentId es obligatorio');
     }
 
-    // Capturar datos forenses
-    const ipAddress = options.ipAddress || await getClientIP();
-    const userAgent = navigator?.userAgent || 'Unknown';
-
-    // Preparar payload
+    // Preparar payload (sin IP ni timestamp - se capturan server-side)
     const eventData = {
-      document_id: documentId,
-      event_type: eventType,
-      timestamp: new Date().toISOString(),
-      ip_address: ipAddress,
-      user_agent: userAgent,
-      user_id: options.userId || null,
-      signer_link_id: options.signerLinkId || null,
-      actor_email: options.actorEmail || null,
-      actor_name: options.actorName || null,
+      eventType,
+      documentId,
+      userId: options.userId || null,
+      signerLinkId: options.signerLinkId || null,
+      actorEmail: options.actorEmail || null,
+      actorName: options.actorName || null,
       metadata: options.metadata || {}
     };
 
@@ -100,26 +82,38 @@ export async function logEvent(eventType, documentId, options = {}) {
       metadata: options.metadata
     });
 
-    // Insertar en la tabla events
-    const { data, error } = await supabase
-      .from('events')
-      .insert(eventData)
-      .select()
-      .single();
+    // Get authentication token
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No hay sesión activa');
+    }
 
-    if (error) {
-      console.error('❌ [EventLogger] Error al registrar evento:', error);
+    // Call secure edge function (server-side IP capture)
+    const functionsUrl = getSupabaseFunctionsUrl();
+    const response = await fetch(`${functionsUrl}/log-event`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(eventData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('❌ [EventLogger] Error al registrar evento:', errorData);
       return {
         success: false,
-        error: error.message
+        error: errorData.error || `HTTP ${response.status}`
       };
     }
 
-    console.log(`✅ [EventLogger] Evento registrado exitosamente:`, data);
+    const result = await response.json();
+    console.log(`✅ [EventLogger] Evento registrado exitosamente:`, result.data);
 
     return {
       success: true,
-      data
+      data: result.data
     };
 
   } catch (error) {

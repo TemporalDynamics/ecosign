@@ -18,6 +18,7 @@ import {
   Type,
   FileCheck
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
@@ -81,16 +82,22 @@ const CertificationModal = ({ isOpen, onClose }) => {
   const [signerCompany, setSignerCompany] = useState('');
   const [signerJobTitle, setSignerJobTitle] = useState('');
 
-  // TODO: En producción, prellenar con datos del usuario autenticado cuando multipleSignatures = false
-  // useEffect(() => {
-  //   if (!multipleSignatures && currentUser) {
-  //     setSignerName(currentUser.full_name || currentUser.email);
-  //     setSignerEmail(currentUser.email);
-  //   } else {
-  //     setSignerName('');
-  //     setSignerEmail('');
-  //   }
-  // }, [multipleSignatures, currentUser]);
+  // Prellenar con datos del usuario autenticado cuando multipleSignatures = false
+  useEffect(() => {
+    async function loadUserData() {
+      if (!multipleSignatures) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setSignerName(user.user_metadata?.full_name || user.email || '');
+          setSignerEmail(user.email || '');
+        }
+      } else {
+        setSignerName('');
+        setSignerEmail('');
+      }
+    }
+    loadUserData();
+  }, [multipleSignatures]);
 
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState('none'); // 'none', 'canvas', 'signnow'
@@ -191,20 +198,23 @@ const CertificationModal = ({ isOpen, onClose }) => {
         // Validar que haya al menos un email
         const validEmails = emailInputs.filter(input => input.email.trim() !== '');
         if (validEmails.length === 0) {
-          alert('Agregá al menos un email para enviar el documento a firmar');
+          toast.error('Agregá al menos un email para enviar el documento a firmar');
           setLoading(false);
           return;
         }
 
         // Para EcoSign: crear .ECO en estado PENDIENTE_DE_FIRMA
-        // TODO: Implementar lógica de envío de links únicos
+        // NOTA: El envío real de links únicos se implementará con edge function send-signature-invites
+        // Por ahora simula el comportamiento
         console.log('📧 Caso B - Enviando invitaciones a:', validEmails);
         console.log('Estado del documento: PENDIENTE_DE_FIRMA');
 
         // Simular delay
         await new Promise(resolve => setTimeout(resolve, 1500));
 
-        alert(`Invitaciones enviadas a ${validEmails.length} firmante(s)\n\nCada firmante recibirá un link único para identificarse y firmar el documento.`);
+        toast.success(`Invitaciones enviadas a ${validEmails.length} firmante(s). Cada firmante recibirá un link único para identificarse y firmar el documento.`, {
+          duration: 6000
+        });
 
         // Cerrar modal
         resetAndClose();
@@ -226,7 +236,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
       if (signatureEnabled && signatureType === 'ecosign') {
         // Validar nombre del firmante (obligatorio para Hoja de Auditoría)
         if (!signerName.trim()) {
-          alert('Por favor, completá tu nombre para generar la Hoja de Auditoría');
+          toast.error('Por favor, completá tu nombre para generar la Hoja de Auditoría');
           setLoading(false);
           return;
         }
@@ -245,7 +255,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
           signerJobTitle: signerJobTitle.trim() || null,
           // Metadata del documento
           documentName: file.name,
-          documentPages: null, // TODO: Calcular páginas del PDF
+          documentPages: null, // Se puede calcular en backend si es necesario
           documentSize: file.size,
           // El hash se calculará después de la certificación
         };
@@ -265,11 +275,14 @@ const CertificationModal = ({ isOpen, onClose }) => {
 
         try {
           // Llamar a SignNow con la firma ya embebida
+          // Obtener usuario autenticado
+          const { data: { user } } = await supabase.auth.getUser();
+
           const signNowResult = await signWithSignNow(fileToProcess, {
             documentName: fileToProcess.name,
             action: 'esignature',
-            userEmail: 'user@example.com', // TODO: Obtener del usuario autenticado
-            userName: 'Usuario', // TODO: Obtener del perfil
+            userEmail: user?.email || 'unknown@example.com',
+            userName: user?.user_metadata?.full_name || signerName || 'Usuario',
             signature: signatureData ? {
               image: signatureData,
               placement: {
@@ -309,7 +322,9 @@ const CertificationModal = ({ isOpen, onClose }) => {
 
         } catch (signNowError) {
           console.error('❌ Error con SignNow:', signNowError);
-          alert(`Error al procesar firma legal con SignNow: ${signNowError.message}\n\nSe usará firma estándar.`);
+          toast.error(`Error al procesar firma legal con SignNow: ${signNowError.message}. Se usará firma estándar.`, {
+            duration: 6000
+          });
 
           // Fallback a firma estándar
           certResult = await certifyFile(fileToProcess, {
@@ -428,7 +443,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
       setStep(2); // Ir a "Listo" (ahora es paso 2)
     } catch (error) {
       console.error('Error al certificar:', error);
-      alert('Hubo un problema al certificar tu documento. Por favor intentá de nuevo.');
+      toast.error('Hubo un problema al certificar tu documento. Por favor intentá de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -820,7 +835,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                                         setSignatureTab('draw');
                                       } catch (error) {
                                         console.error('Error al aplicar firma:', error);
-                                        alert('Error al aplicar la firma al PDF. Por favor, inténtalo de nuevo.');
+                                        toast.error('Error al aplicar la firma al PDF. Por favor, inténtalo de nuevo.');
                                       }
                                     }}
                                     className="flex-1 py-2 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
@@ -1281,11 +1296,13 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   onClick={() => {
                     // Registrar evento 'downloaded'
                     if (certificateData.documentId) {
-                      EventHelpers.logEcoDownloaded(
-                        certificateData.documentId,
-                        null, // TODO: Obtener userId del usuario autenticado
-                        null  // TODO: Obtener userEmail del usuario autenticado
-                      );
+                      supabase.auth.getUser().then(({ data: { user } }) => {
+                        EventHelpers.logEcoDownloaded(
+                          certificateData.documentId,
+                          user?.id || null,
+                          user?.email || null
+                        );
+                      });
                     }
                   }}
                   className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"

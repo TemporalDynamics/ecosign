@@ -1,16 +1,21 @@
 #!/bin/bash
 
 # Test Edge Functions
-PROJECT_REF="tbxowirrvgtvfnxcdqks"
+PROJECT_REF="uiyojopjbhooxrmamaiw"
 
 echo "🧪 Testing Edge Functions..."
 echo ""
 
-# Get anon key from .env
-ANON_KEY=$(grep VITE_SUPABASE_ANON_KEY client/.env | cut -d '=' -f2)
+# Get anon key from .env.local or use hardcoded key
+if [ -f ".env.local" ]; then
+    ANON_KEY=$(grep SUPABASE_ANON_KEY .env.local | cut -d '=' -f2)
+else
+    # Fallback to hardcoded key from supabaseClient.js
+    ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzAyMTUsImV4cCI6MjA3OTI0NjIxNX0.3xQ3db1dmTyAsbOtdJt4zpplG8RcnkxqCQR5wWkvFxk"
+fi
 
 if [ -z "$ANON_KEY" ]; then
-    echo "❌ VITE_SUPABASE_ANON_KEY not found in client/.env"
+    echo "❌ SUPABASE_ANON_KEY not found in .env.local"
     exit 1
 fi
 

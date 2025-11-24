@@ -3,8 +3,8 @@
 ## 🎯 PROBLEMA
 
 ```
-POST https://tbxowirrvgtvfnxcdqks.supabase.co/functions/v1/anchor-bitcoin 500
-POST https://tbxowirrvgtvfnxcdqks.supabase.co/functions/v1/signnow 500
+POST https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/anchor-bitcoin 500
+POST https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/signnow 500
 ```
 
 **Causa**: Las funciones no están desplegadas y/o la base de datos no tiene las tablas correctas.
@@ -15,7 +15,7 @@ POST https://tbxowirrvgtvfnxcdqks.supabase.co/functions/v1/signnow 500
 
 ### ✅ Paso 1: Aplicar SQL en Supabase Dashboard
 
-1. Abre: https://supabase.com/dashboard/project/tbxowirrvgtvfnxcdqks/sql/new
+1. Abre: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/sql/new
 
 2. Copia TODO el contenido de: `supabase/APPLY_THIS_IN_DASHBOARD.sql`
 
@@ -51,7 +51,7 @@ supabase login
 ```bash
 npm install -g supabase
 supabase login
-supabase link --project-ref tbxowirrvgtvfnxcdqks
+supabase link --project-ref uiyojopjbhooxrmamaiw
 
 supabase functions deploy anchor-bitcoin
 supabase functions deploy signnow
@@ -64,12 +64,12 @@ supabase functions deploy process-bitcoin-anchors
 
 ### ✅ Paso 3: Configurar Variables de Entorno
 
-1. Abre: https://supabase.com/dashboard/project/tbxowirrvgtvfnxcdqks/settings/functions
+1. Abre: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/settings/functions
 
 2. En "Environment Variables" agregar:
 
 ```bash
-SUPABASE_URL=https://tbxowirrvgtvfnxcdqks.supabase.co
+SUPABASE_URL=https://uiyojopjbhooxrmamaiw.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<copiar-de-Settings-API>
 ```
 
@@ -142,7 +142,7 @@ Desde tu app (http://localhost:5173):
 ### Error: "Edge Function returned 500" en anchor-bitcoin
 
 Ver logs detallados:
-1. https://supabase.com/dashboard/project/tbxowirrvgtvfnxcdqks/functions/anchor-bitcoin/logs
+1. https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/functions/anchor-bitcoin/logs
 2. Buscar el error específico
 
 Errores comunes:

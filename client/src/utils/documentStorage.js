@@ -113,8 +113,8 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
 }
 
 /**
- * Get all documents for the current user
- * @returns {Promise<Array>} Array of user documents
+ * Get all documents for the current user with complete information
+ * @returns {Promise<Array>} Array of user documents with all fields
  */
 export async function getUserDocuments() {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -122,10 +122,15 @@ export async function getUserDocuments() {
     throw new Error('Usuario no autenticado');
   }
 
-  // Query user_documents table
+  // Query user_documents table with related data
   const { data, error } = await supabase
     .from('user_documents')
-    .select('*')
+    .select(`
+      *,
+      events(id, event_type, timestamp, metadata),
+      signer_links(id, signer_email, status, signed_at),
+      anchors!user_document_id(id, anchor_status, bitcoin_tx_id, confirmed_at)
+    `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -134,16 +139,8 @@ export async function getUserDocuments() {
     throw new Error(`Error al obtener documentos: ${error.message}`);
   }
 
-  // Transform to match expected format
-  return (data || []).map(doc => ({
-    id: doc.id,
-    document_name: doc.document_name,
-    document_hash: doc.document_hash,
-    created_at: doc.created_at,
-    updated_at: doc.updated_at,
-    verification_count: doc.verification_count || 0,
-    status: doc.status
-  }));
+  // Return all fields (no transformation needed - DocumentsPage expects full data)
+  return data || [];
 }
 
 /**

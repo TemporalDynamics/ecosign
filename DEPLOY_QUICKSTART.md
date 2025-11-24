@@ -11,7 +11,7 @@ Las Edge Functions devuelven 500 porque:
 
 ### Paso 1: Aplicar Migraciones en Supabase
 
-Ve a: https://supabase.com/dashboard/project/tbxowirrvgtvfnxcdqks
+Ve a: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw
 
 1. **SQL Editor** → New Query
 2. Copia y pega el contenido de: `supabase/migrations/20251115140000_006_fix_anchors_table.sql`
@@ -79,7 +79,7 @@ npm install -g supabase
 supabase login
 
 # Link al proyecto
-supabase link --project-ref tbxowirrvgtvfnxcdqks
+supabase link --project-ref uiyojopjbhooxrmamaiw
 
 # Deploy funciones
 supabase functions deploy anchor-bitcoin
@@ -103,7 +103,7 @@ En Supabase Dashboard → **Settings** → **Edge Functions** → **Environment 
 Agregar:
 
 ```bash
-SUPABASE_URL=https://tbxowirrvgtvfnxcdqks.supabase.co
+SUPABASE_URL=https://uiyojopjbhooxrmamaiw.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<tu-service-role-key>
 RESEND_API_KEY=<tu-resend-key>  # Opcional
 SIGNNOW_API_KEY=<tu-signnow-key>  # Opcional

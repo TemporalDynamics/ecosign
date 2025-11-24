@@ -1,5 +1,6 @@
 // client/src/components/LegalProtectionOptions.jsx
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Shield, FileText, ExternalLink, Zap } from 'lucide-react';
 import IntegrationModal from './IntegrationModal';
 import { requestMifielIntegration } from '../utils/integrationUtils';
@@ -17,7 +18,7 @@ const LegalProtectionOptions = ({ documentId, documentHash, userId, originalFile
       setIsModalOpen(true);
     } catch (error) {
       console.error('Error requesting Mifiel integration:', error);
-      alert('Error connecting to Mifiel service. Please try again.');
+      toast.error('Error al conectar con el servicio Mifiel. Por favor, intentá de nuevo.');
     }
   };
 
@@ -27,7 +28,9 @@ const LegalProtectionOptions = ({ documentId, documentHash, userId, originalFile
 
   const handleConfirm = async (paymentData) => {
     console.log('Confirming integration:', paymentData);
-    alert(`Service confirmed! The ${paymentData.service} integration is being processed.`);
+    toast.success(`Servicio confirmado! La integración con ${paymentData.service} está siendo procesada.`, {
+      duration: 5000
+    });
   };
 
   return (

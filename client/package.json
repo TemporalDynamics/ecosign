@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "npm run validate:env && vite build",
+    "build:skip-validation": "vite build",
+    "preview": "vite preview",
+    "validate:env": "node scripts/validate-env.js"
   },
   "engines": {
     "node": "20.x",
@@ -16,6 +18,7 @@
     "@noble/ed25519": "^3.0.0",
     "@noble/hashes": "^2.0.1",
     "@supabase/supabase-js": "2.39.0",
+    "@temporaldynamics/eco-packer": "file:../eco-packer",
     "asn1.js": "^4.10.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.553.0",
@@ -25,6 +28,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-helmet-async": "^2.0.5",
+    "react-hot-toast": "^2.6.0",
     "react-router-dom": "^6.18.0"
   },
   "devDependencies": {

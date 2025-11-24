@@ -96,11 +96,11 @@ Se abrirá tu navegador para autenticarte. Si no se abre:
 ### 2. Link al Proyecto
 
 ```bash
-supabase link --project-ref tbxowirrvgtvfnxcdqks
+supabase link --project-ref uiyojopjbhooxrmamaiw
 ```
 
 Te pedirá la contraseña de tu proyecto:
-1. Ve a: https://supabase.com/dashboard/project/tbxowirrvgtvfnxcdqks/settings/database
+1. Ve a: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/settings/database
 2. Copia la contraseña de la base de datos
 3. Pégala en la terminal
 

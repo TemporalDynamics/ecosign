@@ -8,6 +8,7 @@ export interface BitcoinAnchorResponse {
 
 interface AnchorContext {
   documentId?: string | null;
+  userDocumentId?: string | null;
   userId?: string | null;
   userEmail?: string | null;
   metadata?: Record<string, unknown>;
@@ -24,6 +25,7 @@ export async function requestBitcoinAnchor(
   const payload = {
     documentHash,
     documentId: context.documentId ?? null,
+    userDocumentId: context.userDocumentId ?? null,
     userId: context.userId ?? null,
     userEmail: context.userEmail ?? null,
     metadata: context.metadata ?? {}

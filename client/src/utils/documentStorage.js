@@ -94,6 +94,21 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     throw new Error(`Error al guardar el registro: ${docError.message}`);
   }
 
+  // Update the anchor with the user_document_id (for bidirectional linking)
+  if (bitcoinAnchorId && docData.id) {
+    const { error: anchorUpdateError } = await supabase
+      .from('anchors')
+      .update({ user_document_id: docData.id })
+      .eq('id', bitcoinAnchorId);
+
+    if (anchorUpdateError) {
+      console.warn('Failed to link anchor to user_document:', anchorUpdateError);
+      // Don't throw - the document was saved successfully
+    } else {
+      console.log(`✅ Linked anchor ${bitcoinAnchorId} to user_document ${docData.id}`);
+    }
+  }
+
   return docData;
 }
 

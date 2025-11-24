@@ -3,10 +3,13 @@
  *
  * This function should be called periodically (e.g., every 5 minutes via cron)
  * to process pending anchor requests
+ *
+ * Enhanced to support user_documents bitcoin_status tracking
  */
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
+import { sendEmail, buildBitcoinConfirmedEmail } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -302,7 +305,9 @@ serve(async (req) => {
         );
 
         if (verification.confirmed) {
-          // Update to confirmed
+          const confirmedAt = new Date().toISOString();
+
+          // Update anchor record
           await supabaseAdmin
             .from('anchors')
             .update({
@@ -310,13 +315,70 @@ serve(async (req) => {
               bitcoin_tx_id: verification.bitcoinTxId,
               bitcoin_block_height: verification.blockHeight,
               ots_proof: verification.upgradedProof || anchor.ots_proof,
-              confirmed_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+              confirmed_at: confirmedAt,
+              updated_at: confirmedAt
             })
             .eq('id', anchor.id);
 
-          // Send notification email if configured
-          if (anchor.user_email && !anchor.notification_sent) {
+          // Update user_documents if this anchor is linked
+          if (anchor.user_document_id) {
+            console.log(`📝 Updating user_documents record ${anchor.user_document_id}`);
+
+            const { data: docUpdate, error: docUpdateError } = await supabaseAdmin
+              .from('user_documents')
+              .update({
+                bitcoin_status: 'confirmed',
+                bitcoin_confirmed_at: confirmedAt,
+                overall_status: 'certified',
+                download_enabled: true,
+                updated_at: confirmedAt
+              })
+              .eq('id', anchor.user_document_id)
+              .eq('bitcoin_anchor_id', anchor.id)
+              .select('id, document_name, user_id')
+              .single();
+
+            if (docUpdateError) {
+              console.error(`❌ Failed to update user_documents: ${docUpdateError.message}`);
+            } else if (docUpdate) {
+              console.log(`✅ Updated user_documents ${docUpdate.id}, download now enabled`);
+
+              // Get user info for email
+              const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(docUpdate.user_id);
+
+              if (!userError && user && user.email && !anchor.notification_sent) {
+                // Send styled email notification
+                const emailPayload = buildBitcoinConfirmedEmail({
+                  ownerEmail: user.email,
+                  ownerName: user.user_metadata?.full_name || user.user_metadata?.name,
+                  documentName: docUpdate.document_name,
+                  documentId: docUpdate.id,
+                  bitcoinTxId: verification.bitcoinTxId,
+                  blockHeight: verification.blockHeight || undefined,
+                  confirmedAt: confirmedAt
+                });
+
+                const emailResult = await sendEmail(emailPayload);
+
+                if (emailResult.success) {
+                  await supabaseAdmin
+                    .from('anchors')
+                    .update({
+                      notification_sent: true,
+                      notification_sent_at: new Date().toISOString()
+                    })
+                    .eq('id', anchor.id);
+
+                  console.log(`📧 Sent Bitcoin confirmation email to ${user.email}`);
+                } else {
+                  console.error(`❌ Failed to send email: ${emailResult.error}`);
+                }
+              }
+            }
+          }
+
+          // Legacy: Send notification email for old anchors table entries
+          if (!anchor.user_document_id && anchor.user_email && !anchor.notification_sent) {
             const emailSent = await sendConfirmationEmail(
               anchor.user_email,
               anchor.document_hash,

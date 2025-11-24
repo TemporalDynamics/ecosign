@@ -12,6 +12,16 @@ const STATUS_CONFIG = {
   expired: { label: "Expirado", color: "text-gray-500", bg: "bg-gray-100" }
 };
 
+const OVERALL_STATUS_CONFIG = {
+  draft: { label: "Borrador", color: "text-gray-600", bg: "bg-gray-100", icon: FileText },
+  pending: { label: "Pendiente", color: "text-yellow-600", bg: "bg-yellow-100", icon: Clock },
+  pending_anchor: { label: "⏳ Anclando en Bitcoin", color: "text-orange-600", bg: "bg-orange-100", icon: Clock },
+  certified: { label: "✓ Certificado", color: "text-green-600", bg: "bg-green-100", icon: CheckCircle },
+  rejected: { label: "Rechazado", color: "text-red-600", bg: "bg-red-100", icon: XCircle },
+  expired: { label: "Expirado", color: "text-gray-500", bg: "bg-gray-100", icon: AlertCircle },
+  revoked: { label: "Revocado", color: "text-red-700", bg: "bg-red-100", icon: XCircle }
+};
+
 function DocumentsPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [documents, setDocuments] = useState([]);
@@ -249,21 +259,31 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {documents.map((doc) => {
-            const statusConfig = STATUS_CONFIG[doc.status] || STATUS_CONFIG.draft;
+            const overallConfig = OVERALL_STATUS_CONFIG[doc.overall_status] || OVERALL_STATUS_CONFIG.draft;
+            const downloadEnabled = doc.download_enabled !== false;
+            const bitcoinPending = doc.bitcoin_status === 'pending';
+
             return (
               <tr key={doc.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                    <div className="text-sm font-medium text-gray-900">{doc.document_name}</div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{doc.document_name}</div>
+                      {bitcoinPending && (
+                        <div className="text-xs text-orange-600 mt-0.5">
+                          Anclaje Bitcoin: 4-24h restantes
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-500 uppercase">{doc.file_type || "PDF"}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusConfig.bg} ${statusConfig.color}`}>
-                    {statusConfig.label}
+                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${overallConfig.bg} ${overallConfig.color}`}>
+                    {overallConfig.label}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -273,7 +293,11 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
                   <button className="text-black hover:text-gray-600 mr-4">
                     <Eye className="h-5 w-5" />
                   </button>
-                  <button className="text-black hover:text-gray-600">
+                  <button
+                    className={`${downloadEnabled ? 'text-black hover:text-gray-600' : 'text-gray-300 cursor-not-allowed'}`}
+                    disabled={!downloadEnabled}
+                    title={!downloadEnabled ? 'Descarga disponible cuando Bitcoin confirme' : 'Descargar .ECO'}
+                  >
                     <Download className="h-5 w-5" />
                   </button>
                 </td>
@@ -310,24 +334,55 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
 
   return (
     <div className="space-y-4">
-      {certifiedDocs.map((doc) => (
-        <div key={doc.id} className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{doc.document_name}</h3>
-              <p className="text-sm text-gray-500 mt-1">Certificado el {formatDate(doc.created_at)}</p>
+      {certifiedDocs.map((doc) => {
+        const downloadEnabled = doc.download_enabled !== false;
+        const bitcoinPending = doc.bitcoin_status === 'pending';
+        const bitcoinConfirmed = doc.bitcoin_status === 'confirmed';
+
+        return (
+          <div key={doc.id} className="bg-white border border-gray-200 rounded-lg p-6">
+            {/* Bitcoin Pending Warning */}
+            {bitcoinPending && (
+              <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <Clock className="h-5 w-5 text-orange-600 mt-0.5 mr-3" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-orange-900">
+                      Anclaje Bitcoin en progreso (4-24 horas)
+                    </h4>
+                    <p className="text-xs text-orange-700 mt-1">
+                      Tu documento está siendo anclado en la blockchain de Bitcoin.
+                      Recibirás un email cuando el certificado .ECO esté listo para descargar.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{doc.document_name}</h3>
+                <p className="text-sm text-gray-500 mt-1">Certificado el {formatDate(doc.created_at)}</p>
+              </div>
+              <div className="flex gap-2">
+                <button className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 text-sm">
+                  <Download className="h-4 w-4 inline mr-2" />
+                  PDF Firmado
+                </button>
+                <button
+                  className={`px-4 py-2 rounded-lg text-sm ${
+                    downloadEnabled
+                      ? 'border border-gray-300 hover:bg-gray-50'
+                      : 'border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
+                  disabled={!downloadEnabled}
+                  title={!downloadEnabled ? 'Disponible cuando Bitcoin confirme' : 'Descargar certificado'}
+                >
+                  <Download className="h-4 w-4 inline mr-2" />
+                  {bitcoinPending ? 'Certificado .ECO (Pendiente)' : 'Certificado .ECO'}
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 text-sm">
-                <Download className="h-4 w-4 inline mr-2" />
-                PDF Firmado
-              </button>
-              <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-                <Download className="h-4 w-4 inline mr-2" />
-                Certificado .ECO
-              </button>
-            </div>
-          </div>
 
           {/* Hash */}
           <div className="mb-4">
@@ -345,31 +400,81 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
             </div>
           </div>
 
-          {/* Blindaje Forense Indicators */}
-          <div className="flex gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              {doc.has_legal_timestamp ? (
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              ) : (
-                <XCircle className="h-5 w-5 text-gray-300" />
-              )}
-              <span className={doc.has_legal_timestamp ? "text-green-600" : "text-gray-400"}>
-                Sello de Tiempo RFC 3161
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {doc.has_bitcoin_anchor ? (
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              ) : (
-                <XCircle className="h-5 w-5 text-gray-300" />
-              )}
-              <span className={doc.has_bitcoin_anchor ? "text-green-600" : "text-gray-400"}>
-                Anclaje Blockchain
-              </span>
+            {/* Anchoring Timeline */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <label className="text-xs font-medium text-gray-500 uppercase mb-3 block">
+                Timeline de Anclajes
+              </label>
+              <div className="space-y-3">
+                {/* RFC 3161 Timestamp */}
+                <div className="flex items-center gap-3">
+                  {doc.has_legal_timestamp ? (
+                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-gray-300 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <div className={`text-sm font-medium ${doc.has_legal_timestamp ? 'text-gray-900' : 'text-gray-400'}`}>
+                      RFC 3161 Legal Timestamp
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {doc.has_legal_timestamp ? 'Certificado por TSA' : 'No solicitado'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Polygon Anchor */}
+                <div className="flex items-center gap-3">
+                  {doc.has_polygon_anchor ? (
+                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-gray-300 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <div className={`text-sm font-medium ${doc.has_polygon_anchor ? 'text-gray-900' : 'text-gray-400'}`}>
+                      Polygon Mainnet
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {doc.has_polygon_anchor ? 'Confirmado en blockchain' : 'No solicitado'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bitcoin Anchor */}
+                <div className="flex items-center gap-3">
+                  {bitcoinConfirmed ? (
+                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                  ) : bitcoinPending ? (
+                    <Clock className="h-5 w-5 text-orange-600 flex-shrink-0 animate-pulse" />
+                  ) : doc.has_bitcoin_anchor ? (
+                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-gray-300 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <div className={`text-sm font-medium ${
+                      bitcoinConfirmed || doc.has_bitcoin_anchor ? 'text-gray-900' :
+                      bitcoinPending ? 'text-orange-600' : 'text-gray-400'
+                    }`}>
+                      Bitcoin Blockchain (OpenTimestamps)
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {bitcoinConfirmed && doc.bitcoin_confirmed_at
+                        ? `Confirmado: ${formatDate(doc.bitcoin_confirmed_at)}`
+                        : bitcoinPending
+                        ? 'Pendiente: 4-24 horas'
+                        : doc.has_bitcoin_anchor
+                        ? 'Confirmado'
+                        : 'No solicitado'
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

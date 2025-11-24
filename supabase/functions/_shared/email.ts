@@ -495,3 +495,174 @@ export function buildDocumentCertifiedEmail(params: {
     html
   };
 }
+
+/**
+ * Template: Bitcoin anchoring confirmed - .ECO file ready for download
+ */
+export function buildBitcoinConfirmedEmail(params: {
+  ownerEmail: string;
+  ownerName?: string;
+  documentName: string;
+  documentId: string;
+  bitcoinTxId?: string;
+  blockHeight?: number;
+  confirmedAt: string;
+}): EmailPayload {
+  const {
+    ownerEmail,
+    ownerName,
+    documentName,
+    documentId,
+    bitcoinTxId,
+    blockHeight,
+    confirmedAt
+  } = params;
+
+  const confirmedDate = new Date(confirmedAt).toLocaleDateString('es-AR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const dashboardUrl = `${Deno.env.get('FRONTEND_URL') || 'https://ecosign.app'}/dashboard`;
+  const explorerUrl = bitcoinTxId
+    ? `https://blockstream.info/tx/${bitcoinTxId}`
+    : null;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anclaje Bitcoin confirmado</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f9fafb;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #111827; padding: 32px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                EcoSign
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Success Banner -->
+          <tr>
+            <td style="background-color: #f59e0b; padding: 20px; text-align: center;">
+              <p style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 500;">
+                ₿ Anclaje en Bitcoin confirmado
+              </p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 32px;">
+              <h2 style="margin: 0 0 16px; color: #111827; font-size: 20px; font-weight: 600;">
+                ${ownerName ? `Hola ${ownerName}` : 'Hola'}, tu certificado .ECO está listo
+              </h2>
+
+              <p style="margin: 0 0 24px; color: #4b5563; font-size: 16px; line-height: 1.5;">
+                El documento <strong>"${documentName}"</strong> fue anclado exitosamente en la blockchain de Bitcoin. Tu certificado .ECO ya está disponible para descargar.
+              </p>
+
+              <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin-bottom: 24px;">
+                <p style="margin: 0; color: #374151; font-size: 14px;">
+                  <strong>📄 Documento:</strong> ${documentName}
+                </p>
+                <p style="margin: 8px 0 0; color: #374151; font-size: 14px;">
+                  <strong>🕐 Confirmado el:</strong> ${confirmedDate}
+                </p>
+                ${blockHeight ? `
+                <p style="margin: 8px 0 0; color: #374151; font-size: 14px;">
+                  <strong>⛓️ Bloque Bitcoin:</strong> ${blockHeight}
+                </p>
+                ` : ''}
+                ${bitcoinTxId ? `
+                <p style="margin: 8px 0 0; color: #374151; font-size: 14px;">
+                  <strong>🔗 Transaction ID:</strong> <code style="font-size: 11px;">${bitcoinTxId}</code>
+                </p>
+                ` : ''}
+              </div>
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                <tr>
+                  <td align="center">
+                    <a href="${dashboardUrl}" style="display: inline-block; background-color: #f59e0b; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: 500;">
+                      Descargar certificado .ECO
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0 0 12px; color: #6b7280; font-size: 14px; line-height: 1.5;">
+                Tu certificado .ECO ahora incluye:
+              </p>
+              <ul style="margin: 0 0 24px; padding-left: 20px; color: #6b7280; font-size: 14px; line-height: 1.7;">
+                <li>✅ Firma digital certificada</li>
+                <li>✅ Timestamp legal RFC 3161</li>
+                <li>✅ Anclaje en Polygon blockchain</li>
+                <li>✅ Anclaje en Bitcoin blockchain (OpenTimestamps)</li>
+              </ul>
+
+              <div style="background-color: #ecfdf5; border: 1px solid #10b981; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+                <p style="margin: 0; color: #065f46; font-size: 13px; line-height: 1.5;">
+                  <strong>🔒 Máxima Seguridad:</strong> Tu documento ahora tiene una prueba criptográfica inmutable registrada en la blockchain de Bitcoin, la red más segura del mundo.
+                </p>
+              </div>
+
+              ${explorerUrl ? `
+              <div style="background-color: #f3f4f6; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+                <p style="margin: 0 0 8px; color: #374151; font-size: 13px;">
+                  <strong>🔍 Verificar en Bitcoin Explorer:</strong>
+                </p>
+                <p style="margin: 0; font-size: 12px;">
+                  <a href="${explorerUrl}" style="color: #3b82f6; text-decoration: underline; word-break: break-all;">${explorerUrl}</a>
+                </p>
+              </div>
+              ` : ''}
+
+              <div style="background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 16px;">
+                <p style="margin: 0 0 8px; color: #92400e; font-size: 13px; line-height: 1.5;">
+                  <strong>⏱️ Tiempo de procesamiento:</strong> El anclaje en Bitcoin requiere confirmación de la red y puede tomar entre 4-24 horas. Tu documento ya fue confirmado exitosamente.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f9fafb; padding: 24px 32px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 8px; color: #6b7280; font-size: 12px;">
+                Este email fue enviado desde <strong>EcoSign</strong>
+              </p>
+              <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                Certificación y firma digital con blockchain
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  return {
+    from: 'EcoSign <no-reply@verifysign.pro>',
+    to: ownerEmail,
+    subject: `₿ Tu certificado con Bitcoin está listo: ${documentName}`,
+    html
+  };
+}

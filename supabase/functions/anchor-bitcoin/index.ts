@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
 type AnchorRequest = {
   documentHash: string;
   documentId?: string | null;
+  userDocumentId?: string | null;
   userId?: string | null;
   userEmail?: string | null;
   metadata?: Record<string, unknown>;
@@ -54,7 +55,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json() as AnchorRequest;
-    const { documentHash, documentId = null, userId = null, userEmail = null, metadata = {} } = body;
+    const { documentHash, documentId = null, userDocumentId = null, userId = null, userEmail = null, metadata = {} } = body;
 
     if (!documentHash || typeof documentHash !== 'string') {
       return jsonResponse({ error: 'documentHash is required' }, 400);
@@ -74,6 +75,7 @@ serve(async (req) => {
       .insert({
         document_hash: documentHash,
         document_id: documentId,
+        user_document_id: userDocumentId,
         user_id: userId,
         user_email: userEmail,
         anchor_type: 'opentimestamps',

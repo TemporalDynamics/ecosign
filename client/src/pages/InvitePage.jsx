@@ -321,9 +321,9 @@ export default function InvitePage() {
                 Ver Documento PDF
               </button>
 
-              {invite.role === 'signer' && (
+              {invite.role === 'signer' && invite.invite?.signerLinkId && (
                 <button
-                  onClick={() => toast.info('Funcionalidad de firma próximamente', { duration: 3000 })}
+                  onClick={() => navigate(`/sign/${invite.invite.signerLinkId}`)}
                   className="flex-1 px-6 py-3 border border-black text-black rounded-lg hover:bg-gray-50 flex items-center justify-center"
                 >
                   <Shield className="h-5 w-5 mr-2" />

@@ -126,16 +126,20 @@ function NdaAccessPage() {
     }
   };
 
-  const handleDownload = () => {
-    // Log download event
-    supabase.functions.invoke('verify-access', {
-      body: { token, event_type: 'download' }
-    }).catch(console.error);
+  const handleDownload = async () => {
+    try {
+      // Log download event
+      await supabase.functions.invoke('verify-access', {
+        body: { token, event_type: 'download' }
+      });
 
-    // TODO: Implementar descarga real del documento
-    toast.info('Funcionalidad de descarga próximamente. El sistema registró tu acción.', {
-      duration: 5000
-    });
+      toast.success('Descarga registrada correctamente. Contacta al remitente para obtener el archivo.', {
+        duration: 6000
+      });
+    } catch (error) {
+      console.error('Error logging download:', error);
+      toast.error('Error al registrar la descarga');
+    }
   };
 
   if (loading) {

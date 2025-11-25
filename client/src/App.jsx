@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 import DashboardStartPage from './pages/DashboardStartPage';
 import DashboardVerifyPage from './pages/DashboardVerifyPage';
 import DashboardPricingPage from './pages/DashboardPricingPage';
@@ -28,6 +28,10 @@ import QuickGuidePage from './pages/QuickGuidePage';
 import FAQPage from './pages/FAQPage';
 import UseCasesPage from './pages/UseCasesPage';
 import ServiceStatusPage from './pages/ServiceStatusPage';
+import RealtorsPage from './pages/RealtorsPage';
+import LawyersPage from './pages/LawyersPage';
+import BusinessPage from './pages/BusinessPage';
+import ComparisonPage from './pages/ComparisonPage';
 import VideosPage from './pages/VideosPage';
 import HelpCenterPage from './pages/HelpCenterPage';
 import VideoLibraryPage from './pages/VideoLibraryPage';
@@ -50,7 +54,8 @@ function AppRoutes() {
   return (
     <>
       <ScrollToTop />
-      <Routes>
+      <main id="main-content">
+        <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -62,6 +67,12 @@ function AppRoutes() {
         <Route path="/nda/:token" element={<NdaAccessPage />} />
         <Route path="/sign/:token" element={<SignDocumentPage />} />
         <Route path="/invite/:token" element={<InvitePage />} />
+
+        {/* New specialized pages */}
+        <Route path="/realtors" element={<RealtorsPage />} />
+        <Route path="/abogados" element={<LawyersPage />} />
+        <Route path="/business" element={<BusinessPage />} />
+        <Route path="/comparison" element={<ComparisonPage />} />
 
         {/* Legal and Support routes */}
         <Route path="/terms" element={<TermsPage />} />
@@ -84,7 +95,9 @@ function AppRoutes() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <Suspense fallback={<div>Cargando Dashboard...</div>}>
+                <DashboardPage />
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -254,6 +267,7 @@ function AppRoutes() {
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </main>
 
       {/* Global Floating Video Player - persists across pages */}
       {videoState.isPlaying && videoState.videoSrc && (

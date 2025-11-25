@@ -176,7 +176,7 @@ const CertificationFlow = ({ onClose }) => {
     <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
         <h3 className="text-2xl font-bold text-gray-900">Certificar documento</h3>
-        <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        <button onClick={handleClose} aria-label="Close" className="text-gray-400 hover:text-gray-600">✕</button>
       </div>
 
       <div className="px-6 py-6">

@@ -122,12 +122,14 @@ CREATE INDEX IF NOT EXISTS idx_invites_pending
 ALTER TABLE public.invites ENABLE ROW LEVEL SECURITY;
 
 -- Users can view invites they created
+DROP POLICY IF EXISTS "Users can view their sent invites" ON public.invites;
 CREATE POLICY "Users can view their sent invites"
   ON public.invites
   FOR SELECT
   USING (auth.uid() = invited_by);
 
 -- Users can create invites for their documents
+DROP POLICY IF EXISTS "Users can create invites for their documents" ON public.invites;
 CREATE POLICY "Users can create invites for their documents"
   ON public.invites
   FOR INSERT
@@ -140,6 +142,7 @@ CREATE POLICY "Users can create invites for their documents"
   );
 
 -- Users can revoke invites they created
+DROP POLICY IF EXISTS "Users can revoke their invites" ON public.invites;
 CREATE POLICY "Users can revoke their invites"
   ON public.invites
   FOR UPDATE
@@ -147,6 +150,7 @@ CREATE POLICY "Users can revoke their invites"
   WITH CHECK (auth.uid() = invited_by);
 
 -- Invitees can view their invites (by email)
+DROP POLICY IF EXISTS "Invitees can view their invites" ON public.invites;
 CREATE POLICY "Invitees can view their invites"
   ON public.invites
   FOR SELECT
@@ -154,7 +158,8 @@ CREATE POLICY "Invitees can view their invites"
     email = (SELECT email FROM auth.users WHERE id = auth.uid())
   );
 
--- Invitees can update their acceptance status
+-- Invitees can accept invites
+DROP POLICY IF EXISTS "Invitees can accept invites" ON public.invites;
 CREATE POLICY "Invitees can accept invites"
   ON public.invites
   FOR UPDATE
@@ -203,6 +208,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_invites_updated_at ON public.invites;
 CREATE TRIGGER trigger_update_invites_updated_at
   BEFORE UPDATE ON public.invites
   FOR EACH ROW

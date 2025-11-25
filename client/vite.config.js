@@ -39,9 +39,22 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true
     },
+    // Enable sourcemaps for production debugging
+    sourcemap: true,
+    // Use Terser for more aggressive minification
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+      mangle: true,
+    },
     rollupOptions: {
       output: {
-        // Disable code splitting for eco-packer to avoid polyfill issues
+        // Code splitting is intentionally disabled due to polyfill issues
+        // with the eco-packer library. Do not enable manualChunks without
+        // thorough testing.
         manualChunks: undefined
       }
     }

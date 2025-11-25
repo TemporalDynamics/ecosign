@@ -78,7 +78,7 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }) {
             <p className="text-xs text-gray-500">{documentTitle}</p>
           </div>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600">✕</button>
       </div>
 
       {!generatedLink ? (

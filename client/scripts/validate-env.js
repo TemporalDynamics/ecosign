@@ -5,9 +5,6 @@
  * Fails CI/CD if configuration is invalid
  */
 
-const fs = require('fs');
-const path = require('path');
-
 // Colors for terminal output
 const colors = {
   reset: '\x1b[0m',

@@ -1,6 +1,5 @@
 {
-  "buildCommand": "npm install && cd eco-packer && npm run build && cd ../client && npm install && npm run build",
+  "buildCommand": "npm run vercel-build",
   "outputDirectory": "client/dist",
-  "installCommand": "npm install",
-  "framework": null
+  "installCommand": "npm install"
 }

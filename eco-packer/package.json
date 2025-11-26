@@ -19,13 +19,12 @@
   },
   "scripts": {
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "build": "npm install && npm run clean && tsc",
+    "build": "npm run clean && tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src/**/*.ts",
-    "prepare": "npm run build"
+    "lint": "eslint src/**/*.ts"
   },
   "keywords": [
     "eco",

@@ -1,35 +1,6 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "client/package.json",
-      "use": "@vercel/static-build"
-    },
-    {
-      "src": "supabase/functions/**/*.ts",
-      "use": "@vercel/deno"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "headers": {
-        "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "X-Frame-Options": "DENY"
-      },
-      "continue": true
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "supabase/functions/$1/index.ts"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+  "buildCommand": "npm install && cd eco-packer && npm run build && cd ../client && npm install && npm run build",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm install",
+  "framework": null
 }

@@ -203,46 +203,73 @@ function VerifyPage() {
       </nav>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12">
-        {/* Header */}
-        <div className="text-center mb-12">
+        {/* Hero */}
+        <div className="text-center mb-16">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-full mb-6">
             <Search className="w-8 h-8 text-white" strokeWidth={2.5} />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Verificador Público .ECO</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Verificador</h1>
           <p className="text-xl text-gray-700 max-w-2xl mx-auto">
-            Verifica la autenticidad e integridad de cualquier documento certificado con EcoSign.
-            Sin registro, sin pagos, sin barreras.
+            Comprobá en segundos si tu certificado es auténtico.
+          </p>
+          <p className="text-lg text-gray-600 max-w-xl mx-auto mt-3">
+            Todo ocurre en tu ordenador. Tu archivo nunca se sube.
           </p>
         </div>
 
-        {/* Transparency Notice */}
-        <div className="bg-gray-100 border border-gray-200 rounded-xl p-6 mb-8">
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0">
-              <Shield className="w-6 h-6 text-black" strokeWidth={2.5} />
+        {/* Verificador Estándar (Gratis) */}
+        <div className="bg-white rounded-xl p-8 border-2 border-gray-200 mb-12">
+          <h2 className="text-3xl font-bold text-black mb-2 text-center">Verificador estándar (gratis)</h2>
+          <p className="text-gray-700 mb-6 text-center">Herramienta pública y gratuita</p>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            <div>
+              <h3 className="font-semibold text-black mb-3">Lo que hace:</h3>
+              <ul className="space-y-2">
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Revisa que el archivo .ECO esté bien formado.</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Valida quien, cuando y el por siempre básicos.</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Muestra la cadena de firmas y operaciones.</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Comprueba la integridad del documento frente al certificado.</span>
+                </li>
+              </ul>
             </div>
             <div>
-              <h3 className="text-black font-semibold mb-2">Verificación Independiente y Transparente</h3>
-              <p className="text-gray-700 text-sm">
-                Esta herramienta valida la firma electrónica, huella digital y sello de tiempo del documento.
-                La verificación se realiza localmente en tu navegador - el archivo nunca se guarda en nuestros servidores.
-                Para máxima confianza, puedes verificar la constancia pública de forma independiente.
+              <h3 className="font-semibold text-black mb-3">Ideal para:</h3>
+              <p className="text-gray-700">
+                Usuarios finales, validaciones simples, auditorías rápidas y uso público.
+                Lo que la mayoría necesita, sin costo.
               </p>
             </div>
           </div>
-        </div>
 
-        {/* Upload Area */}
-        <div className="bg-white rounded-xl p-8 border-2 border-gray-200 mb-8">
-          <h2 className="text-2xl font-bold text-black mb-6 text-center">Carga ambos archivos para verificar</h2>
-          
+          <div className="bg-gray-100 border border-gray-200 rounded-xl p-6 mb-6">
+            <h3 className="text-black font-semibold mb-3">Transparencia de la verificación</h3>
+            <p className="text-gray-700 text-sm">
+              Esta herramienta valida la firma electrónica, huella digital y sello de tiempo del documento.
+              La verificación se realiza localmente en tu navegador - el archivo nunca se guarda en nuestros servidores.
+            </p>
+          </div>
+
+          <h3 className="text-xl font-bold text-black mb-4 text-center">Carga ambos archivos para verificar</h3>
+
           <div className="grid md:grid-cols-2 gap-6">
             {/* .ECO File Upload */}
             <div
               className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
                 dragging
                   ? 'border-[#0E4B8B] bg-blue-50'
-                  : file 
+                  : file
                   ? 'border-green-500 bg-green-50'
                   : 'border-gray-300 hover:border-[#0E4B8B] bg-white'
               }`}
@@ -259,7 +286,7 @@ function VerifyPage() {
                   <Shield className="w-7 h-7 text-white" strokeWidth={2.5} />
                 )}
               </div>
-              
+
               <h3 className="text-lg font-semibold text-black mb-2">
                 Certificado .ECO
               </h3>
@@ -267,8 +294,8 @@ function VerifyPage() {
 
               <label htmlFor="file-upload" className="cursor-pointer">
                 <span className={`font-semibold px-6 py-2.5 rounded-lg inline-block transition duration-300 text-sm ${
-                  file 
-                    ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  file
+                    ? 'bg-green-500 hover:bg-green-600 text-white'
                     : 'bg-[#0E4B8B] hover:bg-[#0A66C2] text-white'
                 }`}>
                   {file ? 'Cambiar .ECO' : 'Seleccionar .ECO'}
@@ -297,7 +324,7 @@ function VerifyPage() {
 
             {/* PDF File Upload */}
             <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
-              originalFile 
+              originalFile
                 ? 'border-green-500 bg-green-50'
                 : file 
                 ? 'border-gray-300 hover:border-[#0E4B8B] bg-white'
@@ -422,7 +449,63 @@ function VerifyPage() {
           </>
         )}
 
-        {/* Info Section */}
+        {/* Verificador forense PRO */}
+        <div className="bg-blue-50 rounded-xl p-8 border-2 border-[#0E4B8B] mb-12">
+          <h2 className="text-3xl font-bold text-black mb-2 text-center">Verificador forense PRO</h2>
+          <p className="text-gray-700 mb-4 text-center">Auditoría avanzada para equipos legales, forenses y compliance</p>
+          <p className="text-gray-700 mb-6 text-center italic">Todo lo que hace el verificador estándar, más análisis profundo de cadena de custodia y reportes listos para juicio.</p>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-6">
+            <div>
+              <h3 className="font-semibold text-black mb-3">Análisis avanzado:</h3>
+              <ul className="space-y-2">
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Reconstrucción completa de la cadena de custodia.</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Análisis de contexto de firmas y eventos de riesgo.</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Reportes forenses listos para litigio (PDF / JSON / XML).</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Validación multi-anclaje (TSA, blockchain, keeper, redundancias).</span>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-black mb-3">Integración y soporte:</h3>
+              <ul className="space-y-2">
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Integración con sistemas internos (API, plugins, CRMs, DMS).</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
+                  <span>Actualizaciones y soporte alineados a normativa vigente.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-gray-700 mb-4">
+              Pensado para instituciones, gobiernos, estudios jurídicos y empresas que necesitan algo más que "sí / no".
+              Disponible bajo licencia profesional.
+            </p>
+            <Link
+              to="/contact"
+              className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg transition duration-300"
+            >
+              Solicitar acceso PRO
+            </Link>
+          </div>
+        </div>
+
         {/* Info Section */}
         <div className="mt-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-8 border border-gray-200">
           <h3 className="text-2xl font-bold text-gray-900 mb-6">¿Qué verifica esta herramienta?</h3>

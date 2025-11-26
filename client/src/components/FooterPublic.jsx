@@ -14,7 +14,9 @@ export default function FooterPublic() {
             <h4 className="font-semibold text-white mb-3">Producto</h4>
             <ul className="space-y-2 text-sm text-gray-400">
               <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</Link></li>
+              <li><Link to="/comparison" className="hover:text-[#0E4B8B] hover:underline transition">EcoSign y LegalSign</Link></li>
               <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
+              <li><Link to="/quick-guide" className="hover:text-[#0E4B8B] hover:underline transition">Guía rápida</Link></li>
               <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificar .ECO</Link></li>
               <li><Link to="/login" className="hover:text-[#0E4B8B] hover:underline transition">Comenzar Gratis</Link></li>
             </ul>
@@ -24,8 +26,10 @@ export default function FooterPublic() {
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Recursos</h4>
             <ul className="space-y-2 text-sm text-gray-400">
+              <li><Link to="/realtors" className="hover:text-[#0E4B8B] hover:underline transition">EcoSign para Inmuebles</Link></li>
+              <li><Link to="/abogados" className="hover:text-[#0E4B8B] hover:underline transition">EcoSign para Abogados</Link></li>
+              <li><Link to="/business" className="hover:text-[#0E4B8B] hover:underline transition">EcoSign para Empresas</Link></li>
               <li><Link to="/documentation" className="hover:text-[#0E4B8B] hover:underline transition">Documentación técnica</Link></li>
-              <li><Link to="/quick-guide" className="hover:text-[#0E4B8B] hover:underline transition">Guía rápida</Link></li>
               <li><Link to="/faq" className="hover:text-[#0E4B8B] hover:underline transition">Preguntas frecuentes</Link></li>
               <li><Link to="/use-cases" className="hover:text-[#0E4B8B] hover:underline transition">Casos de uso</Link></li>
             </ul>

@@ -789,6 +789,12 @@ const CertificationModal = ({ isOpen, onClose }) => {
                                     onClick={async () => {
                                       if (!file) return;
 
+                                      // Validar que el archivo sea un PDF
+                                      if (file.type !== 'application/pdf') {
+                                        toast.error('Solo se puede aplicar firma a archivos PDF. Por favor, seleccioná un archivo PDF.');
+                                        return;
+                                      }
+
                                       try {
                                         let signatureData = null;
 
@@ -833,9 +839,11 @@ const CertificationModal = ({ isOpen, onClose }) => {
                                         setShowSignatureOnPreview(false);
                                         setSignatureMode('canvas');
                                         setSignatureTab('draw');
+
+                                        toast.success('Firma aplicada exitosamente al PDF');
                                       } catch (error) {
                                         console.error('Error al aplicar firma:', error);
-                                        toast.error('Error al aplicar la firma al PDF. Por favor, inténtalo de nuevo.');
+                                        toast.error('Error al aplicar la firma al PDF. Verificá que el archivo sea un PDF válido.');
                                       }
                                     }}
                                     className="flex-1 py-2 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"

@@ -110,7 +110,7 @@ function LoginPage() {
                 Cómo funciona
               </Link>
               <Link to="/verify" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Verificar
+                Verificador
               </Link>
               <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Precios
@@ -139,7 +139,7 @@ function LoginPage() {
           <div className="md:hidden bg-white border-t border-gray-200">
             <div className="px-4 pt-2 pb-4 space-y-2">
               <Link to="/how-it-works" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Cómo funciona</Link>
-              <Link to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificar</Link>
+              <Link to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificador</Link>
               <Link to="/pricing" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Precios</Link>
               <Link to="/login" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Iniciar Sesión</Link>
               <Link

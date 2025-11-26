@@ -34,7 +34,7 @@ const LandingPage = () => {
                 Cómo funciona
               </Link>
               <Link to="/verify" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Verificar
+                Verificador
               </Link>
               <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
                 Precios
@@ -63,7 +63,7 @@ const LandingPage = () => {
           <div className="md:hidden bg-white">
             <div className="px-4 pt-2 pb-4 space-y-2">
               <Link to="/how-it-works" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Cómo funciona</Link>
-              <Link to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificar</Link>
+              <Link to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificador</Link>
               <Link to="/pricing" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Precios</Link>
               <Link to="/login" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Iniciar Sesión</Link>
               <Link
@@ -83,9 +83,13 @@ const LandingPage = () => {
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
             No vendemos firmas.<br />Vendemos certeza.
           </h1>
-          <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
+          <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed">
             Tu archivo nunca se expone. Tu evidencia siempre se puede verificar.
           </p>
+          <div className="text-lg md:text-xl text-gray-700 max-w-4xl mx-auto mb-8 leading-relaxed bg-blue-50 py-4 px-6 rounded-lg">
+            <p className="font-semibold">Firmá sin exponer tu archivo.</p>
+            <p className="mt-1">Cerrá acuerdos en minutos, no días.</p>
+          </div>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 mb-8">
             <Link
@@ -301,7 +305,7 @@ const LandingPage = () => {
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 1 GB almacenamiento</li>
                 <li>✓ 3 Docs EcoSign/mes</li>
-                <li>✓ Firma Legal: Pago por uso</li>
+                <li>✓ LegalSign: $2.50 x firma</li>
               </ul>
             </div>
 
@@ -316,13 +320,13 @@ const LandingPage = () => {
                 <span className="text-4xl font-bold text-black">$15</span>
                 <span className="text-lg text-gray-600"> USD</span>
               </div>
-              <p className="text-xs text-gray-500 mb-4 line-through">Valor real: $39 USD</p>
+              <p className="text-xs text-gray-500 mb-4 line-through">Valor real: $40 USD</p>
               <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
                 <li>✓ 2 Usuarios</li>
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 5 GB almacenamiento</li>
                 <li>✓ 100 Docs EcoSign/mes</li>
-                <li>✓ 20 Firmas Legales/mes</li>
+                <li>✓ 20 LegalSign/mes</li>
               </ul>
               <div className="text-center pt-4 mt-auto">
                 <div className="inline-block bg-[#0E4B8B]/[0.12] text-[#0E4B8B] font-medium text-xs px-3 py-1 rounded-md">
@@ -345,7 +349,7 @@ const LandingPage = () => {
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 25 GB almacenamiento</li>
                 <li>✓ EcoSign ILIMITADAS</li>
-                <li>✓ 100 Firmas Legales/mes</li>
+                <li>✓ 100 LegalSign/mes</li>
                 <li>✓ Panel de Auditoría</li>
                 <li>✓ API Limitado</li>
               </ul>
@@ -361,7 +365,7 @@ const LandingPage = () => {
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ Almacenamiento custom</li>
                 <li>✓ EcoSign ILIMITADAS</li>
-                <li>✓ Firmas Legales custom</li>
+                <li>✓ LegalSign custom</li>
                 <li>✓ Panel de Auditoría</li>
                 <li>✓ API Completo</li>
               </ul>

@@ -16,58 +16,23 @@ function DashboardPricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            FREE es ideal para empezar sin costos.
+            La diferencia principal es el volumen de Firmas Legales incluidas y el nivel de herramientas de Auditoría Avanzada.
           </p>
           <p className="text-gray-700 leading-relaxed mt-2">
-            PRO está pensado para profesionales y PyMEs que firman con regularidad.
-          </p>
-          <p className="text-gray-700 leading-relaxed mt-2">
-            BUSINESS está hecho para equipos que necesitan más usuarios, auditoría avanzada y API.
+            El plan BUSINESS te ofrece Firmas EcoSign (Forense) Ilimitadas, mientras que el PRO está pensado para un uso profesional de bajo volumen.
           </p>
         </>
       )
     },
     {
-      question: "¿Qué incluye la promoción de lanzamiento?",
+      question: "¿Si tengo el plan FREE o agoto mi límite, puedo comprar firmas sin subir de plan?",
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Los primeros 10.000 usuarios mantienen su precio de por vida mientras no cambien de plan.
+            Sí. Podés comprar paquetes de Firmas Legales cuando los necesitás. No te forzamos a subir de plan.
           </p>
           <p className="text-gray-700 leading-relaxed mt-2">
-            PRO: valor real $40 → $15 USD
-          </p>
-          <p className="text-gray-700 leading-relaxed">
-            BUSINESS: valor real $89 → $49 USD
-          </p>
-          <p className="text-gray-700 leading-relaxed mt-2">
-            Es una ventaja permanente para quienes se suman en esta etapa.
-          </p>
-        </>
-      )
-    },
-    {
-      question: "Si tengo el plan FREE, ¿puedo comprar firmas sin suscribirme?",
-      answer: (
-        <p className="text-gray-700 leading-relaxed">
-          Sí. Podés comprar paquetes cuando los necesitás. No te forzamos a subir de plan. Elegís según tu uso real.
-        </p>
-      )
-    },
-    {
-      question: "¿Me conviene comprar paquetes o pasarme a PRO/BUSINESS?",
-      answer: (
-        <>
-          <p className="text-gray-700 leading-relaxed">
-            Depende de tu volumen:
-          </p>
-          <ul className="text-gray-700 leading-relaxed mt-2 space-y-1 ml-4">
-            <li>• Hasta 10 firmas legales/mes → FREE + paquetes</li>
-            <li>• 10–20 firmas legales/mes → PRO conviene mucho más</li>
-            <li>• Equipos o múltiples usuarios → BUSINESS directamente</li>
-          </ul>
-          <p className="text-gray-700 leading-relaxed mt-2">
-            La plataforma no empuja upgrades. Te mostramos lo que realmente te conviene.
+            El costo de la firma adicional depende de tu plan desde $0.99 USD a $2.50 USD por unidad.
           </p>
         </>
       )
@@ -75,41 +40,9 @@ function DashboardPricingPage() {
     {
       question: "¿Qué pasa si un mes no uso todas mis firmas legales?",
       answer: (
-        <p className="text-gray-700 leading-relaxed">
-          Se acumulan por 60 días. Las ves reflejadas en tu panel y nunca se pierden sin aviso.
-        </p>
-      )
-    },
-    {
-      question: "¿Puedo cambiar de plan en cualquier momento?",
-      answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Sí, y es simple:
-          </p>
-          <ul className="text-gray-700 leading-relaxed mt-2 space-y-1 ml-4">
-            <li>• Si ya pagaste tu plan actual, solo abonás la diferencia para subir de plan.</li>
-            <li>• Tu ciclo de facturación no cambia.</li>
-            <li>• Tus firmas disponibles mantienen sus 60 días aunque cambie el plan.</li>
-          </ul>
-          <p className="text-gray-700 leading-relaxed mt-2">
-            Sin confusiones, sin recargos ocultos.
-          </p>
-        </>
-      )
-    },
-    {
-      question: "¿Puedo pedir un reembolso si no estoy conforme?",
-      answer: (
-        <>
-          <p className="text-gray-700 leading-relaxed">
-            Sí. Aunque es raro que ocurra, si no estás satisfecho podés solicitar un reembolso desde tu panel o escribiendo a soporte.
-          </p>
-          <p className="text-gray-700 leading-relaxed mt-2">
-            Un ejecutivo de cuentas te contactará rápidamente para confirmar el proceso. La devolución depende del método de pago externo (Stripe u otros), pero te mantenemos informado en todo momento y no demoramos ninguna aprobación de nuestra parte.
-          </p>
-          <p className="text-gray-700 leading-relaxed mt-2">
-            Tu tranquilidad es prioridad.
+            Se acumulan automáticamente por 60 días para que puedas utilizarlas en los meses de mayor demanda.
           </p>
         </>
       )
@@ -117,25 +50,31 @@ function DashboardPricingPage() {
     {
       question: "¿Hay cargos ocultos o facturación inesperada?",
       answer: (
-        <p className="text-gray-700 leading-relaxed">
-          No. No tenemos excedentes automáticos ni sorpresas. Si estás por llegar a un límite, la plataforma te avisa antes.
-        </p>
+        <>
+          <p className="text-gray-700 leading-relaxed">
+            No. Nuestra promesa de transparencia es total. El sistema requiere tu confirmación para procesar cualquier firma adicional fuera del límite del plan.
+          </p>
+        </>
       )
     },
     {
-      question: "¿Cómo funciona la cancelación?",
+      question: "¿Puedo cambiar de plan en cualquier momento?",
       answer: (
-        <p className="text-gray-700 leading-relaxed">
-          Podés cancelar cuando quieras. Tu cuenta queda activa hasta el final del período ya pagado.
-        </p>
+        <>
+          <p className="text-gray-700 leading-relaxed">
+            Sí. Podés subir, bajar o cancelar tu plan en cualquier momento desde el panel de usuario.
+          </p>
+        </>
       )
     },
     {
-      question: "¿Dónde puedo contactarlos si tengo dudas?",
+      question: "¿Te quedaron dudas?",
       answer: (
-        <p className="text-gray-700 leading-relaxed">
-          Escribinos a support@ecosign.app. Respondemos en forma clara y humana —sin bots genéricos.
-        </p>
+        <>
+          <p className="text-gray-700 leading-relaxed">
+            Puedes contactarnos a support@ecosign.app
+          </p>
+        </>
       )
     }
   ];
@@ -152,7 +91,7 @@ function DashboardPricingPage() {
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '1 GB' },
         { text: 'Firma EcoSign', value: '3 por mes' },
-        { text: 'Firma Legal', value: 'Pago por uso' },
+        { text: 'LegalSign', value: '$2.50 USD x firma' },
         { text: 'Blindaje Forense', value: 'Básico' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -172,7 +111,7 @@ function DashboardPricingPage() {
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '5 GB' },
         { text: 'Firma EcoSign', value: '100 por mes' },
-        { text: 'Firma Legal', value: '20 por mes' },
+        { text: 'LegalSign', value: '20 por mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -192,7 +131,7 @@ function DashboardPricingPage() {
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '25 GB' },
         { text: 'Firma EcoSign', value: 'ILIMITADAS' },
-        { text: 'Firma Legal', value: '100 por mes' },
+        { text: 'LegalSign', value: '100 por mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Limitado' }
@@ -210,7 +149,7 @@ function DashboardPricingPage() {
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: 'Personalizado' },
         { text: 'Firma EcoSign', value: 'ILIMITADAS' },
-        { text: 'Firma Legal', value: 'Personalizado' },
+        { text: 'LegalSign', value: 'Personalizado' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Completo' }
@@ -341,9 +280,12 @@ function DashboardPricingPage() {
         {/* Beneficio Founders */}
         <div className="max-w-4xl mx-auto px-4 py-24">
           <h2 className="text-4xl font-bold text-center mb-6">Beneficio Founders</h2>
-          <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-12">
-            Los primeros 10.000 usuarios mantienen su precio de por vida<br />
+          <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-6">
+            Los primeros usuarios mantienen su precio de por vida<br />
             mientras continúen en su plan.
+          </p>
+          <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-12">
+            <em>Recibirás por correo tu Batch Founder, indicando tu número de usuario inicial.</em>
           </p>
         </div>
 

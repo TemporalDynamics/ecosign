@@ -56,13 +56,10 @@ serve(async (req) => {
 
     console.log('TX sent:', tx.hash)
 
-    // Wait for confirmation
-    const receipt = await tx.wait(1)
-
-    console.log('Confirmed at block:', receipt.blockNumber)
-
-    // Get block timestamp
-    const block = await provider.getBlock(receipt.blockNumber)
+    // Return immediately without waiting for confirmation
+    // The transaction will be mined in the background
+    // We'll save it as 'pending' and update later
+    const txHash = tx.hash
 
     // Save to database
     const supabase = createClient(
@@ -73,26 +70,21 @@ serve(async (req) => {
     await supabase.from('anchors').insert({
       document_hash: documentHash,
       anchor_type: 'polygon',
-      anchor_status: 'confirmed',
-      confirmed_at: new Date().toISOString(),
+      anchor_status: 'pending',
       metadata: {
-        txHash: receipt.hash,
-        blockNumber: receipt.blockNumber,
-        blockHash: receipt.blockHash,
-        blockTimestamp: block?.timestamp,
-        gasUsed: receipt.gasUsed.toString(),
+        txHash,
         sponsorAddress,
-        network: 'polygon-mainnet'
+        network: 'polygon-mainnet',
+        submittedAt: new Date().toISOString()
       }
     })
 
     return new Response(JSON.stringify({
       success: true,
-      txHash: receipt.hash,
-      blockNumber: receipt.blockNumber,
-      blockTimestamp: block?.timestamp,
-      explorerUrl: `https://polygonscan.com/tx/${receipt.hash}`,
-      gasUsed: receipt.gasUsed.toString(),
+      status: 'pending',
+      txHash,
+      message: 'Transaction submitted to Polygon. It will be confirmed in ~30-60 seconds.',
+      explorerUrl: `https://polygonscan.com/tx/${txHash}`,
       sponsorAddress
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -17,6 +17,9 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabaseClient'
 import { useEcoxLogger } from '@/hooks/useEcoxLogger'
+import { applySignatureToPDF } from '@/utils/pdfSigner'
+import { decryptFile } from '@/utils/encryption'
+import { encryptFile, generateEncryptionKey } from '@/utils/encryption'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 
 // Step components
@@ -237,7 +240,77 @@ export default function SignWorkflowPage() {
         }
       })
 
-      // Update signer status to 'signed'
+      // Step 1: Download the encrypted PDF from storage
+      console.log('📄 Downloading encrypted PDF from storage...')
+      const { data: downloadData, error: downloadError } = await supabase.storage
+        .from('documents')
+        .download(signerData.workflow.document_path)
+
+      if (downloadError || !downloadData) {
+        throw new Error('No se pudo descargar el documento')
+      }
+
+      // Step 2: Decrypt the PDF in the browser
+      console.log('🔓 Decrypting PDF in browser...')
+      const decryptedPdfBlob = await decryptFile(
+        downloadData,
+        signerData.workflow.encryption_key
+      )
+
+      // Step 3: Apply signature to PDF using pdf-lib (in browser)
+      console.log('✍️ Applying signature to PDF...')
+      const { signedPdfBlob, signedPdfHash } = await applySignatureToPDF(
+        decryptedPdfBlob,
+        {
+          dataUrl: signatureData.dataUrl,
+          type: signatureData.type,
+          signerName: signerData.name || signerData.email,
+          signedAt: new Date().toISOString()
+        }
+      )
+
+      // Step 4: Re-encrypt the signed PDF
+      console.log('🔒 Re-encrypting signed PDF...')
+      // Generate new encryption key for signed document
+      const newEncryptionKey = await generateEncryptionKey()
+      const encryptedSignedPdf = await encryptFile(
+        new File([signedPdfBlob], 'signed.pdf'),
+        newEncryptionKey
+      )
+
+      // Step 5: Upload signed PDF back to storage
+      console.log('☁️ Uploading signed PDF to storage...')
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('No autenticado')
+
+      const signedPath = `${user.id}/${signerData.workflow_id}/signed_${Date.now()}.pdf.enc`
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(signedPath, encryptedSignedPdf, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw new Error('No se pudo subir el documento firmado')
+      }
+
+      // Step 6: Update workflow with signed document path and hash
+      const { error: workflowUpdateError } = await supabase
+        .from('signature_workflows')
+        .update({
+          document_path: signedPath,
+          document_hash: signedPdfHash,
+          encryption_key: newEncryptionKey
+        })
+        .eq('id', signerData.workflow_id)
+
+      if (workflowUpdateError) {
+        throw workflowUpdateError
+      }
+
+      // Step 7: Update signer status to 'signed'
       const { error: updateError } = await supabase
         .from('workflow_signers')
         .update({
@@ -255,8 +328,12 @@ export default function SignWorkflowPage() {
       await logEvent({
         workflowId: signerData.workflow_id,
         signerId: signerData.id,
-        eventType: 'signature_completed'
+        eventType: 'signature_completed',
+        documentHashSnapshot: signedPdfHash
       })
+
+      console.log('✅ Signature process completed successfully')
+      console.log('🔒 Signed PDF hash:', signedPdfHash.substring(0, 16) + '...')
 
       // Triggers will automatically:
       // 1. Send email to owner (on_signature_completed)

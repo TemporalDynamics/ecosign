@@ -49,6 +49,7 @@ const RoadmapPage = lazy(() => import('./pages/RoadmapPage'));
 const UpdatesPage = lazy(() => import('./pages/UpdatesPage'));
 const InvitePage = lazy(() => import('./pages/InvitePage'));
 const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'));
+const WorkflowsPage = lazy(() => import('./pages/WorkflowsPage'));
 
 
 function AppRoutes() {
@@ -116,6 +117,14 @@ function AppRoutes() {
               element={
                 <ProtectedRoute>
                   <DashboardVerifyPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/workflows"
+              element={
+                <ProtectedRoute>
+                  <WorkflowsPage />
                 </ProtectedRoute>
               }
             />

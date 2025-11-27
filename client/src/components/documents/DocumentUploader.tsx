@@ -15,6 +15,7 @@
 import { useState, useRef } from 'react'
 import { calculateDocumentHash } from '@/utils/hashDocument'
 import { generateEncryptionKey, encryptFile } from '@/utils/encryption'
+import { supabase } from '@/lib/supabaseClient'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 interface DocumentUploaderProps {
@@ -149,9 +150,6 @@ export default function DocumentUploader({
     encryptedBlob: Blob,
     originalFilename: string
   ): Promise<string> => {
-    // TODO: Implement actual upload to Supabase Storage
-    // This should use the documentStorage utility we created earlier
-
     // SECURITY CHECKLIST for this function:
     // ✅ Only encrypted blob is sent
     // ✅ Original filename is sanitized
@@ -161,8 +159,43 @@ export default function DocumentUploader({
 
     console.log('🔒 Uploading encrypted blob (server will NOT see plaintext)')
 
-    // Mock upload for now
-    return `encrypted/${crypto.randomUUID()}/${originalFilename}.enc`
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      throw new Error('Usuario no autenticado. Por favor, inicia sesión.')
+    }
+
+    // Sanitize filename: remove special characters, keep only alphanumeric and dots
+    const sanitizedFilename = originalFilename
+      .replace(/[^a-zA-Z0-9.-]/g, '_')
+      .replace(/\.pdf$/i, '') // Remove .pdf extension if present
+
+    // Generate unique filename with UUID (prevents correlation attacks)
+    const uniqueFilename = `${crypto.randomUUID()}_${sanitizedFilename}.enc`
+
+    // IMPORTANT: The path structure is {user_id}/{unique_filename}
+    // We're NOT including workflow_id yet since this is a generic uploader
+    // The workflow_id will be associated when creating the workflow
+    const path = `${user.id}/${uniqueFilename}`
+
+    console.log('🔒 Uploading to path:', path)
+
+    // Upload encrypted blob to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .upload(path, encryptedBlob, {
+        cacheControl: '3600',
+        upsert: false, // Don't overwrite existing files
+        contentType: 'application/octet-stream' // Generic binary type
+      })
+
+    if (error) {
+      console.error('Storage upload error:', error)
+      throw new Error(`Error al subir archivo: ${error.message}`)
+    }
+
+    console.log('✅ Encrypted file uploaded successfully to:', data.path)
+    return data.path
   }
 
   // Drag and drop handlers

@@ -21,7 +21,6 @@ const GuestPage = lazy(() => import('./pages/GuestPage'));
 const VerifyPage = lazy(() => import('./pages/VerifyPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 const NdaAccessPage = lazy(() => import('./pages/NdaAccessPage'));
-const SignDocumentPage = lazy(() => import('./pages/SignDocumentPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const SecurityPage = lazy(() => import('./pages/SecurityPage'));
@@ -49,6 +48,7 @@ const ReportIssueInternalPage = lazy(() => import('./pages/dashboard/ReportIssue
 const RoadmapPage = lazy(() => import('./pages/RoadmapPage'));
 const UpdatesPage = lazy(() => import('./pages/UpdatesPage'));
 const InvitePage = lazy(() => import('./pages/InvitePage'));
+const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'));
 
 
 function AppRoutes() {
@@ -69,7 +69,7 @@ function AppRoutes() {
             <Route path="/guest" element={<GuestPage />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/nda/:token" element={<NdaAccessPage />} />
-            <Route path="/sign/:token" element={<SignDocumentPage />} />
+            <Route path="/sign/:token" element={<SignWorkflowPage />} />
             <Route path="/invite/:token" element={<InvitePage />} />
 
             {/* New specialized pages */}

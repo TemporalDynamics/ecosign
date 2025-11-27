@@ -45,6 +45,21 @@
 - [x] `ECOX_IMPLEMENTATION_GUIDE.md` - Guía de integración
 - [x] Ejemplos de código para frontend
 
+#### 💾 Storage y Almacenamiento (✅ NUEVO 2025-11-27)
+- [x] Bucket `documents` creado en Supabase Storage
+- [x] RLS policies configuradas (upload, download, update, delete)
+- [x] Límite de 50MB por archivo
+- [x] Solo PDFs permitidos
+
+#### 🛠️ Utilidades Frontend (✅ NUEVO 2025-11-27)
+- [x] `hashDocument.ts` - Calcula SHA-256 de PDFs
+- [x] `documentStorage.ts` - Upload/download de documentos
+- [x] `useEcoxLogger` hook - Log de eventos forenses
+- [x] `LoadingSpinner` component
+- [x] `ErrorBoundary` component
+- [x] `Modal` component (con ConfirmModal)
+- [x] `WorkflowStatus` components (badge, progress, card)
+
 ---
 
 ## 🔴 PENDIENTE - CRÍTICO PARA MVP
@@ -128,35 +143,17 @@ Dashboard/
 
 **Requerimientos:**
 - [ ] Upload de PDF al crear workflow
-- [ ] Almacenar en Supabase Storage (bucket: `documents`)
-- [ ] Encriptación opcional (para MVP puede ser sin encriptar)
-- [ ] Generar hash del documento (SHA-256 simple)
+- [x] Almacenar en Supabase Storage (bucket: `documents`) ✅
+- [x] Generar hash del documento (SHA-256 simple) ✅
 - [ ] Guardar hash en `signature_workflows.document_hash`
 
-**Bucket de Supabase Storage:**
-```sql
--- Crear bucket si no existe
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('documents', 'documents', false);
-
--- Policies para acceso
-CREATE POLICY "Owners can upload documents"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'documents' AND auth.uid()::text = (storage.foldername(name))[1]);
-
-CREATE POLICY "Signers can read their documents"
-ON storage.objects FOR SELECT
-TO authenticated
-USING (bucket_id = 'documents');
-```
-
 **Tareas:**
-- [ ] Crear bucket `documents` en Supabase
-- [ ] Configurar RLS policies
-- [ ] Implementar componente `DocumentUploader`
-- [ ] Generar hash SHA-256 del PDF
-- [ ] Guardar referencia en DB
+- [x] Crear bucket `documents` en Supabase ✅
+- [x] Configurar RLS policies ✅
+- [x] Funciones helper de upload/download ✅
+- [x] Generar hash SHA-256 del PDF ✅
+- [ ] Implementar componente `DocumentUploader` (UI)
+- [ ] Guardar referencia en DB al crear workflow
 
 #### Descarga y Visualización
 
@@ -305,9 +302,10 @@ Function: send-pending-emails
 - [ ] `ProgressBar` - Progreso del workflow
 
 **Tareas:**
-- [ ] Crear componentes globales
-- [ ] Implementar manejo de errores
-- [ ] Mejorar feedback visual
+- [x] Crear componentes globales ✅
+- [x] Implementar manejo de errores (ErrorBoundary) ✅
+- [x] Mejorar feedback visual (LoadingSpinner) ✅
+- [x] Modal component para diálogos ✅
 
 #### Estados del Workflow
 
@@ -319,9 +317,9 @@ draft → active → completed
 ```
 
 **Tareas:**
-- [ ] Crear componente `WorkflowStatus`
-- [ ] Badges de colores por estado
-- [ ] Progress bar con % de firmantes completados
+- [x] Crear componente `WorkflowStatus` ✅
+- [x] Badges de colores por estado ✅
+- [x] Progress bar con % de firmantes completados ✅
 
 ---
 
@@ -401,5 +399,9 @@ draft → active → completed
 
 ---
 
-**Última actualización:** 2025-11-27
-**Estado general:** 40% completado (Backend completo, Frontend pendiente)
+**Última actualización:** 2025-11-27 (Quick wins implementados)
+**Estado general:** 55% completado
+- Backend: 100% ✅
+- Storage & Utilities: 100% ✅
+- UI Components: 70% ✅
+- Frontend Flows: 15% (pendiente)

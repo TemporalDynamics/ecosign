@@ -12,6 +12,12 @@
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  getLocationFromIP,
+  validateLocationConsistency,
+  detectVPNUsage,
+  formatLocation
+} from '../_shared/geolocation.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,11 +30,11 @@ interface LogEventRequest {
   event_type: string
   source_ip?: string
   user_agent?: string
+  timezone?: string  // Timezone del navegador (ej: "America/Argentina/Buenos_Aires")
   geolocation?: {
     country?: string
     city?: string
-    lat?: number
-    lon?: number
+    // NO aceptamos lat/lon del frontend
   }
   details?: Record<string, any>
   document_hash_snapshot?: string
@@ -101,6 +107,39 @@ serve(async (req) => {
     // Obtener User-Agent si no se proveyó
     const userAgent = payload.user_agent || req.headers.get('user-agent') || 'unknown'
 
+    // 🌍 GEOLOCALIZACIÓN AUTOMÁTICA (solo si no se proveyó)
+    let geoLocation = payload.geolocation
+
+    if (!geoLocation && sourceIp && sourceIp !== 'unknown') {
+      console.log(`🌍 Obteniendo geolocalización para IP: ${sourceIp}`)
+      geoLocation = await getLocationFromIP(sourceIp)
+      console.log(`📍 Ubicación: ${formatLocation(geoLocation)}`)
+    }
+
+    // Validar consistencia con timezone (si se proveyó)
+    let locationValidation = null
+    let securityFlags = []
+
+    if (payload.timezone && geoLocation) {
+      locationValidation = validateLocationConsistency(geoLocation, payload.timezone)
+
+      // Detectar posible uso de VPN
+      if (detectVPNUsage(locationValidation)) {
+        securityFlags.push('possible_vpn_detected')
+        console.warn(`⚠️ Posible VPN detectado: IP=${sourceIp}, Timezone=${payload.timezone}`)
+      }
+
+      console.log(`🔍 Validación de ubicación: ${locationValidation.confidence_level} confidence`)
+    }
+
+    // Agregar información de validación a los details
+    const enrichedDetails = {
+      ...(payload.details || {}),
+      timezone: payload.timezone,
+      location_validation: locationValidation,
+      security_flags: securityFlags.length > 0 ? securityFlags : undefined
+    }
+
     // Registrar el evento usando la función SQL
     const { data, error } = await supabase.rpc('log_ecox_event', {
       p_workflow_id: payload.workflow_id,
@@ -108,8 +147,8 @@ serve(async (req) => {
       p_event_type: payload.event_type,
       p_source_ip: sourceIp,
       p_user_agent: userAgent,
-      p_geolocation: payload.geolocation || null,
-      p_details: payload.details || null,
+      p_geolocation: geoLocation || null,
+      p_details: enrichedDetails,
       p_document_hash_snapshot: payload.document_hash_snapshot || null
     })
 

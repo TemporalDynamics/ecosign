@@ -59,11 +59,15 @@ interface LogEcoxEventParams {
 export function useEcoxLogger() {
   const logEvent = async (params: LogEcoxEventParams) => {
     try {
+      // 🌍 Obtener timezone del navegador automáticamente
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
       const { data, error } = await supabase.functions.invoke('log-ecox-event', {
         body: {
           workflow_id: params.workflowId,
           signer_id: params.signerId,
           event_type: params.eventType,
+          timezone: timezone, // Ej: "America/Argentina/Buenos_Aires"
           details: params.details,
           document_hash_snapshot: params.documentHash
         }
@@ -560,4 +564,151 @@ async function completeSignatureFlow(token: string) {
 
 ---
 
-**🎉 ¡Listo!** Tu sistema ECOX está completo y listo para proporcionar evidencia forense de nivel profesional.
+---
+
+## 🌍 Geolocalización Forense Automática
+
+### ¿Cómo Funciona?
+
+El sistema ECOX incluye **geolocalización automática y segura** que:
+
+1. ✅ **Obtiene ubicación por IP** (ciudad/país) - No requiere permiso del usuario
+2. ✅ **Valida consistencia** con el timezone del navegador
+3. ✅ **Detecta uso de VPN** o proxies (seguridad adicional)
+4. ✅ **Es legal** bajo GDPR y leyes argentinas
+
+### Información Registrada
+
+**Por cada evento se guarda:**
+- 📍 **País y ciudad** (desde IP)
+- 🕐 **Timezone** (desde navegador)
+- 🔍 **Validación de consistencia** (si IP y timezone coinciden)
+- ⚠️ **Flags de seguridad** (si se detecta VPN u otra anomalía)
+
+**Ejemplo de datos registrados:**
+```json
+{
+  "event_type": "signature_applied",
+  "source_ip": "190.123.45.67",
+  "geolocation": {
+    "country": "Argentina",
+    "country_code": "AR",
+    "region": "Buenos Aires",
+    "city": "Buenos Aires"
+  },
+  "details": {
+    "timezone": "America/Argentina/Buenos_Aires",
+    "location_validation": {
+      "is_consistent": true,
+      "confidence_level": "high",
+      "flags": ["verified_consistent"]
+    }
+  }
+}
+```
+
+### Detección de VPN/Anomalías
+
+Si el sistema detecta inconsistencias, automáticamente registra flags:
+
+```json
+{
+  "details": {
+    "timezone": "America/Argentina/Buenos_Aires",
+    "location_validation": {
+      "is_consistent": false,
+      "confidence_level": "low",
+      "flags": [
+        "timezone_ip_mismatch",
+        "expected_country_AR",
+        "actual_country_RU"
+      ]
+    },
+    "security_flags": ["possible_vpn_detected"]
+  }
+}
+```
+
+### Visualización en el Dashboard
+
+Crea un componente para mostrar la ubicación verificada:
+
+```typescript
+// src/components/LocationBadge.tsx
+
+interface LocationBadgeProps {
+  event: {
+    geolocation?: {
+      country: string
+      city: string
+    }
+    details?: {
+      location_validation?: {
+        is_consistent: boolean
+        confidence_level: 'high' | 'medium' | 'low'
+      }
+      security_flags?: string[]
+    }
+  }
+}
+
+export function LocationBadge({ event }: LocationBadgeProps) {
+  const { geolocation, details } = event
+
+  if (!geolocation) return null
+
+  const validation = details?.location_validation
+  const hasVPN = details?.security_flags?.includes('possible_vpn_detected')
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm">
+        📍 {geolocation.city}, {geolocation.country}
+      </span>
+
+      {validation && (
+        <span className={`
+          text-xs px-2 py-1 rounded
+          ${validation.confidence_level === 'high' ? 'bg-green-100 text-green-800' : ''}
+          ${validation.confidence_level === 'medium' ? 'bg-yellow-100 text-yellow-800' : ''}
+          ${validation.confidence_level === 'low' ? 'bg-red-100 text-red-800' : ''}
+        `}>
+          {validation.is_consistent ? '✓ Verificado' : '⚠ Inconsistente'}
+        </span>
+      )}
+
+      {hasVPN && (
+        <span className="text-xs px-2 py-1 rounded bg-orange-100 text-orange-800">
+          🔒 VPN detectado
+        </span>
+      )}
+    </div>
+  )
+}
+```
+
+### Privacidad y Legalidad
+
+**✅ Lo que SÍ hacemos:**
+- Registrar país y ciudad (información pública de la IP)
+- Validar consistencia para seguridad
+- Informar al usuario en el NDA que se registra su ubicación aproximada
+
+**❌ Lo que NO hacemos:**
+- Guardar coordenadas GPS exactas (lat/lon)
+- Pedir permiso de geolocalización del navegador
+- Tracking continuo durante la sesión
+- Compartir datos de ubicación con terceros
+
+**Texto sugerido para el NDA:**
+```
+"Al firmar este documento, acepto que se registre mi dirección IP,
+ubicación aproximada (ciudad/país) y zona horaria como parte de la
+evidencia forense del proceso de firma electrónica. Esta información
+se utiliza únicamente para validar la autenticidad de la firma y
+detectar posibles anomalías de seguridad."
+```
+
+---
+
+**🎉 ¡Listo!** Tu sistema ECOX está completo y listo para proporcionar evidencia forense de nivel profesional con geolocalización segura y legal.

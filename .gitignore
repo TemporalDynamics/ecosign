@@ -41,6 +41,7 @@ Thumbs.db
 *.tmp
 .tmp/
 temp/
+tmp/
 
 # Analysis and temporary documentation
 ANALISIS_*.md

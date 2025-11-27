@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { downloadDocument, getSignedDocumentUrl } from '@/utils/documentStorage'
+import { downloadDocument, getDocumentDownloadUrl } from '@/utils/documentStorage'
 import { decryptFile } from '@/utils/encryption'
 import { useEcoxLogger } from '@/hooks/useEcoxLogger'
 import { ShieldCheck, FileText, RefreshCcw } from 'lucide-react'

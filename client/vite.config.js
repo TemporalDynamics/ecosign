@@ -33,7 +33,14 @@ export default defineConfig({
       }
     }
   },
+  resolve: {
+    alias: {
+      '@': '/src',
+    },
+  },
   build: {
+    // Inline all CSS into the HTML to eliminate render-blocking requests
+    cssCodeSplit: false,
     // Suppress chunk size warnings for now
     chunkSizeWarningLimit: 1000,
     commonjsOptions: {

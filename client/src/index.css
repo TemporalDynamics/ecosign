@@ -21,6 +21,12 @@ body {
   background-color: #ffffff;
 }
 
+/* Ensure minimum tap target size for accessibility */
+button, a, input[type="button"], input[type="submit"], input[type="reset"], input[type="checkbox"], input[type="radio"], select {
+  min-height: 48px;
+  min-width: 48px;
+}
+
 /* Animations for landing page */
 @keyframes fade-in {
   from {

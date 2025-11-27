@@ -240,3 +240,26 @@ export async function deleteUserDocument(documentId) {
     throw new Error(`Error al eliminar el documento: ${deleteError.message}`);
   }
 }
+
+/**
+ * Download a document from Supabase Storage
+ * @param {string} storagePath - The storage path of the document
+ * @returns {Promise<{ success: boolean, data: Blob | null, error: string | null }>}
+ */
+export async function downloadDocument(storagePath) {
+  try {
+    const { data, error } = await supabase.storage
+      .from('user-documents')
+      .download(storagePath);
+
+    if (error) {
+      console.error('Error downloading file:', error);
+      return { success: false, data: null, error: error.message };
+    }
+
+    return { success: true, data: data, error: null };
+  } catch (err) {
+    console.error('Unexpected error during download:', err);
+    return { success: false, data: null, error: err.message };
+  }
+}

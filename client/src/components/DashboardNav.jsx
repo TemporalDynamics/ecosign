@@ -56,6 +56,7 @@ function DashboardNav({ onLogout = () => {} }) {
             <button
               onClick={handleLogout}
               className="text-gray-600 hover:text-gray-900 text-sm font-semibold"
+              aria-label="Cerrar sesión"
             >
               Cerrar
             </button>

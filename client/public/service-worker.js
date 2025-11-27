@@ -2,8 +2,6 @@ const CACHE_NAME = 'ecosign-cache-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/src/main.jsx',
-  '/src/App.jsx',
   '/assets/icons/icon-72x72.png',
   '/assets/icons/icon-96x96.png',
   '/assets/icons/icon-128x128.png',
@@ -12,8 +10,6 @@ const urlsToCache = [
   '/assets/icons/icon-192x192.png',
   '/assets/icons/icon-384x384.png',
   '/assets/icons/icon-512x512.png',
-  // Add other essential assets here (CSS, JS bundles, images, etc.)
-  // Vite handles asset paths, so ensure these are correct for production build
 ];
 
 self.addEventListener('install', (event) => {

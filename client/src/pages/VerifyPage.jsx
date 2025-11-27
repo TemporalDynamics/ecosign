@@ -5,6 +5,7 @@ import { verifyEcoxFile } from '../lib/verificationService';
 import LegalProtectionOptions from '../components/LegalProtectionOptions';
 import VerificationSummary from '../components/VerificationSummary';
 import FooterPublic from '../components/FooterPublic';
+import WorkflowVerifier from '../components/WorkflowVerifier';
 
 // Configuración de validación
 const ALLOWED_EXTENSIONS = ['.eco', '.pdf', '.zip'];
@@ -24,6 +25,7 @@ function VerifyPage() {
   const [verifying, setVerifying] = useState(false);
   const [result, setResult] = useState(null);
   const [validationError, setValidationError] = useState(null);
+  const [activeTab, setActiveTab] = useState('eco'); // 'eco' | 'hash'
 
   // Validar archivo
   const validateFile = (file) => {
@@ -217,6 +219,31 @@ function VerifyPage() {
           </p>
         </div>
 
+        <div className="mb-8 flex justify-center gap-3">
+          <button
+            onClick={() => setActiveTab('eco')}
+            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
+              activeTab === 'eco'
+                ? 'bg-black text-white'
+                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+            }`}
+          >
+            Verificar certificado .ECO
+          </button>
+          <button
+            onClick={() => setActiveTab('hash')}
+            className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
+              activeTab === 'hash'
+                ? 'bg-black text-white'
+                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+            }`}
+          >
+            Verificar workflow por hash
+          </button>
+        </div>
+
+        {activeTab === 'eco' ? (
+          <>
         {/* Verificador Estándar (Gratis) */}
         <div className="bg-white rounded-xl p-8 border-2 border-gray-200 mb-12">
           <h2 className="text-3xl font-bold text-black mb-2 text-center">Verificador estándar (gratis)</h2>
@@ -564,6 +591,10 @@ function VerifyPage() {
             </div>
           </div>
         </div>
+          </>
+        ) : (
+          <WorkflowVerifier className="mt-6" />
+        )}
       </main>
 
       <FooterPublic />

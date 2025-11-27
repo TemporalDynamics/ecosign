@@ -60,6 +60,7 @@ interface SignerData {
     encryption_key: string | null // For decryption
     owner_id: string
     status: string
+    require_sequential: boolean
   }
 }
 
@@ -110,7 +111,8 @@ export default function SignWorkflowPage() {
             document_hash,
             encryption_key,
             owner_id,
-            status
+            status,
+            require_sequential
           )
         `)
         .eq('access_token_hash', accessToken)
@@ -136,7 +138,52 @@ export default function SignWorkflowPage() {
       }
 
       // Check if it's their turn (if sequential signing)
-      // TODO: Implement sequential signing logic if needed
+      if (signer.workflow.require_sequential) {
+        // Get all signers with lower signing_order who haven't signed yet
+        const { data: previousSigners, error: prevError } = await supabase
+          .from('workflow_signers')
+          .select('id, signing_order, status, name, email')
+          .eq('workflow_id', signer.workflow_id)
+          .lt('signing_order', signer.signing_order)
+          .neq('status', 'signed')
+
+        if (prevError) {
+          console.error('Error checking sequential order:', prevError)
+          setError('Error al validar el orden de firma')
+          setStep('error')
+          return
+        }
+
+        if (previousSigners && previousSigners.length > 0) {
+          // There are signers who should sign before this one
+          const pendingNames = previousSigners
+            .map(s => s.name || s.email)
+            .join(', ')
+
+          setError(
+            `Este documento requiere firma secuencial. Aún no es tu turno. ` +
+            `Pendientes: ${pendingNames}`
+          )
+          setStep('error')
+
+          // Log ECOX event for sequential violation
+          await logEvent({
+            workflowId: signer.workflow_id,
+            signerId: signer.id,
+            eventType: 'sequential_order_violated',
+            details: {
+              currentOrder: signer.signing_order,
+              pendingSigners: previousSigners.map(s => ({
+                id: s.id,
+                order: s.signing_order,
+                status: s.status
+              }))
+            }
+          })
+
+          return
+        }
+      }
 
       setSignerData(signer as any)
 

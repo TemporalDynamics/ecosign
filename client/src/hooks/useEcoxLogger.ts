@@ -57,6 +57,16 @@ export function useEcoxLogger(): EcoxLogger {
     documentHashSnapshot
   }: LogEventParams): Promise<boolean> => {
     try {
+      // GUARD: Check if user has an active session
+      // This prevents CORS errors in public flows where user is not logged in
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        console.warn(`⚠️ ECOX event ${eventType} not logged: no active session (public flow)`)
+        // Return true to avoid breaking the flow, but don't log
+        return true
+      }
+
       // Get browser timezone
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 

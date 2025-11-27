@@ -271,34 +271,47 @@
 
 ### 2. 📄 Página de Verificación Pública `/verify` (MEDIO)
 
-**Estado:** ❌ No existe
+**Estado:** ⚠️ Existe para sistema legacy, necesita adaptación
 
-**Componentes necesarios:**
+**Componentes existentes:**
 ```typescript
-❌ DocumentVerifier.tsx
-   - Upload de PDF local
-   - Calcular hash en navegador
-   - Llamar a Edge Function verify-document-hash
-   - Mostrar resultado: ✅ VERDE o ❌ ROJO
-   - Mostrar detalles del workflow si existe
+✅ VerifyPage.jsx - Página de verificación pública
+   - Upload de .ECO + PDF
+   - Verificación completa con verificationService
+   - Muestra verificador estándar + PRO
+   - Drag & drop implementado
+
+✅ VerificationSummary.jsx - Muestra resultados
+✅ verificationService.js - Lógica de verificación
+✅ tsrVerifier.js - Validador de timestamps
 ```
 
-**Edge Function necesaria:**
+**Componentes necesarios para nuevo schema:**
 ```typescript
-❌ supabase/functions/verify-document-hash/index.ts
+❌ Adaptar VerifyPage para signature_workflows
+   - Agregar opción "Verificar por hash"
+   - Mantener verificación .ECO legacy
+   - Tab switcher entre ambos modos
+
+❌ WorkflowVerifier.tsx (nuevo componente)
+   - Upload solo PDF
+   - Calcular hash en navegador
+   - Buscar en signature_workflows
+   - Mostrar info del workflow
+
+❌ supabase/functions/verify-workflow-hash/index.ts
    - Recibe: hash (SHA-256)
    - Busca en signature_workflows por document_hash
    - Devuelve: workflow info + signers + audit trail
 ```
 
 **Tareas:**
-- [ ] Crear página `/verify`
-- [ ] Crear componente DocumentVerifier
-- [ ] Upload de PDF con drag & drop
-- [ ] Calcular hash SHA-256 en navegador
-- [ ] Crear Edge Function verify-document-hash
-- [ ] Mostrar resultado con colores (verde/rojo)
-- [ ] Mostrar detalles: firmantes, fechas, ubicaciones
+- [x] Página `/verify` ya existe
+- [ ] Agregar modo "Verificación por hash" a VerifyPage
+- [ ] Crear componente WorkflowVerifier
+- [ ] Crear Edge Function verify-workflow-hash
+- [ ] Mantener compatibilidad con .ECO legacy
+- [ ] Tab switcher: "Verificar .ECO" vs "Verificar Workflow"
 
 ---
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "cd client && npm run dev",
     "build": "cd eco-packer && npm install && npm run build && cd ../client && npm install && npm run build",
-    "vercel-build": "cd eco-packer && npm install && npm run build && cd ../client && npm install --include=dev && npm run build:skip-validation",
+    "vercel-build": "cd eco-packer && npm install && npm run build && cd ../client && npm install && npm run build:skip-validation",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

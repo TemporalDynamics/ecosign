@@ -19,11 +19,11 @@ import { supabase } from '@/lib/supabaseClient'
 import { useEcoxLogger } from '@/hooks/useEcoxLogger'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 
-// Step components (to be created)
+// Step components
 import TokenValidator from '@/components/signature-flow/TokenValidator'
 import NDAAcceptance from '@/components/signature-flow/NDAAcceptance'
 import AuthGate from '@/components/signature-flow/AuthGate'
-// import MFAChallenge from '@/components/signature-flow/MFAChallenge' // TODO
+import MFAChallenge from '@/components/signature-flow/MFAChallenge'
 import DocumentViewer from '@/components/signature-flow/DocumentViewer'
 import SignaturePad from '@/components/signature-flow/SignaturePad'
 import CompletionScreen from '@/components/signature-flow/CompletionScreen'
@@ -150,9 +150,8 @@ export default function SignWorkflowPage() {
       } else if (signer.require_login && !user) {
         setStep('auth')
       } else {
-        // TODO: MFA challenge should be here
-        // For now, skip to viewing
-        setStep('viewing')
+        // MFA challenge is required for authenticated users
+        setStep('mfa')
       }
 
     } catch (err) {
@@ -176,8 +175,8 @@ export default function SignWorkflowPage() {
     if (signerData.require_login && !user) {
       setStep('auth')
     } else {
-      // TODO: MFA challenge
-      setStep('viewing')
+      // MFA challenge is required
+      setStep('mfa')
     }
   }
 
@@ -185,7 +184,28 @@ export default function SignWorkflowPage() {
     // Refresh user state
     await checkAuth()
 
-    // TODO: MFA challenge should be next
+    // MFA challenge is next
+    setStep('mfa')
+  }
+
+  const handleMFASuccess = async () => {
+    if (!signerData) return
+
+    // Log ECOX event
+    await logEvent({
+      workflowId: signerData.workflow_id,
+      signerId: signerData.id,
+      eventType: 'mfa_challenged'
+    })
+
+    // MFA passed, proceed to viewing document
+    setStep('viewing')
+  }
+
+  const handleMFANotSetup = () => {
+    // User doesn't have MFA set up, skip for now
+    // TODO: In production, you might want to force MFA setup
+    console.warn('⚠️ User has no MFA configured, skipping MFA step')
     setStep('viewing')
   }
 
@@ -333,6 +353,15 @@ export default function SignWorkflowPage() {
 
         {step === 'auth' && signerData && (
           <AuthGate onComplete={handleAuthCompleted} />
+        )}
+
+        {step === 'mfa' && signerData && (
+          <MFAChallenge
+            workflowId={signerData.workflow_id}
+            signerId={signerData.id}
+            onSuccess={handleMFASuccess}
+            onMFANotSetup={handleMFANotSetup}
+          />
         )}
 
         {step === 'viewing' && signerData && (

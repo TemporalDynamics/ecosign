@@ -666,3 +666,160 @@ export function buildBitcoinConfirmedEmail(params: {
     html
   };
 }
+
+/**
+ * Template: Workflow completado - Documento con todas las firmas
+ */
+export function buildWorkflowCompletedEmail(params: {
+  recipientEmail: string;
+  recipientName?: string;
+  documentName: string;
+  workflowId: string;
+  completedAt: string;
+  totalSigners: number;
+  ecoFileUrl?: string;
+}): EmailPayload {
+  const {
+    recipientEmail,
+    recipientName,
+    documentName,
+    workflowId,
+    completedAt,
+    totalSigners,
+    ecoFileUrl
+  } = params;
+
+  const completedDate = new Date(completedAt).toLocaleDateString('es-AR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  const dashboardUrl = `${Deno.env.get('FRONTEND_URL') || 'https://app.ecosign.app'}/dashboard`;
+  const downloadUrl = ecoFileUrl || `${dashboardUrl}/workflow/${workflowId}/download`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documento completado</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f9fafb;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #111827; padding: 32px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                EcoSign
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Success Banner -->
+          <tr>
+            <td style="background-color: #10b981; padding: 20px; text-align: center;">
+              <p style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 500;">
+                ✅ Documento completado con todas las firmas
+              </p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 32px;">
+              <h2 style="margin: 0 0 16px; color: #111827; font-size: 20px; font-weight: 600;">
+                ${recipientName ? `Hola ${recipientName}` : 'Hola'}
+              </h2>
+
+              <p style="margin: 0 0 24px; color: #4b5563; font-size: 16px; line-height: 1.5;">
+                El documento <strong>"${documentName}"</strong> fue firmado por todos los participantes y está listo para descargar.
+              </p>
+
+              <div style="background-color: #f3f4f6; border-left: 4px solid #10b981; padding: 16px; margin-bottom: 24px;">
+                <p style="margin: 0; color: #374151; font-size: 14px;">
+                  <strong>📄 Documento:</strong> ${documentName}
+                </p>
+                <p style="margin: 8px 0 0; color: #374151; font-size: 14px;">
+                  <strong>✍️ Total de firmas:</strong> ${totalSigners}
+                </p>
+                <p style="margin: 8px 0 0; color: #374151; font-size: 14px;">
+                  <strong>🕐 Completado el:</strong> ${completedDate}
+                </p>
+              </div>
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                <tr>
+                  <td align="center">
+                    <a href="${downloadUrl}" style="display: inline-block; background-color: #10b981; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: 500;">
+                      Descargar certificado .ECO
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0 0 12px; color: #6b7280; font-size: 14px; line-height: 1.5;">
+                El certificado .ECO incluye:
+              </p>
+              <ul style="margin: 0 0 24px; padding-left: 20px; color: #6b7280; font-size: 14px; line-height: 1.7;">
+                <li>✅ Todas las firmas digitales</li>
+                <li>✅ Cadena de custodia completa (ChainLog)</li>
+                <li>✅ Timestamp legal RFC 3161</li>
+                <li>✅ Anclaje en blockchain (Polygon)</li>
+                <li>✅ Metadatos de auditoría forense</li>
+              </ul>
+
+              <div style="background-color: #ecfdf5; border: 1px solid #10b981; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+                <p style="margin: 0; color: #065f46; font-size: 13px; line-height: 1.5;">
+                  <strong>🔒 Seguridad:</strong> El documento firmado tiene validez legal y está protegido con tecnología blockchain para garantizar su autenticidad e inmutabilidad.
+                </p>
+              </div>
+
+              <div style="background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 16px;">
+                <p style="margin: 0 0 8px; color: #92400e; font-size: 13px; line-height: 1.5;">
+                  <strong>💡 Importante:</strong> Guardá el archivo .ECO junto con el PDF. El .ECO contiene toda la información necesaria para verificar la autenticidad del documento en cualquier momento.
+                </p>
+              </div>
+
+              <p style="margin: 24px 0 0; color: #9ca3af; font-size: 12px; line-height: 1.5;">
+                Si el botón no funciona, copiá y pegá este link en tu navegador:<br>
+                <a href="${downloadUrl}" style="color: #3b82f6; text-decoration: underline; word-break: break-all;">${downloadUrl}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f9fafb; padding: 24px 32px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 8px; color: #6b7280; font-size: 12px;">
+                Este email fue enviado desde <strong>EcoSign</strong>
+              </p>
+              <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                Certificación y firma digital con blockchain
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  return {
+    from: 'EcoSign <no-reply@verifysign.pro>',
+    to: recipientEmail,
+    subject: `✅ Documento completado: ${documentName}`,
+    html
+  };
+}

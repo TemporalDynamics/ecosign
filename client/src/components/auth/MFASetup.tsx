@@ -7,7 +7,9 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { Shield, Copy, Check } from 'lucide-react'
+import Shield from 'lucide-react/dist/esm/icons/shield';
+import Copy from 'lucide-react/dist/esm/icons/copy';
+import Check from 'lucide-react/dist/esm/icons/check';
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 interface MFASetupProps {

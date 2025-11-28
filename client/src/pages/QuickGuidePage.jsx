@@ -2,7 +2,10 @@ import React from 'react';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
-import { Upload, FileCheck, Download, Shield } from 'lucide-react';
+import Upload from 'lucide-react/dist/esm/icons/upload';
+import FileCheck from 'lucide-react/dist/esm/icons/file-check';
+import Download from 'lucide-react/dist/esm/icons/download';
+import Shield from 'lucide-react/dist/esm/icons/shield';
 
 export default function QuickGuidePage() {
   return (

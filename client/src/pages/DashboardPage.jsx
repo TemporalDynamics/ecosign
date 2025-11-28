@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info } from 'lucide-react';
+import Info from 'lucide-react/dist/esm/icons/info';
 import DocumentList from '../components/DocumentList';
 import DashboardNav from '../components/DashboardNav';
-import CertificationModal from '../components/CertificationModal';
+const CertificationModal = React.lazy(() => import('../components/CertificationModal'));
 import FooterInternal from '../components/FooterInternal';
 import { getUserDocuments } from '../utils/documentStorage';
 
@@ -139,7 +139,7 @@ function DashboardPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{stat.label}</p>
               <div>
                 <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-xs text-gray-400 mt-1">{stat.helper}</p>
+                <p className="text-xs text-gray-500 mt-1">{stat.helper}</p>
               </div>
             </div>
           ))}
@@ -266,10 +266,14 @@ function DashboardPage() {
       <FooterInternal />
 
       {/* Nuevo modal de certificación con paneles colapsables */}
-      <CertificationModal
-        isOpen={showCertificationFlow}
-        onClose={handleCloseCertificationFlow}
-      />
+      {showCertificationFlow && (
+        <React.Suspense fallback={<div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"></div></div>}>
+          <CertificationModal
+            isOpen={showCertificationFlow}
+            onClose={handleCloseCertificationFlow}
+          />
+        </React.Suspense>
+      )}
     </div>
   );
 }

@@ -9,7 +9,9 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { ShieldCheck, LogIn, UserPlus } from 'lucide-react'
+import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check';
+import LogIn from 'lucide-react/dist/esm/icons/log-in';
+import UserPlus from 'lucide-react/dist/esm/icons/user-plus';
 
 interface AuthGateProps {
   onComplete: () => void

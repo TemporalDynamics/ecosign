@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, Check, CheckCircle, ArrowLeft, X, Users, HardDrive, FileText, Shield, BarChart3, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import Lock from 'lucide-react/dist/esm/icons/lock';
+import Check from 'lucide-react/dist/esm/icons/check';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
+import X from 'lucide-react/dist/esm/icons/x';
+import Users from 'lucide-react/dist/esm/icons/users';
+import HardDrive from 'lucide-react/dist/esm/icons/hard-drive';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Shield from 'lucide-react/dist/esm/icons/shield';
+import BarChart3 from 'lucide-react/dist/esm/icons/bar-chart3';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
+import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
 import FooterPublic from '../components/FooterPublic';
 
 function PricingPage() {

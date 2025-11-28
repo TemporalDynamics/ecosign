@@ -1,6 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Info, Lock, Video } from 'lucide-react';
+import Info from 'lucide-react/dist/esm/icons/info';
+import Lock from 'lucide-react/dist/esm/icons/lock';
+import Video from 'lucide-react/dist/esm/icons/video';
 import { GuestProvider, useGuest } from '../contexts/GuestContext';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import TooltipWrapper from '../components/TooltipWrapper';

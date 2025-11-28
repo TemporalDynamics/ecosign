@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HelpCircle } from 'lucide-react';
+import HelpCircle from 'lucide-react/dist/esm/icons/help-circle';
 
 function Tooltip({ term, definition }) {
   const [isVisible, setIsVisible] = useState(false);

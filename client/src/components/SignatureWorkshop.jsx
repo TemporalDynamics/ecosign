@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { File, Mail, PenLine, Trash2, User } from 'lucide-react';
+import File from 'lucide-react/dist/esm/icons/file';
+import Mail from 'lucide-react/dist/esm/icons/mail';
+import PenLine from 'lucide-react/dist/esm/icons/pen-line';
+import Trash2 from 'lucide-react/dist/esm/icons/trash2';
+import User from 'lucide-react/dist/esm/icons/user';
 import { requestSignNowIntegration } from '../utils/integrationUtils';
 
 const SignatureWorkshop = ({

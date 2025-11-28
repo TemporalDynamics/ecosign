@@ -1,7 +1,11 @@
 // client/src/pages/DashboardVerifyPage.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Upload, X, Info, ArrowLeft } from 'lucide-react';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import Upload from 'lucide-react/dist/esm/icons/upload';
+import X from 'lucide-react/dist/esm/icons/x';
+import Info from 'lucide-react/dist/esm/icons/info';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import VerificationComponent from '../components/VerificationComponent';
 import DashboardNav from '../components/DashboardNav';
 import FooterInternal from '../components/FooterInternal';

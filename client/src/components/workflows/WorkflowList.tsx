@@ -6,7 +6,12 @@
 // ============================================
 
 import { useNavigate } from 'react-router-dom'
-import { FileText, Clock, Users, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import Users from 'lucide-react/dist/esm/icons/users';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import XCircle from 'lucide-react/dist/esm/icons/x-circle';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import { WorkflowStatusBadge } from './WorkflowStatus'
 
 interface Workflow {

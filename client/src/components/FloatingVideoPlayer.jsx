@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Maximize2, Minimize2, Maximize } from 'lucide-react';
+import X from 'lucide-react/dist/esm/icons/x';
+import Maximize2 from 'lucide-react/dist/esm/icons/maximize2';
+import Minimize2 from 'lucide-react/dist/esm/icons/minimize2';
+import Maximize from 'lucide-react/dist/esm/icons/maximize';
 
 function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }) {
   const sizes = {

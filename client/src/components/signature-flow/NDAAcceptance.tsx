@@ -5,7 +5,8 @@
 // ============================================
 
 import { useState } from 'react'
-import { Shield, Check } from 'lucide-react'
+import Shield from 'lucide-react/dist/esm/icons/shield';
+import Check from 'lucide-react/dist/esm/icons/check';
 
 interface NDAAcceptanceProps {
   workflow: {

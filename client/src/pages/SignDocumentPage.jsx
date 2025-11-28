@@ -15,7 +15,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import { EventHelpers } from '../utils/eventLogger';
-import { Shield, CheckCircle2, Loader2, Pen, Type, Upload as UploadIcon } from 'lucide-react';
+import Shield from 'lucide-react/dist/esm/icons/shield';
+import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle2';
+import Loader2 from 'lucide-react/dist/esm/icons/loader2';
+import Pen from 'lucide-react/dist/esm/icons/pen';
+import Type from 'lucide-react/dist/esm/icons/type';
+import Upload as UploadIcon from 'lucide-react/dist/esm/icons/upload as -upload-icon';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
 
 function SignDocumentPage() {

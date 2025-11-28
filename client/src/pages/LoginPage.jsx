@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lock } from 'lucide-react';
+import Lock from 'lucide-react/dist/esm/icons/lock';
 import { supabase } from '../lib/supabaseClient';
 import FooterPublic from '../components/FooterPublic';
 

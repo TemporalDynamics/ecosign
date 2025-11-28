@@ -1,7 +1,15 @@
 // client/src/pages/AccessPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { User, Mail, Building2, Briefcase, Lock, Download, AlertCircle, CheckCircle, FileText } from 'lucide-react';
+import User from 'lucide-react/dist/esm/icons/user';
+import Mail from 'lucide-react/dist/esm/icons/mail';
+import Building2 from 'lucide-react/dist/esm/icons/building2';
+import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
+import Lock from 'lucide-react/dist/esm/icons/lock';
+import Download from 'lucide-react/dist/esm/icons/download';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
 import { supabase } from '../lib/supabaseClient';
 
 const AccessPage = () => {

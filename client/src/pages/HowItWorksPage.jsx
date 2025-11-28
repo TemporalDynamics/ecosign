@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Shield, Clock, Lock, CheckCircle, Hash, Anchor, Copy } from 'lucide-react';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Shield from 'lucide-react/dist/esm/icons/shield';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import Lock from 'lucide-react/dist/esm/icons/lock';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import Hash from 'lucide-react/dist/esm/icons/hash';
+import Anchor from 'lucide-react/dist/esm/icons/anchor';
+import Copy from 'lucide-react/dist/esm/icons/copy';
 import FooterPublic from '../components/FooterPublic';
 
 // Copy to Clipboard Button Component

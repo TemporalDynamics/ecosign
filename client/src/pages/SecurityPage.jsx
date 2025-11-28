@@ -1,4 +1,7 @@
-import { Shield, Lock, Clock, Eye } from 'lucide-react';
+import Shield from 'lucide-react/dist/esm/icons/shield';
+import Lock from 'lucide-react/dist/esm/icons/lock';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import Eye from 'lucide-react/dist/esm/icons/eye';
 import { useLocation } from 'react-router-dom';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';

@@ -2,7 +2,10 @@ import React from 'react';
 import DashboardNav from '../../components/DashboardNav';
 import FooterInternal from '../../components/FooterInternal';
 import PageTitle from '../../components/PageTitle';
-import { Upload, FileCheck, Download, Shield } from 'lucide-react';
+import Upload from 'lucide-react/dist/esm/icons/upload';
+import FileCheck from 'lucide-react/dist/esm/icons/file-check';
+import Download from 'lucide-react/dist/esm/icons/download';
+import Shield from 'lucide-react/dist/esm/icons/shield';
 
 export default function QuickGuideInternalPage() {
   return (

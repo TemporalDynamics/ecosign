@@ -1,7 +1,10 @@
 // client/src/components/LegalProtectionOptions.jsx
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Shield, FileText, ExternalLink, Zap } from 'lucide-react';
+import Shield from 'lucide-react/dist/esm/icons/shield';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
+import Zap from 'lucide-react/dist/esm/icons/zap';
 import IntegrationModal from './IntegrationModal';
 import { requestMifielIntegration } from '../utils/integrationUtils';
 import SignatureWorkshop from './SignatureWorkshop';

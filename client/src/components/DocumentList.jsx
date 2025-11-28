@@ -1,6 +1,13 @@
 // client/src/components/DocumentList.jsx
 import React, { useState, useEffect } from 'react';
-import { FileText, Link as LinkIcon, Download, Eye, Clock, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Link as LinkIcon from 'lucide-react/dist/esm/icons/link as -link-icon';
+import Download from 'lucide-react/dist/esm/icons/download';
+import Eye from 'lucide-react/dist/esm/icons/eye';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import XCircle from 'lucide-react/dist/esm/icons/x-circle';
 import LinkGenerator from './LinkGenerator';
 import { supabase } from '../lib/supabaseClient';
 

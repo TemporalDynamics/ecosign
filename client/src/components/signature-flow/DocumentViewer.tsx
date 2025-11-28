@@ -12,7 +12,9 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { downloadDocument, getDocumentDownloadUrl } from '@/utils/documentStorage'
 import { decryptFile } from '@/utils/encryption'
 import { useEcoxLogger } from '@/hooks/useEcoxLogger'
-import { ShieldCheck, FileText, RefreshCcw } from 'lucide-react'
+import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import RefreshCcw from 'lucide-react/dist/esm/icons/refresh-ccw';
 
 interface DocumentViewerProps {
   documentPath: string | null

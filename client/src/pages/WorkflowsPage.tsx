@@ -11,7 +11,10 @@ import DashboardNav from '../components/DashboardNav'
 import FooterInternal from '../components/FooterInternal'
 import WorkflowList from '@/components/workflows/WorkflowList'
 import CreateWorkflowWizard from '@/components/workflows/CreateWorkflowWizard'
-import { FileText, Users, CheckCircle, Clock } from 'lucide-react'
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Users from 'lucide-react/dist/esm/icons/users';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import Clock from 'lucide-react/dist/esm/icons/clock';
 
 interface Workflow {
   id: string

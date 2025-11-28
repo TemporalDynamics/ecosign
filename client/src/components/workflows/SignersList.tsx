@@ -4,7 +4,11 @@
 // Lista de firmantes con estados y acciones
 // ============================================
 
-import { Mail, CheckCircle, Clock, XCircle, User } from 'lucide-react'
+import Mail from 'lucide-react/dist/esm/icons/mail';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import XCircle from 'lucide-react/dist/esm/icons/x-circle';
+import User from 'lucide-react/dist/esm/icons/user';
 
 interface Signer {
   id: string

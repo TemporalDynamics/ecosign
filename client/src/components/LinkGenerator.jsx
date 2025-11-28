@@ -1,6 +1,14 @@
 // client/src/components/LinkGenerator.jsx
 import React, { useState } from 'react';
-import { Lock, Link as LinkIcon, FileText, User, Mail, Building2, Briefcase, CheckCircle, AlertCircle } from 'lucide-react';
+import Lock from 'lucide-react/dist/esm/icons/lock';
+import Link as LinkIcon from 'lucide-react/dist/esm/icons/link as -link-icon';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import User from 'lucide-react/dist/esm/icons/user';
+import Mail from 'lucide-react/dist/esm/icons/mail';
+import Building2 from 'lucide-react/dist/esm/icons/building2';
+import Briefcase from 'lucide-react/dist/esm/icons/briefcase';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import { supabase } from '../lib/supabaseClient';
 
 const LinkGenerator = ({ documentId, onLinkGenerated }) => {

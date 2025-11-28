@@ -1,23 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import {
-  X,
-  FileText,
-  Upload,
-  Shield,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle2,
-  Loader2,
-  Link as LinkIcon,
-  Users,
-  Maximize2,
-  Minimize2,
-  Eye,
-  Pen,
-  Highlighter,
-  Type,
-  FileCheck
-} from 'lucide-react';
+import X from 'lucide-react/dist/esm/icons/x';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Upload from 'lucide-react/dist/esm/icons/upload';
+import Shield from 'lucide-react/dist/esm/icons/shield';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
+import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
+import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle2';
+import Loader2 from 'lucide-react/dist/esm/icons/loader2';
+import Link as LinkIcon from 'lucide-react/dist/esm/icons/link as -link-icon';
+import Users from 'lucide-react/dist/esm/icons/users';
+import Maximize2 from 'lucide-react/dist/esm/icons/maximize2';
+import Minimize2 from 'lucide-react/dist/esm/icons/minimize2';
+import Eye from 'lucide-react/dist/esm/icons/eye';
+import Pen from 'lucide-react/dist/esm/icons/pen';
+import Highlighter from 'lucide-react/dist/esm/icons/highlighter';
+import Type from 'lucide-react/dist/esm/icons/type';
+import FileCheck from 'lucide-react/dist/esm/icons/file-check';
 import toast from 'react-hot-toast';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';

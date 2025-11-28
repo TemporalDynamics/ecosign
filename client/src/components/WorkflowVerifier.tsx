@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { calculateDocumentHash, formatHashForDisplay } from '@/utils/hashDocument'
-import Shield from 'lucide-react/dist/esm/icons/shield';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
-import XCircle from 'lucide-react/dist/esm/icons/x-circle';
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
+import Shield from 'lucide-react';
+import FileText from 'lucide-react';
+import CheckCircle from 'lucide-react';
+import XCircle from 'lucide-react';
+import RefreshCw from 'lucide-react';
 
 interface WorkflowVerifierProps {
   className?: string

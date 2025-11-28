@@ -1,12 +1,12 @@
 // client/src/components/VerificationComponent.jsx
 import React, { useState, useCallback } from 'react';
-import Upload from 'lucide-react/dist/esm/icons/upload';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
-import Clock from 'lucide-react/dist/esm/icons/clock';
-import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check';
-import FileCheck from 'lucide-react/dist/esm/icons/file-check';
+import Upload from 'lucide-react';
+import FileText from 'lucide-react';
+import CheckCircle from 'lucide-react';
+import AlertCircle from 'lucide-react';
+import Clock from 'lucide-react';
+import ShieldCheck from 'lucide-react';
+import FileCheck from 'lucide-react';
 import { verifyEcoFile } from '../lib/verificationService';
 
 const VerificationComponent = ({ initialFile = null }) => {

@@ -7,11 +7,11 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import X from 'lucide-react/dist/esm/icons/x';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import Users from 'lucide-react/dist/esm/icons/users';
-import Settings from 'lucide-react/dist/esm/icons/settings';
-import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import X from 'lucide-react';
+import FileText from 'lucide-react';
+import Users from 'lucide-react';
+import Settings from 'lucide-react';
+import CheckCircle from 'lucide-react';
 import DocumentUploader from '@/components/documents/DocumentUploader'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 

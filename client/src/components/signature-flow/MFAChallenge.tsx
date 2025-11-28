@@ -7,8 +7,8 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import Shield from 'lucide-react/dist/esm/icons/shield';
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import Shield from 'lucide-react';
+import AlertTriangle from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 interface MFAChallengeProps {

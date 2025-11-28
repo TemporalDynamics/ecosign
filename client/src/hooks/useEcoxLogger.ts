@@ -20,6 +20,7 @@ type EcoxEventType =
   | 'signature_applied'
   | 'signature_completed'
   | 'eco_downloaded'
+  | 'sequential_order_violated'
 
 interface LogEventParams {
   workflowId: string

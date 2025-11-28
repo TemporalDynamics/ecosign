@@ -6,7 +6,7 @@
 // - Token validation
 // - NDA acceptance
 // - Auth gate (login/register required)
-// - MFA challenge (CRITICAL - not yet implemented)
+// - MFA TOTP challenge (implemented in MFAChallenge.tsx)
 // - Document viewer with PDF.js
 // - ECOX logging at each step
 // - Signature pad
@@ -287,8 +287,8 @@ export default function SignWorkflowPage() {
         }
       })
 
-      // Step 1: Download the encrypted PDF from storage
-      console.log('📄 Downloading encrypted PDF from storage...')
+      // Step 1: Download the PDF from storage (may be encrypted or plain)
+      console.log('📄 Downloading PDF from storage...')
       const { data: downloadData, error: downloadError } = await supabase.storage
         .from('documents')
         .download(signerData.workflow.document_path)
@@ -297,17 +297,23 @@ export default function SignWorkflowPage() {
         throw new Error('No se pudo descargar el documento')
       }
 
-      // Step 2: Decrypt the PDF in the browser
-      console.log('🔓 Decrypting PDF in browser...')
-      const decryptedPdfBlob = await decryptFile(
-        downloadData,
-        signerData.workflow.encryption_key
-      )
+      // Step 2: Decrypt the PDF if it's encrypted
+      let pdfBlob = downloadData
+
+      if (signerData.workflow.encryption_key) {
+        console.log('🔓 Decrypting PDF in browser...')
+        pdfBlob = await decryptFile(
+          downloadData,
+          signerData.workflow.encryption_key
+        )
+      } else {
+        console.log('📄 PDF is not encrypted, using as-is...')
+      }
 
       // Step 3: Apply signature to PDF using pdf-lib (in browser)
       console.log('✍️ Applying signature to PDF...')
       const { signedPdfBlob, signedPdfHash } = await applySignatureToPDF(
-        decryptedPdfBlob,
+        pdfBlob,
         {
           dataUrl: signatureData.dataUrl,
           type: signatureData.type,

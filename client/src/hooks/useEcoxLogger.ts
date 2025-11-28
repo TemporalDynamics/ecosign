@@ -58,27 +58,15 @@ export function useEcoxLogger(): EcoxLogger {
     documentHashSnapshot
   }: LogEventParams): Promise<boolean> => {
     try {
-      // GUARD: Check if user has an active session
-      // This prevents CORS errors in public flows where user is not logged in
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session) {
-        console.warn(`⚠️ ECOX event ${eventType} not logged: no active session (public flow)`)
-        // Return true to avoid breaking the flow, but don't log
-        return true
-      }
-
       // Get browser timezone
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
       // Get user agent
       const userAgent = navigator.userAgent
 
-      // Get approximate location from browser (city/country only, if available)
-      // Note: This requires user permission, so we'll just send timezone
-      // The Edge Function will do IP-based geolocation
-
       // Call Edge Function to log the event
+      // NOTE: This works in both authenticated and quick_access flows
+      // The Edge Function will capture IP, geolocation, and other forensic data
       const { data, error } = await supabase.functions.invoke('log-ecox-event', {
         body: {
           workflow_id: workflowId,
@@ -92,15 +80,17 @@ export function useEcoxLogger(): EcoxLogger {
       })
 
       if (error) {
-        console.error('Error logging ECOX event:', error)
-        return false
+        console.error('❌ Error logging ECOX event:', error)
+        // Don't break the user flow if logging fails
+        return true
       }
 
       console.log(`✅ ECOX event logged: ${eventType}`, data)
       return true
     } catch (error) {
-      console.error('Error logging ECOX event:', error)
-      return false
+      console.error('❌ Error logging ECOX event:', error)
+      // Don't break the user flow if logging fails
+      return true
     }
   }, [])
 

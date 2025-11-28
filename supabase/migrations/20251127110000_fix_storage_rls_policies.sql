@@ -38,25 +38,36 @@ WITH CHECK (
 -- POLICY 2: Workflow participants can read documents
 -- ============================================
 -- Allow read if:
--- 1. User is the owner (folder name matches user ID), OR
--- 2. User is a signer in a workflow that references this document
+-- 1. User is the owner of the workflow that references this document, OR
+-- 2. User is a signer in a workflow that references this document, OR
+-- 3. User can read any file in their own folder (fallback)
+DROP POLICY IF EXISTS "Workflow participants can read documents" ON storage.objects;
+
 CREATE POLICY "Workflow participants can read documents"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (
   bucket_id = 'documents'
   AND (
-    -- User is the owner (folder name matches user ID)
-    auth.uid()::text = (storage.foldername(name))[1]
+    -- Owner of the workflow can read the document
+    EXISTS (
+      SELECT 1
+      FROM public.signature_workflows sw
+      WHERE sw.document_path = storage.objects.name
+        AND sw.owner_id = auth.uid()
+    )
     OR
-    -- User is a signer in a workflow that uses this document
+    -- Any signer in the workflow can read the document
     EXISTS (
       SELECT 1
       FROM public.workflow_signers ws
-      JOIN public.signature_workflows sw ON ws.workflow_id = sw.id
-      WHERE ws.email = auth.email()
-        AND sw.document_path = storage.objects.name
+      JOIN public.signature_workflows sw ON sw.id = ws.workflow_id
+      WHERE sw.document_path = storage.objects.name
+        AND ws.email = auth.email()
     )
+    OR
+    -- Fallback: users can read files in their own folder
+    auth.uid()::text = (storage.foldername(name))[1]
   )
 );
 

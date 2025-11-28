@@ -50,7 +50,18 @@ export default function MFAChallenge({
 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        throw new Error('No autenticado')
+        console.warn('⚠️ No authenticated user for MFA challenge')
+
+        // If no authenticated user (quick_access flow):
+        // - If onMFANotSetup callback exists, delegate to it
+        // - Otherwise, simply let them pass
+        if (onMFANotSetup) {
+          onMFANotSetup()
+        } else {
+          onSuccess()
+        }
+
+        return
       }
 
       // Get all enrolled MFA factors

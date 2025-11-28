@@ -199,9 +199,12 @@ export default function SignWorkflowPage() {
         setStep('nda')
       } else if (signer.require_login && !user) {
         setStep('auth')
-      } else {
-        // MFA challenge is required for authenticated users
+      } else if (signer.require_login) {
+        // MFA challenge is only required for authenticated users
         setStep('mfa')
+      } else {
+        // Quick access flow (require_login=false), skip MFA
+        setStep('viewing')
       }
 
     } catch (err) {
@@ -224,9 +227,12 @@ export default function SignWorkflowPage() {
     // Move to next step
     if (signerData.require_login && !user) {
       setStep('auth')
-    } else {
-      // MFA challenge is required
+    } else if (signerData.require_login) {
+      // MFA challenge is only required for authenticated users
       setStep('mfa')
+    } else {
+      // Quick access flow (require_login=false), skip MFA
+      setStep('viewing')
     }
   }
 

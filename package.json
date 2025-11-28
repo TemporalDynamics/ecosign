@@ -37,6 +37,7 @@
     "@vitest/coverage-v8": "^4.0.9",
     "@vitest/ui": "^4.0.9",
     "dotenv": "^17.2.3",
+    "glob": "^13.0.0",
     "solc": "^0.8.20",
     "supabase": "^2.58.5",
     "typescript": "^5.9.3",

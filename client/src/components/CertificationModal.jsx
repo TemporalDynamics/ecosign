@@ -268,6 +268,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
       // 1. Certificar con o sin SignNow según tipo de firma seleccionado
       let certResult;
       let signedPdfFromSignNow = null;
+      let signNowResult = null;
 
       if (signatureEnabled && signatureType === 'signnow') {
         // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
@@ -278,7 +279,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
           // Obtener usuario autenticado
           const { data: { user } } = await supabase.auth.getUser();
 
-          const signNowResult = await signWithSignNow(fileToProcess, {
+          signNowResult = await signWithSignNow(fileToProcess, {
             documentName: fileToProcess.name,
             action: 'esignature',
             userEmail: user?.email || 'unknown@example.com',
@@ -352,7 +353,10 @@ const CertificationModal = ({ isOpen, onClose }) => {
       const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
         hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
-        initialStatus: initialStatus
+        initialStatus: initialStatus,
+        signNowDocumentId: signNowResult?.signnow_document_id || null,
+        signNowStatus: signNowResult?.status || null,
+        signedAt: signNowResult ? new Date().toISOString() : null
       });
 
       // 3. Registrar evento 'created' (ChainLog)

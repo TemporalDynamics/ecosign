@@ -29,6 +29,18 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     initialStatus = 'draft'
   } = options;
 
+  // Normalize optional eco_file_data payload (bytea expects binary)
+  let ecoFileDataBuffer = null;
+  if (ecoFileData) {
+    try {
+      ecoFileDataBuffer = ecoFileData instanceof Uint8Array
+        ? ecoFileData
+        : new Uint8Array(ecoFileData.buffer || ecoFileData);
+    } catch (e) {
+      console.warn('Unable to normalize ecoFileData, skipping storage', e);
+    }
+  }
+
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
@@ -80,9 +92,15 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
       bitcoin_status: bitcoinStatus, // Bitcoin anchoring status (pending/confirmed)
       bitcoin_anchor_id: bitcoinAnchorId,
       download_enabled: downloadEnabled, // Controls if .eco can be downloaded
-      eco_file_data: ecoFileData, // Store .eco buffer for deferred download
+      eco_file_data: ecoFileDataBuffer, // Store .eco buffer for deferred download
       file_type: getFileType(pdfFile.type),
-      last_event_at: new Date().toISOString()
+      last_event_at: new Date().toISOString(),
+      has_legal_timestamp: hasLegalTimestamp,
+      has_bitcoin_anchor: hasBitcoinAnchor,
+      signnow_document_id: signNowDocumentId,
+      signnow_status: signNowStatus,
+      signed_at: signedAt,
+      eco_hash: documentHash
     })
     .select()
     .single();

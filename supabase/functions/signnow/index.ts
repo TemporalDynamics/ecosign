@@ -44,7 +44,7 @@ type SignNowRequestBody = {
   } | null;
 };
 
-type IntegrationStatus = 'processing' | 'completed' | 'failed';
+type IntegrationStatus = 'processing' | 'pending_signnow' | 'completed' | 'failed';
 
 type SignNowUploadResponse = {
   id?: string;
@@ -79,6 +79,7 @@ const SIGNNOW_PRICING: Record<string, { amount: number; currency: string; descri
 };
 
 const signNowApiBase = Deno.env.get('SIGNNOW_API_BASE_URL')?.replace(/\/$/, '') || 'https://api.signnow.com';
+const signNowAppBase = Deno.env.get('SIGNNOW_APP_BASE_URL')?.replace(/\/$/, '') || 'https://app.signnow.com';
 const signNowApiKey = Deno.env.get('SIGNNOW_API_KEY')
   || Deno.env.get('SIGNNOW_APY_KEY')
   || Deno.env.get('SIGNNOW_API_TOKEN');
@@ -450,17 +451,18 @@ serve(async (req) => {
 
     console.log(`✅ Document uploaded to SignNow with ID: ${signNowDocumentId}`);
 
-    // Since we already embedded the signature in the PDF,
-    // we don't need SignNow's invite flow (which requires fields).
-    // Instead, we just store the document in SignNow for audit trail purposes
-    // and return the signed PDF directly to the user.
+    // Crear invitación estándar (se usará embed en frontend con signing URL)
+    const inviteResult = await createSignNowInvite(signNowDocumentId, signers, {
+      subject,
+      message,
+      redirectUrl,
+      declineRedirectUrl
+    });
 
-    // Create a simple metadata record instead of an invite
-    const inviteResult = {
-      id: `direct-${signNowDocumentId}`,
-      status: 'completed',
-      message: 'Document uploaded with embedded signature'
-    };
+    // URL embebible (mejor esfuerzo; dependen del producto de SignNow)
+    const signingUrl = inviteResult?.invites?.[0]?.id
+      ? `${signNowAppBase}/webapp/document/${signNowDocumentId}/invite/${inviteResult.invites[0].id}`
+      : null;
 
     // Use the PDF we just created (with embedded signature)
     // It's already stored in SignNow for audit trail purposes
@@ -483,12 +485,9 @@ serve(async (req) => {
       currency: pricing.currency,
       payment_options: { stripe: true },
       features: [
-        '✅ Legal-grade electronic signature (SignNow)',
-        '✅ Audit trail with timestamp, IP, device info',
-        '✅ Certificate of Completion (tamper-proof)',
-        '✅ Valid in 100+ countries (ESIGN, eIDAS, UETA)',
-        signature?.image ? '✅ Visual signature embedded in PDF' : 'Digital signature only',
-        signedDocumentBase64 ? '✅ Forensic PDF ready for download' : '⏳ PDF will be sent via email when signed',
+        '✅ Documento subido a SignNow para firma legal',
+        '⏳ Esperando firma en flujo SignNow (embed/link)',
+        signature?.image ? '✅ Firma visual incrustada localmente (preliminar)' : 'Firma digital pendiente',
         requireNdaEmbed ? '✅ NDA protection enabled' : 'Standard signature workflow'
       ],
       legal_compliance: {
@@ -499,27 +498,30 @@ serve(async (req) => {
         tamper_evident: true,
         signer_authentication: signers[0].authentication_type || 'email'
       },
-      status: 'completed',
+      status: 'pending_signnow',
       integration_request_id: integrationRecord.id,
       signnow_document_id: signNowDocumentId,
       signnow_invite_id: inviteResult.id || inviteResult.result_id || null,
       invite: inviteResult,
+      signing_url: signingUrl,
       metadata: {
         ...baseMetadata,
         signNowDocumentId,
         signNowInviteId: inviteResult.id || null,
+        signingUrl,
         signaturePlacement: signature?.placement || null,
-        hasForensicPdf: true,
-        pdfStatus: 'ready',
+        hasForensicPdf: false,
+        pdfStatus: 'pending_signnow',
         signatureMethod: 'embedded',
         storedInSignNow: true,
-        requiresSignerAction: false
+        requiresSignerAction: true
       },
+      // PDF preliminar con firma embebida localmente, útil para mostrar mientras
       signed_pdf_base64: finalSignedPdf,
-      next_steps: 'Document is ready with embedded signature. The signed PDF is stored in SignNow for audit trail purposes and is ready for download.'
+      next_steps: 'SignNow enviará los eventos al webhook cuando el documento esté firmado. El PDF final con audit trail se descargará y guardará automáticamente.'
     };
 
-    await updateIntegrationStatus(integrationRecord.id, 'completed', {
+    await updateIntegrationStatus(integrationRecord.id, 'pending_signnow', {
       metadata: responsePayload.metadata,
       signNowInviteId: responsePayload.signnow_invite_id,
       external_service_id: responsePayload.signnow_invite_id || signNowDocumentId

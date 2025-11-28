@@ -182,11 +182,11 @@ export function buildSignerInvitationEmail(params: {
   `;
 
   return {
-    from: 'EcoSign <no-reply@verifysign.pro>',
+    from: 'EcoSign <no-reply@email.ecosign.app>',
     to: signerEmail,
     subject: `📄 Documento para firmar: ${documentName}`,
     html,
-    reply_to: senderName ? undefined : 'soporte@verifysign.pro'
+    reply_to: senderName ? undefined : 'soporte@email.ecosign.app'
   };
 }
 
@@ -321,7 +321,7 @@ export function buildDocumentSignedEmail(params: {
   `;
 
   return {
-    from: 'EcoSign <no-reply@verifysign.pro>',
+    from: 'EcoSign <no-reply@email.ecosign.app>',
     to: ownerEmail,
     subject: `✅ Documento firmado: ${documentName}`,
     html
@@ -489,7 +489,7 @@ export function buildDocumentCertifiedEmail(params: {
   `;
 
   return {
-    from: 'EcoSign <no-reply@verifysign.pro>',
+    from: 'EcoSign <no-reply@email.ecosign.app>',
     to: ownerEmail,
     subject: `🎉 Tu documento "${documentName}" fue certificado`,
     html
@@ -660,7 +660,7 @@ export function buildBitcoinConfirmedEmail(params: {
   `;
 
   return {
-    from: 'EcoSign <no-reply@verifysign.pro>',
+    from: 'EcoSign <no-reply@email.ecosign.app>',
     to: ownerEmail,
     subject: `₿ Tu certificado con Bitcoin está listo: ${documentName}`,
     html
@@ -817,7 +817,7 @@ export function buildWorkflowCompletedEmail(params: {
   `;
 
   return {
-    from: 'EcoSign <no-reply@verifysign.pro>',
+    from: 'EcoSign <no-reply@email.ecosign.app>',
     to: recipientEmail,
     subject: `✅ Documento completado: ${documentName}`,
     html

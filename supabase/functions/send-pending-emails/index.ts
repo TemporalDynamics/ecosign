@@ -51,7 +51,7 @@ serve(async (req) => {
     for (const notification of notifications) {
       try {
         const emailPayload = {
-          from: 'EcoSign <no-reply@ecosign.app>',
+          from: 'EcoSign <no-reply@email.ecosign.app>',
           to: notification.recipient_email,
           subject: notification.subject,
           html: notification.body_html,

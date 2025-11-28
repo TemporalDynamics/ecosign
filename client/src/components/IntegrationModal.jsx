@@ -1,11 +1,11 @@
 // client/src/components/IntegrationModal.jsx
 import React, { useState } from 'react';
-import X from 'lucide-react/dist/esm/icons/x';
-import Shield from 'lucide-react/dist/esm/icons/shield';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import CreditCard from 'lucide-react/dist/esm/icons/credit-card';
-import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
+import X from 'lucide-react';
+import Shield from 'lucide-react';
+import FileText from 'lucide-react';
+import CreditCard from 'lucide-react';
+import CheckCircle from 'lucide-react';
+import AlertCircle from 'lucide-react';
 
 const IntegrationModal = ({ isOpen, onClose, integrationData, onConfirm }) => {
   const [paymentMethod, setPaymentMethod] = useState('card');

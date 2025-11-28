@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import Shield from 'lucide-react/dist/esm/icons/shield';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
-import Download from 'lucide-react/dist/esm/icons/download';
-import User from 'lucide-react/dist/esm/icons/user';
-import Clock from 'lucide-react/dist/esm/icons/clock';
+import Shield from 'lucide-react';
+import FileText from 'lucide-react';
+import CheckCircle from 'lucide-react';
+import AlertTriangle from 'lucide-react';
+import Download from 'lucide-react';
+import User from 'lucide-react';
+import Clock from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 const NDA_TEXT = `

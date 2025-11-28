@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
-import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import Shield from 'lucide-react/dist/esm/icons/shield';
-import Upload from 'lucide-react/dist/esm/icons/upload';
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import ArrowRight from 'lucide-react';
+import CheckCircle from 'lucide-react';
+import FileText from 'lucide-react';
+import Shield from 'lucide-react';
+import Upload from 'lucide-react';
+import AlertTriangle from 'lucide-react';
 import SignatureWorkshop from './SignatureWorkshop';
 import { certifyAndDownload } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';

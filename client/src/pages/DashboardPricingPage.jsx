@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import Check from 'lucide-react/dist/esm/icons/check';
-import X from 'lucide-react/dist/esm/icons/x';
-import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
-import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
+import Check from 'lucide-react';
+import X from 'lucide-react';
+import ChevronDown from 'lucide-react';
+import ChevronUp from 'lucide-react';
 import DashboardNav from '../components/DashboardNav';
 import FooterInternal from '../components/FooterInternal';
 

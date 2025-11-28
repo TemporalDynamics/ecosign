@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import Link2 from 'lucide-react/dist/esm/icons/link2';
-import Copy from 'lucide-react/dist/esm/icons/copy';
-import Check from 'lucide-react/dist/esm/icons/check';
-import Send from 'lucide-react/dist/esm/icons/send';
-import Shield from 'lucide-react/dist/esm/icons/shield';
-import Clock from 'lucide-react/dist/esm/icons/clock';
+import Link2 from 'lucide-react';
+import Copy from 'lucide-react';
+import Check from 'lucide-react';
+import Send from 'lucide-react';
+import Shield from 'lucide-react';
+import Clock from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 function ShareLinkGenerator({ documentId, documentTitle, onClose }) {

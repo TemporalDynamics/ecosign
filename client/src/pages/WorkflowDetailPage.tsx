@@ -4,14 +4,14 @@ import { supabase } from '@/lib/supabaseClient'
 import { formatHashForDisplay } from '@/utils/hashDocument'
 import DashboardNav from '@/components/DashboardNav'
 import FooterInternal from '@/components/FooterInternal'
-import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
-import Download from 'lucide-react/dist/esm/icons/download';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import Users from 'lucide-react/dist/esm/icons/users';
-import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check';
-import XCircle from 'lucide-react/dist/esm/icons/x-circle';
-import Clock from 'lucide-react/dist/esm/icons/clock';
+import ArrowLeft from 'lucide-react';
+import Download from 'lucide-react';
+import FileText from 'lucide-react';
+import RefreshCw from 'lucide-react';
+import Users from 'lucide-react';
+import ShieldCheck from 'lucide-react';
+import XCircle from 'lucide-react';
+import Clock from 'lucide-react';
 
 type Workflow = {
   id: string

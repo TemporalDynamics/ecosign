@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
-import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
-import Upload from 'lucide-react/dist/esm/icons/upload';
+import AlertCircle from 'lucide-react';
+import CheckCircle from 'lucide-react';
+import Upload from 'lucide-react';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';

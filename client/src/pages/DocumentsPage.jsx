@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import FileText from 'lucide-react/dist/esm/icons/file-text';
-import Filter from 'lucide-react/dist/esm/icons/filter';
-import Search from 'lucide-react/dist/esm/icons/search';
-import Download from 'lucide-react/dist/esm/icons/download';
-import Eye from 'lucide-react/dist/esm/icons/eye';
-import Copy from 'lucide-react/dist/esm/icons/copy';
-import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
-import Clock from 'lucide-react/dist/esm/icons/clock';
-import XCircle from 'lucide-react/dist/esm/icons/x-circle';
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
+import FileText from 'lucide-react';
+import Filter from 'lucide-react';
+import Search from 'lucide-react';
+import Download from 'lucide-react';
+import Eye from 'lucide-react';
+import Copy from 'lucide-react';
+import CheckCircle from 'lucide-react';
+import Clock from 'lucide-react';
+import XCircle from 'lucide-react';
+import AlertCircle from 'lucide-react';
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 

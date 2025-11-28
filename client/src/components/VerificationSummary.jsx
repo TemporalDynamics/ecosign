@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle2';
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
-import Info from 'lucide-react/dist/esm/icons/info';
-import Fingerprint from 'lucide-react/dist/esm/icons/fingerprint';
-import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check';
-import Clock3 from 'lucide-react/dist/esm/icons/clock3';
-import Stamp from 'lucide-react/dist/esm/icons/stamp';
-import Layers from 'lucide-react/dist/esm/icons/layers';
-import FileText from 'lucide-react/dist/esm/icons/file-text';
+import CheckCircle2 from 'lucide-react';
+import AlertTriangle from 'lucide-react';
+import Info from 'lucide-react';
+import Fingerprint from 'lucide-react';
+import ShieldCheck from 'lucide-react';
+import Clock3 from 'lucide-react';
+import Stamp from 'lucide-react';
+import Layers from 'lucide-react';
+import FileText from 'lucide-react';
 
 const layersConfig = [
   {

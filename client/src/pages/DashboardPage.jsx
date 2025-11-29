@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Info from 'lucide-react';
+import { Info } from 'lucide-react';
 import DocumentList from '../components/DocumentList';
 import DashboardNav from '../components/DashboardNav';
 const CertificationModal = React.lazy(() => import('../components/CertificationModal'));

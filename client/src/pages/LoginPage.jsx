@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Lock from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import FooterPublic from '../components/FooterPublic';
 
@@ -197,6 +197,7 @@ function LoginPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
+                autoComplete="email"
                 className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                 placeholder="tu@email.com"
               />
@@ -211,6 +212,7 @@ function LoginPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
+                autoComplete="current-password"
                 className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                 placeholder="••••••••"
               />
@@ -226,6 +228,7 @@ function LoginPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
+                  autoComplete="new-password"
                   className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                   placeholder="••••••••"
                 />

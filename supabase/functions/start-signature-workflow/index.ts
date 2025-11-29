@@ -251,8 +251,22 @@ serve(async (req) => {
 
     console.log(`Workflow ${workflow.id} created successfully`)
 
-    // TODO: Enviar emails reales usando Resend
-    // Por ahora los emails quedan en DB con status 'pending'
+    // Disparar envío de emails pendientes en background (worker send-pending-emails)
+    try {
+      const sendPendingUrl = `${supabaseUrl}/functions/v1/send-pending-emails`
+      const resp = await fetch(sendPendingUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        }
+      })
+      if (!resp.ok) {
+        console.warn('send-pending-emails returned non-OK status', resp.status)
+      }
+    } catch (err) {
+      console.warn('Could not trigger send-pending-emails:', err)
+    }
 
     return jsonResponse({
       success: true,

@@ -384,11 +384,24 @@ const CertificationModal = ({ isOpen, onClose }) => {
       // 2. Guardar en Supabase (guardar el PDF procesado, no el original)
       // Status inicial: 'signed' si ya se firmó, 'draft' si no hay firmantes
       const initialStatus = signatureEnabled ? 'signed' : 'draft';
-      
+      const bitcoinRequested = forensicEnabled && forensicConfig.useBitcoinAnchor;
+      const bitcoinPending = bitcoinRequested && Boolean(certResult?.bitcoinAnchor?.anchorId);
+      const overallStatus = bitcoinPending ? 'pending_anchor' : initialStatus === 'signed' ? 'certified' : initialStatus;
+
       const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
-        hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
+        hasBitcoinAnchor: bitcoinRequested,
+        bitcoinAnchorId: certResult?.bitcoinAnchor?.anchorId || null,
+        bitcoinStatus: bitcoinPending ? 'pending' : null,
         initialStatus: initialStatus,
+        overallStatus,
+        downloadEnabled: !bitcoinPending,
+        // Guardamos el ECO para liberarlo cuando Bitcoin confirme
+        ecoFileData: bitcoinPending && certResult?.ecoxBuffer ? {
+          buffer: Array.from(new Uint8Array(certResult.ecoxBuffer)),
+          fileName: certResult?.fileName || file.name,
+          createdAt: new Date().toISOString()
+        } : null,
         signNowDocumentId: signNowResult?.signnow_document_id || null,
         signNowStatus: signNowResult?.status || null,
         signedAt: signNowResult ? new Date().toISOString() : null
@@ -467,16 +480,24 @@ const CertificationModal = ({ isOpen, onClose }) => {
       }
 
       // 6. Preparar datos para download (PDF firmado + archivo .ECO)
+      // IMPORTANTE: Si Bitcoin está pending, NO permitir descarga del ECO todavía
+      const shouldAllowEcoDownload = !bitcoinPending;
+
       setCertificateData({
         ...certResult,
         // URL para descargar el PDF firmado con audit trail
         signedPdfUrl: URL.createObjectURL(fileToProcess),
         signedPdfName: fileToProcess.name.replace(/\.pdf$/i, '_signed.pdf'),
-        // URL para descargar el archivo .ECO
-        ecoDownloadUrl: URL.createObjectURL(new Blob([certResult.ecoxBuffer], { type: 'application/octet-stream' })),
+        // URL para descargar el archivo .ECO (solo si no está pending Bitcoin)
+        ecoDownloadUrl: shouldAllowEcoDownload
+          ? URL.createObjectURL(new Blob([certResult.ecoxBuffer], { type: 'application/octet-stream' }))
+          : null,
         ecoFileName: certResult.fileName.replace(/\.[^/.]+$/, '.eco'),
         fileName: certResult.fileName,
-        documentId: savedDoc?.id
+        documentId: savedDoc?.id,
+        downloadEnabled: shouldAllowEcoDownload,
+        bitcoinPending,
+        bitcoinAnchorId: certResult?.bitcoinAnchor?.anchorId || null
       });
 
       setStep(2); // Ir a "Listo" (ahora es paso 2)
@@ -1337,28 +1358,50 @@ const CertificationModal = ({ isOpen, onClose }) => {
                 )}
 
                 {/* Descargar archivo .ECO */}
-                <a
-                  href={certificateData.ecoDownloadUrl}
-                  download={certificateData.ecoFileName}
-                  onClick={() => {
-                    // Registrar evento 'downloaded'
-                    if (certificateData.documentId) {
-                      supabase.auth.getUser().then(({ data: { user } }) => {
-                        EventHelpers.logEcoDownloaded(
-                          certificateData.documentId,
-                          user?.id || null,
-                          user?.email || null
-                        );
-                      });
-                    }
-                  }}
-                  className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Descargar Certificado .ECO
-                </a>
+                {certificateData.downloadEnabled ? (
+                  <a
+                    href={certificateData.ecoDownloadUrl}
+                    download={certificateData.ecoFileName}
+                    onClick={() => {
+                      // Registrar evento 'downloaded'
+                      if (certificateData.documentId) {
+                        supabase.auth.getUser().then(({ data: { user } }) => {
+                          EventHelpers.logEcoDownloaded(
+                            certificateData.documentId,
+                            user?.id || null,
+                            user?.email || null
+                          );
+                        });
+                      }
+                    }}
+                    className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Descargar Certificado .ECO
+                  </a>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-5 py-3 text-amber-800">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">Anclaje Bitcoin en proceso</p>
+                        <p className="text-xs mt-1">
+                          Tu certificado .ECO estará disponible para descarga cuando se confirme el anclaje en Bitcoin (4-24 horas).
+                          Te notificaremos por email cuando esté listo.
+                        </p>
+                        {certificateData.bitcoinAnchorId && (
+                          <p className="text-xs mt-2 font-mono text-amber-700">
+                            ID: {certificateData.bitcoinAnchorId.substring(0, 8)}...
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Volver al dashboard */}
                 <button

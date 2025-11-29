@@ -231,7 +231,7 @@ serve(async (req) => {
     // 5. Crear notificación para primer firmante
     const firstSigner = signers.find(s => s.signingOrder === 1)!
     const firstSignerToken = accessTokens[firstSigner.email]
-    const appUrl = Deno.env.get('APP_URL') || 'https://app.verifysign.pro'
+    const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
     const signUrl = `${appUrl}/sign/${firstSignerToken}`
 
     await supabase

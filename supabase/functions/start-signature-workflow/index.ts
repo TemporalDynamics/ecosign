@@ -135,7 +135,11 @@ serve(async (req) => {
 
     if (workflowError || !workflow) {
       console.error('Error creating workflow:', workflowError)
-      return jsonResponse({ error: 'Failed to create workflow' }, 500)
+      return jsonResponse({
+        error: 'Failed to create workflow',
+        details: workflowError?.message,
+        code: workflowError?.code
+      }, 500)
     }
 
     // 2. Crear versión inicial
@@ -154,7 +158,11 @@ serve(async (req) => {
 
     if (versionError || !version) {
       console.error('Error creating version:', versionError)
-      return jsonResponse({ error: 'Failed to create workflow version' }, 500)
+      return jsonResponse({
+        error: 'Failed to create workflow version',
+        details: versionError?.message,
+        code: versionError?.code
+      }, 500)
     }
 
     // 3. Crear firmantes con tokens de acceso
@@ -191,7 +199,11 @@ serve(async (req) => {
 
     if (signersError) {
       console.error('Error creating signers:', signersError)
-      return jsonResponse({ error: 'Failed to create signers' }, 500)
+      return jsonResponse({
+        error: 'Failed to create signers',
+        details: signersError?.message,
+        code: signersError?.code
+      }, 500)
     }
 
     // 4. Crear notificación para Usuario A (workflow iniciado)
@@ -291,7 +303,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in start-signature-workflow:', error)
     return jsonResponse({
-      error: error instanceof Error ? error.message : 'Internal server error'
+      error: error instanceof Error ? error.message : 'Internal server error',
+      stack: error instanceof Error ? error.stack : undefined
     }, 500)
   }
 })

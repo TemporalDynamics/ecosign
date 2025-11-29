@@ -24,10 +24,23 @@ serve(async (req) => {
       })
     }
 
-    // Load config
-    const rpcUrl = Deno.env.get('ALCHEMY_RPC_URL')!
-    const sponsorPrivateKey = Deno.env.get('SPONSOR_PRIVATE_KEY')!
-    const contractAddress = Deno.env.get('POLYGON_CONTRACT_ADDRESS')!
+    // Load config (accept both legacy and new env names)
+    const rpcUrl =
+      Deno.env.get('POLYGON_RPC_URL') ??
+      Deno.env.get('ALCHEMY_RPC_URL')
+    const sponsorPrivateKey =
+      Deno.env.get('POLYGON_PRIVATE_KEY') ??
+      Deno.env.get('SPONSOR_PRIVATE_KEY')
+    const contractAddress = Deno.env.get('POLYGON_CONTRACT_ADDRESS')
+
+    if (!rpcUrl || !sponsorPrivateKey || !contractAddress) {
+      return new Response(JSON.stringify({
+        error: 'Missing Polygon config (POLYGON_RPC_URL/ALCHEMY_RPC_URL, POLYGON_PRIVATE_KEY/SPONSOR_PRIVATE_KEY, POLYGON_CONTRACT_ADDRESS)'
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
     // Connect to Polygon
     const provider = new ethers.JsonRpcProvider(rpcUrl)

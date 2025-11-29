@@ -1,24 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import X from 'lucide-react';
-import FileText from 'lucide-react';
-import Upload from 'lucide-react';
-import Shield from 'lucide-react';
-import ChevronDown from 'lucide-react';
-import ChevronUp from 'lucide-react';
-import CheckCircle2 from 'lucide-react';
-import Loader2 from 'lucide-react';
-import LinkIcon from 'lucide-react';
-import Users from 'lucide-react';
-import Maximize2 from 'lucide-react';
-import Minimize2 from 'lucide-react';
-import Eye from 'lucide-react';
-import Pen from 'lucide-react';
-import Highlighter from 'lucide-react';
-import Type from 'lucide-react';
-import FileCheck from 'lucide-react';
+import { X, ChevronDown, ChevronUp, FileCheck, FileText, Highlighter, Pen, Shield, Type, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
+import { startSignatureWorkflow } from '../lib/signatureWorkflowService';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
 import { applySignatureToPDF, blobToFile, addSignatureSheet } from '../utils/pdfSignature';
 import { signWithSignNow } from '../lib/signNowService';
@@ -171,7 +156,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
       .filter(input => input.email.trim() && emailRegex.test(input.email.trim()))
       .map((input, idx) => ({
         email: input.email.trim(),
-        order: idx + 1,
+        signingOrder: idx + 1,
         requireLogin: input.requireLogin,
         requireNda: input.requireNda,
         quickAccess: false
@@ -194,25 +179,77 @@ const CertificationModal = ({ isOpen, onClose }) => {
       // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
       if (multipleSignatures) {
         // Validar que haya al menos un email
-        const validEmails = emailInputs.filter(input => input.email.trim() !== '');
-        if (validEmails.length === 0) {
-          toast.error('Agregá al menos un email para enviar el documento a firmar');
+        const validSigners = buildSignersList();
+        if (validSigners.length === 0) {
+          toast.error('Agregá al menos un email válido para enviar el documento a firmar');
           setLoading(false);
           return;
         }
 
-        // Para EcoSign: crear .ECO en estado PENDIENTE_DE_FIRMA
-        // NOTA: El envío real de links únicos se implementará con edge function send-signature-invites
-        // Por ahora simula el comportamiento
-        console.log('📧 Caso B - Enviando invitaciones a:', validEmails);
-        console.log('Estado del documento: PENDIENTE_DE_FIRMA');
+        // Obtener usuario autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          toast.error('Necesitás iniciar sesión para enviar invitaciones');
+          setLoading(false);
+          return;
+        }
 
-        // Simular delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Subir el PDF a Storage y obtener URL firmable
+        const arrayBuffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+        const documentHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-        toast.success(`Invitaciones enviadas a ${validEmails.length} firmante(s). Cada firmante recibirá un link único para identificarse y firmar el documento.`, {
-          duration: 6000
-        });
+        const storagePath = `${user.id}/${Date.now()}-${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('user-documents')
+          .upload(storagePath, file, {
+            contentType: file.type || 'application/pdf',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Error subiendo archivo para workflow:', uploadError);
+          toast.error('No se pudo subir el archivo para enviar las invitaciones');
+          setLoading(false);
+          return;
+        }
+
+        // URL firmable (signed URL por 30 días)
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('user-documents')
+          .createSignedUrl(storagePath, 60 * 60 * 24 * 30);
+
+        if (signedUrlError || !signedUrlData?.signedUrl) {
+          console.error('Error generando signed URL:', signedUrlError);
+          toast.error('No se pudo generar el enlace del documento');
+          setLoading(false);
+          return;
+        }
+
+        // Iniciar workflow en backend (crea notificaciones y dispara send-pending-emails)
+        try {
+          const workflowResult = await startSignatureWorkflow({
+            documentUrl: signedUrlData.signedUrl,
+            documentHash,
+            originalFilename: file.name,
+            signers: validSigners,
+            forensicConfig: {
+              rfc3161: forensicEnabled && forensicConfig.useLegalTimestamp,
+              polygon: forensicEnabled && forensicConfig.usePolygonAnchor,
+              bitcoin: forensicEnabled && forensicConfig.useBitcoinAnchor
+            }
+          });
+
+          console.log('✅ Workflow iniciado:', workflowResult);
+          toast.success(`Invitaciones enviadas a ${validSigners.length} firmante(s). Revisá tu email para el seguimiento.`, {
+            duration: 6000
+          });
+        } catch (workflowError) {
+          console.error('❌ Error al iniciar workflow:', workflowError);
+          toast.error(`No se pudo enviar las invitaciones: ${workflowError.message || workflowError}`);
+          setLoading(false);
+          return;
+        }
 
         // Cerrar modal
         resetAndClose();

@@ -2,10 +2,7 @@ import React from 'react';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
-import Briefcase from 'lucide-react';
-import FlaskConical from 'lucide-react';
-import Palette from 'lucide-react';
-import Building2 from 'lucide-react';
+import { Briefcase, FlaskConical, Palette, Building2 } from 'lucide-react';
 
 export default function UseCasesPage() {
   return (

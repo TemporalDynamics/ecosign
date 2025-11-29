@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
-import ChevronDown from 'lucide-react';
-import ChevronUp from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 
 const faqs = [
   {

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import Shield from 'lucide-react';
-import FileText from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import AlertTriangle from 'lucide-react';
-import Download from 'lucide-react';
-import User from 'lucide-react';
-import Clock from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 const NDA_TEXT = `

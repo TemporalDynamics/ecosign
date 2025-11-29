@@ -296,7 +296,7 @@ export default function SignWorkflowPage() {
       // Step 1: Download the PDF from storage (may be encrypted or plain)
       console.log('📄 Downloading PDF from storage...')
       const { data: downloadData, error: downloadError } = await supabase.storage
-        .from('documents')
+        .from('user-documents')
         .download(signerData.workflow.document_path)
 
       if (downloadError || !downloadData) {
@@ -345,7 +345,7 @@ export default function SignWorkflowPage() {
       const signedPath = `${user.id}/${signerData.workflow_id}/signed_${Date.now()}.pdf.enc`
 
       const { error: uploadError } = await supabase.storage
-        .from('documents')
+        .from('user-documents')
         .upload(signedPath, encryptedSignedPdf, {
           cacheControl: '3600',
           upsert: false

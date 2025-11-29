@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import Shield from 'lucide-react';
-import FileText from 'lucide-react';
-import Lock from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import Upload from 'lucide-react';
-import LinkIcon from 'lucide-react';
-import Eye from 'lucide-react';
-import Anchor from 'lucide-react';
-import Clock from 'lucide-react';
-import Users from 'lucide-react';
-import Play from 'lucide-react';
+import {
+  Shield,
+  FileText,
+  Lock,
+  CheckCircle,
+  Upload,
+  Link as LinkIcon,
+  Eye,
+  Anchor,
+  Clock,
+  Users,
+  Play
+} from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import FooterPublic from '../components/FooterPublic';
 

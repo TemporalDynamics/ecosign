@@ -4,14 +4,14 @@ import { supabase } from '@/lib/supabaseClient'
 import { formatHashForDisplay } from '@/utils/hashDocument'
 import DashboardNav from '@/components/DashboardNav'
 import FooterInternal from '@/components/FooterInternal'
-import ArrowLeft from 'lucide-react';
-import Download from 'lucide-react';
-import FileText from 'lucide-react';
-import RefreshCw from 'lucide-react';
-import Users from 'lucide-react';
-import ShieldCheck from 'lucide-react';
-import XCircle from 'lucide-react';
-import Clock from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 
 type Workflow = {
   id: string
@@ -168,13 +168,27 @@ export default function WorkflowDetailPage() {
   const downloadPDF = async () => {
     if (!workflow?.document_path) return
     try {
-      const { data, error: urlError } = await supabase.storage
-        .from('documents')
-        .createSignedUrl(workflow.document_path, 3600)
-      if (urlError || !data?.signedUrl) {
-        throw urlError
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        alert('Sesión no válida')
+        return
       }
-      window.open(data.signedUrl, '_blank')
+
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/get-signed-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ path: workflow.document_path, bucket: 'user-documents', expiresIn: 3600 })
+      })
+
+      if (!response.ok) {
+        throw new Error('Error generando URL firmada')
+      }
+
+      const { signedUrl } = await response.json()
+      window.open(signedUrl, '_blank')
     } catch (err) {
       alert('No se pudo descargar el PDF firmado')
       console.error(err)

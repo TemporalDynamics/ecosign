@@ -5,8 +5,8 @@
 // ============================================
 
 import { useState } from 'react'
-import Shield from 'lucide-react';
-import Check from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 
 interface NDAAcceptanceProps {
   workflow: {

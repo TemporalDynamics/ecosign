@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, ChevronUp, FileCheck, FileText, Highlighter, Pen, Shield, Type, Upload, Users } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, Highlighter, Pen, Shield, Type, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';

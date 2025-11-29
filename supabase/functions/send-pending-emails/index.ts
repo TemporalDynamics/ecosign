@@ -1,121 +1,79 @@
-import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { sendEmail } from '../_shared/email.ts'
+// send-pending-emails robust version (TypeScript)
+// Reemplazar en supabase/functions/send-pending-emails
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendResendEmail } from '../_shared/email.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+serve(async (req: Request) => {
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+  const SUPABASE_SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+  console.log('🟢 send-pending-emails: start');
   try {
-    console.log('🚀 Procesando emails pendientes...')
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // Obtener notificaciones pendientes (máximo 10 por ejecución)
-    const { data: notifications, error: fetchError } = await supabase
+    const { data: rows, error } = await supabase
       .from('workflow_notifications')
       .select('*')
       .eq('delivery_status', 'pending')
-      .order('created_at', { ascending: true })
-      .limit(10)
+      .limit(50)
+      .order('created_at', { ascending: true });
 
-    if (fetchError) {
-      console.error('Error fetching notifications:', fetchError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch notifications' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (error) {
+      console.error('Error seleccionando pending:', error);
+      return new Response('Error consulta', { status: 500 });
     }
 
-    if (!notifications || notifications.length === 0) {
-      console.log('✅ No hay emails pendientes')
-      return new Response(
-        JSON.stringify({ message: 'No pending emails', sent: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (!rows || rows.length === 0) {
+      console.info('✅ No hay emails pendientes');
+      return new Response('No pending', { status: 200 });
     }
 
-    console.log(`📧 Procesando ${notifications.length} notificaciones...`)
-
-    let sentCount = 0
-    let failedCount = 0
-
-    for (const notification of notifications) {
+    for (const r of rows) {
       try {
-        const emailPayload = {
-          from: 'EcoSign <no-reply@email.ecosign.app>',
-          to: notification.recipient_email,
-          subject: notification.subject,
-          html: notification.body_html,
-        }
+        const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@email.ecosign.app>';
+        const to = r.recipient_email;
+        const subject = r.subject || 'Notificación EcoSign';
+        const html = r.body_html || '<p>Notificación</p>';
 
-        const result = await sendEmail(emailPayload)
+        const result = await sendResendEmail({ from, to, subject, html });
 
-        if (result.success) {
-          await supabase
+        if (result.ok) {
+          const upd = await supabase
             .from('workflow_notifications')
             .update({
               delivery_status: 'sent',
               sent_at: new Date().toISOString(),
-              resend_email_id: result.id
+              resend_email_id: result.id ?? null,
+              error_message: null,
             })
-            .eq('id', notification.id)
+            .eq('id', r.id);
 
-          sentCount++
-          console.log(`✅ Email enviado a ${notification.recipient_email}`)
+          if (upd.error) console.error('Error actualizando a sent:', upd.error);
+          else console.info(`Email enviado fila ${r.id} resend_id ${result.id}`);
         } else {
-          await supabase
+          const retry = (r.retry_count ?? 0) + 1;
+          const new_status = retry >= 3 ? 'failed' : 'pending';
+          const upd = await supabase
             .from('workflow_notifications')
             .update({
-              delivery_status: 'failed',
-              error_message: result.error
+              delivery_status: new_status,
+              error_message: JSON.stringify(result.error ?? result.body ?? 'Unknown error'),
+              retry_count: retry,
             })
-            .eq('id', notification.id)
+            .eq('id', r.id);
 
-          failedCount++
-          console.error(`❌ Error enviando a ${notification.recipient_email}:`, result.error)
+          console.error(`Error enviando email fila ${r.id}:`, result.error ?? result.body);
+          if (upd.error) console.error('Error actualizando fila error:', upd.error);
         }
-      } catch (error) {
-        failedCount++
-        console.error(`❌ Error procesando notificación ${notification.id}:`, error)
-
-        await supabase
-          .from('workflow_notifications')
-          .update({
-            delivery_status: 'failed',
-            error_message: error instanceof Error ? error.message : 'Unknown error'
-          })
-          .eq('id', notification.id)
+      } catch (innerErr) {
+        console.error('Excepción procesando fila:', innerErr);
       }
     }
 
-    console.log(`✅ Proceso completado: ${sentCount} enviados, ${failedCount} fallidos`)
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        sent: sentCount,
-        failed: failedCount,
-        total: notifications.length
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-
-  } catch (error) {
-    console.error('❌ Error en send-pending-emails:', error)
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Internal server error'
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    console.log('🟢 send-pending-emails: finished');
+    return new Response('Processed', { status: 200 });
+  } catch (err) {
+    console.error('Fatal en send-pending-emails:', err);
+    return new Response('Error', { status: 500 });
   }
-})
+});

@@ -9,7 +9,7 @@
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
-import { sendEmail, buildBitcoinConfirmedEmail } from '../_shared/email.ts';
+import { sendResendEmail } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +20,7 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
+const defaultFrom = Deno.env.get('DEFAULT_FROM') || 'VerifySign <noreply@verifysign.pro>';
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing Supabase credentials');
@@ -167,54 +168,34 @@ async function sendConfirmationEmail(
     return false;
   }
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: 'VerifySign <noreply@verifysign.com>',
-        to: [email],
-        subject: '✅ Tu documento ha sido anclado en Bitcoin',
-        html: `
-          <h2>🔗 Anclaje en Bitcoin Confirmado</h2>
-          <p>Tu documento ha sido exitosamente anclado en la blockchain de Bitcoin.</p>
+  const subject = '✅ Anclaje Bitcoin confirmado';
+  const html = `
+    <h2>🔗 Anclaje en Bitcoin Confirmado</h2>
+    <p>Tu documento ha sido anclado exitosamente en la blockchain de Bitcoin.</p>
+    <h3>Detalles:</h3>
+    <ul>
+      <li><strong>Hash:</strong> <code>${documentHash}</code></li>
+      ${bitcoinTxId ? `<li><strong>Transacción:</strong> <code>${bitcoinTxId}</code></li>` : ''}
+      ${blockHeight ? `<li><strong>Bloque:</strong> ${blockHeight}</li>` : ''}
+    </ul>
+    <p>Tu certificado .ECO ya está disponible para descarga en tu cuenta.</p>
+    <p style="color: #666; font-size: 12px;">Mensaje automático de VerifySign.</p>
+  `;
 
-          <h3>Detalles del Anclaje:</h3>
-          <ul>
-            <li><strong>Hash del documento:</strong> <code>${documentHash}</code></li>
-            ${bitcoinTxId ? `<li><strong>Transacción Bitcoin:</strong> <code>${bitcoinTxId}</code></li>` : ''}
-            ${blockHeight ? `<li><strong>Altura del bloque:</strong> ${blockHeight}</li>` : ''}
-          </ul>
+  const result = await sendResendEmail({
+    from: defaultFrom,
+    to: email,
+    subject,
+    html
+  });
 
-          <p><strong>⏱️ Tiempo de procesamiento:</strong> Este proceso puede tomar entre 4-24 horas dependiendo de la red Bitcoin.</p>
-
-          <p>Tu documento ahora tiene una prueba criptográfica inmutable de existencia en la blockchain más segura del mundo.</p>
-
-          <hr>
-          <p style="color: #666; font-size: 12px;">
-            Este es un mensaje automático de VerifySign. Para verificar tu certificado,
-            visita <a href="https://verifysign.com/verify">verifysign.com/verify</a>
-          </p>
-        `
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to send email:', errorText);
-      return false;
-    }
-
-    console.log(`✅ Confirmation email sent to ${email}`);
-    return true;
-
-  } catch (error) {
-    console.error('Email sending error:', error);
+  if (!result.ok) {
+    console.error('Failed to send email:', result.error || result.body);
     return false;
   }
+
+  console.log(`✅ Confirmation email sent to ${email}`);
+  return true;
 }
 
 serve(async (req) => {
@@ -346,21 +327,26 @@ serve(async (req) => {
               // Get user info for email
               const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(docUpdate.user_id);
 
+              // Notify document owner
               if (!userError && user && user.email && !anchor.notification_sent) {
-                // Send styled email notification
-                const emailPayload = buildBitcoinConfirmedEmail({
-                  ownerEmail: user.email,
-                  ownerName: user.user_metadata?.full_name || user.user_metadata?.name,
-                  documentName: docUpdate.document_name,
-                  documentId: docUpdate.id,
-                  bitcoinTxId: verification.bitcoinTxId,
-                  blockHeight: verification.blockHeight || undefined,
-                  confirmedAt: confirmedAt
-                });
+                const emailSent = await sendConfirmationEmail(
+                  user.email,
+                  anchor.document_hash,
+                  verification.bitcoinTxId || null,
+                  verification.blockHeight || null
+                );
 
-                const emailResult = await sendEmail(emailPayload);
+                // Also notify signer if provided in anchor.user_email (optional)
+                if (anchor.user_email && anchor.user_email !== user.email) {
+                  await sendConfirmationEmail(
+                    anchor.user_email,
+                    anchor.document_hash,
+                    verification.bitcoinTxId || null,
+                    verification.blockHeight || null
+                  );
+                }
 
-                if (emailResult.success) {
+                if (emailSent) {
                   await supabaseAdmin
                     .from('anchors')
                     .update({
@@ -370,8 +356,6 @@ serve(async (req) => {
                     .eq('id', anchor.id);
 
                   console.log(`📧 Sent Bitcoin confirmation email to ${user.email}`);
-                } else {
-                  console.error(`❌ Failed to send email: ${emailResult.error}`);
                 }
               }
             }

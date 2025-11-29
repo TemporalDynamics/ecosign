@@ -1,13 +1,6 @@
 // client/src/components/DocumentList.jsx
 import React, { useState, useEffect } from 'react';
-import FileText from 'lucide-react';
-import LinkIcon from 'lucide-react';
-import Download from 'lucide-react';
-import Eye from 'lucide-react';
-import Clock from 'lucide-react';
-import AlertTriangle from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import XCircle from 'lucide-react';
+import { CheckCircle, Clock, Download, Eye, FileText, Link as LinkIcon, XCircle } from 'lucide-react';
 import LinkGenerator from './LinkGenerator';
 import { supabase } from '../lib/supabaseClient';
 

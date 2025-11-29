@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import Search from 'lucide-react';
-import Shield from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import XCircle from 'lucide-react';
-import Upload from 'lucide-react';
-import FileText from 'lucide-react';
-import Lock from 'lucide-react';
-import Anchor from 'lucide-react';
-import ArrowLeft from 'lucide-react';
+import {
+  Search,
+  Shield,
+  CheckCircle,
+  XCircle,
+  Upload,
+  FileText,
+  Lock,
+  Anchor,
+  ArrowLeft
+} from 'lucide-react';
 import { verifyEcoxFile } from '../lib/verificationService';
 import LegalProtectionOptions from '../components/LegalProtectionOptions';
 import VerificationSummary from '../components/VerificationSummary';

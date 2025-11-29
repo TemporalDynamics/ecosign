@@ -1,11 +1,11 @@
 // client/src/components/IntegrationModal.jsx
 import React, { useState } from 'react';
-import X from 'lucide-react';
-import Shield from 'lucide-react';
-import FileText from 'lucide-react';
-import CreditCard from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import AlertCircle from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 
 const IntegrationModal = ({ isOpen, onClose, integrationData, onConfirm }) => {
   const [paymentMethod, setPaymentMethod] = useState('card');

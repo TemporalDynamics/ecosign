@@ -1,33 +1,18 @@
--- Revisar emails pendientes en la cola
+-- Consulta para revisar workflow_notifications
 SELECT
   id,
+  workflow_id,
   recipient_email,
+  recipient_type,
+  signer_id,
+  notification_type,
   subject,
   delivery_status,
   error_message,
+  retry_count,
   created_at,
-  sent_at
-FROM workflow_notifications
-WHERE delivery_status = 'pending'
+  sent_at,
+  resend_email_id
+FROM public.workflow_notifications
 ORDER BY created_at DESC
-LIMIT 10;
-
--- Ver todos los emails (pendientes, enviados y fallidos)
-SELECT
-  delivery_status,
-  COUNT(*) as total
-FROM workflow_notifications
-GROUP BY delivery_status;
-
--- Ver los últimos 5 emails fallidos con el error
-SELECT
-  id,
-  recipient_email,
-  subject,
-  delivery_status,
-  error_message,
-  created_at
-FROM workflow_notifications
-WHERE delivery_status = 'failed'
-ORDER BY created_at DESC
-LIMIT 5;
+LIMIT 200;

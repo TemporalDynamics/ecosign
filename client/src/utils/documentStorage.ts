@@ -68,7 +68,7 @@ export async function uploadDocument(
 
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
-      .from('documents')
+      .from('user-documents')
       .upload(path, file, {
         cacheControl: '3600',
         upsert: false // Don't overwrite existing files
@@ -105,7 +105,7 @@ export async function uploadDocument(
 export async function downloadDocument(path: string): Promise<DownloadResult> {
   try {
     const { data, error } = await supabase.storage
-      .from('documents')
+      .from('user-documents')
       .download(path)
 
     if (error) {
@@ -138,7 +138,7 @@ export async function downloadDocument(path: string): Promise<DownloadResult> {
  */
 export function getDocumentUrl(path: string): string {
   const { data } = supabase.storage
-    .from('documents')
+    .from('user-documents')
     .getPublicUrl(path)
 
   return data.publicUrl
@@ -146,6 +146,7 @@ export function getDocumentUrl(path: string): string {
 
 /**
  * Get a signed URL for temporary access to a private document
+ * Uses Edge Function to bypass RLS issues
  *
  * @param path - Storage path of the document
  * @param expiresIn - Expiration time in seconds (default: 1 hour)
@@ -156,16 +157,29 @@ export async function getSignedDocumentUrl(
   expiresIn: number = 3600
 ): Promise<string | null> {
   try {
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(path, expiresIn)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      console.error('No session available')
+      return null
+    }
 
-    if (error) {
+    const response = await fetch(`${supabase.supabaseUrl}/functions/v1/get-signed-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ path, bucket: 'user-documents', expiresIn })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
       console.error('Error creating signed URL:', error)
       return null
     }
 
-    return data.signedUrl
+    const { signedUrl } = await response.json()
+    return signedUrl
   } catch (error) {
     console.error('Error creating signed URL:', error)
     return null
@@ -181,7 +195,7 @@ export async function getSignedDocumentUrl(
 export async function deleteDocument(path: string): Promise<boolean> {
   try {
     const { error } = await supabase.storage
-      .from('documents')
+      .from('user-documents')
       .remove([path])
 
     if (error) {

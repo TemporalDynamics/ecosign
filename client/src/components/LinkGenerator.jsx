@@ -1,14 +1,14 @@
 // client/src/components/LinkGenerator.jsx
 import React, { useState } from 'react';
-import Lock from 'lucide-react';
-import LinkIcon from 'lucide-react';
-import FileText from 'lucide-react';
-import User from 'lucide-react';
-import Mail from 'lucide-react';
-import Building2 from 'lucide-react';
-import Briefcase from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import AlertCircle from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 const LinkGenerator = ({ documentId, onLinkGenerated }) => {

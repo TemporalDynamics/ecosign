@@ -4,9 +4,9 @@
 // Shown after the signer finishes the flow.
 // ============================================
 
-import CheckCircle from 'lucide-react';
-import Download from 'lucide-react';
-import Home from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 
 interface CompletionScreenProps {
   workflowTitle?: string | null

@@ -1,7 +1,7 @@
 import React from "react";
-import Activity from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import AlertCircle from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 

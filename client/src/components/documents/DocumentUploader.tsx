@@ -182,7 +182,7 @@ export default function DocumentUploader({
 
     // Upload encrypted blob to Supabase Storage
     const { data, error } = await supabase.storage
-      .from('documents')
+      .from('user-documents')
       .upload(path, encryptedBlob, {
         cacheControl: '3600',
         upsert: false, // Don't overwrite existing files

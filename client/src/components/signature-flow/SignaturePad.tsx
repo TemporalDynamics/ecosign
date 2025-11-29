@@ -10,11 +10,11 @@ import { useEffect, useState } from 'react'
 import { useSignatureCanvas } from '@/hooks/useSignatureCanvas'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { useEcoxLogger } from '@/hooks/useEcoxLogger'
-import PenLine from 'lucide-react';
-import Type from 'lucide-react';
-import UploadIcon from 'lucide-react';
-import Eraser from 'lucide-react';
-import CheckCircle2 from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 
 type SignatureMode = 'draw' | 'type' | 'upload'
 

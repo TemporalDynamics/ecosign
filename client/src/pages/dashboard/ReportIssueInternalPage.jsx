@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import AlertCircle from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import Upload from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 import DashboardNav from '../../components/DashboardNav';
 import FooterInternal from '../../components/FooterInternal';
 import PageTitle from '../../components/PageTitle';

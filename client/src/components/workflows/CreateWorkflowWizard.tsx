@@ -7,11 +7,11 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import X from 'lucide-react';
-import FileText from 'lucide-react';
-import Users from 'lucide-react';
-import Settings from 'lucide-react';
-import CheckCircle from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 import DocumentUploader from '@/components/documents/DocumentUploader'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 

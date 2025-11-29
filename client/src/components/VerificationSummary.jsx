@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import CheckCircle2 from 'lucide-react';
-import AlertTriangle from 'lucide-react';
-import Info from 'lucide-react';
-import Fingerprint from 'lucide-react';
-import ShieldCheck from 'lucide-react';
-import Clock3 from 'lucide-react';
-import Stamp from 'lucide-react';
-import Layers from 'lucide-react';
-import FileText from 'lucide-react';
+import {
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  Fingerprint,
+  ShieldCheck,
+  Clock3,
+  Stamp,
+  Layers,
+  FileText
+} from 'lucide-react';
 
 const layersConfig = [
   {

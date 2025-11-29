@@ -4,15 +4,15 @@
 // Timeline visual de eventos ECOX del workflow
 // ============================================
 
-import FileText from 'lucide-react';
-import Mail from 'lucide-react';
-import Eye from 'lucide-react';
-import PenTool from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import Shield from 'lucide-react';
-import AlertTriangle from 'lucide-react';
-import Clock from 'lucide-react';
-import MapPin from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 
 interface AuditEvent {
   id: string

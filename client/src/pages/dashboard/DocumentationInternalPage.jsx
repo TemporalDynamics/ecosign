@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import DashboardNav from '../../components/DashboardNav';
 import FooterInternal from '../../components/FooterInternal';
 import PageTitle from '../../components/PageTitle';
-import FileText from 'lucide-react';
-import Database from 'lucide-react';
-import Clock from 'lucide-react';
-import Shield from 'lucide-react';
-import CheckCircle from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 
 export default function DocumentationInternalPage() {
   return (

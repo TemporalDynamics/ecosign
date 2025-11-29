@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
-import FileText from 'lucide-react';
-import CheckCircle from 'lucide-react';
-import XCircle from 'lucide-react';
-import Clock from 'lucide-react';
-import Shield from 'lucide-react';
-import AlertCircle from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
+import {  } from 'lucide-react';
 
 export default function InvitePage() {
   const { token } = useParams();

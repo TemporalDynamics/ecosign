@@ -64,10 +64,14 @@ export async function startSignatureWorkflow(params) {
 
     if (error) {
       console.error('Error en start-signature-workflow:', error);
+      console.error('Error completo:', JSON.stringify(error, null, 2));
       throw error;
     }
 
+    console.log('Respuesta de start-signature-workflow:', data);
+
     if (!data.success) {
+      console.error('Workflow falló:', data);
       throw new Error(data.error || 'Error desconocido al iniciar workflow');
     }
 

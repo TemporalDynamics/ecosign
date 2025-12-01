@@ -77,14 +77,8 @@ export async function startSignatureWorkflow(params) {
 
     console.log('✅ Workflow iniciado:', data);
 
-    // Después de crear el workflow, enviar los emails pendientes
-    try {
-      await supabase.functions.invoke('send-pending-emails');
-      console.log('✅ Emails enviados');
-    } catch (emailError) {
-      console.warn('⚠️  Error enviando emails (el workflow se creó correctamente):', emailError);
-      // No lanzar error aquí, el workflow se creó exitosamente
-    }
+    // Los emails se envían automáticamente vía triggers de base de datos
+    // y el cron job send-pending-emails que corre cada minuto
 
     return data;
 

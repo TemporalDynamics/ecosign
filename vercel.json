@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run vercel-build",
+  "buildCommand": "cd eco-packer && npm install && npm run build && cd ../client && npm install && VITE_SUPABASE_URL=$VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY npm run build:skip-validation",
   "outputDirectory": "client/dist",
   "installCommand": "npm install",
   "headers": [

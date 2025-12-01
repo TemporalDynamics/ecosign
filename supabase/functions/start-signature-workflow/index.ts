@@ -217,27 +217,10 @@ serve(async (req) => {
     console.log('📝 Step 3: Creating signers...')
     console.log('Signers to insert:', JSON.stringify(signersToInsert, null, 2))
 
-    // WORKAROUND: Usar función PL/pgSQL para evitar el problema de display_name
-    let signersError = null
-    for (const signerData of signersToInsert) {
-      const { error } = await supabase.rpc('insert_workflow_signer', {
-        p_workflow_id: signerData.workflow_id,
-        p_signing_order: signerData.signing_order,
-        p_email: signerData.email,
-        p_name: signerData.name,
-        p_require_login: signerData.require_login,
-        p_require_nda: signerData.require_nda,
-        p_quick_access: signerData.quick_access,
-        p_status: signerData.status,
-        p_access_token_hash: signerData.access_token_hash
-      })
-
-      if (error) {
-        console.error('Error insertando signer:', error)
-        signersError = error
-        break
-      }
-    }
+    // Insertar signers usando .insert() normalmente
+    const { error: signersError } = await supabase
+      .from('workflow_signers')
+      .insert(signersToInsert)
 
     if (signersError) {
       console.error('❌ Error creating signers:', signersError)
@@ -275,58 +258,8 @@ serve(async (req) => {
 
     console.log(`Workflow ${workflow.id} created successfully`)
 
-    // 4b. Crear notificaciones para cada firmante (signature_request)
-    try {
-      const signerNotifications = signers.map((signer) => {
-        const tokenHash = accessTokens[signer.email]?.tokenHash
-        const signUrl = tokenHash ? `${appUrl}/sign/${tokenHash}` : `${appUrl}/sign`
-        const name = signer.name || signer.email
-
-        return {
-          workflow_id: workflow.id,
-          recipient_email: signer.email,
-          recipient_type: 'signer',
-          notification_type: 'signature_request',
-          subject: `Te invitaron a firmar: ${originalFilename}`,
-          body_html: `
-            <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Hola ${name},</h2>
-            <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">Has sido invitado a firmar el documento <strong>${originalFilename}</strong>.</p>
-            <p style="margin:16px 0;">
-              <a href="${signUrl}" style="display:inline-block;padding:12px 20px;font-size:15px;font-weight:600;color:#ffffff;background:#0ea5e9;text-decoration:none;border-radius:10px;">Revisar y firmar</a>
-            </p>
-            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 4px;">EcoSign. Transparencia que acompaña.</p>
-          `,
-          delivery_status: 'pending'
-        }
-      })
-
-      const { error: notifError } = await supabase
-        .from('workflow_notifications')
-        .insert(signerNotifications)
-
-      if (notifError) {
-        console.warn('Could not insert signer notifications:', notifError)
-      }
-    } catch (notifInsertError) {
-      console.warn('Failed to create signer notifications:', notifInsertError)
-    }
-
-    // Disparar envío de emails pendientes en background (worker send-pending-emails)
-    try {
-      const sendPendingUrl = `${supabaseUrl}/functions/v1/send-pending-emails`
-      const resp = await fetch(sendPendingUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseServiceKey}`
-        }
-      })
-      if (!resp.ok) {
-        console.warn('send-pending-emails returned non-OK status', resp.status)
-      }
-    } catch (err) {
-      console.warn('Could not trigger send-pending-emails:', err)
-    }
+    // Las notificaciones a los firmantes se crean automáticamente vía trigger notify_signer_link()
+    // cuando se insertan los signers con status 'ready' o 'pending'
     const firstSigner = signers.find(s => s.signingOrder === 1)
     const firstSignerHash = firstSigner ? accessTokens[firstSigner.email]?.tokenHash : null
     const signUrl = firstSignerHash ? `${appUrl}/sign/${firstSignerHash}` : null

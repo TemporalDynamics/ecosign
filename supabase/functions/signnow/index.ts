@@ -78,11 +78,10 @@ const SIGNNOW_PRICING: Record<string, { amount: number; currency: string; descri
   }
 };
 
-const signNowApiBase = Deno.env.get('SIGNNOW_API_BASE_URL')?.replace(/\/$/, '') || 'https://api.signnow.com';
-const signNowAppBase = Deno.env.get('SIGNNOW_APP_BASE_URL')?.replace(/\/$/, '') || 'https://app.signnow.com';
-const signNowApiKey = Deno.env.get('SIGNNOW_API_KEY')
-  || Deno.env.get('SIGNNOW_APY_KEY')
-  || Deno.env.get('SIGNNOW_API_TOKEN');
+const signNowApiBase = Deno.env.get('SIGNNOW_API_BASE_URL')?.replace(/\/$/, '') || 'https://api-eval.signnow.com';
+const signNowBasic = Deno.env.get('SIGNNOW_BASIC_TOKEN') || '';
+const signNowClientId = Deno.env.get('SIGNNOW_CLIENT_ID') || '';
+const signNowClientSecret = Deno.env.get('SIGNNOW_CLIENT_SECRET') || '';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -161,35 +160,41 @@ const ensureSupabaseClient = () => {
   return supabaseAdmin;
 };
 
-const updateIntegrationStatus = async (
-  requestId: string,
-  status: IntegrationStatus,
-  metadataPatch: Record<string, unknown> = {}
-) => {
-  const client = ensureSupabaseClient();
-  const { error } = await client
-    .from('integration_requests')
-    .update({
-      status,
-      metadata: metadataPatch.metadata ?? metadataPatch,
-      external_service_id: metadataPatch.external_service_id ?? metadataPatch.signNowInviteId ?? null
-    })
-    .eq('id', requestId);
-
-  if (error) {
-    console.error('Failed to update integration status', error);
+const fetchSignNowAccessToken = async (): Promise<string> => {
+  if (!signNowBasic || !signNowClientId || !signNowClientSecret) {
+    throw new Error('Missing SignNow credentials');
   }
+  const body = new URLSearchParams();
+  body.append('grant_type', 'client_credentials');
+  body.append('client_id', signNowClientId);
+  body.append('client_secret', signNowClientSecret);
+  body.append('scope', '*');
+
+  const resp = await fetch(`${signNowApiBase}/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${signNowBasic}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`SignNow token failed (${resp.status}): ${txt}`);
+  }
+  const data = await resp.json();
+  if (!data.access_token) {
+    throw new Error('SignNow token missing access_token');
+  }
+  return data.access_token;
 };
 
 const uploadDocumentToSignNow = async (
+  accessToken: string,
   fileBytes: Uint8Array,
   metadata: { name?: string; type?: string },
   documentName?: string
 ): Promise<SignNowUploadResponse> => {
-  if (!signNowApiKey) {
-    throw new Error('SIGNNOW_API_KEY env var is required to upload documents');
-  }
-
   const fileBlob = new Blob([fileBytes], {
     type: metadata.type || 'application/pdf'
   });
@@ -203,7 +208,7 @@ const uploadDocumentToSignNow = async (
   const response = await fetch(`${signNowApiBase}/document`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${signNowApiKey}`
+      Authorization: `Bearer ${accessToken}`
     },
     body: formData
   });
@@ -236,17 +241,15 @@ const createSignNowInvite = async (
   const invitePayload = {
     to: signers.map((signer, index) => ({
       email: signer.email,
-      role: signer.role || 'Signer',
+      role: signer.role || `Signer ${index + 1}`,
       order: signer.order ?? (index + 1),
-      // "sn_login" - signer gets email to login/create SignNow account and sign
-      // This is the simplest method with good legal validity
-      authentication_type: 'sn_login',
+      authentication_type: signer.authentication_type || 'sn_login',
       expiration_days: 30,
       reminder: signer.reminder_days ?? 2
     })),
-    from: signers[0]?.email || 'noreply@verifysign.com',
+    from: options.subject || 'EcoSign <no-reply@ecosign.app>',
     cc: [],
-    subject: options.subject || 'Solicitud de firma - VerifySign',
+    subject: options.subject || 'Solicitud de firma - EcoSign',
     message: options.message || 'Por favor, firma este documento usando SignNow. Recibirás un email con las instrucciones.'
   };
 
@@ -256,7 +259,7 @@ const createSignNowInvite = async (
   const response = await fetch(`${signNowApiBase}/document/${documentId}/invite`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${signNowApiKey}`,
+      Authorization: `Bearer ${await fetchSignNowAccessToken()}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(invitePayload)
@@ -275,17 +278,13 @@ const createSignNowInvite = async (
  * This includes the audit trail and all signature metadata for legal validity
  */
 const downloadSignedDocument = async (documentId: string): Promise<Uint8Array | null> => {
-  if (!signNowApiKey) {
-    console.warn('Cannot download signed document: SIGNNOW_API_KEY missing');
-    return null;
-  }
-
   try {
+    const token = await fetchSignNowAccessToken();
     // Download with audit trail (collapsed view)
     const response = await fetch(`${signNowApiBase}/document/${documentId}/download?type=collapsed`, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${signNowApiKey}`
+        Authorization: `Bearer ${token}`
       }
     });
 
@@ -369,38 +368,29 @@ serve(async (req) => {
       console.warn(`⚠️ Invalid userId format: "${userId}" - setting to null`);
     }
 
-    const { data: integrationRecord, error: insertError } = await client
-      .from('integration_requests')
-      .insert({
-        service: 'signnow',
-        action,
-        document_id: documentId,
-        user_id: validUserId,
-        document_hash: documentHash,
-        status: 'processing',
-        metadata: baseMetadata
-      })
-      .select()
-      .single();
+    // Optional: integration_requests table (ignore errors if not present)
+    try {
+      const { data: integrationRecord, error: insertError } = await client
+        .from('integration_requests')
+        .insert({
+          service: 'signnow',
+          action,
+          document_id: documentId,
+          user_id: validUserId,
+          document_hash: documentHash,
+          status: 'processing',
+          metadata: baseMetadata
+        })
+        .select()
+        .single();
 
-    if (insertError || !integrationRecord) {
-      console.error('Failed to create integration record', insertError);
-      return jsonResponse({ error: 'Internal error creating integration request' }, 500);
-    }
-
-    integrationRequestId = integrationRecord.id;
-
-    // SignNow API Key is REQUIRED for legal signatures
-    if (!signNowApiKey) {
-      await updateIntegrationStatus(integrationRecord.id, 'failed', {
-        ...baseMetadata,
-        error: 'SIGNNOW_API_KEY missing - legal signatures require SignNow integration'
-      });
-      return jsonResponse({
-        error: 'SignNow integration is required for legal-grade signatures. Please contact support to enable this feature.',
-        code: 'SIGNNOW_NOT_CONFIGURED',
-        message: 'Legal signatures require SignNow API integration for audit trails and international validity.'
-      }, 503);
+      if (insertError) {
+        console.warn('integration_requests insert skipped:', insertError);
+      } else {
+        integrationRequestId = integrationRecord?.id ?? null;
+      }
+    } catch (e) {
+      console.warn('integration_requests table not available, skipping', e?.message || e);
     }
 
     let fileBytes = base64ToUint8Array(documentFile.base64);
@@ -452,7 +442,8 @@ serve(async (req) => {
     console.log(`✅ Document uploaded to SignNow with ID: ${signNowDocumentId}`);
 
     // Crear invitación estándar (se usará embed en frontend con signing URL)
-    const inviteResult = await createSignNowInvite(signNowDocumentId, signers, {
+    const accessToken = await fetchSignNowAccessToken();
+    const inviteResult = await createSignNowInvite(accessToken, signNowDocumentId, signers, {
       subject,
       message,
       redirectUrl,
@@ -521,25 +512,26 @@ serve(async (req) => {
       next_steps: 'SignNow enviará los eventos al webhook cuando el documento esté firmado. El PDF final con audit trail se descargará y guardará automáticamente.'
     };
 
-    await updateIntegrationStatus(integrationRecord.id, 'pending_signnow', {
-      metadata: responsePayload.metadata,
-      signNowInviteId: responsePayload.signnow_invite_id,
-      external_service_id: responsePayload.signnow_invite_id || signNowDocumentId
-    });
+    // Optional: update integration status, ignore if table missing
+    if (integrationRequestId) {
+      try {
+        await supabaseAdmin
+          ?.from('integration_requests')
+          .update({
+            status: 'pending_signnow',
+            metadata: responsePayload.metadata,
+            external_service_id: responsePayload.signnow_invite_id || signNowDocumentId
+          })
+          .eq('id', integrationRequestId);
+      } catch (e) {
+        console.warn('integration_requests update skipped', e?.message || e);
+      }
+    }
 
     return jsonResponse(responsePayload, 200);
   } catch (error) {
     console.error('SignNow function error', error);
     const message = error instanceof Error ? error.message : String(error);
-    try {
-      // Attempt to update the integration record if it was created
-      const metadata = computedMetadata ? { ...computedMetadata, error: message } : { error: message };
-      if (typeof integrationRequestId === 'string') {
-        await updateIntegrationStatus(integrationRequestId, 'failed', { metadata });
-      }
-    } catch (updateError) {
-      console.error('Unable to mark integration as failed', updateError);
-    }
     return jsonResponse({ error: message || 'Unexpected error' }, 500);
   }
 });

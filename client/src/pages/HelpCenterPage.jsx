@@ -1,6 +1,5 @@
 import React from "react";
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { BookOpen, ChevronRight } from 'lucide-react';
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 import { Link } from "react-router-dom";

@@ -1,15 +1,7 @@
 // client/src/components/LinkGenerator.jsx
 import React, { useState } from 'react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { Link as LinkIcon, Lock, FileText, User, Mail, Building2, Briefcase, AlertCircle, CheckCircle } from 'lucide-react';
+import { getSupabase } from '../lib/supabaseClient';
 
 const LinkGenerator = ({ documentId, onLinkGenerated }) => {
   const [requireNDA, setRequireNDA] = useState(true);
@@ -50,6 +42,7 @@ const LinkGenerator = ({ documentId, onLinkGenerated }) => {
     setIsGenerating(true);
 
     try {
+      const supabase = getSupabase();
       // Llamar a la Edge Function real de Supabase
       const { data, error: invokeError } = await supabase.functions.invoke('generate-link', {
         body: {

@@ -4,7 +4,7 @@
 // Upload, download, and manage PDFs in Supabase Storage
 // ============================================
 
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 import { calculateDocumentHash } from './hashDocument'
 
 export interface UploadResult {
@@ -32,6 +32,7 @@ export async function uploadDocument(
   file: File,
   workflowId: string
 ): Promise<UploadResult> {
+  const supabase = getSupabase();
   try {
     // Validate file type
     if (file.type !== 'application/pdf') {
@@ -103,6 +104,7 @@ export async function uploadDocument(
  * @returns Blob of the document
  */
 export async function downloadDocument(path: string): Promise<DownloadResult> {
+  const supabase = getSupabase();
   try {
     const { data, error } = await supabase.storage
       .from('user-documents')
@@ -137,6 +139,7 @@ export async function downloadDocument(path: string): Promise<DownloadResult> {
  * @returns Public URL
  */
 export function getDocumentUrl(path: string): string {
+  const supabase = getSupabase();
   const { data } = supabase.storage
     .from('user-documents')
     .getPublicUrl(path)
@@ -156,6 +159,7 @@ export async function getSignedDocumentUrl(
   path: string,
   expiresIn: number = 3600
 ): Promise<string | null> {
+  const supabase = getSupabase();
   try {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
@@ -193,6 +197,7 @@ export async function getSignedDocumentUrl(
  * @returns Success status
  */
 export async function deleteDocument(path: string): Promise<boolean> {
+  const supabase = getSupabase();
   try {
     const { error } = await supabase.storage
       .from('user-documents')

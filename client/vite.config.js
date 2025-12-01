@@ -62,7 +62,21 @@ export default defineConfig({
         // Code splitting is intentionally disabled due to polyfill issues
         // with the eco-packer library. Do not enable manualChunks without
         // thorough testing.
-        manualChunks: undefined
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'react';
+            }
+            if (id.includes('@supabase')) {
+              return 'supabase';
+            }
+            if (id.includes('@temporaldynamics/eco-packer')) {
+                return 'eco-packer';
+            }
+            // All other node_modules go to a generic vendor chunk
+            return 'vendor';
+          }
+        }
       }
     }
   }

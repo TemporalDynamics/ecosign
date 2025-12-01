@@ -12,7 +12,7 @@ import {
   CheckCircle,
   FileText
 } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 const AccessPage = () => {
   const { token } = useParams();
@@ -42,6 +42,7 @@ const AccessPage = () => {
       }
 
       try {
+        const supabase = getSupabase();
         // Llamar a verify-access para validar el token
         const { data, error: verifyError } = await supabase.functions.invoke('verify-access', {
           body: { token }
@@ -103,6 +104,7 @@ const AccessPage = () => {
     setError('');
 
     try {
+      const supabase = getSupabase();
       // Llamar a accept-nda Edge Function real
       const { data, error: acceptError } = await supabase.functions.invoke('accept-nda', {
         body: {

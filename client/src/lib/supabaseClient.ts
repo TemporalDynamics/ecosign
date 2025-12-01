@@ -14,16 +14,25 @@ const env = validateEnvironment();
 const supabaseUrl = env.VITE_SUPABASE_URL;
 const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
 
+let supabaseInstance: SupabaseClient | null = null;
+
 /**
- * Cliente singleton de Supabase
+ * Obtiene la instancia singleton del cliente de Supabase, creándola si no existe.
+ * Esto permite la inicialización perezosa (lazy initialization).
  */
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
+export const getSupabase = (): SupabaseClient => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      }
+    });
   }
-});
+  return supabaseInstance;
+};
+
 
 /**
  * Types de Supabase Database
@@ -107,6 +116,7 @@ export type Database = {
  * Helper: Obtener usuario actual
  */
 export const getCurrentUser = async (): Promise<User | null> => {
+  const supabase = getSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 };
@@ -115,6 +125,7 @@ export const getCurrentUser = async (): Promise<User | null> => {
  * Helper: Obtener sesión actual
  */
 export const getCurrentSession = async (): Promise<Session | null> => {
+  const supabase = getSupabase();
   const { data: { session } } = await supabase.auth.getSession();
   return session;
 };
@@ -131,5 +142,6 @@ export const isAuthenticated = async (): Promise<boolean> => {
  * Helper: Sign out
  */
 export const signOut = async (): Promise<void> => {
+  const supabase = getSupabase();
   await supabase.auth.signOut();
 };

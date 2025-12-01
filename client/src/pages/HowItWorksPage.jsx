@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { Copy, CheckCircle } from 'lucide-react';
+import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 
 // Copy to Clipboard Button Component
@@ -101,64 +95,9 @@ ecosign.app`;
 };
 
 function HowItWorksPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Navigation - Same as Landing */}
-      <nav className="bg-white fixed w-full top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-            </Link>
-            <div className="hidden md:flex items-center space-x-8">
-              <Link to="/how-it-works" className="text-black font-medium text-[17px] transition duration-200">
-                Cómo funciona
-              </Link>
-              <Link to="/verify" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Verificador
-              </Link>
-              <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Precios
-              </Link>
-              <Link to="/login" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Iniciar Sesión
-              </Link>
-              <Link
-                to="/login"
-                className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300"
-              >
-                Comenzar Gratis
-              </Link>
-            </div>
-            <button
-              className="md:hidden text-gray-600 hover:text-black"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-white">
-            <div className="px-4 pt-2 pb-4 space-y-2">
-              <Link to="/how-it-works" className="block text-black font-semibold px-3 py-2 rounded-lg">Cómo funciona</Link>
-              <Link to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificador</Link>
-              <Link to="/pricing" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Precios</Link>
-              <Link to="/login" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Iniciar Sesión</Link>
-              <Link
-                to="/login"
-                className="block bg-black hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-center mt-2"
-              >
-                Comenzar Gratis
-              </Link>
-            </div>
-          </div>
-        )}
-      </nav>
+      <HeaderPublic />
 
       {/* Hero */}
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">

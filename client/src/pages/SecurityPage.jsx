@@ -1,7 +1,4 @@
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { Lock, Clock, Shield, Eye } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';

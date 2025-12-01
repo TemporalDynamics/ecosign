@@ -6,7 +6,7 @@
  */
 
 import { ethers } from 'ethers';
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
 // Configuración de Polygon Mainnet
 const POLYGON_CHAIN_ID = '0x89'; // 137 en hexadecimal
@@ -124,6 +124,7 @@ export async function switchToPolygon() {
  */
 export async function anchorDocumentWithWallet(documentHash, contractAddress, options = {}) {
   try {
+    const supabase = getSupabase();
     console.log('🔗 Iniciando anclaje en Polygon con MetaMask...');
     console.log('📄 Document hash:', documentHash);
     console.log('📝 Contract:', contractAddress);

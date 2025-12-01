@@ -7,13 +7,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+type AnchorRequest = {
+  documentHash: string
+  documentId?: string | null
+  userDocumentId?: string | null
+  userId?: string | null
+  userEmail?: string | null
+  metadata?: Record<string, unknown>
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { documentHash } = await req.json()
+    const body = await req.json() as AnchorRequest
+    const {
+      documentHash,
+      documentId = null,
+      userDocumentId = null,
+      userId = null,
+      userEmail = null,
+      metadata = {}
+    } = body
 
     if (!documentHash || !/^[a-f0-9]{64}$/i.test(documentHash)) {
       return new Response(JSON.stringify({
@@ -24,18 +41,21 @@ serve(async (req) => {
       })
     }
 
-    // Load config (accept both legacy and new env names)
+    // Load config from Supabase Secrets (managed securely via CLI/Dashboard)
+    // These secrets are stored encrypted and only accessible to Edge Functions
     const rpcUrl =
       Deno.env.get('POLYGON_RPC_URL') ??
       Deno.env.get('ALCHEMY_RPC_URL')
+
     const sponsorPrivateKey =
       Deno.env.get('POLYGON_PRIVATE_KEY') ??
       Deno.env.get('SPONSOR_PRIVATE_KEY')
+
     const contractAddress = Deno.env.get('POLYGON_CONTRACT_ADDRESS')
 
     if (!rpcUrl || !sponsorPrivateKey || !contractAddress) {
       return new Response(JSON.stringify({
-        error: 'Missing Polygon config (POLYGON_RPC_URL/ALCHEMY_RPC_URL, POLYGON_PRIVATE_KEY/SPONSOR_PRIVATE_KEY, POLYGON_CONTRACT_ADDRESS)'
+        error: 'Missing Polygon config (POLYGON_RPC_URL, POLYGON_PRIVATE_KEY, POLYGON_CONTRACT_ADDRESS)'
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -82,13 +102,20 @@ serve(async (req) => {
 
     await supabase.from('anchors').insert({
       document_hash: documentHash,
+      document_id: documentId,
+      user_id: userId,
+      user_document_id: userDocumentId,
+      user_email: userEmail,
       anchor_type: 'polygon',
       anchor_status: 'pending',
+      polygon_status: 'pending',
+      polygon_tx_hash: txHash,
       metadata: {
         txHash,
         sponsorAddress,
         network: 'polygon-mainnet',
-        submittedAt: new Date().toISOString()
+        submittedAt: new Date().toISOString(),
+        ...metadata
       }
     })
 

@@ -9,7 +9,7 @@
  *   await logEvent('created', documentId, { filename: 'contrato.pdf' });
  */
 
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 /**
  * Tipos de eventos válidos (sincronizado con la migración 012)
@@ -29,14 +29,30 @@ export const EVENT_TYPES = {
 
 /**
  * Get Supabase Functions URL from environment
+ * This function is now more robust to ensure it always returns
+ * the correct base URL for Edge Functions without duplication.
  * @returns {string}
  */
 function getSupabaseFunctionsUrl() {
-  const url = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || import.meta.env.VITE_SUPABASE_URL;
-  if (url.includes('.supabase.co')) {
-    return url.replace('.supabase.co', '.supabase.co/functions/v1');
+  let url = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || import.meta.env.VITE_SUPABASE_URL;
+
+  if (!url) {
+    throw new Error('Supabase URL environment variable is not set.');
   }
-  return url.endsWith('/functions/v1') ? url : `${url}/functions/v1`;
+
+  // Remove any trailing slashes
+  url = url.replace(/\/+$/, '');
+
+  // If the URL already contains /functions/v1, assume it's correctly formed
+  // Otherwise, append /functions/v1
+  if (!url.includes('/functions/v1')) {
+    url = `${url}/functions/v1`;
+  }
+  
+  // Clean up potential double /functions/v1 if VITE_SUPABASE_FUNCTIONS_URL already had it
+  url = url.replace(/\/functions\/v1\/functions\/v1/g, '/functions/v1');
+
+  return url;
 }
 
 /**
@@ -54,6 +70,7 @@ function getSupabaseFunctionsUrl() {
  * @returns {Promise<{success: boolean, data?: object, error?: string}>}
  */
 export async function logEvent(eventType, documentId, options = {}) {
+  const supabase = getSupabase();
   try {
     // Validar tipo de evento
     if (!Object.values(EVENT_TYPES).includes(eventType)) {
@@ -171,6 +188,7 @@ export async function logEventsBatch(events) {
  * @returns {Promise<{success: boolean, events?: Array, error?: string}>}
  */
 export async function getDocumentEvents(documentId) {
+  const supabase = getSupabase();
   try {
     const { data, error } = await supabase
       .from('events')

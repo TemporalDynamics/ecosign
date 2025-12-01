@@ -8,7 +8,7 @@
  * - Retry logic con exponential backoff
  */
 
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 import {
   parseApiError,
   isRetryableError,
@@ -58,6 +58,7 @@ class ApiClient {
    * Obtener access token de Supabase
    */
   private async getAccessToken(): Promise<string | null> {
+    const supabase = getSupabase();
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token ?? null;
   }

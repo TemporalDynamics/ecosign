@@ -6,15 +6,12 @@
 // ============================================
 
 import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 import DashboardNav from '../components/DashboardNav'
 import FooterInternal from '../components/FooterInternal'
 import WorkflowList from '@/components/workflows/WorkflowList'
 import CreateWorkflowWizard from '@/components/workflows/CreateWorkflowWizard'
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { FileText, Clock, CheckCircle, Users } from 'lucide-react';
 
 interface Workflow {
   id: string
@@ -44,6 +41,7 @@ export default function WorkflowsPage() {
 
   const loadWorkflows = async () => {
     try {
+      const supabase = getSupabase();
       setLoading(true)
       setError(null)
 

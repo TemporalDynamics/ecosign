@@ -167,7 +167,7 @@ serve(async (req) => {
 
     // 3. Crear firmantes con tokens de acceso
     const signersToInsert = []
-    const accessTokens: Record<string, string> = {} // email -> token
+    const accessTokens: Record<string, { token: string, tokenHash: string }> = {} // email -> tokens
 
     for (const signer of signers) {
       const token = await generateAccessToken()
@@ -190,7 +190,7 @@ serve(async (req) => {
         access_token_hash: tokenHash
       })
 
-      accessTokens[signer.email] = token
+      accessTokens[signer.email] = { token, tokenHash }
     }
 
     const { error: signersError } = await supabase
@@ -207,6 +207,8 @@ serve(async (req) => {
     }
 
     // 4. Crear notificación para Usuario A (workflow iniciado)
+    const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
+
     await supabase
       .from('workflow_notifications')
       .insert({
@@ -214,49 +216,15 @@ serve(async (req) => {
         recipient_email: user.email!,
         recipient_type: 'owner',
         notification_type: 'workflow_started',
-        subject: `Flujo de Firmas Iniciado: ${originalFilename}`,
+        subject: `Tu flujo de firma fue creado — ${originalFilename}`,
         body_html: `
-          <h2>Flujo de firmas iniciado</h2>
-          <p>Has iniciado un flujo de firmas para: <strong>${originalFilename}</strong></p>
-          <p>Firmantes (${signers.length}):</p>
-          <ul>
-            ${signers.map(s => `<li>${s.name || s.email} (orden ${s.signingOrder})</li>`).join('')}
-          </ul>
-          <p>El primer firmante (${signers[0].email}) recibirá un email en breve.</p>
-          <p>Podrás ver el progreso en tu dashboard con VerifyTracker.</p>
-        `,
-        delivery_status: 'pending'
-      })
-
-    // 5. Crear notificación para primer firmante
-    const firstSigner = signers.find(s => s.signingOrder === 1)!
-    const firstSignerToken = accessTokens[firstSigner.email]
-    const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
-    const signUrl = `${appUrl}/sign/${firstSignerToken}`
-
-    await supabase
-      .from('workflow_notifications')
-      .insert({
-        workflow_id: workflow.id,
-        recipient_email: firstSigner.email,
-        recipient_type: 'signer',
-        notification_type: 'your_turn_to_sign',
-        subject: `Firma requerida: ${originalFilename}`,
-        body_html: `
-          <h2>Firma Requerida</h2>
-          <p>Hola ${firstSigner.name || firstSigner.email},</p>
-          <p>Se te ha solicitado firmar el siguiente documento:</p>
-          <p><strong>${originalFilename}</strong></p>
-          <p>Este documento cuenta con <strong>certificación forense</strong> que registra matemáticamente:
-            <ul>
-              <li>El día y hora exacta de la firma</li>
-              <li>Quién firmó (tu identidad verificada)</li>
-              <li>Qué se firmó (hash criptográfico del documento)</li>
-            </ul>
+          <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Flujo creado correctamente</h2>
+          <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 8px;">El flujo de firma para <strong>${originalFilename}</strong> se creó con éxito.</p>
+          <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 16px;">Los firmantes recibirán sus invitaciones en breve.</p>
+          <p style="margin:16px 0;">
+            <a href="${appUrl}/dashboard" style="display:inline-block;padding:12px 20px;font-size:15px;font-weight:600;color:#ffffff;background:#0ea5e9;text-decoration:none;border-radius:10px;">Ver flujo en Dashboard</a>
           </p>
-          <p>Una vez que completes tu firma, recibirás automáticamente tu certificado ECO.</p>
-          <p><a href="${signUrl}" style="display:inline-block;padding:12px 24px;background:#0ea5e9;color:white;text-decoration:none;border-radius:6px;">Ver y Firmar Documento</a></p>
-          <p style="color:#666;font-size:12px;">Este enlace es personal e intransferible. Todas las acciones quedan registradas para fines de auditoría.</p>
+          <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 4px;">EcoSign. Transparencia que acompaña.</p>
         `,
         delivery_status: 'pending'
       })
@@ -280,6 +248,11 @@ serve(async (req) => {
       console.warn('Could not trigger send-pending-emails:', err)
     }
 
+    const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
+    const firstSigner = signers.find(s => s.signingOrder === 1)
+    const firstSignerHash = firstSigner ? accessTokens[firstSigner.email]?.tokenHash : null
+    const signUrl = firstSignerHash ? `${appUrl}/sign/${firstSignerHash}` : null
+
     return jsonResponse({
       success: true,
       workflowId: workflow.id,
@@ -289,15 +262,19 @@ serve(async (req) => {
       firstSignerUrl: signUrl,
       message: `Workflow started. ${signers.length} signer(s) added. First signer notified.`,
       // Para testing - NO enviar en producción
-      _debug: {
-        accessTokens: Object.keys(accessTokens).reduce((acc, email) => {
-          acc[email] = {
-            token: accessTokens[email],
-            url: `${appUrl}/sign/${accessTokens[email]}`
-          }
-          return acc
-        }, {} as Record<string, { token: string, url: string }>)
-      }
+      _debug: (() => {
+        return {
+          accessTokens: Object.keys(accessTokens).reduce((acc, email) => {
+            const { token, tokenHash } = accessTokens[email]
+            acc[email] = {
+              token,
+              tokenHash,
+              url: `${appUrl}/sign/${tokenHash}`
+            }
+            return acc
+          }, {} as Record<string, { token: string, tokenHash: string, url: string }>)
+        }
+      })()
     })
 
   } catch (error) {

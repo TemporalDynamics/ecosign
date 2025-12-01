@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 import FooterPublic from '../components/FooterPublic';
 
 function LoginPage() {
@@ -32,6 +32,7 @@ function LoginPage() {
     setLoading(true);
 
     try {
+      const supabase = getSupabase();
       if (isLogin) {
         // LOGIN
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -128,6 +129,7 @@ function LoginPage() {
             <button
               className="md:hidden text-gray-600 hover:text-black"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

@@ -1,275 +1,240 @@
-import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
+import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-signnow-signature, x-signnow-token',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-};
-
-const signNowApiBase = Deno.env.get('SIGNNOW_API_BASE_URL')?.replace(/\/$/, '') || 'https://api.signnow.com';
-const signNowApiKey = Deno.env.get('SIGNNOW_API_KEY');
-const webhookSecret = Deno.env.get('SIGNNOW_WEBHOOK_SECRET');
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing Supabase credentials for webhook');
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 }
 
-const supabaseAdmin = (supabaseUrl && supabaseServiceKey)
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : null;
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
 
-const jsonResponse = (data: unknown, status = 200) =>
+const signNowBase = (Deno.env.get('SIGNNOW_API_BASE_URL') || 'https://api-eval.signnow.com').replace(/\/$/, '')
+const signNowBasic = Deno.env.get('SIGNNOW_BASIC_TOKEN') || ''
+const signNowClientId = Deno.env.get('SIGNNOW_CLIENT_ID') || ''
+const signNowClientSecret = Deno.env.get('SIGNNOW_CLIENT_SECRET') || ''
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  })
+
+async function getSignNowAccessToken(): Promise<string> {
+  if (!signNowBasic || !signNowClientId || !signNowClientSecret) {
+    throw new Error('Missing SignNow credentials in env')
+  }
+  const body = new URLSearchParams()
+  body.append('grant_type', 'client_credentials')
+  body.append('client_id', signNowClientId)
+  body.append('client_secret', signNowClientSecret)
+  body.append('scope', '*')
+
+  const resp = await fetch(`${signNowBase}/oauth2/token`, {
+    method: 'POST',
     headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json'
-    }
-  });
+      Authorization: `Basic ${signNowBasic}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body
+  })
 
-const verifyHmacSignature = async (rawBody: string, headerSignature: string | null): Promise<boolean> => {
-  if (!webhookSecret) return true; // nothing to verify
-  if (!headerSignature) return false;
-
-  const normalizedHeader = headerSignature.replace(/^sha256=/i, '').trim();
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(webhookSecret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(rawBody));
-  const signatureBytes = new Uint8Array(signatureBuffer);
-  const hexSignature = Array.from(signatureBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-  const base64Signature = btoa(String.fromCharCode(...signatureBytes));
-
-  return normalizedHeader === hexSignature || normalizedHeader === base64Signature;
-};
-
-const extractDocumentId = (payload: Record<string, unknown>): string | null => {
-  const candidates = [
-    payload.document_id,
-    payload.documentId,
-    (payload.data as Record<string, unknown> | undefined)?.document_id,
-    (payload.document as Record<string, unknown> | undefined)?.id
-  ].filter(Boolean);
-
-  const docId = candidates[0];
-  return typeof docId === 'string' ? docId : null;
-};
-
-const downloadSignedDocument = async (documentId: string): Promise<Uint8Array> => {
-  if (!signNowApiKey) {
-    throw new Error('SIGNNOW_API_KEY is required to download signed document');
+  if (!resp.ok) {
+    const txt = await resp.text()
+    throw new Error(`SignNow token failed: ${resp.status} ${txt}`)
   }
 
-  const response = await fetch(`${signNowApiBase}/document/${documentId}/download?type=collapsed`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${signNowApiKey}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to download signed document (${response.status}): ${errorText}`);
+  const data = await resp.json()
+  if (!data.access_token) {
+    throw new Error('SignNow token response missing access_token')
   }
+  return data.access_token as string
+}
 
-  const buffer = await response.arrayBuffer();
-  return new Uint8Array(buffer);
-};
-
-const uploadToStorage = async (fileBytes: Uint8Array, userId: string | null, documentId: string) => {
-  if (!supabaseAdmin) throw new Error('Supabase admin client not configured');
-
-  const fileName = `${userId || 'signnow'}/${documentId}-signed-${Date.now()}.pdf`;
-  const { data, error } = await supabaseAdmin.storage
-    .from('user-documents')
-    .upload(fileName, new Blob([fileBytes], { type: 'application/pdf' }), { upsert: false });
-
-  if (error) throw error;
-  return data?.path || fileName;
-};
-
-const updateIntegrationRecord = async (
-  documentId: string,
-  storagePath: string | null,
-  eventType: string | null,
-  rawPayload: Record<string, unknown>
-) => {
-  if (!supabaseAdmin) return { integration: null };
-
-  const { data: integration } = await supabaseAdmin
-    .from('integration_requests')
-    .select('*')
-    .eq('service', 'signnow')
-    .or(`external_service_id.eq.${documentId},metadata->>signNowDocumentId.eq.${documentId}`)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!integration) return { integration: null };
-
-  const metadata = {
-    ...(integration.metadata || {}),
-    signnow_status: 'completed',
-    signnow_signed_pdf_path: storagePath,
-    signnow_event: eventType,
-    signnow_payload: rawPayload
-  };
-
-  const { error } = await supabaseAdmin
-    .from('integration_requests')
-    .update({
-      status: 'completed',
-      external_service_id: integration.external_service_id || documentId,
-      metadata
-    })
-    .eq('id', integration.id);
-
-  if (error) {
-    console.error('Failed to update integration_requests', error);
+async function downloadSignedPdf(signnowDocumentId: string, accessToken: string): Promise<Blob> {
+  const resp = await fetch(`${signNowBase}/document/${signnowDocumentId}/download?type=document`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+  if (!resp.ok) {
+    const txt = await resp.text()
+    throw new Error(`SignNow download failed: ${resp.status} ${txt}`)
   }
+  return await resp.blob()
+}
 
-  return { integration };
-};
-
-const updateUserDocument = async (
-  documentId: string,
-  storagePath: string | null,
-  fileBytes: Uint8Array,
-  userIdFallback: string | null
-) => {
-  if (!supabaseAdmin) return;
-
-  const { data: userDoc } = await supabaseAdmin
-    .from('user_documents')
-    .select('*')
-    .eq('signnow_document_id', documentId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!userDoc) {
-    console.warn('No user_document found for signnow_document_id', documentId);
-    return;
-  }
-
-  const storagePathToUse = storagePath || `${userDoc.user_id || userIdFallback || 'signnow'}/${documentId}-signed-${Date.now()}.pdf`;
-  let finalPath = storagePathToUse;
-
-  if (!storagePath) {
-    try {
-      const { data, error } = await supabaseAdmin.storage
-        .from('user-documents')
-        .upload(storagePathToUse, new Blob([fileBytes], { type: 'application/pdf' }), { upsert: false });
-      if (error) throw error;
-      finalPath = data?.path || storagePathToUse;
-    } catch (e) {
-      console.error('Failed to upload signed PDF for user_document', e);
-    }
-  }
-
-  const now = new Date().toISOString();
-  const { error } = await supabaseAdmin
-    .from('user_documents')
-    .update({
-      signnow_status: 'completed',
-      signed_at: now,
-      status: 'signed',
-      overall_status: userDoc.overall_status === 'pending_anchor' ? 'pending_anchor' : 'certified',
-      pdf_storage_path: finalPath,
-      document_size: fileBytes.byteLength,
-      last_event_at: now,
-      download_enabled: true
-    })
-    .eq('id', userDoc.id);
-
-  if (error) {
-    console.error('Failed to update user_documents', error);
-  }
-};
+async function hashHex(blob: Blob): Promise<string> {
+  const arrayBuffer = await blob.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
-
-  const rawBody = await req.text();
-  const signatureHeader = req.headers.get('x-signnow-signature') || req.headers.get('X-Signnow-Signature');
-  const tokenHeader = req.headers.get('x-signnow-token') || req.headers.get('X-Signnow-Token');
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   try {
-    const valid = await verifyHmacSignature(rawBody, signatureHeader);
-    if (!valid) {
-      return jsonResponse({ error: 'Invalid webhook signature' }, 401);
+    const payload = await req.json()
+    console.log('📬 SignNow webhook received', payload)
+
+    const eventType = payload?.event
+    if (eventType !== 'document.completed' && eventType !== 'document.complete') {
+      return json({ ignored: true, reason: 'not a completed event' })
     }
-  } catch (err) {
-    console.error('Signature verification failed', err);
-    return jsonResponse({ error: 'Signature verification failed' }, 401);
-  }
 
-  let payload: Record<string, unknown>;
-  try {
-    payload = rawBody ? JSON.parse(rawBody) : {};
-  } catch (e) {
-    return jsonResponse({ error: 'Invalid JSON payload' }, 400);
-  }
+    const signnowDocumentId = payload?.document?.id || payload?.document_id
+    if (!signnowDocumentId) {
+      return json({ error: 'Missing document id' }, 400)
+    }
 
-  const documentId = extractDocumentId(payload);
-  const eventType = typeof payload.event === 'string' ? payload.event : (typeof payload.type === 'string' ? payload.type : null);
+    const { data: workflow, error: wfError } = await supabase
+      .from('signature_workflows')
+      .select('*')
+      .eq('signnow_document_id', signnowDocumentId)
+      .single()
 
-  if (!documentId) {
-    console.warn('Webhook received without document_id', payload);
-    return jsonResponse({ error: 'Missing document_id' }, 400);
-  }
+    if (wfError || !workflow) {
+      console.error('Workflow not found for document', signnowDocumentId, wfError)
+      return json({ error: 'Workflow not found' }, 404)
+    }
 
-  // Only act on completion events
-  const lowerEvent = eventType?.toLowerCase() || '';
-  const isCompleted = lowerEvent.includes('completed') || lowerEvent.includes('finalized') || lowerEvent.includes('signed');
+    // Owner email
+    const { data: ownerUser } = await supabase
+      .from('auth.users')
+      .select('email')
+      .eq('id', workflow.owner_id)
+      .maybeSingle()
 
-  if (!isCompleted) {
-    console.log(`Received non-completion event (${eventType || 'unknown'}) for document ${documentId}`);
-    return jsonResponse({ ok: true, ignored: true });
-  }
+    const accessToken = await getSignNowAccessToken()
+    const signedBlob = await downloadSignedPdf(signnowDocumentId, accessToken)
+    const signedHash = await hashHex(signedBlob)
 
-  try {
-    const signedPdf = await downloadSignedDocument(documentId);
+    // Upload signed PDF to storage
+    const signedPath = `${workflow.owner_id}/${workflow.id}/signnow_signed_${Date.now()}.pdf`
+    const uploadResp = await supabase.storage
+      .from('user-documents')
+      .upload(signedPath, signedBlob, { upsert: true, contentType: 'application/pdf' })
 
-    // Try to find integration to infer user_id and update metadata
-    const { integration } = await updateIntegrationRecord(documentId, null, eventType, {
-      ...payload,
-      token: tokenHeader || undefined
-    });
+    if (uploadResp.error) {
+      throw new Error(`Storage upload failed: ${uploadResp.error.message}`)
+    }
 
-    const userId = integration?.user_id || null;
-    let storagePath: string | null = null;
+    // Update workflow and signers
+    await supabase
+      .from('signature_workflows')
+      .update({
+        signnow_status: 'completed',
+        status: 'completed',
+        document_path: signedPath,
+        document_hash: signedHash,
+        updated_at: new Date().toISOString(),
+        completed_at: new Date().toISOString()
+      })
+      .eq('id', workflow.id)
 
+    const { data: signers } = await supabase
+      .from('workflow_signers')
+      .select('*')
+      .eq('workflow_id', workflow.id)
+
+    const nowIso = new Date().toISOString()
+    if (signers && signers.length > 0) {
+      const signerIds = signers.map((s) => s.id)
+      await supabase
+        .from('workflow_signers')
+        .update({ status: 'signed', signed_at: nowIso })
+        .in('id', signerIds)
+    }
+
+    // Forensic pipeline
     try {
-      storagePath = await uploadToStorage(signedPdf, userId, documentId);
-    } catch (uploadErr) {
-      console.error('Failed initial storage upload, will try per-document fallback', uploadErr);
+      await supabase.functions.invoke('legal-timestamp', { body: { hash_hex: signedHash } })
+    } catch (e) {
+      console.error('legal-timestamp failed', e)
+    }
+    try {
+      await supabase.functions.invoke('anchor-polygon', {
+        body: { documentHash: signedHash, documentId: workflow.id, userEmail: ownerUser?.email || 'owner@ecosign.app' }
+      })
+    } catch (e) {
+      console.error('anchor-polygon failed', e)
+    }
+    try {
+      await supabase.functions.invoke('anchor-bitcoin', {
+        body: { documentHash: signedHash, documentId: workflow.id, userEmail: ownerUser?.email || 'owner@ecosign.app' }
+      })
+    } catch (e) {
+      console.error('anchor-bitcoin failed', e)
     }
 
-    // Update integration with storage path if we have it
-    if (integration && storagePath) {
-      await updateIntegrationRecord(documentId, storagePath, eventType, {
-        ...payload,
-        token: tokenHeader || undefined
-      });
+    // Notifications
+    const displaySigner = signers?.[0]?.name || signers?.[0]?.email || 'Un firmante'
+    const ownerEmail = ownerUser?.email
+
+    if (ownerEmail) {
+      await supabase
+        .from('workflow_notifications')
+        .insert({
+          workflow_id: workflow.id,
+          recipient_email: ownerEmail,
+          recipient_type: 'owner',
+          notification_type: 'owner_document_signed',
+          subject: `${displaySigner} firmó ${workflow.original_filename || 'tu documento'}`,
+          body_html: `
+            <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">${displaySigner} firmó tu documento</h2>
+            <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
+              ${displaySigner} firmó <strong>${workflow.original_filename || 'Documento'}</strong>.
+            </p>
+            <p style="font-family:Arial,sans-serif;margin:16px 0;">
+              <a href="${appUrl}/workflows/${workflow.id}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Ver documento firmado</a>
+            </p>
+            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
+          `,
+          delivery_status: 'pending'
+        })
     }
 
-    // Update user_documents and, if needed, upload there
-    await updateUserDocument(documentId, storagePath, signedPdf, userId);
+    if (signers && signers.length > 0) {
+      for (const signer of signers) {
+        const signUrl = `${appUrl}/sign/${signer.access_token_hash}`
+        await supabase
+          .from('workflow_notifications')
+          .insert({
+            workflow_id: workflow.id,
+            recipient_email: signer.email,
+            recipient_type: 'signer',
+            signer_id: signer.id,
+            notification_type: 'signer_copy_ready',
+            subject: 'Tu copia firmada ya está lista',
+            body_html: `
+              <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Tu firma fue aplicada correctamente</h2>
+              <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
+                El documento <strong>${workflow.original_filename || 'Documento'}</strong> ya está certificado.
+              </p>
+              <p style="font-family:Arial,sans-serif;margin:12px 0 8px;">
+                <a href="${signUrl}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar PDF firmado</a>
+              </p>
+              <p style="font-family:Arial,sans-serif;margin:8px 0 16px;">
+                <a href="${signUrl}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar archivo ECO</a>
+              </p>
+              <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:12px 0 0;">Firmaste con la misma evidencia que recibe el remitente.</p>
+              <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:4px 0 12px;">Tu firma te pertenece. Tu evidencia también.</p>
+              <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:12px 0 0;">EcoSign. Transparencia que acompaña.</p>
+              <p style="font-family:Arial,sans-serif;color:#94a3b8;font-size:12px;margin:8px 0 0;">Guardá este correo para tener tus copias cuando las necesites.</p>
+            `,
+            delivery_status: 'pending'
+          })
+      }
+    }
 
-    return jsonResponse({ ok: true, document_id: documentId, stored_path: storagePath, event: eventType || 'completed' }, 200);
+    console.log('✅ SignNow webhook processed for workflow', workflow.id)
+    return json({ success: true, workflow_id: workflow.id, signed_path: signedPath })
   } catch (error) {
-    console.error('Error handling SignNow webhook', error);
-    return jsonResponse({ error: (error as Error).message || 'Unexpected error' }, 500);
+    console.error('signnow-webhook error', error)
+    return json({ error: error instanceof Error ? error.message : 'Internal error' }, 500)
   }
-});
+})

@@ -7,11 +7,9 @@
 // ============================================
 
 import { FormEvent, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { ShieldCheck, LogIn, UserPlus } from 'lucide-react';
 
 interface AuthGateProps {
   onComplete: () => void
@@ -27,6 +25,7 @@ export default function AuthGate({ onComplete }: AuthGateProps) {
   // If the user is already authenticated, skip the gate
   useEffect(() => {
     const checkSession = async () => {
+      const supabase = getSupabase();
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         onComplete()
@@ -46,6 +45,7 @@ export default function AuthGate({ onComplete }: AuthGateProps) {
     }
 
     try {
+      const supabase = getSupabase();
       setLoading(true)
 
       if (mode === 'login') {

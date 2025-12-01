@@ -81,10 +81,12 @@ serve(async (req) => {
       'mfa_failed',
       'document_decrypted',
       'document_viewed',
+      'document_view_duration',
       'signature_started',
       'signature_applied',
       'signature_completed',
-      'eco_downloaded'
+      'eco_downloaded',
+      'sequential_order_violated'
     ]
 
     if (!validEventTypes.includes(payload.event_type)) {

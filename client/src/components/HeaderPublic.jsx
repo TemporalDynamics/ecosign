@@ -7,16 +7,18 @@ const HeaderPublic = () => {
   return (
     <nav className="bg-white fixed w-full top-0 z-50 border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          <Link to="/" className="flex items-center space-x-3">
-            <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-          </Link>
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center space-x-3">
+              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
+            </Link>
+          </div>
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/how-it-works" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
               Cómo funciona
             </Link>
             <Link to="/verify" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-              Verificar
+              Verificador
             </Link>
             <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
               Precios

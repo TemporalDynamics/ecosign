@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { supabase } from '../lib/supabaseClient';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { getSupabase } from '../lib/supabaseClient';
+import { Clock, XCircle, Shield, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function InvitePage() {
   const { token } = useParams();
@@ -27,6 +22,7 @@ export default function InvitePage() {
 
   async function checkAuthAndInvite() {
     try {
+      const supabase = getSupabase();
       // Check if user is logged in
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
@@ -88,6 +84,7 @@ export default function InvitePage() {
     }
 
     try {
+      const supabase = getSupabase();
       setLoading(true);
 
       const { data, error } = await supabase.functions.invoke('accept-invite-nda', {

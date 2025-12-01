@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 function DashboardNav({ onLogout = () => {} }) {
   const location = useLocation();
@@ -14,6 +14,7 @@ function DashboardNav({ onLogout = () => {} }) {
 
   const handleLogout = async () => {
     try {
+      const supabase = getSupabase();
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Error al cerrar sesión:', error);

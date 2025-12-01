@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
 /**
  * Inicia un flujo de firmas en cascada con múltiples firmantes
@@ -43,6 +43,7 @@ export async function startSignatureWorkflow(params) {
   });
 
   try {
+    const supabase = getSupabase();
     // Obtener token de sesión
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     

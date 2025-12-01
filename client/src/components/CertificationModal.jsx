@@ -43,7 +43,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
   const [multipleSignatures, setMultipleSignatures] = useState(false);
   const [signers, setSigners] = useState([]);
   const [emailInputs, setEmailInputs] = useState([
-    { email: '', requireLogin: true, requireNda: true }
+    { email: '', name: '', requireLogin: true, requireNda: true }
   ]); // 1 campo por defecto - usuarios agregan más según necesiten
 
   // Firma digital (EcoSign o Legal)
@@ -135,7 +135,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
   };
 
   const handleAddEmailField = () => {
-    setEmailInputs([...emailInputs, { email: '', requireLogin: true, requireNda: true }]);
+    setEmailInputs([...emailInputs, { email: '', name: '', requireLogin: true, requireNda: true }]);
   };
 
   const handleRemoveEmailField = (index) => {
@@ -150,6 +150,12 @@ const CertificationModal = ({ isOpen, onClose }) => {
     setEmailInputs(newInputs);
   };
 
+  const handleNameChange = (index, value) => {
+    const newInputs = [...emailInputs];
+    newInputs[index] = { ...newInputs[index], name: value };
+    setEmailInputs(newInputs);
+  };
+
   const buildSignersList = () => {
     // Construir lista de firmantes desde los campos con email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -157,6 +163,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
       .filter(input => input.email.trim() && emailRegex.test(input.email.trim()))
       .map((input, idx) => ({
         email: input.email.trim(),
+        name: input.name?.trim() || null,
         signingOrder: idx + 1,
         requireLogin: input.requireLogin,
         requireNda: input.requireNda,
@@ -1431,8 +1438,8 @@ const CertificationModal = ({ isOpen, onClose }) => {
               {/* Campos de email con switches individuales */}
               <div className="space-y-4 mb-4">
                 {emailInputs.map((input, index) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
-                    {/* Header con número y campo email */}
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                    {/* Header con número, email y nombre opcional */}
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
                         {index + 1}
@@ -1453,6 +1460,15 @@ const CertificationModal = ({ isOpen, onClose }) => {
                           <X className="w-4 h-4" />
                         </button>
                       )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={input.name}
+                        onChange={(e) => handleNameChange(index, e.target.value)}
+                        placeholder="Nombre del firmante (opcional)"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                      />
                     </div>
                   </div>
                 ))}

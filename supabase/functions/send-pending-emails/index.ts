@@ -31,7 +31,7 @@ serve(async (req: Request) => {
 
     for (const r of rows) {
       try {
-        const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@mail.ecosign.app>';
+        const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@email.ecosign.app>';
         const to = r.recipient_email;
         const subject = r.subject || 'Notificación EcoSign';
         const html = r.body_html || '<p>Notificación</p>';

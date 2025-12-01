@@ -1,11 +1,6 @@
 import React, { useState } from 'react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { Link2, Send, Check, Copy, Clock, Shield } from 'lucide-react';
+import { getSupabase } from '../lib/supabaseClient';
 
 function ShareLinkGenerator({ documentId, documentTitle, onClose }) {
   const [recipientEmail, setRecipientEmail] = useState('');
@@ -29,6 +24,7 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }) {
     }
 
     try {
+      const supabase = getSupabase();
       setGenerating(true);
       setError(null);
 

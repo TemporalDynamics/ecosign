@@ -3,7 +3,7 @@
  * Cliente para anclar hashes en Polygon Mainnet via Edge Functions
  */
 
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
 /**
  * Anclar un hash en Polygon Mainnet
@@ -16,6 +16,7 @@ import { supabase } from './supabaseClient';
  * @returns {Promise<Object>} Resultado del anchoring
  */
 export async function anchorToPolygon(documentHash, options = {}) {
+  const supabase = getSupabase();
   try {
     console.log('🔗 Requesting Polygon anchor for hash:', documentHash);
 
@@ -77,6 +78,7 @@ export async function anchorToPolygon(documentHash, options = {}) {
  * @returns {Promise<Object>} Estado del anchor
  */
 export async function verifyPolygonAnchor(documentHash) {
+  const supabase = getSupabase();
   try {
     // Consultar directamente la DB de anchors
     const { data, error } = await supabase
@@ -130,6 +132,7 @@ export async function verifyPolygonAnchor(documentHash) {
  * @returns {Promise<Object>} Estado del anchor
  */
 export async function getAnchorStatus(anchorId) {
+  const supabase = getSupabase();
   try {
     const { data, error } = await supabase
       .from('anchors')
@@ -168,6 +171,7 @@ export async function getAnchorStatus(anchorId) {
  * @returns {Promise<Array>} Lista de anchors
  */
 export async function listUserAnchors(userId, options = {}) {
+  const supabase = getSupabase();
   try {
     let query = supabase
       .from('anchors')

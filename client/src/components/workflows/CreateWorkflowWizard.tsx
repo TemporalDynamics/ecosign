@@ -6,12 +6,8 @@
 // ============================================
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { getSupabase } from '@/lib/supabaseClient'
+import { X, CheckCircle } from 'lucide-react';
 import DocumentUploader from '@/components/documents/DocumentUploader'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
@@ -117,6 +113,7 @@ export default function CreateWorkflowWizard({
     }
 
     try {
+      const supabase = getSupabase();
       setCurrentStep('creating')
       setError(null)
 

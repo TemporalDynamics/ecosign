@@ -2,7 +2,7 @@
 // Servicio de verificación REAL que conecta con Edge Functions de Supabase
 // NO utiliza mocks ni datos simulados
 
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
 /**
  * Verifica un archivo .ECO usando la Edge Function real
@@ -10,6 +10,7 @@ import { supabase } from './supabaseClient';
  * @returns {Promise<Object>} Resultado de verificación con datos reales
  */
 export async function verifyEcoFile(file) {
+  const supabase = getSupabase();
   // Validar que sea un archivo .ECO
   const fileName = file.name.toLowerCase();
   if (!fileName.endsWith('.eco')) {
@@ -77,6 +78,7 @@ export async function verifyEcoFile(file) {
  * @returns {Promise<Object>} Resultado de verificación completa
  */
 export async function verifyEcoWithOriginal(ecoFile, originalFile) {
+  const supabase = getSupabase();
   if (!ecoFile) {
     return {
       valid: false,

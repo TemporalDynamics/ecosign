@@ -61,6 +61,11 @@ serve(async (req) => {
       return jsonResponse({ error: 'documentHash is required' }, 400);
     }
 
+    const isHex64 = /^[0-9a-f]{64}$/i;
+    if (!isHex64.test(documentHash.trim())) {
+      return jsonResponse({ error: 'Invalid documentHash. Must be 64 hex characters (SHA-256).' }, 400);
+    }
+
     const client = ensureClient();
     const nowIso = new Date().toISOString();
 

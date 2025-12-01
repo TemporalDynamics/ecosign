@@ -3,7 +3,7 @@
  * Utilities for storing certified documents in Supabase
  */
 
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 /**
  * Upload a signed PDF to Supabase Storage and create a user_documents record
@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabaseClient';
  * @returns {Promise<Object>} The created document record
  */
 export async function saveUserDocument(pdfFile, ecoData, options = {}) {
+  const supabase = getSupabase();
   const {
     signNowDocumentId = null,
     signNowStatus = null,
@@ -135,6 +136,7 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
  * @returns {Promise<Array>} Array of user documents with all fields
  */
 export async function getUserDocuments() {
+  const supabase = getSupabase();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
     throw new Error('Usuario no autenticado');
@@ -168,6 +170,7 @@ export async function getUserDocuments() {
  * @returns {Promise<Object>} Updated document
  */
 export async function updateDocumentStatus(documentId, newStatus) {
+  const supabase = getSupabase();
   const validStatuses = ['draft', 'sent', 'pending', 'signed', 'rejected', 'expired'];
   
   if (!validStatuses.includes(newStatus)) {
@@ -199,6 +202,7 @@ export async function updateDocumentStatus(documentId, newStatus) {
  * @returns {Promise<string>} The signed URL
  */
 export async function getDocumentDownloadUrl(storagePath, expiresIn = 3600) {
+  const supabase = getSupabase();
   const { data, error } = await supabase.storage
     .from('user-documents')
     .createSignedUrl(storagePath, expiresIn);
@@ -211,12 +215,48 @@ export async function getDocumentDownloadUrl(storagePath, expiresIn = 3600) {
   return data.signedUrl;
 }
 
+// Signed URL helper (frontend-only fallback)
+// Matches the TS version so bundlers find the export.
+export async function getSignedDocumentUrl(path, expiresIn = 3600) {
+  const supabase = getSupabase();
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error('No session available');
+      return null;
+    }
+
+    // Use edge function to bypass RLS if needed
+    const response = await fetch(`${supabase.supabaseUrl}/functions/v1/get-signed-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ path, bucket: 'user-documents', expiresIn })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Error creating signed URL:', error);
+      return null;
+    }
+
+    const { signedUrl } = await response.json();
+    return signedUrl;
+  } catch (error) {
+    console.error('Error creating signed URL:', error);
+    return null;
+  }
+}
+
 /**
  * Delete a user document (both storage and DB record)
  * @param {string} documentId - The document ID
  * @returns {Promise<void>}
  */
 export async function deleteUserDocument(documentId) {
+  const supabase = getSupabase();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
     throw new Error('Usuario no autenticado');
@@ -265,6 +305,7 @@ export async function deleteUserDocument(documentId) {
  * @returns {Promise<{ success: boolean, data: Blob | null, error: string | null }>}
  */
 export async function downloadDocument(storagePath) {
+  const supabase = getSupabase();
   try {
     const { data, error } = await supabase.storage
       .from('user-documents')

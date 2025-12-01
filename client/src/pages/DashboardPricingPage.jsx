@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { Check, X, ChevronUp, ChevronDown } from 'lucide-react';
 import DashboardNav from '../components/DashboardNav';
 import FooterInternal from '../components/FooterInternal';
 

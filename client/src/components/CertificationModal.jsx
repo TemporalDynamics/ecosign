@@ -9,7 +9,7 @@ import { applySignatureToPDF, blobToFile, addSignatureSheet } from '../utils/pdf
 import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
 import { anchorToPolygon } from '../lib/polygonAnchor';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 /**
  * Modal de Certificación - Diseño según Design System VerifySign
@@ -18,7 +18,7 @@ import { supabase } from '../lib/supabaseClient';
  * - Sin tecnicismos visibles
  * - Paneles colapsables para opciones avanzadas
  * - Blindaje forense por defecto (transparente)
- * - Flujo simple: Elegí → Firmá → Listo
+ * - Flujo simple: Elegir -> Firmar -> Listo
  */
 const CertificationModal = ({ isOpen, onClose }) => {
   // Estados del flujo
@@ -69,6 +69,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     async function loadUserData() {
       if (!multipleSignatures) {
+        const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           setSignerName(user.user_metadata?.full_name || user.email || '');
@@ -176,6 +177,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
 
     setLoading(true);
     try {
+      const supabase = getSupabase();
       // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
       if (multipleSignatures) {
         // Validar que haya al menos un email
@@ -317,7 +319,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
           signNowResult = await signWithSignNow(fileToProcess, {
             documentName: fileToProcess.name,
             action: 'esignature',
-            userEmail: user?.email || 'unknown@example.com',
+            userEmail: user?.email || 'unknown@example.example.com',
             userName: user?.user_metadata?.full_name || signerName || 'Usuario',
             signature: signatureData ? {
               image: signatureData,
@@ -431,7 +433,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
 
         // Llamar a Polygon anchor (no bloqueante - se procesa async)
         anchorToPolygon(certResult.ecoData.documentHash, {
-          documentId: savedDoc?.id,
+          documentId: savedDoc?.id || null, // Ensure documentId is a UUID or null
           userId: savedDoc?.user_id,
           metadata: {
             filename: file.name,
@@ -1365,6 +1367,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                     onClick={() => {
                       // Registrar evento 'downloaded'
                       if (certificateData.documentId) {
+                        const supabase = getSupabase();
                         supabase.auth.getUser().then(({ data: { user } }) => {
                           EventHelpers.logEcoDownloaded(
                             certificateData.documentId,

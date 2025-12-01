@@ -6,7 +6,7 @@
 // ============================================
 
 import { useCallback } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 
 type EcoxEventType =
   | 'access_link_opened'
@@ -16,6 +16,8 @@ type EcoxEventType =
   | 'mfa_failed'
   | 'document_decrypted'
   | 'document_viewed'
+  | 'document_scroll'
+  | 'document_view_duration'
   | 'signature_started'
   | 'signature_applied'
   | 'signature_completed'
@@ -57,6 +59,7 @@ export function useEcoxLogger(): EcoxLogger {
     details = {},
     documentHashSnapshot
   }: LogEventParams): Promise<boolean> => {
+    const supabase = getSupabase();
     try {
       // Get browser timezone
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone

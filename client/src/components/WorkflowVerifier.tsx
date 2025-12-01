@@ -1,11 +1,7 @@
 import { useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 import { calculateDocumentHash, formatHashForDisplay } from '@/utils/hashDocument'
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { Shield, FileText, XCircle, RefreshCw, CheckCircle } from 'lucide-react';
 
 interface WorkflowVerifierProps {
   className?: string
@@ -66,6 +62,7 @@ export default function WorkflowVerifier({ className }: WorkflowVerifierProps) {
 
   const lookup = async (calcHash: string) => {
     try {
+      const supabase = getSupabase();
       const { data, error: fnError } = await supabase.functions.invoke('verify-workflow-hash', {
         body: { hash: calcHash }
       })

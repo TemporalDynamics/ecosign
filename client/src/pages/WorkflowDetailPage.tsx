@@ -1,17 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 import { formatHashForDisplay } from '@/utils/hashDocument'
 import DashboardNav from '@/components/DashboardNav'
 import FooterInternal from '@/components/FooterInternal'
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { ArrowLeft, Clock, Download, FileText, RefreshCw, ShieldCheck, Users, XCircle } from 'lucide-react';
 
 type Workflow = {
   id: string
@@ -127,6 +120,7 @@ export default function WorkflowDetailPage() {
 
   const loadData = async (workflowId: string) => {
     try {
+      const supabase = getSupabase();
       setLoading(true)
       setError(null)
 
@@ -168,6 +162,7 @@ export default function WorkflowDetailPage() {
   const downloadPDF = async () => {
     if (!workflow?.document_path) return
     try {
+      const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         alert('Sesión no válida')
@@ -198,6 +193,7 @@ export default function WorkflowDetailPage() {
   const downloadECO = async () => {
     if (!workflow) return
     try {
+      const supabase = getSupabase();
       const { data, error: rpcError } = await supabase.rpc('generate_ecox_certificate', {
         p_workflow_id: workflow.id
       })
@@ -218,6 +214,7 @@ export default function WorkflowDetailPage() {
   const cancelWorkflow = async () => {
     if (!workflow) return
     try {
+      const supabase = getSupabase();
       setActionLoading(true)
       const { error: updateError } = await supabase
         .from('signature_workflows')

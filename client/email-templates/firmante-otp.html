@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Código EcoSign</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;">
+  <table align="center" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#f8fafc;padding:24px 12px;font-family:Arial,sans-serif;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
+          <tr>
+            <td style="padding:24px 24px 16px 24px;">
+              <p style="margin:0 0 8px;font-size:14px;color:#0f172a;">Hola {{display_name}},</p>
+              <p style="margin:0 0 12px;font-size:16px;color:#0f172a;font-weight:bold;">Usá este código para continuar:</p>
+              <div style="margin:0 0 16px;font-size:28px;font-weight:700;color:#0f172a;letter-spacing:2px;">
+                {{otp_code}}
+              </div>
+              <p style="margin:0 0 12px;font-size:14px;color:#334155;">El código vence en unos minutos. Ingresalo donde lo solicitaste.</p>
+              <p style="margin:16px 0 0;font-size:14px;color:#0f172a;font-weight:600;">EcoSign. Transparencia que acompaña.</p>
+              <p style="margin:8px 0 0;font-size:12px;color:#94a3b8;">Si no solicitaste este código, podés ignorar este mensaje.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

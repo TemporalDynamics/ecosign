@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
 export interface BitcoinAnchorResponse {
   anchorId: string;
@@ -18,6 +18,7 @@ export async function requestBitcoinAnchor(
   documentHash: string,
   context: AnchorContext = {}
 ): Promise<BitcoinAnchorResponse | null> {
+  const supabase = getSupabase();
   if (!documentHash) {
     return null;
   }

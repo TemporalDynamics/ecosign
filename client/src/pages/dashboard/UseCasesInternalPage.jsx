@@ -2,10 +2,7 @@ import React from 'react';
 import DashboardNav from '../../components/DashboardNav';
 import FooterInternal from '../../components/FooterInternal';
 import PageTitle from '../../components/PageTitle';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { Briefcase, FlaskConical, Palette, Building2 } from 'lucide-react';
 
 export default function UseCasesInternalPage() {
   return (

@@ -13,14 +13,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 import { EventHelpers } from '../utils/eventLogger';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { Loader2, Pen, Shield, Type, Upload as UploadIcon, CheckCircle2 } from 'lucide-react';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
 
 function SignDocumentPage() {
@@ -59,6 +54,7 @@ function SignDocumentPage() {
 
   const validateToken = async () => {
     try {
+      const supabase = getSupabase();
       setLoading(true);
 
       // Buscar signer_link con documento relacionado
@@ -146,6 +142,7 @@ function SignDocumentPage() {
     }
 
     try {
+      const supabase = getSupabase();
       // Actualizar signer_link con datos del firmante
       await supabase
         .from('signer_links')
@@ -226,6 +223,7 @@ function SignDocumentPage() {
     }
 
     try {
+      const supabase = getSupabase();
       setSubmitting(true);
 
       // Guardar firma en signer_link

@@ -1,7 +1,5 @@
-const CACHE_NAME = 'ecosign-cache-v1';
+const CACHE_NAME = 'ecosign-cache-v2';
 const urlsToCache = [
-  '/',
-  '/index.html',
   '/assets/icons/icon-72x72.png',
   '/assets/icons/icon-96x96.png',
   '/assets/icons/icon-128x128.png',
@@ -20,18 +18,23 @@ self.addEventListener('install', (event) => {
         return cache.addAll(urlsToCache);
       })
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  // Network-first for HTML/JS/CSS to avoid serving stale hashed assets
+  if (request.destination === 'document' || request.destination === 'script' || request.destination === 'style') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Cache-first for icons/others
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
+    caches.match(request)
+      .then((response) => response || fetch(request))
   );
 });
 

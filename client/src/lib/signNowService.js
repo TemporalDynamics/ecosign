@@ -6,7 +6,7 @@
  * Este servicio se conecta a la Edge Function /supabase/functions/signnow
  */
 
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
 /**
  * Crea un documento firmado con SignNow (firma legal con validez internacional)
@@ -16,6 +16,7 @@ import { supabase } from './supabaseClient';
  */
 export async function signWithSignNow(file, options = {}) {
   try {
+    const supabase = getSupabase();
     // Convertir archivo a base64
     const base64File = await fileToBase64(file);
 

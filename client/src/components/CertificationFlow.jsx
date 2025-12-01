@@ -3,7 +3,7 @@ import { ArrowRight, CheckCircle, FileText, Shield, Upload, AlertTriangle } from
 import SignatureWorkshop from './SignatureWorkshop';
 import { certifyAndDownload } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 const steps = ['Subir documento', 'Firma legal', 'Certificar', 'Listo'];
 const SUPPORTED_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'rar'];
@@ -85,6 +85,7 @@ const CertificationFlow = ({ onClose }) => {
     setCertResult(null);
 
     try {
+      const supabase = getSupabase();
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
 

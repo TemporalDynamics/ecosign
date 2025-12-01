@@ -15,7 +15,7 @@
 import { useState, useRef } from 'react'
 import { calculateDocumentHash } from '@/utils/hashDocument'
 import { generateEncryptionKey, encryptFile } from '@/utils/encryption'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 interface DocumentUploaderProps {
@@ -158,6 +158,7 @@ export default function DocumentUploader({
     // ✅ Server logs should NOT capture request body
 
     console.log('🔒 Uploading encrypted blob (server will NOT see plaintext)')
+    const supabase = getSupabase();
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

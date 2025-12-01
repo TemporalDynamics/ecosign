@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Invitación a firmar</title>
+  <style>
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 0; }
+    .container { max-width: 640px; margin: 0 auto; padding: 32px 24px; }
+    .card { background: linear-gradient(135deg, #111827, #0b1224); border: 1px solid #1f2937; border-radius: 14px; padding: 28px; box-shadow: 0 18px 50px rgba(0,0,0,0.35); }
+    h1 { color: #f8fafc; font-size: 26px; margin: 0 0 12px; }
+    p { line-height: 1.6; color: #cbd5e1; }
+    .btn { display: inline-block; padding: 14px 20px; background: linear-gradient(120deg, #00e5b0, #00b5ff); color: #0b1224; text-decoration: none; font-weight: 700; border-radius: 12px; box-shadow: 0 12px 30px rgba(0, 229, 176, 0.35); }
+    .meta { margin-top: 18px; font-size: 14px; color: #94a3b8; }
+    .footer { margin-top: 24px; font-size: 12px; color: #64748b; }
+    code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Te invitaron a firmar un documento</h1>
+      <p>Hola,</p>
+      <p><strong>{{ownerName}}</strong> te envió una solicitud para firmar el documento <strong>{{documentName}}</strong>.</p>
+      <p>Puedes revisarlo y firmarlo de forma segura en EcoSign.</p>
+      <p style="text-align:center; margin: 24px 0;">
+        <a class="btn" href="{{actionUrl}}" target="_blank" rel="noopener">Revisar y firmar</a>
+      </p>
+      <p class="meta">
+        - Válido hasta: <code>{{expiresAt}}</code><br />
+        - Código de verificación: <code>{{verificationCode}}</code>
+      </p>
+      <p class="footer">Si no solicitaste esta invitación, ignora este correo.</p>
+    </div>
+  </div>
+</body>
+</html>

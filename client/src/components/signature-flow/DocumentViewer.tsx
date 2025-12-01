@@ -9,19 +9,19 @@
 
 import { useEffect, useState } from 'react'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { downloadDocument, getDocumentDownloadUrl } from '@/utils/documentStorage'
+import { downloadDocument, getSignedDocumentUrl } from '@/utils/documentStorage'
 import { decryptFile } from '@/utils/encryption'
 import { useEcoxLogger } from '@/hooks/useEcoxLogger'
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { FileText, RefreshCcw, ShieldCheck } from 'lucide-react'
 
 interface DocumentViewerProps {
   documentPath: string | null
   encryptionKey?: string | null
   workflowId?: string
   signerId?: string
+  signedUrl?: string | null
   onContinue: () => void
+  mode?: 'dashboard' | 'signer'
 }
 
 export default function DocumentViewer({
@@ -29,12 +29,35 @@ export default function DocumentViewer({
   encryptionKey,
   workflowId,
   signerId,
-  onContinue
+  signedUrl,
+  onContinue,
+  mode = 'dashboard'
 }: DocumentViewerProps) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const { logEvent } = useEcoxLogger()
+
+  // Forensic metrics state
+  const [viewStartTime] = useState<number>(Date.now())
+  const [loggedDuration, setLoggedDuration] = useState(false)
+
+  const isSignerMode = mode === 'signer'
+
+  // Log view duration on unmount
+  useEffect(() => {
+    return () => {
+      if (!loggedDuration && workflowId && signerId) {
+        const duration = Date.now() - viewStartTime
+        logEvent({
+          workflowId,
+          signerId,
+          eventType: 'document_view_duration',
+          details: { duration_ms: duration }
+        }).catch(console.error)
+      }
+    }
+  }, [loggedDuration, logEvent, signerId, viewStartTime, workflowId])
 
   useEffect(() => {
     let isMounted = true
@@ -53,12 +76,20 @@ export default function DocumentViewer({
 
         if (encryptionKey) {
           // Download encrypted PDF, decrypt locally
-          const { success, data, error: downloadError } = await downloadDocument(documentPath)
-          if (!success || !data) {
-            throw new Error(downloadError || 'No se pudo descargar el documento')
+          let encryptedBlob: Blob | null = null
+          if (signedUrl) {
+            const resp = await fetch(signedUrl)
+            if (!resp.ok) throw new Error('No se pudo descargar el documento')
+            encryptedBlob = await resp.blob()
+          } else {
+            const { success, data, error: downloadError } = await downloadDocument(documentPath)
+            if (!success || !data) {
+              throw new Error(downloadError || 'No se pudo descargar el documento')
+            }
+            encryptedBlob = data
           }
 
-          const decrypted = await decryptFile(data, encryptionKey)
+          const decrypted = await decryptFile(encryptedBlob, encryptionKey)
           const buffer = await decrypted.arrayBuffer()
           const pdfBlob = new Blob([buffer], { type: 'application/pdf' })
           objectUrl = URL.createObjectURL(pdfBlob)
@@ -71,11 +102,11 @@ export default function DocumentViewer({
             })
           }
         } else {
-          const signedUrl = await getSignedDocumentUrl(documentPath)
-          if (!signedUrl) {
+          const resolvedUrl = signedUrl || await getSignedDocumentUrl(documentPath)
+          if (!resolvedUrl) {
             throw new Error('No se pudo generar un link seguro para visualizar el PDF')
           }
-          objectUrl = signedUrl
+          objectUrl = resolvedUrl
         }
 
         if (isMounted) {
@@ -99,7 +130,7 @@ export default function DocumentViewer({
         URL.revokeObjectURL(objectUrl)
       }
     }
-  }, [documentPath, encryptionKey, logEvent, signerId, workflowId])
+  }, [documentPath, encryptionKey, logEvent, signerId, workflowId, signedUrl])
 
   if (loading) {
     return (
@@ -136,6 +167,56 @@ export default function DocumentViewer({
     )
   }
 
+  // Render different UI based on mode
+  if (isSignerMode) {
+    // Ultra minimal signer mode
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#0b132b] via-[#0f172a] to-[#0b132b] text-white">
+        <div className="mx-auto flex min-h-screen max-w-5xl flex-col rounded-none bg-white/5 backdrop-blur">
+          {/* Minimal header with brand accent */}
+          <div className="flex items-center gap-3 border-b border-white/10 px-6 py-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0ea5e9]/20 text-[#0ea5e9]">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-white/70">EcoSign</p>
+              <h1 className="text-lg font-semibold text-white">
+                Revisá el documento antes de firmar
+              </h1>
+            </div>
+          </div>
+
+          {/* PDF Viewer - Full height */}
+          <div className="flex-1 bg-white">
+            <iframe
+              src={pdfUrl}
+              title="Documento para firmar"
+              className="h-[calc(100vh-200px)] w-full border-0"
+              allow="clipboard-write"
+            />
+          </div>
+
+          {/* Sticky bottom action bar */}
+          <div className="sticky bottom-0 border-t border-white/10 bg-[#0b132b]/90 px-6 py-4 shadow-2xl backdrop-blur">
+            <div className="mx-auto flex max-w-5xl flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-white/80">
+                <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                Documento cargado de forma segura en tu navegador
+              </div>
+              <button
+                onClick={onContinue}
+                className="inline-flex items-center justify-center rounded-lg bg-[#0ea5e9] px-8 py-3 text-base font-semibold text-white transition hover:bg-[#0284c7] focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-0"
+              >
+                Firmar documento
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Dashboard mode (original UI)
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">

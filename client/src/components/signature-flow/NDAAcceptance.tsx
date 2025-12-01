@@ -5,8 +5,7 @@
 // ============================================
 
 import { useState } from 'react'
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { Check, Shield } from 'lucide-react'
 
 interface NDAAcceptanceProps {
   workflow: {
@@ -55,56 +54,35 @@ export default function NDAAcceptance({ workflow, onAccept }: NDAAcceptanceProps
             className="prose max-h-96 overflow-y-auto pr-4"
             onScroll={handleScroll}
           >
-            <h2 className="text-xl font-bold text-gray-900">
-              Acuerdo de No Divulgación (NDA)
-            </h2>
-
+            <h2 className="text-xl font-bold text-gray-900">Acuerdo de Confidencialidad (NDA)</h2>
             <p className="text-gray-700">
-              Al aceptar este acuerdo y acceder al documento, te comprometes a:
+              Antes de ver el documento, necesitamos tu consentimiento para proteger la confidencialidad y registrar evidencia forense.
             </p>
 
             <ul className="text-gray-700">
+              <li>Mantener en confidencialidad todo el contenido del documento.</li>
+              <li>Usar la información sólo para revisar y firmar este documento.</li>
               <li>
-                Mantener en estricta <strong>confidencialidad</strong> todo el contenido
-                del documento
+                EcoSign registra datos técnicos (IP, agente de navegador, sellos de tiempo, interacciones) exclusivamente
+                para certificar autenticidad, integridad y trazabilidad de la firma.
               </li>
-              <li>
-                <strong>No divulgar, copiar, reproducir o transmitir</strong> el
-                contenido a terceros sin autorización expresa
-              </li>
-              <li>
-                Utilizar el contenido <strong>únicamente para los fines acordados</strong>
-              </li>
-              <li>
-                Proteger el documento con medidas de seguridad razonables
-              </li>
-              <li>
-                Notificar inmediatamente cualquier acceso no autorizado o violación de
-                seguridad
-              </li>
+              <li>EcoSign no analiza el contenido; sólo procesa huellas criptográficas para verificación.</li>
+              <li>La evidencia (PDF + ECO) queda disponible para todas las partes, protegida y verificable.</li>
+              <li>El objetivo es prevenir repudio, asegurar transparencia y proteger a todas las partes.</li>
             </ul>
 
-            <h3 className="text-lg font-semibold text-gray-900">
-              Duración de la Confidencialidad
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">Duración</h3>
             <p className="text-gray-700">
-              Las obligaciones de confidencialidad permanecerán vigentes por un período
-              de <strong>5 años</strong> desde la fecha de firma, o hasta que la
-              información deje de ser confidencial por medios legítimos.
+              Las obligaciones de confidencialidad permanecen vigentes por 5 años o hasta que la información deje de ser confidencial por medios legítimos.
             </p>
 
-            <h3 className="text-lg font-semibold text-gray-900">Consecuencias</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Registro Forense</h3>
             <p className="text-gray-700">
-              El incumplimiento de este acuerdo puede resultar en acciones legales y la
-              obligación de compensar daños y perjuicios.
+              Tu aceptación queda registrada con evidencia forense (timestamp, IP, dispositivo) como parte del certificado ECOX.
             </p>
 
-            <h3 className="text-lg font-semibold text-gray-900">
-              Registro Forense
-            </h3>
-            <p className="text-gray-700">
-              Tu aceptación de este NDA quedará registrada con evidencia forense
-              (timestamp, IP, geolocalización) como parte del certificado ECOX.
+            <p className="mt-4 text-sm font-semibold text-gray-900">
+              EcoSign. Transparencia que acompaña.
             </p>
 
             {!scrolledToBottom && (
@@ -126,9 +104,8 @@ export default function NDAAcceptance({ workflow, onAccept }: NDAAcceptanceProps
               className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <span className="text-sm text-gray-700">
-              He leído y <strong>acepto el Acuerdo de Confidencialidad (NDA)</strong>.
-              Entiendo que estoy obligado legalmente a mantener la confidencialidad del
-              contenido de este documento.
+              He leído y <strong>acepto el NDA y el registro forense</strong> para este documento.
+              Entiendo mi obligación de confidencialidad y el uso de evidencia para protección mutua.
             </span>
           </label>
         </div>

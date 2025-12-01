@@ -1,11 +1,7 @@
 // client/src/pages/DashboardVerifyPage.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
 import VerificationComponent from '../components/VerificationComponent';
 import DashboardNav from '../components/DashboardNav';
 import FooterInternal from '../components/FooterInternal';

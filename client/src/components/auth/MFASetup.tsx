@@ -6,7 +6,7 @@
 // ============================================
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabase } from '@/lib/supabaseClient'
 import { Shield, Copy, Check } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
@@ -40,6 +40,7 @@ export default function MFASetup({ onComplete, onSkip, allowSkip = false }: MFAS
 
   const enrollMFA = async () => {
     try {
+      const supabase = getSupabase();
       setIsLoading(true)
       setError(null)
 
@@ -68,6 +69,7 @@ export default function MFASetup({ onComplete, onSkip, allowSkip = false }: MFAS
     }
 
     try {
+      const supabase = getSupabase();
       setIsVerifying(true)
       setError(null)
 

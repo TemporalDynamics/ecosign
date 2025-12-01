@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, AuthError } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 interface UseAuthReturn {
   user: User | null;
@@ -26,6 +26,7 @@ export const useAuth = (): UseAuthReturn => {
 
   // Cargar usuario al montar
   useEffect(() => {
+    const supabase = getSupabase();
     // Obtener sesión inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -47,6 +48,7 @@ export const useAuth = (): UseAuthReturn => {
    * Sign In con email y password
    */
   const signIn = async (email: string, password: string): Promise<void> => {
+    const supabase = getSupabase();
     try {
       setError(null);
       setLoading(true);
@@ -70,6 +72,7 @@ export const useAuth = (): UseAuthReturn => {
    * Sign Up con email y password
    */
   const signUp = async (email: string, password: string): Promise<void> => {
+    const supabase = getSupabase();
     try {
       setError(null);
       setLoading(true);
@@ -96,6 +99,7 @@ export const useAuth = (): UseAuthReturn => {
    * Sign Out
    */
   const signOut = async (): Promise<void> => {
+    const supabase = getSupabase();
     try {
       setError(null);
       const { error } = await supabase.auth.signOut();
@@ -111,6 +115,7 @@ export const useAuth = (): UseAuthReturn => {
    * Resetear password
    */
   const resetPassword = async (email: string): Promise<void> => {
+    const supabase = getSupabase();
     try {
       setError(null);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {

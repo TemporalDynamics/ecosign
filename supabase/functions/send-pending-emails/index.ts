@@ -7,6 +7,7 @@ import { sendResendEmail } from '../_shared/email.ts';
 serve(async (req: Request) => {
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
   const SUPABASE_SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const MAX_RETRIES = 10;
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
   console.log('🟢 send-pending-emails: start');
@@ -30,7 +31,7 @@ serve(async (req: Request) => {
 
     for (const r of rows) {
       try {
-        const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@email.ecosign.app>';
+        const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@ecosign.app>';
         const to = r.recipient_email;
         const subject = r.subject || 'Notificación EcoSign';
         const html = r.body_html || '<p>Notificación</p>';
@@ -52,7 +53,7 @@ serve(async (req: Request) => {
           else console.info(`Email enviado fila ${r.id} resend_id ${result.id}`);
         } else {
           const retry = (r.retry_count ?? 0) + 1;
-          const new_status = retry >= 3 ? 'failed' : 'pending';
+          const new_status = retry >= MAX_RETRIES ? 'failed' : 'pending';
           const upd = await supabase
             .from('workflow_notifications')
             .update({

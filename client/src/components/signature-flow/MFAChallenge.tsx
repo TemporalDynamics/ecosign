@@ -6,9 +6,8 @@
 // ============================================
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { getSupabase } from '@/lib/supabaseClient'
+import { Shield, AlertTriangle } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 interface MFAChallengeProps {
@@ -46,6 +45,7 @@ export default function MFAChallenge({
 
   const loadMFAFactors = async () => {
     try {
+      const supabase = getSupabase();
       setIsLoading(true)
       setError(null)
 
@@ -103,6 +103,7 @@ export default function MFAChallenge({
 
   const createChallenge = async (factorId: string) => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase.auth.mfa.challenge({ factorId })
 
       if (error) {
@@ -126,6 +127,7 @@ export default function MFAChallenge({
     }
 
     try {
+      const supabase = getSupabase();
       setIsVerifying(true)
       setError(null)
 
@@ -174,6 +176,7 @@ export default function MFAChallenge({
 
   const logEvent = async (eventType: string, metadata: any = {}) => {
     try {
+      const supabase = getSupabase();
       await supabase.functions.invoke('log-ecox-event', {
         body: {
           workflow_id: workflowId,

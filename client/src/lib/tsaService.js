@@ -3,7 +3,7 @@
  * and verifies the returned token locally before embedding it in the .ECO data.
  */
 
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 import { verifyTSRToken } from './tsrVerifier';
 
 const DEFAULT_TSA_URL = 'https://freetsa.org/tsr';
@@ -26,6 +26,7 @@ function estimateTokenSizeBase64(base64Token) {
 }
 
 export async function requestLegalTimestamp(hashHex, options = {}) {
+  const supabase = getSupabase();
   validateHashHex(hashHex);
 
   const payload = {

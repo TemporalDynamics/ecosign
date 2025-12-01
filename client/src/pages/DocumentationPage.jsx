@@ -3,11 +3,7 @@ import { Link } from 'react-router-dom';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { FileText, Database, Shield, CheckCircle } from 'lucide-react';
 
 export default function DocumentationPage() {
   return (

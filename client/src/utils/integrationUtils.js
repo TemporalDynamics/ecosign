@@ -3,7 +3,7 @@
  * Integration utilities for Mifiel and SignNow services
  */
 
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 const normalizeResponse = (result) => (result && typeof result === 'object' && 'data' in result ? result.data : result);
 
@@ -44,6 +44,7 @@ export async function requestSignNowIntegration(
   signers = [],
   options = {}
 ) {
+  const supabase = getSupabase();
   try {
     const payload = {
       action,

@@ -1,5 +1,5 @@
 import React from "react";
-import {  } from 'lucide-react';
+import { Play } from 'lucide-react';
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 import { useVideoPlayer } from "../contexts/VideoPlayerContext";

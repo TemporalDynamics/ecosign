@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { Shield, Clock, FileText, AlertTriangle, CheckCircle, Download, User, Mail, Building2, Briefcase, Lock } from 'lucide-react';
+import { getSupabase } from '../lib/supabaseClient';
 
 const NDA_TEXT = `
 ACUERDO DE CONFIDENCIALIDAD (NDA)
@@ -58,6 +52,7 @@ function NdaAccessPage() {
 
   const verifyAccess = async () => {
     try {
+      const supabase = getSupabase();
       setLoading(true);
       setError(null);
 
@@ -102,6 +97,7 @@ function NdaAccessPage() {
     }
 
     try {
+      const supabase = getSupabase();
       setAccepting(true);
       setError(null);
 
@@ -134,6 +130,7 @@ function NdaAccessPage() {
 
   const handleDownload = async () => {
     try {
+      const supabase = getSupabase();
       // Log download event
       await supabase.functions.invoke('verify-access', {
         body: { token, event_type: 'download' }
@@ -288,7 +285,7 @@ function NdaAccessPage() {
                   id="accept-terms"
                   checked={termsAccepted}
                   onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="mt-1 w-4 h-4 text-black border-gray-300 rounded focus:ring-black500"
+                  className="mt-1 h-5 w-5 rounded border-gray-300 text-black focus:ring-black"
                 />
                 <label htmlFor="accept-terms" className="text-sm text-gray-700">
                   He leído y acepto los términos del Acuerdo de Confidencialidad.

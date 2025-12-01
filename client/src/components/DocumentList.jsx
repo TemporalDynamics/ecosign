@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Clock, Download, Eye, FileText, Link as LinkIcon, XCircle } from 'lucide-react';
 import LinkGenerator from './LinkGenerator';
-import { supabase } from '../lib/supabaseClient';
+import { getSupabase } from '../lib/supabaseClient';
 
 const DocumentList = () => {
   const [documents, setDocuments] = useState([]);
@@ -15,6 +15,7 @@ const DocumentList = () => {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
+        const supabase = getSupabase();
         setError(null);
 
         // Obtener usuario actual
@@ -61,6 +62,7 @@ const DocumentList = () => {
     fetchDocuments();
 
     // Suscribirse a cambios en tiempo real
+    const supabase = getSupabase();
     const subscription = supabase
       .channel('documents_changes')
       .on('postgres_changes',

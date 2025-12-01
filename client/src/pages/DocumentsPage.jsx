@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient";
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { getSupabase } from "../lib/supabaseClient";
+import { FileText, Clock, CheckCircle, XCircle, AlertCircle, Search, Eye, Download, Copy } from 'lucide-react';
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 
@@ -54,6 +45,7 @@ function DocumentsPage() {
 
   const loadDocuments = async () => {
     try {
+      const supabase = getSupabase();
       setLoading(true);
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       

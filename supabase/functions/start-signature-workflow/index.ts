@@ -64,16 +64,21 @@ serve(async (req) => {
   }
 
   try {
+    console.log('🚀 START: start-signature-workflow invoked')
+
     // Initialize Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    console.log('✅ Supabase client initialized')
 
     // Get authenticated user
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.log('❌ Missing authorization header')
       return jsonResponse({ error: 'Missing authorization' }, 401)
     }
+    console.log('✅ Auth header present')
 
     const supabaseAuth = createClient(
       supabaseUrl,
@@ -83,11 +88,15 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser()
     if (userError || !user) {
-      return jsonResponse({ error: 'Unauthorized' }, 401)
+      console.log('❌ User authentication failed:', userError)
+      return jsonResponse({ error: 'Unauthorized', details: userError?.message }, 401)
     }
+    console.log('✅ User authenticated:', user.email)
 
     // Parse request
     const body: StartWorkflowRequest = await req.json()
+    console.log('📦 Request body received:', JSON.stringify(body, null, 2))
+
     const {
       documentUrl,
       documentHash,
@@ -95,6 +104,9 @@ serve(async (req) => {
       signers,
       forensicConfig
     } = body
+
+    console.log(`📄 Document: ${originalFilename}`)
+    console.log(`👥 Signers count: ${signers?.length || 0}`)
 
     // Validations
     if (!documentUrl || !documentHash || !originalFilename) {
@@ -118,9 +130,10 @@ serve(async (req) => {
       }, 400)
     }
 
-    console.log(`Starting workflow for ${user.email} with ${signers.length} signers`)
+    console.log(`🎯 Starting workflow for ${user.email} with ${signers.length} signers`)
 
     // 1. Crear workflow
+    console.log('📝 Step 1: Creating workflow...')
     const { data: workflow, error: workflowError } = await supabase
       .from('signature_workflows')
       .insert({
@@ -134,15 +147,18 @@ serve(async (req) => {
       .single()
 
     if (workflowError || !workflow) {
-      console.error('Error creating workflow:', workflowError)
+      console.error('❌ Error creating workflow:', workflowError)
       return jsonResponse({
         error: 'Failed to create workflow',
         details: workflowError?.message,
-        code: workflowError?.code
+        code: workflowError?.code,
+        hint: workflowError?.hint
       }, 500)
     }
+    console.log('✅ Workflow created:', workflow.id)
 
     // 2. Crear versión inicial
+    console.log('📝 Step 2: Creating version...')
     const { data: version, error: versionError } = await supabase
       .from('workflow_versions')
       .insert({
@@ -157,24 +173,21 @@ serve(async (req) => {
       .single()
 
     if (versionError || !version) {
-      console.error('Error creating version:', versionError)
+      console.error('❌ Error creating version:', versionError)
       return jsonResponse({
         error: 'Failed to create workflow version',
         details: versionError?.message,
-        code: versionError?.code
+        code: versionError?.code,
+        hint: versionError?.hint
       }, 500)
     }
+    console.log('✅ Version created:', version.id)
 
     // 3. Crear firmantes con tokens de acceso
     const signersToInsert = []
     const accessTokens: Record<string, { token: string, tokenHash: string }> = {} // email -> tokens
 
     for (const signer of signers) {
-      // Sanitizar campos permitidos y evitar columnas inexistentes (p.ej. display_name)
-      const signerName = (signer as any).name ?? (signer as any).display_name ?? null;
-      const signingOrder = signer.signingOrder;
-      const email = signer.email;
-
       const token = await generateAccessToken()
       const tokenHash = await hashToken(token)
 
@@ -183,33 +196,59 @@ serve(async (req) => {
       const requireLogin = quickAccess ? false : (signer.requireLogin ?? true)
       const requireNda = quickAccess ? false : (signer.requireNda ?? true)
 
-      signersToInsert.push({
+      // IMPORTANTE: Crear objeto SOLO con campos que existen en la tabla
+      // NO incluir campos adicionales que puedan venir del cliente
+      const signerRecord = {
         workflow_id: workflow.id,
-        signing_order: signingOrder,
-        email,
-        name: signerName,
+        signing_order: signer.signingOrder,
+        email: signer.email,
+        name: signer.name || null,
         require_login: requireLogin,
         require_nda: requireNda,
         quick_access: quickAccess,
         status: signer.signingOrder === 1 ? 'ready' : 'pending',
         access_token_hash: tokenHash
-      })
+      }
 
+      signersToInsert.push(signerRecord)
       accessTokens[signer.email] = { token, tokenHash }
     }
 
-    const { error: signersError } = await supabase
-      .from('workflow_signers')
-      .insert(signersToInsert)
+    console.log('📝 Step 3: Creating signers...')
+    console.log('Signers to insert:', JSON.stringify(signersToInsert, null, 2))
+
+    // WORKAROUND: Usar función PL/pgSQL para evitar el problema de display_name
+    let signersError = null
+    for (const signerData of signersToInsert) {
+      const { error } = await supabase.rpc('insert_workflow_signer', {
+        p_workflow_id: signerData.workflow_id,
+        p_signing_order: signerData.signing_order,
+        p_email: signerData.email,
+        p_name: signerData.name,
+        p_require_login: signerData.require_login,
+        p_require_nda: signerData.require_nda,
+        p_quick_access: signerData.quick_access,
+        p_status: signerData.status,
+        p_access_token_hash: signerData.access_token_hash
+      })
+
+      if (error) {
+        console.error('Error insertando signer:', error)
+        signersError = error
+        break
+      }
+    }
 
     if (signersError) {
-      console.error('Error creating signers:', signersError)
+      console.error('❌ Error creating signers:', signersError)
       return jsonResponse({
         error: 'Failed to create signers',
         details: signersError?.message,
-        code: signersError?.code
+        code: signersError?.code,
+        hint: signersError?.hint
       }, 500)
     }
+    console.log('✅ Signers created successfully')
 
     // 4. Crear notificación para Usuario A (workflow iniciado)
     const appUrl = Deno.env.get('APP_URL') || 'https://www.ecosign.app'

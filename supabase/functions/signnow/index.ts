@@ -247,7 +247,7 @@ const createSignNowInvite = async (
       expiration_days: 30,
       reminder: signer.reminder_days ?? 2
     })),
-    from: options.subject || 'EcoSign <no-reply@mail.ecosign.app>',
+    from: options.subject || 'EcoSign <no-reply@email.ecosign.app>',
     cc: [],
     subject: options.subject || 'Solicitud de firma - EcoSign',
     message: options.message || 'Por favor, firma este documento usando SignNow. Recibirás un email con las instrucciones.'

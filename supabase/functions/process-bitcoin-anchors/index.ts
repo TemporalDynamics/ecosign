@@ -21,7 +21,7 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
-const defaultFrom = Deno.env.get('DEFAULT_FROM') || 'EcoSign <no-reply@mail.ecosign.app>';
+const defaultFrom = Deno.env.get('DEFAULT_FROM') || 'EcoSign <no-reply@email.ecosign.app>';
 const mempoolApiUrl = Deno.env.get('MEMPOOL_API_URL') || 'https://mempool.space/api';
 
 const MAX_VERIFY_ATTEMPTS = 30;

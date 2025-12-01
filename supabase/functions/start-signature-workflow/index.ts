@@ -170,6 +170,11 @@ serve(async (req) => {
     const accessTokens: Record<string, { token: string, tokenHash: string }> = {} // email -> tokens
 
     for (const signer of signers) {
+      // Sanitizar campos permitidos y evitar columnas inexistentes (p.ej. display_name)
+      const signerName = (signer as any).name ?? (signer as any).display_name ?? null;
+      const signingOrder = signer.signingOrder;
+      const email = signer.email;
+
       const token = await generateAccessToken()
       const tokenHash = await hashToken(token)
 
@@ -180,9 +185,9 @@ serve(async (req) => {
 
       signersToInsert.push({
         workflow_id: workflow.id,
-        signing_order: signer.signingOrder,
-        email: signer.email,
-        name: signer.name || null,
+        signing_order: signingOrder,
+        email,
+        name: signerName,
         require_login: requireLogin,
         require_nda: requireNda,
         quick_access: quickAccess,
@@ -207,7 +212,7 @@ serve(async (req) => {
     }
 
     // 4. Crear notificación para Usuario A (workflow iniciado)
-    const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
+    const appUrl = Deno.env.get('APP_URL') || 'https://www.ecosign.app'
 
     await supabase
       .from('workflow_notifications')
@@ -231,6 +236,42 @@ serve(async (req) => {
 
     console.log(`Workflow ${workflow.id} created successfully`)
 
+    // 4b. Crear notificaciones para cada firmante (signature_request)
+    try {
+      const signerNotifications = signers.map((signer) => {
+        const tokenHash = accessTokens[signer.email]?.tokenHash
+        const signUrl = tokenHash ? `${appUrl}/sign/${tokenHash}` : `${appUrl}/sign`
+        const name = signer.name || signer.email
+
+        return {
+          workflow_id: workflow.id,
+          recipient_email: signer.email,
+          recipient_type: 'signer',
+          notification_type: 'signature_request',
+          subject: `Te invitaron a firmar: ${originalFilename}`,
+          body_html: `
+            <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Hola ${name},</h2>
+            <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">Has sido invitado a firmar el documento <strong>${originalFilename}</strong>.</p>
+            <p style="margin:16px 0;">
+              <a href="${signUrl}" style="display:inline-block;padding:12px 20px;font-size:15px;font-weight:600;color:#ffffff;background:#0ea5e9;text-decoration:none;border-radius:10px;">Revisar y firmar</a>
+            </p>
+            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 4px;">EcoSign. Transparencia que acompaña.</p>
+          `,
+          delivery_status: 'pending'
+        }
+      })
+
+      const { error: notifError } = await supabase
+        .from('workflow_notifications')
+        .insert(signerNotifications)
+
+      if (notifError) {
+        console.warn('Could not insert signer notifications:', notifError)
+      }
+    } catch (notifInsertError) {
+      console.warn('Failed to create signer notifications:', notifInsertError)
+    }
+
     // Disparar envío de emails pendientes en background (worker send-pending-emails)
     try {
       const sendPendingUrl = `${supabaseUrl}/functions/v1/send-pending-emails`
@@ -247,8 +288,6 @@ serve(async (req) => {
     } catch (err) {
       console.warn('Could not trigger send-pending-emails:', err)
     }
-
-    const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
     const firstSigner = signers.find(s => s.signingOrder === 1)
     const firstSignerHash = firstSigner ? accessTokens[firstSigner.email]?.tokenHash : null
     const signUrl = firstSignerHash ? `${appUrl}/sign/${firstSignerHash}` : null
@@ -279,9 +318,26 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in start-signature-workflow:', error)
-    return jsonResponse({
+
+    // Retornar información detallada del error
+    const errorDetails: any = {
       error: error instanceof Error ? error.message : 'Internal server error',
-      stack: error instanceof Error ? error.stack : undefined
-    }, 500)
+      type: error?.constructor?.name || 'Unknown'
+    }
+
+    // Agregar stack trace solo en desarrollo
+    if (error instanceof Error && error.stack) {
+      errorDetails.stack = error.stack.split('\n').slice(0, 5).join('\n')
+    }
+
+    // Si es un error de Supabase, incluir detalles
+    if (error && typeof error === 'object') {
+      if ('code' in error) errorDetails.code = error.code
+      if ('details' in error) errorDetails.details = error.details
+      if ('hint' in error) errorDetails.hint = error.hint
+      if ('message' in error) errorDetails.message = error.message
+    }
+
+    return jsonResponse(errorDetails, 500)
   }
 })

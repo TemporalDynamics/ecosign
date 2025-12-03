@@ -216,6 +216,18 @@ async function fetchBitcoinBlockData(txid: string): Promise<{ blockHeight?: numb
   }
 }
 
+/**
+ * Convert base64 OTS proof to bytea for database storage
+ */
+function base64ToBytes(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
 async function insertBitcoinNotification(anchor: any, txid?: string, blockHeight?: number, confirmedAt?: string | null) {
   if (!supabaseAdmin) return;
   if (!anchor.document_id || !anchor.user_email) return;
@@ -417,51 +429,56 @@ serve(async (req) => {
               parsed.height = blockData.blockHeight;
             }
             if (blockData.confirmedAt) {
-              // Prefer on-chain confirmation time
+              // Use atomic transaction to update anchor + user_documents + audit_logs together
               const confirmedAt = blockData.confirmedAt;
-              // Update below
-              const updatedAt = confirmedAt;
-              // Update anchor record (without txid/blockheight yet)
-              await supabaseAdmin
-                .from('anchors')
-                .update({
-                  anchor_status: 'confirmed',
-                  bitcoin_tx_id: txid,
-                  bitcoin_block_height: blockHeight ?? null,
-                  ots_proof: verification.upgradedProof || anchor.ots_proof,
-                  bitcoin_attempts: attempts,
-                  confirmed_at: confirmedAt,
-                  updated_at: updatedAt
-                })
-                .eq('id', anchor.id);
+              const otsBytes = base64ToBytes(verification.upgradedProof || anchor.ots_proof);
 
-              // Update user_documents if this anchor is linked
+              const metadata = {
+                bitcoin_tx: txid,
+                block: blockHeight,
+                confirmed_at: confirmedAt,
+                calendar_url: anchor.ots_calendar_url
+              };
+
+              const userDocumentUpdates = anchor.user_document_id ? {
+                document_id: anchor.user_document_id,
+                bitcoin_status: 'confirmed',
+                bitcoin_confirmed_at: confirmedAt,
+                overall_status: 'certified',
+                download_enabled: true,
+                bitcoin_anchor_id: anchor.id
+              } : null;
+
+              // Call atomic function
+              const { error: atomicError } = await supabaseAdmin.rpc('anchor_atomic_tx', {
+                _anchor_id: anchor.id,
+                _anchor_user_id: anchor.user_id,
+                _ots: otsBytes,
+                _metadata: metadata,
+                _user_document_updates: userDocumentUpdates,
+                _bitcoin_attempts: attempts
+              });
+
+              if (atomicError) {
+                console.error(`❌ Atomic transaction failed for anchor ${anchor.id}:`, atomicError);
+                failed++;
+                processed++;
+                continue;
+              }
+
+              console.log(`✅ Anchor ${anchor.id} atomically confirmed in Bitcoin!`);
+
+              // Send notifications after successful atomic update
               if (anchor.user_document_id) {
-                console.log(`📝 Updating user_documents record ${anchor.user_document_id}`);
-
-                const { data: docUpdate, error: docUpdateError } = await supabaseAdmin
+                const { data: docData } = await supabaseAdmin
                   .from('user_documents')
-                  .update({
-                    bitcoin_status: 'confirmed',
-                    bitcoin_confirmed_at: confirmedAt,
-                    overall_status: 'certified',
-                    download_enabled: true,
-                    updated_at: confirmedAt
-                  })
-                  .eq('id', anchor.user_document_id)
-                  .eq('bitcoin_anchor_id', anchor.id)
                   .select('id, document_name, user_id')
+                  .eq('id', anchor.user_document_id)
                   .single();
 
-                if (docUpdateError) {
-                  console.error(`❌ Failed to update user_documents: ${docUpdateError.message}`);
-                } else if (docUpdate) {
-                  console.log(`✅ Updated user_documents ${docUpdate.id}, download now enabled`);
+                if (docData) {
+                  const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(docData.user_id);
 
-                  // Get user info for email
-                  const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(docUpdate.user_id);
-
-                  // Notify document owner
                   if (!userError && user && user.email && !anchor.notification_sent) {
                     const emailSent = await sendConfirmationEmail(
                       user.email,
@@ -470,7 +487,6 @@ serve(async (req) => {
                       blockHeight || null
                     );
 
-                    // Also notify signer if provided in anchor.user_email (optional)
                     if (anchor.user_email && anchor.user_email !== user.email) {
                       await sendConfirmationEmail(
                         anchor.user_email,
@@ -495,7 +511,7 @@ serve(async (req) => {
                 }
               }
 
-              // Legacy: Send notification email for old anchors table entries
+              // Legacy: Send notification for old anchors without user_document_id
               if (!anchor.user_document_id && anchor.user_email && !anchor.notification_sent) {
                 const emailSent = await sendConfirmationEmail(
                   anchor.user_email,
@@ -517,55 +533,61 @@ serve(async (req) => {
 
               await insertBitcoinNotification(anchor, txid, blockHeight ?? undefined, blockData.confirmedAt ?? null);
               confirmed++;
-              console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
               processed++;
               continue;
             }
           }
 
+          // Use atomic transaction to update anchor + user_documents + audit_logs together
           const confirmedAt = new Date().toISOString();
+          const otsBytes = base64ToBytes(verification.upgradedProof || anchor.ots_proof);
 
-          // Update anchor record (without txid/blockheight yet)
-          await supabaseAdmin
-            .from('anchors')
-            .update({
-              anchor_status: 'confirmed',
-              bitcoin_tx_id: txid,
-              bitcoin_block_height: blockHeight,
-              ots_proof: verification.upgradedProof || anchor.ots_proof,
-              bitcoin_attempts: attempts,
-              confirmed_at: confirmedAt,
-              updated_at: confirmedAt
-            })
-            .eq('id', anchor.id);
+          const metadata = {
+            bitcoin_tx: txid,
+            block: blockHeight,
+            confirmed_at: confirmedAt,
+            calendar_url: anchor.ots_calendar_url
+          };
 
-          // Update user_documents if this anchor is linked
+          const userDocumentUpdates = anchor.user_document_id ? {
+            document_id: anchor.user_document_id,
+            bitcoin_status: 'confirmed',
+            bitcoin_confirmed_at: confirmedAt,
+            overall_status: 'certified',
+            download_enabled: true,
+            bitcoin_anchor_id: anchor.id
+          } : null;
+
+          // Call atomic function
+          const { error: atomicError } = await supabaseAdmin.rpc('anchor_atomic_tx', {
+            _anchor_id: anchor.id,
+            _anchor_user_id: anchor.user_id,
+            _ots: otsBytes,
+            _metadata: metadata,
+            _user_document_updates: userDocumentUpdates,
+            _bitcoin_attempts: attempts
+          });
+
+          if (atomicError) {
+            console.error(`❌ Atomic transaction failed for anchor ${anchor.id}:`, atomicError);
+            failed++;
+            processed++;
+            continue;
+          }
+
+          console.log(`✅ Anchor ${anchor.id} atomically confirmed in Bitcoin!`);
+
+          // Send notifications after successful atomic update
           if (anchor.user_document_id) {
-            console.log(`📝 Updating user_documents record ${anchor.user_document_id}`);
-
-            const { data: docUpdate, error: docUpdateError } = await supabaseAdmin
+            const { data: docData } = await supabaseAdmin
               .from('user_documents')
-              .update({
-                bitcoin_status: 'confirmed',
-                bitcoin_confirmed_at: confirmedAt,
-                overall_status: 'certified',
-                download_enabled: true,
-                updated_at: confirmedAt
-              })
-              .eq('id', anchor.user_document_id)
-              .eq('bitcoin_anchor_id', anchor.id)
               .select('id, document_name, user_id')
+              .eq('id', anchor.user_document_id)
               .single();
 
-            if (docUpdateError) {
-              console.error(`❌ Failed to update user_documents: ${docUpdateError.message}`);
-            } else if (docUpdate) {
-              console.log(`✅ Updated user_documents ${docUpdate.id}, download now enabled`);
+            if (docData) {
+              const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(docData.user_id);
 
-              // Get user info for email
-              const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(docUpdate.user_id);
-
-              // Notify document owner
               if (!userError && user && user.email && !anchor.notification_sent) {
                 const emailSent = await sendConfirmationEmail(
                   user.email,
@@ -574,7 +596,6 @@ serve(async (req) => {
                   blockHeight || null
                 );
 
-                // Also notify signer if provided in anchor.user_email (optional)
                 if (anchor.user_email && anchor.user_email !== user.email) {
                   await sendConfirmationEmail(
                     anchor.user_email,
@@ -599,7 +620,7 @@ serve(async (req) => {
             }
           }
 
-          // Legacy: Send notification email for old anchors table entries
+          // Legacy: Send notification for old anchors without user_document_id
           if (!anchor.user_document_id && anchor.user_email && !anchor.notification_sent) {
             const emailSent = await sendConfirmationEmail(
               anchor.user_email,
@@ -619,9 +640,8 @@ serve(async (req) => {
             }
           }
 
-          confirmed++;
-          console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
           await insertBitcoinNotification(anchor, txid, blockHeight ?? undefined, confirmedAt);
+          confirmed++;
         } else {
           // Still pending - update status to 'processing' if not already
           await supabaseAdmin

@@ -29,7 +29,8 @@
     "dompurify": "^3.3.0",
     "ethers": "^6.9.0",
     "jsdom": "^27.2.0",
-    "stripe": "^19.3.0"
+    "stripe": "^19.3.0",
+    "update": "^0.4.2"
   },
   "devDependencies": {
     "@types/dompurify": "^3.0.5",
@@ -38,7 +39,7 @@
     "@vitest/ui": "^4.0.9",
     "dotenv": "^17.2.3",
     "glob": "^13.0.0",
-    "solc": "^0.8.20",
+    "solc": "^0.5.0",
     "supabase": "^2.58.5",
     "typescript": "^5.9.3",
     "vitest": "^4.0.9"

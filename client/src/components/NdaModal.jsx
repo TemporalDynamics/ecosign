@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Shield, FileText, Send } from 'lucide-react';
+import { getSupabase } from '../lib/supabaseClient';
 
 const NdaModal = ({ isOpen, onClose, document }) => {
   const [duration, setDuration] = useState('6m');
@@ -7,6 +8,42 @@ const NdaModal = ({ isOpen, onClose, document }) => {
   const [type, setType] = useState('unilateral');
   const [customClause, setCustomClause] = useState('');
   const [acceptanceChecked, setAcceptanceChecked] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const supabase = getSupabase();
+
+  const recordNdaEvent = async (action) => {
+    if (!document?.id) return;
+    setLoading(true);
+    try {
+      const payload = {
+        document_id: document.id,
+        action,
+        metadata: {
+          duration,
+          jurisdiction,
+          type,
+          customClause: customClause?.trim() || null
+        }
+      };
+      const { error } = await supabase
+        .from('nda_events')
+        .insert(payload);
+      if (error) {
+        console.error('Error registrando NDA:', error);
+        window.alert('No se pudo registrar el NDA.');
+        setLoading(false);
+        return;
+      }
+      window.alert(action === 'otp_sent' ? 'NDA enviado para aceptación (OTP simulado).' : 'NDA agregado al flujo de firma.');
+      onClose();
+    } catch (err) {
+      console.error('Error NDA:', err);
+      window.alert('No se pudo registrar el NDA.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -113,22 +150,16 @@ const NdaModal = ({ isOpen, onClose, document }) => {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                window.alert('Acción simulada: enviar NDA sin firma (OTP).');
-                onClose();
-              }}
-              disabled={!acceptanceChecked}
+              onClick={() => recordNdaEvent('otp_sent')}
+              disabled={!acceptanceChecked || loading}
               className="inline-flex items-center gap-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
               Enviar NDA sin firma (OTP)
             </button>
             <button
-              onClick={() => {
-                window.alert('Acción simulada: incluir NDA en el flujo de firma.');
-                onClose();
-              }}
-              disabled={!acceptanceChecked}
+              onClick={() => recordNdaEvent('included_in_signature')}
+              disabled={!acceptanceChecked || loading}
               className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50"
             >
               Incluir en flujo de firma

@@ -13,7 +13,7 @@ const HeaderPublic = () => {
               <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
             </Link>
           </div>
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-8 translate-y-[2px]">
             <Link to="/how-it-works" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
               Cómo funciona
             </Link>

@@ -39,44 +39,76 @@ export default defineConfig({
     },
   },
   build: {
-    // Inline all CSS into the HTML to eliminate render-blocking requests
-    cssCodeSplit: false,
+    // Enable CSS code splitting for better caching
+    cssCodeSplit: true,
     // Suppress chunk size warnings for now
     chunkSizeWarningLimit: 1000,
     commonjsOptions: {
       transformMixedEsModules: true
     },
-    // Enable sourcemaps for production debugging
-    sourcemap: true,
+    // Disable sourcemaps in production for smaller bundle
+    sourcemap: false,
     // Use Terser for more aggressive minification
     minify: 'terser',
     terserOptions: {
       compress: {
         drop_console: true,
         drop_debugger: true,
+        passes: 2,
+        pure_funcs: ['console.log', 'console.info', 'console.debug'],
       },
-      mangle: true,
+      mangle: {
+        properties: {
+          regex: /^__/
+        }
+      },
     },
     rollupOptions: {
       output: {
-        // Code splitting is intentionally disabled due to polyfill issues
-        // with the eco-packer library. Do not enable manualChunks without
-        // thorough testing.
+        // Optimize code splitting to reduce main bundle size
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
+            // Core React libraries
+            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
               return 'react';
             }
+            // Supabase client
             if (id.includes('@supabase')) {
               return 'supabase';
             }
-            if (id.includes('@temporaldynamics/eco-packer')) {
-                return 'eco-packer';
+            // Eco-packer (heavy crypto library)
+            if (id.includes('@temporaldynamics/eco-packer') || id.includes('noble')) {
+              return 'eco-packer';
+            }
+            // Icons library
+            if (id.includes('lucide-react')) {
+              return 'icons';
+            }
+            // PDF processing (heavy)
+            if (id.includes('pdf-lib') || id.includes('pdfjs') || id.includes('pako') || id.includes('upng')) {
+              return 'pdf-utils';
+            }
+            // Crypto libraries (heavy)
+            if (id.includes('crypto') || id.includes('buffer') || id.includes('asn1') || id.includes('bn.js')) {
+              return 'crypto';
+            }
+            // Router
+            if (id.includes('react-router')) {
+              return 'router';
             }
             // All other node_modules go to a generic vendor chunk
             return 'vendor';
           }
-        }
+        },
+        // Add content hashing for better caching
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name.endsWith('.css')) {
+            return 'assets/style-[hash].css';
+          }
+          return 'assets/[name]-[hash][extname]';
+        },
+        // Optimize chunk names
+        chunkFileNames: 'assets/[name]-[hash].js'
       }
     }
   }

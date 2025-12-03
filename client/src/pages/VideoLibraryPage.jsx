@@ -6,44 +6,38 @@ import PageTitle from "../components/PageTitle";
 import FooterInternal from "../components/FooterInternal";
 
 export default function VideoLibraryPage() {
-  const { openVideo } = useVideoPlayer();
+  const { playVideo } = useVideoPlayer();
 
   const videos = [
     {
       id: "anatomia-firma",
       title: "Anatomía de una Firma",
       description: "Desglose paso a paso del proceso",
-      file: "Anatomia_de_una_Firma.mp4",
     },
     {
       id: "verdad-verificable",
       title: "Verdad Verificable",
       description: "Explicación del por qué detrás de EcoSign",
-      file: "EcoSign__Verdad_Verificable.mp4",
     },
     {
       id: "conocimiento-cero",
       title: "Conocimiento Cero",
       description: "Cómo funciona el principio Zero-Knowledge",
-      file: "Conocimiento_Cero.mp4",
     },
     {
-      id: "true-cost",
+      id: "the-true-cost",
       title: "The True Cost",
       description: "Qué pagás realmente con otros servicios",
-      file: "The_True_Cost.mp4",
     },
     {
       id: "forensic-integrity",
       title: "Forensic Integrity",
       description: "Cómo se construye una evidencia irrefutable",
-      file: "Forensic_Integrity.mp4",
     },
     {
       id: "you-dont-need-trust",
       title: "You Don't Need to Trust",
       description: "La filosofía general de EcoSign",
-      file: "You_Dont_Need_to_Trust.mp4",
     },
   ];
 
@@ -63,7 +57,7 @@ export default function VideoLibraryPage() {
             {videos.map((video) => (
               <button
                 key={video.id}
-                onClick={() => openVideo(video.file)}
+                onClick={() => playVideo(video.id)}
                 className="group bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-[#0A66C2] transition-all text-left"
               >
                 <div className="flex items-start gap-4">

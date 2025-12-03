@@ -32,6 +32,7 @@ import CompletionScreen from '@/components/signature-flow/CompletionScreen'
 type SignatureStep =
   | 'validating'
   | 'nda'
+  | 'receipt'
   | 'otp'
   | 'viewing'
   | 'signing'
@@ -98,6 +99,11 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [accessMeta, setAccessMeta] = useState<any>(null)
+  const [receiptData, setReceiptData] = useState({
+    docId: '',
+    docIdType: 'DNI',
+    phone: ''
+  })
 
   // Initialize - validate token
   useEffect(() => {
@@ -126,9 +132,14 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       setStep('validating')
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
       const response = await fetch(`${supabaseUrl}/functions/v1/signer-access`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`
+        },
         body: JSON.stringify({ token: accessToken })
       })
 
@@ -219,7 +230,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
       const { data: { user } } = await supabase.auth.getUser()
       if (signer.require_login && (!user || user.email?.toLowerCase() !== signer.email.toLowerCase())) {
-        setStep('otp')
+        setStep('receipt')
         return
       }
 
@@ -237,9 +248,14 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
       await fetch(`${supabaseUrl}/functions/v1/accept-workflow-nda`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`
+        },
         body: JSON.stringify({ signer_id: signerData.id, signer_email: signerData.email })
       })
 
@@ -252,7 +268,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       setSignerData({ ...signerData, nda_accepted: true, nda_accepted_at: new Date().toISOString() } as any)
 
       if (signerData.require_login) {
-        setStep('otp')
+        setStep('receipt')
       } else {
         setStep('viewing')
       }
@@ -263,35 +279,65 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     }
   }
 
+  const handleReceiptSubmit = async () => {
+    if (!signerData) return
+    const supabase = getSupabase();
+    setError(null)
+
+    try {
+      const { error } = await supabase.functions.invoke('record-signer-receipt', {
+        body: {
+          signerId: signerData.id,
+          workflowId: signerData.workflow_id,
+          email: signerData.email,
+          signerName: signerData.name,
+          docId: receiptData.docId,
+          docIdType: receiptData.docIdType,
+          phone: receiptData.phone,
+          metadata: { quick_access: signerData.quick_access }
+        }
+      })
+
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      await sendOtp()
+      setStep('otp')
+    } catch (err: any) {
+      console.error('Error registrando recepción', err)
+      setError(err?.message || 'No pudimos registrar la recepción')
+    }
+  }
+
   const sendOtp = async () => {
     if (!signerData) return
     const supabase = getSupabase();
     setError(null)
-    const { error } = await supabase.auth.signInWithOtp({
-      email: signerData.email,
-      options: { shouldCreateUser: false }
+    const { data, error } = await supabase.functions.invoke('send-signer-otp', {
+      body: { signerId: signerData.id }
     })
     if (error) {
       setError(error.message)
       return
     }
-    setOtpSent(true)
+    if (data?.success) {
+      setOtpSent(true)
+    }
   }
 
   const verifyOtp = async () => {
     if (!signerData || !otpCode.trim()) return
     const supabase = getSupabase();
     setError(null)
-    const { error } = await supabase.auth.verifyOtp({
-      email: signerData.email,
-      token: otpCode.trim(),
-      type: 'email'
+    const { data, error } = await supabase.functions.invoke('verify-signer-otp', {
+      body: { signerId: signerData.id, otp: otpCode.trim() }
     })
-    if (error) {
-      setError(error.message)
+    if (error || !data?.success) {
+      setError(error?.message || 'OTP inválido')
       return
     }
-    await checkAuth()
     setStep('viewing')
   }
 
@@ -430,6 +476,15 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       // 2. Send email to signer (on_signature_completed)
       // 3. Check if workflow is complete and send .ECO to all (on_workflow_completed)
 
+      // Send final package to signer (PDF + ECO)
+      try {
+        await supabase.functions.invoke('send-signer-package', {
+          body: { signerId: signerData.id }
+        })
+      } catch (err) {
+        console.warn('No se pudo enviar el paquete final al firmante', err)
+      }
+
       setStep('completed')
 
     } catch (err) {
@@ -519,13 +574,84 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           />
         )}
 
+        {step === 'receipt' && signerData && (
+          <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+            <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-lg">
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-blue-600">Validación previa</p>
+                <h1 className="text-2xl font-bold text-gray-900">Confirma tus datos para acceder</h1>
+                <p className="mt-2 text-gray-600">
+                  Registramos la recepción para dejar constancia antes de enviarte el código OTP.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Nombre completo</label>
+                  <input
+                    type="text"
+                    value={signerData.name || ''}
+                    disabled
+                    className="mt-1 w-full rounded-lg border-gray-300 bg-gray-100 px-4 py-3 text-gray-700"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Tipo de documento</label>
+                    <input
+                      type="text"
+                      value={receiptData.docIdType}
+                      onChange={(e) => setReceiptData({ ...receiptData, docIdType: e.target.value })}
+                      placeholder="DNI / Pasaporte"
+                      className="mt-1 w-full rounded-lg border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Nº de documento</label>
+                    <input
+                      type="text"
+                      value={receiptData.docId}
+                      onChange={(e) => setReceiptData({ ...receiptData, docId: e.target.value })}
+                      placeholder="Ej: 12345678"
+                      className="mt-1 w-full rounded-lg border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Teléfono (opcional)</label>
+                  <input
+                    type="tel"
+                    value={receiptData.phone}
+                    onChange={(e) => setReceiptData({ ...receiptData, phone: e.target.value })}
+                    placeholder="+54 11 5555-5555"
+                    className="mt-1 w-full rounded-lg border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+              <button
+                onClick={handleReceiptSubmit}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-md transition hover:bg-blue-700"
+              >
+                Registrar y enviar OTP
+              </button>
+
+              <p className="mt-3 text-xs text-gray-500">
+                Guardamos tu IP y dispositivo para asegurar la no repudiación de la recepción. Luego recibirás un código por correo.
+              </p>
+            </div>
+          </div>
+        )}
+
         {step === 'otp' && signerData && (
           <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-md">
               <div className="mb-6 text-center">
                 <h1 className="text-2xl font-bold text-gray-900">Verifica tu email</h1>
                 <p className="mt-2 text-sm text-gray-600">
-                  Enviaremos un código a {signerData.email}. Debes autenticarte con ese correo.
+                  Enviamos un código a {signerData.email}. Ingresa los 6 dígitos para acceder.
                 </p>
               </div>
               <div className="space-y-4">
@@ -539,6 +665,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                   <>
                     <input
                       type="text"
+                      inputMode="numeric"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
                       placeholder="Código de 6 dígitos"

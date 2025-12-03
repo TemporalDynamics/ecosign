@@ -156,14 +156,25 @@ export async function getUserDocuments() {
     throw new Error('Usuario no autenticado');
   }
 
-  // Query user_documents table with related data
+  // Query user_documents table with only essential related data to reduce payload
   const { data, error } = await supabase
     .from('user_documents')
     .select(`
-      *,
-      events(id, event_type, timestamp, metadata),
-      signer_links(id, signer_email, status, signed_at),
-      anchors!user_document_id(id, anchor_status, bitcoin_tx_id, confirmed_at)
+      id,
+      document_name,
+      document_hash,
+      created_at,
+      updated_at,
+      certified_at,
+      has_legal_timestamp,
+      has_bitcoin_anchor,
+      signnow_document_id,
+      signed_at,
+      status,
+      overall_status,
+      notes,
+      file_type,
+      document_size
     `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });

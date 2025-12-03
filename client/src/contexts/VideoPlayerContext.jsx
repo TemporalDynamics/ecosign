@@ -43,15 +43,22 @@ export function VideoPlayerProvider({ children }) {
     videoTitle: null
   });
 
-  const playVideo = (videoKey) => {
-    const video = videoLibrary[videoKey];
+  const playVideo = (videoKeyOrSrc) => {
+    const video = videoLibrary[videoKeyOrSrc];
     if (video) {
       setVideoState({
         isPlaying: true,
         videoSrc: video.src,
         videoTitle: video.title
       });
+      return;
     }
+    // fallback: treat as direct src
+    setVideoState({
+      isPlaying: true,
+      videoSrc: videoKeyOrSrc,
+      videoTitle: 'Video'
+    });
   };
 
   const closeVideo = () => {
@@ -63,7 +70,7 @@ export function VideoPlayerProvider({ children }) {
   };
 
   return (
-    <VideoPlayerContext.Provider value={{ videoState, playVideo, closeVideo }}>
+    <VideoPlayerContext.Provider value={{ videoState, playVideo, openVideo: playVideo, closeVideo }}>
       {children}
     </VideoPlayerContext.Provider>
   );

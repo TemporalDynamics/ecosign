@@ -281,9 +281,9 @@ const CertificationModal = ({ isOpen, onClose }) => {
 
       // Solo agregar Hoja de Auditoría si es EcoSign (NO para SignNow)
       if (signatureEnabled && signatureType === 'ecosign') {
-        // Validar nombre del firmante (obligatorio para Hoja de Auditoría)
-        if (!signerName.trim()) {
-          toast.error('Por favor, completá tu nombre para generar la Hoja de Auditoría');
+        // Validar nombre del firmante (obligatorio solo si se dibujó firma)
+        if (signatureMode === 'canvas' && !signerName.trim()) {
+          toast.error('Por favor, completá tu nombre para generar la Hoja de Auditoría con firma');
           setLoading(false);
           return;
         }
@@ -1091,10 +1091,10 @@ const CertificationModal = ({ isOpen, onClose }) => {
                           </p>
                         </div>
 
-                        {/* Nombre completo - OBLIGATORIO */}
+                        {/* Nombre completo - OBLIGATORIO solo si hay firma */}
                         <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Nombre completo <span className="text-red-500">*</span>
+                            Nombre completo {signatureMode === 'canvas' && <span className="text-red-500">*</span>}
                           </label>
                           <input
                             type="text"
@@ -1102,6 +1102,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                             onChange={(e) => setSignerName(e.target.value)}
                             placeholder="Ej: Juan Pérez"
                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required={signatureMode === 'canvas'}
                           />
                         </div>
 

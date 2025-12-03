@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
-import { FileText, Clock, CheckCircle, XCircle, AlertCircle, Search, Eye, Download, Copy } from 'lucide-react';
+import { FileText, Clock, CheckCircle, XCircle, AlertCircle, Search, Eye, Download, Copy, Folder, FolderPlus, MoveRight, ShieldCheck, Shield } from 'lucide-react';
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
+import NdaModal from "../components/NdaModal";
 
 const STATUS_CONFIG = {
   draft: { label: "Borrador", color: "text-gray-600", bg: "bg-gray-100" },
@@ -28,7 +29,11 @@ function DocumentsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("all");
   const [documents, setDocuments] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [selectedFolder, setSelectedFolder] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [showNdaModal, setShowNdaModal] = useState(false);
+  const [selectedNdaDoc, setSelectedNdaDoc] = useState(null);
   const [filters, setFilters] = useState({
     status: "all",
     fileType: "all",
@@ -41,7 +46,8 @@ function DocumentsPage() {
 
   useEffect(() => {
     loadDocuments();
-  }, [activeTab, filters]);
+    loadFolders();
+  }, [activeTab, filters, selectedFolder]);
 
   const loadDocuments = async () => {
     try {
@@ -63,7 +69,8 @@ function DocumentsPage() {
           *,
           events(id, event_type, timestamp, metadata),
           signer_links(id, signer_email, status, signed_at),
-          anchors!user_document_id(id, anchor_status, bitcoin_tx_id, confirmed_at)
+          anchors!user_document_id(id, anchor_status, bitcoin_tx_id, confirmed_at),
+          folder:document_folders(name)
         `)
         .eq("user_id", user.id)
         .order("last_event_at", { ascending: false });
@@ -86,6 +93,14 @@ function DocumentsPage() {
         query = query.ilike("document_name", `%${filters.search}%`);
       }
 
+      if (selectedFolder !== "all") {
+        if (selectedFolder === "unassigned") {
+          query = query.is("folder_id", null);
+        } else {
+          query = query.eq("folder_id", selectedFolder);
+        }
+      }
+
       const { data, error } = await query;
 
       if (error) {
@@ -100,6 +115,68 @@ function DocumentsPage() {
       setDocuments([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadFolders = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("document_folders")
+        .select("id, name, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Error loading folders:", error);
+        return;
+      }
+      setFolders(data || []);
+    } catch (err) {
+      console.error("Error loading folders:", err);
+    }
+  };
+
+  const createFolder = async () => {
+    const name = window.prompt("Nombre de la carpeta");
+    if (!name) return;
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase.rpc("create_document_folder", { _name: name });
+      if (error) {
+        console.error("Error creating folder:", error);
+        window.alert("No se pudo crear la carpeta");
+        return;
+      }
+      await loadFolders();
+    } catch (err) {
+      console.error("Error creating folder:", err);
+    }
+  };
+
+  const moveToFolder = async (docId) => {
+    const options = ["Sin carpeta", ...folders.map(f => `${f.id}|${f.name}`)];
+    const choice = window.prompt(`Mover a carpeta:\n${options.map((o, idx) => `${idx} - ${o.includes('|') ? o.split('|')[1] : o}`).join('\n')}`);
+    if (choice === null || choice === "") return;
+    const idx = parseInt(choice, 10);
+    if (Number.isNaN(idx) || idx < 0 || idx >= options.length) return;
+    const selected = options[idx];
+    const folderId = selected === "Sin carpeta" ? null : selected.split('|')[0];
+
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase.rpc("move_documents_to_folder", { _doc_ids: [docId], _folder_id: folderId });
+      if (error) {
+        console.error("Error moving document:", error);
+        window.alert("No se pudo mover el documento");
+        return;
+      }
+      await loadDocuments();
+    } catch (err) {
+      console.error("Error moving document:", err);
     }
   };
 
@@ -173,7 +250,7 @@ function DocumentsPage() {
           {/* Filters */}
           {activeTab !== "forensic" && (
             <div className="mb-6 flex flex-wrap gap-4 items-center justify-between">
-              <div className="flex gap-4 items-center">
+              <div className="flex gap-4 items-center flex-wrap">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
@@ -209,23 +286,68 @@ function DocumentsPage() {
                   <option value="docx">DOCX</option>
                   <option value="image">Imagen</option>
                 </select>
+
+                <select
+                  value={selectedFolder}
+                  onChange={(e) => setSelectedFolder(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                >
+                  <option value="all">Todas las carpetas</option>
+                  <option value="unassigned">Sin carpeta</option>
+                  {folders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>{folder.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 items-center">
+                <button
+                  onClick={createFolder}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  <FolderPlus className="h-4 w-4" />
+                  Nueva carpeta
+                </button>
               </div>
             </div>
           )}
 
           {/* Content */}
-          {activeTab === "all" && <AllDocumentsTab documents={documents} loading={loading} formatDate={formatDate} copyToClipboard={copyToClipboard} />}
+          {activeTab === "all" && <AllDocumentsTab documents={documents} loading={loading} formatDate={formatDate} copyToClipboard={copyToClipboard} moveToFolder={moveToFolder} />}
           {activeTab === "certified" && <CertifiedDocumentsTab documents={documents} loading={loading} formatDate={formatDate} copyToClipboard={copyToClipboard} />}
           {activeTab === "forensic" && <ForensicTab documents={documents} formatDate={formatDate} copyToClipboard={copyToClipboard} />}
         </main>
-      </div>
-      <FooterInternal />
     </div>
-  );
+    <FooterInternal />
+    <NdaModal
+      isOpen={showNdaModal}
+      onClose={() => { setShowNdaModal(false); setSelectedNdaDoc(null); }}
+      document={selectedNdaDoc}
+    />
+  </div>
+);
 }
 
 // Tab 1: Todos los Documentos
-function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
+function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, moveToFolder }) {
+  const downloadFromPath = async (storagePath) => {
+    if (!storagePath) return;
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.storage
+        .from('user-documents')
+        .createSignedUrl(storagePath, 3600);
+      if (error) {
+        console.error('Error creando URL de descarga:', error);
+        window.alert('No se pudo generar la descarga. Intenta regenerar el archivo.');
+        return;
+      }
+      window.open(data.signedUrl, '_blank');
+    } catch (err) {
+      console.error('Error descargando:', err);
+      window.alert('No se pudo descargar el archivo.');
+    }
+  };
   if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -253,6 +375,9 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
               Nombre
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Carpeta
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Tipo
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -271,6 +396,9 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
             const overallConfig = OVERALL_STATUS_CONFIG[doc.overall_status] || OVERALL_STATUS_CONFIG.draft;
             const downloadEnabled = doc.download_enabled !== false;
             const bitcoinPending = doc.bitcoin_status === 'pending';
+            const pdfAvailable = !!doc.pdf_storage_path;
+            const ecoAvailable = !!(doc.eco_storage_path || doc.eco_file_data || doc.eco_hash);
+            const ecoxAvailable = !!doc.ecox_storage_path;
 
             return (
               <tr key={doc.id} className="hover:bg-gray-50">
@@ -284,8 +412,24 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
                           Anclaje Bitcoin: 4-24h restantes
                         </div>
                       )}
+                      {!pdfAvailable && (
+                        <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3" />
+                          PDF no almacenado (modo privacidad)
+                        </div>
+                      )}
                     </div>
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {doc.folder_id ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
+                      <Folder className="h-3 w-3" />
+                      {doc.folder?.name || 'Carpeta'}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">Sin carpeta</span>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-500 uppercase">{doc.file_type || "PDF"}</div>
@@ -303,11 +447,50 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
                     <Eye className="h-5 w-5" />
                   </button>
                   <button
-                    className={`${downloadEnabled ? 'text-black hover:text-gray-600' : 'text-gray-300 cursor-not-allowed'}`}
-                    disabled={!downloadEnabled}
-                    title={!downloadEnabled ? 'Descarga disponible cuando Bitcoin confirme' : 'Descargar .ECO'}
+                    onClick={() => ecoAvailable && doc.eco_storage_path && downloadFromPath(doc.eco_storage_path)}
+                    className={`${ecoAvailable ? 'text-black hover:text-gray-600' : 'text-gray-300 cursor-not-allowed'} mr-4`}
+                    disabled={!ecoAvailable}
+                    title={ecoAvailable ? 'Descargar .ECO' : 'Disponible cuando se genere el certificado'}
                   >
                     <Download className="h-5 w-5" />
+                  </button>
+                  {!ecoAvailable && doc.eco_hash && (
+                    <button
+                      onClick={() => requestRegeneration(doc.id, 'eco')}
+                      className="text-xs text-blue-600 hover:underline mr-4"
+                    >
+                      Regenerar .ECO
+                    </button>
+                  )}
+                  <button
+                    onClick={() => ecoxAvailable && doc.ecox_storage_path && downloadFromPath(doc.ecox_storage_path)}
+                    className={`${ecoxAvailable ? 'text-black hover:text-gray-600' : 'text-gray-300 cursor-not-allowed'} mr-4`}
+                    disabled={!ecoxAvailable}
+                    title={ecoxAvailable ? 'Descargar Certificado Avanzado (.ECOX)' : 'Disponible en planes Business/Enterprise'}
+                  >
+                    <Download className="h-5 w-5" />
+                  </button>
+                  {!ecoxAvailable && (
+                    <button
+                      onClick={() => requestRegeneration(doc.id, 'ecox')}
+                      className="text-xs text-blue-600 hover:underline mr-4"
+                    >
+                      Solicitar .ECOX
+                    </button>
+                  )}
+                  <button
+                    className="text-black hover:text-gray-600 mr-4"
+                    title="NDA"
+                    onClick={() => { setSelectedNdaDoc(doc); setShowNdaModal(true); }}
+                  >
+                    <Shield className="h-5 w-5" />
+                  </button>
+                  <button
+                    className="text-black hover:text-gray-600"
+                    title="Mover a carpeta"
+                    onClick={() => moveToFolder(doc.id)}
+                  >
+                    <MoveRight className="h-5 w-5" />
                   </button>
                 </td>
               </tr>
@@ -321,6 +504,24 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
 
 // Tab 2: Documentos Certificados
 function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
+  const downloadFromPath = async (storagePath) => {
+    if (!storagePath) return;
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.storage
+        .from('user-documents')
+        .createSignedUrl(storagePath, 3600);
+      if (error) {
+        console.error('Error creando URL de descarga:', error);
+        window.alert('No se pudo generar la descarga. Intenta regenerar el archivo.');
+        return;
+      }
+      window.open(data.signedUrl, '_blank');
+    } catch (err) {
+      console.error('Error descargando:', err);
+      window.alert('No se pudo descargar el archivo.');
+    }
+  };
   if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -347,6 +548,9 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
         const downloadEnabled = doc.download_enabled !== false;
         const bitcoinPending = doc.bitcoin_status === 'pending';
         const bitcoinConfirmed = doc.bitcoin_status === 'confirmed';
+        const pdfAvailable = !!doc.pdf_storage_path;
+        const ecoAvailable = !!(doc.eco_storage_path || doc.eco_file_data || doc.eco_hash);
+        const ecoxAvailable = !!doc.ecox_storage_path;
 
         return (
           <div key={doc.id} className="bg-white border border-gray-200 rounded-lg p-6">
@@ -368,28 +572,77 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
               </div>
             )}
 
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{doc.document_name}</h3>
-                <p className="text-sm text-gray-500 mt-1">Certificado el {formatDate(doc.created_at)}</p>
-              </div>
-              <div className="flex gap-2">
-                <button className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 text-sm">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{doc.document_name}</h3>
+                  <p className="text-sm text-gray-500 mt-1">Certificado el {formatDate(doc.created_at)}</p>
+                  {!pdfAvailable && (
+                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3" />
+                      PDF no almacenado (modo privacidad)
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                <button
+                  onClick={() => pdfAvailable && doc.pdf_storage_path && downloadFromPath(doc.pdf_storage_path)}
+                  className={`px-4 py-2 rounded-lg text-sm ${pdfAvailable ? 'bg-black text-white hover:bg-gray-800' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
+                  disabled={!pdfAvailable}
+                  title={pdfAvailable ? 'Descargar PDF' : 'No se almacenó el PDF (modo privacidad)'}
+                >
                   <Download className="h-4 w-4 inline mr-2" />
                   PDF Firmado
                 </button>
                 <button
+                  onClick={() => ecoAvailable && doc.eco_storage_path && downloadFromPath(doc.eco_storage_path)}
                   className={`px-4 py-2 rounded-lg text-sm ${
-                    downloadEnabled
+                    ecoAvailable
                       ? 'border border-gray-300 hover:bg-gray-50'
                       : 'border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
                   }`}
-                  disabled={!downloadEnabled}
-                  title={!downloadEnabled ? 'Disponible cuando Bitcoin confirme' : 'Descargar certificado'}
+                  disabled={!ecoAvailable}
+                  title={!ecoAvailable ? 'Disponible cuando se genere el certificado' : 'Descargar certificado .ECO'}
                 >
                   <Download className="h-4 w-4 inline mr-2" />
                   {bitcoinPending ? 'Certificado .ECO (Pendiente)' : 'Certificado .ECO'}
                 </button>
+                {!ecoAvailable && doc.eco_hash && (
+                  <button
+                    onClick={() => requestRegeneration(doc.id, 'eco')}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Regenerar .ECO
+                  </button>
+                )}
+                <button
+                  onClick={() => ecoxAvailable && doc.ecox_storage_path && downloadFromPath(doc.ecox_storage_path)}
+                  className={`px-4 py-2 rounded-lg text-sm ${
+                    ecoxAvailable
+                      ? 'border border-gray-300 hover:bg-gray-50'
+                      : 'border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
+                  disabled={!ecoxAvailable}
+                  title={ecoxAvailable ? 'Descargar Certificado Avanzado (.ECOX)' : 'Disponible en planes Business/Enterprise'}
+                >
+                  <Download className="h-4 w-4 inline mr-2" />
+                  Certificado Avanzado (.ECOX)
+                </button>
+                <button
+                  onClick={() => { setSelectedNdaDoc(doc); setShowNdaModal(true); }}
+                  className="px-4 py-2 rounded-lg text-sm border border-gray-200 hover:bg-gray-50"
+                  title="NDA"
+                >
+                  <Shield className="h-4 w-4 inline mr-2" />
+                  NDA
+                </button>
+                {!ecoxAvailable && (
+                  <button
+                    onClick={() => requestRegeneration(doc.id, 'ecox')}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Solicitar .ECOX
+                  </button>
+                )}
               </div>
             </div>
 
@@ -637,3 +890,39 @@ function ForensicTab({ documents, formatDate, copyToClipboard }) {
 }
 
 export default DocumentsPage;
+  const requestRegeneration = async (docId, type) => {
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase.rpc('request_certificate_regeneration', {
+        _document_id: docId,
+        _request_type: type
+      });
+      if (error) {
+        console.error('Error solicitando regeneración:', error);
+        window.alert('No se pudo solicitar la regeneración.');
+        return;
+      }
+      window.alert('Solicitud de regeneración enviada');
+    } catch (err) {
+      console.error('Error solicitando regeneración:', err);
+      window.alert('No se pudo solicitar la regeneración.');
+    }
+  };
+  const requestRegeneration = async (docId, type) => {
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase.rpc('request_certificate_regeneration', {
+        _document_id: docId,
+        _request_type: type
+      });
+      if (error) {
+        console.error('Error solicitando regeneración:', error);
+        window.alert('No se pudo solicitar la regeneración.');
+        return;
+      }
+      window.alert('Solicitud de regeneración enviada');
+    } catch (err) {
+      console.error('Error solicitando regeneración:', err);
+      window.alert('No se pudo solicitar la regeneración.');
+    }
+  };

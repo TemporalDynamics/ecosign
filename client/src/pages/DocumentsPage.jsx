@@ -4,7 +4,7 @@ import { getSupabase } from "../lib/supabaseClient";
 import { FileText, Clock, CheckCircle, XCircle, AlertCircle, Search, Eye, Download, Copy, Folder, FolderPlus, MoveRight, ShieldCheck, Shield } from 'lucide-react';
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
-import NdaModal from "../components/NdaModal";
+import ShareLinkGenerator from "../components/ShareLinkGenerator";
 
 const STATUS_CONFIG = {
   draft: { label: "Borrador", color: "text-gray-600", bg: "bg-gray-100" },
@@ -32,8 +32,9 @@ function DocumentsPage() {
   const [folders, setFolders] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [showNdaModal, setShowNdaModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [selectedNdaDoc, setSelectedNdaDoc] = useState(null);
+  const [planTier, setPlanTier] = useState(null); // free | pro | business | enterprise
   const [filters, setFilters] = useState({
     status: "all",
     fileType: "all",
@@ -47,6 +48,7 @@ function DocumentsPage() {
   useEffect(() => {
     loadDocuments();
     loadFolders();
+    loadPlan();
   }, [activeTab, filters, selectedFolder]);
 
   const loadDocuments = async () => {
@@ -118,6 +120,18 @@ function DocumentsPage() {
     }
   };
 
+  const loadPlan = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      const tier = user?.user_metadata?.plan || user?.user_metadata?.tier || null;
+      setPlanTier(tier);
+    } catch (err) {
+      console.warn('No se pudo obtener el plan del usuario:', err);
+      setPlanTier(null);
+    }
+  };
+
   const loadFolders = async () => {
     try {
       const supabase = getSupabase();
@@ -142,18 +156,21 @@ function DocumentsPage() {
 
   const createFolder = async () => {
     const name = window.prompt("Nombre de la carpeta");
-    if (!name) return;
+    if (!name || !name.trim()) return;
     try {
       const supabase = getSupabase();
-      const { error } = await supabase.rpc("create_document_folder", { _name: name });
+      const { data, error } = await supabase.rpc("create_document_folder", { _name: name.trim() });
       if (error) {
         console.error("Error creating folder:", error);
-        window.alert("No se pudo crear la carpeta");
+        window.alert(`No se pudo crear la carpeta: ${error.message}`);
         return;
       }
+      console.log("Folder created successfully:", data);
       await loadFolders();
+      window.alert("Carpeta creada exitosamente");
     } catch (err) {
       console.error("Error creating folder:", err);
+      window.alert(`Error al crear la carpeta: ${err.message}`);
     }
   };
 
@@ -313,23 +330,27 @@ function DocumentsPage() {
           )}
 
           {/* Content */}
-          {activeTab === "all" && <AllDocumentsTab documents={documents} loading={loading} formatDate={formatDate} copyToClipboard={copyToClipboard} moveToFolder={moveToFolder} />}
-          {activeTab === "certified" && <CertifiedDocumentsTab documents={documents} loading={loading} formatDate={formatDate} copyToClipboard={copyToClipboard} />}
+          {activeTab === "all" && <AllDocumentsTab documents={documents} loading={loading} formatDate={formatDate} copyToClipboard={copyToClipboard} moveToFolder={moveToFolder} planTier={planTier} />}
+          {activeTab === "certified" && <CertifiedDocumentsTab documents={documents} loading={loading} formatDate={formatDate} copyToClipboard={copyToClipboard} planTier={planTier} />}
           {activeTab === "forensic" && <ForensicTab documents={documents} formatDate={formatDate} copyToClipboard={copyToClipboard} />}
         </main>
     </div>
     <FooterInternal />
-    <NdaModal
-      isOpen={showNdaModal}
-      onClose={() => { setShowNdaModal(false); setSelectedNdaDoc(null); }}
-      document={selectedNdaDoc}
-    />
+    {showShareModal && selectedNdaDoc && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <ShareLinkGenerator
+          documentId={selectedNdaDoc.id}
+          documentTitle={selectedNdaDoc.document_name}
+          onClose={() => { setShowShareModal(false); setSelectedNdaDoc(null); }}
+        />
+      </div>
+    )}
   </div>
 );
 }
 
 // Tab 1: Todos los Documentos
-function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, moveToFolder }) {
+function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, moveToFolder, planTier }) {
   const downloadFromPath = async (storagePath) => {
     if (!storagePath) return;
     try {
@@ -346,6 +367,25 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
     } catch (err) {
       console.error('Error descargando:', err);
       window.alert('No se pudo descargar el archivo.');
+    }
+  };
+
+  const requestRegeneration = async (docId, type) => {
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase.rpc('request_certificate_regeneration', {
+        _document_id: docId,
+        _request_type: type
+      });
+      if (error) {
+        console.error('Error solicitando regeneración:', error);
+        window.alert('No se pudo solicitar la regeneración.');
+        return;
+      }
+      window.alert('Solicitud de regeneración enviada');
+    } catch (err) {
+      console.error('Error solicitando regeneración:', err);
+      window.alert('No se pudo solicitar la regeneración.');
     }
   };
   if (loading) {
@@ -398,7 +438,8 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
             const bitcoinPending = doc.bitcoin_status === 'pending';
             const pdfAvailable = !!doc.pdf_storage_path;
             const ecoAvailable = !!(doc.eco_storage_path || doc.eco_file_data || doc.eco_hash);
-            const ecoxAvailable = !!doc.ecox_storage_path;
+            const ecoxPlanAllowed = ['business', 'enterprise'].includes((planTier || '').toLowerCase());
+            const ecoxAvailable = ecoxPlanAllowed && !!doc.ecox_storage_path;
 
             return (
               <tr key={doc.id} className="hover:bg-gray-50">
@@ -443,45 +484,32 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
                   {formatDate(doc.last_event_at)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button className="text-black hover:text-gray-600 mr-4">
-                    <Eye className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => ecoAvailable && doc.eco_storage_path && downloadFromPath(doc.eco_storage_path)}
-                    className={`${ecoAvailable ? 'text-black hover:text-gray-600' : 'text-gray-300 cursor-not-allowed'} mr-4`}
-                    disabled={!ecoAvailable}
-                    title={ecoAvailable ? 'Descargar .ECO' : 'Disponible cuando se genere el certificado'}
-                  >
-                    <Download className="h-5 w-5" />
-                  </button>
-                  {!ecoAvailable && doc.eco_hash && (
+                  <div className="flex items-center gap-3">
                     <button
-                      onClick={() => requestRegeneration(doc.id, 'eco')}
-                      className="text-xs text-blue-600 hover:underline mr-4"
+                      className="text-black hover:text-gray-600"
+                      title="Ver documento"
                     >
-                      Regenerar .ECO
+                      <Eye className="h-5 w-5" />
                     </button>
-                  )}
-                  <button
-                    onClick={() => ecoxAvailable && doc.ecox_storage_path && downloadFromPath(doc.ecox_storage_path)}
-                    className={`${ecoxAvailable ? 'text-black hover:text-gray-600' : 'text-gray-300 cursor-not-allowed'} mr-4`}
-                    disabled={!ecoxAvailable}
-                    title={ecoxAvailable ? 'Descargar Certificado Avanzado (.ECOX)' : 'Disponible en planes Business/Enterprise'}
-                  >
-                    <Download className="h-5 w-5" />
-                  </button>
-                  {!ecoxAvailable && (
                     <button
-                      onClick={() => requestRegeneration(doc.id, 'ecox')}
-                      className="text-xs text-blue-600 hover:underline mr-4"
+                      onClick={() => ecoAvailable ? downloadFromPath(doc.eco_storage_path) : requestRegeneration(doc.id, 'eco')}
+                      className={`${ecoAvailable || doc.eco_hash ? 'text-black hover:text-gray-600' : 'text-gray-300 cursor-not-allowed'}`}
+                      disabled={!ecoAvailable && !doc.eco_hash}
+                      title={ecoAvailable ? 'Descargar .ECO' : doc.eco_hash ? 'Regenerar .ECO' : 'No disponible'}
                     >
-                      Solicitar .ECOX
+                      <Download className="h-5 w-5" />
                     </button>
-                  )}
-                  <button
-                    className="text-black hover:text-gray-600 mr-4"
+                    <button
+                      onClick={() => ecoxAvailable ? downloadFromPath(doc.ecox_storage_path) : requestRegeneration(doc.id, 'ecox')}
+                      className="text-black hover:text-gray-600"
+                      title={ecoxAvailable ? 'Descargar .ECOX' : 'Solicitar .ECOX'}
+                    >
+                      <ShieldCheck className="h-5 w-5" />
+                    </button>
+                    <button
+                      className="text-black hover:text-gray-600"
                     title="NDA"
-                    onClick={() => { setSelectedNdaDoc(doc); setShowNdaModal(true); }}
+                    onClick={() => { setSelectedNdaDoc(doc); setShowShareModal(true); }}
                   >
                     <Shield className="h-5 w-5" />
                   </button>
@@ -492,6 +520,7 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
                   >
                     <MoveRight className="h-5 w-5" />
                   </button>
+                  </div>
                 </td>
               </tr>
             );
@@ -503,7 +532,7 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
 }
 
 // Tab 2: Documentos Certificados
-function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard }) {
+function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard, planTier }) {
   const downloadFromPath = async (storagePath) => {
     if (!storagePath) return;
     try {
@@ -520,6 +549,25 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
     } catch (err) {
       console.error('Error descargando:', err);
       window.alert('No se pudo descargar el archivo.');
+    }
+  };
+
+  const requestRegeneration = async (docId, type) => {
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase.rpc('request_certificate_regeneration', {
+        _document_id: docId,
+        _request_type: type
+      });
+      if (error) {
+        console.error('Error solicitando regeneración:', error);
+        window.alert('No se pudo solicitar la regeneración.');
+        return;
+      }
+      window.alert('Solicitud de regeneración enviada');
+    } catch (err) {
+      console.error('Error solicitando regeneración:', err);
+      window.alert('No se pudo solicitar la regeneración.');
     }
   };
   if (loading) {
@@ -550,7 +598,8 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
         const bitcoinConfirmed = doc.bitcoin_status === 'confirmed';
         const pdfAvailable = !!doc.pdf_storage_path;
         const ecoAvailable = !!(doc.eco_storage_path || doc.eco_file_data || doc.eco_hash);
-        const ecoxAvailable = !!doc.ecox_storage_path;
+        const ecoxPlanAllowed = ['business', 'enterprise'].includes((planTier || '').toLowerCase());
+        const ecoxAvailable = ecoxPlanAllowed && !!doc.ecox_storage_path;
 
         return (
           <div key={doc.id} className="bg-white border border-gray-200 rounded-lg p-6">
@@ -594,38 +643,25 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   PDF Firmado
                 </button>
                 <button
-                  onClick={() => ecoAvailable && doc.eco_storage_path && downloadFromPath(doc.eco_storage_path)}
+                  onClick={() => ecoAvailable ? downloadFromPath(doc.eco_storage_path) : doc.eco_hash && requestRegeneration(doc.id, 'eco')}
                   className={`px-4 py-2 rounded-lg text-sm ${
-                    ecoAvailable
+                    ecoAvailable || doc.eco_hash
                       ? 'border border-gray-300 hover:bg-gray-50'
                       : 'border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
                   }`}
-                  disabled={!ecoAvailable}
-                  title={!ecoAvailable ? 'Disponible cuando se genere el certificado' : 'Descargar certificado .ECO'}
+                  disabled={!ecoAvailable && !doc.eco_hash}
+                  title={ecoAvailable ? 'Descargar certificado .ECO' : doc.eco_hash ? 'Regenerar certificado .ECO' : 'No disponible'}
                 >
                   <Download className="h-4 w-4 inline mr-2" />
-                  {bitcoinPending ? 'Certificado .ECO (Pendiente)' : 'Certificado .ECO'}
+                  {bitcoinPending ? 'Certificado .ECO (Pendiente)' : ecoAvailable ? 'Certificado .ECO' : 'Regenerar .ECO'}
                 </button>
-                {!ecoAvailable && doc.eco_hash && (
-                  <button
-                    onClick={() => requestRegeneration(doc.id, 'eco')}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Regenerar .ECO
-                  </button>
-                )}
                 <button
-                  onClick={() => ecoxAvailable && doc.ecox_storage_path && downloadFromPath(doc.ecox_storage_path)}
-                  className={`px-4 py-2 rounded-lg text-sm ${
-                    ecoxAvailable
-                      ? 'border border-gray-300 hover:bg-gray-50'
-                      : 'border border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
-                  }`}
-                  disabled={!ecoxAvailable}
-                  title={ecoxAvailable ? 'Descargar Certificado Avanzado (.ECOX)' : 'Disponible en planes Business/Enterprise'}
+                  onClick={() => ecoxAvailable ? downloadFromPath(doc.ecox_storage_path) : requestRegeneration(doc.id, 'ecox')}
+                  className="px-4 py-2 rounded-lg text-sm border border-gray-300 hover:bg-gray-50"
+                  title={ecoxAvailable ? 'Descargar Certificado Avanzado (.ECOX)' : 'Solicitar certificado avanzado (.ECOX)'}
                 >
-                  <Download className="h-4 w-4 inline mr-2" />
-                  Certificado Avanzado (.ECOX)
+                  <ShieldCheck className="h-4 w-4 inline mr-2" />
+                  {ecoxAvailable ? 'Certificado Avanzado (.ECOX)' : 'Solicitar .ECOX'}
                 </button>
                 <button
                   onClick={() => { setSelectedNdaDoc(doc); setShowNdaModal(true); }}
@@ -635,14 +671,6 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   <Shield className="h-4 w-4 inline mr-2" />
                   NDA
                 </button>
-                {!ecoxAvailable && (
-                  <button
-                    onClick={() => requestRegeneration(doc.id, 'ecox')}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    Solicitar .ECOX
-                  </button>
-                )}
               </div>
             </div>
 
@@ -890,39 +918,3 @@ function ForensicTab({ documents, formatDate, copyToClipboard }) {
 }
 
 export default DocumentsPage;
-  const requestRegeneration = async (docId, type) => {
-    try {
-      const supabase = getSupabase();
-      const { error } = await supabase.rpc('request_certificate_regeneration', {
-        _document_id: docId,
-        _request_type: type
-      });
-      if (error) {
-        console.error('Error solicitando regeneración:', error);
-        window.alert('No se pudo solicitar la regeneración.');
-        return;
-      }
-      window.alert('Solicitud de regeneración enviada');
-    } catch (err) {
-      console.error('Error solicitando regeneración:', err);
-      window.alert('No se pudo solicitar la regeneración.');
-    }
-  };
-  const requestRegeneration = async (docId, type) => {
-    try {
-      const supabase = getSupabase();
-      const { error } = await supabase.rpc('request_certificate_regeneration', {
-        _document_id: docId,
-        _request_type: type
-      });
-      if (error) {
-        console.error('Error solicitando regeneración:', error);
-        window.alert('No se pudo solicitar la regeneración.');
-        return;
-      }
-      window.alert('Solicitud de regeneración enviada');
-    } catch (err) {
-      console.error('Error solicitando regeneración:', err);
-      window.alert('No se pudo solicitar la regeneración.');
-    }
-  };

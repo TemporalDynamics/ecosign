@@ -5,38 +5,38 @@ import FooterInternal from "../components/FooterInternal";
 import { useVideoPlayer } from "../contexts/VideoPlayerContext";
 
 export default function VideosPage() {
-  const { openVideo } = useVideoPlayer();
+  const { playVideo } = useVideoPlayer();
 
   const videos = [
     {
+      id: "anatomia-firma",
       title: "Anatomía de una Firma",
       description: "Desglose paso a paso del proceso.",
-      filename: "anatomia-de-una-firma.mp4"
     },
     {
+      id: "verdad-verificable",
       title: "Verdad Verificable",
       description: "Explicación del por qué detrás de EcoSign.",
-      filename: "EcoSign__Verdad_Verificable.mp4"
     },
     {
+      id: "conocimiento-cero",
       title: "Conocimiento Cero",
       description: "Cómo funciona el principio Zero-Knowledge.",
-      filename: "conocimiento-cero.mp4"
     },
     {
+      id: "the-true-cost",
       title: "The True Cost",
       description: "Qué pagás realmente con otros servicios.",
-      filename: "the-true-cost.mp4"
     },
     {
+      id: "forensic-integrity",
       title: "Forensic Integrity",
       description: "Cómo se construye una evidencia irrefutable.",
-      filename: "forensic-integrity.mp4"
     },
     {
+      id: "you-dont-need-trust",
       title: "You Don't Need to Trust",
       description: "La filosofía general de EcoSign.",
-      filename: "you-dont-need-to-trust.mp4"
     }
   ];
 
@@ -61,7 +61,7 @@ export default function VideosPage() {
             {videos.map((video, index) => (
               <button
                 key={index}
-                onClick={() => openVideo(`/${video.filename}`)}
+                onClick={() => playVideo(video.id)}
                 className="group p-6 bg-white border-2 border-gray-200 rounded-lg hover:border-black transition-all text-left"
               >
                 <div className="flex items-start gap-4">

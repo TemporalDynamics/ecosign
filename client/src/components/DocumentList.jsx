@@ -61,22 +61,33 @@ const DocumentList = () => {
 
     fetchDocuments();
 
-    // Suscribirse a cambios en tiempo real
-    const supabase = getSupabase();
-    const subscription = supabase
-      .channel('documents_changes')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'documents' },
-        () => {
-          // Recargar documentos cuando hay cambios
-          fetchDocuments();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
+    // Para mejorar el rendimiento en mobile y evitar problemas de back/forward cache,
+    // no suscribirse a cambios en tiempo real en mobile (evita WebSocket)
+    const isMobile = () => {
+      if (typeof window !== 'undefined') {
+        return window.innerWidth <= 768;
+      }
+      // Por defecto asumir mobile en SSR
+      return true;
     };
+
+    if (!isMobile()) {
+      const supabase = getSupabase();
+      const subscription = supabase
+        .channel('documents_changes')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'user_documents' }, // Cambié de 'documents' a 'user_documents' para coincidir con el select
+          () => {
+            // Recargar documentos cuando hay cambios
+            fetchDocuments();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   }, []);
 
   const getStatusIcon = (status) => {

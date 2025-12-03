@@ -1,10 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
-import DocumentList from '../components/DocumentList';
+const DocumentList = React.lazy(() => import('../components/DocumentList'));
 import DashboardNav from '../components/DashboardNav';
 const CertificationModal = React.lazy(() => import('../components/CertificationModal'));
-import FooterInternal from '../components/FooterInternal';
+const FooterInternal = React.lazy(() => import('../components/FooterInternal'));
 import { getUserDocuments } from '../utils/documentStorage';
 
 function DashboardPage() {
@@ -17,10 +17,36 @@ function DashboardPage() {
 
   // Load documents from Supabase
   useEffect(() => {
+    let isMounted = true; // Para evitar memory leaks
+
+    const loadDocuments = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const docs = await getUserDocuments();
+        if (isMounted) {
+          setDocuments(docs);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Error loading documents:', err);
+          setError(err.message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     loadDocuments();
+
+    return () => {
+      isMounted = false; // Clean up para evitar memory leaks
+    };
   }, []);
 
-  const loadDocuments = async () => {
+  const refreshDocuments = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -37,7 +63,7 @@ function DashboardPage() {
   // Refresh documents when certification flow closes
   const handleCloseCertificationFlow = () => {
     setShowCertificationFlow(false);
-    loadDocuments(); // Refresh the list
+    refreshDocuments(); // Refresh the list
   };
 
   // Calculate stats from real data
@@ -132,21 +158,21 @@ function DashboardPage() {
           </div>
         </section>
 
-        {/* Dashboard Stats */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Dashboard Stats - Reduced DOM complexity */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ minHeight: '140px' }}>
           {overviewStats.map((stat) => (
-            <div key={stat.label} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col justify-between min-h-[140px]">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{stat.label}</p>
+            <div key={stat.label} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 h-[140px] flex flex-col justify-between">
               <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-2">{stat.label}</p>
                 <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{stat.helper}</p>
               </div>
+              <p className="text-xs text-gray-500 mt-auto">{stat.helper}</p>
             </div>
           ))}
         </section>
 
         {/* Certification Overview */}
-        <section className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+        <section className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm" style={{ minHeight: '400px' }}>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
             <div>
               <p className="text-sm uppercase tracking-widest text-gray-900 font-semibold">Panel de certificaciones</p>
@@ -191,13 +217,19 @@ function DashboardPage() {
                 <thead>
                   <tr className="text-xs uppercase tracking-wide text-gray-500 border-b">
                     <th className="py-3 pr-4">
-                      <button onClick={() => requestSort('fileName')} className="inline-flex items-center gap-1 font-semibold text-gray-700">
+                      <button
+                        onClick={() => requestSort('fileName')}
+                        className="flex items-center gap-1 font-semibold text-gray-700"
+                      >
                         Documento
                         <span className="text-xs text-gray-400">{sortConfig.key === 'fileName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
                       </button>
                     </th>
                     <th className="py-3 pr-4">
-                      <button onClick={() => requestSort('updatedAt')} className="inline-flex items-center gap-1 font-semibold text-gray-700">
+                      <button
+                        onClick={() => requestSort('updatedAt')}
+                        className="flex items-center gap-1 font-semibold text-gray-700"
+                      >
                         Timestamp
                         <span className="text-xs text-gray-400">{sortConfig.key === 'updatedAt' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
                       </button>
@@ -210,17 +242,17 @@ function DashboardPage() {
                 <tbody>
                   {sortedCertificationRows.map((row) => (
                     <tr key={row.id} className="border-b last:border-0">
-                      <td className="py-3 pr-4 font-medium text-gray-900">{row.fileName}</td>
-                      <td className="py-3 pr-4">{new Date(row.updatedAt).toLocaleString()}</td>
-                      <td className="py-3 pr-4">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.hasSignNow ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                      <td className="py-3 pr-4 font-medium text-gray-900 max-w-xs truncate" title={row.fileName}>{row.fileName}</td>
+                      <td className="py-3 pr-4 min-w-[140px]">{new Date(row.updatedAt).toLocaleString()}</td>
+                      <td className="py-3 pr-4 min-w-[80px]">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${row.hasSignNow ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
                           {row.hasSignNow ? 'SignNow' : 'Sin firma'}
                         </span>
                       </td>
-                      <td className="py-3 pr-4 text-gray-700">{row.concept}</td>
-                      <td className="py-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.legal ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                          {row.legal ? 'RFC 3161' : 'Timestamp estándar'}
+                      <td className="py-3 pr-4 max-w-xs text-gray-700 truncate" title={row.concept}>{row.concept}</td>
+                      <td className="py-3 min-w-[100px]">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${row.legal ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                          {row.legal ? 'RFC 3161' : 'Timestamp'}
                         </span>
                       </td>
                     </tr>
@@ -232,24 +264,26 @@ function DashboardPage() {
         </section>
 
 
-        {/* Recent Activity */}
-        <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
-          <div className="space-y-4">
-            <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-              <div className="text-sm text-gray-900 font-medium mb-1">Hoy, 10:30 AM</div>
-              <p className="text-gray-700">Documento "Proyecto Alpha" firmado por juan@empresa.com</p>
+        {/* Recent Activity - Load only if needed */}
+        <React.Suspense fallback={<div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm h-64"></div>}>
+          <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
+            <div className="space-y-4">
+              <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
+                <div className="text-sm text-gray-900 font-medium mb-1">Hoy, 10:30 AM</div>
+                <p className="text-gray-700">Documento "Proyecto Alpha" firmado por juan@empresa.com</p>
+              </div>
+              <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
+                <div className="text-sm text-gray-900 font-medium mb-1">Ayer, 3:45 PM</div>
+                <p className="text-gray-700">Enlace seguro creado para "Informe Confidencial"</p>
+              </div>
+              <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
+                <div className="text-sm text-gray-900 font-medium mb-1">12 Nov, 9:15 AM</div>
+                <p className="text-gray-700">Nuevo certificado .ECO generado para contrato</p>
+              </div>
             </div>
-            <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-              <div className="text-sm text-gray-900 font-medium mb-1">Ayer, 3:45 PM</div>
-              <p className="text-gray-700">Enlace seguro creado para "Informe Confidencial"</p>
-            </div>
-            <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
-              <div className="text-sm text-gray-900 font-medium mb-1">12 Nov, 9:15 AM</div>
-              <p className="text-gray-700">Nuevo certificado .ECO generado para contrato</p>
-            </div>
-          </div>
-        </section>
+          </section>
+        </React.Suspense>
 
         {/* Document List */}
         <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -259,11 +293,15 @@ function DashboardPage() {
               Ver todos →
             </button>
           </div>
-          <DocumentList />
+          <React.Suspense fallback={<div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>}>
+            <DocumentList />
+          </React.Suspense>
         </section>
       </main>
 
-      <FooterInternal />
+      <React.Suspense fallback={<div className="bg-white py-8"></div>}>
+        <FooterInternal />
+      </React.Suspense>
 
       {/* Nuevo modal de certificación con paneles colapsables */}
       {showCertificationFlow && (

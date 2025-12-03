@@ -27,7 +27,9 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     ecoFileData = null,
     tags = [],
     notes = null,
-    initialStatus = 'draft'
+    initialStatus = 'draft',
+    storePdf = true,
+    zeroKnowledgeOptOut = false
   } = options;
 
   // Normalize optional eco_file_data payload (bytea expects binary)
@@ -54,18 +56,27 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const documentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-  // Upload PDF to Supabase Storage
-  const fileName = `${user.id}/${Date.now()}-${pdfFile.name}`;
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('user-documents')
-    .upload(fileName, pdfFile, {
-      contentType: pdfFile.type || 'application/pdf',
-      upsert: false
-    });
+  // Upload PDF to Supabase Storage (optional for zero-knowledge)
+  let uploadData = null;
+  let uploadError = null;
+  let storagePath = null;
 
-  if (uploadError) {
-    console.error('Error uploading PDF:', uploadError);
-    throw new Error(`Error al subir el documento: ${uploadError.message}`);
+  if (storePdf) {
+    const fileName = `${user.id}/${Date.now()}-${pdfFile.name}`;
+    const uploadResult = await supabase.storage
+      .from('user-documents')
+      .upload(fileName, pdfFile, {
+        contentType: pdfFile.type || 'application/pdf',
+        upsert: false
+      });
+    uploadData = uploadResult.data;
+    uploadError = uploadResult.error;
+
+    if (uploadError) {
+      console.error('Error uploading PDF:', uploadError);
+      throw new Error(`Error al subir el documento: ${uploadError.message}`);
+    }
+    storagePath = uploadData.path;
   }
 
   // Determine file type from MIME type
@@ -86,7 +97,7 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
       document_hash: documentHash,
       document_size: pdfFile.size,
       mime_type: pdfFile.type || 'application/pdf',
-      pdf_storage_path: uploadData.path,
+      pdf_storage_path: storagePath,
       eco_data: ecoData, // Store the complete ECO manifest
       status: initialStatus, // Use the provided initial status
       overall_status: overallStatus, // Combined status (signatures + anchoring)
@@ -101,14 +112,17 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
       signnow_document_id: signNowDocumentId,
       signnow_status: signNowStatus,
       signed_at: signedAt,
-      eco_hash: documentHash
+      eco_hash: documentHash,
+      zero_knowledge_opt_out: !storePdf || zeroKnowledgeOptOut
     })
     .select()
     .single();
 
   if (docError) {
     // If DB insert fails, try to clean up the uploaded file
-    await supabase.storage.from('user-documents').remove([uploadData.path]);
+    if (storagePath) {
+      await supabase.storage.from('user-documents').remove([storagePath]);
+    }
     console.error('Error creating document record:', docError);
     throw new Error(`Error al guardar el registro: ${docError.message}`);
   }

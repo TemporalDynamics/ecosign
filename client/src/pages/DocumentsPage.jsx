@@ -5,6 +5,7 @@ import { FileText, Clock, CheckCircle, XCircle, AlertCircle, Search, Eye, Downlo
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 import ShareLinkGenerator from "../components/ShareLinkGenerator";
+import InhackeableTooltip from "../components/InhackeableTooltip";
 
 const STATUS_CONFIG = {
   draft: { label: "Borrador", color: "text-gray-600", bg: "bg-gray-100" },
@@ -693,10 +694,10 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
             {/* Anchoring Timeline */}
             <div className="mt-4 pt-4 border-t border-gray-200">
               <label className="text-xs font-medium text-gray-500 uppercase mb-3 block">
-                Timeline de Anclajes
+                Timeline de blindaje <InhackeableTooltip className="font-semibold" />
               </label>
               <div className="space-y-3">
-                {/* RFC 3161 Timestamp */}
+                {/* Sello legal */}
                 <div className="flex items-center gap-3">
                   {doc.has_legal_timestamp ? (
                     <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
@@ -705,7 +706,7 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   )}
                   <div className="flex-1">
                     <div className={`text-sm font-medium ${doc.has_legal_timestamp ? 'text-gray-900' : 'text-gray-400'}`}>
-                      RFC 3161 Legal Timestamp
+                      Sello de tiempo legal (TSA)
                     </div>
                     <div className="text-xs text-gray-500">
                       {doc.has_legal_timestamp ? 'Certificado por TSA' : 'No solicitado'}
@@ -713,7 +714,7 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   </div>
                 </div>
 
-                {/* Polygon Anchor */}
+                {/* Polygon Blockchain */}
                 <div className="flex items-center gap-3">
                   {doc.has_polygon_anchor ? (
                     <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
@@ -722,7 +723,7 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   )}
                   <div className="flex-1">
                     <div className={`text-sm font-medium ${doc.has_polygon_anchor ? 'text-gray-900' : 'text-gray-400'}`}>
-                      Polygon Mainnet
+                      Blockchain Polygon (huella publicada)
                     </div>
                     <div className="text-xs text-gray-500">
                       {doc.has_polygon_anchor ? 'Confirmado en blockchain' : 'No solicitado'}
@@ -730,7 +731,7 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   </div>
                 </div>
 
-                {/* Bitcoin Anchor */}
+                {/* Bitcoin Blockchain */}
                 <div className="flex items-center gap-3">
                   {bitcoinConfirmed ? (
                     <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
@@ -746,7 +747,7 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                       bitcoinConfirmed || doc.has_bitcoin_anchor ? 'text-gray-900' :
                       bitcoinPending ? 'text-orange-600' : 'text-gray-400'
                     }`}>
-                      Bitcoin Blockchain (OpenTimestamps)
+                      Blockchain Bitcoin (OpenTimestamps)
                     </div>
                     <div className="text-xs text-gray-500">
                       {bitcoinConfirmed && doc.bitcoin_confirmed_at

@@ -4,6 +4,7 @@ import { Lock, Info } from 'lucide-react';
 import { GuestProvider, useGuest } from '../contexts/GuestContext';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import TooltipWrapper from '../components/TooltipWrapper';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 import FooterInternal from '../components/FooterInternal';
 import HeaderPublic from '../components/HeaderPublic'; // Usamos el header público
 
@@ -21,10 +22,15 @@ function GuestDashboard() {
 
   // --- Datos y Lógica del Dashboard (simulados) ---
   const overviewStats = useMemo(() => [
-    { label: 'Documentos en demo', value: documents.length.toString(), helper: 'Ejemplos precargados' },
-    { label: 'Firmados legalmente', value: documents.filter(d => d.signnow_document_id).length.toString(), helper: 'Con SignNow' },
-    { label: 'Legal timestamps', value: documents.filter(d => d.has_legal_timestamp).length.toString(), helper: 'RFC 3161' },
-    { label: 'Anclajes Bitcoin', value: documents.filter(d => d.has_bitcoin_anchor).length.toString(), helper: 'En blockchain' }
+    { key: 'demo', label: 'Documentos en demo', value: documents.length.toString(), helper: 'Ejemplos precargados' },
+    { key: 'signnow', label: 'Firmados legalmente', value: documents.filter(d => d.signnow_document_id).length.toString(), helper: 'Con SignNow' },
+    {
+      key: 'inhackeable',
+      label: <InhackeableTooltip className="font-semibold" />,
+      value: documents.filter(d => d.has_legal_timestamp).length.toString(),
+      helper: 'Huella + sello legal + anchoring'
+    },
+    { key: 'bitcoin', label: 'Anclajes Bitcoin', value: documents.filter(d => d.has_bitcoin_anchor).length.toString(), helper: 'En blockchain' }
   ], [documents]);
 
   const certificationRows = useMemo(() => documents.map(doc => ({
@@ -103,7 +109,7 @@ function GuestDashboard() {
         {/* Estadísticas del Dashboard */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {overviewStats.map(stat => (
-            <div key={stat.label} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col justify-between min-h-[140px]">
+            <div key={stat.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col justify-between min-h-[140px]">
               <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{stat.label}</p>
               <div>
                 <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
@@ -160,7 +166,7 @@ function GuestDashboard() {
                     <td className="py-3 pr-4 text-gray-700">{row.concept}</td>
                     <td className="py-3">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${row.legal ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                        {row.legal ? 'RFC 3161' : 'Estándar'}
+                        {row.legal ? <InhackeableTooltip className="text-white" /> : 'Estándar'}
                       </span>
                     </td>
                   </tr>

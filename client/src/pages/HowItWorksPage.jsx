@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Copy, CheckCircle } from 'lucide-react';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 
 // Copy to Clipboard Button Component
 const CopyToClipboardButton = () => {
@@ -34,11 +35,11 @@ Según el tipo de firma elegido (EcoSign o LegalSign), el sistema registra:
 • Evento de firma
 Todo queda guardado en un ChainLog inmutable.
 
-3. Blindaje Forense (Opcional)
-Podés activar el Blindaje Forense para añadir:
-• Sello de Tiempo Legal (RFC 3161)
-• Registro en Blockchain (Polygon)
-• (Próximamente) Anclaje en Bitcoin via OpenTimestamps
+3. Blindaje Inhackeable (Opcional)
+Podés activar el Blindaje Inhackeable para añadir:
+• Huella SHA-256 local (tu archivo no se sube)
+• Sello de Tiempo Legal (TSA independiente)
+• Anchoring en Blockchain (Polygon y Bitcoin; más redes pronto)
 Este proceso garantiza la fecha cierta legal y la inalterabilidad futura.
 
 III. Tipos de Firma
@@ -51,7 +52,7 @@ LegalSign
 - Propósito: Contratos externos
 - Características: Cumple eIDAS, ESIGN, UETA. Basado en SignNow
 
-Ambas pueden blindarse con el Triple Anclaje.
+Ambas pueden blindarse con el Blindaje Inhackeable.
 
 IV. El Certificado .ECO
 Cada certificación genera:
@@ -191,15 +192,15 @@ function HowItWorksPage() {
             {/* Paso 3 */}
             <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                <span className="text-gray-400">3.</span> Blindaje Forense (Opcional)
+                <span className="text-gray-400">3.</span> Blindaje Inhackeable (Opcional)
               </h3>
               <p className="text-lg text-gray-700 mb-3">
-                Podés activar el <strong>Blindaje Forense</strong> para añadir:
+                Podés activar el <strong>Blindaje <InhackeableTooltip className="font-semibold" /></strong> para añadir:
               </p>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
-                <li>• Sello de Tiempo Legal (RFC 3161)</li>
-                <li>• Registro en Blockchain (Polygon)</li>
-                <li>• (Próximamente) Anclaje en Bitcoin via OpenTimestamps</li>
+                <li>• Huella SHA-256 local (tu archivo no se sube)</li>
+                <li>• Sello de tiempo legal (TSA independiente)</li>
+                <li>• Anchoring en blockchain (Polygon y Bitcoin hoy; más redes pronto)</li>
               </ul>
               <p className="text-lg text-gray-700 mt-3">
                 Este proceso garantiza la <strong>fecha cierta legal</strong> y la inalterabilidad futura.

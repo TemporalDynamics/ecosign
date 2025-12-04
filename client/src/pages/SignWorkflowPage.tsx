@@ -576,70 +576,96 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
         {step === 'receipt' && signerData && (
           <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-            <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-lg">
-              <div className="mb-6">
-                <p className="text-sm font-semibold text-blue-600">Validación previa</p>
-                <h1 className="text-2xl font-bold text-gray-900">Confirma tus datos para acceder</h1>
-                <p className="mt-2 text-gray-600">
-                  Registramos la recepción para dejar constancia antes de enviarte el código OTP.
+            <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg border border-gray-200">
+              {/* Header más amigable */}
+              <div className="mb-8 text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                  <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900">Verificá tu identidad</h1>
+                <p className="mt-2 text-sm text-gray-600">
+                  Te enviaremos un código de seguridad a <strong>{signerData.email}</strong>
                 </p>
               </div>
 
               <div className="space-y-4">
+                {/* Nombre - solo mostrar, no editar */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Nombre completo</label>
-                  <input
-                    type="text"
-                    value={signerData.name || ''}
-                    disabled
-                    className="mt-1 w-full rounded-lg border-gray-300 bg-gray-100 px-4 py-3 text-gray-700"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Tipo de documento</label>
-                    <input
-                      type="text"
-                      value={receiptData.docIdType}
-                      onChange={(e) => setReceiptData({ ...receiptData, docIdType: e.target.value })}
-                      placeholder="DNI / Pasaporte"
-                      className="mt-1 w-full rounded-lg border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Nº de documento</label>
-                    <input
-                      type="text"
-                      value={receiptData.docId}
-                      onChange={(e) => setReceiptData({ ...receiptData, docId: e.target.value })}
-                      placeholder="Ej: 12345678"
-                      className="mt-1 w-full rounded-lg border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-blue-500"
-                    />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tu nombre</label>
+                  <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 font-medium">
+                    {signerData.name || signerData.email}
                   </div>
                 </div>
+
+                {/* Email - solo mostrar */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Teléfono (opcional)</label>
-                  <input
-                    type="tel"
-                    value={receiptData.phone}
-                    onChange={(e) => setReceiptData({ ...receiptData, phone: e.target.value })}
-                    placeholder="+54 11 5555-5555"
-                    className="mt-1 w-full rounded-lg border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-blue-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700">
+                    {signerData.email}
+                  </div>
                 </div>
+
+                {/* Campos opcionales colapsados por defecto */}
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
+                    + Agregar información adicional (opcional)
+                  </summary>
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de documento</label>
+                      <select
+                        value={receiptData.docIdType}
+                        onChange={(e) => setReceiptData({ ...receiptData, docIdType: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Seleccionar...</option>
+                        <option value="DNI">DNI</option>
+                        <option value="Pasaporte">Pasaporte</option>
+                        <option value="CUIT/CUIL">CUIT/CUIL</option>
+                        <option value="Otro">Otro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Número</label>
+                      <input
+                        type="text"
+                        value={receiptData.docId}
+                        onChange={(e) => setReceiptData({ ...receiptData, docId: e.target.value })}
+                        placeholder="12345678"
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
+                      <input
+                        type="tel"
+                        value={receiptData.phone}
+                        onChange={(e) => setReceiptData({ ...receiptData, phone: e.target.value })}
+                        placeholder="+54 11 5555-5555"
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </details>
               </div>
 
-              {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+              {error && (
+                <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
 
               <button
                 onClick={handleReceiptSubmit}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-md transition hover:bg-blue-700"
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
               >
-                Registrar y enviar OTP
+                Enviar código de verificación
               </button>
 
-              <p className="mt-3 text-xs text-gray-500">
-                Guardamos tu IP y dispositivo para asegurar la no repudiación de la recepción. Luego recibirás un código por correo.
+              <p className="mt-4 text-center text-xs text-gray-500">
+                Protegemos tus datos con cifrado de extremo a extremo
               </p>
             </div>
           </div>

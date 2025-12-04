@@ -43,7 +43,10 @@ interface LogEventRequest {
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', {
+      status: 200,
+      headers: corsHeaders
+    })
   }
 
   try {
@@ -112,26 +115,36 @@ serve(async (req) => {
     // 🌍 GEOLOCALIZACIÓN AUTOMÁTICA (solo si no se proveyó)
     let geoLocation = payload.geolocation
 
-    if (!geoLocation && sourceIp && sourceIp !== 'unknown') {
-      console.log(`🌍 Obteniendo geolocalización para IP: ${sourceIp}`)
-      geoLocation = await getLocationFromIP(sourceIp)
-      console.log(`📍 Ubicación: ${formatLocation(geoLocation)}`)
+    try {
+      if (!geoLocation && sourceIp && sourceIp !== 'unknown') {
+        console.log(`🌍 Obteniendo geolocalización para IP: ${sourceIp}`)
+        geoLocation = await getLocationFromIP(sourceIp)
+        console.log(`📍 Ubicación: ${formatLocation(geoLocation)}`)
+      }
+    } catch (geoError) {
+      console.warn(`⚠️ Error obteniendo geolocalización: ${geoError.message}`)
+      // Continue without geolocation - it's optional
     }
 
     // Validar consistencia con timezone (si se proveyó)
     let locationValidation = null
     let securityFlags = []
 
-    if (payload.timezone && geoLocation) {
-      locationValidation = validateLocationConsistency(geoLocation, payload.timezone)
+    try {
+      if (payload.timezone && geoLocation) {
+        locationValidation = validateLocationConsistency(geoLocation, payload.timezone)
 
-      // Detectar posible uso de VPN
-      if (detectVPNUsage(locationValidation)) {
-        securityFlags.push('possible_vpn_detected')
-        console.warn(`⚠️ Posible VPN detectado: IP=${sourceIp}, Timezone=${payload.timezone}`)
+        // Detectar posible uso de VPN
+        if (detectVPNUsage(locationValidation)) {
+          securityFlags.push('possible_vpn_detected')
+          console.warn(`⚠️ Posible VPN detectado: IP=${sourceIp}, Timezone=${payload.timezone}`)
+        }
+
+        console.log(`🔍 Validación de ubicación: ${locationValidation.confidence_level} confidence`)
       }
-
-      console.log(`🔍 Validación de ubicación: ${locationValidation.confidence_level} confidence`)
+    } catch (validationError) {
+      console.warn(`⚠️ Error validando ubicación: ${validationError.message}`)
+      // Continue without validation - it's optional
     }
 
     // Agregar información de validación a los details

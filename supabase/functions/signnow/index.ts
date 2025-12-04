@@ -19,6 +19,7 @@ type DocumentFile = {
 };
 
 type SignNowRequestBody = {
+  workflowId?: string | null;
   documentId?: string;
   documentHash?: string;
   documentName?: string;
@@ -64,6 +65,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
+
+// Retry helper with exponential backoff for network errors
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  delayMs = 2000
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      if (attempt === maxRetries) throw error
+
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      console.warn(`⚠️ Attempt ${attempt}/${maxRetries} failed: ${errorMsg}`)
+      console.warn(`   Retrying in ${delayMs * attempt}ms...`)
+
+      await new Promise(resolve => setTimeout(resolve, delayMs * attempt))
+    }
+  }
+  throw new Error('Retry logic failed unexpectedly')
+}
 
 const SIGNNOW_PRICING: Record<string, { amount: number; currency: string; description: string }> = {
   esignature: {
@@ -164,6 +187,7 @@ const fetchSignNowAccessToken = async (): Promise<string> => {
   if (!signNowBasic || !signNowClientId || !signNowClientSecret) {
     throw new Error('Missing SignNow credentials');
   }
+  console.log(`🔐 Fetching SignNow token against ${signNowApiBase} (client_id length: ${signNowClientId.length})`);
   const body = new URLSearchParams();
   body.append('grant_type', 'client_credentials');
   body.append('client_id', signNowClientId);
@@ -195,35 +219,65 @@ const uploadDocumentToSignNow = async (
   metadata: { name?: string; type?: string },
   documentName?: string
 ): Promise<SignNowUploadResponse> => {
-  const fileBlob = new Blob([fileBytes], {
-    type: metadata.type || 'application/pdf'
-  });
+  if (!accessToken) {
+    throw new Error('Missing SignNow access token');
+  }
 
   const formData = new FormData();
-  formData.append('file', fileBlob, metadata.name || documentName || 'document.pdf');
+  // En Deno Edge, File/FormData es compatible; aseguramos el campo "file" con nombre y MIME correctos.
+  formData.append('file', new Blob([fileBytes], { type: metadata.type || 'application/pdf' }), metadata.name || documentName || 'document.pdf');
+  // SignNow requiere un título explícito para crear el documento
+  formData.append('title', metadata.name || documentName || 'document.pdf');
   if (documentName) {
     formData.append('document_name', documentName);
   }
 
-  const response = await fetch(`${signNowApiBase}/document`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    },
-    body: formData
-  });
+  console.log(
+    `⬆️ Uploading to SignNow: ${documentName || metadata.name} (${fileBytes.length} bytes) -> ${signNowApiBase}/document`
+  );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`SignNow upload failed (${response.status}): ${errorText}`);
+  // Create AbortController for timeout (60 seconds for large PDFs)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+  try {
+    const response = await fetch(`${signNowApiBase}/document`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json'
+      },
+      body: formData,
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`SignNow upload failed (${response.status}): ${errorText || 'No response body'}`);
+    }
+
+    const uploadResult = await response.json() as SignNowUploadResponse;
+    if (!uploadResult.id && !uploadResult.document_id) {
+      throw new Error('SignNow did not return a document ID');
+    }
+
+    return uploadResult;
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    // Better error messages for common issues
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error(`SignNow upload timeout after 60s (file size: ${fileBytes.length} bytes)`);
+      }
+      if (error.message.includes('broken pipe')) {
+        throw new Error(`SignNow connection lost during upload (file size: ${fileBytes.length} bytes). This may be due to network issues or file size.`);
+      }
+    }
+    throw error;
   }
-
-  const uploadResult = await response.json() as SignNowUploadResponse;
-  if (!uploadResult.id && !uploadResult.document_id) {
-    throw new Error('SignNow did not return a document ID');
-  }
-
-  return uploadResult;
 };
 
 const createSignNowInvite = async (
@@ -343,7 +397,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Missing original document payload (documentFile.base64)' }, 400);
     }
 
-    const client = ensureSupabaseClient();
+    const client = workflowId ? ensureSupabaseClient() : null;
 
     const baseMetadata = {
       documentName: documentName || documentFile.name,
@@ -370,28 +424,30 @@ serve(async (req) => {
     }
 
     // Optional: integration_requests table (ignore errors if not present)
-    try {
-      const { data: integrationRecord, error: insertError } = await client
-        .from('integration_requests')
-        .insert({
-          service: 'signnow',
-          action,
-          document_id: documentId,
-          user_id: validUserId,
-          document_hash: documentHash,
-          status: 'processing',
-          metadata: baseMetadata
-        })
-        .select()
-        .single();
+    if (client && workflowId) {
+      try {
+        const { data: integrationRecord, error: insertError } = await client
+          .from('integration_requests')
+          .insert({
+            service: 'signnow',
+            action,
+            document_id: documentId,
+            user_id: validUserId,
+            document_hash: documentHash,
+            status: 'processing',
+            metadata: baseMetadata
+          })
+          .select()
+          .single();
 
-      if (insertError) {
-        console.warn('integration_requests insert skipped:', insertError);
-      } else {
-        integrationRequestId = integrationRecord?.id ?? null;
+        if (insertError) {
+          console.warn('integration_requests insert skipped:', insertError);
+        } else {
+          integrationRequestId = integrationRecord?.id ?? null;
+        }
+      } catch (e) {
+        console.warn('integration_requests table not available, skipping', e?.message || e);
       }
-    } catch (e) {
-      console.warn('integration_requests table not available, skipping', e?.message || e);
     }
 
     let fileBytes = base64ToUint8Array(documentFile.base64);
@@ -430,10 +486,18 @@ serve(async (req) => {
       }
     }
 
-    const uploadResult = await uploadDocumentToSignNow(fileBytes, {
-      name: documentFile.name,
-      type: documentFile.type
-    }, documentName);
+    // Get SignNow access token first
+    console.log('🔐 Fetching SignNow access token...');
+    const accessToken = await retryWithBackoff(() => fetchSignNowAccessToken());
+
+    // Upload document with retry logic
+    console.log('📤 Uploading document to SignNow with retry logic...');
+    const uploadResult = await retryWithBackoff(() =>
+      uploadDocumentToSignNow(accessToken, fileBytes, {
+        name: documentFile.name,
+        type: documentFile.type
+      }, documentName)
+    );
     const signNowDocumentId = uploadResult.id || uploadResult.document_id;
 
     if (!signNowDocumentId) {
@@ -441,9 +505,6 @@ serve(async (req) => {
     }
 
     console.log(`✅ Document uploaded to SignNow with ID: ${signNowDocumentId}`);
-
-    // Crear invitación estándar (se usará embed en frontend con signing URL)
-    const accessToken = await fetchSignNowAccessToken();
     const inviteResult = await createSignNowInvite(accessToken, signNowDocumentId, signers, {
       subject,
       message,
@@ -511,8 +572,45 @@ serve(async (req) => {
       },
       // PDF preliminar con firma embebida localmente, útil para mostrar mientras
       signed_pdf_base64: finalSignedPdf,
-      next_steps: 'SignNow enviará los eventos al webhook cuando el documento esté firmado. El PDF final con audit trail se descargará y guardará automáticamente.'
+      next_steps: 'SignNow enviará los eventos al webhook cuando el documento esté firmado. El PDF final con audit trail se descargará y guardará automáticamente.',
+      signnow_document_id: signNowDocumentId,
+      signnow_embed_url: signingUrl,
+      workflow_id: workflowId || null
     };
+
+    // Si viene workflowId, enlazar documento/URL a workflow y firmantes
+    const workflowId = body.workflowId || documentId || null;
+    if (workflowId && client) {
+      try {
+        await client
+          .from('signature_workflows')
+          .update({
+            signature_type: 'SIGNNOW',
+            signnow_document_id: signNowDocumentId,
+            signnow_invite_id: responsePayload.signnow_invite_id,
+            signnow_status: 'pending',
+            signnow_embed_url: signingUrl,
+            status: 'active'
+          })
+          .eq('id', workflowId);
+
+        // Actualizar firmantes con la URL de embed para que el front pueda mostrarla
+        const signerEmails = signers.map((s) => s.email.toLowerCase());
+        if (signerEmails.length > 0) {
+          await client
+            .from('workflow_signers')
+            .update({
+              signature_type: 'SIGNNOW',
+              signnow_embed_url: signingUrl,
+              status: 'ready'
+            })
+            .in('email', signerEmails)
+            .eq('workflow_id', workflowId);
+        }
+      } catch (wfError) {
+        console.warn('⚠️ No se pudo enlazar SignNow al workflow:', wfError?.message || wfError);
+      }
+    }
 
     // Optional: update integration status, ignore if table missing
     if (integrationRequestId) {

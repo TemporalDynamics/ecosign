@@ -373,6 +373,7 @@ serve(async (req) => {
 
     const body = await req.json() as SignNowRequestBody;
     const {
+      workflowId,
       documentId,
       documentHash,
       documentName,
@@ -579,7 +580,6 @@ serve(async (req) => {
     };
 
     // Si viene workflowId, enlazar documento/URL a workflow y firmantes
-    const workflowId = body.workflowId || documentId || null;
     if (workflowId && client) {
       try {
         await client

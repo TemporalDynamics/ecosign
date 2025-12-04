@@ -25,7 +25,12 @@ const json = (data: unknown, status = 200) =>
   })
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      status: 200,
+      headers: corsHeaders
+    })
+  }
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   try {

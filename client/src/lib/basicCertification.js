@@ -217,7 +217,7 @@ export async function certifyFile(file, options = {}) {
     let anchorJob = null;
     try {
       // Only import when needed to avoid circular dependencies
-      const { requestBitcoinAnchor } = await import('./opentimestamps');
+      const { requestBitcoinAnchor } = await import('./opentimestamps.ts');
       anchorJob = await requestBitcoinAnchor(hash, {
         documentId: projectId,
         userId: options.userId || null,

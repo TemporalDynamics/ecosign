@@ -11,7 +11,7 @@ import * as ed from '@noble/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { requestLegalTimestamp } from './tsaService.js';
-import { requestBitcoinAnchor } from './opentimestamps';
+import { requestBitcoinAnchor } from './opentimestamps.ts';
 import { anchorToPolygon } from './polygonAnchor.js';
 
 /**
@@ -307,7 +307,7 @@ export async function certifyFile(file, options = {}) {
         console.log('⏱️  This process takes 4-24 hours for blockchain confirmation');
 
         // Import dynamically to avoid potential circular dependencies
-        const { requestBitcoinAnchor } = await import('./opentimestamps');
+        const { requestBitcoinAnchor } = await import('./opentimestamps.ts');
         anchorJob = await requestBitcoinAnchor(hash, {
           documentId: projectId,
           userId: options.userId || null,

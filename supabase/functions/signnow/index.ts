@@ -227,12 +227,13 @@ const uploadDocumentToSignNow = async (
 };
 
 const createSignNowInvite = async (
+  accessToken: string,
   documentId: string,
   signers: Signer[],
   options: { subject?: string; message?: string; redirectUrl?: string; declineRedirectUrl?: string } = {}
 ): Promise<SignNowInviteResponse> => {
-  if (!signNowApiKey) {
-    throw new Error('SIGNNOW_API_KEY env var is required to create invites');
+  if (!accessToken) {
+    throw new Error('Access token is required to create invites');
   }
 
   // Use SignNow v1 invite endpoint (standard)
@@ -259,7 +260,7 @@ const createSignNowInvite = async (
   const response = await fetch(`${signNowApiBase}/document/${documentId}/invite`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${await fetchSignNowAccessToken()}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(invitePayload)
@@ -451,6 +452,7 @@ serve(async (req) => {
     });
 
     // URL embebible (mejor esfuerzo; dependen del producto de SignNow)
+    const signNowAppBase = signNowApiBase.replace('api-eval', 'app-eval').replace('api.', 'app.');
     const signingUrl = inviteResult?.invites?.[0]?.id
       ? `${signNowAppBase}/webapp/document/${signNowDocumentId}/invite/${inviteResult.invites[0].id}`
       : null;
@@ -490,7 +492,7 @@ serve(async (req) => {
         signer_authentication: signers[0].authentication_type || 'email'
       },
       status: 'pending_signnow',
-      integration_request_id: integrationRecord.id,
+      integration_request_id: integrationRequestId,
       signnow_document_id: signNowDocumentId,
       signnow_invite_id: inviteResult.id || inviteResult.result_id || null,
       invite: inviteResult,

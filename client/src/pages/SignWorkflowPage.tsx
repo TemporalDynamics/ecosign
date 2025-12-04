@@ -21,6 +21,7 @@ import { applySignatureToPDF } from '@/utils/pdfSigner'
 import { decryptFile } from '@/utils/encryption'
 import { encryptFile, generateEncryptionKey } from '@/utils/encryption'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
+import { AlertTriangle } from 'lucide-react'
 
 // Step components
 import TokenValidator from '@/components/signature-flow/TokenValidator'
@@ -104,6 +105,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     docIdType: 'DNI',
     phone: ''
   })
+  const [embedError, setEmbedError] = useState(false)
+  const [embedTimeout, setEmbedTimeout] = useState<NodeJS.Timeout | null>(null)
 
   // Initialize - validate token
   useEffect(() => {
@@ -119,6 +122,28 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   useEffect(() => {
     checkAuth()
   }, [])
+
+  // Detect iframe load timeout for SignNow embed
+  useEffect(() => {
+    if (step === 'signing' && signerData?.workflow.signature_type === 'SIGNNOW') {
+      // Set timeout of 15 seconds to detect if iframe fails to load
+      const timeout = setTimeout(() => {
+        setEmbedError(true)
+      }, 15000)
+
+      setEmbedTimeout(timeout)
+
+      return () => {
+        if (timeout) clearTimeout(timeout)
+      }
+    } else {
+      // Clear timeout if we leave the signing step
+      if (embedTimeout) {
+        clearTimeout(embedTimeout)
+        setEmbedTimeout(null)
+      }
+    }
+  }, [step, signerData?.workflow.signature_type])
 
   const checkAuth = async () => {
     const supabase = getSupabase();
@@ -494,6 +519,35 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     }
   }
 
+  const handleRetrySignNow = () => {
+    setEmbedError(false)
+    // Reload the page to regenerate the embed URL
+    window.location.reload()
+  }
+
+  const handleContinueWithoutSignNow = async () => {
+    if (!signerData) return
+
+    // Log that user is bypassing SignNow
+    await logEvent({
+      workflowId: signerData.workflow_id,
+      signerId: signerData.id,
+      eventType: 'signnow_bypassed',
+      details: { reason: 'embed_error' }
+    })
+
+    // Switch to EcoSign signature mode
+    setStep('signing')
+    // Force update signer data to use ECOSIGN
+    setSignerData({
+      ...signerData,
+      workflow: {
+        ...signerData.workflow,
+        signature_type: 'ECOSIGN'
+      }
+    } as any)
+  }
+
   const handleDownloadECO = async () => {
     if (!signerData) return
     const supabase = getSupabase();
@@ -735,12 +789,49 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 <p className="mb-4 text-sm text-gray-600">
                   Completa la firma en el formulario embebido. Al finalizar, validaremos el cierre del flujo.
                 </p>
+
+                {embedError && (
+                  <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                      <h4 className="font-semibold text-yellow-900">
+                        Problema cargando la firma legal
+                      </h4>
+                    </div>
+                    <p className="mb-3 text-sm text-yellow-700">
+                      El sistema de firma legal (SignNow) está teniendo problemas temporales.
+                      Podés reintentar o continuar con la firma digital de EcoSign.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleRetrySignNow}
+                        className="rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700"
+                      >
+                        Reintentar
+                      </button>
+                      <button
+                        onClick={handleContinueWithoutSignNow}
+                        className="rounded-lg border border-yellow-600 px-4 py-2 text-yellow-700 hover:bg-yellow-50"
+                      >
+                        Continuar con EcoSign
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="overflow-hidden rounded-lg border">
                   <iframe
                     src={signerData.workflow.signnow_embed_url || accessMeta?.signnow_embed_url || ''}
                     title="SignNow"
                     className="h-[600px] w-full"
                     allow="clipboard-write"
+                    onLoad={() => {
+                      // Cancel timeout if iframe loads successfully
+                      if (embedTimeout) {
+                        clearTimeout(embedTimeout)
+                        setEmbedTimeout(null)
+                      }
+                    }}
                   />
                 </div>
               </div>

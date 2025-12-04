@@ -4,6 +4,7 @@ import DashboardNav from '../../components/DashboardNav';
 import FooterInternal from '../../components/FooterInternal';
 import PageTitle from '../../components/PageTitle';
 import { FileText, Database, Shield, CheckCircle } from 'lucide-react';
+import InhackeableTooltip from '../../components/InhackeableTooltip';
 
 export default function DocumentationInternalPage() {
   return (
@@ -60,27 +61,29 @@ export default function DocumentationInternalPage() {
             </p>
           </section>
 
-          {/* Triple Anclaje */}
+          {/* Blindaje Inhackeable */}
           <section className="mb-12">
             <div className="flex items-center gap-3 mb-4">
               <Shield className="w-6 h-6 text-[#0A66C2]" />
-              <h2 className="text-2xl font-bold text-black">Triple Anclaje Criptográfico</h2>
+              <h2 className="text-2xl font-bold text-black flex items-center gap-2">
+                Blindaje <InhackeableTooltip className="font-semibold" />
+              </h2>
             </div>
             <p className="text-lg text-gray-700 mb-4">
-              EcoSign utiliza una combinación de:
+              EcoSign combina tres capas para que tu evidencia quede inhackeable:
             </p>
             <ul className="space-y-3 text-gray-700 ml-6">
               <li className="flex items-start gap-3">
                 <span className="text-[#0A66C2] mt-1">•</span>
-                <span>SHA-256 (integridad del documento)</span>
+                <span>Huella SHA-256 (integridad del documento)</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#0A66C2] mt-1">•</span>
-                <span>RFC 3161 (sello de tiempo legal)</span>
+                <span>Sello de tiempo legal (TSA independiente)</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#0A66C2] mt-1">•</span>
-                <span>Blockchain pública (Polygon y Bitcoin vía OpenTimestamps)</span>
+                <span>Anchoring en blockchain pública (hoy Polygon y Bitcoin; pronto más redes)</span>
               </li>
             </ul>
             <p className="text-lg text-gray-700 mt-4">

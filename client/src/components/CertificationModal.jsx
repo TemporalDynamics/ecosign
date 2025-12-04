@@ -10,6 +10,7 @@ import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
 import { anchorToPolygon } from '../lib/polygonAnchor';
 import { getSupabase } from '../lib/supabaseClient';
+import InhackeableTooltip from './InhackeableTooltip';
 
 /**
  * Modal de Certificación - Diseño según Design System VerifySign
@@ -1210,7 +1211,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                         Elegí las capas de protección forense para tu certificado
                       </p>
 
-                      {/* RFC 3161 Timestamp */}
+                      {/* Sello de tiempo legal */}
                       <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors">
                         <input
                           type="checkbox"
@@ -1223,7 +1224,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                         />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            RFC 3161 Timestamp
+                            Sello de tiempo legal (TSA)
                           </p>
                           <p className="text-xs text-gray-500">
                             Sello de tiempo certificado por autoridad de confianza
@@ -1296,7 +1297,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   // MÁXIMO: SignNow + Blindaje Forense
                   emoji = '⚖️';
                   title = 'Validez legal + evidencia forense';
-                  description = 'Firma con normas eIDAS/ESIGN/UETA y blindaje criptográfico adicional. Ideal para contratos formales con terceros.';
+                  description = 'Firma con normas eIDAS/ESIGN/UETA y blindaje inhackeable (hash + sello legal + anchoring). Ideal para contratos formales con terceros.';
                   bgColor = 'bg-purple-50';
                   borderColor = 'border-purple-200';
                   textColor = 'text-purple-800';
@@ -1304,7 +1305,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   // ALTO: EcoSign + Blindaje Forense
                   emoji = '🔒';
                   title = 'Protección avanzada activa';
-                  description = 'Tu documento tendrá trazabilidad interna + registro criptográfico (hash + blockchain). Ideal para procesos internos, NDAs y aprobaciones.';
+                  description = 'Tu documento tendrá trazabilidad interna + blindaje inhackeable (hash, sello legal y anchoring). Ideal para procesos internos, NDAs y aprobaciones.';
                   bgColor = 'bg-blue-50';
                   borderColor = 'border-blue-200';
                   textColor = 'text-blue-800';
@@ -1312,7 +1313,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   // Solo Blindaje Forense (sin firma)
                   emoji = '🔒';
                   title = 'Protección avanzada activa';
-                  description = 'Registro criptográfico con hash + blockchain. Ideal para certificar documentos sin necesidad de firma.';
+                  description = 'Blindaje inhackeable con hash + sello legal + anchoring. Ideal para certificar documentos sin necesidad de firma.';
                   bgColor = 'bg-blue-50';
                   borderColor = 'border-blue-200';
                   textColor = 'text-blue-800';
@@ -1328,7 +1329,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   // Solo EcoSign (sin blindaje)
                   emoji = 'ℹ️';
                   title = 'Firma interna sin blindaje extra';
-                  description = 'La firma será visible en el PDF y quedará registrada en EcoSign, pero sin anclaje en blockchain ni sello de tiempo legal. Podés activar el blindaje si necesitás máxima trazabilidad.';
+                  description = 'La firma será visible en el PDF y quedará registrada en EcoSign, pero sin blindaje inhackeable (hash + sello legal + anchoring). Podés activarlo si necesitás máxima trazabilidad.';
                   bgColor = 'bg-gray-50';
                   borderColor = 'border-gray-200';
                   textColor = 'text-gray-700';

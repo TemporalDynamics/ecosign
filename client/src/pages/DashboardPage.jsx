@@ -6,6 +6,7 @@ import DashboardNav from '../components/DashboardNav';
 const CertificationModal = React.lazy(() => import('../components/CertificationModal'));
 const FooterInternal = React.lazy(() => import('../components/FooterInternal'));
 import { getUserDocuments } from '../utils/documentStorage';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -74,10 +75,10 @@ function DashboardPage() {
     const signedDocs = documents.filter(d => d.signnow_document_id).length;
 
     return [
-      { label: 'Documentos certificados', value: totalDocs.toString(), helper: 'Total guardados' },
-      { label: 'Firmados legalmente', value: signedDocs.toString(), helper: 'Con SignNow' },
-      { label: 'Legal timestamps', value: legalTimestamps.toString(), helper: 'RFC 3161' },
-      { label: 'Anclajes Bitcoin', value: bitcoinAnchors.toString(), helper: 'En blockchain' }
+      { key: 'docs', label: 'Documentos certificados', value: totalDocs.toString(), helper: 'Total guardados' },
+      { key: 'signed', label: 'Firmados legalmente', value: signedDocs.toString(), helper: 'Con SignNow' },
+      { key: 'inhackeable', label: <InhackeableTooltip className="font-semibold" />, value: legalTimestamps.toString(), helper: 'Huella + sello legal + anchoring' },
+      { key: 'btc', label: 'Anclajes Bitcoin', value: bitcoinAnchors.toString(), helper: 'En blockchain' }
     ];
   }, [documents]);
 
@@ -161,7 +162,7 @@ function DashboardPage() {
         {/* Dashboard Stats - Reduced DOM complexity */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ minHeight: '140px' }}>
           {overviewStats.map((stat) => (
-            <div key={stat.label} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 h-[140px] flex flex-col justify-between">
+            <div key={stat.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 h-[140px] flex flex-col justify-between">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-2">{stat.label}</p>
                 <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
@@ -252,7 +253,7 @@ function DashboardPage() {
                       <td className="py-3 pr-4 max-w-xs text-gray-700 truncate" title={row.concept}>{row.concept}</td>
                       <td className="py-3 min-w-[100px]">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${row.legal ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                          {row.legal ? 'RFC 3161' : 'Timestamp'}
+                          {row.legal ? <InhackeableTooltip className="text-white" /> : 'Timestamp'}
                         </span>
                       </td>
                     </tr>

@@ -16,6 +16,7 @@ import LegalProtectionOptions from '../components/LegalProtectionOptions';
 import VerificationSummary from '../components/VerificationSummary';
 import FooterPublic from '../components/FooterPublic';
 import WorkflowVerifier from '../components/WorkflowVerifier';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 
 // Configuración de validación
 const ALLOWED_EXTENSIONS = ['.eco', '.pdf', '.zip'];
@@ -510,7 +511,9 @@ function VerifyPage() {
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
-                  <span>Validación multi-anclaje (TSA, blockchain, keeper, redundancias).</span>
+                  <span>
+                    <InhackeableTooltip className="font-semibold" />: validación de huella, sello legal y anclaje blockchain.
+                  </span>
                 </li>
               </ul>
             </div>

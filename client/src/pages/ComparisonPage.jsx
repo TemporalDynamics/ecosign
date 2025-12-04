@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Shield, CheckCircle, Lock, Anchor } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import FooterPublic from '../components/FooterPublic';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 
 const ComparisonPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -114,7 +115,7 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Integridad Garantizada:</strong> Cada documento se sella con un Hash SHA-256 y un Sello de Tiempo (RFC 3161), alineándose técnicamente con los principios de conservación de datos más estrictos (similares a NOM-151).</span>
+                    <span><InhackeableTooltip className="font-semibold" /> en cada documento: hash SHA-256, sello legal y anclaje blockchain listos para peritos.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -150,7 +151,7 @@ const ComparisonPage = () => {
               <div>
                 <h3 className="text-xl font-semibold text-black mb-4 flex items-center">
                   <Shield className="w-5 h-5 text-[#0E4B8B] mr-3" />
-                  La Potencia de un Proveedor Certificado + Triple Anclaje
+                  La Potencia de un Proveedor Certificado + Blindaje <InhackeableTooltip className="font-semibold" />
                 </h3>
                 <p className="text-gray-700 mb-6">
                   Combinamos la validez normativa de SignNow (proveedor global acreditado) con nuestra tecnología de inmutabilidad para crear la firma más robusta del mercado.
@@ -168,7 +169,7 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Triple Blindaje (SmartHash):</strong> No nos conformamos con el certificado estándar. Encapsulamos la firma en nuestro contenedor forense, añadiendo anclaje en Bitcoin y Polygon + Sello de Tiempo independiente.</span>
+                    <span><strong>Blindaje <InhackeableTooltip className="font-semibold" /> (SmartHash):</strong> Encapsulamos la firma en nuestro contenedor forense con hash, sello legal y anclaje (Bitcoin/Polygon) más los que se sumen.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -236,11 +237,11 @@ const ComparisonPage = () => {
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">✓ ✓ ✓ ✓ (Proveedor + Blockchain)</td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-4 text-sm font-medium text-gray-900">Sello de Tiempo Oficial (RFC 3161)</td>
+                  <td className="py-4 px-4 text-sm font-medium text-gray-900">Blindaje <InhackeableTooltip className="font-semibold" /></td>
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">-</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">✓</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">✓ ✓ ✓ (Siempre Incluido)</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">✓ ✓ ✓ ✓ (Siempre Incluido)</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">-</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Hash + sello legal + anclaje (incluido)</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Hash + sello legal + anclaje (incluido)</td>
                 </tr>
                 <tr>
                   <td className="py-4 px-4 text-sm font-medium text-gray-900">Verificación Independiente</td>
@@ -336,10 +337,10 @@ const ComparisonPage = () => {
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <h3 className="text-2xl font-bold text-black mb-4 flex items-center">
                 <Anchor className="w-6 h-6 text-[#0E4B8B] mr-3" />
-                2. El Poder del Triple Anclaje
+                2. Blindaje <InhackeableTooltip className="font-semibold" />
               </h3>
               <p className="text-gray-700 mb-4">
-                Mientras otros solo ponen una firma digital, nosotros "anclamos" la existencia de tu documento en tres capas:
+                Mientras otros solo ponen una firma digital, nosotros blindamos tu documento en tres capas:
               </p>
               <ul className="space-y-2 ml-6 text-gray-700">
                 <li className="flex items-start">
@@ -348,11 +349,11 @@ const ComparisonPage = () => {
                 </li>
                 <li className="flex items-start">
                   <span className="font-semibold mr-2">• Tiempo:</span>
-                  <span>Sello de tiempo oficial (RFC 3161).</span>
+                  <span>Sello de tiempo legal (TSA independiente).</span>
                 </li>
                 <li className="flex items-start">
                   <span className="font-semibold mr-2">• Eternidad:</span>
-                  <span>Registro público en Blockchain (Polygon/Bitcoin).</span>
+                  <span>Anchoring público en blockchain (hoy Polygon/Bitcoin; pronto más redes).</span>
                 </li>
               </ul>
               <p className="text-gray-700 mt-4">

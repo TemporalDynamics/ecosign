@@ -1,6 +1,7 @@
 import React from "react";
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
+import InhackeableTooltip from "../components/InhackeableTooltip";
 
 export default function RoadmapPage() {
   return (
@@ -39,7 +40,7 @@ export default function RoadmapPage() {
               <li>• Certificación .ECO con privacidad total (Zero-Knowledge)</li>
               <li>• Firma EcoSign ilimitada</li>
               <li>• Firma Legal integrada</li>
-              <li>• Blindaje Forense básico (SHA-256 + RFC 3161)</li>
+              <li>• Blindaje <InhackeableTooltip className="font-semibold" /> básico (SHA-256 + sello legal + anchoring)</li>
               <li>• Verificador público .ECO</li>
               <li>• Dashboard funcional</li>
               <li>• Auditoría completa (evento, hora, IP, hash)</li>
@@ -87,7 +88,7 @@ export default function RoadmapPage() {
             Primer lanzamiento público controlado.
           </p>
           <ul className="space-y-2 text-gray-700 ml-4">
-            <li>• Blindaje Forense completo (Blockchain Polygon + Bitcoin/OTS)</li>
+            <li>• Blindaje <InhackeableTooltip className="font-semibold" /> completo (blockchain Polygon + Bitcoin/OTS, más redes en camino)</li>
             <li>• Panel para equipos (roles, permisos, actividad interna)</li>
             <li>• Historial de documentos centralizado</li>
             <li>• API inicial para integraciones (webhooks básicos)</li>

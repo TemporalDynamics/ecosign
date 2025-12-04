@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Shield, FileText, Send } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
+import InhackeableTooltip from './InhackeableTooltip';
 
 const NdaModal = ({ isOpen, onClose, document }) => {
   const [duration, setDuration] = useState('6m');
@@ -128,7 +129,9 @@ const NdaModal = ({ isOpen, onClose, document }) => {
             <p className="font-semibold text-gray-900">Resumen legal (fijo)</p>
             <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
               <li>Propósito del acuerdo: proteger la información compartida en EcoSign.</li>
-              <li>Beneficio del receptor: trazabilidad, hash + anclajes, soberanía de datos.</li>
+              <li>
+                Beneficio del receptor: trazabilidad y blindaje <InhackeableTooltip className="font-semibold" /> (hash, sello legal y anchoring).
+              </li>
               <li>Consentimiento informado: aceptación por checkbox + botón.</li>
               <li>Anti-coacción: registramos IP, user-agent, timestamps y hash del documento/NDA.</li>
             </ul>

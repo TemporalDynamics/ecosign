@@ -5,6 +5,7 @@ import FooterPublic from '../components/FooterPublic';
 import DashboardNav from '../components/DashboardNav';
 import FooterInternal from '../components/FooterInternal';
 import PageTitle from '../components/PageTitle';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 
 const SecurityPage = () => {
   const location = useLocation();
@@ -43,8 +44,10 @@ const SecurityPage = () => {
                 Prueba de Existencia Legal
               </h2>
               <div className="text-lg text-gray-700 max-w-2xl mx-auto space-y-3">
-                <p>Sello de Tiempo Legal RFC 3161, emitido por una Autoridad de Confianza.</p>
-                <p className="font-semibold text-black">Registro público en blockchain:</p>
+                <p>
+                  <InhackeableTooltip className="font-semibold" />: huella SHA-256 local, sello de tiempo legal (TSA) y anchoring en blockchain.
+                </p>
+                <p className="font-semibold text-black">Blockchain hoy:</p>
                 <ul className="space-y-1">
                   <li>Polygon (rápido, económico)</li>
                   <li>Bitcoin (irreversible, nivel máximo)</li>

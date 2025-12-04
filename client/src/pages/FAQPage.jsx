@@ -3,6 +3,7 @@ import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 import { ChevronUp, ChevronDown } from 'lucide-react';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 
 const faqs = [
   {
@@ -19,7 +20,11 @@ const faqs = [
   },
   {
     question: "¿Cómo garantizan la fecha cierta?",
-    answer: "Mediante sellos de tiempo legales RFC 3161 de Autoridades de Confianza."
+    answer: (
+      <span>
+        Con blindaje <InhackeableTooltip className="font-semibold" />: hash SHA-256 local, sello de tiempo legal y anchoring en blockchain (hoy Polygon/Bitcoin; más redes pronto).
+      </span>
+    )
   },
   {
     question: "¿Qué pasa si cambian el documento después de firmarlo?",

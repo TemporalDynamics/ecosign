@@ -19,6 +19,41 @@ const json = (data: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
 
+// Retry helper with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  delayMs = 1000
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      if (attempt === maxRetries) throw error
+      console.warn(`⚠️ Attempt ${attempt}/${maxRetries} failed, retrying in ${delayMs * attempt}ms...`, error)
+      await new Promise(resolve => setTimeout(resolve, delayMs * attempt))
+    }
+  }
+  throw new Error('Retry logic failed unexpectedly')
+}
+
+// Check if SignNow embed URL should be regenerated
+function shouldRegenerateEmbedUrl(url: string | null, createdAt: string | null): boolean {
+  if (!url) return true
+  if (!createdAt) return true
+
+  // SignNow embed URLs expire in 24h
+  // Regenerate if older than 12h for safety
+  const hoursSinceCreated = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60)
+  const shouldRegenerate = hoursSinceCreated > 12
+
+  if (shouldRegenerate) {
+    console.log(`🔄 Embed URL is ${hoursSinceCreated.toFixed(1)}h old, regenerating...`)
+  }
+
+  return shouldRegenerate
+}
+
 async function getSignNowAccessToken(): Promise<string> {
   if (!signNowBasic || !signNowClientId || !signNowClientSecret) {
     throw new Error('Missing SignNow credentials in env')
@@ -217,40 +252,87 @@ serve(async (req) => {
       encryptedPdfUrl = signedUrlData?.signedUrl ?? null
     }
 
-    // Si es SIGNNOW y no tenemos embed_url para este signer, crearlo
+    // Si es SIGNNOW y necesitamos embed_url (nueva o expirada), crearlo
     let signnowEmbedUrl = signer.signnow_embed_url || signer.workflow.signnow_embed_url || null
     let signnowDocumentId = signer.workflow.signnow_document_id || null
+    const embedCreatedAt = signer.signnow_embed_created_at || null
 
-    if ((signer.workflow.signature_type || '').toUpperCase() === 'SIGNNOW' && !signnowEmbedUrl) {
+    if ((signer.workflow.signature_type || '').toUpperCase() === 'SIGNNOW' &&
+        shouldRegenerateEmbedUrl(signnowEmbedUrl, embedCreatedAt)) {
+
+      console.log('📝 SignNow Flow:', {
+        workflow_id: signer.workflow_id,
+        signer_id: signer.id,
+        has_embed_url: !!signnowEmbedUrl,
+        embed_age_hours: embedCreatedAt
+          ? ((Date.now() - new Date(embedCreatedAt).getTime()) / (1000 * 60 * 60)).toFixed(1)
+          : 'N/A',
+        has_document_id: !!signnowDocumentId
+      })
+
       if (!signer.workflow.document_path) {
         return json({ error: 'Missing document path for SignNow workflow' }, 400)
       }
 
-      const accessToken = await getSignNowAccessToken()
-      // Subir a SignNow si no hay document_id
-      if (!signnowDocumentId) {
-        const upload = await uploadToSignNow(accessToken, supabase, signer.workflow.document_path, signer.workflow.original_filename || version?.document_url || 'document.pdf')
-        signnowDocumentId = upload.id || upload.document_id || null
-        if (signnowDocumentId) {
-          await supabase
-            .from('signature_workflows')
-            .update({ signnow_document_id: signnowDocumentId })
-            .eq('id', signer.workflow_id)
+      try {
+        // Get access token with retry
+        const accessToken = await retryWithBackoff(() => getSignNowAccessToken())
+
+        // Subir a SignNow si no hay document_id
+        if (!signnowDocumentId) {
+          console.log('📤 Uploading document to SignNow...')
+          const upload = await retryWithBackoff(() =>
+            uploadToSignNow(
+              accessToken,
+              supabase,
+              signer.workflow.document_path,
+              signer.workflow.original_filename || version?.document_url || 'document.pdf'
+            )
+          )
+          signnowDocumentId = upload.id || upload.document_id || null
+
+          if (signnowDocumentId) {
+            console.log('✅ Document uploaded to SignNow:', signnowDocumentId)
+            await supabase
+              .from('signature_workflows')
+              .update({ signnow_document_id: signnowDocumentId })
+              .eq('id', signer.workflow_id)
+          }
         }
-      }
 
-      if (!signnowDocumentId) {
-        return json({ error: 'Could not create SignNow document' }, 500)
-      }
+        if (!signnowDocumentId) {
+          throw new Error('Could not create SignNow document')
+        }
 
-      const invite = await createSignNowEmbeddedInvite(accessToken, signnowDocumentId, signer.email, signer.signing_order || 1)
-      signnowEmbedUrl = invite.embed_url || null
+        // Create embedded invite with retry
+        console.log('📨 Creating SignNow embedded invite...')
+        const invite = await retryWithBackoff(() =>
+          createSignNowEmbeddedInvite(
+            accessToken,
+            signnowDocumentId,
+            signer.email,
+            signer.signing_order || 1
+          )
+        )
+        signnowEmbedUrl = invite.embed_url || null
 
-      if (signnowEmbedUrl) {
-        await supabase
-          .from('workflow_signers')
-          .update({ signnow_embed_url: signnowEmbedUrl })
-          .eq('id', signer.id)
+        if (signnowEmbedUrl) {
+          console.log('✅ SignNow embed URL created successfully')
+          await supabase
+            .from('workflow_signers')
+            .update({
+              signnow_embed_url: signnowEmbedUrl,
+              signnow_embed_created_at: new Date().toISOString()
+            })
+            .eq('id', signer.id)
+        } else {
+          throw new Error('SignNow invite created but no embed_url returned')
+        }
+      } catch (error) {
+        console.error('❌ SignNow embed creation failed:', error)
+        // Don't fail the entire request - return data without embed_url
+        // Frontend will show fallback UI
+        signnowEmbedUrl = null
       }
     }
 

@@ -84,13 +84,17 @@ export default defineConfig({
             if (id.includes('lucide-react')) {
               return 'icons';
             }
-            // PDF processing (heavy)
+            // PDF processing (heavy) - lazy loaded
             if (id.includes('pdf-lib') || id.includes('pdfjs') || id.includes('pako') || id.includes('upng')) {
               return 'pdf-utils';
             }
-            // Crypto libraries (heavy)
+            // Crypto libraries (heavy) - lazy loaded
             if (id.includes('crypto') || id.includes('buffer') || id.includes('asn1') || id.includes('bn.js')) {
               return 'crypto';
+            }
+            // @noble libraries (used by eco-packer)
+            if (id.includes('@noble/hashes') || id.includes('@noble/ed25519') || id.includes('@noble/secp256k1')) {
+              return 'noble-crypto';
             }
             // Router
             if (id.includes('react-router')) {

@@ -4,7 +4,11 @@
  * y agrega una Hoja de Firmas con datos forenses
  */
 
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+// Lazy load pdf-lib para mejorar performance del landing
+const loadPdfLib = async () => {
+  const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+  return { PDFDocument, rgb, StandardFonts };
+};
 
 /**
  * Aplica una imagen de firma a un PDF
@@ -15,6 +19,9 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
  */
 export async function applySignatureToPDF(pdfFile, signatureDataUrl, options = {}) {
   try {
+    // Lazy load pdf-lib
+    const { PDFDocument } = await loadPdfLib();
+
     // Leer el PDF original
     const pdfBytes = await pdfFile.arrayBuffer();
     const pdfDoc = await PDFDocument.load(pdfBytes);
@@ -76,6 +83,9 @@ export function blobToFile(blob, originalName) {
  */
 export async function addSignatureSheet(pdfFile, signatureDataUrl = null, forensicData = {}) {
   try {
+    // Lazy load pdf-lib
+    const { PDFDocument, rgb, StandardFonts } = await loadPdfLib();
+
     // Leer el PDF
     const pdfBytes = await pdfFile.arrayBuffer();
     const pdfDoc = await PDFDocument.load(pdfBytes);

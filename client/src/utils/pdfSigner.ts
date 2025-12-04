@@ -7,7 +7,12 @@
 // The server NEVER sees the unsigned or signed PDF content
 // ============================================
 
-import { PDFDocument, rgb } from 'pdf-lib'
+// Lazy load pdf-lib para mejorar performance del landing
+const loadPdfLib = async () => {
+  const { PDFDocument, rgb } = await import('pdf-lib');
+  return { PDFDocument, rgb };
+};
+
 import { calculateDocumentHash } from './hashDocument'
 
 export interface SignatureData {
@@ -51,6 +56,9 @@ export async function applySignatureToPDF(
 ): Promise<SignedPDFResult> {
   try {
     console.log('🔒 Starting PDF signature application (in browser)...')
+
+    // Lazy load pdf-lib
+    const { PDFDocument } = await loadPdfLib();
 
     // Load the PDF
     const pdfBytes = await pdfBlob.arrayBuffer()
@@ -191,6 +199,9 @@ export async function getPDFMetadata(pdfBlob: Blob): Promise<{
   fileSize: number
 }> {
   try {
+    // Lazy load pdf-lib
+    const { PDFDocument } = await loadPdfLib();
+
     const pdfBytes = await pdfBlob.arrayBuffer()
     const pdfDoc = await PDFDocument.load(pdfBytes)
     const pages = pdfDoc.getPages()

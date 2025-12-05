@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { ArrowRight, CheckCircle, FileText, Shield, Upload, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, CheckCircle, FileText, Shield, Upload, AlertTriangle, Loader } from 'lucide-react';
 import SignatureWorkshop from './SignatureWorkshop';
 import { certifyAndDownload } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
@@ -19,12 +19,65 @@ const CertificationFlow = ({ onClose }) => {
   const [certResult, setCertResult] = useState(null);
   const [certifying, setCertifying] = useState(false);
   const [error, setError] = useState(null);
+  const [userId, setUserId] = useState(userIdFallback);
+  const [workflowId, setWorkflowId] = useState(null);
+  const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const supabase = getSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const targetFile = signedFile || uploadedFile;
   const isPdfSelected = Boolean(uploadedFile && (
     (uploadedFile.type || '').toLowerCase().includes('pdf') ||
     uploadedFile.name?.toLowerCase().endsWith('.pdf')
   ));
+
+  // Effect to create the workflow when a PDF is selected
+  useEffect(() => {
+    if (step === 1 && isPdfSelected && !workflowId && !isCreatingWorkflow) {
+      const createWorkflow = async () => {
+        setIsCreatingWorkflow(true);
+        setError(null);
+        try {
+          const supabase = getSupabase();
+          const { data: { user } } = await supabase.auth.getUser();
+
+          const { data, error: funcError } = await supabase.functions.invoke('start-signature-workflow', {
+            body: {
+              documentName: uploadedFile.name,
+              ownerId: user?.id || userId,
+              isPublic: false,
+              // Add other necessary metadata here
+            },
+          });
+
+          if (funcError) throw new Error(funcError.message || 'No se pudo crear el flujo de firma.');
+          
+          if (!data?.workflow?.id) {
+            throw new Error('La respuesta del servidor no incluyó un ID de workflow válido.');
+          }
+
+          setWorkflowId(data.workflow.id);
+        } catch (err) {
+          console.error('Error creating workflow:', err);
+          setError(`No se pudo iniciar el flujo de firma: ${err.message}`);
+          // Optionally, move back to step 0 or show an error state
+        } finally {
+          setIsCreatingWorkflow(false);
+        }
+      };
+      createWorkflow();
+    }
+  }, [step, isPdfSelected, uploadedFile, workflowId, isCreatingWorkflow, userId]);
+
 
   const resetFlow = () => {
     setStep(0);
@@ -34,6 +87,8 @@ const CertificationFlow = ({ onClose }) => {
     setUseLegalTimestamp(false);
     setCertResult(null);
     setError(null);
+    setWorkflowId(null);
+    setIsCreatingWorkflow(false);
   };
 
   const handleClose = () => {
@@ -211,30 +266,56 @@ const CertificationFlow = ({ onClose }) => {
         {step === 1 && uploadedFile && (
           <div className="space-y-4">
             {isPdfSelected ? (
+            {isPdfSelected ? (
               <>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-                  <p className="font-semibold">🔐 Firma Legal (Recomendado)</p>
-                  <p className="mb-2">
-                    Firmá con SignNow para que tu documento tenga <strong>validez legal internacional</strong>:
-                  </p>
-                  <ul className="text-xs space-y-1 ml-4 list-disc">
-                    <li>Audit trail completo (IP, hora, dispositivo)</li>
-                    <li>Válido en 100+ países (ESIGN, eIDAS, UETA)</li>
-                    <li>Certificate of Completion tamper-proof</li>
-                    <li>No-repudiación: el firmante no puede negar la firma</li>
-                  </ul>
-                </div>
-                <SignatureWorkshop
-                  originalFile={uploadedFile}
-                  documentName={uploadedFile.name}
-                  documentId={null}
-                  documentHash={null}
-                  userId={userIdFallback}
-                  submitLabel="Firmar con SignNow"
-                  onSuccess={handleSignSuccess}
-                  showSkipHint
-                />
+                {isCreatingWorkflow ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center bg-gray-50 rounded-lg">
+                    <Loader className="w-8 h-8 animate-spin text-gray-500 mb-3" />
+                    <p className="text-gray-600 font-medium">Iniciando flujo de firma seguro...</p>
+                    <p className="text-sm text-gray-500">Creando el registro en la base de datos.</p>
+                  </div>
+                ) : error ? (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    <p className="font-bold">Error al iniciar el flujo</p>
+                    <p>{error}</p>
+                  </div>
+                ) : workflowId ? (
+                  <SignatureWorkshop
+                    originalFile={uploadedFile}
+                    documentName={uploadedFile.name}
+                    workflowId={workflowId}
+                    userId={userId}
+                    submitLabel="Firmar con SignNow"
+                    onSuccess={handleSignSuccess}
+                    showSkipHint
+                  />
+                ) : null}
               </>
+            ) : (
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-700">
+                <p className="font-semibold">📄 Firma legal disponible solo para PDF</p>
+                <p className="text-xs mt-1">
+                  Este archivo se puede certificar o anclar, pero la integración con SignNow requiere que sea PDF. Podés continuar con el
+                  sello forense igualmente y, si necesitás firma legal, convertí el archivo a PDF antes de repetir el proceso.
+                </p>
+              </div>
+            )}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm text-yellow-800 mb-2">
+                <strong>⚠️ Solo Certificación (sin firma legal)</strong>
+              </p>
+              <p className="text-xs text-yellow-700 mb-3">
+                Si saltás este paso, tu documento tendrá un certificado .ECO con sello de tiempo y huella digital,
+                pero <strong>NO tendrá validez legal</strong> como documento firmado.
+              </p>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="text-yellow-700 hover:text-yellow-900 font-semibold text-sm flex items-center gap-1 underline"
+              >
+                Continuar solo con certificación (sin firma) <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
             ) : (
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-700">
                 <p className="font-semibold">📄 Firma legal disponible solo para PDF</p>

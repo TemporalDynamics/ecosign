@@ -4,31 +4,37 @@ import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import InhackeableTooltip from '../components/InhackeableTooltip';
+import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
+import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
+import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
+import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
+import PolygonTooltip from '../components/PolygonTooltip';
+import BitcoinTooltip from '../components/BitcoinTooltip';
 
 const faqs = [
   {
     question: "¿Mi documento se sube a los servidores de EcoSign?",
-    answer: "No. EcoSign aplica el principio Zero-Knowledge: el archivo nunca se sube ni se almacena."
+    answer: <>No. La plataforma aplica el principio Zero-Knowledge: el archivo nunca se sube ni se almacena.</>
   },
   {
     question: "¿Qué es un archivo .ECO?",
-    answer: "Es un certificado portable que contiene la evidencia matemática del proceso: hash, timestamps, blockchain y la auditoría completa. No incluye tu documento."
+    answer: <>Es un certificado portable que contiene la evidencia del proceso: <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>, <SelloDeTiempoLegalTooltip>Sellos de Tiempo Legales</SelloDeTiempoLegalTooltip>, <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> y la auditoría completa. No incluye tu documento.</>
   },
   {
-    question: "¿En qué se diferencia EcoSign de una firma legal tradicional?",
-    answer: "EcoSign Ilimitada: evidencia forense + trazabilidad (uso interno). Firma Legal: cumplimiento jurídico pleno (eIDAS/ESIGN/UETA)."
+    question: "¿En qué se diferencia Firma Legal de una firma tradicional?",
+    answer: <>Firma Legal (Ilimitada): <InhackeableTooltip>evidencia forense</InhackeableTooltip> + trazabilidad (uso interno). Firma Certificada: cumplimiento jurídico pleno (eIDAS/ESIGN/UETA).</>
   },
   {
     question: "¿Cómo garantizan la fecha cierta?",
     answer: (
       <span>
-        Con blindaje <InhackeableTooltip className="font-semibold" />: hash SHA-256 local, sello de tiempo legal y anchoring en blockchain (hoy Polygon/Bitcoin; más redes pronto).
+        Con blindaje <InhackeableTooltip>Inhackeable</InhackeableTooltip>: <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> local, <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> y <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> (hoy <PolygonTooltip>Polygon</PolygonTooltip> / <BitcoinTooltip>Bitcoin</BitcoinTooltip>; más redes pronto).
       </span>
     )
   },
   {
     question: "¿Qué pasa si cambian el documento después de firmarlo?",
-    answer: "El hash cambia automáticamente. El .ECO detecta la modificación al instante."
+    answer: <>La <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> cambia automáticamente. El .ECO detecta la modificación al instante.</>
   }
 ];
 

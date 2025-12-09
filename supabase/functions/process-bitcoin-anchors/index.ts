@@ -24,8 +24,11 @@ const resendApiKey = Deno.env.get('RESEND_API_KEY');
 const defaultFrom = Deno.env.get('DEFAULT_FROM') || 'EcoSign <no-reply@email.ecosign.app>';
 const mempoolApiUrl = Deno.env.get('MEMPOOL_API_URL') || 'https://mempool.space/api';
 
-const MAX_VERIFY_ATTEMPTS = 30;
+// 288 attempts × 5 min = 24 hours (matches user promise of 4-24h)
+const MAX_VERIFY_ATTEMPTS = 288;
 const CONFIRM_WITHOUT_TX_THRESHOLD = 5;
+// Alert threshold: warn at 20 hours (240 attempts)
+const ALERT_THRESHOLD = 240;
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing Supabase credentials');
@@ -387,12 +390,21 @@ serve(async (req) => {
 
         const attempts = (anchor.bitcoin_attempts ?? 0) + 1;
 
+        // Alert when approaching timeout (20 hours)
+        if (attempts > ALERT_THRESHOLD && attempts <= MAX_VERIFY_ATTEMPTS) {
+          const hoursElapsed = (attempts * 5) / 60;
+          console.warn(`⚠️ Anchor ${anchor.id} has been pending for ${hoursElapsed.toFixed(1)} hours (${attempts}/${MAX_VERIFY_ATTEMPTS} attempts)`);
+        }
+
         if (attempts > MAX_VERIFY_ATTEMPTS) {
+          const errorMessage = `Bitcoin verification timeout after 24 hours (${attempts} attempts). OpenTimestamps may still confirm later - you can retry verification manually.`;
+          console.error(`❌ ${errorMessage} - Anchor ID: ${anchor.id}`);
+
           await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'failed',
-              bitcoin_error_message: 'Max verification attempts reached',
+              bitcoin_error_message: errorMessage,
               bitcoin_attempts: attempts,
               updated_at: new Date().toISOString()
             })

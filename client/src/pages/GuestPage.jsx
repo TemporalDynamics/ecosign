@@ -100,7 +100,7 @@ function GuestDashboard() {
                 onClick={() => navigate('/verify')}
                 className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-gray-900 font-bold py-3 px-8 rounded-xl transition duration-300"
               >
-                Verificar un .ECO
+                Verificador
               </button>
             </div>
           </div>

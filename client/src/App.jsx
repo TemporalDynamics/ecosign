@@ -6,6 +6,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import FloatingVideoPlayer from './components/FloatingVideoPlayer';
 import ScrollToTop from './components/ScrollToTop';
 import { VideoPlayerProvider, useVideoPlayer } from './contexts/VideoPlayerContext';
+import { LegalCenterProvider } from './contexts/LegalCenterContext';
+import LegalCenterRoot from './components/LegalCenterRoot';
 
 // Lazy load all page components for code-splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -333,9 +335,12 @@ function App() {
   return (
     <ErrorBoundary>
       <VideoPlayerProvider>
-        <div className="App">
-          <AppRoutes />
-        </div>
+        <LegalCenterProvider>
+          <div className="App">
+            <AppRoutes />
+            <LegalCenterRoot />
+          </div>
+        </LegalCenterProvider>
       </VideoPlayerProvider>
     </ErrorBoundary>
   );

@@ -15,6 +15,13 @@ import {
 } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import FooterPublic from '../components/FooterPublic';
+import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
+import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
+import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
+import PolygonTooltip from '../components/PolygonTooltip';
+import BitcoinTooltip from '../components/BitcoinTooltip';
+import InhackeableTooltip from '../components/InhackeableTooltip';
+import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
 
 const LandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -121,7 +128,7 @@ const LandingPage = () => {
           </h2>
           <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-16 text-center leading-relaxed">
             Firmás y certificás sin subir tu documento.<br />
-            Solo generamos su hash, un código matemático imposible de reconstruir.<br />
+            Solo generamos su <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>, un código matemático imposible de reconstruir.<br />
             Lo importante queda privado. Lo verificable queda público.
           </p>
 
@@ -135,7 +142,7 @@ const LandingPage = () => {
             <div>
               <Shield className="w-10 h-10 text-[#0E4B8B] mx-auto mb-4" strokeWidth={1.5} />
               <h3 className="text-xl font-semibold text-black mb-3">Evidencia infalsificable</h3>
-              <p className="text-gray-600">Hash + timestamp legal + blockchain.</p>
+              <p className="text-gray-600"><HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> + <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>.</p>
             </div>
             
             <div>
@@ -160,7 +167,7 @@ const LandingPage = () => {
                 1
               </div>
               <h3 className="text-2xl font-semibold text-black mb-2">Subí tu archivo (o arrastralo)</h3>
-              <p className="text-lg text-gray-600">Nunca se almacena. Solo se calcula el hash.</p>
+              <p className="text-lg text-gray-600">Nunca se almacena. Solo se calcula la <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>.</p>
             </div>
             
             <div className="text-center md:text-left">
@@ -168,7 +175,7 @@ const LandingPage = () => {
                 2
               </div>
               <h3 className="text-2xl font-semibold text-black mb-2">Elegí el tipo de firma</h3>
-              <p className="text-lg text-gray-600">EcoSign (ilimitada) o LegalSign (validez eIDAS/UETA).</p>
+              <p className="text-lg text-gray-600">Firma Legal (ilimitada) o Firma Certificada (validez eIDAS/UETA).</p>
             </div>
             
             <div className="text-center md:text-left">
@@ -304,8 +311,8 @@ const LandingPage = () => {
                 <li>✓ 1 Usuario</li>
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 1 GB almacenamiento</li>
-                <li>✓ 3 Docs EcoSign/mes</li>
-                <li>✓ LegalSign: $2.50 x firma</li>
+                <li>✓ 3 Firmas Legales/mes</li>
+                <li>✓ Firma Certificada: $2.50 x c/u</li>
               </ul>
             </div>
 
@@ -325,8 +332,8 @@ const LandingPage = () => {
                 <li>✓ 2 Usuarios</li>
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 5 GB almacenamiento</li>
-                <li>✓ 100 Docs EcoSign/mes</li>
-                <li>✓ 20 LegalSign/mes</li>
+                <li>✓ 100 Firmas Legales/mes</li>
+                <li>✓ 20 Firmas Certificadas/mes</li>
               </ul>
               <div className="text-center pt-4 mt-auto">
                 <div className="inline-block bg-[#0E4B8B]/[0.12] text-[#0E4B8B] font-medium text-xs px-3 py-1 rounded-md">
@@ -348,8 +355,8 @@ const LandingPage = () => {
                 <li>✓ 5 Usuarios</li>
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 25 GB almacenamiento</li>
-                <li>✓ EcoSign ILIMITADAS</li>
-                <li>✓ 100 LegalSign/mes</li>
+                <li>✓ Firmas Legales ILIMITADAS</li>
+                <li>✓ 100 Firmas Certificadas/mes</li>
                 <li>✓ Panel de Auditoría</li>
                 <li>✓ API Limitado</li>
               </ul>
@@ -364,8 +371,8 @@ const LandingPage = () => {
                 <li>✓ Usuarios ilimitados</li>
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ Almacenamiento custom</li>
-                <li>✓ EcoSign ILIMITADAS</li>
-                <li>✓ LegalSign custom</li>
+                <li>✓ Firmas Legales ILIMITADAS</li>
+                <li>✓ Firmas Certificadas (plan a medida)</li>
                 <li>✓ Panel de Auditoría</li>
                 <li>✓ API Completo</li>
               </ul>

@@ -3,6 +3,11 @@ import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 import { Upload, FileCheck, Download, Shield } from 'lucide-react';
+import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
+import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
+import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
+import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 
 export default function QuickGuidePage() {
   return (
@@ -12,7 +17,7 @@ export default function QuickGuidePage() {
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
           <PageTitle subtitle="Empezá en menos de un minuto. Certificar y firmar documentos con EcoSign es simple, privado y sin fricción.">
-            Guía Rápida de EcoSign
+            Guía Rápida
           </PageTitle>
 
           {/* Steps */}
@@ -31,11 +36,11 @@ export default function QuickGuidePage() {
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-[#0A66C2] mt-1">•</span>
-                    <span>El hash (SHA-256) se calcula en tu navegador.</span>
+                    <span>La <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> (<SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip>) se calcula en tu navegador.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-[#0A66C2] mt-1">•</span>
-                    <span>EcoSign nunca ve tu archivo.</span>
+                    <span>La plataforma nunca ve tu archivo.</span>
                   </li>
                 </ul>
               </div>
@@ -51,15 +56,15 @@ export default function QuickGuidePage() {
                 <ul className="space-y-2 text-base text-gray-700">
                   <li className="flex items-start gap-3">
                     <span className="text-[#0A66C2] mt-1">•</span>
-                    <span><strong>EcoSign Ilimitada:</strong> ideal para flujos internos, NDAs, RRHH y aprobaciones.</span>
+                    <span><strong>Firma Legal (Ilimitada):</strong> ideal para flujos internos, NDAs, RRHH y aprobaciones.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-[#0A66C2] mt-1">•</span>
-                    <span><strong>Firma Legal (LegalSign):</strong> validez jurídica completa (eIDAS/ESIGN/UETA).</span>
+                    <span><strong>Firma Certificada (pago por uso):</strong> validez jurídica completa (eIDAS/ESIGN/UETA).</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-[#0A66C2] mt-1">•</span>
-                    <span>Podés activar el <strong>Blindaje Forense</strong> para sumar timestamp legal + blockchain.</span>
+                    <span>Podés activar el <strong>Blindaje <InhackeableTooltip>Inhackeable</InhackeableTooltip></strong> para sumar <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>.</span>
                   </li>
                 </ul>
               </div>

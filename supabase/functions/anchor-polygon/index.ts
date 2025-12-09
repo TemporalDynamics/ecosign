@@ -100,12 +100,39 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
+    // If userDocumentId is provided but document_id or user_email are missing,
+    // fetch them from user_documents to ensure notifications can be sent
+    let finalDocumentId = documentId
+    let finalUserEmail = userEmail
+    let finalUserId = userId
+
+    if (userDocumentId && (!documentId || !userEmail)) {
+      const { data: userDoc } = await supabase
+        .from('user_documents')
+        .select('document_id, user_id')
+        .eq('id', userDocumentId)
+        .single()
+
+      if (userDoc) {
+        finalDocumentId = finalDocumentId || userDoc.document_id
+        finalUserId = finalUserId || userDoc.user_id
+
+        // Fetch user email if needed
+        if (!userEmail && userDoc.user_id) {
+          const { data: userData } = await supabase.auth.admin.getUserById(userDoc.user_id)
+          if (userData?.user?.email) {
+            finalUserEmail = userData.user.email
+          }
+        }
+      }
+    }
+
     await supabase.from('anchors').insert({
       document_hash: documentHash,
-      document_id: documentId,
-      user_id: userId,
+      document_id: finalDocumentId,
+      user_id: finalUserId,
       user_document_id: userDocumentId,
-      user_email: userEmail,
+      user_email: finalUserEmail,
       anchor_type: 'polygon',
       anchor_status: 'pending',
       polygon_status: 'pending',

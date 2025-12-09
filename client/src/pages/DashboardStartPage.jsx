@@ -2,9 +2,11 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import DashboardNav from '../components/DashboardNav';
 import FooterInternal from '../components/FooterInternal';
+import { useLegalCenter } from '../contexts/LegalCenterContext';
 
 function DashboardStartPage() {
   const navigate = useNavigate();
+  const { open: openLegalCenter } = useLegalCenter();
   const handleLogout = () => navigate('/');
 
   return (
@@ -22,11 +24,14 @@ function DashboardStartPage() {
               Ir al Dashboard
             </Link>
             <Link to="/dashboard/verify" className="bg-white border-2 border-gray-200 text-gray-700 hover:border-black600 hover:text-black font-semibold px-8 py-3 rounded-xl shadow-sm transition text-center">
-              Verificar un .ECO
+              Verificador
             </Link>
-            <Link to="/dashboard" className="bg-white border-2 border-gray-200 text-gray-700 hover:border-black600 hover:text-black font-semibold px-8 py-3 rounded-xl shadow-sm transition text-center">
+            <button
+              onClick={() => openLegalCenter('sign')}
+              className="bg-white border-2 border-gray-200 text-gray-700 hover:border-black600 hover:text-black font-semibold px-8 py-3 rounded-xl shadow-sm transition text-center"
+            >
               Firmar un Documento
-            </Link>
+            </button>
           </div>
         </section>
       </main>

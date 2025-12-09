@@ -3,18 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
 const DocumentList = React.lazy(() => import('../components/DocumentList'));
 import DashboardNav from '../components/DashboardNav';
-const CertificationModal = React.lazy(() => import('../components/CertificationModal'));
 const FooterInternal = React.lazy(() => import('../components/FooterInternal'));
 import { getUserDocuments } from '../utils/documentStorage';
 import InhackeableTooltip from '../components/InhackeableTooltip';
+import { useLegalCenter } from '../contexts/LegalCenterContext';
 
 function DashboardPage() {
   const navigate = useNavigate();
-  const [showCertificationFlow, setShowCertificationFlow] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'updatedAt', direction: 'desc' });
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { open: openLegalCenter } = useLegalCenter();
 
   // Load documents from Supabase
   useEffect(() => {
@@ -62,11 +62,6 @@ function DashboardPage() {
   };
 
   // Refresh documents when certification flow closes
-  const handleCloseCertificationFlow = () => {
-    setShowCertificationFlow(false);
-    refreshDocuments(); // Refresh the list
-  };
-
   // Calculate stats from real data
   const overviewStats = useMemo(() => {
     const totalDocs = documents.length;
@@ -144,7 +139,7 @@ function DashboardPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => setShowCertificationFlow(true)}
+                onClick={() => openLegalCenter('certify')}
                 className="bg-white hover:bg-gray-100 text-gray-900 font-bold py-3 px-8 rounded-xl shadow-md transition duration-300"
               >
                 + Certificar documento
@@ -153,7 +148,7 @@ function DashboardPage() {
                 onClick={() => navigate('/dashboard/verify')}
                 className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-gray-900 font-bold py-3 px-8 rounded-xl transition duration-300"
               >
-                Verificar un .ECO
+                Verificador
               </button>
             </div>
           </div>
@@ -204,7 +199,7 @@ function DashboardPage() {
             <div className="text-center py-12">
               <p className="text-gray-500 text-lg">No tenés documentos certificados todavía.</p>
               <button
-                onClick={() => setShowCertificationFlow(true)}
+                onClick={() => openLegalCenter('certify')}
                 className="mt-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2 px-6 rounded-lg"
               >
                 Certificar tu primer documento
@@ -304,15 +299,6 @@ function DashboardPage() {
         <FooterInternal />
       </React.Suspense>
 
-      {/* Nuevo modal de certificación con paneles colapsables */}
-      {showCertificationFlow && (
-        <React.Suspense fallback={<div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50"><div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"></div></div>}>
-          <CertificationModal
-            isOpen={showCertificationFlow}
-            onClose={handleCloseCertificationFlow}
-          />
-        </React.Suspense>
-      )}
     </div>
   );
 }

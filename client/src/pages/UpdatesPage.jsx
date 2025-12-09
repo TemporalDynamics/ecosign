@@ -41,8 +41,8 @@ export default function UpdatesPage() {
             </h3>
             <ul className="space-y-2 text-gray-700 ml-4">
               <li>• Certificación .ECO sin subir documentos (Zero-Knowledge)</li>
-              <li>• Firma EcoSign ilimitada</li>
-              <li>• Firma Legal integrada</li>
+              <li>• Firma Legal ilimitada</li>
+              <li>• Firma Certificada integrada</li>
               <li>• Registro de auditoría completo</li>
               <li>• Blindaje Forense básico: hash + timestamp legal</li>
               <li>• Verificador público .ECO</li>

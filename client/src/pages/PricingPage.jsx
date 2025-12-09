@@ -19,7 +19,7 @@ function PricingPage() {
             La diferencia principal es el volumen de Firmas Legales incluidas y el nivel de herramientas de Auditoría Avanzada.
           </p>
           <p className="text-gray-700 leading-relaxed mt-2">
-            El plan BUSINESS te ofrece Firmas EcoSign (Forense) Ilimitadas, mientras que el PRO está pensado para un uso profesional de bajo volumen.
+            El plan BUSINESS te ofrece Firmas Legales (Forense) Ilimitadas, mientras que el PRO está pensado para un uso profesional de bajo volumen.
           </p>
         </>
       )
@@ -89,8 +89,8 @@ function PricingPage() {
         { text: 'Usuarios', value: '1' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '1 GB' },
-        { text: 'Firma EcoSign', value: '3 por mes' },
-        { text: 'LegalSign', value: '$2.50 USD x firma' },
+        { text: 'Firma Legal', value: '3 por mes' },
+        { text: 'Firma Certificada', value: '$2.50 USD x c/u' },
         { text: 'Blindaje Forense', value: 'Básico' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -109,8 +109,8 @@ function PricingPage() {
         { text: 'Usuarios', value: '2' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '5 GB' },
-        { text: 'Firma EcoSign', value: '100 por mes' },
-        { text: 'LegalSign', value: '20 por mes' },
+        { text: 'Firma Legal', value: '100 por mes' },
+        { text: 'Firma Certificada', value: '20 por mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -129,8 +129,8 @@ function PricingPage() {
         { text: 'Usuarios', value: '5' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '25 GB' },
-        { text: 'Firma EcoSign', value: 'ILIMITADAS' },
-        { text: 'LegalSign', value: '100 por mes' },
+        { text: 'Firma Legal', value: 'ILIMITADAS' },
+        { text: 'Firma Certificada', value: '100 por mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Limitado' }
@@ -147,8 +147,8 @@ function PricingPage() {
         { text: 'Usuarios', value: 'Ilimitados' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: 'Personalizado' },
-        { text: 'Firma EcoSign', value: 'ILIMITADAS' },
-        { text: 'LegalSign', value: 'Personalizado' },
+        { text: 'Firma Legal', value: 'ILIMITADAS' },
+        { text: 'Firma Certificada', value: 'Personalizado' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Completo' }
@@ -305,7 +305,7 @@ function PricingPage() {
             Costo de Servicios Avanzados (Firmas Legales)
           </h2>
           <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-6">
-            Cuando tu flujo requiere Firma Electrónica Avanzada o Cualificada (QES) a través de LegalSign, el costo por unidad es:
+            Cuando tu flujo requiere Firma Electrónica Avanzada o Cualificada (QES) a través de Firma Certificada, el costo por unidad es:
           </p>
           <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-8">
             <strong>Precio por Firma:</strong> Desde $0.99 USD hasta $2.50 USD por unidad, dependiendo de tu plan base.
@@ -322,7 +322,7 @@ function PricingPage() {
             Acumulación Inteligente de Firmas
           </h2>
           <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-6">
-            [SOLO aplica a Firmas Legales / LegalSign] Si las firmas legales incluidas en tu plan no son utilizadas en el mes, no se pierden. Se acumulan automáticamente en tu cuenta por 60 días, permitiéndote usarlas cuando más las necesites.
+            [SOLO aplica a Firmas Certificadas] Si las firmas legales incluidas en tu plan no son utilizadas en el mes, no se pierden. Se acumulan automáticamente en tu cuenta por 60 días, permitiéndote usarlas cuando más las necesites.
           </p>
           <div className="bg-gray-50 p-6 rounded-lg max-w-3xl mx-auto mb-6 text-center">
             <p className="font-semibold text-black mb-2">Ejemplo:</p>

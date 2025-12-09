@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import FooterPublic from '../components/FooterPublic';
+import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
 
 const RealtorsPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -69,13 +70,13 @@ const RealtorsPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            EcoSign para Profesionales de Bienes Raíces
+            Firma Legal para Profesionales de Bienes Raíces
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed font-bold">
             De la Reserva a la Escritura: Cerrá operaciones con la velocidad de un clic.
           </p>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Detené la fricción, eliminá los costos ocultos y documentá cada paso de la operación sin exponer la información más sensible. EcoSign es tu aliado para el 90% de los acuerdos previos a la firma notarial.
+            Detené la fricción, eliminá los costos ocultos y documentá cada paso de la operación sin exponer la información más sensible. Firma Legal es tu aliado para el 90% de los acuerdos previos a la firma notarial.
           </p>
         </div>
       </header>
@@ -120,7 +121,7 @@ const RealtorsPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-12 text-center">
-            EcoSign: Más que una firma, un acelerador de negocios
+            Firma Legal: Más que una firma, un acelerador de negocios
           </h2>
 
           <div className="bg-blue-50 rounded-xl p-8">
@@ -129,7 +130,7 @@ const RealtorsPage = () => {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900 min-w-[200px]">Beneficio Clave</th>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900">¿Cómo te ayuda EcoSign?</th>
+                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900">¿Cómo te ayuda la Firma Legal?</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -147,7 +148,7 @@ const RealtorsPage = () => {
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Evidencia Inmutable</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Cada documento genera un archivo .ECO blindado con Blockchain. La evidencia se valida sola, garantizando la trazabilidad ante cualquier disputa.</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Cada documento genera un archivo .ECO blindado con <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>. La evidencia se valida sola, garantizando la trazabilidad ante cualquier disputa.</td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Ideal para el Flujo Inmobiliario</td>
@@ -164,7 +165,7 @@ const RealtorsPage = () => {
       <section className="py-24 bg-gray-50">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-12 text-center">
-            EcoSign vs. La Práctica Común del Mercado
+            Firma Legal vs. La Práctica Común del Mercado
           </h2>
 
           <div className="overflow-x-auto">
@@ -173,7 +174,7 @@ const RealtorsPage = () => {
                 <tr>
                   <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-gray-200">La Práctica Común (Plataformas Estándar)</th>
                   <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900">El Riesgo y el Costo Oculto</th>
-                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">EcoSign: Nuestra Ventaja Competitiva</th>
+                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">Firma Legal: Nuestra Ventaja Competitiva</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -212,7 +213,7 @@ const RealtorsPage = () => {
 
           <div className="grid md:grid-cols-2 gap-12">
             <div className="bg-blue-50 p-8 rounded-xl">
-              <h3 className="text-2xl font-bold text-black mb-4 text-center">¿Cuándo usar EcoSign? (Volumen Diario)</h3>
+              <h3 className="text-2xl font-bold text-black mb-4 text-center">¿Cuándo usar Firma Legal? (Volumen Diario)</h3>
               <ul className="space-y-3">
                 <li className="flex items-start">
                   <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
@@ -234,7 +235,7 @@ const RealtorsPage = () => {
             </div>
 
             <div className="bg-gray-100 p-8 rounded-xl">
-              <h3 className="text-2xl font-bold text-black mb-4 text-center">¿Cuándo usar LegalSign? (Máximo Riesgo)</h3>
+              <h3 className="text-2xl font-bold text-black mb-4 text-center">¿Cuándo usar Firma Certificada? (Máximo Riesgo)</h3>
               <ul className="space-y-3">
                 <li className="flex items-start">
                   <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
@@ -246,7 +247,7 @@ const RealtorsPage = () => {
                 </li>
               </ul>
               <p className="mt-4 text-center font-semibold text-black">
-                Recordá: EcoSign te permite usar LegalSign en el mismo flujo de trabajo.
+                Recordá: La plataforma te permite usar Firma Certificada en el mismo flujo de trabajo.
               </p>
             </div>
           </div>

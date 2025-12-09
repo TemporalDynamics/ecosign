@@ -1,14 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getSupabase } from '../lib/supabaseClient';
+import { useLegalCenter } from '../contexts/LegalCenterContext';
 
 function DashboardNav({ onLogout = () => {} }) {
   const location = useLocation();
+  const { open: openLegalCenter } = useLegalCenter();
   const navItems = [
     { label: 'Inicio', to: '/dashboard/start' },
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Documentos', to: '/dashboard/documents' },
-    { label: 'Verificar', to: '/dashboard/verify' },
+    { label: 'Verificador', to: '/dashboard/verify' },
     { label: 'Planes', to: '/dashboard/pricing' }
   ];
 
@@ -46,6 +48,12 @@ function DashboardNav({ onLogout = () => {} }) {
                 {item.label}
               </Link>
             ))}
+            <button
+              onClick={() => openLegalCenter()}
+              className="bg-white text-gray-900 border border-gray-200 hover:border-gray-300 px-4 py-2 rounded-lg transition duration-200 font-medium shadow-sm"
+            >
+              Centro Legal
+            </button>
             <button
               onClick={handleLogout}
               className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition duration-200 font-medium"

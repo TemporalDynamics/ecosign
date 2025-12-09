@@ -4,6 +4,12 @@ import { Copy, CheckCircle } from 'lucide-react';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 import InhackeableTooltip from '../components/InhackeableTooltip';
+import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
+import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
+import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
+import PolygonTooltip from '../components/PolygonTooltip';
+import BitcoinTooltip from '../components/BitcoinTooltip';
+import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
 
 // Copy to Clipboard Button Component
 const CopyToClipboardButton = () => {
@@ -18,37 +24,37 @@ EcoSign no es solo una herramienta de firma. Es una nueva manera de garantizar l
 Nuestro sistema se basa en el principio Zero-Knowledge: tu archivo nunca se sube a nuestros servidores. Todo el proceso ocurre en tu dispositivo.
 
 I. Privacidad ante Todo
-Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo calcula su huella digital criptográfica (SHA-256) directamente en tu navegador.
-Ese hash es único, irreversible y suficiente para certificar la integridad del documento.
+Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo calcula su Huella Digital (Sello de Integridad) directamente en tu navegador.
+Esa Huella Digital es única, irreversible y suficiente para certificar la integridad del documento.
 
 II. El Proceso en 3 Pasos Simples
 
-1. Huella Digital (Hash)
-• Tu navegador calcula automáticamente el SHA-256 del archivo
-• EcoSign nunca ve el contenido
+1. Huella Digital
+• Tu navegador calcula automáticamente el Sello de Integridad del archivo
+• La plataforma nunca ve el contenido
 
 2. Firma y Trazabilidad
-Según el tipo de firma elegido (EcoSign o LegalSign), el sistema registra:
+Según el tipo de firma elegido (Firma Legal o Firma Certificada), el sistema registra:
 • Nombre
 • Fecha/hora
 • Dirección IP
 • Evento de firma
-Todo queda guardado en un ChainLog inmutable.
+Todo queda guardado en un registro de eventos inmutable.
 
 3. Blindaje Inhackeable (Opcional)
 Podés activar el Blindaje Inhackeable para añadir:
-• Huella SHA-256 local (tu archivo no se sube)
+• Sello de Integridad local (tu archivo no se sube)
 • Sello de Tiempo Legal (TSA independiente)
-• Anchoring en Blockchain (Polygon y Bitcoin; más redes pronto)
+• Registro Digital Inalterable (Polygon y Bitcoin; más redes pronto)
 Este proceso garantiza la fecha cierta legal y la inalterabilidad futura.
 
 III. Tipos de Firma
 
-EcoSign (Ilimitada)
+Firma Legal (Ilimitada)
 - Propósito: Trazabilidad interna
 - Características: Hoja de Auditoría, registro completo, privacidad absoluta
 
-LegalSign
+Firma Certificada
 - Propósito: Contratos externos
 - Características: Cumple eIDAS, ESIGN, UETA. Basado en SignNow
 
@@ -60,17 +66,17 @@ Cada certificación genera:
 • Un archivo .ECO con toda la evidencia forense
 
 El .ECO no contiene el documento original. Solo incluye la prueba criptográfica y la cronología de eventos.
-Cualquier auditor puede verificar tu .ECO sin depender de EcoSign.
+Cualquier auditor puede verificar tu .ECO sin depender de la plataforma.
 
 V. Transparencia Técnica
-Si querés profundizar en los detalles de hashing, blockchain o auditoría, podés copiar este texto y analizarlo con tu IA de confianza.
+Si querés profundizar en los detalles del proceso de huella digital, registro inalterable o auditoría, podés copiar este texto y analizarlo con tu IA de confianza.
 
 Algunas partes del proyecto serán abiertas para la comunidad de desarrolladores a medida que la plataforma evolucione.
 
 Para desarrolladores y usuarios técnicos:
 https://github.com/TemporalDynamics/verifysign/blob/main/COMO%20LO%20HACEMOS
 
-EcoSign - Certificación digital con privacidad total
+Firma Legal - Certificación digital con privacidad total
 ecosign.app`;
 
   const handleCopy = () => {
@@ -144,10 +150,10 @@ function HowItWorksPage() {
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
-              Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo calcula su <strong>huella digital criptográfica (SHA-256)</strong> directamente en tu navegador.
+              Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo calcula su <strong><HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> (<SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip>)</strong> directamente en tu navegador.
             </p>
             <p>
-              Ese hash es único, irreversible y suficiente para certificar la integridad del documento.
+              Esa <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> es única, irreversible y suficiente para certificar la integridad del documento.
             </p>
           </div>
         </section>
@@ -162,11 +168,11 @@ function HowItWorksPage() {
             {/* Paso 1 */}
             <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                <span className="text-gray-400">1.</span> Huella Digital (Hash)
+                <span className="text-gray-400">1.</span> <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>
               </h3>
               <ul className="space-y-2 text-lg text-gray-700">
-                <li>• Tu navegador calcula automáticamente el SHA-256 del archivo.</li>
-                <li>• EcoSign nunca ve el contenido.</li>
+                <li>• Tu navegador calcula automáticamente el <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> del archivo.</li>
+                <li>• La plataforma nunca ve el contenido.</li>
               </ul>
             </div>
 
@@ -176,7 +182,7 @@ function HowItWorksPage() {
                 <span className="text-gray-400">2.</span> Firma y Trazabilidad
               </h3>
               <p className="text-lg text-gray-700 mb-3">
-                Según el tipo de firma elegido (EcoSign o LegalSign), el sistema registra:
+                Según el tipo de firma elegido (Firma Legal o Firma Certificada), el sistema registra:
               </p>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
                 <li>• Nombre</li>
@@ -185,7 +191,7 @@ function HowItWorksPage() {
                 <li>• Evento de firma</li>
               </ul>
               <p className="text-lg text-gray-700 mt-3">
-                Todo queda guardado en un <strong>ChainLog inmutable</strong>.
+                Todo queda guardado en un <strong><RegistroDigitalInalterableTooltip>Registro de Eventos Inmutable</RegistroDigitalInalterableTooltip></strong>.
               </p>
             </div>
 
@@ -198,9 +204,9 @@ function HowItWorksPage() {
                 Podés activar el <strong>Blindaje <InhackeableTooltip className="font-semibold" /></strong> para añadir:
               </p>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
-                <li>• Huella SHA-256 local (tu archivo no se sube)</li>
-                <li>• Sello de tiempo legal (TSA independiente)</li>
-                <li>• Anchoring en blockchain (Polygon y Bitcoin hoy; más redes pronto)</li>
+                <li>• <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> local (tu archivo no se sube)</li>
+                <li>• <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> (TSA independiente)</li>
+                <li>• <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> (<PolygonTooltip>Polygon</PolygonTooltip> y <BitcoinTooltip>Bitcoin</BitcoinTooltip> hoy; más redes pronto)</li>
               </ul>
               <p className="text-lg text-gray-700 mt-3">
                 Este proceso garantiza la <strong>fecha cierta legal</strong> y la inalterabilidad futura.
@@ -216,10 +222,10 @@ function HowItWorksPage() {
           </h2>
           
           <div className="space-y-10">
-            {/* EcoSign */}
+            {/* Firma Legal */}
             <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                EcoSign <span className="text-base text-gray-500 font-normal">(Trazabilidad interna)</span>
+                Firma Legal <span className="text-base text-gray-500 font-normal">(Trazabilidad interna)</span>
               </h3>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
                 <li>• Hoja de Auditoría completa.</li>
@@ -229,10 +235,10 @@ function HowItWorksPage() {
               </ul>
             </div>
 
-            {/* LegalSign */}
+            {/* Firma Certificada */}
             <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                LegalSign <span className="text-base text-gray-500 font-normal">(Contratos externos)</span>
+                Firma Certificada <span className="text-base text-gray-500 font-normal">(Contratos externos)</span>
               </h3>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
                 <li>• Cumple con normativas eIDAS, ESIGN y UETA.</li>
@@ -243,7 +249,7 @@ function HowItWorksPage() {
           </div>
 
           <p className="text-lg text-gray-700 mt-6 font-semibold">
-            Ambas pueden blindarse con el Triple Anclaje.
+            Ambas pueden blindarse con el <InhackeableTooltip>Blindaje Inhackeable</InhackeableTooltip>.
           </p>
         </section>
 
@@ -264,7 +270,7 @@ function HowItWorksPage() {
               El <strong>.ECO</strong> no contiene el documento original. Solo incluye la prueba criptográfica y la cronología de eventos.
             </p>
             <p>
-              Cualquier auditor puede verificar tu .ECO sin depender de EcoSign.
+              Cualquier auditor puede verificar tu .ECO sin depender de la plataforma.
             </p>
           </div>
         </section>
@@ -276,7 +282,7 @@ function HowItWorksPage() {
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
-              Si querés profundizar en los detalles de hashing, blockchain o auditoría, podés <strong>copiar este texto</strong> y analizarlo con tu IA de confianza (ChatGPT, Claude, Gemini).
+              Si querés profundizar en los detalles del proceso de huella digital, registro inalterable o auditoría, podés <strong>copiar este texto</strong> y analizarlo con tu IA de confianza (ChatGPT, Claude, Gemini).
             </p>
             <p>
               Algunas partes del proyecto serán abiertas para la comunidad de desarrolladores a medida que la plataforma evolucione.

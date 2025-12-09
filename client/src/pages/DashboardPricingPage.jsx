@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, X, ChevronUp, ChevronDown } from 'lucide-react';
 import DashboardNav from '../components/DashboardNav';
 import FooterInternal from '../components/FooterInternal';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 
 function DashboardPricingPage() {
   const [openFAQ, setOpenFAQ] = useState(null);
@@ -19,7 +20,7 @@ function DashboardPricingPage() {
             La diferencia principal es el volumen de Firmas Legales incluidas y el nivel de herramientas de Auditoría Avanzada.
           </p>
           <p className="text-gray-700 leading-relaxed mt-2">
-            El plan BUSINESS te ofrece Firmas EcoSign (Forense) Ilimitadas, mientras que el PRO está pensado para un uso profesional de bajo volumen.
+            El plan BUSINESS te ofrece Firmas Legales (Forense) Ilimitadas, mientras que el PRO está pensado para un uso profesional de bajo volumen.
           </p>
         </>
       )
@@ -90,8 +91,8 @@ function DashboardPricingPage() {
         { text: 'Usuarios', value: '1' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '1 GB' },
-        { text: 'Firma EcoSign', value: '3 por mes' },
-        { text: 'LegalSign', value: '$2.50 USD x firma' },
+        { text: 'Firma Legal', value: '3 por mes' },
+        { text: 'Firma Certificada', value: '$2.50 USD x c/u' },
         { text: 'Blindaje Forense', value: 'Básico' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -110,8 +111,8 @@ function DashboardPricingPage() {
         { text: 'Usuarios', value: '2' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '5 GB' },
-        { text: 'Firma EcoSign', value: '100 por mes' },
-        { text: 'LegalSign', value: '20 por mes' },
+        { text: 'Firma Legal', value: '100 por mes' },
+        { text: 'Firma Certificada', value: '20 por mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -129,9 +130,8 @@ function DashboardPricingPage() {
       features: [
         { text: 'Usuarios', value: '5' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
-        { text: 'Almacenamiento', value: '25 GB' },
-        { text: 'Firma EcoSign', value: 'ILIMITADAS' },
-        { text: 'LegalSign', value: '100 por mes' },
+                    { text: 'Almacenamiento', value: '25 GB' },
+                    { text: 'Firma Legal', value: 'ILIMITADAS' },        { text: 'Firma Certificada', value: '100 por mes' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Limitado' }
@@ -148,8 +148,8 @@ function DashboardPricingPage() {
         { text: 'Usuarios', value: 'Ilimitados' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: 'Personalizado' },
-        { text: 'Firma EcoSign', value: 'ILIMITADAS' },
-        { text: 'LegalSign', value: 'Personalizado' },
+        { text: 'Firma Legal', value: 'ILIMITADAS' },
+        { text: 'Firma Certificada', value: 'Personalizado' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Completo' }

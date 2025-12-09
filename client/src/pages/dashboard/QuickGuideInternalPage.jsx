@@ -51,11 +51,11 @@ export default function QuickGuideInternalPage() {
                 <ul className="space-y-2 text-base text-gray-700">
                   <li className="flex items-start gap-3">
                     <span className="text-[#0A66C2] mt-1">•</span>
-                    <span><strong>EcoSign Ilimitada:</strong> ideal para flujos internos, NDAs, RRHH y aprobaciones.</span>
+                    <span><strong>Firma Legal Ilimitada:</strong> ideal para flujos internos, NDAs, RRHH y aprobaciones.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-[#0A66C2] mt-1">•</span>
-                    <span><strong>Firma Legal (LegalSign):</strong> validez jurídica completa (eIDAS/ESIGN/UETA).</span>
+                    <span><strong>Firma Certificada (pago por uso):</strong> validez jurídica completa (eIDAS/ESIGN/UETA).</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-[#0A66C2] mt-1">•</span>

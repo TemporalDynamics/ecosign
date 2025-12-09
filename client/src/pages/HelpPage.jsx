@@ -2,28 +2,35 @@ import { Link } from 'react-router-dom';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
+import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
+import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
+import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
+import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
+import InhackeableTooltip from '../components/InhackeableTooltip';
+import PolygonTooltip from '../components/PolygonTooltip';
+import BitcoinTooltip from '../components/BitcoinTooltip';
 
 const HelpPage = () => {
   const faqs = [
     {
       question: '¿Mi archivo se sube?',
-      answer: 'No. Solo procesamos su hash SHA-256.'
+      answer: <>No. Solo procesamos su <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> (<SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip>).</>
     },
     {
       question: '¿Qué es un archivo .ECO?',
-      answer: 'Es un certificado ligero que contiene la prueba matemática de integridad, fecha y autenticidad.'
+      answer: <>Es un certificado ligero que contiene la prueba de <SelloDeIntegridadTooltip>integridad</SelloDeIntegridadTooltip>, <SelloDeTiempoLegalTooltip>fecha</SelloDeTiempoLegalTooltip> y autenticidad.</>
     },
     {
       question: '¿Cómo verifico mi documento?',
       answer: 'Subís el PDF o el archivo .ECO en la sección "Verificar" y nuestro sistema confirma su validez.'
     },
     {
-      question: '¿Qué diferencia hay entre Firma EcoSign y Firma Legal?',
-      answer: 'EcoSign → firma interna con Hoja de Auditoría. SignNow → firma legal con validez eIDAS/ESIGN/UETA.'
+      question: '¿Qué diferencia hay entre Firma Legal y Firma Certificada?',
+      answer: <>Firma Legal → firma interna con Hoja de Auditoría. Firma Certificada (pago por uso) → firma con validez eIDAS/ESIGN/UETA.</>
     },
     {
-      question: '¿Puedo usar EcoSign para contratos formales?',
-      answer: 'Sí, usando la opción de Firma Legal.'
+      question: '¿Puedo usar Firma Legal para contratos formales?',
+      answer: 'Sí, usando la opción de Firma Certificada.'
     },
     {
       question: 'Perdí mi archivo .ECO, ¿qué hago?',

@@ -179,6 +179,17 @@ serve(async (req) => {
           })
           .eq('id', anchor.id)
 
+        // Update user_documents to reflect Polygon anchor confirmation
+        if (anchor.user_document_id) {
+          await supabaseAdmin
+            .from('user_documents')
+            .update({
+              has_polygon_anchor: true,
+              polygon_anchor_id: anchor.id,
+            })
+            .eq('id', anchor.user_document_id)
+        }
+
         await insertNotification(anchor, txHash, receipt.blockNumber, receipt.blockHash, confirmedAt)
 
         confirmed++

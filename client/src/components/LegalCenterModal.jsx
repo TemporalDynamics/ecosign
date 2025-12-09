@@ -13,7 +13,7 @@ import { getSupabase } from '../lib/supabaseClient';
 import InhackeableTooltip from './InhackeableTooltip';
 
 /**
- * Modal de Certificación - Diseño según Design System VerifySign
+ * Centro Legal (antes CertificationModal) - Diseño según Design System VerifySign
  *
  * Características:
  * - Sin tecnicismos visibles
@@ -21,7 +21,7 @@ import InhackeableTooltip from './InhackeableTooltip';
  * - Blindaje forense por defecto (transparente)
  * - Flujo simple: Elegir -> Firmar -> Listo
  */
-const CertificationModal = ({ isOpen, onClose }) => {
+const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   // Estados del flujo
   const [step, setStep] = useState(1); // 1: Elegir, 2: Firmar, 3: Listo
   const [file, setFile] = useState(null);
@@ -68,6 +68,16 @@ const CertificationModal = ({ isOpen, onClose }) => {
   const [signerEmail, setSignerEmail] = useState('');
   const [signerCompany, setSignerCompany] = useState('');
   const [signerJobTitle, setSignerJobTitle] = useState('');
+
+  // Ajustar configuración inicial según la acción con la que se abrió el modal
+  useEffect(() => {
+    if (!isOpen) return;
+    if (initialAction === 'workflow' || initialAction === 'sign') {
+      setMultipleSignatures(true);
+    } else if (initialAction === 'certify' || initialAction === 'blindage') {
+      setMultipleSignatures(false);
+    }
+  }, [initialAction, isOpen]);
 
   // Prellenar con datos del usuario autenticado cuando multipleSignatures = false
   useEffect(() => {
@@ -277,10 +287,10 @@ const CertificationModal = ({ isOpen, onClose }) => {
       // Obtener datos de firma si está en modo canvas (ya aplicada al PDF)
       const signatureData = signatureMode === 'canvas' ? getSignatureData() : null;
 
-      // Preparar archivo con Hoja de Auditoría (SOLO para EcoSign)
+      // Preparar archivo con Hoja de Auditoría (SOLO para Firma Legal)
       let fileToProcess = file;
 
-      // Solo agregar Hoja de Auditoría si es EcoSign (NO para SignNow)
+      // Solo agregar Hoja de Auditoría si es Firma Legal (NO para Firma Certificada)
       if (signatureEnabled && signatureType === 'ecosign') {
         // Validar nombre del firmante (obligatorio solo si se dibujó firma)
         if (signatureMode === 'canvas' && !signerName.trim()) {
@@ -384,8 +394,8 @@ const CertificationModal = ({ isOpen, onClose }) => {
           });
         }
       } else {
-        // ✅ Usar motor interno (EcoSign)
-        console.log('📝 Usando motor interno EcoSign');
+        // ✅ Usar motor interno (Firma Legal)
+        console.log('📝 Usando motor interno de Firma Legal');
         certResult = await certifyFile(fileToProcess, {
           useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
           usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
@@ -550,11 +560,11 @@ const CertificationModal = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className={`bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl transition-all duration-300 ${
         multipleSignatures ? 'max-w-5xl' : 'max-w-2xl'
-      }`}>
+          }`}>
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">
-            Certificar documento
+            Centro Legal
           </h2>
           <button
             onClick={resetAndClose}
@@ -1033,7 +1043,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                 {/* Radio buttons: Tipo de Firma (solo si signatureEnabled) */}
                 {signatureEnabled && (
                   <div className="pl-4 space-y-2 border-l-2 border-gray-200">
-                    {/* Opción 1: EcoSign */}
+                    {/* Opción 1: Firma Legal */}
                     <label className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
                       <div className="flex items-center gap-2">
                         <input
@@ -1046,7 +1056,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                         />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            Firma EcoSign {!isEnterprisePlan && <span className="text-gray-500 font-normal">({ecosignUsed}/{ecosignTotal})</span>}
+                            Firma Legal {!isEnterprisePlan && <span className="text-gray-500 font-normal">({ecosignUsed}/{ecosignTotal})</span>}
                           </p>
                           <p className="text-xs text-gray-500">
                             Recomendado para gestión interna, RRHH y aprobaciones
@@ -1060,7 +1070,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                       )}
                     </label>
 
-                    {/* Opción 2: SignNow */}
+                    {/* Opción 2: Firma Certificada */}
                     <label className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
                       <div className="flex items-center gap-2">
                         <input
@@ -1073,7 +1083,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                         />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            Firma Legal (SignNow) <span className="text-gray-500 font-normal">({signnowUsed}/{signnowTotal})</span>
+                            Firma Certificada (pago por uso) <span className="text-gray-500 font-normal">({signnowUsed}/{signnowTotal})</span>
                           </p>
                           <p className="text-xs text-gray-500">
                             Para contratos externos con validez eIDAS/UETA
@@ -1082,7 +1092,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                       </div>
                     </label>
 
-                    {/* Formulario de datos del firmante (solo para EcoSign) */}
+                    {/* Formulario de datos del firmante (solo para Firma Legal) */}
                     {signatureType === 'ecosign' && !multipleSignatures && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
                         <div className="flex items-center gap-2">
@@ -1302,7 +1312,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   borderColor = 'border-purple-200';
                   textColor = 'text-purple-800';
                 } else if (hasForensic && hasSignature && signatureType === 'ecosign') {
-                  // ALTO: EcoSign + Blindaje Forense
+                  // ALTO: Firma Legal + Blindaje Forense
                   emoji = '🔒';
                   title = 'Protección avanzada activa';
                   description = 'Tu documento tendrá trazabilidad interna + blindaje inhackeable (hash, sello legal y anchoring). Ideal para procesos internos, NDAs y aprobaciones.';
@@ -1318,7 +1328,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   borderColor = 'border-blue-200';
                   textColor = 'text-blue-800';
                 } else if (isLegalSignature) {
-                  // Solo SignNow (sin blindaje)
+                  // Solo Firma Certificada (sin blindaje)
                   emoji = '⚖️';
                   title = 'Firma legal internacional';
                   description = 'Validez legal con normas eIDAS/ESIGN/UETA. Ideal para contratos formales. Podés activar el blindaje para máxima trazabilidad.';
@@ -1326,10 +1336,10 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   borderColor = 'border-indigo-200';
                   textColor = 'text-indigo-800';
                 } else if (hasSignature && signatureType === 'ecosign') {
-                  // Solo EcoSign (sin blindaje)
+                  // Solo Firma Legal (sin blindaje)
                   emoji = 'ℹ️';
                   title = 'Firma interna sin blindaje extra';
-                  description = 'La firma será visible en el PDF y quedará registrada en EcoSign, pero sin blindaje inhackeable (hash + sello legal + anchoring). Podés activarlo si necesitás máxima trazabilidad.';
+                  description = 'La firma será visible en el PDF y quedará registrada, pero sin blindaje inhackeable (hash + sello legal + anchoring). Podés activarlo si necesitás máxima trazabilidad.';
                   bgColor = 'bg-gray-50';
                   borderColor = 'border-gray-200';
                   textColor = 'text-gray-700';
@@ -1337,7 +1347,7 @@ const CertificationModal = ({ isOpen, onClose }) => {
                   // Sin firma y sin blindaje
                   emoji = 'ℹ️';
                   title = 'Certificado básico';
-                  description = 'El documento quedará registrado en EcoSign sin firma ni blindaje forense. Activá la firma o el blindaje para mayor seguridad.';
+                  description = 'El documento quedará registrado sin firma ni blindaje forense. Activá la firma o el blindaje para mayor seguridad.';
                   bgColor = 'bg-gray-50';
                   borderColor = 'border-gray-200';
                   textColor = 'text-gray-700';
@@ -1546,4 +1556,4 @@ const CertificationModal = ({ isOpen, onClose }) => {
   );
 };
 
-export default CertificationModal;
+export default LegalCenterModal;

@@ -85,14 +85,41 @@ serve(async (req) => {
       source: metadata?.['source'] || 'client'
     };
 
+    // If userDocumentId is provided but document_id or user_email are missing,
+    // fetch them from user_documents to ensure notifications can be sent
+    let finalDocumentId = documentId
+    let finalUserEmail = userEmail
+    let finalUserId = validUserId
+
+    if (userDocumentId && (!documentId || !userEmail)) {
+      const { data: userDoc } = await client
+        .from('user_documents')
+        .select('document_id, user_id')
+        .eq('id', userDocumentId)
+        .single()
+
+      if (userDoc) {
+        finalDocumentId = finalDocumentId || userDoc.document_id
+        finalUserId = finalUserId || userDoc.user_id
+
+        // Fetch user email if needed
+        if (!userEmail && userDoc.user_id) {
+          const { data: userData } = await client.auth.admin.getUserById(userDoc.user_id)
+          if (userData?.user?.email) {
+            finalUserEmail = userData.user.email
+          }
+        }
+      }
+    }
+
     const { data, error } = await client
       .from('anchors')
       .insert({
         document_hash: documentHash,
-        document_id: documentId,
+        document_id: finalDocumentId,
         user_document_id: userDocumentId,
-        user_id: validUserId,
-        user_email: userEmail,
+        user_id: finalUserId,
+        user_email: finalUserEmail,
         anchor_type: 'opentimestamps',
         anchor_status: 'queued',
         metadata: enrichedMetadata
@@ -108,6 +135,24 @@ serve(async (req) => {
         code: error?.code,
         hint: error?.hint
       }, 500);
+    }
+
+    // Update user_documents to reflect Bitcoin anchoring has started
+    if (userDocumentId) {
+      const { error: updateError } = await client
+        .from('user_documents')
+        .update({
+          overall_status: 'pending_anchor',
+          bitcoin_status: 'pending',
+          bitcoin_anchor_id: data.id,
+          download_enabled: false, // Disable download while Bitcoin is pending
+        })
+        .eq('id', userDocumentId);
+
+      if (updateError) {
+        console.warn('Failed to update user_documents with Bitcoin anchor status:', updateError);
+        // Don't fail the request, anchor is already queued
+      }
     }
 
     return jsonResponse({

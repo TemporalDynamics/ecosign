@@ -17,7 +17,7 @@ export default function FooterPublic() {
               <li><Link to="/comparison" className="hover:text-[#0E4B8B] hover:underline transition">EcoSign y LegalSign</Link></li>
               <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
               <li><Link to="/quick-guide" className="hover:text-[#0E4B8B] hover:underline transition">Guía rápida</Link></li>
-              <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificar .ECO</Link></li>
+              <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificador</Link></li>
               <li><Link to="/login" className="hover:text-[#0E4B8B] hover:underline transition">Comenzar Gratis</Link></li>
             </ul>
           </div>

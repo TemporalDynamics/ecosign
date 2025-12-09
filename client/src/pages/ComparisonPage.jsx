@@ -70,7 +70,7 @@ const ComparisonPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            EcoSign y LegalSign
+            Firma Legal y Firma Certificada
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
             Dos niveles de protección. Una misma tecnología de verdad inmutable.
@@ -82,13 +82,13 @@ const ComparisonPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <p className="text-xl text-gray-700 mb-16 text-center leading-relaxed">
-            Elegí la agilidad de EcoSign para tu día a día o la potencia certificada de LegalSign para tus acuerdos más críticos. En ambos casos, tu evidencia te pertenece.
+            Elegí la agilidad de la Firma Legal para tu día a día o la potencia de la Firma Certificada para tus acuerdos más críticos. En ambos casos, tu evidencia te pertenece.
           </p>
 
           {/* EcoSign Section */}
           <div className="bg-gray-50 p-8 md:p-12 rounded-xl mb-20">
             <div className="text-center mb-8">
-              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">EcoSign (El "Caballo de Batalla")</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">Firma Legal (El "Caballo de Batalla")</h2>
               <p className="text-xl text-gray-700 mb-4">Ideal para: RRHH, Operaciones, Aprobaciones Internas, Acuerdos Comerciales Ágiles.</p>
               <div className="w-16 h-1 bg-black mx-auto"></div>
             </div>
@@ -111,7 +111,7 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Más que una Firma Simple:</strong> A diferencia de las firmas básicas del mercado, EcoSign captura un rastro de auditoría forense completo (IP, dispositivo, geolocalización) y protege tu documento con tecnología Blockchain.</span>
+                    <span><strong>Más que una Firma Simple:</strong> A diferencia de las firmas básicas del mercado, la Firma Legal captura un rastro de auditoría forense completo (IP, dispositivo, geolocalización) y protege tu documento con tecnología Blockchain.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -129,7 +129,7 @@ const ComparisonPage = () => {
               </div>
               <div className="flex items-center justify-center">
                 <div className="bg-white p-6 rounded-lg border-2 border-gray-200 text-center max-w-sm">
-                  <div className="text-4xl font-bold text-black mb-2">EcoSign</div>
+                  <div className="text-4xl font-bold text-black mb-2">Firma Legal</div>
                   <div className="text-gray-700 mb-4">Firma Electrónica Avanzada Reforzada</div>
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-700">Documentos privados • Evidencia verificable • Sin límites</p>
@@ -142,7 +142,7 @@ const ComparisonPage = () => {
           {/* LegalSign Section */}
           <div className="bg-blue-50 p-8 md:p-12 rounded-xl">
             <div className="text-center mb-8">
-              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">LegalSign (El "Tanque Legal")</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">Firma Certificada (El "Tanque Legal")</h2>
               <p className="text-xl text-gray-700 mb-4">Ideal para: Contratos de Alto Valor, Disputas Legales Potenciales, Cumplimiento Normativo Estricto.</p>
               <div className="w-16 h-1 bg-black mx-auto"></div>
             </div>
@@ -183,7 +183,7 @@ const ComparisonPage = () => {
               </div>
               <div className="flex items-center justify-center">
                 <div className="bg-white p-6 rounded-lg border-2 border-gray-200 text-center max-w-sm">
-                  <div className="text-4xl font-bold text-black mb-2">LegalSign</div>
+                  <div className="text-4xl font-bold text-black mb-2">Firma Certificada</div>
                   <div className="text-gray-700 mb-4">Firma Certificada + Blindaje Forense</div>
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-700">Validación global • Presunción legal • Máxima protección</p>
@@ -200,7 +200,7 @@ const ComparisonPage = () => {
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-bold text-black mb-6 text-center">El Ranking de Seguridad Legal: No todas las firmas son iguales.</h2>
           <p className="text-lg text-gray-700 mb-12 text-center max-w-4xl mx-auto">
-            Comprendé qué requisitos técnicos y legales son necesarios para garantizar el no repudio. Así es cómo nuestras firmas EcoSign y LegalSign superan el estándar de la industria.
+            Comprendé qué requisitos técnicos y legales son necesarios para garantizar el no repudio. Así es cómo nuestras Firma Legal y Firma Certificada superan el estándar de la industria.
           </p>
 
           <div className="overflow-x-auto">
@@ -210,8 +210,8 @@ const ComparisonPage = () => {
                   <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900 min-w-[220px]">Requisito Legal Clave (Prueba en Juicio)</th>
                   <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-gray-50">Firma Simple (SES)</th>
                   <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-gray-50">Firma Avanzada (AES Estándar)</th>
-                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">EcoSign (Firma Avanzada Blindada)</th>
-                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">LegalSign (Firma Certificada + Blindaje)</th>
+                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">Firma Legal (Avanzada y Blindada)</th>
+                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">Firma Certificada (Pago por uso)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -261,8 +261,8 @@ const ComparisonPage = () => {
                   <td className="py-4 px-4 text-sm font-medium text-gray-900">Plataformas Típicas</td>
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">Free-Tiers genéricos</td>
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">DocuSign, Adobe Sign, etc.</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">EcoSign</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">LegalSign</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Firma Legal</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Firma Certificada</td>
                 </tr>
                 <tr>
                   <td className="py-4 px-4 text-sm font-medium text-gray-900">Ideal para...</td>
@@ -278,15 +278,15 @@ const ComparisonPage = () => {
           <div className="mt-12 bg-blue-50 p-6 rounded-xl">
             <h3 className="text-xl font-bold text-black mb-3">Máxima Transparencia</h3>
             <p className="text-gray-700 mb-3">
-              <strong>El Compromiso con la Privacidad: La Diferencia entre EcoSign y LegalSign</strong>
+              <strong>El Compromiso con la Privacidad: La Diferencia entre Ambas Firmas</strong>
             </p>
             <p className="text-gray-700 mb-3">
               Somos la única plataforma que te ofrece dos caminos de máxima seguridad, manteniendo siempre la transparencia sobre el manejo de tus archivos:
             </p>
             <div className="mt-4">
-              <h4 className="font-semibold text-black mb-2">🛡️ EcoSign: Tu documento es solo tuyo (Zero Knowledge)</h4>
+              <h4 className="font-semibold text-black mb-2">🛡️ Firma Legal: Tu documento es solo tuyo (Zero Knowledge)</h4>
               <p className="text-gray-700 mb-2">
-                <strong>Privacidad:</strong> Absoluta. Cuando firmas con EcoSign, tu documento jamás se carga a nuestros servidores.
+                <strong>Privacidad:</strong> Absoluta. Cuando firmas con la Firma Legal, tu documento jamás se carga a nuestros servidores.
               </p>
               <p className="text-gray-700 mb-2">
                 El proceso criptográfico que genera el Hash (la huella digital inmutable) se realiza completamente en tu dispositivo.
@@ -296,7 +296,7 @@ const ComparisonPage = () => {
               </p>
             </div>
             <div className="mt-4">
-              <h4 className="font-semibold text-black mb-2">⚖️ LegalSign: Certificación Oficial Auditada</h4>
+              <h4 className="font-semibold text-black mb-2">⚖️ Firma Certificada: Auditoría Externa</h4>
               <p className="text-gray-700 mb-2">
                 <strong>Privacidad:</strong> Procesamiento Externo Necesario. Para darte una firma de nivel Certificado/QES que te brinde la máxima validez en la mayoría de las jurisdicciones, el documento debe ser procesado por nuestro proveedor certificado (SignNow).
               </p>

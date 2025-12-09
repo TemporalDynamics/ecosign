@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import FooterPublic from '../components/FooterPublic';
+import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
+import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
+import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
 
 const BusinessPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -69,13 +72,13 @@ const BusinessPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            EcoSign para Empresas
+            Firma Legal para Empresas
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed font-bold">
             Firma, Certificación y Control Corporativo sin Límites ni Exposición.
           </p>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Detené los sobrecostos y la fricción operacional. EcoSign te permite certificar el 95% de tus documentos internos y B2B con una seguridad forense superior y un modelo de costo predecible.
+            Detené los sobrecostos y la fricción operacional. Firma Legal te permite certificar el 95% de tus documentos internos y B2B con una seguridad forense superior y un modelo de costo predecible.
           </p>
         </div>
       </header>
@@ -115,7 +118,7 @@ const BusinessPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-12 text-center">
-            EcoSign: Control, Privacidad y Eficiencia Inigualable
+            Firma Legal: Control, Privacidad y Eficiencia Inigualable
           </h2>
 
           <div className="bg-blue-50 rounded-xl p-8">
@@ -142,11 +145,11 @@ const BusinessPage = () => {
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Certificación Instantánea</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Procesos internos (órdenes, autorizaciones) validados y sellados con Hash y Sello de Tiempo en segundos, no días.</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Procesos internos (órdenes, autorizaciones) validados y sellados con <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> y <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> en segundos, no días.</td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Menos Riesgo, Más Control</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Blindamos tus documentos con tecnología Blockchain y te damos la certeza de que tu evidencia es inmutable y tuya.</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Blindamos tus documentos con tecnología <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> y te damos la certeza de que tu evidencia es inmutable y tuya.</td>
                   </tr>
                 </tbody>
               </table>
@@ -239,16 +242,16 @@ const BusinessPage = () => {
 
           <div className="bg-white p-8 rounded-xl shadow-sm">
             <p className="text-xl text-gray-700 mb-4 text-center">
-              <strong>EcoSign</strong> es ideal para la inmensa mayoría de documentos donde necesitás eficiencia, costo fijo y privacidad.
+              <strong>Firma Legal</strong> es ideal para la inmensa mayoría de documentos donde necesitás eficiencia, costo fijo y privacidad.
             </p>
             <p className="text-xl text-gray-700 mb-6 text-center">
-              <strong>¿Cuándo usar LegalSign (API SignNow)?</strong>
+              <strong>¿Cuándo usar Firma Certificada (pago por uso)?</strong>
             </p>
             <p className="text-xl text-gray-700 mb-4 text-center">
               Para aquellos procesos críticos que legalmente requieren una firma legal corporativa certificada por un proveedor externo, como acuerdos de alta exposición o licitaciones que exigen ese nivel.
             </p>
             <p className="text-xl font-semibold text-black text-center">
-              EcoSign te ofrece ambas opciones en el mismo flujo de trabajo, para que nunca tengas que cambiar de herramienta.
+              Firma Legal te ofrece ambas opciones en el mismo flujo de trabajo, para que nunca tengas que cambiar de herramienta.
             </p>
           </div>
         </div>

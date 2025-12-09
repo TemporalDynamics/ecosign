@@ -799,8 +799,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                       </h4>
                     </div>
                     <p className="mb-3 text-sm text-yellow-700">
-                      El sistema de firma legal (SignNow) está teniendo problemas temporales.
-                      Podés reintentar o continuar con la firma digital de EcoSign.
+                      El sistema de firma certificada está teniendo problemas temporales.
+                      Podés reintentar o continuar con la Firma Legal.
                     </p>
                     <div className="flex gap-2">
                       <button
@@ -813,7 +813,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                         onClick={handleContinueWithoutSignNow}
                         className="rounded-lg border border-yellow-600 px-4 py-2 text-yellow-700 hover:bg-yellow-50"
                       >
-                        Continuar con EcoSign
+                        Continuar con Firma Legal
                       </button>
                     </div>
                   </div>

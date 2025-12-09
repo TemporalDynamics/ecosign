@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import FooterPublic from '../components/FooterPublic';
+import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
+import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
 
 const LawyersPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -69,13 +71,13 @@ const LawyersPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            EcoSign para Abogados y Estudios Jurídicos
+            Firma Legal para Abogados y Estudios Jurídicos
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed font-bold">
             La Evidencia Irrefutable. La Firma Electrónica diseñada para Litigio.
           </p>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Dejá de depender de archivos volátiles y plataformas que exponen la confidencialidad de tu cliente. EcoSign te da la soberanía total sobre la prueba, con un blindaje forense que resiste la impugnación.
+            Dejá de depender de archivos volátiles y plataformas que exponen la confidencialidad de tu cliente. Firma Legal te da la soberanía total sobre la prueba, con un blindaje forense que resiste la impugnación.
           </p>
         </div>
       </header>
@@ -120,7 +122,7 @@ const LawyersPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-12 text-center">
-            EcoSign: Tu Blindaje Forense y Procesal
+            Firma Legal: Tu Blindaje Forense y Procesal
           </h2>
 
           <div className="bg-blue-50 rounded-xl p-8">
@@ -139,7 +141,7 @@ const LawyersPage = () => {
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Evidencia Inmutable (.ECO)</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Toda la historia del documento, cronología y firmas, encapsulada en un solo archivo verificable para siempre (Hash + Blockchain).</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Toda la historia del documento, cronología y firmas, encapsulada en un solo archivo verificable para siempre (<HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>).</td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Verificación Independiente</td>
@@ -245,11 +247,11 @@ const LawyersPage = () => {
             <h3 className="text-2xl font-bold text-black mb-6 text-center">La Doble Opción</h3>
             <div className="grid md:grid-cols-2 gap-8">
               <div>
-                <h4 className="text-xl font-bold text-black mb-3">EcoSign:</h4>
+                <h4 className="text-xl font-bold text-black mb-3">Firma Legal:</h4>
                 <p className="text-gray-700">Para la mayoría de tus documentos privados y la máxima confidencialidad.</p>
               </div>
               <div>
-                <h4 className="text-xl font-bold text-black mb-3">LegalSign (Vía SignNow):</h4>
+                <h4 className="text-xl font-bold text-black mb-3">Firma Certificada (pago por uso):</h4>
                 <p className="text-gray-700">Para procesos que exigen la certificación de un Proveedor Acreditado, dándote la presunción de validez legal cuando más lo necesitás.</p>
               </div>
             </div>

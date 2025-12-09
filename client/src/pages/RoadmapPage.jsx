@@ -38,8 +38,8 @@ export default function RoadmapPage() {
             <h3 className="font-semibold text-black mb-3">Incluye:</h3>
             <ul className="space-y-2 text-gray-700">
               <li>• Certificación .ECO con privacidad total (Zero-Knowledge)</li>
-              <li>• Firma EcoSign ilimitada</li>
-              <li>• Firma Legal integrada</li>
+              <li>• Firma Legal ilimitada</li>
+              <li>• Firma Certificada integrada</li>
               <li>• Blindaje <InhackeableTooltip className="font-semibold" /> básico (SHA-256 + sello legal + anchoring)</li>
               <li>• Verificador público .ECO</li>
               <li>• Dashboard funcional</li>

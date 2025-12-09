@@ -1,6 +1,6 @@
 // client/src/pages/DashboardVerifyPage.jsx
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Info } from 'lucide-react';
 import VerificationComponent from '../components/VerificationComponent';
 import DashboardNav from '../components/DashboardNav';
@@ -19,33 +19,39 @@ function DashboardVerifyPage() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900">Verificación de .ECO</h2>
-            <p className="text-gray-600 mt-2">
-              Verifica la autenticidad e integridad de tus certificados .ECO
-            </p>
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-4xl font-bold text-gray-900">Verificador</h1>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center gap-2 text-gray-600 hover:text-black font-medium"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Volver
+            </button>
           </div>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-gray-600 hover:text-black font-medium"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Volver al dashboard
-          </button>
+          <p className="text-lg text-gray-700 mb-2">
+            Comprobá la autenticidad de tu documento y asegurate de que no fue alterado.
+          </p>
+          <p className="text-gray-600">
+            Toda la verificación ocurre en tu ordenador: tus archivos nunca se suben ni se almacenan.
+          </p>
         </div>
 
-        {/* Transparency Notice */}
-        <div className="bg-gray-100 border border-black200 rounded-xl p-6 mb-8">
+        {/* Verificación Independiente */}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8">
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">
-              <Info className="w-6 h-6 text-black" strokeWidth={2.5} />
+              <Info className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
             </div>
             <div>
-              <h3 className="text-gray-900 font-semibold mb-2">Verificación Independiente</h3>
-              <p className="text-gray-700 text-sm">
-                Esta herramienta valida la firma electrónica, huella digital y sello de tiempo del documento.
-                La verificación se realiza localmente en tu navegador - el archivo nunca se sube a nuestros servidores.
+              <h2 className="text-xl font-bold text-gray-900 mb-3">Verificación Independiente</h2>
+              <p className="text-gray-700 mb-4">
+                Esta herramienta analiza tu documento y su certificado asociado para confirmar su autenticidad, su integridad y su validez legal.
+                La verificación se realiza de forma local, sin exponer tus archivos.
+              </p>
+              <p className="text-sm text-gray-900 font-semibold">
+                EcoSign nunca ve tu documento. Nunca se sube. Todo ocurre en tu navegador.
               </p>
             </div>
           </div>
@@ -53,6 +59,75 @@ function DashboardVerifyPage() {
 
         {/* Verification Component */}
         <VerificationComponent />
+
+        {/* What this tool validates */}
+        <div className="mt-12 bg-white border border-gray-200 rounded-xl p-8">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">¿Qué valida esta herramienta?</h3>
+          <ul className="space-y-2 text-gray-700">
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Que el documento no haya sido modificado</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Que la evidencia coincida con el contenido del archivo</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Autenticidad de la Firma Legal</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Huella digital del documento</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Sello de integridad y fecha original</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Estructura del certificado .ECO</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Correspondencia entre PDF y certificado</span>
+            </li>
+          </ul>
+        </div>
+
+        {/* Advanced Features Notice */}
+        <div className="mt-8 bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-8">
+          <h3 className="text-xl font-bold text-gray-900 mb-3">
+            Funciones avanzadas (solo planes Business/Enterprise)
+          </h3>
+          <p className="text-gray-700 mb-4">
+            Los planes superiores incluyen capacidades forenses avanzadas:
+          </p>
+          <ul className="space-y-2 text-gray-700 mb-6">
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Reconstrucción de la cadena de custodia</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Análisis de eventos de riesgo</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Validación extendida de sellos y anclajes</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Reportes listos para auditoría o litigio (PDF/JSON/XML)</span>
+            </li>
+          </ul>
+          <Link
+            to="/dashboard/pricing"
+            className="inline-block bg-gray-900 hover:bg-gray-800 text-white font-semibold px-6 py-3 rounded-lg transition"
+          >
+            Actualizar plan
+          </Link>
+        </div>
       </main>
 
       <FooterInternal />

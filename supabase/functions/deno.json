@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true
+  },
+  "imports": {
+    "https://deno.land/std@0.182.0/": "https://deno.land/std@0.182.0/",
+    "https://esm.sh/@supabase/supabase-js@2.42.0": "https://esm.sh/@supabase/supabase-js@2.42.0",
+    "npm:ethers@6.9.0": "npm:ethers@6.9.0"
+  }
+}

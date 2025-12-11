@@ -14,7 +14,7 @@ export default function FooterPublic() {
             <h4 className="font-semibold text-white mb-3">Producto</h4>
             <ul className="space-y-2 text-sm text-gray-400">
               <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</Link></li>
-              <li><Link to="/comparison" className="hover:text-[#0E4B8B] hover:underline transition">EcoSign y LegalSign</Link></li>
+              <li><Link to="/comparison" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal y Firma Certificada</Link></li>
               <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
               <li><Link to="/quick-guide" className="hover:text-[#0E4B8B] hover:underline transition">Guía rápida</Link></li>
               <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificador</Link></li>
@@ -26,9 +26,9 @@ export default function FooterPublic() {
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Recursos</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link to="/realtors" className="hover:text-[#0E4B8B] hover:underline transition">EcoSign para Inmuebles</Link></li>
-              <li><Link to="/abogados" className="hover:text-[#0E4B8B] hover:underline transition">EcoSign para Abogados</Link></li>
-              <li><Link to="/business" className="hover:text-[#0E4B8B] hover:underline transition">EcoSign para Empresas</Link></li>
+              <li><Link to="/realtors" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal para Inmuebles</Link></li>
+              <li><Link to="/abogados" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal para Abogados</Link></li>
+              <li><Link to="/business" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal para Empresas</Link></li>
               <li><Link to="/documentation" className="hover:text-[#0E4B8B] hover:underline transition">Documentación técnica</Link></li>
               <li><Link to="/faq" className="hover:text-[#0E4B8B] hover:underline transition">Preguntas frecuentes</Link></li>
               <li><Link to="/use-cases" className="hover:text-[#0E4B8B] hover:underline transition">Casos de uso</Link></li>
@@ -39,36 +39,12 @@ export default function FooterPublic() {
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Videos</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li>
-                <button onClick={() => playVideo('anatomia-firma')} className="hover:text-[#0E4B8B] hover:underline transition text-left w-full">
-                  Anatomía de una Firma
-                </button>
-              </li>
-              <li>
-                <button onClick={() => playVideo('verdad-verificable')} className="hover:text-[#0E4B8B] hover:underline transition text-left w-full">
-                  Verdad Verificable
-                </button>
-              </li>
-              <li>
-                <button onClick={() => playVideo('conocimiento-cero')} className="hover:text-[#0E4B8B] hover:underline transition text-left w-full">
-                  Conocimiento Cero
-                </button>
-              </li>
-              <li>
-                <button onClick={() => playVideo('the-true-cost')} className="hover:text-[#0E4B8B] hover:underline transition text-left w-full">
-                  The True Cost
-                </button>
-              </li>
-              <li>
-                <button onClick={() => playVideo('forensic-integrity')} className="hover:text-[#0E4B8B] hover:underline transition text-left w-full">
-                  Forensic Integrity
-                </button>
-              </li>
-              <li>
-                <button onClick={() => playVideo('you-dont-need-to-trust')} className="hover:text-[#0E4B8B] hover:underline transition text-left w-full">
-                  You Don't Need to Trust
-                </button>
-              </li>
+              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/Anatomiafirma.mp4', 'Anatomía de una Firma')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Anatomía de una Firma</button></li>
+              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/Verificable.mp4', 'Verdad Verificable')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Verdad Verificable</button></li>
+              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/ConocimientoCero.mp4', 'Conocimiento Cero')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Conocimiento Cero</button></li>
+              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/EcoSign%20TrueCost.mp4', 'The True Cost')} className="hover:text-[#0E4B8B] hover:underline transition text-left">The True Cost</button></li>
+              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/Forensic_Integrity.mp4', 'Forensic Integrity')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Forensic Integrity</button></li>
+              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/Trust%20no%20need.mp4', "You Don't Need to Trust")} className="hover:text-[#0E4B8B] hover:underline transition text-left">You Don't Need to Trust</button></li>
             </ul>
           </div>
 

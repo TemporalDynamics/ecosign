@@ -38,7 +38,7 @@ export default function FooterPublic() {
           {/* Columna 3: Videos */}
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Videos</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
+            <ul className="space-y-1 text-sm text-gray-400">
               <li><button onClick={() => playVideo('anatomia-firma')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Anatomía de una Firma</button></li>
               <li><button onClick={() => playVideo('verdad-verificable')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Verdad Verificable</button></li>
               <li><button onClick={() => playVideo('conocimiento-cero')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Conocimiento Cero</button></li>

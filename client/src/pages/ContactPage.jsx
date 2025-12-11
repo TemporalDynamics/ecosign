@@ -48,8 +48,8 @@ const ContactPage = () => {
             <div className="space-y-4 text-gray-700">
               <p>
                 <strong>Email:</strong>{' '}
-                <a href="mailto:soporte@ecosign.app" className="text-[#0A66C2] hover:underline">
-                  soporte@ecosign.app
+                <a href="mailto:soporte@email.ecosign.app" className="text-[#0A66C2] hover:underline">
+                  soporte@email.ecosign.app
                 </a>
               </p>
               <p>

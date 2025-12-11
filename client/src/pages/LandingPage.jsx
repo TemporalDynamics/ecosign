@@ -312,7 +312,7 @@ const LandingPage = () => {
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 1 GB almacenamiento</li>
                 <li>✓ 3 Firmas Legales/mes</li>
-                <li>✓ Firma Certificada: $2.50 x c/u</li>
+                <li>✓ Firma Certificada (por uso)</li>
               </ul>
             </div>
 
@@ -333,7 +333,7 @@ const LandingPage = () => {
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 5 GB almacenamiento</li>
                 <li>✓ 100 Firmas Legales/mes</li>
-                <li>✓ 20 Firmas Certificadas/mes</li>
+                <li>✓ Firma Certificada (por uso)</li>
               </ul>
               <div className="text-center pt-4 mt-auto">
                 <div className="inline-block bg-[#0E4B8B]/[0.12] text-[#0E4B8B] font-medium text-xs px-3 py-1 rounded-md">
@@ -356,7 +356,7 @@ const LandingPage = () => {
                 <li>✓ Firmantes ilimitados</li>
                 <li>✓ 25 GB almacenamiento</li>
                 <li>✓ Firmas Legales ILIMITADAS</li>
-                <li>✓ 100 Firmas Certificadas/mes</li>
+                <li>✓ Firma Certificada (por uso)</li>
                 <li>✓ Panel de Auditoría</li>
                 <li>✓ API Limitado</li>
               </ul>

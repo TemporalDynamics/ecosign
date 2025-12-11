@@ -5,7 +5,14 @@ const LegalCenterContext = createContext(null);
 export function useLegalCenter() {
   const ctx = useContext(LegalCenterContext);
   if (!ctx) {
-    throw new Error('useLegalCenter must be used within a LegalCenterProvider');
+    // Return no-op functions instead of throwing error
+    // This allows components outside the provider to safely call the hook
+    return {
+      isOpen: false,
+      open: () => console.warn('LegalCenter called outside provider'),
+      close: () => {},
+      initialAction: null,
+    };
   }
   return ctx;
 }

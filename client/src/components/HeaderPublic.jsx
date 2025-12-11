@@ -23,6 +23,9 @@ const HeaderPublic = () => {
             <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200 flex items-center h-10">
               Precios
             </Link>
+            <Link to="/news" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200 flex items-center h-10">
+              News
+            </Link>
             <Link to="/login" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200 flex items-center h-10">
               Iniciar Sesión
             </Link>

@@ -12,7 +12,7 @@ export default function FooterPublic() {
           {/* Columna 1: Producto */}
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Producto</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
+            <ul className="space-y-1 text-sm text-gray-400">
               <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</Link></li>
               <li><Link to="/comparison" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal y Firma Certificada</Link></li>
               <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
@@ -25,7 +25,7 @@ export default function FooterPublic() {
           {/* Columna 2: Recursos */}
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Recursos</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
+            <ul className="space-y-1 text-sm text-gray-400">
               <li><Link to="/realtors" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal para Inmuebles</Link></li>
               <li><Link to="/abogados" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal para Abogados</Link></li>
               <li><Link to="/business" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal para Empresas</Link></li>
@@ -39,19 +39,19 @@ export default function FooterPublic() {
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Videos</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/Anatomiafirma.mp4', 'Anatomía de una Firma')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Anatomía de una Firma</button></li>
-              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/Verificable.mp4', 'Verdad Verificable')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Verdad Verificable</button></li>
-              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/ConocimientoCero.mp4', 'Conocimiento Cero')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Conocimiento Cero</button></li>
-              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/EcoSign%20TrueCost.mp4', 'The True Cost')} className="hover:text-[#0E4B8B] hover:underline transition text-left">The True Cost</button></li>
-              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/Forensic_Integrity.mp4', 'Forensic Integrity')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Forensic Integrity</button></li>
-              <li><button onClick={() => playVideo('https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/Trust%20no%20need.mp4', "You Don't Need to Trust")} className="hover:text-[#0E4B8B] hover:underline transition text-left">You Don't Need to Trust</button></li>
+              <li><button onClick={() => playVideo('anatomia-firma')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Anatomía de una Firma</button></li>
+              <li><button onClick={() => playVideo('verdad-verificable')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Verdad Verificable</button></li>
+              <li><button onClick={() => playVideo('conocimiento-cero')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Conocimiento Cero</button></li>
+              <li><button onClick={() => playVideo('the-true-cost')} className="hover:text-[#0E4B8B] hover:underline transition text-left">The True Cost</button></li>
+              <li><button onClick={() => playVideo('forensic-integrity')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Forensic Integrity</button></li>
+              <li><button onClick={() => playVideo('you-dont-need-to-trust')} className="hover:text-[#0E4B8B] hover:underline transition text-left">You Don't Need to Trust</button></li>
             </ul>
           </div>
 
           {/* Columna 4: Legal */}
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Legal</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
+            <ul className="space-y-1 text-sm text-gray-400">
               <li><Link to="/terms" className="hover:text-[#0E4B8B] hover:underline transition">Términos de servicio</Link></li>
               <li><Link to="/privacy" className="hover:text-[#0E4B8B] hover:underline transition">Política de privacidad</Link></li>
               <li><Link to="/security" className="hover:text-[#0E4B8B] hover:underline transition">Seguridad</Link></li>
@@ -61,7 +61,7 @@ export default function FooterPublic() {
           {/* Columna 5: Soporte */}
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Soporte</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
+            <ul className="space-y-1 text-sm text-gray-400">
               <li><Link to="/help" className="hover:text-[#0E4B8B] hover:underline transition">Centro de ayuda</Link></li>
               <li><Link to="/contact" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</Link></li>
               <li><Link to="/status" className="hover:text-[#0E4B8B] hover:underline transition">Estado del servicio</Link></li>

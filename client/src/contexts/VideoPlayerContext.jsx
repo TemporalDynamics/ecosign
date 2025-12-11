@@ -3,31 +3,31 @@ import React, { createContext, useContext, useState } from 'react';
 const VideoPlayerContext = createContext();
 
 // Biblioteca de videos (ahora servidos desde Supabase Storage)
-const SUPABASE_STORAGE_URL = 'https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/public-videos';
+const SUPABASE_STORAGE_URL = 'https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos';
 
 export const videoLibrary = {
   'you-dont-need-to-trust': {
-    src: `${SUPABASE_STORAGE_URL}/You_Don_t_Need_to_Trust.mp4`,
+    src: `${SUPABASE_STORAGE_URL}/Trust%20no%20need.mp4`,
     title: 'You Don\'t Need to Trust',
     description: 'Comprende por qué EcoSign no requiere confianza ciega'
   },
   'anatomia-firma': {
-    src: `${SUPABASE_STORAGE_URL}/EcoSign_Anatomia_de_una_firma.mp4`,
+    src: `${SUPABASE_STORAGE_URL}/Anatomiafirma.mp4`,
     title: 'Anatomía de una Firma',
     description: 'Descubre cómo funciona cada componente de una firma digital'
   },
   'verdad-verificable': {
-    src: `${SUPABASE_STORAGE_URL}/EcoSign_Verdad_Verificable.mp4`,
+    src: `${SUPABASE_STORAGE_URL}/Verificable.mp4`,
     title: 'Verdad Verificable',
     description: 'Aprende sobre la verificación matemática de documentos'
   },
   'conocimiento-cero': {
-    src: `${SUPABASE_STORAGE_URL}/EcoSign_Conocimiento_Cero.mp4`,
+    src: `${SUPABASE_STORAGE_URL}/ConocimientoCero.mp4`,
     title: 'Conocimiento Cero',
     description: 'Explora cómo protegemos tu privacidad sin ver tus documentos'
   },
   'the-true-cost': {
-    src: `${SUPABASE_STORAGE_URL}/EcoSign_The_True_Cost.mp4`,
+    src: `${SUPABASE_STORAGE_URL}/EcoSign%20TrueCost.mp4`,
     title: 'The True Cost',
     description: 'El verdadero costo de las soluciones tradicionales'
   },

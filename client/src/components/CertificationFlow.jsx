@@ -146,7 +146,7 @@ const CertificationFlow = ({ onClose }) => {
 
       // Certify and download (downloads .ECO file)
       const result = await certifyAndDownload(targetFile, {
-        userEmail: user?.email || 'user@verifysign.pro',
+        userEmail: user?.email || 'user@email.ecosign.app',
         userId: user?.id || 'user-' + Date.now(),
         useLegalTimestamp,
         useBitcoinAnchor

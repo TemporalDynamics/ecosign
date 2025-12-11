@@ -128,10 +128,10 @@ export default function RoadmapPage() {
             Si sos tester privado, envianos tus sugerencias a:
           </p>
           <a 
-            href="mailto:soporte@ecosign.app"
+            href="mailto:soporte@email.ecosign.app"
             className="inline-block mt-3 text-blue-600 hover:text-blue-700 font-medium"
           >
-            📧 soporte@ecosign.app
+            📧 soporte@email.ecosign.app
           </a>
         </section>
       </main>

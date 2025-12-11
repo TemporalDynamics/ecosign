@@ -73,8 +73,8 @@ const PrivacyPage = () => {
                 </h2>
                 <p>
                   Podés solicitar la eliminación total de tu perfil enviando un correo a{' '}
-                  <a href="mailto:soporte@ecosign.app" className="text-black font-semibold hover:underline">
-                    soporte@ecosign.app
+                  <a href="mailto:soporte@email.ecosign.app" className="text-black font-semibold hover:underline">
+                    soporte@email.ecosign.app
                   </a>
                   .
                 </p>

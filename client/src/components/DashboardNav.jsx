@@ -36,12 +36,12 @@ function DashboardNav({ onLogout = () => {} }) {
           <Link to="/dashboard/start" className="flex items-center space-x-3">
             <span className="text-2xl font-extrabold text-gray-900">EcoSign</span>
           </Link>
-          <nav className="hidden md:flex items-center space-x-6">
+          <nav className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                className={`transition duration-200 font-medium ${
+                className={`transition duration-200 font-medium flex items-center h-10 ${
                   location.pathname === item.to ? 'text-gray-900 font-semibold' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -50,7 +50,7 @@ function DashboardNav({ onLogout = () => {} }) {
             ))}
             <button
               onClick={() => openLegalCenter()}
-              className="bg-white text-gray-900 border border-gray-200 hover:border-gray-300 px-4 py-2 rounded-lg transition duration-200 font-medium shadow-sm"
+              className="transition duration-200 font-medium text-gray-600 hover:text-gray-900 flex items-center h-10"
             >
               Centro Legal
             </button>

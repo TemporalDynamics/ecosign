@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Maximize2, Minimize2, Move } from 'lucide-react';
 
 function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }) {
   const sizes = {
@@ -10,8 +10,8 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
 
   const [isDragging, setIsDragging] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [size, setSize] = useState('medium');
-  const [position, setPosition] = useState({ x: window.innerWidth - sizes.medium.width - 20, y: window.innerHeight - 320 });
+  const [size, setSize] = useState('small');
+  const [position, setPosition] = useState({ x: window.innerWidth - sizes.small.width - 20, y: window.innerHeight - 240 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -118,7 +118,7 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
               className="text-gray-400 hover:text-white transition p-1 hover:bg-gray-800 rounded"
               title={`Tamaño: ${sizes[size].label}`}
             >
-              <Maximize className="w-4 h-4" />
+              <Move className="w-4 h-4" />
             </button>
           )}
           <button

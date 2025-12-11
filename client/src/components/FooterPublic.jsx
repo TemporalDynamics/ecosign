@@ -39,12 +39,12 @@ export default function FooterPublic() {
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">🎬 Videos</h4>
             <ul className="space-y-1 text-sm text-gray-400">
-              <li><button onClick={() => playVideo('anatomia-firma')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Anatomía de una Firma</button></li>
-              <li><button onClick={() => playVideo('verdad-verificable')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Verdad Verificable</button></li>
-              <li><button onClick={() => playVideo('conocimiento-cero')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Conocimiento Cero</button></li>
-              <li><button onClick={() => playVideo('the-true-cost')} className="hover:text-[#0E4B8B] hover:underline transition text-left">The True Cost</button></li>
-              <li><button onClick={() => playVideo('forensic-integrity')} className="hover:text-[#0E4B8B] hover:underline transition text-left">Forensic Integrity</button></li>
-              <li><button onClick={() => playVideo('you-dont-need-to-trust')} className="hover:text-[#0E4B8B] hover:underline transition text-left">You Don't Need to Trust</button></li>
+              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('anatomia-firma'); }} className="hover:text-[#0E4B8B] hover:underline transition">Anatomía de una Firma</a></li>
+              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('verdad-verificable'); }} className="hover:text-[#0E4B8B] hover:underline transition">Verdad Verificable</a></li>
+              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('conocimiento-cero'); }} className="hover:text-[#0E4B8B] hover:underline transition">Conocimiento Cero</a></li>
+              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('the-true-cost'); }} className="hover:text-[#0E4B8B] hover:underline transition">The True Cost</a></li>
+              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('forensic-integrity'); }} className="hover:text-[#0E4B8B] hover:underline transition">Forensic Integrity</a></li>
+              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('you-dont-need-to-trust'); }} className="hover:text-[#0E4B8B] hover:underline transition">You Don't Need to Trust</a></li>
             </ul>
           </div>
 

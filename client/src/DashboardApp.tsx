@@ -13,6 +13,8 @@ import ErrorBoundary from './components/ErrorBoundary'
 import FloatingVideoPlayer from './components/FloatingVideoPlayer'
 import ScrollToTop from './components/ScrollToTop'
 import { VideoPlayerProvider, useVideoPlayer } from './contexts/VideoPlayerContext'
+import { LegalCenterProvider } from './contexts/LegalCenterContext'
+import LegalCenterRoot from './components/LegalCenterRoot'
 
 // Lazy load all page components for code-splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'))
@@ -321,9 +323,12 @@ export function DashboardApp() {
   return (
     <ErrorBoundary>
       <VideoPlayerProvider>
-        <div className="DashboardApp">
-          <DashboardAppRoutes />
-        </div>
+        <LegalCenterProvider>
+          <div className="DashboardApp">
+            <DashboardAppRoutes />
+            <LegalCenterRoot />
+          </div>
+        </LegalCenterProvider>
       </VideoPlayerProvider>
     </ErrorBoundary>
   )

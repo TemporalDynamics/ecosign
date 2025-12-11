@@ -36,7 +36,7 @@ function DashboardNav({ onLogout = () => {} }) {
           <Link to="/dashboard/start" className="flex items-center space-x-3">
             <span className="text-2xl font-extrabold text-gray-900">EcoSign</span>
           </Link>
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-8 translate-y-[2px]">
             {navItems.map((item) => (
               <Link
                 key={item.to}
@@ -56,7 +56,7 @@ function DashboardNav({ onLogout = () => {} }) {
             </button>
             <button
               onClick={handleLogout}
-              className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition duration-200 font-medium"
+              className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-lg transition duration-200 font-medium"
             >
               Cerrar Sesión
             </button>

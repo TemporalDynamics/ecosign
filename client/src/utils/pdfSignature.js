@@ -488,7 +488,7 @@ export async function addSignatureSheet(pdfFile, signatureDataUrl = null, forens
     });
     currentY -= 12;
 
-    const verifyUrl = forensicData.verifyUrl || 'https://verifysign.com/verify';
+    const verifyUrl = forensicData.verifyUrl || 'https://ecosign.app/verify';
     signaturePage.drawText(`Verificá la autenticidad en: ${verifyUrl}`, {
       x: 50,
       y: currentY,

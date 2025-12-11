@@ -152,7 +152,7 @@ export async function certifyFile(file, options = {}) {
     const signatures = [
       {
         signatureId: `sig-${Date.now()}`,
-        signerId: options.userEmail || 'anonymous@verifysign.pro',
+        signerId: options.userEmail || 'anonymous@email.ecosign.app',
         timestamp: timestamp,
         algorithm: 'Ed25519',
         publicKey: publicKey.toString('base64'),

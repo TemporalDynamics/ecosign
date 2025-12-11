@@ -126,10 +126,10 @@ class ErrorBoundary extends Component<Props, State> {
             <p className="text-center text-sm text-gray-500 mt-6">
               Si el problema persiste, contacta a{' '}
               <a
-                href="mailto:soporte@verifysign.com"
+                href="mailto:soporte@email.ecosign.app"
                 className="text-cyan-600 hover:text-cyan-700 underline"
               >
-                soporte@verifysign.com
+                soporte@email.ecosign.app
               </a>
             </p>
           </div>

@@ -23,10 +23,10 @@ const ReportPage = () => {
                 podés enviarnos un correo detallado a:
               </p>
               <a
-                href="mailto:soporte@ecosign.app"
+                href="mailto:soporte@email.ecosign.app"
                 className="text-2xl font-semibold text-black hover:underline"
               >
-                📧 soporte@ecosign.app
+                📧 soporte@email.ecosign.app
               </a>
             </div>
 

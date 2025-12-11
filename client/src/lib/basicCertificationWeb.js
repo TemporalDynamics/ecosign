@@ -110,7 +110,7 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
   const signatures = [
     {
       signatureId: `sig-${Date.now()}`,
-      signerId: options.userEmail || 'anonymous@verifysign.pro',
+      signerId: options.userEmail || 'anonymous@email.ecosign.app',
       keyId: options.userId || 'temp-key',
       publicKey: publicKeyHex,
       signature: signature,
@@ -361,7 +361,7 @@ export async function certifyFile(file, options = {}) {
     const signaturesData = [
       {
         keyId: options.userId || 'temp-key',
-        signerId: options.userEmail || 'anonymous@verifysign.pro',
+        signerId: options.userEmail || 'anonymous@email.ecosign.app',
         publicKey: publicKeyHex,
         signature: signature,
         algorithm: 'Ed25519',

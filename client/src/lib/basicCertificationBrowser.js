@@ -221,7 +221,7 @@ export async function certifyFile(file, options = {}) {
       signatures: [
         {
           keyId: options.userId || 'temp-key',
-          signerId: options.userEmail || 'anonymous@verifysign.pro',
+          signerId: options.userEmail || 'anonymous@email.ecosign.app',
           publicKey: publicKeyHex,
           signature: signature,
           algorithm: 'Ed25519',

@@ -48,7 +48,7 @@ export default function ReportIssueInternalPage() {
               </p>
               <p className="text-base text-gray-600 mb-8">
                 Si es algo crítico relacionado con seguridad o acceso a tu cuenta, 
-                escribinos también a <a href="mailto:soporte@ecosign.app" className="text-[#0A66C2] hover:underline">soporte@ecosign.app</a>
+                escribinos también a <a href="mailto:soporte@email.ecosign.app" className="text-[#0A66C2] hover:underline">soporte@email.ecosign.app</a>
               </p>
               <a
                 href="/"
@@ -173,8 +173,8 @@ export default function ReportIssueInternalPage() {
               <p className="text-sm text-gray-700">
                 Si es algo crítico relacionado con seguridad o acceso a tu cuenta, 
                 escribinos también directamente a{' '}
-                <a href="mailto:soporte@ecosign.app" className="text-[#0A66C2] hover:underline font-semibold">
-                  soporte@ecosign.app
+                <a href="mailto:soporte@email.ecosign.app" className="text-[#0A66C2] hover:underline font-semibold">
+                  soporte@email.ecosign.app
                 </a>
               </p>
             </div>

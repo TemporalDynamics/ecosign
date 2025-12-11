@@ -72,7 +72,7 @@ function PricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Puedes contactarnos a support@ecosign.app
+            Puedes contactarnos a support@email.ecosign.app
           </p>
         </>
       )
@@ -90,7 +90,7 @@ function PricingPage() {
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '1 GB' },
         { text: 'Firma Legal', value: '3 por mes' },
-        { text: 'Firma Certificada', value: '$2.50 USD x c/u' },
+        { text: 'Firma Certificada', value: 'Por uso' },
         { text: 'Blindaje Forense', value: 'Básico' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -110,7 +110,7 @@ function PricingPage() {
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '5 GB' },
         { text: 'Firma Legal', value: '100 por mes' },
-        { text: 'Firma Certificada', value: '20 por mes' },
+        { text: 'Firma Certificada', value: 'Por uso' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -130,7 +130,7 @@ function PricingPage() {
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: '25 GB' },
         { text: 'Firma Legal', value: 'ILIMITADAS' },
-        { text: 'Firma Certificada', value: '100 por mes' },
+        { text: 'Firma Certificada', value: 'Por uso' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Limitado' }
@@ -148,7 +148,7 @@ function PricingPage() {
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
         { text: 'Almacenamiento', value: 'Personalizado' },
         { text: 'Firma Legal', value: 'ILIMITADAS' },
-        { text: 'Firma Certificada', value: 'Personalizado' },
+        { text: 'Firma Certificada', value: 'Por uso' },
         { text: 'Blindaje Forense', value: 'Completo' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Completo' }
@@ -409,7 +409,7 @@ function PricingPage() {
         </div>
 
         <div className="text-center text-gray-600 mb-8">
-          <p>¿Te quedaron dudas? Puedes contactarnos a <a href="mailto:support@ecosign.app" className="text-black hover:text-gray-700 font-semibold underline">support@ecosign.app</a></p>
+          <p>¿Te quedaron dudas? Puedes contactarnos a <a href="mailto:support@email.ecosign.app" className="text-black hover:text-gray-700 font-semibold underline">support@email.ecosign.app</a></p>
         </div>
       </div>
 

@@ -1,17 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Maximize2, Minimize2, Move } from 'lucide-react';
+import { X, Maximize2 } from 'lucide-react';
 
 function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }) {
   const sizes = {
-    small: { width: 320, label: 'Pequeño' },
-    medium: { width: 480, label: 'Mediano' },
+    small: { width: 400, label: 'Pequeño' },
     large: { width: 640, label: 'Grande' }
   };
 
   const [isDragging, setIsDragging] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
   const [size, setSize] = useState('small');
-  const [position, setPosition] = useState({ x: window.innerWidth - sizes.small.width - 20, y: window.innerHeight - 240 });
+  const [position, setPosition] = useState({ x: window.innerWidth - sizes.small.width - 20, y: window.innerHeight - 280 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -49,9 +47,7 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
   };
 
   const toggleSize = () => {
-    const sizeOrder = ['small', 'medium', 'large'];
-    const currentIndex = sizeOrder.indexOf(size);
-    const nextSize = sizeOrder[(currentIndex + 1) % sizeOrder.length];
+    const nextSize = size === 'small' ? 'large' : 'small';
     setSize(nextSize);
     
     // Ajustar posición si el nuevo tamaño se sale de la pantalla
@@ -98,11 +94,11 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
       ref={containerRef}
       className={`fixed z-50 bg-black rounded-lg shadow-2xl border-2 border-gray-800 overflow-hidden transition-all duration-200 ${
         isDragging ? 'cursor-grabbing' : ''
-      } ${isMinimized ? 'h-14' : ''}`}
+      }`}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: isMinimized ? '320px' : `${sizes[size].width}px`
+        width: `${sizes[size].width}px`
       }}
     >
       {/* Header draggable */}
@@ -112,21 +108,12 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
       >
         <span className="text-white text-sm font-semibold truncate flex-1 mr-2">{videoTitle}</span>
         <div className="flex items-center gap-1">
-          {!isMinimized && (
-            <button
-              onClick={toggleSize}
-              className="text-gray-400 hover:text-white transition p-1 hover:bg-gray-800 rounded"
-              title={`Tamaño: ${sizes[size].label}`}
-            >
-              <Move className="w-4 h-4" />
-            </button>
-          )}
           <button
-            onClick={() => setIsMinimized(!isMinimized)}
+            onClick={toggleSize}
             className="text-gray-400 hover:text-white transition p-1 hover:bg-gray-800 rounded"
-            title={isMinimized ? "Maximizar" : "Minimizar"}
+            title={size === 'small' ? 'Ampliar' : 'Reducir'}
           >
-            {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+            <Maximize2 className="w-4 h-4" />
           </button>
           <button
             onClick={onClose}
@@ -139,20 +126,18 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
       </div>
 
       {/* Video player */}
-      {!isMinimized && (
-        <div className="bg-black">
-          <video
-            ref={videoRef}
-            src={videoSrc}
-            controls
-            autoPlay
-            className="w-full h-auto"
-            style={{ maxHeight: '60vh' }}
-          >
-            Tu navegador no soporta la reproducción de video.
-          </video>
-        </div>
-      )}
+      <div className="bg-black">
+        <video
+          ref={videoRef}
+          src={videoSrc}
+          controls
+          autoPlay
+          className="w-full h-auto"
+          style={{ maxHeight: '60vh' }}
+        >
+          Tu navegador no soporta la reproducción de video.
+        </video>
+      </div>
     </div>
   );
 }

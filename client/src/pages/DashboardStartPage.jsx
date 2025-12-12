@@ -20,17 +20,23 @@ function DashboardStartPage() {
             Desde acá podés firmar, certificar, compartir bajo NDA y verificar tus documentos de forma segura. Elegí una acción para continuar.
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Link to="/dashboard" className="bg-gradient-to-r from-black to-gray-800 text-white font-semibold px-8 py-3 rounded-xl shadow hover:shadow-lg transition text-center">
-              Ir al Dashboard
-            </Link>
-            <Link to="/dashboard/verify" className="bg-white border-2 border-gray-200 text-gray-700 hover:border-black600 hover:text-black font-semibold px-8 py-3 rounded-xl shadow-sm transition text-center">
-              Verificador
-            </Link>
             <button
               onClick={() => openLegalCenter('sign')}
-              className="bg-white border-2 border-gray-200 text-gray-700 hover:border-black600 hover:text-black font-semibold px-8 py-3 rounded-xl shadow-sm transition text-center"
+              className="bg-gradient-to-r from-black to-gray-800 text-white font-semibold px-8 py-3 rounded-xl shadow hover:shadow-lg transition text-center"
             >
               Firmar un Documento
+            </button>
+            <button
+              onClick={() => openLegalCenter('workflow')}
+              className="bg-white border-2 border-gray-200 text-gray-700 hover:border-black600 hover:text-black font-semibold px-8 py-3 rounded-xl shadow-sm transition text-center"
+            >
+              Crear Flujo de Firmas
+            </button>
+            <button
+              onClick={() => openLegalCenter('nda')}
+              className="bg-white border-2 border-gray-200 text-gray-700 hover:border-black600 hover:text-black font-semibold px-8 py-3 rounded-xl shadow-sm transition text-center"
+            >
+              Enviar NDA
             </button>
           </div>
         </section>

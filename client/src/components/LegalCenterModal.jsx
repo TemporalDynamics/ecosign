@@ -588,7 +588,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">
-            Centro Legal v2
+            Centro Legal
           </h2>
           <button
             onClick={resetAndClose}
@@ -1000,7 +1000,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </div>
               </div>
 
-              {/* Switch: Firma Digital */}
+              {/* Switch: Firma Digital - Solo si NO es NDA exclusivo */}
+              {(mySignature || workflowEnabled) && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
@@ -1206,6 +1207,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </div>
                 )}
               </div>
+              )}
 
               {/* Switch: Blindaje Forense */}
               <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">

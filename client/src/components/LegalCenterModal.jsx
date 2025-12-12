@@ -43,10 +43,13 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   // Privacidad: permitir no guardar el PDF en el dashboard (solo hash + ECO/ECOX)
   const [storePdfInDashboard, setStorePdfInDashboard] = useState(false);
 
-  // Tipos de acción (pueden estar múltiples activos a la vez)
-  const [mySignature, setMySignature] = useState(initialAction === 'sign' || !initialAction);
-  const [workflowEnabled, setWorkflowEnabled] = useState(initialAction === 'workflow');
-  const [ndaEnabled, setNdaEnabled] = useState(initialAction === 'nda');
+  // Tipo de acción (mutuamente excluyente)
+  const [actionType, setActionType] = useState(
+    initialAction === 'sign' ? 'SELF' :
+    initialAction === 'workflow' ? 'FLOW' :
+    initialAction === 'nda' ? 'NDA' :
+    null
+  ); // 'SELF' | 'FLOW' | 'NDA' | null
   
   // NDA editable (panel izquierdo)
   const [ndaText, setNdaText] = useState(`ACUERDO DE CONFIDENCIALIDAD (NDA)
@@ -103,10 +106,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     }
   }, [initialAction, isOpen]);
 
-  // Prellenar con datos del usuario autenticado cuando "Mi Firma" está activo
+  // Prellenar con datos del usuario autenticado cuando es "Mi Firma"
   useEffect(() => {
     async function loadUserData() {
-      if (mySignature) {
+      if (actionType === 'SELF') {
         const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -119,7 +122,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       }
     }
     loadUserData();
-  }, [mySignature]);
+  }, [actionType]);
 
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState('none'); // 'none', 'canvas', 'signnow'
@@ -224,7 +227,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     try {
       const supabase = getSupabase();
       // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
-      if (workflowEnabled) {
+      if (actionType === 'FLOW') {
         // Validar que haya al menos un email
         const validSigners = buildSignersList();
         if (validSigners.length === 0) {
@@ -583,7 +586,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className={`bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl transition-all duration-300 ${
-        (workflowEnabled || ndaEnabled) ? 'max-w-6xl' : 'max-w-2xl'
+        (actionType === 'FLOW' || actionType === 'NDA') ? 'max-w-5xl' : 'max-w-2xl'
           }`}>
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -600,12 +603,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         {/* Content */}
         <div className={`${
-          ndaEnabled && workflowEnabled ? 'grid grid-cols-[350px,1fr,350px]' :
-          ndaEnabled ? 'grid grid-cols-[350px,1fr]' :
-          workflowEnabled ? 'grid grid-cols-[1fr,350px]' : ''
+          actionType === 'NDA' ? 'grid grid-cols-[350px,1fr]' :
+          actionType === 'FLOW' ? 'grid grid-cols-[1fr,350px]' : ''
         }`}>
           {/* Panel izquierdo: NDA editable */}
-          {ndaEnabled && (
+          {actionType === 'NDA' && (
             <div className="border-r border-gray-200 px-4 py-6 bg-gray-50 overflow-y-auto">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Acuerdo de Confidencialidad</h3>
               <p className="text-xs text-gray-600 mb-3">
@@ -960,15 +962,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 )}
               </div>
 
-              {/* Tipos de acción (pueden estar múltiples activos) */}
+              {/* Tipo de acción (mutuamente excluyente) */}
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-900">Acciones</label>
+                <label className="text-sm font-semibold text-gray-900">Acción</label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => setNdaEnabled(!ndaEnabled)}
+                    onClick={() => setActionType('NDA')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      ndaEnabled
+                      actionType === 'NDA'
                         ? 'bg-gray-900 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
@@ -977,9 +979,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMySignature(!mySignature)}
+                    onClick={() => setActionType('SELF')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      mySignature
+                      actionType === 'SELF'
                         ? 'bg-gray-900 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
@@ -988,9 +990,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </button>
                   <button
                     type="button"
-                    onClick={() => setWorkflowEnabled(!workflowEnabled)}
+                    onClick={() => setActionType('FLOW')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      workflowEnabled
+                      actionType === 'FLOW'
                         ? 'bg-gray-900 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
@@ -1000,8 +1002,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </div>
               </div>
 
-              {/* Switch: Firma Digital - Solo si NO es NDA exclusivo */}
-              {(mySignature || workflowEnabled) && (
+              {/* Switch: Firma Digital - Solo para SELF y FLOW */}
+              {(actionType === 'SELF' || actionType === 'FLOW') && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
@@ -1132,7 +1134,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </div>
 
                     {/* Formulario de datos del firmante (solo para Firma Legal) */}
-                    {signatureType === 'legal' && !workflowEnabled && (
+                    {signatureType === 'legal' && !actionType === 'FLOW' && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">✍️</span>
@@ -1419,10 +1421,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    {workflowEnabled ? 'Enviando invitaciones...' : 'Certificando...'}
+                    {actionType === 'FLOW' ? 'Enviando invitaciones...' : 'Certificando...'}
                   </>
                 ) : (
-                  workflowEnabled ? 'Enviar para firmar' : 'Certificar documento'
+                  actionType === 'FLOW' ? 'Enviar para firmar' : 'Certificar documento'
                 )}
               </button>
             </div>
@@ -1516,8 +1518,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           )}
           </div>
 
-          {/* Panel lateral de firmantes (solo visible si workflowEnabled está ON) */}
-          {workflowEnabled && (
+          {/* Panel lateral de firmantes (solo visible si actionType === 'FLOW' está ON) */}
+          {actionType === 'FLOW' && (
             <div className="bg-gray-50 border-l border-gray-200 px-6 py-6 overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Firmantes

@@ -60,10 +60,10 @@ done
 echo ""
 echo ""
 
-# Verificar si el deploy fue exitoso
-if grep -q "✅  Production:" /tmp/vercel-deploy.log; then
-  # Extraer la URL del deployment
-  DEPLOYMENT_URL=$(grep "✅  Production:" /tmp/vercel-deploy.log | awk '{print $3}')
+# Verificar si el deploy fue exitoso (buscar "Production:" con o sin ✅)
+if grep -q "Production:" /tmp/vercel-deploy.log; then
+  # Extraer la URL del deployment (funciona con ambas versiones de Vercel CLI)
+  DEPLOYMENT_URL=$(grep "Production:" /tmp/vercel-deploy.log | grep -oE 'https://[^ ]+' | tail -1)
   
   echo "✅ Deploy exitoso!"
   echo "   URL del deployment: $DEPLOYMENT_URL"

@@ -958,39 +958,6 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
                 )}
               </div>
 
-              {/* Privacidad / Zero-Knowledge */}
-              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-                <h4 className="text-sm font-semibold text-gray-900 mb-2">Privacidad del PDF</h4>
-                <p className="text-xs text-gray-600 mb-3">
-                  Podés elegir no guardar el PDF en tu dashboard. Guardaremos el nombre y el certificado (.ECO/.ECOX), pero no el archivo original.
-                </p>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm text-gray-800">
-                    <input
-                      type="radio"
-                      name="storePdf"
-                      checked={storePdfInDashboard}
-                      onChange={() => setStorePdfInDashboard(true)}
-                    />
-                    <span>Guardar el PDF en mi dashboard (descarga disponible luego)</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-gray-800">
-                    <input
-                      type="radio"
-                      name="storePdf"
-                      checked={!storePdfInDashboard}
-                      onChange={() => setStorePdfInDashboard(false)}
-                    />
-                    <span>No guardar el PDF (solo hash + .ECO/.ECOX). Mantiene privacidad máxima.</span>
-                  </label>
-                </div>
-                {!storePdfInDashboard && (
-                  <p className="text-xs text-orange-600 mt-2">
-                    Si más adelante querés descargar el PDF desde el dashboard, deberás volver a subirlo.
-                  </p>
-                )}
-              </div>
-
               {/* Switch: Firmas múltiples */}
               <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">

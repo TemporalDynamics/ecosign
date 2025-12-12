@@ -43,8 +43,8 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   // Privacidad: permitir no guardar el PDF en el dashboard (solo hash + ECO/ECOX)
   const [storePdfInDashboard, setStorePdfInDashboard] = useState(false);
 
-  // Firmas múltiples (workflow)
-  const [multipleSignatures, setMultipleSignatures] = useState(false);
+  // Tipo de acción: 'sign' (mi firma), 'workflow' (flujo), 'nda' (solo NDA)
+  const [actionType, setActionType] = useState(initialAction || 'sign');
   const [signers, setSigners] = useState([]);
   const [emailInputs, setEmailInputs] = useState([
     { email: '', name: '', requireLogin: true, requireNda: true }
@@ -62,8 +62,8 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   const [isEnterprisePlan, setIsEnterprisePlan] = useState(false); // Plan enterprise tiene ilimitadas
 
   // Datos del firmante (para Hoja de Auditoría - solo EcoSign)
-  // Caso A (multipleSignatures OFF): Yo firmo → prellenar con usuario logueado
-  // Caso B (multipleSignatures ON): Otros firman → enviar links
+  // Caso A (Mi Firma): Yo firmo → prellenar con usuario logueado
+  // Caso B (Flujo de Firmas): Otros firman → enviar links
   const [signerName, setSignerName] = useState('');
   const [signerEmail, setSignerEmail] = useState('');
   const [signerCompany, setSignerCompany] = useState('');
@@ -79,10 +79,10 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
     }
   }, [initialAction, isOpen]);
 
-  // Prellenar con datos del usuario autenticado cuando multipleSignatures = false
+  // Prellenar con datos del usuario autenticado cuando es "Mi Firma"
   useEffect(() => {
     async function loadUserData() {
-      if (!multipleSignatures) {
+      if (actionType === 'sign') {
         const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -95,7 +95,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
       }
     }
     loadUserData();
-  }, [multipleSignatures]);
+  }, [actionType]);
 
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState('none'); // 'none', 'canvas', 'signnow'
@@ -200,7 +200,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
     try {
       const supabase = getSupabase();
       // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
-      if (multipleSignatures) {
+      if (actionType === 'workflow') {
         // Validar que haya al menos un email
         const validSigners = buildSignersList();
         if (validSigners.length === 0) {
@@ -559,7 +559,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className={`bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl transition-all duration-300 ${
-        multipleSignatures ? 'max-w-5xl' : 'max-w-2xl'
+        actionType === 'workflow' ? 'max-w-5xl' : 'max-w-2xl'
           }`}>
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -617,7 +617,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
         </div>
 
         {/* Content */}
-        <div className={`${multipleSignatures ? 'grid grid-cols-[1fr,400px]' : ''}`}>
+        <div className={`${actionType === 'workflow' ? 'grid grid-cols-[1fr,400px]' : ''}`}>
           {/* Columna principal */}
           <div className="px-6 py-6">
             {/* PASO 1: ELEGIR ARCHIVO */}
@@ -958,28 +958,44 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
                 )}
               </div>
 
-              {/* Switch: Firmas múltiples */}
-              <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-gray-900" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Firmas múltiples
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Crear workflow de firma secuencial
-                    </p>
-                  </div>
+              {/* Selector de tipo de acción */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-900">Tipo de acción</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActionType('sign')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      actionType === 'sign'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Mi Firma
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActionType('workflow')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      actionType === 'workflow'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Flujo de Firmas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActionType('nda')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      actionType === 'nda'
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Solo NDA
+                  </button>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={multipleSignatures}
-                    onChange={(e) => setMultipleSignatures(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                </label>
               </div>
 
               {/* Switch: Firma Digital */}
@@ -1060,7 +1076,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
                     </label>
 
                     {/* Formulario de datos del firmante (solo para Firma Legal) */}
-                    {signatureType === 'ecosign' && !multipleSignatures && (
+                    {signatureType === 'ecosign' && !actionType === 'workflow' && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">✍️</span>
@@ -1346,10 +1362,10 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    {multipleSignatures ? 'Enviando invitaciones...' : 'Certificando...'}
+                    {actionType === 'workflow' ? 'Enviando invitaciones...' : 'Certificando...'}
                   </>
                 ) : (
-                  multipleSignatures ? 'Enviar para firmar' : 'Certificar documento'
+                  actionType === 'workflow' ? 'Enviar para firmar' : 'Certificar documento'
                 )}
               </button>
             </div>
@@ -1443,8 +1459,8 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
           )}
           </div>
 
-          {/* Panel lateral de firmantes (solo visible si multipleSignatures está ON) */}
-          {multipleSignatures && (
+          {/* Panel lateral de firmantes (solo visible si actionType === 'workflow' está ON) */}
+          {actionType === 'workflow' && (
             <div className="bg-gray-50 border-l border-gray-200 px-6 py-6 overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Firmantes

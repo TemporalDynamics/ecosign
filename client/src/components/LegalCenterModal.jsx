@@ -74,9 +74,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   ]); // 1 campo por defecto - usuarios agregan más según necesiten
 
   // Firma digital
-  const [signatureEnabled, setSignatureEnabled] = useState(false);
-  const [signatureType, setSignatureType] = useState('legal'); // 'legal' | 'certified'
-  const [certifiedProvider, setCertifiedProvider] = useState('signnow'); // 'signnow' | 'mifiel' | 'docusign'
+  const [signatureType, setSignatureType] = useState(null); // 'legal' | 'certified' | null
+  const [showCertifiedModal, setShowCertifiedModal] = useState(false);
+  const [certifiedSubType, setCertifiedSubType] = useState(null); // 'qes' | 'mifiel' | 'international' | null
 
   // Saldos de firma (mock data - en producción viene de la DB)
   const [ecosignUsed, setEcosignUsed] = useState(30); // Firmas usadas
@@ -1001,136 +1001,67 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </div>
               </div>
 
-              {/* Switch: Firma Digital - Solo si hay Mi Firma o Flujo */}
+              {/* Tipo de Firma - Solo si hay Mi Firma o Flujo */}
               {(mySignature || workflowEnabled) && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <FileCheck className="w-5 h-5 text-gray-900" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        Firmar documento
+                <label className="text-sm font-semibold text-gray-900">Tipo de firma</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Firma Legal */}
+                  <button
+                    type="button"
+                    onClick={() => setSignatureType('legal')}
+                    className={`p-4 rounded-lg border-2 transition text-left ${
+                      signatureType === 'legal'
+                        ? 'border-gray-900 bg-gray-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Firma Legal
                       </p>
-                      <p className="text-xs text-gray-500">
-                        Agregar firma digital al certificado
-                      </p>
-                    </div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={signatureEnabled}
-                      onChange={(e) => setSignatureEnabled(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                  </label>
-                </div>
-
-                {/* Radio buttons: Tipo de Firma (solo si signatureEnabled) */}
-                {signatureEnabled && (
-                  <div className="pl-4 space-y-3 border-l-2 border-gray-200">
-                    {/* Opción 1: Firma Legal */}
-                    <label className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
-                      <div className="flex items-center gap-2 flex-1">
-                        <input
-                          type="radio"
-                          name="signatureType"
-                          value="legal"
-                          checked={signatureType === 'legal'}
-                          onChange={(e) => setSignatureType(e.target.value)}
-                          className="w-4 h-4 text-gray-900 focus:ring-gray-900"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-900">
-                              Firma Legal
-                            </p>
-                            <div className="group relative">
-                              <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
-                              <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
-                                Firma vinculante con peso legal completo. Válida para uso interno, RRHH y aprobaciones generales.
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            {!isEnterprisePlan && `${ecosignUsed}/${ecosignTotal} usadas`}
-                            {isEnterprisePlan && 'Ilimitadas'}
-                          </p>
+                      <div className="group relative">
+                        <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
+                        <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
+                          Firma vinculante con peso legal completo. Válida para uso interno, RRHH y aprobaciones generales.
                         </div>
                       </div>
-                    </label>
-
-                    {/* Opción 2: Firma Certificada */}
-                    <div className="space-y-2">
-                      <label className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
-                        <div className="flex items-center gap-2 flex-1">
-                          <input
-                            type="radio"
-                            name="signatureType"
-                            value="certified"
-                            checked={signatureType === 'certified'}
-                            onChange={(e) => setSignatureType(e.target.value)}
-                            className="w-4 h-4 text-gray-900 focus:ring-gray-900"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-medium text-gray-900">
-                                Firma Certificada
-                              </p>
-                              <div className="group relative">
-                                <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
-                                <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
-                                  Firma vinculante con certificaciones específicas (eIDAS, eSign, UETA, etc). Requerida en ciertas jurisdicciones para contratos externos.
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              Pago por uso según proveedor
-                            </p>
-                          </div>
-                        </div>
-                      </label>
-
-                      {/* Sub-opciones de proveedores certificados */}
-                      {signatureType === 'certified' && (
-                        <div className="ml-6 pl-4 border-l-2 border-gray-200 space-y-2">
-                          <label className="flex items-center gap-2 py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
-                            <input
-                              type="radio"
-                              name="certifiedProvider"
-                              value="signnow"
-                              checked={certifiedProvider === 'signnow'}
-                              onChange={(e) => setCertifiedProvider(e.target.value)}
-                              className="w-4 h-4 text-gray-900"
-                            />
-                            <span className="text-sm text-gray-900">SignNow</span>
-                          </label>
-                          <label className="flex items-center gap-2 py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
-                            <input
-                              type="radio"
-                              name="certifiedProvider"
-                              value="mifiel"
-                              checked={certifiedProvider === 'mifiel'}
-                              onChange={(e) => setCertifiedProvider(e.target.value)}
-                              className="w-4 h-4 text-gray-900"
-                            />
-                            <span className="text-sm text-gray-900">Mifiel</span>
-                          </label>
-                          <label className="flex items-center gap-2 py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
-                            <input
-                              type="radio"
-                              name="certifiedProvider"
-                              value="docusign"
-                              checked={certifiedProvider === 'docusign'}
-                              onChange={(e) => setCertifiedProvider(e.target.value)}
-                              className="w-4 h-4 text-gray-900"
-                            />
-                            <span className="text-sm text-gray-900">DocuSign</span>
-                          </label>
-                        </div>
-                      )}
                     </div>
+                    <p className="text-xs text-gray-500">
+                      {!isEnterprisePlan && `${ecosignUsed}/${ecosignTotal} usadas`}
+                      {isEnterprisePlan && 'Ilimitadas'}
+                    </p>
+                  </button>
+
+                  {/* Firma Certificada */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignatureType('certified');
+                      setShowCertifiedModal(true);
+                    }}
+                    className={`p-4 rounded-lg border-2 transition text-left ${
+                      signatureType === 'certified'
+                        ? 'border-gray-900 bg-gray-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Firma Certificada
+                      </p>
+                      <div className="group relative">
+                        <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
+                        <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
+                          Firma vinculante con certificaciones específicas (eIDAS, eSign, UETA, etc). Requerida en ciertas jurisdicciones.
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {certifiedSubType ? `Tipo: ${certifiedSubType}` : 'Seleccionar tipo'}
+                    </p>
+                  </button>
+                </div>
 
                     {/* Formulario de datos del firmante (solo para Firma Legal) */}
                     {signatureType === 'legal' && !workflowEnabled && (
@@ -1205,8 +1136,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         </p>
                       </div>
                     )}
-                  </div>
-                )}
               </div>
               )}
 
@@ -1511,6 +1440,94 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           )}
         </div>
       </div>
+
+      {/* Modal secundario: Selector de tipo de firma certificada */}
+      {showCertifiedModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Elegí el tipo de firma certificada
+              </h3>
+              <button
+                onClick={() => setShowCertifiedModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-6">
+              Seleccioná el tipo de firma según los requisitos legales de tu jurisdicción.
+            </p>
+
+            <div className="space-y-3">
+              {/* QES - Firma Cualificada */}
+              <button
+                type="button"
+                onClick={() => {
+                  setCertifiedSubType('qes');
+                  setShowCertifiedModal(false);
+                }}
+                className={`w-full p-4 rounded-lg border-2 text-left transition ${
+                  certifiedSubType === 'qes'
+                    ? 'border-gray-900 bg-gray-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <p className="text-sm font-semibold text-gray-900 mb-1">
+                  Firma Cualificada (QES)
+                </p>
+                <p className="text-xs text-gray-500">
+                  Máxima validez legal (UE / LATAM). Ideal para contratos formales y auditorías.
+                </p>
+              </button>
+
+              {/* Mifiel */}
+              <button
+                type="button"
+                onClick={() => {
+                  setCertifiedSubType('mifiel');
+                  setShowCertifiedModal(false);
+                }}
+                className={`w-full p-4 rounded-lg border-2 text-left transition ${
+                  certifiedSubType === 'mifiel'
+                    ? 'border-gray-900 bg-gray-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <p className="text-sm font-semibold text-gray-900 mb-1">
+                  Mifiel
+                </p>
+                <p className="text-xs text-gray-500">
+                  Cumplimiento legal en México y LATAM. Firma electrónica avanzada (FIEL).
+                </p>
+              </button>
+
+              {/* Internacional */}
+              <button
+                type="button"
+                onClick={() => {
+                  setCertifiedSubType('international');
+                  setShowCertifiedModal(false);
+                }}
+                className={`w-full p-4 rounded-lg border-2 text-left transition ${
+                  certifiedSubType === 'international'
+                    ? 'border-gray-900 bg-gray-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <p className="text-sm font-semibold text-gray-900 mb-1">
+                  Internacional
+                </p>
+                <p className="text-xs text-gray-500">
+                  Cumplimiento multi-jurisdicción (eIDAS, eSign, UETA). Para operaciones globales.
+                </p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

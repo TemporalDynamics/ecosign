@@ -588,7 +588,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">
-            Centro Legal
+            Centro Legal v2
           </h2>
           <button
             onClick={resetAndClose}

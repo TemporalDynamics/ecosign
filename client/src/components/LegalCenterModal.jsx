@@ -597,48 +597,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </button>
         </div>
 
-        {/* Progress Steps - Solo 2 pasos */}
-        <div className="px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center justify-center max-w-xs mx-auto">
-            {/* Paso 1: Configurar */}
-            <div className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step >= 1
-                  ? 'bg-gray-900 text-white'
-                  : 'border-2 border-gray-300 text-gray-400'
-              }`}>
-                {step > 1 ? <CheckCircle2 className="w-5 h-5" /> : '1'}
-              </div>
-              <span className={`ml-2 text-sm ${
-                step >= 1 ? 'text-gray-900 font-medium' : 'text-gray-400'
-              }`}>
-                Configurar
-              </span>
-            </div>
-
-            {/* Línea conectora */}
-            <div className={`flex-1 h-px mx-4 ${
-              step > 1 ? 'bg-gray-900' : 'bg-gray-200'
-            }`}></div>
-
-            {/* Paso 2: Listo */}
-            <div className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step >= 2
-                  ? 'bg-gray-900 text-white'
-                  : 'border-2 border-gray-300 text-gray-400'
-              }`}>
-                {step >= 2 ? <CheckCircle2 className="w-5 h-5" /> : '2'}
-              </div>
-              <span className={`ml-2 text-sm ${
-                step >= 2 ? 'text-gray-900 font-medium' : 'text-gray-400'
-              }`}>
-                Listo
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* Content */}
         <div className={`${
           ndaEnabled && workflowEnabled ? 'grid grid-cols-[350px,1fr,350px]' :

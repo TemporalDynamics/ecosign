@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, Highlighter, Loader2, Maximize2, Minimize2, Pen, Shield, Type, Upload, Users } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Pen, Shield, Type, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
@@ -73,9 +73,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     { email: '', name: '', requireLogin: true, requireNda: true }
   ]); // 1 campo por defecto - usuarios agregan más según necesiten
 
-  // Firma digital (EcoSign o Legal)
+  // Firma digital
   const [signatureEnabled, setSignatureEnabled] = useState(false);
-  const [signatureType, setSignatureType] = useState('ecosign'); // 'ecosign' | 'signnow'
+  const [signatureType, setSignatureType] = useState('legal'); // 'legal' | 'certified'
+  const [certifiedProvider, setCertifiedProvider] = useState('signnow'); // 'signnow' | 'mifiel' | 'docusign'
 
   // Saldos de firma (mock data - en producción viene de la DB)
   const [ecosignUsed, setEcosignUsed] = useState(30); // Firmas usadas
@@ -314,7 +315,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       let fileToProcess = file;
 
       // Solo agregar Hoja de Auditoría si es Firma Legal (NO para Firma Certificada)
-      if (signatureEnabled && signatureType === 'ecosign') {
+      if (signatureEnabled && signatureType === 'legal') {
         // Validar nombre del firmante (obligatorio solo si se dibujó firma)
         if (signatureMode === 'canvas' && !signerName.trim()) {
           toast.error('Por favor, completá tu nombre para generar la Hoja de Auditoría con firma');
@@ -351,7 +352,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       let signedPdfFromSignNow = null;
       let signNowResult = null;
 
-      if (signatureEnabled && signatureType === 'signnow') {
+      if (signatureEnabled && signatureType === 'certified') {
         // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
         console.log('🔐 Usando SignNow API para firma legalizada');
 
@@ -1026,58 +1027,111 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                 {/* Radio buttons: Tipo de Firma (solo si signatureEnabled) */}
                 {signatureEnabled && (
-                  <div className="pl-4 space-y-2 border-l-2 border-gray-200">
+                  <div className="pl-4 space-y-3 border-l-2 border-gray-200">
                     {/* Opción 1: Firma Legal */}
                     <label className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1">
                         <input
                           type="radio"
                           name="signatureType"
-                          value="ecosign"
-                          checked={signatureType === 'ecosign'}
+                          value="legal"
+                          checked={signatureType === 'legal'}
                           onChange={(e) => setSignatureType(e.target.value)}
                           className="w-4 h-4 text-gray-900 focus:ring-gray-900"
                         />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            Firma Legal {!isEnterprisePlan && <span className="text-gray-500 font-normal">({ecosignUsed}/{ecosignTotal})</span>}
-                          </p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-gray-900">
+                              Firma Legal
+                            </p>
+                            <div className="group relative">
+                              <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
+                              <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
+                                Firma vinculante con peso legal completo. Válida para uso interno, RRHH y aprobaciones generales.
+                              </div>
+                            </div>
+                          </div>
                           <p className="text-xs text-gray-500">
-                            Recomendado para gestión interna, RRHH y aprobaciones
+                            {!isEnterprisePlan && `${ecosignUsed}/${ecosignTotal} usadas`}
+                            {isEnterprisePlan && 'Ilimitadas'}
                           </p>
                         </div>
                       </div>
-                      {isEnterprisePlan && (
-                        <span className="text-xs font-semibold px-2 py-1 rounded bg-gray-900 text-white">
-                          Ilimitada
-                        </span>
-                      )}
                     </label>
 
                     {/* Opción 2: Firma Certificada */}
-                    <label className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="signatureType"
-                          value="signnow"
-                          checked={signatureType === 'signnow'}
-                          onChange={(e) => setSignatureType(e.target.value)}
-                          className="w-4 h-4 text-gray-900 focus:ring-gray-900"
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            Firma Certificada (pago por uso) <span className="text-gray-500 font-normal">({signnowUsed}/{signnowTotal})</span>
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Para contratos externos con validez eIDAS/UETA
-                          </p>
+                    <div className="space-y-2">
+                      <label className="flex items-center justify-between py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
+                        <div className="flex items-center gap-2 flex-1">
+                          <input
+                            type="radio"
+                            name="signatureType"
+                            value="certified"
+                            checked={signatureType === 'certified'}
+                            onChange={(e) => setSignatureType(e.target.value)}
+                            className="w-4 h-4 text-gray-900 focus:ring-gray-900"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-gray-900">
+                                Firma Certificada
+                              </p>
+                              <div className="group relative">
+                                <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
+                                <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
+                                  Firma vinculante con certificaciones específicas (eIDAS, eSign, UETA, etc). Requerida en ciertas jurisdicciones para contratos externos.
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              Pago por uso según proveedor
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </label>
+                      </label>
+
+                      {/* Sub-opciones de proveedores certificados */}
+                      {signatureType === 'certified' && (
+                        <div className="ml-6 pl-4 border-l-2 border-gray-200 space-y-2">
+                          <label className="flex items-center gap-2 py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
+                            <input
+                              type="radio"
+                              name="certifiedProvider"
+                              value="signnow"
+                              checked={certifiedProvider === 'signnow'}
+                              onChange={(e) => setCertifiedProvider(e.target.value)}
+                              className="w-4 h-4 text-gray-900"
+                            />
+                            <span className="text-sm text-gray-900">SignNow</span>
+                          </label>
+                          <label className="flex items-center gap-2 py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
+                            <input
+                              type="radio"
+                              name="certifiedProvider"
+                              value="mifiel"
+                              checked={certifiedProvider === 'mifiel'}
+                              onChange={(e) => setCertifiedProvider(e.target.value)}
+                              className="w-4 h-4 text-gray-900"
+                            />
+                            <span className="text-sm text-gray-900">Mifiel</span>
+                          </label>
+                          <label className="flex items-center gap-2 py-2 px-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition">
+                            <input
+                              type="radio"
+                              name="certifiedProvider"
+                              value="docusign"
+                              checked={certifiedProvider === 'docusign'}
+                              onChange={(e) => setCertifiedProvider(e.target.value)}
+                              className="w-4 h-4 text-gray-900"
+                            />
+                            <span className="text-sm text-gray-900">DocuSign</span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Formulario de datos del firmante (solo para Firma Legal) */}
-                    {signatureType === 'ecosign' && !workflowEnabled && (
+                    {signatureType === 'legal' && !workflowEnabled && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">✍️</span>
@@ -1276,7 +1330,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               {(() => {
                 // Lógica para determinar el nivel de seguridad
                 const hasSignature = signatureEnabled;
-                const isLegalSignature = signatureEnabled && signatureType === 'signnow';
+                const isLegalSignature = signatureEnabled && signatureType === 'certified';
                 const hasForensic = forensicEnabled;
 
                 // Mensajes más amigables y educativos
@@ -1295,7 +1349,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   bgColor = 'bg-purple-50';
                   borderColor = 'border-purple-200';
                   textColor = 'text-purple-800';
-                } else if (hasForensic && hasSignature && signatureType === 'ecosign') {
+                } else if (hasForensic && hasSignature && signatureType === 'legal') {
                   // ALTO: Firma Legal + Blindaje Forense
                   emoji = '🔒';
                   title = 'Protección avanzada activa';
@@ -1319,7 +1373,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   bgColor = 'bg-indigo-50';
                   borderColor = 'border-indigo-200';
                   textColor = 'text-indigo-800';
-                } else if (hasSignature && signatureType === 'ecosign') {
+                } else if (hasSignature && signatureType === 'legal') {
                   // Solo Firma Legal (sin blindaje)
                   emoji = 'ℹ️';
                   title = 'Firma interna sin blindaje extra';

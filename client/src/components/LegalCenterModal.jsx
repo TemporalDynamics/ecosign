@@ -43,8 +43,31 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   // Privacidad: permitir no guardar el PDF en el dashboard (solo hash + ECO/ECOX)
   const [storePdfInDashboard, setStorePdfInDashboard] = useState(false);
 
-  // Tipo de acción: 'sign' (mi firma), 'workflow' (flujo), 'nda' (solo NDA)
-  const [actionType, setActionType] = useState(initialAction || 'sign');
+  // Tipos de acción (pueden estar múltiples activos a la vez)
+  const [mySignature, setMySignature] = useState(initialAction === 'sign' || !initialAction);
+  const [workflowEnabled, setWorkflowEnabled] = useState(initialAction === 'workflow');
+  const [ndaEnabled, setNdaEnabled] = useState(initialAction === 'nda');
+  
+  // NDA editable (panel izquierdo)
+  const [ndaText, setNdaText] = useState(`ACUERDO DE CONFIDENCIALIDAD (NDA)
+
+Este documento contiene información confidencial. Al acceder, usted acepta:
+
+1. CONFIDENCIALIDAD
+Mantener la información en estricta confidencialidad y no divulgarla a terceros sin autorización previa por escrito.
+
+2. USO LIMITADO
+Utilizar la información únicamente para los fines acordados.
+
+3. PROTECCIÓN
+Implementar medidas de seguridad razonables para proteger la información confidencial.
+
+4. DEVOLUCIÓN
+Devolver o destruir toda la información confidencial cuando se solicite.
+
+5. DURACIÓN
+Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
+  
   const [signers, setSigners] = useState([]);
   const [emailInputs, setEmailInputs] = useState([
     { email: '', name: '', requireLogin: true, requireNda: true }
@@ -79,10 +102,10 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
     }
   }, [initialAction, isOpen]);
 
-  // Prellenar con datos del usuario autenticado cuando es "Mi Firma"
+  // Prellenar con datos del usuario autenticado cuando "Mi Firma" está activo
   useEffect(() => {
     async function loadUserData() {
-      if (actionType === 'sign') {
+      if (mySignature) {
         const supabase = getSupabase();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -95,7 +118,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
       }
     }
     loadUserData();
-  }, [actionType]);
+  }, [mySignature]);
 
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState('none'); // 'none', 'canvas', 'signnow'
@@ -200,7 +223,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
     try {
       const supabase = getSupabase();
       // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
-      if (actionType === 'workflow') {
+      if (workflowEnabled) {
         // Validar que haya al menos un email
         const validSigners = buildSignersList();
         if (validSigners.length === 0) {
@@ -559,7 +582,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className={`bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl transition-all duration-300 ${
-        actionType === 'workflow' ? 'max-w-5xl' : 'max-w-2xl'
+        (workflowEnabled || ndaEnabled) ? 'max-w-6xl' : 'max-w-2xl'
           }`}>
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -617,7 +640,27 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
         </div>
 
         {/* Content */}
-        <div className={`${actionType === 'workflow' ? 'grid grid-cols-[1fr,400px]' : ''}`}>
+        <div className={`${
+          ndaEnabled && workflowEnabled ? 'grid grid-cols-[350px,1fr,350px]' :
+          ndaEnabled ? 'grid grid-cols-[350px,1fr]' :
+          workflowEnabled ? 'grid grid-cols-[1fr,350px]' : ''
+        }`}>
+          {/* Panel izquierdo: NDA editable */}
+          {ndaEnabled && (
+            <div className="border-r border-gray-200 px-4 py-6 bg-gray-50 overflow-y-auto">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Acuerdo de Confidencialidad</h3>
+              <p className="text-xs text-gray-600 mb-3">
+                Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
+              </p>
+              <textarea
+                value={ndaText}
+                onChange={(e) => setNdaText(e.target.value)}
+                className="w-full h-[500px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
+                placeholder="Escribí aquí el texto del NDA..."
+              />
+            </div>
+          )}
+          
           {/* Columna principal */}
           <div className="px-6 py-6">
             {/* PASO 1: ELEGIR ARCHIVO */}
@@ -958,15 +1001,15 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
                 )}
               </div>
 
-              {/* Selector de tipo de acción */}
+              {/* Tipos de acción (pueden estar múltiples activos) */}
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-900">Tipo de acción</label>
+                <label className="text-sm font-semibold text-gray-900">Acciones</label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => setActionType('sign')}
+                    onClick={() => setMySignature(!mySignature)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      actionType === 'sign'
+                      mySignature
                         ? 'bg-gray-900 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
@@ -975,9 +1018,9 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActionType('workflow')}
+                    onClick={() => setWorkflowEnabled(!workflowEnabled)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      actionType === 'workflow'
+                      workflowEnabled
                         ? 'bg-gray-900 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
@@ -986,14 +1029,14 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActionType('nda')}
+                    onClick={() => setNdaEnabled(!ndaEnabled)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      actionType === 'nda'
+                      ndaEnabled
                         ? 'bg-gray-900 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    Solo NDA
+                    NDA
                   </button>
                 </div>
               </div>
@@ -1076,7 +1119,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
                     </label>
 
                     {/* Formulario de datos del firmante (solo para Firma Legal) */}
-                    {signatureType === 'ecosign' && !actionType === 'workflow' && (
+                    {signatureType === 'ecosign' && !workflowEnabled && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">✍️</span>
@@ -1362,10 +1405,10 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    {actionType === 'workflow' ? 'Enviando invitaciones...' : 'Certificando...'}
+                    {workflowEnabled ? 'Enviando invitaciones...' : 'Certificando...'}
                   </>
                 ) : (
-                  actionType === 'workflow' ? 'Enviar para firmar' : 'Certificar documento'
+                  workflowEnabled ? 'Enviar para firmar' : 'Certificar documento'
                 )}
               </button>
             </div>
@@ -1459,8 +1502,8 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
           )}
           </div>
 
-          {/* Panel lateral de firmantes (solo visible si actionType === 'workflow' está ON) */}
-          {actionType === 'workflow' && (
+          {/* Panel lateral de firmantes (solo visible si workflowEnabled está ON) */}
+          {workflowEnabled && (
             <div className="bg-gray-50 border-l border-gray-200 px-6 py-6 overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Firmantes

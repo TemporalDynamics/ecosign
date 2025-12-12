@@ -966,6 +966,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
+                    onClick={() => setNdaEnabled(!ndaEnabled)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      ndaEnabled
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    NDA
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setMySignature(!mySignature)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                       mySignature
@@ -985,17 +996,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     }`}
                   >
                     Flujo de Firmas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNdaEnabled(!ndaEnabled)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      ndaEnabled
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    NDA
                   </button>
                 </div>
               </div>

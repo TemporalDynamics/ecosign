@@ -32,8 +32,8 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   const [forensicPanelOpen, setForensicPanelOpen] = useState(false);
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
 
-  // Configuración de blindaje forense (por defecto desactivado - usuario debe elegir conscientemente)
-  const [forensicEnabled, setForensicEnabled] = useState(false);
+  // Configuración de blindaje forense (activo por defecto con TSA + Polygon + Bitcoin)
+  const [forensicEnabled, setForensicEnabled] = useState(true);
   const [forensicConfig, setForensicConfig] = useState({
     useLegalTimestamp: true,    // RFC 3161
     usePolygonAnchor: true,      // Polygon
@@ -1139,7 +1139,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </div>
               )}
 
-              {/* Switch: Blindaje Forense */}
+              {/* Blindaje Forense - Activo por defecto, puede desactivarse */}
               <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Shield className="w-5 h-5 text-gray-900" />
@@ -1148,7 +1148,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       Blindaje forense
                     </p>
                     <p className="text-xs text-gray-500">
-                      Protección adicional con timestamps y blockchain
+                      TSA + Polygon + Bitcoin (activo por defecto)
                     </p>
                   </div>
                 </div>
@@ -1157,9 +1157,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     type="checkbox"
                     checked={forensicEnabled}
                     onChange={(e) => {
-                      setForensicEnabled(e.target.checked);
-                      if (e.target.checked) {
-                        setForensicPanelOpen(true);
+                      const isEnabled = e.target.checked;
+                      setForensicEnabled(isEnabled);
+                      
+                      // Si desactiva, mostrar toast de advertencia
+                      if (!isEnabled) {
+                        // TODO: Implementar toast
+                        console.warn('⚠️ Tu documento se procesará sin protección legal. Podés activarla en cualquier momento si la necesitás.');
                       }
                     }}
                     className="sr-only peer"
@@ -1168,8 +1172,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </label>
               </div>
 
-              {/* Panel de opciones de Blindaje Forense (solo cuando está ON) */}
-              {forensicEnabled && (
+              {/* Nota informativa cuando está desactivado */}
+              {!forensicEnabled && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-xs text-yellow-800">
+                    ⚠️ Tu documento se procesará sin protección legal. Podés activarla en cualquier momento si la necesitás.
+                  </p>
+                </div>
+              )}
+
+              {/* ELIMINADO: Panel de opciones configurables - Ahora siempre es TSA + Polygon + Bitcoin cuando está activo */}
+              {forensicEnabled && false && (
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <button
                     onClick={() => setForensicPanelOpen(!forensicPanelOpen)}

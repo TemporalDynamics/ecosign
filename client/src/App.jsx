@@ -53,8 +53,7 @@ const InvitePage = lazy(() => import('./pages/InvitePage'));
 const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'));
 const WorkflowsPage = lazy(() => import('./pages/WorkflowsPage'));
 const WorkflowDetailPage = lazy(() => import('./pages/WorkflowDetailPage'));
-const NewsPage = lazy(() => import('./pages/NewsPage'));
-const NewsArticlePage = lazy(() => import('./pages/NewsArticlePage'));
+
 
 
 function AppRoutes() {
@@ -93,8 +92,6 @@ function AppRoutes() {
             <Route path="/status" element={<StatusPage />} />
             <Route path="/report" element={<ReportPage />} />
             <Route path="/report-issue" element={<ReportIssuePage />} />
-            <Route path="/news" element={<NewsPage />} />
-            <Route path="/news/:slug" element={<NewsArticlePage />} />
             
             {/* Resources routes */}
             <Route path="/documentation" element={<DocumentationPage />} />

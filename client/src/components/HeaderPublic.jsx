@@ -23,9 +23,6 @@ const HeaderPublic = () => {
             <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200 flex items-center h-10">
               Precios
             </Link>
-            <Link to="/news" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200 flex items-center h-10">
-              News
-            </Link>
             <Link to="/login" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200 flex items-center h-10">
               Iniciar Sesión
             </Link>
@@ -52,7 +49,6 @@ const HeaderPublic = () => {
             <Link to="/how-it-works" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Cómo funciona</Link>
             <Link to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificador</Link>
             <Link to="/pricing" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Precios</Link>
-            <Link to="/news" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">News</Link>
             <Link to="/login" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Iniciar Sesión</Link>
             <Link
               to="/login"

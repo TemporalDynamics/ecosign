@@ -622,15 +622,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           )}
           
           {/* Columna principal */}
-          <div className="px-6 py-6">
+          <div className="px-6 py-4">
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
-              <div className="space-y-6">
+              <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Elegí tu archivo
-                </h3>
-
                 {/* Zona de drop / Preview del documento */}
                 {!file ? (
                   <label className="block border-2 border-dashed border-gray-300 rounded-xl py-12 text-center hover:border-gray-900 transition-colors cursor-pointer">
@@ -963,7 +959,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
               {/* Acciones (pueden estar múltiples activas) */}
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-900">Acciones</label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
@@ -1162,8 +1157,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       
                       // Si desactiva, mostrar toast de advertencia
                       if (!isEnabled) {
-                        // TODO: Implementar toast
-                        console.warn('⚠️ Tu documento se procesará sin protección legal. Podés activarla en cualquier momento si la necesitás.');
+                        toast.error('Tu documento se procesará sin protección legal. Podés activarla en cualquier momento si la necesitás.', {
+                          duration: 5000,
+                          position: 'bottom-right',
+                          icon: '⚠️'
+                        });
                       }
                     }}
                     className="sr-only peer"
@@ -1171,15 +1169,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
                 </label>
               </div>
-
-              {/* Nota informativa cuando está desactivado */}
-              {!forensicEnabled && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-xs text-yellow-800">
-                    ⚠️ Tu documento se procesará sin protección legal. Podés activarla en cualquier momento si la necesitás.
-                  </p>
-                </div>
-              )}
 
               {/* ELIMINADO: Panel de opciones configurables - Ahora siempre es TSA + Polygon + Bitcoin cuando está activo */}
               {forensicEnabled && false && (

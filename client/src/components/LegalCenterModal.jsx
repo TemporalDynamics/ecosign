@@ -14,13 +14,13 @@ import { getSupabase } from '../lib/supabaseClient';
 import InhackeableTooltip from './InhackeableTooltip';
 
 /**
- * Centro Legal (antes CertificationModal) - Diseño según Design System VerifySign
+ * Centro Legal - Núcleo del producto EcoSign
  *
  * Características:
  * - Sin tecnicismos visibles
- * - Paneles colapsables para opciones avanzadas
- * - Blindaje forense por defecto (transparente)
- * - Flujo simple: Elegir -> Firmar -> Listo
+ * - Paneles colapsables para NDA y Flujo de Firmas
+ * - Protección legal por defecto (TSA + Polygon + Bitcoin)
+ * - Flujo guiado: tranquilidad, claridad y control
  */
 const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   // Estados del flujo
@@ -33,18 +33,21 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   const [forensicPanelOpen, setForensicPanelOpen] = useState(false);
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
 
-  // Configuración de blindaje forense (activo por defecto con TSA + Polygon + Bitcoin)
+  // Configuración de protección legal (activo por defecto con TSA + Polygon + Bitcoin)
   const [forensicEnabled, setForensicEnabled] = useState(true);
   const [forensicConfig, setForensicConfig] = useState({
     useLegalTimestamp: true,    // RFC 3161 TSA
-    usePolygonAnchor: true,      // Polygon blockchain
-    useBitcoinAnchor: true       // Bitcoin blockchain (activado por defecto)
+    usePolygonAnchor: true,      // Polygon
+    useBitcoinAnchor: true       // Bitcoin
   });
 
   // Acciones (pueden estar múltiples activas simultáneamente)
   const [mySignature, setMySignature] = useState(initialAction === 'sign');
   const [workflowEnabled, setWorkflowEnabled] = useState(initialAction === 'workflow');
   const [ndaEnabled, setNdaEnabled] = useState(initialAction === 'nda');
+  
+  // Confirmación de modo (aparece temporalmente en el header)
+  const [modeConfirmation, setModeConfirmation] = useState('');
   
   // NDA editable (panel izquierdo)
   const [ndaText, setNdaText] = useState(`ACUERDO DE CONFIDENCIALIDAD (NDA)
@@ -118,6 +121,29 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     }
     loadUserData();
   }, [mySignature]);
+  
+  // Mostrar confirmación de modo cuando cambian las acciones
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const modes = [];
+    if (ndaEnabled) modes.push('NDA');
+    if (mySignature) modes.push('Mi Firma');
+    if (workflowEnabled) modes.push('Flujo de Firmas');
+    
+    if (modes.length > 0) {
+      setModeConfirmation(`Modo seleccionado: ${modes.join(' + ')}`);
+      
+      // Desvanecer después de 3.5 segundos
+      const timer = setTimeout(() => {
+        setModeConfirmation('');
+      }, 3500);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setModeConfirmation('');
+    }
+  }, [mySignature, workflowEnabled, ndaEnabled, isOpen]);
 
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState('none'); // 'none', 'canvas', 'signnow'
@@ -176,6 +202,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   const handleRemoveEmailField = (index) => {
     if (emailInputs.length <= 1) return; // Mantener al menos 1 campo
+    
+    // Si hay más de 3 firmantes, pedir confirmación
+    if (emailInputs.length > 3) {
+      if (!window.confirm('¿Estás seguro de eliminar este firmante?')) {
+        return;
+      }
+    }
+    
     const newInputs = emailInputs.filter((_, idx) => idx !== index);
     setEmailInputs(newInputs);
   };
@@ -192,27 +226,63 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setEmailInputs(newInputs);
   };
 
+  // Validación mejorada de email
+  const isValidEmail = (email) => {
+    const trimmed = email.trim();
+    // Regex más estricta: debe tener @ y dominio válido
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    
+    if (!emailRegex.test(trimmed)) return { valid: false, error: 'Formato de email inválido' };
+    
+    // No permitir dominios comunes mal escritos
+    const commonTypos = ['gmial.com', 'gmai.com', 'yahooo.com', 'hotmial.com'];
+    const domain = trimmed.split('@')[1];
+    if (commonTypos.includes(domain)) {
+      return { valid: false, error: 'Posible error de tipeo en el dominio' };
+    }
+    
+    return { valid: true };
+  };
+
   const buildSignersList = () => {
     // Construir lista de firmantes desde los campos con email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const validSigners = emailInputs
-      .filter(input => input.email.trim() && emailRegex.test(input.email.trim()))
-      .map((input, idx) => ({
-        email: input.email.trim(),
+    const validSigners = [];
+    const seen = new Set();
+    const errors = [];
+
+    emailInputs.forEach((input, idx) => {
+      const trimmed = input.email.trim();
+      if (!trimmed) return; // Campo vacío, ignorar
+
+      const validation = isValidEmail(trimmed);
+      
+      if (!validation.valid) {
+        errors.push(`Email ${idx + 1}: ${validation.error}`);
+        return;
+      }
+
+      if (seen.has(trimmed)) {
+        errors.push(`Email duplicado: ${trimmed}`);
+        return;
+      }
+
+      seen.add(trimmed);
+      validSigners.push({
+        email: trimmed,
         name: input.name?.trim() || null,
-        signingOrder: idx + 1,
+        signingOrder: validSigners.length + 1,
         requireLogin: input.requireLogin,
         requireNda: input.requireNda,
         quickAccess: false
-      }));
-
-    // Eliminar duplicados por email
-    const seen = new Set();
-    return validSigners.filter(signer => {
-      if (seen.has(signer.email)) return false;
-      seen.add(signer.email);
-      return true;
+      });
     });
+
+    // Mostrar errores si hay
+    if (errors.length > 0) {
+      toast.error(errors[0], { duration: 4000 });
+    }
+
+    return validSigners;
   };
 
   const handleCertify = async () => {
@@ -600,9 +670,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           }`}>
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Centro Legal
-          </h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Centro Legal
+            </h2>
+            {modeConfirmation && (
+              <span className="text-sm text-gray-500 animate-fadeIn">
+                {modeConfirmation}
+              </span>
+            )}
+          </div>
           <button
             onClick={resetAndClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -655,6 +732,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     <p className="text-xs text-gray-500 mt-2">
                       PDF, Word, Excel, imágenes (máx 50MB)
                     </p>
+                    <div className="mt-6 pt-4 border-t border-gray-200">
+                      <p className="text-sm text-gray-700 font-medium">
+                        Tu documento es privado: no lo vemos ni lo guardamos.
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Solo generamos su protección y evidencia.
+                      </p>
+                    </div>
                   </label>
                 ) : (
                   <div className="border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50">
@@ -1030,7 +1115,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       <div className="group relative">
                         <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
                         <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
-                          Firma vinculante con peso legal completo. Válida para uso interno, RRHH y aprobaciones generales.
+                          Firma válida para acuerdos cotidianos. Rápida, privada y simple.
                         </div>
                       </div>
                     </div>
@@ -1060,7 +1145,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       <div className="group relative">
                         <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
                         <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
-                          Firma vinculante con certificaciones específicas (eIDAS, eSign, UETA, etc). Requerida en ciertas jurisdicciones.
+                          Para contratos que exigen certificación oficial según tu país.
                         </div>
                       </div>
                     </div>
@@ -1152,10 +1237,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   <Shield className="w-5 h-5 text-gray-900" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      Blindaje forense
+                      Protección legal
                     </p>
                     <p className="text-xs text-gray-500">
-                      TSA + Polygon + Bitcoin (activo por defecto)
+                      Sello de tiempo + registro digital
                     </p>
                   </div>
                 </div>
@@ -1167,12 +1252,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       const isEnabled = e.target.checked;
                       setForensicEnabled(isEnabled);
                       
-                      // Si desactiva, mostrar toast de advertencia
+                      // Si desactiva, mostrar toast suave (no agresivo)
                       if (!isEnabled) {
-                        toast.error('Tu documento se procesará sin protección legal. Podés activarla en cualquier momento si la necesitás.', {
-                          duration: 5000,
+                        toast('Podés continuar sin protección extra. Si la necesitás, la activás en cualquier momento.', {
+                          duration: 4000,
                           position: 'bottom-right',
-                          icon: '⚠️'
+                          style: {
+                            background: '#f3f4f6',
+                            color: '#374151',
+                          }
                         });
                       }
                     }}
@@ -1281,10 +1369,19 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    {workflowEnabled ? 'Enviando invitaciones...' : 'Certificando...'}
+                    Procesando...
                   </>
                 ) : (
-                  workflowEnabled ? 'Enviar para firmar' : 'Certificar documento'
+                  // Texto dinámico según combinación de acciones
+                  (() => {
+                    if (mySignature && !ndaEnabled && !workflowEnabled) return 'Proteger y firmar';
+                    if (mySignature && ndaEnabled && !workflowEnabled) return 'Firmar bajo NDA';
+                    if (mySignature && workflowEnabled) return 'Enviar para firmar';
+                    if (ndaEnabled && !mySignature && !workflowEnabled) return 'Enviar bajo NDA';
+                    if (ndaEnabled && workflowEnabled && !mySignature) return 'Enviar bajo NDA';
+                    if (workflowEnabled && !ndaEnabled && !mySignature) return 'Enviar para firmar';
+                    return 'Continuar';
+                  })()
                 )}
               </button>
             </div>
@@ -1419,7 +1516,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         type="text"
                         value={input.name}
                         onChange={(e) => handleNameChange(index, e.target.value)}
-                        placeholder="Nombre del firmante (opcional)"
+                        placeholder="Juan Pérez (opcional)"
                         className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
                       />
                     </div>

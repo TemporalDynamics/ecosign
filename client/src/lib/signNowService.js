@@ -41,7 +41,7 @@ export async function signWithSignNow(file, options = {}) {
         }
       ],
       signature: options.signature || null, // { image: base64, placement: {...} }
-      message: options.message || 'Por favor, firmá este documento',
+      message: options.message || 'Por favor, revisá el documento adjunto y firmalo usando el enlace de abajo.',
       subject: options.subject || `Firma de documento: ${file.name}`,
       requireNdaEmbed: options.requireNdaEmbed || false,
       metadata: options.metadata || {}

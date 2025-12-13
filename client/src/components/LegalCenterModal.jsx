@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Pen, Shield, Type, Upload, Users } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Pen, Shield, Type, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
@@ -16,11 +16,26 @@ import InhackeableTooltip from './InhackeableTooltip';
 /**
  * Centro Legal - Núcleo del producto EcoSign
  *
- * Características:
- * - Sin tecnicismos visibles
- * - Paneles colapsables para NDA y Flujo de Firmas
- * - Protección legal por defecto (TSA + Polygon + Bitcoin)
- * - Flujo guiado: tranquilidad, claridad y control
+ * RESPONSABILIDADES:
+ * - Gestionar el flujo completo de protección y firma de documentos.
+ * - Coordinar firmas propias o workflow multi-firmante.
+ * - Aplicar protección forense (TSA + Polygon + Bitcoin).
+ * - Mostrar preview con altura fija por modo (compact/expanded).
+ *
+ * LÍMITES (NO HACE):
+ * - No edita PDFs internamente (lo hace SignNow).
+ * - No persiste estado entre sesiones; se resetea al cerrar.
+ * - No valida formatos de archivo (delegado a libs de certificación).
+ *
+ * REGLAS DE DISEÑO (NO TOCAR):
+ * - Preview: altura fija según modo y solo cambia por acción explícita.
+ * - CTA: tamaño/posición fijos; solo cambia texto.
+ * - Layout compacto para pantallas 13-14" sin scroll disruptivo.
+ *
+ * DEUDA CONOCIDA:
+ * - signers es legacy (se usa emailInputs); pendiente limpiar.
+ * - annotationMode/annotations tienen UI parcial sin lógica de anotación.
+ * - Panel forense colapsable desactivado (forensicEnabled && false).
  */
 const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   // Estados del flujo
@@ -69,6 +84,7 @@ Devolver o destruir toda la información confidencial cuando se solicite.
 5. DURACIÓN
 Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   
+  // TODO: LEGACY - signers era parte de un flujo anterior; emailInputs es el estado real
   const [signers, setSigners] = useState([]);
   const [emailInputs, setEmailInputs] = useState([
     { email: '', name: '', requireLogin: true, requireNda: true }
@@ -97,11 +113,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
     if (!isOpen) return;
-    if (initialAction === 'workflow' || initialAction === 'sign') {
-      setMultipleSignatures(true);
-    } else if (initialAction === 'certify' || initialAction === 'blindage') {
-      setMultipleSignatures(false);
-    }
+    setMySignature(initialAction === 'sign');
+    setWorkflowEnabled(initialAction === 'workflow');
+    setNdaEnabled(initialAction === 'nda');
+    setPreviewMode('compact');
   }, [initialAction, isOpen]);
 
   // Prellenar con datos del usuario autenticado cuando "Mi Firma" está activo
@@ -153,9 +168,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const { canvasRef, hasSignature, clearCanvas, getSignatureData, handlers } = useSignatureCanvas();
 
   // Preview del documento
+  const PREVIEW_BASE_HEIGHT = 'h-80';
   const [documentPreview, setDocumentPreview] = useState(null);
-  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [previewMode, setPreviewMode] = useState('compact'); // 'compact' | 'expanded' | 'fullscreen'
   const [showSignatureOnPreview, setShowSignatureOnPreview] = useState(false);
+  // TODO: FEATURE PARCIAL - UI de anotaciones existe pero no hay lógica de escritura sobre el PDF
   const [annotationMode, setAnnotationMode] = useState(null); // 'signature', 'highlight', 'text'
   const [annotations, setAnnotations] = useState([]); // Lista de anotaciones (highlights y textos)
 
@@ -632,15 +649,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setFile(null);
     setCertificateData(null);
     setSignatureMode('none');
-    setMultipleSignatures(false);
-    setSignatureEnabled(false);
-    setSigners([]);
+    setSigners([]); // Legacy; emailInputs es el flujo real
     setEmailInputs([
       { email: '', requireLogin: true, requireNda: true }
     ]); // Reset a 1 campo vacío
     setForensicEnabled(true); // Reset a true (activo por defecto)
     setDocumentPreview(null);
-    setPreviewFullscreen(false);
+    setPreviewMode('compact');
     setShowSignatureOnPreview(false);
     setAnnotationMode(null);
     setAnnotations([]);
@@ -660,16 +675,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       console.error('❌ onClose no es una función:', onClose);
     }
   };
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className={`modal-container bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl ${
-        (workflowEnabled && ndaEnabled) ? 'max-w-7xl' :
-        (workflowEnabled || ndaEnabled) ? 'max-w-5xl' : 'max-w-2xl'
-          }`}>
+      <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] overflow-y-auto shadow-xl">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-gray-900">
               Centro Legal
@@ -711,10 +722,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           )}
           
           {/* Columna principal */}
-          <div className="px-6 py-4">
+          <div className="px-6 py-3">
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
               <div>
                 {/* Zona de drop / Preview del documento */}
                 {!file ? (
@@ -796,11 +807,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               <Type className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => setPreviewFullscreen(!previewFullscreen)}
+                              onClick={() => {
+                                // Ciclo simple: compact -> expanded -> compact (fullscreen reservado para fase futura)
+                                setPreviewMode((prev) => prev === 'compact' ? 'expanded' : 'compact');
+                              }}
                               className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                              title="Pantalla completa"
+                              title={previewMode === 'compact' ? 'Editar y firmar documento' : 'Minimizar'}
                             >
-                              {previewFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                              {previewMode === 'expanded' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                             </button>
                           </>
                         )}
@@ -817,7 +831,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </div>
 
                     {/* Preview del contenido */}
-                    <div className={`relative ${previewFullscreen ? 'h-[60vh]' : 'h-96'} bg-gray-100 flex items-center justify-center`}>
+                    <div className={`relative ${
+                      previewMode === 'expanded' ? 'h-[60vh]' : PREVIEW_BASE_HEIGHT
+                    } bg-gray-100 ${documentPreview ? '' : 'flex items-center justify-center'}`}>
                       {documentPreview ? (
                         <>
                           {file.type.startsWith('image/') ? (
@@ -829,8 +845,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                           ) : file.type === 'application/pdf' ? (
                             <iframe
                               src={documentPreview}
-                              className="w-full h-full"
+                              className="w-full h-full bg-white"
                               title="PDF Preview"
+                              sandbox="allow-scripts allow-same-origin allow-popups"
+                              loading="lazy"
                             />
                           ) : null}
 
@@ -845,9 +863,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                       setShowSignatureOnPreview(false);
                                       setSignatureTab('draw');
                                     }}
-                                    className="text-gray-400 hover:text-gray-600"
+                                    className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm"
+                                    title="Volver al documento"
                                   >
-                                    <X className="w-5 h-5" />
+                                    <ArrowLeft className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Volver</span>
                                   </button>
                                 </div>
 
@@ -1095,8 +1115,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
               {/* Tipo de Firma - Solo si hay Mi Firma o Flujo */}
               {(mySignature || workflowEnabled) && (
-              <div className="space-y-3 animate-fadeScaleIn">
-                <label className="text-sm font-semibold text-gray-900">Tipo de firma</label>
+              <div className="space-y-2 animate-fadeScaleIn">
                 <div className="grid grid-cols-2 gap-3">
                   {/* Firma Legal */}
                   <button
@@ -1157,7 +1176,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                     {/* Formulario de datos del firmante (solo para Firma Legal) */}
                     {signatureType === 'legal' && !workflowEnabled && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3 animate-expandVertical">
+                      <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2 animate-expandVertical">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">✍️</span>
                           <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">
@@ -1232,7 +1251,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               )}
 
               {/* Blindaje Forense - Activo por defecto, puede desactivarse */}
-              <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Shield className="w-5 h-5 text-gray-900" />
                   <div>
@@ -1270,7 +1289,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </label>
               </div>
 
-              {/* ELIMINADO: Panel de opciones configurables - Ahora siempre es TSA + Polygon + Bitcoin cuando está activo */}
+              {/* TODO: LEGACY - Panel de opciones configurables desactivado (forensicEnabled && false)
+                  Razón: blindaje fijo (TSA + Polygon + Bitcoin) cuando está activo.
+                  Revisar en próximo refactor si se reintroduce configuración. */}
               {forensicEnabled && false && (
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <button
@@ -1369,18 +1390,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Procesando...
+                    Protegiendo tu documento…
                   </>
                 ) : (
-                  // Texto dinámico según combinación de acciones
+                  // Texto dinámico con foco emocional, no técnico
                   (() => {
-                    if (mySignature && !ndaEnabled && !workflowEnabled) return 'Proteger y firmar';
-                    if (mySignature && ndaEnabled && !workflowEnabled) return 'Firmar bajo NDA';
-                    if (mySignature && workflowEnabled) return 'Enviar para firmar';
-                    if (ndaEnabled && !mySignature && !workflowEnabled) return 'Enviar bajo NDA';
-                    if (ndaEnabled && workflowEnabled && !mySignature) return 'Enviar bajo NDA';
-                    if (workflowEnabled && !ndaEnabled && !mySignature) return 'Enviar para firmar';
-                    return 'Continuar';
+                    if (workflowEnabled) return 'Enviar para firmar';
+                    if (mySignature) return 'Proteger y firmar';
+                    return 'Proteger documento';
                   })()
                 )}
               </button>

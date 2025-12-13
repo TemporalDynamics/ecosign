@@ -1203,55 +1203,76 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             <div className="text-center py-8">
               <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
 
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Tu certificado está listo
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                ✅ Proceso completado correctamente
               </h3>
 
-              <p className="text-sm text-gray-600 mb-8 max-w-md mx-auto">
-                Guardamos tu documento firmado y tu certificado .ECO en tu cuenta. Descargá ambos archivos ahora
+              <p className="text-base text-gray-900 mb-2 max-w-md mx-auto font-medium">
+                Tu documento ya está protegido y blindado.
+              </p>
+              <p className="text-base text-gray-900 mb-6 max-w-md mx-auto font-medium">
+                Podés descargarlo ahora y conservarlo donde prefieras.
+              </p>
+
+              {/* Microcopy de confianza (zero-knowledge) */}
+              <p className="text-xs text-gray-500 mb-8 max-w-md mx-auto italic">
+                EcoSign no ve ni almacena tus documentos.<br />
+                Solo generamos protección criptográfica y evidencia verificable.
               </p>
 
               {/* Botones de acción */}
               <div className="flex flex-col gap-3 max-w-sm mx-auto">
-                {/* Descargar PDF Firmado con Audit Trail */}
+                {/* Descargar PDF protegido */}
                 {certificateData.signedPdfUrl && (
                   <a
                     href={certificateData.signedPdfUrl}
                     download={certificateData.signedPdfName}
-                    className="bg-black hover:bg-cyan-500 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
+                    className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
-                    Descargar PDF Firmado
+                    Descargar PDF protegido
                   </a>
                 )}
 
-                {/* Descargar archivo .ECO */}
+                {/* Descargar certificado .ECO con tooltip */}
                 {certificateData.downloadEnabled ? (
-                  <a
-                    href={certificateData.ecoDownloadUrl}
-                    download={certificateData.ecoFileName}
-                    onClick={() => {
-                      // Registrar evento 'downloaded'
-                      if (certificateData.documentId) {
-                        const supabase = getSupabase();
-                        supabase.auth.getUser().then(({ data: { user } }) => {
-                          EventHelpers.logEcoDownloaded(
-                            certificateData.documentId,
-                            user?.id || null,
-                            user?.email || null
-                          );
-                        });
-                      }
-                    }}
-                    className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Descargar Certificado .ECO
-                  </a>
+                  <div className="relative group">
+                    <a
+                      href={certificateData.ecoDownloadUrl}
+                      download={certificateData.ecoFileName}
+                      onClick={() => {
+                        // Registrar evento 'downloaded'
+                        if (certificateData.documentId) {
+                          const supabase = getSupabase();
+                          supabase.auth.getUser().then(({ data: { user } }) => {
+                            EventHelpers.logEcoDownloaded(
+                              certificateData.documentId,
+                              user?.id || null,
+                              user?.email || null
+                            );
+                          });
+                        }
+                      }}
+                      className="bg-white border-2 border-gray-300 hover:border-gray-900 text-gray-900 rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2 w-full"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Descargar certificado .ECO
+                      <HelpCircle className="w-4 h-4 text-gray-400" />
+                    </a>
+                    {/* Tooltip */}
+                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
+                      <p className="font-semibold mb-1">Certificado de protección del documento</p>
+                      <p className="text-gray-300">Incluye sello de tiempo y registro verificable</p>
+                      {/* Flecha del tooltip */}
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+                        <div className="border-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-5 py-3 text-amber-800">
                     <div className="flex items-start gap-3">
@@ -1274,12 +1295,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </div>
                 )}
 
-                {/* Volver al dashboard */}
+                {/* CTA final de cierre */}
                 <button
                   onClick={resetAndClose}
-                  className="border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg px-5 py-3 font-medium transition-colors"
+                  className="mt-4 text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
                 >
-                  Ver en mi panel
+                  Finalizar proceso
                 </button>
               </div>
             </div>

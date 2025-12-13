@@ -46,6 +46,7 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
 
   // Estados de paneles colapsables
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
+  const [showProtectionModal, setShowProtectionModal] = useState(false);
 
   // Configuración de protección legal (activo por defecto con TSA + Polygon + Bitcoin)
   const [forensicEnabled, setForensicEnabled] = useState(true);
@@ -99,13 +100,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [signnowTotal, setSignnowTotal] = useState(15); // Total del plan
   const [isEnterprisePlan, setIsEnterprisePlan] = useState(false); // Plan enterprise tiene ilimitadas
 
-  // Datos del firmante (para Hoja de Auditoría - solo EcoSign)
-  // Caso A (Mi Firma): Yo firmo → prellenar con usuario logueado
-  // Caso B (Flujo de Firmas): Otros firman → enviar links
-  const [signerName, setSignerName] = useState('');
-  const [signerEmail, setSignerEmail] = useState('');
-  const [signerCompany, setSignerCompany] = useState('');
-  const [signerJobTitle, setSignerJobTitle] = useState('');
 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
@@ -116,24 +110,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setPreviewMode('compact');
   }, [initialAction, isOpen]);
 
-  // Prellenar con datos del usuario autenticado cuando "Mi Firma" está activo
-  useEffect(() => {
-    async function loadUserData() {
-      if (mySignature) {
-        const supabase = getSupabase();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setSignerName(user.user_metadata?.full_name || user.email || '');
-          setSignerEmail(user.email || '');
-        }
-      } else {
-        setSignerName('');
-        setSignerEmail('');
-      }
-    }
-    loadUserData();
-  }, [mySignature]);
-  
   // Mostrar confirmación de modo cuando cambian las acciones
   useEffect(() => {
     if (!isOpen) return;
@@ -398,12 +374,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       // Solo agregar Hoja de Auditoría si es Firma Legal (NO para Firma Certificada)
       if (signatureType === 'legal') {
-        // Validar nombre del firmante (obligatorio solo si se dibujó firma)
-        if (signatureMode === 'canvas' && !signerName.trim()) {
-          toast.error('Por favor, completá tu nombre para generar la Hoja de Auditoría con firma');
-          setLoading(false);
-          return;
-        }
+        // Obtener datos del usuario autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        const userName = user?.user_metadata?.full_name || user?.email || 'Usuario';
+        const userEmail = user?.email || null;
 
         // Preparar datos forenses para la hoja de firmas
         const forensicData = {
@@ -412,11 +386,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           polygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
           bitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
           timestamp: new Date().toISOString(),
-          // Datos del firmante
-          signerName: signerName.trim(),
-          signerEmail: signerEmail.trim() || null,
-          signerCompany: signerCompany.trim() || null,
-          signerJobTitle: signerJobTitle.trim() || null,
+          // Datos del firmante (del perfil autenticado)
+          signerName: userName,
+          signerEmail: userEmail,
+          signerCompany: user?.user_metadata?.company || null,
+          signerJobTitle: user?.user_metadata?.job_title || null,
           // Metadata del documento
           documentName: file.name,
           documentPages: null, // Se puede calcular en backend si es necesario
@@ -447,7 +421,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             documentName: fileToProcess.name,
             action: 'esignature',
             userEmail: user?.email || 'unknown@example.example.com',
-            userName: user?.user_metadata?.full_name || signerName || 'Usuario',
+            userName: user?.user_metadata?.full_name || user?.email || 'Usuario',
             signature: signatureData ? {
               image: signatureData,
               placement: {
@@ -697,20 +671,35 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         {/* Content - Grid fijo de 3 columnas (nunca cambia) */}
         <div className="grid grid-cols-[300px,1fr,300px]">
           {/* Panel izquierdo: NDA editable (columna siempre existe) */}
-          <div className={`border-r border-gray-200 ${ndaEnabled ? 'px-4 py-6 bg-gray-50 overflow-y-auto animate-fadeSlideInLeft' : ''}`}>
+          <div className="border-r border-gray-200">
             {ndaEnabled && (
-              <>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Acuerdo de Confidencialidad</h3>
-                <p className="text-xs text-gray-600 mb-3">
-                  Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
-                </p>
-                <textarea
-                  value={ndaText}
-                  onChange={(e) => setNdaText(e.target.value)}
-                  className="w-full h-[500px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
-                  placeholder="Escribí aquí el texto del NDA..."
-                />
-              </>
+              <div className="bg-gray-50 animate-fadeSlideInLeft h-full flex flex-col">
+                {/* Header colapsable del panel */}
+                <div className="px-4 py-3 border-b border-gray-200 bg-white">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900">NDA</h3>
+                    <button
+                      onClick={() => setNdaEnabled(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Cerrar panel NDA"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {/* Contenido del panel */}
+                <div className="px-4 py-4 overflow-y-auto flex-1">
+                  <p className="text-xs text-gray-600 mb-3">
+                    Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
+                  </p>
+                  <textarea
+                    value={ndaText}
+                    onChange={(e) => setNdaText(e.target.value)}
+                    className="w-full h-[500px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
+                    placeholder="Escribí aquí el texto del NDA..."
+                  />
+                </div>
+              </div>
             )}
           </div>
           
@@ -750,6 +739,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     {/* Header del preview */}
                     <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
+                        {/* Escudo de Protección Legal */}
+                        <button
+                          onClick={() => setShowProtectionModal(true)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            forensicEnabled
+                              ? 'text-gray-900 hover:bg-gray-100'
+                              : 'text-gray-400 hover:bg-gray-50'
+                          }`}
+                          title={forensicEnabled ? 'Protección legal activa' : 'Protección legal desactivada'}
+                        >
+                          <Shield className={`w-5 h-5 ${forensicEnabled ? 'fill-gray-900' : ''}`} />
+                        </button>
                         <CheckCircle2 className="w-5 h-5 text-green-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-900 truncate">
@@ -1169,120 +1170,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </button>
                 </div>
 
-                    {/* Formulario de datos del firmante (solo para Firma Legal) */}
-                    {signatureType === 'legal' && !workflowEnabled && (
-                      <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2 animate-expandVertical">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">✍️</span>
-                          <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">
-                            Tus datos (para Hoja de Auditoría)
-                          </p>
-                        </div>
-
-                        {/* Nombre completo - OBLIGATORIO solo si hay firma */}
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Nombre completo {signatureMode === 'canvas' && <span className="text-red-500">*</span>}
-                          </label>
-                          <input
-                            type="text"
-                            value={signerName}
-                            onChange={(e) => setSignerName(e.target.value)}
-                            placeholder="Ej: Juan Pérez"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required={signatureMode === 'canvas'}
-                          />
-                        </div>
-
-                        {/* Email - OPCIONAL */}
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Email (opcional)
-                          </label>
-                          <input
-                            type="email"
-                            value={signerEmail}
-                            onChange={(e) => setSignerEmail(e.target.value)}
-                            placeholder="Ej: juan@empresa.com"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-
-                        {/* Empresa y Puesto (en la misma línea) - OPCIONAL */}
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Empresa (opcional)
-                            </label>
-                            <input
-                              type="text"
-                              value={signerCompany}
-                              onChange={(e) => setSignerCompany(e.target.value)}
-                              placeholder="Ej: Acme Inc."
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Puesto (opcional)
-                            </label>
-                            <input
-                              type="text"
-                              value={signerJobTitle}
-                              onChange={(e) => setSignerJobTitle(e.target.value)}
-                              placeholder="Ej: Director"
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-blue-700 italic flex items-start gap-1">
-                          <span className="mt-0.5">ℹ️</span>
-                          <span>Estos datos aparecerán en la Hoja de Auditoría al final del documento</span>
-                        </p>
-                      </div>
-                    )}
               </div>
               )}
 
-              {/* Blindaje Forense - Activo por defecto, puede desactivarse */}
-              <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Shield className="w-5 h-5 text-gray-900" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Protección legal
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Sello de tiempo + registro digital
-                    </p>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={forensicEnabled}
-                    onChange={(e) => {
-                      const isEnabled = e.target.checked;
-                      setForensicEnabled(isEnabled);
-                      
-                      // Si desactiva, mostrar toast suave (no agresivo)
-                      if (!isEnabled) {
-                        toast('Podés continuar sin protección extra. Si la necesitás, la activás en cualquier momento.', {
-                          duration: 4000,
-                          position: 'bottom-right',
-                          style: {
-                            background: '#f3f4f6',
-                            color: '#374151',
-                          }
-                        });
-                      }
-                    }}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                </label>
-              </div>
 
 
               {/* Botón principal */}
@@ -1397,15 +1287,27 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
 
           {/* Panel lateral de firmantes (columna siempre existe) */}
-          <div className={`border-l border-gray-200 ${workflowEnabled ? 'bg-gray-50 px-6 py-6 overflow-y-auto animate-fadeSlideInRight' : ''}`}>
+          <div className="border-l border-gray-200">
             {workflowEnabled && (
-              <>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Firmantes
-                </h3>
-                <p className="text-xs text-gray-500 mb-4">
-                  Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
-                </p>
+              <div className="bg-gray-50 animate-fadeSlideInRight h-full flex flex-col">
+                {/* Header colapsable del panel */}
+                <div className="px-4 py-3 border-b border-gray-200 bg-white">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
+                    <button
+                      onClick={() => setWorkflowEnabled(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Cerrar panel de firmantes"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {/* Contenido del panel */}
+                <div className="px-6 py-4 overflow-y-auto flex-1">
+                  <p className="text-xs text-gray-500 mb-4">
+                    Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
+                  </p>
 
                 {/* Campos de email con switches individuales */}
                 <div className="space-y-4 mb-4">
@@ -1469,7 +1371,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </div>
                   </div>
                 </div>
-              </>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -1557,6 +1460,78 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 <p className="text-xs text-gray-500">
                   Cumplimiento multi-jurisdicción (eIDAS, eSign, UETA). Para operaciones globales.
                 </p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal secundario: Protección Legal */}
+      {showProtectionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Protección Legal
+              </h3>
+              <button
+                onClick={() => setShowProtectionModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Tu documento está protegido con las siguientes capas de seguridad forense:
+            </p>
+
+            {/* Lista de protecciones */}
+            <div className="space-y-3 mb-6">
+              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Sello de Tiempo (TSA)</p>
+                  <p className="text-xs text-gray-600">Certificación RFC 3161 de fecha y hora exacta</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Anclaje Blockchain (Polygon)</p>
+                  <p className="text-xs text-gray-600">Registro inmutable en blockchain pública</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Anclaje Bitcoin</p>
+                  <p className="text-xs text-gray-600">Protección permanente en Bitcoin blockchain</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Opción para desactivar */}
+            <div className="border-t border-gray-200 pt-4">
+              <button
+                onClick={() => {
+                  setForensicEnabled(false);
+                  setShowProtectionModal(false);
+                  toast('Protección legal desactivada. Podés volver a activarla en cualquier momento.', {
+                    duration: 4000,
+                    position: 'bottom-right',
+                    style: {
+                      background: '#f3f4f6',
+                      color: '#374151',
+                    }
+                  });
+                }}
+                className="w-full py-2 px-4 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                Desactivar protección legal
               </button>
             </div>
           </div>

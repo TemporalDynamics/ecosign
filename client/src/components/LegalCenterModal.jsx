@@ -36,13 +36,10 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   // Configuración de blindaje forense (activo por defecto con TSA + Polygon + Bitcoin)
   const [forensicEnabled, setForensicEnabled] = useState(true);
   const [forensicConfig, setForensicConfig] = useState({
-    useLegalTimestamp: true,    // RFC 3161
-    usePolygonAnchor: true,      // Polygon
-    useBitcoinAnchor: false      // Bitcoin
+    useLegalTimestamp: true,    // RFC 3161 TSA
+    usePolygonAnchor: true,      // Polygon blockchain
+    useBitcoinAnchor: true       // Bitcoin blockchain (activado por defecto)
   });
-
-  // Privacidad: permitir no guardar el PDF en el dashboard (solo hash + ECO/ECOX)
-  const [storePdfInDashboard, setStorePdfInDashboard] = useState(false);
 
   // Acciones (pueden estar múltiples activas simultáneamente)
   const [mySignature, setMySignature] = useState(initialAction === 'sign');
@@ -316,7 +313,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       let fileToProcess = file;
 
       // Solo agregar Hoja de Auditoría si es Firma Legal (NO para Firma Certificada)
-      if (signatureEnabled && signatureType === 'legal') {
+      if (signatureType === 'legal') {
         // Validar nombre del firmante (obligatorio solo si se dibujó firma)
         if (signatureMode === 'canvas' && !signerName.trim()) {
           toast.error('Por favor, completá tu nombre para generar la Hoja de Auditoría con firma');
@@ -353,7 +350,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       let signedPdfFromSignNow = null;
       let signNowResult = null;
 
-      if (signatureEnabled && signatureType === 'certified') {
+      if (signatureType === 'certified') {
         // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
         console.log('🔐 Usando SignNow API para firma legalizada');
 
@@ -431,7 +428,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       // 2. Guardar en Supabase (guardar el PDF procesado, no el original)
       // Status inicial: 'signed' si ya se firmó, 'draft' si no hay firmantes
-      const initialStatus = signatureEnabled ? 'signed' : 'draft';
+      const initialStatus = (signatureType === 'legal' || signatureType === 'certified') ? 'signed' : 'draft';
       const bitcoinRequested = forensicEnabled && forensicConfig.useBitcoinAnchor;
       const bitcoinPending = bitcoinRequested && Boolean(certResult?.bitcoinAnchor?.anchorId);
       const overallStatus = bitcoinPending ? 'pending_anchor' : initialStatus === 'signed' ? 'certified' : initialStatus;
@@ -466,7 +463,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             filename: file.name,
             fileSize: file.size,
             fileType: file.type,
-            signatureType: signatureEnabled ? signatureType : 'none',
+            signatureType: signatureType || 'none',
             forensicEnabled: forensicEnabled,
             polygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
             bitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
@@ -485,7 +482,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           userId: savedDoc?.user_id,
           metadata: {
             filename: file.name,
-            signatureType: signatureEnabled ? signatureType : 'none'
+            signatureType: signatureType || 'none'
           }
         }).then(result => {
           if (result.success) {

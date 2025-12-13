@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Pen, Shield, Type, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
+import '../styles/legalCenterAnimations.css';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { saveUserDocument } from '../utils/documentStorage';
 import { startSignatureWorkflow } from '../lib/signatureWorkflowService';
@@ -596,7 +597,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl transition-all duration-300 ${
+      <div className={`modal-container bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl ${
         (workflowEnabled && ndaEnabled) ? 'max-w-7xl' :
         (workflowEnabled || ndaEnabled) ? 'max-w-5xl' : 'max-w-2xl'
           }`}>
@@ -614,14 +615,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         </div>
 
         {/* Content */}
-        <div className={`${
+        <div className={`grid-transition ${
           ndaEnabled && workflowEnabled ? 'grid grid-cols-[300px,1fr,300px]' :
           ndaEnabled ? 'grid grid-cols-[350px,1fr]' :
           workflowEnabled ? 'grid grid-cols-[1fr,350px]' : ''
         }`}>
           {/* Panel izquierdo: NDA editable */}
           {ndaEnabled && (
-            <div className="border-r border-gray-200 px-4 py-6 bg-gray-50 overflow-y-auto">
+            <div className="border-r border-gray-200 px-4 py-6 bg-gray-50 overflow-y-auto animate-fadeSlideInLeft">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Acuerdo de Confidencialidad</h3>
               <p className="text-xs text-gray-600 mb-3">
                 Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
@@ -1012,7 +1013,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
               {/* Tipo de Firma - Solo si hay Mi Firma o Flujo */}
               {(mySignature || workflowEnabled) && (
-              <div className="space-y-3">
+              <div className="space-y-3 animate-fadeScaleIn">
                 <label className="text-sm font-semibold text-gray-900">Tipo de firma</label>
                 <div className="grid grid-cols-2 gap-3">
                   {/* Firma Legal */}
@@ -1074,7 +1075,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                     {/* Formulario de datos del firmante (solo para Firma Legal) */}
                     {signatureType === 'legal' && !workflowEnabled && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3 animate-expandVertical">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">✍️</span>
                           <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">
@@ -1382,7 +1383,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
           {/* Panel lateral de firmantes (solo visible si workflowEnabled está ON) */}
           {workflowEnabled && (
-            <div className="bg-gray-50 border-l border-gray-200 px-6 py-6 overflow-y-auto">
+            <div className="bg-gray-50 border-l border-gray-200 px-6 py-6 overflow-y-auto animate-fadeSlideInRight">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Firmantes
               </h3>
@@ -1459,8 +1460,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       {/* Modal secundario: Selector de tipo de firma certificada */}
       {showCertifiedModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Elegí el tipo de firma certificada

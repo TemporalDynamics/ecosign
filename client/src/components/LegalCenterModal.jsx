@@ -1073,56 +1073,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                         return;
                                       }
 
-                                      try {
-                                        let signatureData = null;
-
-                                        // Obtener firma según el tab activo
-                                        if (signatureTab === 'draw') {
-                                          if (!hasSignature) return;
-                                          signatureData = getSignatureData();
-                                        } else if (signatureTab === 'type') {
-                                          if (!typedSignature) return;
-                                          // Convertir texto a imagen
-                                          const canvas = document.createElement('canvas');
-                                          canvas.width = 600;
-                                          canvas.height = 200;
-                                          const ctx = canvas.getContext('2d');
-                                          ctx.fillStyle = 'white';
-                                          ctx.fillRect(0, 0, canvas.width, canvas.height);
-                                          ctx.fillStyle = '#1f2937';
-                                          ctx.font = "80px 'Dancing Script', cursive";
-                                          ctx.textAlign = 'center';
-                                          ctx.textBaseline = 'middle';
-                                          ctx.fillText(typedSignature, canvas.width / 2, canvas.height / 2);
-                                          signatureData = canvas.toDataURL('image/png');
-                                        } else if (signatureTab === 'upload') {
-                                          if (!uploadedSignature) return;
-                                          signatureData = uploadedSignature;
-                                        }
-
-                                        if (!signatureData) return;
-
-                                        // Aplicar firma al PDF
-                                        const signedPdfBlob = await applySignatureToPDF(file, signatureData);
-                                        const signedPdfFile = blobToFile(signedPdfBlob, file.name);
-
-                                        // Actualizar el archivo con la versión firmada
-                                        setFile(signedPdfFile);
-
-                                        // Actualizar la vista previa
-                                        const newPreviewUrl = URL.createObjectURL(signedPdfBlob);
-                                        setDocumentPreview(newPreviewUrl);
-
-                                        // Cerrar el modo firma
-                                        setShowSignatureOnPreview(false);
-                                        setSignatureMode('canvas');
-                                        setSignatureTab('draw');
-
-                                        toast.success('Firma aplicada exitosamente al PDF');
-                                      } catch (error) {
-                                        console.error('Error al aplicar firma:', error);
-                                        toast.error('Error al aplicar la firma al PDF. Verificá que el archivo sea un PDF válido.');
-                                      }
+                                      // Simplemente cerrar el modo firma
+                                      // La firma se aplicará durante la certificación por addSignatureSheet
+                                      setShowSignatureOnPreview(false);
+                                      toast.success('Firma guardada. Se aplicará al certificar el documento.', {
+                                        duration: 4000,
+                                        icon: '✅'
+                                      });
                                     }}
                                     className="flex-1 py-2 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
                                     disabled={

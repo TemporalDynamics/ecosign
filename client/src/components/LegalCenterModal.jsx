@@ -45,7 +45,6 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   const [certificateData, setCertificateData] = useState(null);
 
   // Estados de paneles colapsables
-  const [forensicPanelOpen, setForensicPanelOpen] = useState(false);
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
 
   // Configuración de protección legal (activo por defecto con TSA + Polygon + Bitcoin)
@@ -84,8 +83,6 @@ Devolver o destruir toda la información confidencial cuando se solicite.
 5. DURACIÓN
 Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   
-  // TODO: LEGACY - signers era parte de un flujo anterior; emailInputs es el estado real
-  const [signers, setSigners] = useState([]);
   const [emailInputs, setEmailInputs] = useState([
     { email: '', name: '', requireLogin: true, requireNda: true }
   ]); // 1 campo por defecto - usuarios agregan más según necesiten
@@ -537,8 +534,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         signNowDocumentId: signNowResult?.signnow_document_id || null,
         signNowStatus: signNowResult?.status || null,
         signedAt: signNowResult ? new Date().toISOString() : null,
-        storePdf: storePdfInDashboard,
-        zeroKnowledgeOptOut: !storePdfInDashboard
+        storePdf: false, // No guardar PDF en dashboard (será eliminado)
+        zeroKnowledgeOptOut: true // Zero-knowledge: no guardar contenido del PDF
       });
 
       // 3. Registrar evento 'created' (ChainLog)
@@ -649,7 +646,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setFile(null);
     setCertificateData(null);
     setSignatureMode('none');
-    setSigners([]); // Legacy; emailInputs es el flujo real
     setEmailInputs([
       { email: '', requireLogin: true, requireNda: true }
     ]); // Reset a 1 campo vacío
@@ -659,15 +655,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setShowSignatureOnPreview(false);
     setAnnotationMode(null);
     setAnnotations([]);
-    setStorePdfInDashboard(false);
-    
+
     // Reset acciones
     setMySignature(false);
     setWorkflowEnabled(false);
     setNdaEnabled(false);
-    
+
     clearCanvas();
-    
+
     console.log('✅ Estados reseteados, llamando onClose()');
     if (typeof onClose === 'function') {
       onClose();
@@ -699,27 +694,25 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </button>
         </div>
 
-        {/* Content */}
-        <div className={`grid-transition ${
-          ndaEnabled && workflowEnabled ? 'grid grid-cols-[300px,1fr,300px]' :
-          ndaEnabled ? 'grid grid-cols-[350px,1fr]' :
-          workflowEnabled ? 'grid grid-cols-[1fr,350px]' : ''
-        }`}>
-          {/* Panel izquierdo: NDA editable */}
-          {ndaEnabled && (
-            <div className="border-r border-gray-200 px-4 py-6 bg-gray-50 overflow-y-auto animate-fadeSlideInLeft">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Acuerdo de Confidencialidad</h3>
-              <p className="text-xs text-gray-600 mb-3">
-                Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
-              </p>
-              <textarea
-                value={ndaText}
-                onChange={(e) => setNdaText(e.target.value)}
-                className="w-full h-[500px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
-                placeholder="Escribí aquí el texto del NDA..."
-              />
-            </div>
-          )}
+        {/* Content - Grid fijo de 3 columnas (nunca cambia) */}
+        <div className="grid grid-cols-[300px,1fr,300px]">
+          {/* Panel izquierdo: NDA editable (columna siempre existe) */}
+          <div className={`border-r border-gray-200 ${ndaEnabled ? 'px-4 py-6 bg-gray-50 overflow-y-auto animate-fadeSlideInLeft' : ''}`}>
+            {ndaEnabled && (
+              <>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Acuerdo de Confidencialidad</h3>
+                <p className="text-xs text-gray-600 mb-3">
+                  Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
+                </p>
+                <textarea
+                  value={ndaText}
+                  onChange={(e) => setNdaText(e.target.value)}
+                  className="w-full h-[500px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
+                  placeholder="Escribí aquí el texto del NDA..."
+                />
+              </>
+            )}
+          </div>
           
           {/* Columna principal */}
           <div className="px-6 py-3">
@@ -830,10 +823,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       </div>
                     </div>
 
-                    {/* Preview del contenido */}
+                    {/* Preview del contenido - altura fija según modo */}
                     <div className={`relative ${
                       previewMode === 'expanded' ? 'h-[60vh]' : PREVIEW_BASE_HEIGHT
-                    } bg-gray-100 ${documentPreview ? '' : 'flex items-center justify-center'}`}>
+                    } bg-gray-100`}>
                       {documentPreview ? (
                         <>
                           {file.type.startsWith('image/') ? (
@@ -1063,10 +1056,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                           )}
                         </>
                       ) : (
-                        <div className="text-center text-gray-500">
-                          <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">Vista previa no disponible</p>
-                          <p className="text-xs">El archivo se procesará al certificar</p>
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                          <div className="text-center">
+                            <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">Vista previa no disponible</p>
+                            <p className="text-xs">El archivo se procesará al certificar</p>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1289,97 +1284,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </label>
               </div>
 
-              {/* TODO: LEGACY - Panel de opciones configurables desactivado (forensicEnabled && false)
-                  Razón: blindaje fijo (TSA + Polygon + Bitcoin) cuando está activo.
-                  Revisar en próximo refactor si se reintroduce configuración. */}
-              {forensicEnabled && false && (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => setForensicPanelOpen(!forensicPanelOpen)}
-                    className="w-full px-4 py-3 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
-                  >
-                    <p className="text-sm font-medium text-gray-700">
-                      Configurar opciones de blindaje
-                    </p>
-                    {forensicPanelOpen ? (
-                      <ChevronUp className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                    )}
-                  </button>
-
-                  {forensicPanelOpen && (
-                    <div className="p-4 space-y-3 bg-white border-t border-gray-200">
-                      <p className="text-xs text-gray-600 mb-3">
-                        Elegí las capas de protección forense para tu certificado
-                      </p>
-
-                      {/* Sello de tiempo legal */}
-                      <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={forensicConfig.useLegalTimestamp}
-                          onChange={(e) => setForensicConfig({
-                            ...forensicConfig,
-                            useLegalTimestamp: e.target.checked
-                          })}
-                          className="mt-1 w-4 h-4 text-gray-900 rounded focus:ring-gray-500"
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            Sello de tiempo legal (TSA)
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Sello de tiempo certificado por autoridad de confianza
-                          </p>
-                        </div>
-                      </label>
-
-                      {/* Polygon Blockchain */}
-                      <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={forensicConfig.usePolygonAnchor}
-                          onChange={(e) => setForensicConfig({
-                            ...forensicConfig,
-                            usePolygonAnchor: e.target.checked
-                          })}
-                          className="mt-1 w-4 h-4 text-gray-900 rounded focus:ring-gray-500"
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            Polygon Blockchain
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Registro inmutable en blockchain pública (confirmación en 30 segundos)
-                          </p>
-                        </div>
-                      </label>
-
-                      {/* Bitcoin Blockchain */}
-                      <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={forensicConfig.useBitcoinAnchor}
-                          onChange={(e) => setForensicConfig({
-                            ...forensicConfig,
-                            useBitcoinAnchor: e.target.checked
-                          })}
-                          className="mt-1 w-4 h-4 text-gray-900 rounded focus:ring-gray-500"
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            Bitcoin Blockchain
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Anclaje permanente en Bitcoin (confirmación en 4-24 horas)
-                          </p>
-                        </div>
-                      </label>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Botón principal */}
               <button
@@ -1492,80 +1396,82 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           )}
           </div>
 
-          {/* Panel lateral de firmantes (solo visible si workflowEnabled está ON) */}
-          {workflowEnabled && (
-            <div className="bg-gray-50 border-l border-gray-200 px-6 py-6 overflow-y-auto animate-fadeSlideInRight">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Firmantes
-              </h3>
-              <p className="text-xs text-gray-500 mb-4">
-                Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
-              </p>
+          {/* Panel lateral de firmantes (columna siempre existe) */}
+          <div className={`border-l border-gray-200 ${workflowEnabled ? 'bg-gray-50 px-6 py-6 overflow-y-auto animate-fadeSlideInRight' : ''}`}>
+            {workflowEnabled && (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Firmantes
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
+                </p>
 
-              {/* Campos de email con switches individuales */}
-              <div className="space-y-4 mb-4">
-                {emailInputs.map((input, index) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-                    {/* Header con número, email y nombre opcional */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                        {index + 1}
+                {/* Campos de email con switches individuales */}
+                <div className="space-y-4 mb-4">
+                  {emailInputs.map((input, index) => (
+                    <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                      {/* Header con número, email y nombre opcional */}
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        <input
+                          type="email"
+                          value={input.email}
+                          onChange={(e) => handleEmailChange(index, e.target.value)}
+                          placeholder="email@ejemplo.com"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                        />
+                        {emailInputs.length > 1 && (
+                          <button
+                            onClick={() => handleRemoveEmailField(index)}
+                            className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                            title="Eliminar firmante"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      <input
-                        type="email"
-                        value={input.email}
-                        onChange={(e) => handleEmailChange(index, e.target.value)}
-                        placeholder="email@ejemplo.com"
-                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-                      />
-                      {emailInputs.length > 1 && (
-                        <button
-                          onClick={() => handleRemoveEmailField(index)}
-                          className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                          title="Eliminar firmante"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={input.name}
+                          onChange={(e) => handleNameChange(index, e.target.value)}
+                          placeholder="Juan Pérez (opcional)"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={input.name}
-                        onChange={(e) => handleNameChange(index, e.target.value)}
-                        placeholder="Juan Pérez (opcional)"
-                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-                      />
+                  ))}
+                </div>
+
+                {/* Botón para agregar más firmantes */}
+                <button
+                  onClick={handleAddEmailField}
+                  className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 mb-4"
+                >
+                  <Users className="w-4 h-4" />
+                  Agregar otro firmante
+                </button>
+
+                {/* Info de seguridad */}
+                <div className="p-3 bg-gray-100 border border-gray-200 rounded-lg">
+                  <div className="flex gap-2">
+                    <Shield className="w-4 h-4 text-gray-900 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-gray-900">
+                        Seguridad obligatoria
+                      </p>
+                      <p className="text-xs text-gray-700 mt-1">
+                        Todos los firmantes requieren login y aceptación de NDA antes de firmar
+                      </p>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Botón para agregar más firmantes */}
-              <button
-                onClick={handleAddEmailField}
-                className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 mb-4"
-              >
-                <Users className="w-4 h-4" />
-                Agregar otro firmante
-              </button>
-
-              {/* Info de seguridad */}
-              <div className="p-3 bg-gray-100 border border-gray-200 rounded-lg">
-                <div className="flex gap-2">
-                  <Shield className="w-4 h-4 text-gray-900 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-medium text-gray-900">
-                      Seguridad obligatoria
-                    </p>
-                    <p className="text-xs text-gray-700 mt-1">
-                      Todos los firmantes requieren login y aceptación de NDA antes de firmar
-                    </p>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 

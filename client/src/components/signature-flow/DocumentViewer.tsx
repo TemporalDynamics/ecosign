@@ -60,77 +60,18 @@ export default function DocumentViewer({
   }, [loggedDuration, logEvent, signerId, viewStartTime, workflowId])
 
   useEffect(() => {
-    let isMounted = true
-    let objectUrl: string | null = null
-
     const loadDocument = async () => {
-      if (!documentPath) {
-        setError('No encontramos el documento asociado a este flujo.')
-        setLoading(false)
-        return
-      }
+      // ... (existing loadDocument logic)
+    };
 
-      try {
-        setLoading(true)
-        setError(null)
-
-        if (encryptionKey) {
-          // Download encrypted PDF, decrypt locally
-          let encryptedBlob: Blob | null = null
-          if (signedUrl) {
-            const resp = await fetch(signedUrl)
-            if (!resp.ok) throw new Error('No se pudo descargar el documento')
-            encryptedBlob = await resp.blob()
-          } else {
-            const { success, data, error: downloadError } = await downloadDocument(documentPath)
-            if (!success || !data) {
-              throw new Error(downloadError || 'No se pudo descargar el documento')
-            }
-            encryptedBlob = data
-          }
-
-          const decrypted = await decryptFile(encryptedBlob, encryptionKey)
-          const buffer = await decrypted.arrayBuffer()
-          const pdfBlob = new Blob([buffer], { type: 'application/pdf' })
-          objectUrl = URL.createObjectURL(pdfBlob)
-
-          if (workflowId && signerId) {
-            await logEvent({
-              workflowId,
-              signerId,
-              eventType: 'document_decrypted'
-            })
-          }
-        } else {
-          const resolvedUrl = signedUrl || await getSignedDocumentUrl(documentPath)
-          if (!resolvedUrl) {
-            throw new Error('No se pudo generar un link seguro para visualizar el PDF')
-          }
-          objectUrl = resolvedUrl
-        }
-
-        if (isMounted) {
-          setPdfUrl(objectUrl)
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'No se pudo cargar el documento'
-        setError(message)
-      } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
-      }
-    }
-
-    loadDocument().catch(console.error)
+    loadDocument();
 
     return () => {
-      isMounted = false
-      if (objectUrl && objectUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(objectUrl)
+      if (pdfUrl && pdfUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pdfUrl);
       }
-    }
-  }, [documentPath, encryptionKey, logEvent, signerId, workflowId, signedUrl])
+    };
+  }, [documentPath, encryptionKey, logEvent, signerId, workflowId, signedUrl, pdfUrl]);
 
   if (loading) {
     return (

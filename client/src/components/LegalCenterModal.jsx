@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Pen, Shield, Type, Upload, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
@@ -139,6 +139,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [typedSignature, setTypedSignature] = useState('');
   const [uploadedSignature, setUploadedSignature] = useState(null);
   const { canvasRef, hasSignature, clearCanvas, getSignatureData, handlers } = useSignatureCanvas();
+  const finalizeButtonRef = useRef(null);
 
   // Preview del documento
   const PREVIEW_BASE_HEIGHT = 'h-80';
@@ -277,6 +278,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   const handleCertify = async () => {
     if (!file) return;
+    if (!file.type?.toLowerCase().includes('pdf')) {
+      toast.error('Subí un PDF para proteger y certificar (otros formatos no son compatibles).');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -645,6 +650,75 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     }
   };
 
+  const playFinalizeAnimation = () => {
+    try {
+      const buttonEl = finalizeButtonRef.current;
+      const targetEl = document.querySelector('a[href="/dashboard/documents"]');
+
+      if (!buttonEl || !targetEl) return;
+
+      const startRect = buttonEl.getBoundingClientRect();
+      const targetRect = targetEl.getBoundingClientRect();
+      if (targetRect.width === 0 && targetRect.height === 0) return;
+
+      const startX = startRect.left + startRect.width / 2;
+      const startY = startRect.top + startRect.height / 2;
+      const targetX = targetRect.left + targetRect.width / 2;
+      const targetY = targetRect.top + targetRect.height / 2;
+
+      const ghost = document.createElement('div');
+      ghost.innerHTML = `
+        <svg viewBox="0 0 32 40" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#111827" d="M22 0H6a2 2 0 0 0-2 2v36a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V10z"/>
+          <path fill="#1f2937" d="M22 0v8a2 2 0 0 0 2 2h8z"/>
+          <path fill="#f3f4f6" d="M10 14h12v2H10zm0 6h12v2H10zm0 6h8v2h-8z"/>
+        </svg>
+      `;
+      ghost.style.position = 'fixed';
+      ghost.style.left = `${startX}px`;
+      ghost.style.top = `${startY}px`;
+      ghost.style.transform = 'translate(-50%, -50%)';
+      ghost.style.width = '32px';
+      ghost.style.height = '40px';
+      ghost.style.zIndex = '9999';
+      ghost.style.pointerEvents = 'none';
+      document.body.appendChild(ghost);
+
+      const duration = 520;
+      const startTime = performance.now();
+
+      const animate = (now) => {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+
+        const currentX = startX + (targetX - startX) * easeOut;
+        const currentY = startY + (targetY - startY) * easeOut;
+        const scale = 1 - 0.35 * easeOut;
+        const opacity = 1 - 0.85 * easeOut;
+
+        ghost.style.left = `${currentX}px`;
+        ghost.style.top = `${currentY}px`;
+        ghost.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        ghost.style.opacity = `${Math.max(opacity, 0)}`;
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          ghost.remove();
+        }
+      };
+
+      requestAnimationFrame(animate);
+    } catch (error) {
+      console.warn('⚠️ Animación de cierre no disponible:', error);
+    }
+  };
+
+  const handleFinalizeClick = () => {
+    playFinalizeAnimation();
+    resetAndClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] overflow-y-auto shadow-xl">
@@ -751,7 +825,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         >
                           <Shield className={`w-5 h-5 ${forensicEnabled ? 'fill-gray-900' : ''}`} />
                         </button>
-                        <CheckCircle2 className="w-5 h-5 text-green-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-900 truncate">
                             {file.name}
@@ -1297,7 +1370,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                 {/* CTA final de cierre */}
                 <button
-                  onClick={resetAndClose}
+                  ref={finalizeButtonRef}
+                  onClick={handleFinalizeClick}
                   className="mt-4 text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
                 >
                   Finalizar proceso
@@ -1505,13 +1579,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
 
             <p className="text-sm text-gray-600 mb-4">
-              Tu documento está protegido con las siguientes capas de seguridad forense:
+              {forensicEnabled
+                ? 'Triple protección internacional'
+                : 'Activá la protección legal que necesitás'}
             </p>
 
             {/* Lista de protecciones */}
             <div className="space-y-3 mb-6">
               <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
                 <div>
                   <p className="text-sm font-medium text-gray-900">Sello de Tiempo (TSA)</p>
                   <p className="text-xs text-gray-600">Certificación RFC 3161 de fecha y hora exacta</p>
@@ -1519,40 +1595,54 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </div>
 
               <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Anclaje Blockchain (Polygon)</p>
-                  <p className="text-xs text-gray-600">Registro inmutable en blockchain pública</p>
+                  <p className="text-sm font-medium text-gray-900">Registro Inmutable Digital</p>
+                  <p className="text-xs text-gray-600">Anclaje en la red Polygon</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Anclaje Bitcoin</p>
-                  <p className="text-xs text-gray-600">Protección permanente en Bitcoin blockchain</p>
+                  <p className="text-sm font-medium text-gray-900">Registro Permanente Digital</p>
+                  <p className="text-xs text-gray-600">Anclaje en la red Bitcoin</p>
                 </div>
               </div>
             </div>
 
-            {/* Opción para desactivar */}
+            {/* Toggle de protección */}
             <div className="border-t border-gray-200 pt-4">
               <button
                 onClick={() => {
-                  setForensicEnabled(false);
+                  const newState = !forensicEnabled;
+                  setForensicEnabled(newState);
                   setShowProtectionModal(false);
-                  toast('Protección legal desactivada. Podés volver a activarla en cualquier momento.', {
-                    duration: 4000,
-                    position: 'bottom-right',
-                    style: {
-                      background: '#f3f4f6',
-                      color: '#374151',
-                    }
-                  });
+
+                  if (newState) {
+                    toast('Activá la protección legal que necesitás', {
+                      duration: 4000,
+                      position: 'bottom-right',
+                      icon: '🛡️',
+                      style: {
+                        background: '#f3f4f6',
+                        color: '#374151',
+                      }
+                    });
+                  } else {
+                    toast('Protección legal desactivada. Podés volver a activarla en cualquier momento.', {
+                      duration: 4000,
+                      position: 'bottom-right',
+                      style: {
+                        background: '#f3f4f6',
+                        color: '#374151',
+                      }
+                    });
+                  }
                 }}
                 className="w-full py-2 px-4 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
               >
-                Desactivar protección legal
+                {forensicEnabled ? 'Desactivar protección legal' : 'Activar protección legal'}
               </button>
             </div>
           </div>

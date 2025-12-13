@@ -559,6 +559,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   };
 
   const resetAndClose = () => {
+    console.log('🔒 Cerrando Centro Legal...');
     setStep(1);
     setFile(null);
     setCertificateData(null);
@@ -569,15 +570,28 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setEmailInputs([
       { email: '', requireLogin: true, requireNda: true }
     ]); // Reset a 1 campo vacío
-    setForensicEnabled(false);
+    setForensicEnabled(true); // Reset a true (activo por defecto)
     setDocumentPreview(null);
     setPreviewFullscreen(false);
     setShowSignatureOnPreview(false);
     setAnnotationMode(null);
     setAnnotations([]);
     setStorePdfInDashboard(false);
+    
+    // Reset acciones
+    setMySignature(false);
+    setWorkflowEnabled(false);
+    setNdaEnabled(false);
+    
     clearCanvas();
-    onClose();
+    
+    console.log('✅ Estados reseteados, llamando onClose()');
+    if (typeof onClose === 'function') {
+      onClose();
+    } else {
+      console.error('❌ onClose no es una función:', onClose);
+    }
+  };
   };
 
   return (

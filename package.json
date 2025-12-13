@@ -13,7 +13,11 @@
     "test:coverage": "vitest run --coverage",
     "test:security": "vitest run tests/security/",
     "test:security:watch": "vitest tests/security/",
-    "preview": "cd client && npm run preview"
+    "preview": "cd client && npm run preview",
+    "lint": "cd client && npm run lint",
+    "lint:fix": "cd client && npm run lint:fix",
+    "typecheck": "cd client && npm run typecheck",
+    "validate": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "keywords": [
     "supabase",

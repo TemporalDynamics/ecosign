@@ -1,6 +1,10 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
 import { ethers } from 'npm:ethers@6.9.0'
+import { createLogger, withTiming } from '../_shared/logger.ts'
+import { shouldRetry, RETRY_CONFIGS, getNextRetryTime } from '../_shared/retry.ts'
+
+const logger = createLogger('process-polygon-anchors')
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,6 +32,13 @@ const jsonResponse = (data: unknown, status = 200) =>
 
 async function markFailed(anchorId: string, message: string, attempts: number) {
   if (!supabaseAdmin) return
+  
+  logger.error('anchor_failed', {
+    anchorId,
+    attempts,
+    reason: message
+  })
+  
   await supabaseAdmin
     .from('anchors')
     .update({
@@ -81,10 +92,14 @@ serve(async (req) => {
   }
 
   try {
+    logger.info('process_polygon_anchors_started')
+    const processingStartTime = Date.now()
+
     let processed = 0
     let confirmed = 0
     let failed = 0
     let waiting = 0
+    let skippedBackoff = 0
 
     const { data: anchors, error } = await supabaseAdmin
       .from('anchors')
@@ -95,13 +110,16 @@ serve(async (req) => {
       .limit(25)
 
     if (error) {
-      console.error('Error fetching polygon anchors:', error)
+      logger.error('fetch_anchors_failed', { error: error.message }, error)
       return jsonResponse({ error: 'Failed to fetch polygon anchors', details: error.message }, 500)
     }
 
     if (!anchors || anchors.length === 0) {
+      logger.info('no_anchors_to_process')
       return jsonResponse({ success: true, message: 'No polygon anchors to process', processed })
     }
+
+    logger.info('anchors_fetched', { count: anchors.length })
 
     for (const anchor of anchors) {
       const txHash = anchor.polygon_tx_hash ?? anchor.metadata?.txHash
@@ -114,7 +132,26 @@ serve(async (req) => {
         continue
       }
 
-      if (attempts > 20) {
+      // P1-1 FIX: Exponential backoff - skip if not enough time has passed
+      if (!shouldRetry(anchor.updated_at, attempts, RETRY_CONFIGS.polygon)) {
+        const { nextRetryAt, waitTimeMs } = getNextRetryTime(
+          anchor.updated_at,
+          attempts,
+          RETRY_CONFIGS.polygon
+        )
+        
+        logger.debug('anchor_backoff_skip', {
+          anchorId: anchor.id,
+          attempts,
+          nextRetryAt: nextRetryAt.toISOString(),
+          waitTimeMs
+        })
+        
+        skippedBackoff++
+        continue
+      }
+
+      if (attempts > RETRY_CONFIGS.polygon.maxAttempts) {
         await markFailed(anchor.id, 'Max attempts reached', attempts)
         failed++
         processed++
@@ -122,10 +159,25 @@ serve(async (req) => {
       }
 
       try {
-        const receipt = await provider.getTransactionReceipt(txHash)
+        const { result: receipt, durationMs } = await withTiming(() =>
+          provider.getTransactionReceipt(txHash)
+        )
+
+        logger.debug('receipt_fetched', {
+          anchorId: anchor.id,
+          txHash,
+          durationMs,
+          hasReceipt: !!receipt
+        })
 
         if (!receipt) {
           // Still pending in mempool
+          logger.info('anchor_still_pending', {
+            anchorId: anchor.id,
+            txHash,
+            attempts
+          })
+
           await supabaseAdmin
             .from('anchors')
             .update({
@@ -164,49 +216,74 @@ serve(async (req) => {
           confirmedAt,
         }
 
-        await supabaseAdmin
-          .from('anchors')
-          .update({
-            anchor_status: 'confirmed',
-            polygon_status: 'confirmed',
-            polygon_tx_hash: txHash,
-            polygon_block_number: receipt.blockNumber ?? null,
-            polygon_block_hash: receipt.blockHash ?? null,
-            polygon_confirmed_at: confirmedAt,
-            polygon_attempts: attempts,
-            confirmed_at: confirmedAt,
-            metadata: updatedMetadata,
-          })
-          .eq('id', anchor.id)
+        // P0-3 FIX: Use atomic transaction to update anchors + user_documents together
+        const userDocumentUpdates = anchor.user_document_id ? {
+          document_id: anchor.user_document_id,
+          has_polygon_anchor: true,
+          polygon_anchor_id: anchor.id,
+          overall_status: 'certified',
+          download_enabled: true,
+        } : null
 
-        // Update user_documents to reflect Polygon anchor confirmation
-        if (anchor.user_document_id) {
-          await supabaseAdmin
-            .from('user_documents')
-            .update({
-              has_polygon_anchor: true,
-              polygon_anchor_id: anchor.id,
-              // Política 1: Polygon es suficiente para certificar
-              // (Bitcoin es best-effort, no bloqueante)
-              overall_status: 'certified',
-              download_enabled: true,
-            })
-            .eq('id', anchor.user_document_id)
+        const { error: atomicError } = await supabaseAdmin.rpc('anchor_polygon_atomic_tx', {
+          _anchor_id: anchor.id,
+          _anchor_user_id: anchor.user_id,
+          _tx_hash: txHash,
+          _block_number: receipt.blockNumber ?? null,
+          _block_hash: receipt.blockHash ?? null,
+          _confirmed_at: confirmedAt,
+          _metadata: updatedMetadata,
+          _user_document_updates: userDocumentUpdates,
+          _polygon_attempts: attempts
+        })
 
-          console.log(`✅ Document ${anchor.user_document_id} certified with Polygon (Bitcoin best-effort)`)
+        if (atomicError) {
+          logger.error('atomic_transaction_failed', {
+            anchorId: anchor.id,
+            txHash,
+            error: atomicError.message
+          }, atomicError)
+          failed++
+          processed++
+          continue
         }
+
+        logger.info('anchor_confirmed', {
+          anchorId: anchor.id,
+          txHash,
+          blockNumber: receipt.blockNumber,
+          confirmedAt,
+          attempts,
+          documentId: anchor.user_document_id
+        })
 
         await insertNotification(anchor, txHash, receipt.blockNumber, receipt.blockHash, confirmedAt)
 
         confirmed++
         processed++
       } catch (anchorError) {
-        console.error(`Error processing anchor ${anchor.id}:`, anchorError)
+        logger.error('anchor_processing_error', {
+          anchorId: anchor.id,
+          txHash,
+          attempts
+        }, anchorError instanceof Error ? anchorError : new Error(String(anchorError)))
+        
         await markFailed(anchor.id, anchorError instanceof Error ? anchorError.message : String(anchorError), attempts)
         failed++
         processed++
       }
     }
+
+    const totalDurationMs = Date.now() - processingStartTime
+
+    logger.info('process_polygon_anchors_completed', {
+      processed,
+      confirmed,
+      failed,
+      waiting,
+      skippedBackoff,
+      durationMs: totalDurationMs
+    })
 
     return jsonResponse({
       success: true,
@@ -214,10 +291,12 @@ serve(async (req) => {
       confirmed,
       failed,
       waiting,
-      message: `Polygon anchors processed: ${processed} (confirmed ${confirmed}, waiting ${waiting}, failed ${failed})`,
+      skippedBackoff,
+      durationMs: totalDurationMs,
+      message: `Polygon anchors processed: ${processed} (confirmed ${confirmed}, waiting ${waiting}, failed ${failed}, skipped ${skippedBackoff})`,
     })
   } catch (err) {
-    console.error('process-polygon-anchors fatal error:', err)
+    logger.error('process_polygon_anchors_fatal', {}, err instanceof Error ? err : new Error(String(err)))
     return jsonResponse({ error: err instanceof Error ? err.message : String(err) }, 500)
   }
 })

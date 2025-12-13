@@ -8,7 +8,10 @@
     "build": "npm run validate:env && vite build",
     "build:skip-validation": "vite build",
     "preview": "vite preview",
-    "validate:env": "node scripts/validate-env.js"
+    "validate:env": "node scripts/validate-env.js",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
     "node": ">=20.x",
@@ -33,12 +36,19 @@
     "terser": "^5.36.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "@vitejs/plugin-react": "^4.1.0",
     "autoprefixer": "^10.4.21",
+    "eslint": "^9.39.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
+    "typescript": "^5.9.3",
     "vite": "^4.5.0",
     "vite-plugin-node-polyfills": "^0.24.0"
   }

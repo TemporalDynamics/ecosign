@@ -746,8 +746,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         <div className="grid grid-cols-[300px,1fr,300px]">
           {/* Panel izquierdo: NDA editable (columna siempre existe) */}
           <div className="border-r border-gray-200">
-            {ndaEnabled ? (
-              <div className="bg-gray-50 animate-fadeSlideInLeft h-full flex flex-col">
+            {ndaEnabled && (
+              <div className="bg-gray-50 h-full flex flex-col">
                 {/* Header colapsable del panel */}
                 <div className="px-4 py-3 border-b border-gray-200 bg-white">
                   <div className="flex items-center justify-between">
@@ -773,15 +773,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     placeholder="Escribí aquí el texto del NDA..."
                   />
                 </div>
-              </div>
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <button
-                  onClick={() => setNdaEnabled(true)}
-                  className="text-xs text-gray-500 hover:text-gray-900 border border-dashed border-gray-300 rounded-lg px-3 py-2 transition-colors"
-                >
-                  Mostrar NDA
-                </button>
               </div>
             )}
           </div>
@@ -1349,8 +1340,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
           {/* Panel lateral de firmantes (columna siempre existe) */}
           <div className="border-l border-gray-200">
-            {workflowEnabled ? (
-              <div className="bg-gray-50 animate-fadeSlideInRight h-full flex flex-col">
+            {workflowEnabled && (
+              <div className="bg-gray-50 h-full flex flex-col">
                 {/* Header colapsable del panel */}
                 <div className="px-4 py-3 border-b border-gray-200 bg-white">
                   <div className="flex items-center justify-between">
@@ -1433,15 +1424,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </div>
                 </div>
                 </div>
-              </div>
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <button
-                  onClick={() => setWorkflowEnabled(true)}
-                  className="text-xs text-gray-500 hover:text-gray-900 border border-dashed border-gray-300 rounded-lg px-3 py-2 transition-colors"
-                >
-                  Mostrar flujo de firmas
-                </button>
               </div>
             )}
           </div>

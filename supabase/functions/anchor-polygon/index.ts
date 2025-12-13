@@ -32,9 +32,20 @@ serve(async (req) => {
       metadata = {}
     } = body
 
-    if (!documentHash || !/^[a-f0-9]{64}$/i.test(documentHash)) {
+    // P0-1 FIX: Validate documentHash exists and is correct type
+    if (!documentHash || typeof documentHash !== 'string') {
       return new Response(JSON.stringify({
-        error: 'Invalid documentHash. Must be 64 hex characters'
+        error: 'documentHash is required and must be a string'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const isHex64 = /^[0-9a-f]{64}$/i
+    if (!isHex64.test(documentHash.trim())) {
+      return new Response(JSON.stringify({
+        error: 'Invalid documentHash. Must be 64 hex characters (SHA-256)'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -127,7 +138,7 @@ serve(async (req) => {
       }
     }
 
-    await supabase.from('anchors').insert({
+    const { data: anchorData, error: anchorError } = await supabase.from('anchors').insert({
       document_hash: documentHash,
       document_id: finalDocumentId,
       user_id: finalUserId,
@@ -144,7 +155,36 @@ serve(async (req) => {
         submittedAt: new Date().toISOString(),
         ...metadata
       }
-    })
+    }).select().single()
+
+    if (anchorError) {
+      console.error('Failed to insert Polygon anchor:', anchorError)
+      return new Response(JSON.stringify({
+        error: 'Failed to create anchor record',
+        details: anchorError.message
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // P0-2 FIX: Update user_documents status when queueing (consistent with Bitcoin)
+    if (userDocumentId) {
+      const { error: updateError } = await supabase
+        .from('user_documents')
+        .update({
+          overall_status: 'pending_anchor',
+          polygon_anchor_id: anchorData.id,
+        })
+        .eq('id', userDocumentId)
+
+      if (updateError) {
+        console.warn('Failed to update user_documents with Polygon anchor status:', updateError)
+        // Don't fail the request, anchor is already queued
+      } else {
+        console.log(`✅ Updated user_documents ${userDocumentId} status to pending_anchor`)
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,

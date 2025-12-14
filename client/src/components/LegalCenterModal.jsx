@@ -354,7 +354,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           toast.success(`Invitaciones enviadas a ${validSigners.length} firmante(s). Revisá tu email para el seguimiento.`, {
             duration: 6000
           });
-        } catch (workflowError: any) {
+        } catch (workflowError) {
           console.error('❌ Error al iniciar workflow:', workflowError);
           const errorMessage = workflowError.message || (typeof workflowError === 'string' ? workflowError : 'No se pudo enviar las invitaciones. Verificá los datos e intentá de nuevo.');
           toast.error(errorMessage);

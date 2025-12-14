@@ -5,7 +5,10 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
 import { sendResendEmail } from '../_shared/email.ts';
+import { createLogger, withTiming } from '../_shared/logger.ts';
 import { Buffer } from 'node:buffer';
+
+const logger = createLogger('process-bitcoin-anchors');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -310,7 +313,8 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🔄 Processing Bitcoin anchor queue...');
+    logger.info('process_bitcoin_anchors_started');
+    const processingStartTime = Date.now();
 
     let processed = 0;
     let submitted = 0;
@@ -327,12 +331,14 @@ serve(async (req) => {
       .limit(10);
 
     if (queuedError) {
-      console.error('Error fetching queued anchors:', queuedError);
+      logger.error('fetch_queued_anchors_failed', { error: queuedError.message }, queuedError);
     } else if (queuedAnchors && queuedAnchors.length > 0) {
-      console.log(`Found ${queuedAnchors.length} queued anchors to submit`);
+      logger.info('queued_anchors_found', { count: queuedAnchors.length });
 
       for (const anchor of queuedAnchors) {
-        const result = await submitToOpenTimestamps(anchor.document_hash);
+        const { result, durationMs } = await withTiming(() => 
+          submitToOpenTimestamps(anchor.document_hash)
+        );
 
         if (result.success) {
           await supabaseAdmin
@@ -346,7 +352,12 @@ serve(async (req) => {
             .eq('id', anchor.id);
 
           submitted++;
-          console.log(`✅ Submitted anchor ${anchor.id}`);
+          logger.info('anchor_submitted', {
+            anchorId: anchor.id,
+            documentHash: anchor.document_hash,
+            calendarUrl: result.calendarUrl,
+            durationMs
+          });
         } else {
           await supabaseAdmin
             .from('anchors')
@@ -358,7 +369,12 @@ serve(async (req) => {
             .eq('id', anchor.id);
 
           failed++;
-          console.log(`❌ Failed to submit anchor ${anchor.id}: ${result.error}`);
+          logger.error('anchor_submission_failed', {
+            anchorId: anchor.id,
+            documentHash: anchor.document_hash,
+            error: result.error,
+            durationMs
+          });
         }
 
         processed++;
@@ -374,9 +390,9 @@ serve(async (req) => {
       .limit(20);
 
     if (pendingError) {
-      console.error('Error fetching pending anchors:', pendingError);
+      logger.error('fetch_pending_anchors_failed', { error: pendingError.message }, pendingError);
     } else if (pendingAnchors && pendingAnchors.length > 0) {
-      console.log(`Checking ${pendingAnchors.length} pending anchors for confirmation`);
+      logger.info('pending_anchors_found', { count: pendingAnchors.length });
 
       for (const anchor of pendingAnchors) {
         if (!anchor.ots_proof || !anchor.ots_calendar_url) {
@@ -388,12 +404,21 @@ serve(async (req) => {
         // Alert when approaching timeout (20 hours)
         if (attempts > ALERT_THRESHOLD && attempts <= MAX_VERIFY_ATTEMPTS) {
           const hoursElapsed = (attempts * 5) / 60;
-          console.warn(`⚠️ Anchor ${anchor.id} has been pending for ${hoursElapsed.toFixed(1)} hours (${attempts}/${MAX_VERIFY_ATTEMPTS} attempts)`);
+          logger.warn('anchor_timeout_approaching', {
+            anchorId: anchor.id,
+            hoursElapsed: hoursElapsed.toFixed(1),
+            attempts,
+            maxAttempts: MAX_VERIFY_ATTEMPTS
+          });
         }
 
         if (attempts > MAX_VERIFY_ATTEMPTS) {
           const errorMessage = `Bitcoin verification timeout after 24 hours (${attempts} attempts). OpenTimestamps may still confirm later - you can retry verification manually.`;
-          console.error(`❌ ${errorMessage} - Anchor ID: ${anchor.id}`);
+          logger.error('anchor_timeout', {
+            anchorId: anchor.id,
+            attempts,
+            errorMessage
+          });
 
           // Marcar anchor de Bitcoin como failed
           await supabaseAdmin
@@ -425,7 +450,11 @@ serve(async (req) => {
                 })
                 .eq('id', anchor.user_document_id);
 
-              console.log(`✅ Document ${anchor.user_document_id} certified with Polygon despite Bitcoin failure`);
+              logger.info('document_certified_with_polygon_fallback', {
+                anchorId: anchor.id,
+                userDocumentId: anchor.user_document_id,
+                polygonAnchorId: userDoc.polygon_anchor_id
+              });
             } else {
               // No hay Polygon → Certificado failed
               await supabaseAdmin
@@ -437,7 +466,10 @@ serve(async (req) => {
                 })
                 .eq('id', anchor.user_document_id);
 
-              console.log(`❌ Document ${anchor.user_document_id} failed - no valid anchors`);
+              logger.error('document_failed_no_valid_anchors', {
+                anchorId: anchor.id,
+                userDocumentId: anchor.user_document_id
+              });
             }
           }
 
@@ -504,13 +536,24 @@ serve(async (req) => {
               });
 
               if (atomicError) {
-                console.error(`❌ Atomic transaction failed for anchor ${anchor.id}:`, atomicError);
+                logger.error('atomic_transaction_failed', {
+                  anchorId: anchor.id,
+                  txid,
+                  blockHeight,
+                  error: atomicError.message
+                }, atomicError);
                 failed++;
                 processed++;
                 continue;
               }
 
-              console.log(`✅ Anchor ${anchor.id} atomically confirmed in Bitcoin!`);
+              logger.info('anchor_confirmed', {
+                anchorId: anchor.id,
+                txid,
+                blockHeight,
+                confirmedAt: blockData.confirmedAt,
+                attempts
+              });
 
               // Send notifications after successful atomic update
               if (anchor.user_document_id) {
@@ -688,6 +731,11 @@ serve(async (req) => {
           confirmed++;
         } else {
           // Still pending - update status to 'processing' if not already
+          logger.debug('anchor_still_verifying', {
+            anchorId: anchor.id,
+            attempts
+          });
+          
           await supabaseAdmin
             .from('anchors')
             .update({
@@ -703,6 +751,8 @@ serve(async (req) => {
       }
     }
 
+    const totalDurationMs = Date.now() - processingStartTime;
+
     const summary = {
       success: true,
       timestamp: new Date().toISOString(),
@@ -711,14 +761,15 @@ serve(async (req) => {
       confirmed,
       failed,
       waiting,
+      durationMs: totalDurationMs,
       message: `Processed ${processed} anchors: ${submitted} submitted, ${confirmed} confirmed, ${waiting} waiting, ${failed} failed`
     };
 
-    console.log('✅ Processing complete:', summary);
+    logger.info('process_bitcoin_anchors_completed', summary);
     return jsonResponse(summary);
 
   } catch (error) {
-    console.error('Worker error:', error);
+    logger.error('process_bitcoin_anchors_fatal', {}, error instanceof Error ? error : new Error(String(error)));
     const message = error instanceof Error ? error.message : 'Unknown error';
     return jsonResponse({ error: message }, 500);
   }

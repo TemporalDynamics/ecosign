@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "client/src/main.jsx",
+    "client/src/App.jsx",
+    "eco-packer/src/index.ts"
+  ],
+  "project": [
+    "client/src/**/*.{js,jsx,ts,tsx}",
+    "eco-packer/src/**/*.{js,jsx,ts,tsx}"
+  ],
+  "ignore": [
+    "client/dist/**",
+    "eco-packer/dist/**",
+    "**/node_modules/**",
+    "**/*.config.js",
+    "**/*.test.{js,jsx,ts,tsx}",
+    "**/vite.config.js",
+    "**/tailwind.config.js",
+    "**/postcss.config.js"
+  ],
+  "ignoreDependencies": [
+    "@vercel/analytics",
+    "vite-plugin-node-polyfills",
+    "autoprefixer",
+    "postcss",
+    "tailwindcss",
+    "terser"
+  ],
+  "ignoreExportsUsedInFile": true
+}

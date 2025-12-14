@@ -17,6 +17,7 @@
     "lint": "cd client && npm run lint",
     "lint:fix": "cd client && npm run lint:fix",
     "typecheck": "cd client && npm run typecheck",
+    "deadcode": "knip --max-issues 100",
     "validate": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "keywords": [
@@ -43,6 +44,7 @@
     "@vitest/ui": "^4.0.9",
     "dotenv": "^17.2.3",
     "glob": "^13.0.0",
+    "knip": "^5.73.4",
     "solc": "^0.5.0",
     "supabase": "^2.58.5",
     "typescript": "^5.9.3",

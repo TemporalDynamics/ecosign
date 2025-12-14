@@ -22,13 +22,13 @@ function DashboardVerifyPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-4xl font-bold text-gray-900">Verificador</h1>
-            <button
-              onClick={() => navigate('/dashboard')}
+            <Link
+              to="/inicio"
               className="flex items-center gap-2 text-gray-600 hover:text-black font-medium"
             >
               <ArrowLeft className="w-5 h-5" />
               Volver
-            </button>
+            </Link>
           </div>
           <p className="text-lg text-gray-700 mb-2">
             Comprobá la autenticidad de tu documento y asegurate de que no fue alterado.

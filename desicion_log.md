@@ -266,3 +266,41 @@ Los gates no son perfectos (faltan tests de integración, strict mode desactivad
 **Rama**: `quality-audit/gates-and-tooling` (5 commits)
 **Deploy**: ⏳ Pendiente merge a main
 **Status**: ✅ Ready for Review
+
+---
+
+## Iteración 2025-12-13 — Alias y Kill Switch del Dashboard Legacy
+
+### 🎯 Objetivo
+Eliminar “Dashboard” como narrativa y punto de entrada sin romper funcionalidades existentes, dejando las rutas legacy vivas pero ocultas para el usuario.
+
+### 🧠 Decisiones tomadas
+- **Kill switch**: `DASHBOARD_ENABLED = false` bloquea `/dashboard` raíz y redirige a `/inicio`.
+- **Alias canónicos**: Se crean `/inicio`, `/documentos`, `/verificador`, `/planes`; las rutas `/dashboard/start|documents|verify|pricing` redirigen a estos alias.
+- **Nav y CTA**: Header interno apunta solo a los alias; “Dashboard” desaparece. LegalCenter apunta a `/documentos` (fallback a legacy).
+- **Código preservado**: Páginas internas legacy se mantienen en el repo; solo se retiraron del router.
+
+### 🛠️ Cambios realizados
+- Router (App.jsx, DashboardApp.tsx): alias protegidos + redirects desde `/dashboard/*`; kill switch activo en `/dashboard`.
+- Navegación: DashboardNav usa alias (`/inicio`, `/documentos`, `/verificador`, `/planes`).
+- Login/Signup: redirigen a `/inicio`.
+- LegalCenter modal: animación final busca `/documentos` primero.
+- Footer interno: enlaces apuntan a rutas públicas (no `/dashboard/*`).
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se borraron páginas internas duplicadas (status, videos, help-center, contact, report-issue, documentation, quick-guide, use-cases, terms/privacy/security); siguen en el repo.
+- No se modificaron workflows ni lógica de certificación.
+- No se tocaron rutas de workflows (`/dashboard/workflows*`), roadmap ni updates.
+
+### ⚠️ Consideraciones / deuda futura
+- Borrar páginas internas sin ruta cuando se confirme tráfico cero (hoy no hay usuarios).
+- Ajustar cualquier CTA residual hardcodeado a `/dashboard/...` si aparece.
+- Evaluar alias para workflows (p.ej. `/flujos`) y consolidar rutas legacy al limpiar páginas.
+
+### 📍 Estado final
+- El usuario nunca ve “Dashboard”; entra por `/inicio` y navega por alias.
+- Rutas `/dashboard/*` críticas redirigen a alias; duplicados salen del router sin borrar archivos.
+- Base lista para borrar páginas internas sin riesgo de romper navegación.
+
+### 💬 Nota del dev
+"Matamos la narrativa 'Dashboard' sin romper nada: alias nuevos, redirects y kill switch. El código legacy queda estacionado hasta decidir su borrado. Si aparece un link a `/dashboard/...`, debe redirigir a los alias o eliminarse para mantener la UX limpia."

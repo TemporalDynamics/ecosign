@@ -48,12 +48,6 @@ const LawyersPage = lazy(() => import('./pages/LawyersPage'))
 const BusinessPage = lazy(() => import('./pages/BusinessPage'))
 const ComparisonPage = lazy(() => import('./pages/ComparisonPage'))
 const VideosPage = lazy(() => import('./pages/VideosPage'))
-const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'))
-const VideoLibraryPage = lazy(() => import('./pages/VideoLibraryPage'))
-const DocumentationInternalPage = lazy(() => import('./pages/dashboard/DocumentationInternalPage'))
-const QuickGuideInternalPage = lazy(() => import('./pages/dashboard/QuickGuideInternalPage'))
-const UseCasesInternalPage = lazy(() => import('./pages/dashboard/UseCasesInternalPage'))
-const ReportIssueInternalPage = lazy(() => import('./pages/dashboard/ReportIssueInternalPage'))
 const RoadmapPage = lazy(() => import('./pages/RoadmapPage'))
 const UpdatesPage = lazy(() => import('./pages/UpdatesPage'))
 const InvitePage = lazy(() => import('./pages/InvitePage'))
@@ -123,6 +117,30 @@ function DashboardAppRoutes() {
               }
             />
             <Route
+              path="/documentos"
+              element={
+                <ProtectedRoute>
+                  <DocumentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/verificador"
+              element={
+                <ProtectedRoute>
+                  <DashboardVerifyPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/planes"
+              element={
+                <ProtectedRoute>
+                  <DashboardPricingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dashboard"
               element={
                 DASHBOARD_ENABLED ? (
@@ -137,17 +155,13 @@ function DashboardAppRoutes() {
             <Route
               path="/dashboard/start"
               element={
-                <ProtectedRoute>
-                  <DashboardStartPage />
-                </ProtectedRoute>
+                <Navigate to="/inicio" replace />
               }
             />
             <Route
               path="/dashboard/verify"
               element={
-                <ProtectedRoute>
-                  <DashboardVerifyPage />
-                </ProtectedRoute>
+                <Navigate to="/verificador" replace />
               }
             />
             <Route
@@ -169,85 +183,17 @@ function DashboardAppRoutes() {
             <Route
               path="/dashboard/pricing"
               element={
-                <ProtectedRoute>
-                  <DashboardPricingPage />
-                </ProtectedRoute>
+                <Navigate to="/planes" replace />
               }
             />
             <Route
               path="/dashboard/documents"
               element={
-                <ProtectedRoute>
-                  <DocumentsPage />
-                </ProtectedRoute>
+                <Navigate to="/documentos" replace />
               }
             />
 
             {/* Dashboard internal routes */}
-            <Route
-              path="/dashboard/status"
-              element={
-                <ProtectedRoute>
-                  <ServiceStatusPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/videos"
-              element={
-                <ProtectedRoute>
-                  <VideoLibraryPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/help-center"
-              element={
-                <ProtectedRoute>
-                  <HelpCenterPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/contact"
-              element={
-                <ProtectedRoute>
-                  <ContactPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/report-issue"
-              element={
-                <ProtectedRoute>
-                  <ReportIssueInternalPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/documentation"
-              element={
-                <ProtectedRoute>
-                  <DocumentationInternalPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/quick-guide"
-              element={
-                <ProtectedRoute>
-                  <QuickGuideInternalPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/use-cases"
-              element={
-                <ProtectedRoute>
-                  <UseCasesInternalPage />
-                </ProtectedRoute>
-              }
-            />
             <Route
               path="/dashboard/roadmap"
               element={
@@ -261,30 +207,6 @@ function DashboardAppRoutes() {
               element={
                 <ProtectedRoute>
                   <UpdatesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/terms"
-              element={
-                <ProtectedRoute>
-                  <TermsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/privacy"
-              element={
-                <ProtectedRoute>
-                  <PrivacyPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/security"
-              element={
-                <ProtectedRoute>
-                  <SecurityPage />
                 </ProtectedRoute>
               }
             />

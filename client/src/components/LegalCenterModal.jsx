@@ -747,8 +747,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               <span className="text-sm text-gray-500 animate-fadeIn">
                 {modeConfirmation}
               </span>
-            )}
-          </div>
+
           <button
             onClick={resetAndClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -758,7 +757,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         </div>
 
         {/* Content - Grid fijo de 3 columnas (nunca cambia) */}
-        <div className="relative overflow-hidden grid grid-cols-1">
+        <div className="relative overflow-hidden grid grid-cols-[1fr_minmax(0,3fr)_1fr]">
           {/* Left Panel (NDA) */}
           <div className={`left-panel transition-transform duration-300 ease-in-out absolute top-0 bottom-0 w-full z-10 ${ndaEnabled ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'}`}>
             <div className="border-r border-gray-200 h-full">
@@ -792,8 +791,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
           </div>
           
-          {/* Columna principal */}
-          <div className="px-6 py-3">
+          {/* Center Panel (Main Content) */}
+          <div className="center-panel col-start-2 col-end-3 px-6 py-3 relative z-20">
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
               <div className="space-y-3">
@@ -1366,8 +1365,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
 
           {/* Right Panel (Workflow) */}
-          <div className={`right-panel transition-transform duration-300 ease-in-out absolute top-0 bottom-0 w-full z-10 ${workflowEnabled ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'}`}>
-            <div className="border-l border-gray-200 h-full">
+          <div className="right-panel col-start-3 col-end-4 relative">
+            <div className={`h-full border-l border-gray-200 transition-transform duration-300 ease-in-out ${workflowEnabled ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'}`}>
                 <div className="bg-gray-50 h-full flex flex-col">
                   {/* Header colapsable del panel */}
                   <div className="px-4 py-3 border-b border-gray-200 bg-white">
@@ -1451,8 +1450,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </div>
                   </div>
                 </div>
-              </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

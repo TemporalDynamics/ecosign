@@ -304,3 +304,64 @@ Eliminar “Dashboard” como narrativa y punto de entrada sin romper funcionali
 
 ### 💬 Nota del dev
 "Matamos la narrativa 'Dashboard' sin romper nada: alias nuevos, redirects y kill switch. El código legacy queda estacionado hasta decidir su borrado. Si aparece un link a `/dashboard/...`, debe redirigir a los alias o eliminarse para mantener la UX limpia."
+
+---
+
+## Iteración 2025-12-14 — Habilitación de Desarrollo Local + Auditoría de Seguridad
+
+### 🎯 Objetivo
+Permitir desarrollo frontend en localhost sin sacrificar seguridad, eliminando la necesidad de deploy a Vercel para cada cambio de UI/UX.
+
+### 🧠 Decisiones tomadas
+- **Híbrido local + remoto**: Frontend se desarrolla en local (Vite), backend real (Supabase) permanece remoto. Las claves públicas (anon key) están diseñadas para el browser y son seguras de exponer.
+- **Variables en .env**: Configuración local con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en archivo `.env` (ya ignorado en git).
+- **Script helper**: Creamos `dev-local.sh` que carga variables automáticamente y levanta Vite, eliminando fricción manual.
+- **Validación automática**: Actualizamos `validate-env.js` para usar `dotenv` y validar antes del build, evitando deploys con configuración incorrecta.
+- **Auditoría de bundle**: Verificamos que CERO claves privadas (service_role, jwt_secret, database_url) lleguen al bundle de producción.
+
+### 🛠️ Cambios realizados
+- **client/package.json**: Agregado script `dev:local` que usa helper shell + instalado `dotenv` como devDep
+- **client/dev-local.sh**: Script ejecutable que carga `.env` y levanta Vite con una línea
+- **client/LOCAL_DEV_GUIDE.md**: Documentación completa de setup local, comandos disponibles, troubleshooting y workflow recomendado (70% local, 30% Vercel)
+- **Validación de seguridad**: Confirmado que `.env` está protegido en `.gitignore` (líneas 96, 172) y NO trackeado en git
+- **Build verificado**: Bundle de producción contiene SOLO claves públicas (correcto), cero secrets sensibles
+
+### 🚫 Qué NO se hizo (a propósito)
+- **NO modificamos el flujo de deploy**: Vercel sigue siendo la fuente de verdad para producción, solo agregamos capacidad de dev local
+- **NO cambiamos variables de entorno en Vercel**: Las variables en Vercel Dashboard siguen siendo la configuración real de prod
+- **NO agregamos mocks de Supabase**: El backend es real, las llamadas API fallan con mensajes reales si hay problemas de permisos (esto es intencional)
+- **NO creamos .env.local separado**: Usamos `.env` directamente porque ya está correctamente ignorado en git
+
+### ⚠️ Consideraciones / deuda futura
+- **Monitorear uso de .env vs .env.local**: Algunos devs podrían preferir `.env.local` para overrides personales (ambos están en .gitignore)
+- **Considerar pre-commit hook**: Podríamos agregar validación automática que evite commit de secrets accidentalmente
+- **Evaluar CI/CD checks**: GitHub Actions podría validar que el build funcione antes de mergear
+
+### 📍 Estado final
+- **Qué quedó mejor**:
+  - ✅ Dev server funciona en localhost con `npm run dev:local`
+  - ✅ Build de producción validado (sin secrets sensibles)
+  - ✅ Documentación clara en `LOCAL_DEV_GUIDE.md`
+  - ✅ Cero claves privadas en bundle (auditado)
+  - ✅ Workflow híbrido documentado (local para UI, Vercel para integración)
+  
+- **Qué sigue pendiente**:
+  - Que el equipo adopte el workflow local para desarrollo rápido
+  - Verificar que otros devs puedan levantar el proyecto siguiendo la guía
+  - Eventualmente integrar validación en CI/CD
+
+### 💬 Nota del dev
+"La metodología de 'solo deploy a Vercel' era correcta en términos de seguridad, pero agregaba fricción innecesaria para cambios de frontend. Ahora tenemos lo mejor de ambos mundos: desarrollo rápido en local (ciclo de feedback de segundos) y testing de integraciones reales en Vercel.
+
+Las claves en `.env` (VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY) son PÚBLICAS por diseño de Supabase — están hechas para el browser y protegidas por RLS en el backend. Lo peligroso sería exponer service_role o jwt_secret, que jamás van al cliente.
+
+El script `dev-local.sh` es el punto de entrada recomendado porque carga variables automáticamente. Si alguien prefiere manual: `export $(cat .env | grep -v '^#' | xargs) && npm run dev`.
+
+Si aparece el error 'Variable is empty or undefined': significa que las variables no están cargadas en el proceso. Solución: usar `npm run dev:local` en vez de `npm run dev` directo.
+
+Esta setup permite iterar UI/routing/componentes sin esperar deploy, reservando Vercel solo para validar Edge Functions, auth flows completos y performance real de producción."
+
+**Archivos creados**: `dev-local.sh`, `LOCAL_DEV_GUIDE.md`
+**Archivos modificados**: `package.json` (scripts + dotenv dep)
+**Deploy**: ✅ Local dev habilitado, no requiere deploy
+**Status**: ✅ Funcionando

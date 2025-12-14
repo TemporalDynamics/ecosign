@@ -223,7 +223,6 @@ export default function DocumentViewer({
         </div>
       </div>
     )
-.
   }
 
   // Dashboard mode (original UI)

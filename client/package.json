@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "./dev-local.sh",
     "build": "npm run validate:env && vite build",
     "build:skip-validation": "vite build",
     "preview": "vite preview",
-    "validate:env": "node scripts/validate-env.js",
+    "validate:env": "node -r dotenv/config scripts/validate-env.js",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit"
@@ -41,6 +42,7 @@
     "@types/react-dom": "^18.2.15",
     "@vitejs/plugin-react": "^4.1.0",
     "autoprefixer": "^10.4.21",
+    "dotenv": "^17.2.3",
     "eslint": "^9.39.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",

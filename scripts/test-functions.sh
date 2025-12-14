@@ -24,14 +24,15 @@ echo ""
 
 # Test 1: anchor-bitcoin
 echo "1️⃣ Testing anchor-bitcoin..."
+HASH=$(echo -n "abc123test" | sha256sum | awk '{print $1}')
 curl -i -X POST \
   "https://$PROJECT_REF.supabase.co/functions/v1/anchor-bitcoin" \
   -H "Authorization: Bearer $ANON_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "documentHash": "abc123test",
-    "userEmail": "test@example.com"
-  }'
+  -d "{
+    \"documentHash\": \"$HASH\",
+    \"userEmail\": \"test@example.com\"
+  }"
 
 echo ""
 echo ""

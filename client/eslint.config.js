@@ -15,6 +15,19 @@ export default [
       'tailwind.config.js'
     ],
   },
+  // Node.js scripts
+  {
+    files: ['scripts/**/*.js', 'public/service-worker.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-console': 'off', // Allow console in Node.js scripts
+    },
+  },
+  // Browser code
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {

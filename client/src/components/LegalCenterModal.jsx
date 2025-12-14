@@ -354,9 +354,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           toast.success(`Invitaciones enviadas a ${validSigners.length} firmante(s). Revisá tu email para el seguimiento.`, {
             duration: 6000
           });
-        } catch (workflowError) {
+        } catch (workflowError: any) {
           console.error('❌ Error al iniciar workflow:', workflowError);
-          toast.error(`No se pudo enviar las invitaciones: ${workflowError.message || workflowError}`);
+          const errorMessage = workflowError.message || (typeof workflowError === 'string' ? workflowError : 'No se pudo enviar las invitaciones. Verificá los datos e intentá de nuevo.');
+          toast.error(errorMessage);
           setLoading(false);
           return;
         }
@@ -611,9 +612,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       });
 
       setStep(2); // Ir a "Listo" (ahora es paso 2)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al certificar:', error);
-      toast.error('Hubo un problema al certificar tu documento. Por favor intentá de nuevo.');
+      const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Hubo un problema desconocido al certificar tu documento. Por favor intentá de nuevo.');
+      toast.error(`Error de certificación: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -626,7 +628,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setCertificateData(null);
     setSignatureMode('none');
     setEmailInputs([
-      { email: '', requireLogin: true, requireNda: true }
+      { email: '', name: '', requireLogin: true, requireNda: true }
     ]); // Reset a 1 campo vacío
     setForensicEnabled(true); // Reset a true (activo por defecto)
     setDocumentPreview(null);
@@ -639,6 +641,19 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setMySignature(false);
     setWorkflowEnabled(false);
     setNdaEnabled(false);
+
+    // Reset de firma digital
+    setSignatureType(null);
+    setShowCertifiedModal(false);
+    setCertifiedSubType(null);
+
+    // Reset de confirmación de modo
+    setModeConfirmation('');
+
+    // Reset de tabs de firma
+    setSignatureTab('draw');
+    setTypedSignature('');
+    setUploadedSignature(null);
 
     clearCanvas();
 
@@ -1234,14 +1249,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
 
               <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                ✅ Proceso completado correctamente
+                {certificateData.bitcoinPending ? '⏳ Procesando en segundo plano' : '✅ Proceso completado correctamente'}
               </h3>
 
               <p className="text-base text-gray-900 mb-2 max-w-md mx-auto font-medium">
-                Tu documento ya está protegido y blindado.
+                {certificateData.bitcoinPending
+                  ? 'Tu documento se está blindando con Bitcoin. Podrás descargarlo en unas horas.'
+                  : 'Tu documento ya está protegido y blindado.'}
               </p>
               <p className="text-base text-gray-900 mb-6 max-w-md mx-auto font-medium">
-                Podés descargarlo ahora y conservarlo donde prefieras.
+                {certificateData.bitcoinPending
+                  ? 'Te notificaremos por email cuando el certificado .ECO esté listo.'
+                  : 'Podés descargarlo ahora y conservarlo donde prefieras.'}
               </p>
 
               {/* Microcopy de confianza (zero-knowledge) */}
@@ -1328,10 +1347,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 {/* CTA final de cierre */}
                 <button
                   ref={finalizeButtonRef}
-                  onClick={handleFinalizeClick}
+                  onClick={() => {
+                    if (!certificateData.bitcoinPending) {
+                      playFinalizeAnimation();
+                    }
+                    resetAndClose();
+                  }}
                   className="mt-4 text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
                 >
-                  Finalizar proceso
+                  {certificateData.bitcoinPending ? 'Cerrar' : 'Finalizar proceso'}
                 </button>
               </div>
             </div>

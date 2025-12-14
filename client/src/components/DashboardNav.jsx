@@ -7,8 +7,7 @@ function DashboardNav({ onLogout = () => {} }) {
   const location = useLocation();
   const { open: openLegalCenter } = useLegalCenter();
   const navItems = [
-    { label: 'Inicio', to: '/dashboard/start' },
-    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'Inicio', to: '/inicio' },
     { label: 'Documentos', to: '/dashboard/documents' },
     { label: 'Verificador', to: '/dashboard/verify' },
     { label: 'Planes', to: '/dashboard/pricing' }
@@ -33,7 +32,7 @@ function DashboardNav({ onLogout = () => {} }) {
     <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <Link to="/dashboard/start" className="flex items-center space-x-3">
+          <Link to="/inicio" className="flex items-center space-x-3">
             <span className="text-2xl font-extrabold text-gray-900">EcoSign</span>
           </Link>
           <nav className="hidden md:flex items-center space-x-8 translate-y-[2px]">

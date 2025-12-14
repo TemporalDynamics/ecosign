@@ -46,7 +46,7 @@ function LoginPage() {
         setSuccess('¡Bienvenido de nuevo!');
 
         // Redirigir a la página de inicio después de un breve delay
-        setTimeout(() => navigate('/dashboard/start'), 500);
+        setTimeout(() => navigate('/inicio'), 500);
       } else {
         // REGISTRO
         // Validar que las contraseñas coincidan

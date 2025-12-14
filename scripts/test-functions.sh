@@ -48,3 +48,18 @@ curl -i -X POST \
   }'
 
 echo ""
+echo ""
+
+# Test 3: anchor-polygon
+echo "3️⃣ Testing anchor-polygon..."
+HASH=$(echo -n "poly123test" | sha256sum | awk '{print $1}')
+curl -i -X POST \
+  "https://$PROJECT_REF.supabase.co/functions/v1/anchor-polygon" \
+  -H "Authorization: Bearer $ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"documentHash\": \"$HASH\",
+    \"userEmail\": \"test@example.com\"
+  }"
+
+echo ""

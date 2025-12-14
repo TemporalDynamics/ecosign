@@ -61,6 +61,9 @@ const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'))
 const WorkflowsPage = lazy(() => import('./pages/WorkflowsPage'))
 const WorkflowDetailPage = lazy(() => import('./pages/WorkflowDetailPage'))
 
+// Kill switch para dashboard legacy
+const DASHBOARD_ENABLED = false
+
 function DashboardAppRoutes() {
   const { videoState, closeVideo } = useVideoPlayer()
 
@@ -112,11 +115,23 @@ function DashboardAppRoutes() {
 
             {/* Protected routes */}
             <Route
-              path="/dashboard"
+              path="/inicio"
               element={
                 <ProtectedRoute>
-                  <DashboardPage />
+                  <DashboardStartPage />
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                DASHBOARD_ENABLED ? (
+                  <ProtectedRoute>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                ) : (
+                  <Navigate to="/inicio" replace />
+                )
               }
             />
             <Route

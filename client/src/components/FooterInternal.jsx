@@ -15,26 +15,10 @@ export default function FooterInternal() {
             <ul className="space-y-3">
               <li>
                 <Link
-                  to="/dashboard/status"
+                  to="/status"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Estado del Servicio
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/dashboard/roadmap"
-                  className="text-gray-700 hover:text-black transition-colors text-sm"
-                >
-                  Roadmap Público
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/dashboard/updates"
-                  className="text-gray-700 hover:text-black transition-colors text-sm"
-                >
-                  Novedades
                 </Link>
               </li>
             </ul>
@@ -48,7 +32,7 @@ export default function FooterInternal() {
             <ul className="space-y-3">
               <li>
                 <Link
-                  to="/dashboard/security"
+                  to="/security"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Seguridad
@@ -56,7 +40,7 @@ export default function FooterInternal() {
               </li>
               <li>
                 <Link
-                  to="/dashboard/privacy"
+                  to="/privacy"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Privacidad
@@ -64,7 +48,7 @@ export default function FooterInternal() {
               </li>
               <li>
                 <Link
-                  to="/dashboard/terms"
+                  to="/terms"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Términos de Servicio
@@ -81,7 +65,7 @@ export default function FooterInternal() {
             <ul className="space-y-3">
               <li>
                 <Link
-                  to="/dashboard/documentation"
+                  to="/documentation"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Documentación Técnica
@@ -89,7 +73,7 @@ export default function FooterInternal() {
               </li>
               <li>
                 <Link
-                  to="/dashboard/quick-guide"
+                  to="/quick-guide"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Guía Rápida
@@ -97,7 +81,7 @@ export default function FooterInternal() {
               </li>
               <li>
                 <Link
-                  to="/dashboard/videos"
+                  to="/videos"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Videos
@@ -105,7 +89,7 @@ export default function FooterInternal() {
               </li>
               <li>
                 <Link
-                  to="/dashboard/use-cases"
+                  to="/use-cases"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Casos de Uso
@@ -122,7 +106,7 @@ export default function FooterInternal() {
             <ul className="space-y-3">
               <li>
                 <Link
-                  to="/dashboard/help-center"
+                  to="/help"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Centro de Ayuda
@@ -130,7 +114,7 @@ export default function FooterInternal() {
               </li>
               <li>
                 <Link
-                  to="/dashboard/contact"
+                  to="/contact"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Contacto
@@ -138,7 +122,7 @@ export default function FooterInternal() {
               </li>
               <li>
                 <Link
-                  to="/dashboard/report-issue"
+                  to="/report-issue"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Reportar un Problema

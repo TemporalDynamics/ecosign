@@ -612,8 +612,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       });
 
       setStep(2); // Ir a "Listo" (ahora es paso 2)
-    } catch (error: any) {
-      console.error('Error al certificar:', error);
+          } catch (error) {      console.error('Error al certificar:', error);
       const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Hubo un problema desconocido al certificar tu documento. Por favor intentá de nuevo.');
       toast.error(`Error de certificación: ${errorMessage}`);
     } finally {

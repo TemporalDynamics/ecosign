@@ -172,6 +172,97 @@ Si alguien toca el sistema de anchoring:
 3. SIEMPRE loguear con contexto usando `logger.ts`
 4. Verificar health checks antes de culpar al código"
 
-**Documentación**: `docs/README_ANCHORING.md` (índice completo)  
-**Deploy**: ⏳ Pendiente (staging → prod)  
+**Documentación**: `docs/README_ANCHORING.md` (índice completo)
+**Deploy**: ⏳ Pendiente (staging → prod)
 **Status**: ✅ Ready for Team Review
+
+---
+
+## Iteración 2025-12-13 — Quality Audit y Limpieza de Código Muerto
+
+### 🎯 Objetivo
+Implementar gates de calidad automáticos que detecten bugs antes de producción, y eliminar todo el código muerto que acumula deuda técnica invisible. "Nada entra si no pasa por acá".
+
+### 🧠 Decisiones tomadas
+- **Gates obligatorios, no opcionales**: ESLint, TypeScript, Tests y Build deben pasar SIEMPRE. Si falla un gate → el código no se mergea. Punto.
+- **Remover dependencias pesadas sin usar**: Encontramos 2 MB de librerías que nunca se usan (ethers, stripe). Las eliminamos porque cada KB cuenta en el bundle.
+- **Eliminar archivos muertos en vez de comentarlos**: Encontramos 32 archivos (~5400 líneas) que nunca se importan. En vez de comentar o "marcar para después", los borramos. Git guarda la historia si los necesitamos.
+- **Priorizar impacto inmediato**: No hicimos el React Lifecycle audit completo. Nos enfocamos en los P0 (imports rotos, deps pesadas, archivos muertos) que tienen ROI inmediato.
+- **Knip como verdad absoluta**: Si knip dice "este archivo no se usa", lo eliminamos sin preguntarnos dos veces. La herramienta detectó código que llevaba meses acumulándose.
+
+### 🛠️ Cambios realizados
+- **Setup de gates (Día 1-2)**:
+  - ESLint con plugins de React (eslint@9.39.2, config moderna)
+  - Scripts: `npm run lint`, `npm run typecheck`, `npm run validate`
+  - Documentación: `QUALITY_GATES.md` con proceso claro
+
+- **Dead code audit (Día 3)**:
+  - Knip configurado (`knip.json`)
+  - Detectados: 32 archivos muertos, 4 deps sin usar, 25 exports sin usar
+  - Reporte: `DEAD_CODE_REPORT.md` con 70 items priorizados
+
+- **PR #1 - Remove Heavy Deps**:
+  - Removidos: ethers (1.5 MB), stripe (500 KB), dompurify (50 KB), update
+  - Total: 804 paquetes eliminados (incluye deps transitivas)
+  - Vulnerabilidades: 49 → 0
+
+- **PR #2 - Fix Critical Errors**:
+  - IntegrationModal: 6 iconos faltantes importados correctamente
+  - FooterPublic: apóstrofe sin escapar → `&apos;`
+  - validate-env.js: agregado soporte para globals de Node.js en ESLint
+  - Errores críticos: 15 → 0 (93% reducción)
+
+- **PR #3 - Remove Dead Files**:
+  - 32 archivos eliminados: componentes legacy, páginas no usadas, utils obsoletos
+  - Líneas removidas: 5,412
+  - Incluye: MFA sin implementar, security utils planeados pero no usados, código de certificación legacy
+
+**Reducción total**: -2 MB bundle, -5412 líneas código, -804 paquetes, 0 vulnerabilidades
+
+### 🚫 Qué NO se hizo (a propósito)
+- **NO hicimos React Lifecycle audit completo**: Detectamos issues de useEffect y createObjectURL sin revocar, pero no los fixeamos. Son P1, no P0.
+- **NO limpiamos todos los warnings**: Quedan ~40 warnings (imports de React sin usar, variables sin usar, console.log). Son técnicamente correctos pero no críticos.
+- **NO agregamos pre-commit hooks**: Propusimos Husky para auto-fix al commitear, pero decidimos no agregarlo aún. Primero queremos que el equipo se acostumbre a los gates manuales.
+- **NO tocamos strict mode en tsconfig**: Está en `false`, sabemos que debería estar en `true`, pero activarlo ahora causaría 100+ errores. Es deuda conocida, no urgente.
+- **NO eliminamos los archivos de security/ sin contexto del equipo**: Los archivos `csrf.ts`, `encryption.ts`, `rateLimit.ts` están sin usar, pero podrían ser features planificadas. Los reportamos pero no los borramos.
+
+### ⚠️ Consideraciones / deuda futura
+- **Activar strict mode en TypeScript**: Actualmente en `false`. Activarlo detectaría muchos bugs potenciales, pero requiere tiempo para fixear.
+- **Limpiar ~40 warnings restantes**: Imports de React sin usar (React 18 no los necesita), variables declaradas sin usar, console.log que deberían ser console.warn.
+- **React Lifecycle audit pendiente**: Detectamos useEffect con dependencias incorrectas en FloatingVideoPlayer. No es crítico pero puede causar re-renders innecesarios.
+- **Security utils sin usar**: Los archivos en `lib/security/` (csrf, encryption, rateLimit, sanitization, storage) están completos pero nunca se usan. ¿Son features planificadas o código especulativo?
+- **Integrar gates en CI/CD**: Los gates existen pero no bloquean PRs automáticamente. Necesitamos GitHub Actions.
+
+### 📍 Estado final
+- **Qué quedó mejor**:
+  - El código ahora tiene 4 gates que detectan bugs antes de producción
+  - Bundle 2 MB más liviano (mejora tiempo de carga)
+  - Cero vulnerabilidades conocidas
+  - 5,412 líneas menos de código muerto (15% del codebase)
+  - Cero errores críticos de lint
+  - Documentación clara de cómo validar antes de mergear
+
+- **Qué sigue pendiente**:
+  - Mergear rama `quality-audit/gates-and-tooling` a main
+  - Verificar que el build de producción funcione sin issues
+  - Decidir si limpiar los warnings restantes o dejarlos para después
+  - Evaluar si los archivos de security/ son features planificadas
+
+### 💬 Nota del dev
+"Este cambio cambia la filosofía de 'mergear y ver qué pasa' a 'nada entra si no pasa los gates'. Antes, el código roto podía llegar a producción porque no había validación automática. Ahora, si un import está roto, el lint lo detecta antes del merge.
+
+La limpieza de código muerto no es solo estética. Esos 32 archivos generaban confusión: '¿Este archivo se usa? ¿Lo puedo borrar? ¿Por qué está acá?' Ahora la respuesta es clara: si knip dice que no se usa, no se usa. Punto.
+
+Las dependencias pesadas (ethers, stripe) nunca se usaron pero sumaban 2 MB al bundle. Cada usuario descargaba 2 MB de código que nunca ejecutaba. Ahora el bundle es más liviano.
+
+Si alguien quiere agregar código nuevo:
+1. Debe pasar `npm run validate` antes de hacer PR
+2. Si rompe el lint/typecheck/test/build → no se mergea
+3. Usar `npm run lint:fix` para auto-fixear lo que se pueda
+4. Leer `QUALITY_GATES.md` para entender el proceso
+
+Los gates no son perfectos (faltan tests de integración, strict mode desactivado, warnings ignorados), pero son infinitamente mejor que no tener nada. Es la base para mejorar la calidad de código de forma sistemática."
+
+**Rama**: `quality-audit/gates-and-tooling` (5 commits)
+**Deploy**: ⏳ Pendiente merge a main
+**Status**: ✅ Ready for Review

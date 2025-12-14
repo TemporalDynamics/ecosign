@@ -265,7 +265,7 @@ Los gates no son perfectos (faltan tests de integración, strict mode desactivad
 
 **Rama**: `quality-audit/gates-and-tooling` (5 commits)
 **Deploy**: ⏳ Pendiente merge a main
-**Status**: ✅ Ready for Review
+**Status**: ✅ Ready for Team Review
 
 ---
 
@@ -357,7 +357,7 @@ Las claves en `.env` (VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY) son PÚBLICAS 
 
 El script `dev-local.sh` es el punto de entrada recomendado porque carga variables automáticamente. Si alguien prefiere manual: `export $(cat .env | grep -v '^#' | xargs) && npm run dev`.
 
-Si aparece el error 'Variable is empty or undefined': significa que las variables no están cargadas en el proceso. Solución: usar `npm run dev:local` en vez de `npm run dev` directo.
+Si aparece el error 'Variable is empty o undefined': significa que las variables no están cargadas en el proceso. Solución: usar `npm run dev:local` en vez de `npm run dev` directo.
 
 Esta setup permite iterar UI/routing/componentes sin esperar deploy, reservando Vercel solo para validar Edge Functions, auth flows completos y performance real de producción."
 

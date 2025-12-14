@@ -8,9 +8,9 @@ function DashboardNav({ onLogout = () => {} }) {
   const { open: openLegalCenter } = useLegalCenter();
   const navItems = [
     { label: 'Inicio', to: '/inicio' },
-    { label: 'Documentos', to: '/dashboard/documents' },
-    { label: 'Verificador', to: '/dashboard/verify' },
-    { label: 'Planes', to: '/dashboard/pricing' }
+    { label: 'Documentos', to: '/documentos' },
+    { label: 'Verificador', to: '/verificador' },
+    { label: 'Planes', to: '/planes' }
   ];
 
   const handleLogout = async () => {

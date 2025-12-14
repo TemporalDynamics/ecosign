@@ -653,7 +653,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const playFinalizeAnimation = () => {
     try {
       const buttonEl = finalizeButtonRef.current;
-      const targetEl = document.querySelector('a[href="/dashboard/documents"]');
+      const targetEl = document.querySelector('a[href="/documentos"]') || document.querySelector('a[href="/dashboard/documents"]');
 
       if (!buttonEl || !targetEl) return;
 

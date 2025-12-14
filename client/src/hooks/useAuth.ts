@@ -81,7 +81,7 @@ export const useAuth = (): UseAuthReturn => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`
+          emailRedirectTo: `${window.location.origin}/inicio`
         }
       });
 

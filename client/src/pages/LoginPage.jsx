@@ -63,7 +63,7 @@ function LoginPage() {
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/inicio`,
           }
         });
 

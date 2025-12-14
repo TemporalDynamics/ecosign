@@ -276,30 +276,6 @@ function AppRoutes() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/dashboard/documentation"
-              element={
-                <ProtectedRoute>
-                  <DocumentationPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/quick-guide"
-              element={
-                <ProtectedRoute>
-                  <QuickGuidePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/use-cases"
-              element={
-                <ProtectedRoute>
-                  <UseCasesPage />
-                </ProtectedRoute>
-              }
-            />
 
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />

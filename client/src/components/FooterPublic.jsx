@@ -44,7 +44,7 @@ export default function FooterPublic() {
               <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('conocimiento-cero'); }} className="hover:text-[#0E4B8B] hover:underline transition">Conocimiento Cero</a></li>
               <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('the-true-cost'); }} className="hover:text-[#0E4B8B] hover:underline transition">The True Cost</a></li>
               <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('forensic-integrity'); }} className="hover:text-[#0E4B8B] hover:underline transition">Forensic Integrity</a></li>
-              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('you-dont-need-to-trust'); }} className="hover:text-[#0E4B8B] hover:underline transition">You Don't Need to Trust</a></li>
+              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('you-dont-need-to-trust'); }} className="hover:text-[#0E4B8B] hover:underline transition">You Don&apos;t Need to Trust</a></li>
             </ul>
           </div>
 

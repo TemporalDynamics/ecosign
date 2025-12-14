@@ -7,7 +7,7 @@
 // events when decryption happens.
 // ============================================
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { downloadDocument, getSignedDocumentUrl } from '@/utils/documentStorage'
 import { decryptFile } from '@/utils/encryption'
@@ -37,6 +37,7 @@ export default function DocumentViewer({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const { logEvent } = useEcoxLogger()
+  const objectUrlRef = useRef<string | null>(null)
 
   // Forensic metrics state
   const [viewStartTime] = useState<number>(Date.now())
@@ -60,18 +61,85 @@ export default function DocumentViewer({
   }, [loggedDuration, logEvent, signerId, viewStartTime, workflowId])
 
   useEffect(() => {
-    const loadDocument = async () => {
-      // ... (existing loadDocument logic)
-    };
+    let isMounted = true
 
-    loadDocument();
+    const loadDocument = async () => {
+      if (!documentPath) {
+        setError('No encontramos el documento asociado a este flujo.')
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Clean up previous object URL
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current)
+          objectUrlRef.current = null
+        }
+
+        let newObjectUrl: string | null = null
+        if (encryptionKey) {
+          // Download encrypted PDF, decrypt locally
+          let encryptedBlob: Blob | null = null
+          if (signedUrl) {
+            const resp = await fetch(signedUrl)
+            if (!resp.ok) throw new Error('No se pudo descargar el documento')
+            encryptedBlob = await resp.blob()
+          } else {
+            const { success, data, error: downloadError } = await downloadDocument(documentPath)
+            if (!success || !data) {
+              throw new Error(downloadError || 'No se pudo descargar el documento')
+            }
+            encryptedBlob = data
+          }
+
+          const decrypted = await decryptFile(encryptedBlob, encryptionKey)
+          const buffer = await decrypted.arrayBuffer()
+          const pdfBlob = new Blob([buffer], { type: 'application/pdf' })
+          newObjectUrl = URL.createObjectURL(pdfBlob)
+          objectUrlRef.current = newObjectUrl
+
+          if (workflowId && signerId) {
+            await logEvent({
+              workflowId,
+              signerId,
+              eventType: 'document_decrypted'
+            })
+          }
+        } else {
+          const resolvedUrl = signedUrl || await getSignedDocumentUrl(documentPath)
+          if (!resolvedUrl) {
+            throw new Error('No se pudo generar un link seguro para visualizar el PDF')
+          }
+          newObjectUrl = resolvedUrl
+        }
+
+        if (isMounted) {
+          setPdfUrl(newObjectUrl)
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'No se pudo cargar el documento'
+        setError(message)
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadDocument().catch(console.error)
 
     return () => {
-      if (pdfUrl && pdfUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(pdfUrl);
+      isMounted = false
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
       }
-    };
-  }, [documentPath, encryptionKey, logEvent, signerId, workflowId, signedUrl, pdfUrl]);
+    }
+  }, [documentPath, encryptionKey, logEvent, signerId, workflowId, signedUrl])
 
   if (loading) {
     return (
@@ -155,6 +223,7 @@ export default function DocumentViewer({
         </div>
       </div>
     )
+.
   }
 
   // Dashboard mode (original UI)

@@ -86,4 +86,18 @@ export default [
       'prefer-const': 'warn',
     },
   },
+  // Stricter lint para archivos críticos (señal clara en CI)
+  {
+    files: [
+      'src/components/LegalCenterModal.jsx',
+      'src/pages/DocumentsPage.jsx'
+    ],
+    rules: {
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+    },
+  },
 ];

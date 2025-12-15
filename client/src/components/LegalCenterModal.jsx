@@ -1391,96 +1391,98 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
           )}
           </div>
+        </div>
 
-          {/* Right Panel (Workflow) */}
-          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none'}`}>
-            <div className="h-full flex flex-col">
-              {/* Header colapsable del panel */}
-              <div className="px-4 py-3 border-b border-gray-200 bg-white">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
-                  <button
-                    onClick={() => setWorkflowEnabled(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                    title="Cerrar panel de firmantes"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </button>
-                </div>
+        {/* Right Panel (Workflow) */}
+        <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none'}`}>
+          <div className="h-full flex flex-col">
+            {/* Header colapsable del panel */}
+            <div className="px-4 py-3 border-b border-gray-200 bg-white">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
+                <button
+                  onClick={() => setWorkflowEnabled(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Cerrar panel de firmantes"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
               </div>
-              {/* Contenido del panel */}
-              <div className="px-6 py-4 overflow-y-auto flex-1">
-                <p className="text-xs text-gray-500 mb-4">
-                  Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
-                </p>
+            </div>
 
-                  {/* Campos de email con switches individuales */}
-                  <div className="space-y-4 mb-4">
-                    {emailInputs.map((input, index) => (
-                      <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-                        {/* Header con número, email y nombre opcional */}
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                            {index + 1}
-                          </div>
-                          <input
-                            type="email"
-                            value={input.email}
-                            onChange={(e) => handleEmailChange(index, e.target.value)}
-                            placeholder="email@ejemplo.com"
-                            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-                          />
-                          {emailInputs.length > 1 && (
-                            <button
-                              onClick={() => handleRemoveEmailField(index)}
-                              className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                              title="Eliminar firmante"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={input.name}
-                            onChange={(e) => handleNameChange(index, e.target.value)}
-                            placeholder="Juan Pérez (opcional)"
-                            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-                          />
-                        </div>
+            {/* Contenido del panel */}
+            <div className="px-6 py-4 overflow-y-auto flex-1">
+              <p className="text-xs text-gray-500 mb-4">
+                Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
+              </p>
+
+              {/* Campos de email con switches individuales */}
+              <div className="space-y-4 mb-4">
+                {emailInputs.map((input, index) => (
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                    {/* Header con número, email y nombre opcional */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                        {index + 1}
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Botón para agregar más firmantes */}
-                  <button
-                    onClick={handleAddEmailField}
-                    className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 mb-4"
-                  >
-                    <Users className="w-4 h-4" />
-                    Agregar otro firmante
-                  </button>
-
-                  {/* Info de seguridad */}
-                  <div className="p-3 bg-gray-100 border border-gray-200 rounded-lg">
-                    <div className="flex gap-2">
-                      <Shield className="w-4 h-4 text-gray-900 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-medium text-gray-900">
-                          Seguridad obligatoria
-                        </p>
-                        <p className="text-xs text-gray-700 mt-1">
-                          Todos los firmantes requieren login y aceptación de NDA antes de firmar
-                        </p>
-                      </div>
+                      <input
+                        type="email"
+                        value={input.email}
+                        onChange={(e) => handleEmailChange(index, e.target.value)}
+                        placeholder="email@ejemplo.com"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                      />
+                      {emailInputs.length > 1 && (
+                        <button
+                          onClick={() => handleRemoveEmailField(index)}
+                          className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                          title="Eliminar firmante"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={input.name}
+                        onChange={(e) => handleNameChange(index, e.target.value)}
+                        placeholder="Juan Pérez (opcional)"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Botón para agregar más firmantes */}
+              <button
+                onClick={handleAddEmailField}
+                className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 mb-4"
+              >
+                <Users className="w-4 h-4" />
+                Agregar otro firmante
+              </button>
+
+              {/* Info de seguridad */}
+              <div className="p-3 bg-gray-100 border border-gray-200 rounded-lg">
+                <div className="flex gap-2">
+                  <Shield className="w-4 h-4 text-gray-900 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium text-gray-900">
+                      Seguridad obligatoria
+                    </p>
+                    <p className="text-xs text-gray-700 mt-1">
+                      Todos los firmantes requieren login y aceptación de NDA antes de firmar
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
       {/* Modal secundario: Selector de tipo de firma certificada */}
       {showCertifiedModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn">
@@ -1496,7 +1498,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <p className="text-sm text-gray-600 mb-6">
               Seleccioná el tipo de firma según los requisitos legales de tu jurisdicción.
             </p>

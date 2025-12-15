@@ -12,7 +12,8 @@
     "validate:env": "node -r dotenv/config scripts/validate-env.js",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "node --test smoke/*.test.js"
   },
   "engines": {
     "node": ">=20.x",

@@ -1391,10 +1391,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
           )}
           </div>
-        </div>
 
-        {/* Right Panel (Workflow) */}
-        <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none'}`}>
+          {/* Right Panel (Workflow) */}
+          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none'}`}>
           <div className="h-full flex flex-col">
             {/* Header colapsable del panel */}
             <div className="px-4 py-3 border-b border-gray-200 bg-white">
@@ -1658,6 +1657,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

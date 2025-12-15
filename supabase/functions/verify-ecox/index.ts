@@ -16,6 +16,39 @@ interface VerificationResult {
   hash: string
   timestamp: string
   timestampType: string
+  certificateSchemaVersion?: string
+  identityAssurance?: {
+    level?: string
+    provider?: string
+    method?: string | null
+    timestamp?: string
+    signals?: string[]
+    label?: string
+  }
+  timeAssurance?: {
+    source?: string
+    confidence?: string
+  }
+  intent?: {
+    intentConfirmed?: boolean
+    intentMethod?: string
+  }
+  environment?: {
+    deviceType?: string
+    osFamily?: string
+    networkType?: string
+  }
+  systemCapabilities?: {
+    biometricVerification?: boolean
+    inPersonVerification?: boolean
+  }
+  limitations?: string[]
+  policySnapshotId?: string
+  eventLineage?: {
+    eventId?: string
+    previousEventId?: string | null
+    cause?: string
+  }
   signature: {
     algorithm: string
     valid: boolean
@@ -75,6 +108,21 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
   let signatures: any[]
   let metadata: any
   let manifestJson: string
+  let identityAssurance: {
+    level?: string
+    provider?: string
+    method?: string | null
+    timestamp?: string
+    signals?: string[]
+  } | undefined
+  let timeAssurance: { source?: string; confidence?: string } | undefined
+  let intent: { intent_confirmed?: boolean; intent_method?: string } | undefined
+  let environment: { device_type?: string; os_family?: string; network_type?: string } | undefined
+  let systemCapabilities: { biometric_verification?: boolean; in_person_verification?: boolean } | undefined
+  let limitations: string[] | undefined
+  let policySnapshotId: string | undefined
+  let eventLineage: { event_id?: string; previous_event_id?: string | null; cause?: string } | undefined
+  let certificateSchemaVersion: string | undefined
 
   // Try to parse as unified JSON format first (new format)
   try {
@@ -88,6 +136,15 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
       signatures = ecoData.signatures
       metadata = ecoData.metadata
       manifestJson = JSON.stringify(manifest, null, 2)
+      identityAssurance = ecoData.identity_assurance || ecoData.metadata?.identity_assurance
+      timeAssurance = ecoData.time_assurance || ecoData.metadata?.time_assurance
+      intent = ecoData.intent || ecoData.metadata?.intent
+      environment = ecoData.environment || ecoData.metadata?.environment
+      systemCapabilities = ecoData.system_capabilities || ecoData.metadata?.system_capabilities
+      limitations = ecoData.limitations || ecoData.metadata?.limitations
+      policySnapshotId = ecoData.policy_snapshot_id || ecoData.metadata?.policy_snapshot_id
+      eventLineage = ecoData.event_lineage || ecoData.metadata?.event_lineage
+      certificateSchemaVersion = ecoData.certificate_schema_version
     } else {
       throw new Error('Not unified format')
     }
@@ -192,12 +249,72 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
     warnings.push('Metadata indica blindaje forense pero timestamp legal no está presente')
   }
 
+  // Identity assurance metadata (optional, defaults to IAL-1)
+  const rawIdentity = identityAssurance
+    || metadata?.identity_assurance
+    || {}
+  const computedIdentityLevel = rawIdentity.level || 'IAL-1'
+  const computedIdentity = {
+    level: computedIdentityLevel,
+    provider: rawIdentity.provider || 'ecosign',
+    method: rawIdentity.method ?? null,
+    timestamp: rawIdentity.timestamp,
+    signals: Array.isArray(rawIdentity.signals) ? rawIdentity.signals : [],
+    label: 'Estándar' // UI-friendly, not part of canonical hashing rules
+  }
+
+  const computedTimeAssurance = timeAssurance || metadata?.time_assurance || {
+    source: 'local_clock',
+    confidence: 'informational'
+  }
+
+  const intentSource = intent || metadata?.intent
+  const computedIntent = intentSource ? {
+    intentConfirmed: intentSource.intent_confirmed ?? false,
+    intentMethod: intentSource.intent_method
+  } : undefined
+
+  const rawEnvironment = environment || metadata?.environment
+  const computedEnvironment = rawEnvironment ? {
+    deviceType: rawEnvironment.device_type,
+    osFamily: rawEnvironment.os_family,
+    networkType: rawEnvironment.network_type
+  } : undefined
+
+  const rawCapabilities = systemCapabilities || metadata?.system_capabilities
+  const computedCapabilities = rawCapabilities ? {
+    biometricVerification: rawCapabilities.biometric_verification ?? false,
+    inPersonVerification: rawCapabilities.in_person_verification ?? false
+  } : undefined
+
+  const computedLimitations = Array.isArray(limitations || metadata?.limitations)
+    ? (limitations || metadata?.limitations)
+    : undefined
+
+  const rawEventLineage = eventLineage || metadata?.event_lineage
+  const computedEventLineage = rawEventLineage ? {
+    eventId: rawEventLineage.event_id,
+    previousEventId: rawEventLineage.previous_event_id,
+    cause: rawEventLineage.cause
+  } : undefined
+
+  const computedPolicySnapshotId = policySnapshotId || metadata?.policy_snapshot_id
+
   const result: VerificationResult = {
     valid: signatureValid && errors.length === 0,
     fileName: asset.name || manifest.metadata?.title || 'Unknown',
     hash: asset.hash,
     timestamp: primarySignature.timestamp || manifest.metadata?.createdAt,
     timestampType,
+    certificateSchemaVersion: certificateSchemaVersion,
+    identityAssurance: computedIdentity,
+    timeAssurance: computedTimeAssurance,
+    intent: computedIntent,
+    environment: computedEnvironment,
+    systemCapabilities: computedCapabilities,
+    limitations: computedLimitations,
+    policySnapshotId: computedPolicySnapshotId,
+    eventLineage: computedEventLineage,
     signature: {
       algorithm: primarySignature.algorithm || 'Ed25519',
       valid: signatureValid,

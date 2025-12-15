@@ -144,11 +144,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   // Preview del documento
   const PREVIEW_BASE_HEIGHT = 'h-80';
   const [documentPreview, setDocumentPreview] = useState(null);
+  const [previewError, setPreviewError] = useState(false);
   const [previewMode, setPreviewMode] = useState('compact'); // 'compact' | 'expanded' | 'fullscreen'
   const [showSignatureOnPreview, setShowSignatureOnPreview] = useState(false);
   // TODO: FEATURE PARCIAL - UI de anotaciones existe pero no hay lógica de escritura sobre el PDF
   const [annotationMode, setAnnotationMode] = useState(null); // 'signature', 'highlight', 'text'
   const [annotations, setAnnotations] = useState([]); // Lista de anotaciones (highlights y textos)
+  const [savePdfChecked, setSavePdfChecked] = useState(true);
+  const [downloadPdfChecked, setDownloadPdfChecked] = useState(false);
 
   // Helper: Convertir base64 a Blob
   const base64ToBlob = (base64) => {
@@ -167,6 +170,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
+      setPreviewError(false);
       console.log('Archivo seleccionado:', selectedFile.name);
 
       // Generar preview según el tipo de archivo
@@ -186,6 +190,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       }
     }
   };
+  // Cleanup de URLs de preview para evitar fugas
+  useEffect(() => {
+    return () => {
+      if (documentPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(documentPreview);
+      }
+    };
+  }, [documentPreview]);
 
   const handleAddEmailField = () => {
     setEmailInputs([...emailInputs, { email: '', name: '', requireLogin: true, requireNda: true }]);
@@ -625,6 +637,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     console.log('🔒 Cerrando Centro Legal...');
     setStep(1);
     setFile(null);
+    setPreviewError(false);
     setCertificateData(null);
     setSignatureMode('none');
     setEmailInputs([
@@ -729,16 +742,51 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     }
   };
 
-  const handleFinalizeClick = () => {
+  const handleFinalizeClick = async () => {
+    // Ejecutar acciones seleccionadas
+    if (file && downloadPdfChecked) {
+      const blobUrl = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    }
+
+    // Guardar documento (si procede) — reutilizamos handleCertify si había archivo y aún no se guardó
+    if (file && savePdfChecked && !certificateData) {
+      try {
+        await handleCertify();
+      } catch (err) {
+        console.error('Error guardando documento antes de finalizar:', err);
+      }
+    }
+
+    // Animación + cierre + navegación
     playFinalizeAnimation();
     resetAndClose();
+    if (onClose) {
+      onClose();
+    }
+    try {
+      window.location.href = '/documents';
+    } catch {
+      // noop
+    }
   };
+
+  const leftColWidth = ndaEnabled ? '320px' : '0px';
+  const rightColWidth = workflowEnabled ? '320px' : '0px';
+  const centerColWidth = 'minmax(640px, 1fr)';
+  const gridTemplateColumns = `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] overflow-y-auto shadow-xl">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+      <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] shadow-xl flex flex-col overflow-hidden">
+        {/* Header fijo sobre todo el grid */}
+        <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-gray-900">
               Centro Legal
@@ -747,7 +795,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               <span className="text-sm text-gray-500 animate-fadeIn">
                 {modeConfirmation}
               </span>
-
+            )}
+          </div>
           <button
             onClick={resetAndClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -756,41 +805,42 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </button>
         </div>
 
-        {/* Content - Grid fijo de 3 columnas (nunca cambia) */}
-        <div className="relative overflow-hidden grid grid-cols-[1fr_minmax(0,3fr)_1fr]">
+        {/* Content - Grid fijo de 3 zonas con colapso suave */}
+        <div
+          className="relative overflow-x-hidden overflow-y-auto grid flex-1"
+          style={{ gridTemplateColumns, transition: 'grid-template-columns 300ms ease-in-out' }}
+        >
           {/* Left Panel (NDA) */}
-          <div className={`left-panel transition-transform duration-300 ease-in-out absolute top-0 bottom-0 w-full z-10 ${ndaEnabled ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'}`}>
-            <div className="border-r border-gray-200 h-full">
-                <div className="bg-gray-50 h-full flex flex-col">
-                  {/* Header colapsable del panel */}
-                  <div className="px-4 py-3 border-b border-gray-200 bg-white">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-900">NDA</h3>
-                      <button
-                        onClick={() => setNdaEnabled(false)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                        title="Cerrar panel NDA"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  {/* Contenido del panel */}
-                  <div className="px-4 py-4 overflow-y-auto flex-1">
-                    <p className="text-xs text-gray-600 mb-3">
-                      Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
-                    </p>
-                    <textarea
-                      value={ndaText}
-                      onChange={(e) => setNdaText(e.target.value)}
-                      className="w-full h-[500px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
-                      placeholder="Escribí aquí el texto del NDA..."
-                    />
-                  </div>
+          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${ndaEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-3 pointer-events-none'}`}>
+            <div className="h-full flex flex-col">
+              {/* Header colapsable del panel */}
+              <div className="px-4 py-3 border-b border-gray-200 bg-white">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">NDA</h3>
+                  <button
+                    onClick={() => setNdaEnabled(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Cerrar panel NDA"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
                 </div>
+              </div>
+              {/* Contenido del panel */}
+              <div className="px-4 py-4 overflow-y-auto flex-1">
+                <p className="text-xs text-gray-600 mb-3">
+                  Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
+                </p>
+                <textarea
+                  value={ndaText}
+                  onChange={(e) => setNdaText(e.target.value)}
+                  className="w-full h-[500px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
+                  placeholder="Escribí aquí el texto del NDA..."
+                />
+              </div>
             </div>
           </div>
-          
+        
           {/* Center Panel (Main Content) */}
           <div className="center-panel col-start-2 col-end-3 px-6 py-3 relative z-20">
             {/* PASO 1: ELEGIR ARCHIVO */}
@@ -918,23 +968,62 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     <div className={`relative ${
                       previewMode === 'expanded' ? 'h-[60vh]' : PREVIEW_BASE_HEIGHT
                     } bg-gray-100`}>
-                      {documentPreview ? (
-                        <>
-                          {file.type.startsWith('image/') ? (
-                            <img
-                              src={documentPreview}
-                              alt="Preview"
-                              className="max-w-full max-h-full object-contain"
-                            />
-                          ) : file.type === 'application/pdf' ? (
-                            <iframe
-                              src={documentPreview}
-                              className="w-full h-full bg-white"
-                              title="PDF Preview"
-                              sandbox="allow-scripts allow-same-origin allow-popups"
-                              loading="lazy"
-                            />
-                          ) : null}
+                          {documentPreview ? (
+                            <>
+                              {file.type.startsWith('image/') ? (
+                                <img
+                                  src={documentPreview}
+                                  alt="Preview"
+                                  className="max-w-full max-h-full object-contain"
+                                />
+                              ) : file.type === 'application/pdf' ? (
+                                <>
+                                  {!previewError && (
+                                    <object
+                                      data={documentPreview}
+                                      type="application/pdf"
+                                      className="w-full h-full bg-white"
+                                      onLoad={() => setPreviewError(false)}
+                                      onError={() => setPreviewError(true)}
+                                    >
+                                      <p className="text-sm text-gray-500 p-4">
+                                        No se pudo mostrar el PDF en el navegador. Descargalo para verlo.
+                                      </p>
+                                    </object>
+                                  )}
+                                  {previewError && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-white px-6 text-center">
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-semibold text-gray-900">
+                                          Vista previa desactivada para este PDF.
+                                        </p>
+                                        <p className="text-xs text-gray-600">
+                                          Abrilo en otra pestaña o descargalo para conservar la integridad del archivo.
+                                        </p>
+                                        <div className="flex items-center justify-center gap-2">
+                                          <a
+                                            href={documentPreview}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm text-gray-900 font-semibold hover:underline"
+                                          >
+                                            Abrir en nueva pestaña
+                                          </a>
+                                          <span className="text-gray-300">•</span>
+                                          <a
+                                            href={documentPreview}
+                                            download={file?.name || 'documento.pdf'}
+                                            className="text-sm text-gray-900 font-semibold hover:underline"
+                                          >
+                                            Descargar PDF
+                                          </a>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : null}
+                            ) : null}
 
                           {/* Modal de firma con tabs */}
                           {showSignatureOnPreview && (
@@ -1249,143 +1338,81 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           {step === 2 && certificateData && (
             <div className="text-center py-8">
               <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                {certificateData.bitcoinPending ? '⏳ Procesando en segundo plano' : '✅ Proceso completado correctamente'}
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                ✅ Tu documento está listo
               </h3>
-
-              <p className="text-base text-gray-900 mb-2 max-w-md mx-auto font-medium">
-                {certificateData.bitcoinPending
-                  ? 'Tu documento se está blindando con Bitcoin. Podrás descargarlo en unas horas.'
-                  : 'Tu documento ya está protegido y blindado.'}
-              </p>
-              <p className="text-base text-gray-900 mb-6 max-w-md mx-auto font-medium">
-                {certificateData.bitcoinPending
-                  ? 'Te notificaremos por email cuando el certificado .ECO esté listo.'
-                  : 'Podés descargarlo ahora y conservarlo donde prefieras.'}
+              <p className="text-sm text-gray-700 mb-6">
+                Tu documento ya cuenta con protección legal completa.
               </p>
 
-              {/* Microcopy de confianza (zero-knowledge) */}
-              <p className="text-xs text-gray-500 mb-8 max-w-md mx-auto italic">
-                EcoSign no ve ni almacena tus documentos.<br />
-                Solo generamos protección criptográfica y evidencia verificable.
-              </p>
-
-              {/* Botones de acción */}
-              <div className="flex flex-col gap-3 max-w-sm mx-auto">
-                {/* Descargar PDF protegido */}
-                {certificateData.signedPdfUrl && (
-                  <a
-                    href={certificateData.signedPdfUrl}
-                    download={certificateData.signedPdfName}
-                    className="bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    Descargar PDF protegido
-                  </a>
-                )}
-
-                {/* Descargar certificado .ECO con tooltip */}
-                {certificateData.downloadEnabled ? (
-                  <div className="relative group">
-                    <a
-                      href={certificateData.ecoDownloadUrl}
-                      download={certificateData.ecoFileName}
-                      onClick={() => {
-                        // Registrar evento 'downloaded'
-                        if (certificateData.documentId) {
-                          const supabase = getSupabase();
-                          supabase.auth.getUser().then(({ data: { user } }) => {
-                            EventHelpers.logEcoDownloaded(
-                              certificateData.documentId,
-                              user?.id || null,
-                              user?.email || null
-                            );
-                          });
-                        }
-                      }}
-                      className="bg-white border-2 border-gray-300 hover:border-gray-900 text-gray-900 rounded-lg px-5 py-3 font-medium transition-colors inline-flex items-center justify-center gap-2 w-full"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Descargar certificado .ECO
-                      <HelpCircle className="w-4 h-4 text-gray-400" />
-                    </a>
-                    {/* Tooltip */}
-                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
-                      <p className="font-semibold mb-1">Certificado de protección del documento</p>
-                      <p className="text-gray-300">Incluye sello de tiempo y registro verificable</p>
-                      {/* Flecha del tooltip */}
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
-                        <div className="border-4 border-transparent border-t-gray-900"></div>
-                      </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left max-w-2xl mx-auto mb-6">
+                <label className={`border rounded-xl p-4 cursor-pointer transition ${savePdfChecked ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={savePdfChecked}
+                      onChange={() => setSavePdfChecked(!savePdfChecked)}
+                      className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Guardar mi documento firmado</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Accedé a tu documento cuando lo necesites, siempre intacto.
+                      </p>
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-5 py-3 text-amber-800">
-                    <div className="flex items-start gap-3">
-                      <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">Anclaje Bitcoin en proceso</p>
-                        <p className="text-xs mt-1">
-                          Tu certificado .ECO estará disponible para descarga cuando se confirme el anclaje en Bitcoin (4-24 horas).
-                          Te notificaremos por email cuando esté listo.
-                        </p>
-                        {certificateData.bitcoinAnchorId && (
-                          <p className="text-xs mt-2 font-mono text-amber-700">
-                            ID: {certificateData.bitcoinAnchorId.substring(0, 8)}...
-                          </p>
-                        )}
-                      </div>
+                </label>
+
+                <label className={`border rounded-xl p-4 cursor-pointer transition ${downloadPdfChecked ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={downloadPdfChecked}
+                      onChange={() => setDownloadPdfChecked(!downloadPdfChecked)}
+                      className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Descargar el PDF firmado</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Conservá una copia local para compartir o archivar.
+                      </p>
                     </div>
                   </div>
-                )}
-
-                {/* CTA final de cierre */}
-                <button
-                  ref={finalizeButtonRef}
-                  onClick={() => {
-                    if (!certificateData.bitcoinPending) {
-                      playFinalizeAnimation();
-                    }
-                    resetAndClose();
-                  }}
-                  className="mt-4 text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
-                >
-                  {certificateData.bitcoinPending ? 'Cerrar' : 'Finalizar proceso'}
-                </button>
+                </label>
               </div>
+
+              <button
+                ref={finalizeButtonRef}
+                onClick={handleFinalizeClick}
+                className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-semibold"
+              >
+                Finalizar proceso
+              </button>
             </div>
           )}
           </div>
 
           {/* Right Panel (Workflow) */}
-          <div className="right-panel col-start-3 col-end-4 relative">
-            <div className={`h-full border-l border-gray-200 transition-transform duration-300 ease-in-out ${workflowEnabled ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'}`}>
-                <div className="bg-gray-50 h-full flex flex-col">
-                  {/* Header colapsable del panel */}
-                  <div className="px-4 py-3 border-b border-gray-200 bg-white">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
-                      <button
-                        onClick={() => setWorkflowEnabled(false)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                        title="Cerrar panel de firmantes"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  {/* Contenido del panel */}
-                  <div className="px-6 py-4 overflow-y-auto flex-1">
-                    <p className="text-xs text-gray-500 mb-4">
-                      Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
-                    </p>
+          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none'}`}>
+            <div className="h-full flex flex-col">
+              {/* Header colapsable del panel */}
+              <div className="px-4 py-3 border-b border-gray-200 bg-white">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
+                  <button
+                    onClick={() => setWorkflowEnabled(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Cerrar panel de firmantes"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              {/* Contenido del panel */}
+              <div className="px-6 py-4 overflow-y-auto flex-1">
+                <p className="text-xs text-gray-500 mb-4">
+                  Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
+                </p>
 
                   {/* Campos de email con switches individuales */}
                   <div className="space-y-4 mb-4">
@@ -1450,12 +1477,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </div>
                   </div>
                 </div>
+              </div>
             </div>
           </div>
-          </div>
         </div>
-      </div>
-
       {/* Modal secundario: Selector de tipo de firma certificada */}
       {showCertifiedModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn">

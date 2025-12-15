@@ -314,6 +314,7 @@ BEGIN
     -- Construir el certificado ECOX completo
     v_result := jsonb_build_object(
         'ecox_version', '1.0',
+        'certificate_schema_version', '1.0',
         'generated_at', now(),
         'workflow', jsonb_build_object(
             'id', p_workflow_id,
@@ -329,6 +330,40 @@ BEGIN
         ),
         'signers', COALESCE(v_signers, '[]'::jsonb),
         'audit_trail', COALESCE(v_audit_trail, '[]'::jsonb),
+        'identity_assurance', jsonb_build_object(
+            'level', 'IAL-1',
+            'provider', 'ecosign',
+            'method', NULL,
+            'timestamp', COALESCE(v_workflow.completed_at, v_workflow.created_at, now()),
+            'signals', '[]'::jsonb
+        ),
+        'intent', jsonb_build_object(
+            'intent_confirmed', true,
+            'intent_method', 'explicit_acceptance'
+        ),
+        'time_assurance', jsonb_build_object(
+            'source', 'server_clock',
+            'confidence', 'informational'
+        ),
+        'environment', jsonb_build_object(
+            'device_type', 'unknown',
+            'os_family', 'unknown',
+            'network_type', 'unknown'
+        ),
+        'system_capabilities', jsonb_build_object(
+            'biometric_verification', false,
+            'in_person_verification', false
+        ),
+        'limitations', jsonb_build_array(
+            'identity_not_biometrically_verified',
+            'no_in_person_validation'
+        ),
+        'policy_snapshot_id', 'policy_2025_11',
+        'event_lineage', jsonb_build_object(
+            'event_id', gen_random_uuid(),
+            'previous_event_id', NULL,
+            'cause', 'certificate_generated'
+        ),
         'verification', jsonb_build_object(
             'total_events', (SELECT COUNT(*) FROM ecox_audit_trail WHERE workflow_id = p_workflow_id),
             'total_signers', (SELECT COUNT(*) FROM workflow_signers WHERE workflow_id = p_workflow_id AND status = 'signed'),

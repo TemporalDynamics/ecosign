@@ -712,7 +712,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       ghost.style.pointerEvents = 'none';
       document.body.appendChild(ghost);
 
-      const duration = 520;
+      const duration = 850;
       const startTime = performance.now();
 
       const animate = (now) => {
@@ -751,15 +751,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = fileName;
-      link.target = '_self';
+      link.target = '_self'; // evita nueva pestaña
       link.rel = 'noopener';
       link.style.display = 'none';
       document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      if (!certificateData?.signedPdfUrl) {
-        URL.revokeObjectURL(downloadUrl);
-      }
+      link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      setTimeout(() => {
+        document.body.removeChild(link);
+        if (!certificateData?.signedPdfUrl) {
+          URL.revokeObjectURL(downloadUrl);
+        }
+      }, 120);
+      setTimeout(() => window.focus(), 50); // mantener foco en la app
     }
 
     // Guardar documento (si procede) — reutilizamos handleCertify si había archivo y aún no se guardó
@@ -1336,58 +1339,73 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
           {/* PASO 2: LISTO */}
           {step === 2 && certificateData && (
-            <div className="text-center py-8">
-              <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                ✅ Tu documento está listo
-              </h3>
-              <p className="text-sm text-gray-700 mb-6">
-                Tu documento ya cuenta con protección legal completa.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left max-w-2xl mx-auto mb-6">
-                <label className={`border rounded-xl p-4 cursor-pointer transition ${savePdfChecked ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={savePdfChecked}
-                      onChange={() => setSavePdfChecked(!savePdfChecked)}
-                      className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Guardar mi documento firmado</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Accedé a tu documento cuando lo necesites, siempre intacto.
-                      </p>
-                    </div>
+            <div className="py-10">
+              <div className="max-w-3xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-6">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-10 h-10 text-green-600" />
+                  <div>
+                    <h3 className="text-2xl font-semibold text-gray-900">Tu documento quedó protegido</h3>
+                    <p className="text-sm text-gray-600">
+                      Elegí cómo querés recibirlo. Podés guardarlo en EcoSign o descargarlo ahora mismo.
+                    </p>
                   </div>
-                </label>
+                </div>
 
-                <label className={`border rounded-xl p-4 cursor-pointer transition ${downloadPdfChecked ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={downloadPdfChecked}
-                      onChange={() => setDownloadPdfChecked(!downloadPdfChecked)}
-                      className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Descargar el PDF firmado</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Conservá una copia local para compartir o archivar.
-                      </p>
+                <div className="space-y-4">
+                  <label className={`block border rounded-xl p-5 cursor-pointer transition ${savePdfChecked ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={savePdfChecked}
+                        onChange={() => setSavePdfChecked(!savePdfChecked)}
+                        className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
+                      />
+                      <div className="space-y-1">
+                        <p className="text-base font-semibold text-gray-900">Guardar en EcoSign (recomendado)</p>
+                        <p className="text-sm text-gray-600">
+                          Lo vas a tener siempre disponible en tu espacio privado. Nosotros no vemos tu documento y en breve sumamos cifrado para que ni los servidores puedan leerlo.
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Si lo descargás más adelante desde acá, evitás cambios accidentales: siempre bajás la versión certificada.
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </label>
+                  </label>
+
+                  <label className={`block border rounded-xl p-5 cursor-pointer transition ${downloadPdfChecked ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={downloadPdfChecked}
+                        onChange={() => setDownloadPdfChecked(!downloadPdfChecked)}
+                        className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
+                      />
+                      <div className="space-y-1">
+                        <p className="text-base font-semibold text-gray-900">Descargar ahora</p>
+                        <p className="text-sm text-gray-600">
+                          Guardalo en tu equipo sin abrir nueva pestaña. Evitá modificarlo: cualquier cambio altera el certificado.
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Si algo se altera por error, podés volver a descargar la copia intacta desde EcoSign siempre que lo hayas guardado.
+                        </p>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-xs text-gray-500">
+                    Tip: podés elegir ambas opciones para tener copia local y respaldo seguro.
+                  </p>
+                  <button
+                    ref={finalizeButtonRef}
+                    onClick={handleFinalizeClick}
+                    className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-semibold"
+                  >
+                    Finalizar proceso
+                  </button>
+                </div>
               </div>
-
-              <button
-                ref={finalizeButtonRef}
-                onClick={handleFinalizeClick}
-                className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-semibold"
-              >
-                Finalizar proceso
-              </button>
             </div>
           )}
           </div>

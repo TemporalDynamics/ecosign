@@ -115,6 +115,8 @@ function base64ToUint8Array(base64) {
  * @returns {ArrayBuffer} .eco file data (JSON as ArrayBuffer)
  */
 async function createEcoXFormat(project, publicKeyHex, signature, timestamp, options = {}) {
+  const tsa = options.tsaResponse;
+
   // Create the signatures array
   const signatures = [
     {
@@ -126,15 +128,15 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
       algorithm: 'Ed25519',
       timestamp: timestamp,
       // Legal timestamp certification (if requested)
-      legalTimestamp: options.tsaResponse && options.tsaResponse.success ? {
+      legalTimestamp: tsa && tsa.success ? {
         standard: 'RFC 3161',
-        tsa: options.tsaResponse.tsaName || options.tsaResponse.tsaUrl,
-        tsaUrl: options.tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
-        token: options.tsaResponse.token,
-        tokenSize: options.tsaResponse.tokenSize,
-        algorithm: options.tsaResponse.algorithm,
-        verified: options.tsaResponse.verified,
-        note: options.tsaResponse.note
+        tsa: tsa.tsaName || tsa.tsaUrl,
+        tsaUrl: tsa.tsaUrl || 'https://freetsa.org/tsr',
+        token: tsa.token,
+        tokenSize: tsa.tokenSize,
+        algorithm: tsa.algorithm,
+        verified: tsa.verified,
+        note: tsa.note
       } : null
     }
   ];
@@ -160,7 +162,7 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
       polygon: options.usePolygonAnchor || false,
       bitcoin: options.useBitcoinAnchor || false
     },
-    timestampType: options.tsaResponse && options.tsaResponse.success ? 'RFC 3161 Legal' : 'Local (Informational)'
+    timestampType: tsa && tsa.success ? 'RFC 3161 Legal' : 'Local (Informational)'
   };
 
   // Create unified .eco structure
@@ -176,7 +178,7 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
       intent_confirmed: true,
       intent_method: 'explicit_acceptance'
     },
-    time_assurance: tsaResponse && tsaResponse.success ? {
+    time_assurance: tsa && tsa.success ? {
       source: 'RFC3161',
       confidence: 'high'
     } : {

@@ -745,14 +745,21 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const handleFinalizeClick = async () => {
     // Ejecutar acciones seleccionadas
     if (file && downloadPdfChecked) {
-      const blobUrl = URL.createObjectURL(file);
+      // Preferir el PDF firmado si ya existe
+      const downloadUrl = certificateData?.signedPdfUrl || URL.createObjectURL(file);
+      const fileName = certificateData?.signedPdfName || file.name;
       const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = file.name;
+      link.href = downloadUrl;
+      link.download = fileName;
+      link.target = '_self';
+      link.rel = 'noopener';
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
+      if (!certificateData?.signedPdfUrl) {
+        URL.revokeObjectURL(downloadUrl);
+      }
     }
 
     // Guardar documento (si procede) — reutilizamos handleCertify si había archivo y aún no se guardó
@@ -767,14 +774,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     // Animación + cierre + navegación
     playFinalizeAnimation();
     resetAndClose();
-    if (onClose) {
-      onClose();
-    }
-    try {
-      window.location.href = '/documents';
-    } catch {
-      // noop
-    }
+    if (onClose) onClose();
   };
 
   const leftColWidth = ndaEnabled ? '320px' : '0px';

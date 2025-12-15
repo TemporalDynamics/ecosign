@@ -116,6 +116,14 @@ function base64ToUint8Array(base64) {
  */
 async function createEcoXFormat(project, publicKeyHex, signature, timestamp, options = {}) {
   const tsa = options.tsaResponse;
+  const identityAssurance = options.identityAssurance || {
+    ...IDENTITY_ASSURANCE_BASE,
+    timestamp,
+    subject: {
+      userId: options.userId || 'anonymous',
+      email: options.userEmail || 'anonymous@email.ecosign.app'
+    }
+  };
 
   // Create the signatures array
   const signatures = [
@@ -142,11 +150,6 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
   ];
 
   // Create metadata with forensic information
-  const identityAssurance = {
-    ...IDENTITY_ASSURANCE_BASE,
-    timestamp
-  };
-
   const metadata = {
     certifiedAt: timestamp,
     certifiedBy: 'VerifySign',
@@ -258,6 +261,14 @@ export async function certifyFile(file, options = {}) {
     // Step 4: Create timestamp (with optional legal timestamp certification)
     let timestamp = new Date().toISOString();
     let tsaResponse = null;
+    const identityAssurance = {
+      ...IDENTITY_ASSURANCE_BASE,
+      timestamp,
+      subject: {
+        userId: options.userId || 'anonymous',
+        email: options.userEmail || 'anonymous@email.ecosign.app'
+      }
+    };
 
     if (options.useLegalTimestamp) {
       console.log('🕐 Requesting legal timestamp certification...');
@@ -341,7 +352,8 @@ export async function certifyFile(file, options = {}) {
     const ecoxBuffer = await createEcoXFormat(project, publicKeyHex, signature, timestamp, {
       userId: options.userId,
       userEmail: options.userEmail,
-      tsaResponse
+      tsaResponse,
+      identityAssurance
     });
 
     console.log('✅ .ecox file created:', ecoxBuffer.byteLength, 'bytes');

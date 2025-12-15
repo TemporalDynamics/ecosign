@@ -755,7 +755,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       link.rel = 'noopener';
       link.style.display = 'none';
       document.body.appendChild(link);
-      link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      link.click();
       setTimeout(() => {
         document.body.removeChild(link);
         if (!certificateData?.signedPdfUrl) {
@@ -1383,7 +1383,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       <div className="space-y-1">
                         <p className="text-base font-semibold text-gray-900">Descargar ahora</p>
                         <p className="text-sm text-gray-600">
-                          Guardalo en tu equipo sin abrir nueva pestaña. Evitá modificarlo: cualquier cambio altera el certificado.
+                          Guardalo en tu equipo. Evitá modificarlo: cualquier cambio altera el certificado.
                         </p>
                         <p className="text-xs text-gray-500">
                           Si algo se altera por error, podés volver a descargar la copia intacta desde EcoSign siempre que lo hayas guardado.

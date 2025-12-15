@@ -124,16 +124,6 @@ function bnToString(value) {
   return null;
 }
 
-function parseJsonToken(base64) {
-  try {
-    const jsonString = Buffer.from(base64, 'base64').toString('utf8');
-    const data = JSON.parse(jsonString);
-    return data && data.hashedMessage ? data : null;
-  } catch (error) {
-    return null;
-  }
-}
-
 function accuracyToObject(accuracy) {
   if (!accuracy) return null;
   return {
@@ -250,49 +240,14 @@ function buildResultFromTST(tstInfo, meta, expectedHashHex) {
 
 /**
  * Verifica un token RFC 3161 (TSR) comparando el hash sellado con el esperado.
- * Maneja dos formatos: mocks JSON (MVP) y DER reales.
+ * Solo acepta tokens en formato DER (RFC 3161 compliant).
  */
 export async function verifyTSRToken(tsrTokenB64, expectedHashHex) {
   if (!tsrTokenB64) {
     throw new Error('No se recibió token TSR para verificación');
   }
 
-  // 1) Modo legacy (mock JSON usado por el MVP)
-  const mockToken = parseJsonToken(tsrTokenB64);
-  if (mockToken) {
-    const normalizedExpected = normalizeHex(expectedHashHex);
-    const tokenHash = normalizeHex(mockToken.hashedMessage);
-    const hashMatches = normalizedExpected && tokenHash
-      ? tokenHash === normalizedExpected
-      : null;
-
-    const message = hashMatches === true
-      ? 'Hash sellado coincide con el manifiesto (mock TSA)'
-      : hashMatches === false
-        ? 'Hash sellado no coincide (mock TSA)'
-        : 'Token mock decodificado (hash no comparado)';
-
-    return {
-      success: hashMatches === null ? !!tokenHash : hashMatches,
-      hashMatches,
-      tokenHash,
-      expectedHash: normalizedExpected,
-      timestamp: mockToken.genTime || null,
-      policy: mockToken.policy || null,
-      algorithmName: mockToken.hashAlgorithm || 'SHA-256',
-      algorithmOid: null,
-      serialNumber: mockToken.serialNumber ? String(mockToken.serialNumber) : null,
-      format: 'JSON',
-      message,
-      accuracy: mockToken.accuracy || null,
-      meta: {
-        tsa: mockToken.tsa || null,
-        simplified: true
-      }
-    };
-  }
-
-  // 2) Intentar parsear DER real
+  // Parsear token RFC 3161 en formato DER
   const buffer = bufferFromBase64(tsrTokenB64);
   const decoded = decodeDerToken(buffer);
 

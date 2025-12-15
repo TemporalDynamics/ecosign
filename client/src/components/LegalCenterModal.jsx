@@ -746,8 +746,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     // Ejecutar acciones seleccionadas
     if (file && downloadPdfChecked) {
       // Preferir el PDF firmado si ya existe
-      const downloadUrl = certificateData?.signedPdfUrl || URL.createObjectURL(file);
+      const sourceUrl = certificateData?.signedPdfUrl || URL.createObjectURL(file);
       const fileName = certificateData?.signedPdfName || file.name;
+
+      // Fuerza descarga binaria para evitar previews agresivos
+      let downloadUrl = sourceUrl;
+      try {
+        const blob = await fetch(sourceUrl).then((res) => res.blob());
+        const arrayBuffer = await blob.arrayBuffer();
+        const binaryBlob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
+        downloadUrl = URL.createObjectURL(binaryBlob);
+      } catch (err) {
+        console.warn('Fallback a descarga directa:', err);
+      }
+
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = fileName;
@@ -759,10 +771,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       setTimeout(() => {
         document.body.removeChild(link);
         if (!certificateData?.signedPdfUrl) {
-          URL.revokeObjectURL(downloadUrl);
+          URL.revokeObjectURL(sourceUrl);
         }
+        URL.revokeObjectURL(downloadUrl);
       }, 120);
-      setTimeout(() => window.focus(), 50); // mantener foco en la app
+      setTimeout(() => {
+        window.focus();
+        document.body?.focus?.();
+      }, 100); // mantener foco en la app
     }
 
     // Guardar documento (si procede) — reutilizamos handleCertify si había archivo y aún no se guardó
@@ -1340,7 +1356,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           {/* PASO 2: LISTO */}
           {step === 2 && certificateData && (
             <div className="py-10">
-              <div className="max-w-3xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-6">
+              <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-6">
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="w-10 h-10 text-green-600" />
                   <div>
@@ -1352,7 +1368,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </div>
 
                 <div className="space-y-4">
-                  <label className={`block border rounded-xl p-5 cursor-pointer transition ${savePdfChecked ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <label
+                    className={`block rounded-xl p-5 cursor-pointer transition ${
+                      savePdfChecked
+                        ? 'border border-gray-900 bg-gray-900 text-white shadow-md'
+                        : 'border border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                    onClick={() => setSavePdfChecked(!savePdfChecked)}
+                  >
                     <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
@@ -1361,18 +1384,25 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
                       />
                       <div className="space-y-1">
-                        <p className="text-base font-semibold text-gray-900">Guardar en EcoSign (recomendado)</p>
-                        <p className="text-sm text-gray-600">
-                          Lo vas a tener siempre disponible en tu espacio privado. Nosotros no vemos tu documento y en breve sumamos cifrado para que ni los servidores puedan leerlo.
+                        <p className={`text-base font-semibold ${savePdfChecked ? 'text-white' : 'text-gray-900'}`}>Guardar en EcoSign (recomendado)</p>
+                        <p className={`text-sm ${savePdfChecked ? 'text-gray-100' : 'text-gray-600'}`}>
+                          Lo vas a tener siempre disponible en tu espacio privado. Nosotros no vemos tu documento y pronto sumamos cifrado para que ni los servidores puedan leerlo.
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className={`text-xs ${savePdfChecked ? 'text-gray-200' : 'text-gray-500'}`}>
                           Si lo descargás más adelante desde acá, evitás cambios accidentales: siempre bajás la versión certificada.
                         </p>
                       </div>
                     </div>
                   </label>
 
-                  <label className={`block border rounded-xl p-5 cursor-pointer transition ${downloadPdfChecked ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <label
+                    className={`block rounded-xl p-5 cursor-pointer transition ${
+                      downloadPdfChecked
+                        ? 'border border-gray-900 bg-gray-900 text-white shadow-md'
+                        : 'border border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                    onClick={() => setDownloadPdfChecked(!downloadPdfChecked)}
+                  >
                     <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
@@ -1381,11 +1411,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
                       />
                       <div className="space-y-1">
-                        <p className="text-base font-semibold text-gray-900">Descargar ahora</p>
-                        <p className="text-sm text-gray-600">
+                        <p className={`text-base font-semibold ${downloadPdfChecked ? 'text-white' : 'text-gray-900'}`}>Descargar ahora</p>
+                        <p className={`text-sm ${downloadPdfChecked ? 'text-gray-100' : 'text-gray-600'}`}>
                           Guardalo en tu equipo. Evitá modificarlo: cualquier cambio altera el certificado.
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className={`text-xs ${downloadPdfChecked ? 'text-gray-200' : 'text-gray-500'}`}>
+                          Según tu navegador la descarga puede abrirse en otra pestaña, pero tu documento sigue protegido en EcoSign.
+                        </p>
+                        <p className={`text-xs ${downloadPdfChecked ? 'text-gray-200' : 'text-gray-500'}`}>
                           Si algo se altera por error, podés volver a descargar la copia intacta desde EcoSign siempre que lo hayas guardado.
                         </p>
                       </div>

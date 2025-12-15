@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
-import { FileText, Clock, CheckCircle, XCircle, AlertCircle, Search, Eye, Download, Copy, Folder, FolderPlus, MoveRight, ShieldCheck, Shield } from 'lucide-react';
+import { FileText, Clock, CheckCircle, XCircle, AlertCircle, Search, Eye, Download, Copy, Folder, FolderPlus, MoveRight, ShieldCheck, Shield, X } from 'lucide-react';
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 import ShareLinkGenerator from "../components/ShareLinkGenerator";
@@ -19,8 +19,8 @@ const STATUS_CONFIG = {
 const OVERALL_STATUS_CONFIG = {
   draft: { label: "Borrador", color: "text-gray-600", bg: "bg-gray-100", icon: FileText },
   pending: { label: "Pendiente", color: "text-yellow-600", bg: "bg-yellow-100", icon: Clock },
-  pending_anchor: { label: "⏳ Anclando en Bitcoin", color: "text-orange-600", bg: "bg-orange-100", icon: Clock },
-  certified: { label: "✓ Certificado", color: "text-green-600", bg: "bg-green-100", icon: CheckCircle },
+  pending_anchor: { label: "Certificado", color: "text-green-600", bg: "bg-green-100", icon: CheckCircle },
+  certified: { label: "Certificado", color: "text-green-600", bg: "bg-green-100", icon: CheckCircle },
   rejected: { label: "Rechazado", color: "text-red-600", bg: "bg-red-100", icon: XCircle },
   expired: { label: "Expirado", color: "text-gray-500", bg: "bg-gray-100", icon: AlertCircle },
   revoked: { label: "Revocado", color: "text-red-700", bg: "bg-red-100", icon: XCircle }
@@ -36,6 +36,12 @@ function DocumentsPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedNdaDoc, setSelectedNdaDoc] = useState(null);
   const [planTier, setPlanTier] = useState(null); // free | pro | business | enterprise
+  const [ecoPendingDoc, setEcoPendingDoc] = useState(null);
+  const [showEcoPendingModal, setShowEcoPendingModal] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyDoc, setVerifyDoc] = useState(null);
+  const [verifyResult, setVerifyResult] = useState(null);
+  const [verifying, setVerifying] = useState(false);
   const [filters, setFilters] = useState({
     status: "all",
     fileType: "all",
@@ -51,6 +57,151 @@ function DocumentsPage() {
     loadFolders();
     loadPlan();
   }, [activeTab, filters, selectedFolder]);
+
+  const downloadFromPath = async (storagePath) => {
+    if (!storagePath) return;
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.storage
+        .from('user-documents')
+        .createSignedUrl(storagePath, 3600);
+      if (error) {
+        console.error('Error creando URL de descarga:', error);
+        window.alert('No se pudo generar la descarga. Intenta regenerar el archivo.');
+        return;
+      }
+      window.open(data.signedUrl, '_blank');
+    } catch (err) {
+      console.error('Error descargando:', err);
+      window.alert('No se pudo descargar el archivo.');
+    }
+  };
+
+  const requestRegeneration = async (docId, type) => {
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase.rpc('request_certificate_regeneration', {
+        _document_id: docId,
+        _request_type: type
+      });
+      if (error) {
+        console.error('Error solicitando regeneración:', error);
+        window.alert('No se pudo solicitar la regeneración.');
+        return;
+      }
+      window.alert('Solicitud de regeneración enviada');
+    } catch (err) {
+      console.error('Error solicitando regeneración:', err);
+      window.alert('No se pudo solicitar la regeneración.');
+    }
+  };
+
+  const handleEcoDownload = (doc) => {
+    if (!doc) return;
+    if (doc.bitcoin_status === 'pending') {
+      setEcoPendingDoc({ ...doc, pendingType: 'eco' });
+      setShowEcoPendingModal(true);
+      return;
+    }
+    if (doc.eco_storage_path) {
+      downloadFromPath(doc.eco_storage_path);
+      return;
+    }
+    if (doc.eco_hash) {
+      requestRegeneration(doc.id, 'eco');
+    }
+  };
+
+  const handleEcoxDownload = (doc) => {
+    if (!doc) return;
+    if (doc.bitcoin_status === 'pending') {
+      setEcoPendingDoc({ ...doc, pendingType: 'ecox' });
+      setShowEcoPendingModal(true);
+      return;
+    }
+    if (doc.ecox_storage_path) {
+      downloadFromPath(doc.ecox_storage_path);
+      return;
+    }
+    requestRegeneration(doc.id, 'ecox');
+  };
+
+  const handleVerifyDoc = (doc) => {
+    if (!doc) return;
+    setVerifyDoc(doc);
+    setVerifyResult(null);
+    setShowVerifyModal(true);
+  };
+
+  const overrideBitcoinPending = async () => {
+    if (!ecoPendingDoc) return;
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase
+        .from('user_documents')
+        .update({
+          bitcoin_status: 'cancelled',
+          download_enabled: true
+        })
+        .eq('id', ecoPendingDoc.id);
+      if (error) {
+        console.error('No se pudo cancelar Bitcoin:', error);
+        return;
+      }
+      setDocuments(prev => prev.map(d => d.id === ecoPendingDoc.id ? { ...d, bitcoin_status: 'cancelled', download_enabled: true } : d));
+      setShowEcoPendingModal(false);
+      setEcoPendingDoc(null);
+
+      if (ecoPendingDoc.pendingType === 'eco') {
+        if (ecoPendingDoc.eco_storage_path) {
+          downloadFromPath(ecoPendingDoc.eco_storage_path);
+        } else if (ecoPendingDoc.eco_hash) {
+          requestRegeneration(ecoPendingDoc.id, 'eco');
+        }
+      } else if (ecoPendingDoc.pendingType === 'ecox') {
+        if (ecoPendingDoc.ecox_storage_path) {
+          downloadFromPath(ecoPendingDoc.ecox_storage_path);
+        } else {
+          requestRegeneration(ecoPendingDoc.id, 'ecox');
+        }
+      }
+    } catch (err) {
+      console.error('Error en override Bitcoin pending:', err);
+    }
+  };
+
+  const computeHash = async (file) => {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  const onVerifyFile = async (file) => {
+    if (!verifyDoc) return;
+    setVerifying(true);
+    try {
+      const hash = await computeHash(file);
+      const matches = verifyDoc.document_hash && hash.toLowerCase() === verifyDoc.document_hash.toLowerCase();
+      setVerifyResult({
+        matches,
+        hash,
+        extended:
+          verifyDoc.bitcoin_status === 'pending'
+            ? 'Irrefutabilidad reforzada — en proceso'
+            : verifyDoc.bitcoin_status === 'confirmed'
+              ? 'Irrefutable'
+              : null
+      });
+    } catch (err) {
+      console.error('Error verificando PDF:', err);
+      setVerifyResult({
+        matches: false,
+        error: 'No se pudo verificar el documento.'
+      });
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const loadDocuments = async () => {
     try {
@@ -70,6 +221,7 @@ function DocumentsPage() {
         .from("user_documents")
         .select(`
           *,
+          document_hash,
           events(id, event_type, timestamp, metadata),
           signer_links(id, signer_email, status, signed_at),
           anchors!user_document_id(id, anchor_status, bitcoin_tx_id, confirmed_at),
@@ -331,8 +483,35 @@ function DocumentsPage() {
           )}
 
           {/* Content */}
-          {activeTab === "all" && <AllDocumentsTab documents={documents} loading={loading} formatDate={formatDate} copyToClipboard={copyToClipboard} moveToFolder={moveToFolder} planTier={planTier} />}
-          {activeTab === "certified" && <CertifiedDocumentsTab documents={documents} loading={loading} formatDate={formatDate} copyToClipboard={copyToClipboard} planTier={planTier} />}
+          {activeTab === "all" && (
+            <AllDocumentsTab
+              documents={documents}
+              loading={loading}
+              formatDate={formatDate}
+              copyToClipboard={copyToClipboard}
+              moveToFolder={moveToFolder}
+              planTier={planTier}
+              onEcoDownload={handleEcoDownload}
+              onEcoxDownload={handleEcoxDownload}
+              onVerify={handleVerifyDoc}
+              downloadFromPath={downloadFromPath}
+              requestRegeneration={requestRegeneration}
+            />
+          )}
+          {activeTab === "certified" && (
+            <CertifiedDocumentsTab
+              documents={documents}
+              loading={loading}
+              formatDate={formatDate}
+              copyToClipboard={copyToClipboard}
+              planTier={planTier}
+              onEcoDownload={handleEcoDownload}
+              onEcoxDownload={handleEcoxDownload}
+              onVerify={handleVerifyDoc}
+              downloadFromPath={downloadFromPath}
+              requestRegeneration={requestRegeneration}
+            />
+          )}
           {activeTab === "forensic" && <ForensicTab documents={documents} formatDate={formatDate} copyToClipboard={copyToClipboard} />}
         </main>
     </div>
@@ -346,49 +525,107 @@ function DocumentsPage() {
         />
       </div>
     )}
+
+    {/* Modal ECO pendiente (Bitcoin en proceso) */}
+    {showEcoPendingModal && ecoPendingDoc && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Certificado listo · Protección adicional en proceso
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Tu certificado ya cuenta con un registro digital inmutable y atemporal.
+              </p>
+            </div>
+            <button
+              onClick={() => { setShowEcoPendingModal(false); setEcoPendingDoc(null); }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <p className="text-sm text-gray-700 mb-6">
+            Estamos completando una confirmación adicional en una red independiente que refuerza su irrefutabilidad a largo plazo.
+          </p>
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
+            <button
+              className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 text-sm font-semibold"
+              onClick={() => { setShowEcoPendingModal(false); setEcoPendingDoc(null); }}
+            >
+              ⏳ Esperar y descargar con protección reforzada
+            </button>
+            <button
+              className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold hover:border-gray-400"
+              onClick={overrideBitcoinPending}
+            >
+              ⬇️ Descargar ahora
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Modal Verificar documento */}
+    {showVerifyModal && verifyDoc && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Verificar documento</h3>
+              <p className="text-xs text-gray-600 mt-1">
+                Arrastrá el PDF firmado para verificarlo.
+              </p>
+              <p className="text-xs text-gray-500">
+                Esta verificación se realiza en tu ordenador. Tu documento no se sube ni se guarda.
+              </p>
+            </div>
+            <button
+              onClick={() => { setShowVerifyModal(false); setVerifyResult(null); setVerifyDoc(null); }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center mb-4">
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => e.target.files?.[0] && onVerifyFile(e.target.files[0])}
+              className="hidden"
+              id="verify-upload"
+            />
+            <label htmlFor="verify-upload" className="cursor-pointer text-sm text-gray-700 hover:text-gray-900">
+              {verifying ? 'Verificando…' : 'Arrastrá o hacé clic para subir el PDF firmado'}
+            </label>
+          </div>
+
+          {verifyResult && (
+            <div className="mt-4 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+              <p className={`font-semibold ${verifyResult.matches ? 'text-green-700' : 'text-red-700'}`}>
+                {verifyResult.matches ? '✅ Documento verificado' : '❌ El PDF no coincide con el certificado'}
+              </p>
+                  {verifyResult.extended && verifyResult.matches && (
+                    <p className="text-xs text-gray-700 mt-2">{verifyResult.extended}</p>
+                  )}
+                  {verifyResult.error && (
+                    <p className="text-xs text-red-600 mt-2">
+                      {verifyResult.error} Revisá que estés verificando el archivo correcto.
+                    </p>
+                  )}
+                </div>
+              )}
+        </div>
+      </div>
+    )}
   </div>
 );
 }
 
 // Tab 1: Todos los Documentos
-function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, moveToFolder, planTier }) {
-  const downloadFromPath = async (storagePath) => {
-    if (!storagePath) return;
-    try {
-      const supabase = getSupabase();
-      const { data, error } = await supabase.storage
-        .from('user-documents')
-        .createSignedUrl(storagePath, 3600);
-      if (error) {
-        console.error('Error creando URL de descarga:', error);
-        window.alert('No se pudo generar la descarga. Intenta regenerar el archivo.');
-        return;
-      }
-      window.open(data.signedUrl, '_blank');
-    } catch (err) {
-      console.error('Error descargando:', err);
-      window.alert('No se pudo descargar el archivo.');
-    }
-  };
-
-  const requestRegeneration = async (docId, type) => {
-    try {
-      const supabase = getSupabase();
-      const { error } = await supabase.rpc('request_certificate_regeneration', {
-        _document_id: docId,
-        _request_type: type
-      });
-      if (error) {
-        console.error('Error solicitando regeneración:', error);
-        window.alert('No se pudo solicitar la regeneración.');
-        return;
-      }
-      window.alert('Solicitud de regeneración enviada');
-    } catch (err) {
-      console.error('Error solicitando regeneración:', err);
-      window.alert('No se pudo solicitar la regeneración.');
-    }
-  };
+function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, moveToFolder, planTier, onEcoDownload, onEcoxDownload, onVerify, downloadFromPath, requestRegeneration }) {
   if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -434,7 +671,8 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {documents.map((doc) => {
-            const overallConfig = OVERALL_STATUS_CONFIG[doc.overall_status] || OVERALL_STATUS_CONFIG.draft;
+            const statusKey = doc.eco_hash ? 'certified' : doc.overall_status;
+            const overallConfig = OVERALL_STATUS_CONFIG[statusKey] || OVERALL_STATUS_CONFIG.draft;
             const downloadEnabled = doc.download_enabled !== false;
             const bitcoinPending = doc.bitcoin_status === 'pending';
             const pdfAvailable = !!doc.pdf_storage_path;
@@ -445,23 +683,23 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
             return (
               <tr key={doc.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{doc.document_name}</div>
-                      {bitcoinPending && (
-                        <div className="text-xs text-orange-600 mt-0.5">
-                          Anclaje Bitcoin: 4-24h restantes
-                        </div>
-                      )}
-                      {!pdfAvailable && (
-                        <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                          <ShieldCheck className="h-3 w-3" />
-                          PDF no almacenado (modo privacidad)
-                        </div>
-                      )}
-                    </div>
+            <div className="flex items-center">
+              <FileText className="h-5 w-5 text-gray-400 mr-3" />
+              <div>
+                <div className="text-sm font-medium text-gray-900">{doc.document_name}</div>
+                {bitcoinPending && (
+                  <div className="text-xs text-orange-600 mt-0.5">
+                    Protección adicional en proceso (Bitcoin 4-24h)
                   </div>
+                )}
+                {!pdfAvailable && (
+                  <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                    <ShieldCheck className="h-3 w-3" />
+                    PDF no almacenado (modo privacidad)
+                  </div>
+                )}
+              </div>
+            </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {doc.folder_id ? (
@@ -477,7 +715,7 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
                   <div className="text-sm text-gray-500 uppercase">{doc.file_type || "PDF"}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${overallConfig.bg} ${overallConfig.color}`}>
+                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${overallConfig.bg} ${overallConfig.color}`} title="Este documento ya cuenta con protección legal completa y puede verificarse en cualquier momento.">
                     {overallConfig.label}
                   </span>
                 </td>
@@ -493,7 +731,7 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
                       <Eye className="h-5 w-5" />
                     </button>
                     <button
-                      onClick={() => ecoAvailable ? downloadFromPath(doc.eco_storage_path) : requestRegeneration(doc.id, 'eco')}
+                      onClick={() => ecoAvailable ? onEcoDownload(doc) : requestRegeneration(doc.id, 'eco')}
                       className={`${ecoAvailable || doc.eco_hash ? 'text-black hover:text-gray-600' : 'text-gray-300 cursor-not-allowed'}`}
                       disabled={!ecoAvailable && !doc.eco_hash}
                       title={ecoAvailable ? 'Descargar .ECO' : doc.eco_hash ? 'Regenerar .ECO' : 'No disponible'}
@@ -501,19 +739,26 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
                       <Download className="h-5 w-5" />
                     </button>
                     <button
-                      onClick={() => ecoxAvailable ? downloadFromPath(doc.ecox_storage_path) : requestRegeneration(doc.id, 'ecox')}
+                      onClick={() => ecoxAvailable ? onEcoxDownload(doc) : requestRegeneration(doc.id, 'ecox')}
                       className="text-black hover:text-gray-600"
                       title={ecoxAvailable ? 'Descargar .ECOX' : 'Solicitar .ECOX'}
                     >
                       <ShieldCheck className="h-5 w-5" />
                     </button>
+                  <button
+                    className="text-black hover:text-gray-600"
+                    title="Verificar documento"
+                    onClick={() => onVerify(doc)}
+                  >
+                    <Search className="h-5 w-5" />
+                  </button>
                     <button
                       className="text-black hover:text-gray-600"
-                    title="NDA"
-                    onClick={() => { setSelectedNdaDoc(doc); setShowShareModal(true); }}
-                  >
-                    <Shield className="h-5 w-5" />
-                  </button>
+                      title="NDA"
+                      onClick={() => { setSelectedNdaDoc(doc); setShowShareModal(true); }}
+                    >
+                      <Shield className="h-5 w-5" />
+                    </button>
                   <button
                     className="text-black hover:text-gray-600"
                     title="Mover a carpeta"
@@ -533,44 +778,7 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
 }
 
 // Tab 2: Documentos Certificados
-function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard, planTier }) {
-  const downloadFromPath = async (storagePath) => {
-    if (!storagePath) return;
-    try {
-      const supabase = getSupabase();
-      const { data, error } = await supabase.storage
-        .from('user-documents')
-        .createSignedUrl(storagePath, 3600);
-      if (error) {
-        console.error('Error creando URL de descarga:', error);
-        window.alert('No se pudo generar la descarga. Intenta regenerar el archivo.');
-        return;
-      }
-      window.open(data.signedUrl, '_blank');
-    } catch (err) {
-      console.error('Error descargando:', err);
-      window.alert('No se pudo descargar el archivo.');
-    }
-  };
-
-  const requestRegeneration = async (docId, type) => {
-    try {
-      const supabase = getSupabase();
-      const { error } = await supabase.rpc('request_certificate_regeneration', {
-        _document_id: docId,
-        _request_type: type
-      });
-      if (error) {
-        console.error('Error solicitando regeneración:', error);
-        window.alert('No se pudo solicitar la regeneración.');
-        return;
-      }
-      window.alert('Solicitud de regeneración enviada');
-    } catch (err) {
-      console.error('Error solicitando regeneración:', err);
-      window.alert('No se pudo solicitar la regeneración.');
-    }
-  };
+function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard, planTier, onEcoDownload, onEcoxDownload, onVerify, downloadFromPath, requestRegeneration }) {
   if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -604,18 +812,16 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
 
         return (
           <div key={doc.id} className="bg-white border border-gray-200 rounded-lg p-6">
-            {/* Bitcoin Pending Warning */}
             {bitcoinPending && (
               <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
                 <div className="flex items-start">
                   <Clock className="h-5 w-5 text-orange-600 mt-0.5 mr-3" />
                   <div>
                     <h4 className="text-sm font-semibold text-orange-900">
-                      Anclaje Bitcoin en progreso (4-24 horas)
+                      Protección adicional en proceso (Bitcoin 4-24h)
                     </h4>
                     <p className="text-xs text-orange-700 mt-1">
-                      Tu documento está siendo anclado en la blockchain de Bitcoin.
-                      Recibirás un email cuando el certificado .ECO esté listo para descargar.
+                      Tu certificado ya es válido y verificable. Estamos agregando una confirmación independiente para reforzar su irrefutabilidad a largo plazo.
                     </p>
                   </div>
                 </div>
@@ -633,7 +839,7 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => pdfAvailable && doc.pdf_storage_path && downloadFromPath(doc.pdf_storage_path)}
                   className={`px-4 py-2 rounded-lg text-sm ${pdfAvailable ? 'bg-black text-white hover:bg-gray-800' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
@@ -644,7 +850,7 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   PDF Firmado
                 </button>
                 <button
-                  onClick={() => ecoAvailable ? downloadFromPath(doc.eco_storage_path) : doc.eco_hash && requestRegeneration(doc.id, 'eco')}
+                  onClick={() => ecoAvailable ? onEcoDownload(doc) : doc.eco_hash && requestRegeneration(doc.id, 'eco')}
                   className={`px-4 py-2 rounded-lg text-sm ${
                     ecoAvailable || doc.eco_hash
                       ? 'border border-gray-300 hover:bg-gray-50'
@@ -652,12 +858,12 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   }`}
                   disabled={!ecoAvailable && !doc.eco_hash}
                   title={ecoAvailable ? 'Descargar certificado .ECO' : doc.eco_hash ? 'Regenerar certificado .ECO' : 'No disponible'}
-                >
+                  >
                   <Download className="h-4 w-4 inline mr-2" />
                   {bitcoinPending ? 'Certificado .ECO (Pendiente)' : ecoAvailable ? 'Certificado .ECO' : 'Regenerar .ECO'}
                 </button>
                 <button
-                  onClick={() => ecoxAvailable ? downloadFromPath(doc.ecox_storage_path) : requestRegeneration(doc.id, 'ecox')}
+                  onClick={() => ecoxAvailable ? onEcoxDownload(doc) : requestRegeneration(doc.id, 'ecox')}
                   className="px-4 py-2 rounded-lg text-sm border border-gray-300 hover:bg-gray-50"
                   title={ecoxAvailable ? 'Descargar Certificado Avanzado (.ECOX)' : 'Solicitar certificado avanzado (.ECOX)'}
                 >
@@ -665,15 +871,15 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   {ecoxAvailable ? 'Certificado Avanzado (.ECOX)' : 'Solicitar .ECOX'}
                 </button>
                 <button
-                  onClick={() => { setSelectedNdaDoc(doc); setShowNdaModal(true); }}
-                  className="px-4 py-2 rounded-lg text-sm border border-gray-200 hover:bg-gray-50"
-                  title="NDA"
+                  onClick={() => onVerify(doc)}
+                  className="px-4 py-2 rounded-lg text-sm border border-gray-300 hover:bg-gray-50"
+                  title="Verificar documento"
                 >
-                  <Shield className="h-4 w-4 inline mr-2" />
-                  NDA
+                  <Search className="h-4 w-4 inline mr-2" />
+                  Verificar
                 </button>
+                </div>
               </div>
-            </div>
 
           {/* Hash */}
           <div className="mb-4">
@@ -689,6 +895,23 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                 <Copy className="h-4 w-4 text-gray-600" />
               </button>
             </div>
+          </div>
+
+          {/* Registro digital info */}
+          <div className="mb-4 flex flex-wrap gap-2 text-xs">
+            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 font-semibold">Registro digital</span>
+            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">Inmutable</span>
+            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">Atemporal</span>
+            {bitcoinPending && (
+              <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700">
+                Irrefutabilidad reforzada — en proceso
+              </span>
+            )}
+            {bitcoinConfirmed && (
+              <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700">
+                Irrefutable
+              </span>
+            )}
           </div>
 
             {/* Anchoring Timeline */}
@@ -731,7 +954,7 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                   </div>
                 </div>
 
-                {/* Bitcoin Blockchain */}
+                {/* Confirmación independiente (opcional) */}
                 <div className="flex items-center gap-3">
                   {bitcoinConfirmed ? (
                     <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
@@ -747,7 +970,7 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
                       bitcoinConfirmed || doc.has_bitcoin_anchor ? 'text-gray-900' :
                       bitcoinPending ? 'text-orange-600' : 'text-gray-400'
                     }`}>
-                      Blockchain Bitcoin (OpenTimestamps)
+                      Confirmación independiente (opcional)
                     </div>
                     <div className="text-xs text-gray-500">
                       {bitcoinConfirmed && doc.bitcoin_confirmed_at

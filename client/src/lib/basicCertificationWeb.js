@@ -14,6 +14,15 @@ import { requestLegalTimestamp } from './tsaService.js';
 import { requestBitcoinAnchor } from './opentimestamps.ts';
 import { anchorToPolygon } from './polygonAnchor.js';
 
+const CERTIFICATE_SCHEMA_VERSION = '1.0';
+const POLICY_SNAPSHOT_ID = 'policy_2025_11';
+const IDENTITY_ASSURANCE_BASE = {
+  level: 'IAL-1',
+  provider: 'ecosign',
+  method: null,
+  signals: []
+};
+
 /**
  * Reads a file and returns its ArrayBuffer
  */
@@ -131,9 +140,15 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
   ];
 
   // Create metadata with forensic information
+  const identityAssurance = {
+    ...IDENTITY_ASSURANCE_BASE,
+    timestamp
+  };
+
   const metadata = {
     certifiedAt: timestamp,
     certifiedBy: 'VerifySign',
+    identity_assurance: identityAssurance,
     clientInfo: {
       userAgent: navigator?.userAgent || 'Unknown',
       platform: navigator?.platform || 'Unknown',
@@ -152,9 +167,41 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
   const ecoPayload = {
     version: project.version || '1.1.0',
     projectId: project.projectId,
+    certificate_schema_version: CERTIFICATE_SCHEMA_VERSION,
+    identity_assurance: identityAssurance,
     manifest: project,
     signatures: signatures,
-    metadata: metadata
+    metadata: metadata,
+    intent: {
+      intent_confirmed: true,
+      intent_method: 'explicit_acceptance'
+    },
+    time_assurance: tsaResponse && tsaResponse.success ? {
+      source: 'RFC3161',
+      confidence: 'high'
+    } : {
+      source: 'local_clock',
+      confidence: 'informational'
+    },
+    environment: {
+      device_type: /Mobi|Android/i.test(navigator?.userAgent || '') ? 'mobile' : 'desktop',
+      os_family: navigator?.platform || 'unknown',
+      network_type: 'unknown'
+    },
+    system_capabilities: {
+      biometric_verification: false,
+      in_person_verification: false
+    },
+    limitations: [
+      'identity_not_biometrically_verified',
+      'no_in_person_validation'
+    ],
+    policy_snapshot_id: POLICY_SNAPSHOT_ID,
+    event_lineage: {
+      event_id: crypto.randomUUID(),
+      previous_event_id: null,
+      cause: 'certification_created'
+    }
   };
 
   // Convert to JSON string and then to ArrayBuffer
@@ -384,6 +431,7 @@ export async function certifyFile(file, options = {}) {
 
     // ECO data structure for DB (JSONB column)
     const ecoData = {
+      certificate_schema_version: CERTIFICATE_SCHEMA_VERSION,
       manifest: project,
       signatures: signaturesData,
       metadata: {
@@ -391,7 +439,39 @@ export async function certifyFile(file, options = {}) {
         browserVersion: navigator.userAgent,
         hasLegalTimestamp: tsaResponse && tsaResponse.success,
         timestampType: tsaResponse && tsaResponse.success ? 'Legal Certification' : 'Local (Informational)',
-        certifiedAt: timestamp
+        certifiedAt: timestamp,
+        identity_assurance: identityAssurance,
+        policy_snapshot_id: POLICY_SNAPSHOT_ID
+      },
+      intent: {
+        intent_confirmed: true,
+        intent_method: 'explicit_acceptance'
+      },
+      time_assurance: tsaResponse && tsaResponse.success ? {
+        source: 'RFC3161',
+        confidence: 'high'
+      } : {
+        source: 'local_clock',
+        confidence: 'informational'
+      },
+      environment: {
+        device_type: /Mobi|Android/i.test(navigator?.userAgent || '') ? 'mobile' : 'desktop',
+        os_family: navigator?.platform || 'unknown',
+        network_type: 'unknown'
+      },
+      system_capabilities: {
+        biometric_verification: false,
+        in_person_verification: false
+      },
+      limitations: [
+        'identity_not_biometrically_verified',
+        'no_in_person_validation'
+      ],
+      policy_snapshot_id: POLICY_SNAPSHOT_ID,
+      event_lineage: {
+        event_id: crypto.randomUUID(),
+        previous_event_id: null,
+        cause: 'certification_created'
       }
     };
 

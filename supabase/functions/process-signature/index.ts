@@ -8,6 +8,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
+const CERTIFICATE_SCHEMA_VERSION = '1.0'
+
 interface ProcessSignatureRequest {
   accessToken: string           // Token del firmante
   signatureData: {
@@ -114,6 +116,54 @@ serve(async (req) => {
     // 5. Generar certificación forense (Triple Anchoring)
     const workflow = signer.workflow as any
     const forensicConfig = workflow.forensic_config || {}
+    const signedAt = new Date().toISOString()
+    const identityAssurance = {
+      level: 'IAL-1',
+      provider: 'ecosign',
+      method: null,
+      timestamp: signedAt,
+      signals: []
+    }
+    let timeAssurance = {
+      source: forensicConfig.rfc3161 ? 'RFC3161' : 'server_clock',
+      confidence: forensicConfig.rfc3161 ? 'high' : 'informational'
+    }
+
+    const ua = userAgent || ''
+    const deviceType = /Mobi|Android/i.test(ua) ? 'mobile' : 'desktop'
+    const osFamily = /Windows/i.test(ua)
+      ? 'windows'
+      : /Mac/i.test(ua)
+        ? 'macos'
+        : /Linux/i.test(ua)
+          ? 'linux'
+          : /iPhone|iPad|iPod/i.test(ua)
+            ? 'ios'
+            : /Android/i.test(ua)
+              ? 'android'
+              : 'unknown'
+
+    const environment = {
+      device_type: deviceType,
+      os_family: osFamily,
+      network_type: 'unknown'
+    }
+
+    const systemCapabilities = {
+      biometric_verification: false,
+      in_person_verification: false
+    }
+
+    const limitations = [
+      'identity_not_biometrically_verified',
+      'no_in_person_validation'
+    ]
+
+    const eventLineage = {
+      event_id: crypto.randomUUID(),
+      previous_event_id: null,
+      cause: 'signature_completed'
+    }
 
     // Hash de la firma
     const signatureHash = Array.from(
@@ -126,10 +176,11 @@ serve(async (req) => {
 
     // Crear eco_data básico
     const ecoData = {
+      certificate_schema_version: CERTIFICATE_SCHEMA_VERSION,
       signer: {
         email: signer.email,
         name: signer.name,
-        signedAt: new Date().toISOString()
+        signedAt
       },
       document: {
         hash: currentVersion.document_hash,
@@ -142,7 +193,19 @@ serve(async (req) => {
       workflow: {
         id: workflow.id,
         signingOrder: signer.signing_order
-      }
+      },
+      identity_assurance: identityAssurance,
+      intent: {
+        intent_confirmed: true,
+        intent_method: 'explicit_acceptance'
+      },
+      time_assurance: timeAssurance,
+      environment,
+      system_capabilities: systemCapabilities,
+      limitations,
+      policy_snapshot_id: 'policy_2025_11',
+      event_lineage: eventLineage
+    }
     }
 
     // TODO: Integrar con basicCertificationWeb para generar .ECO/.ECOX real
@@ -160,9 +223,22 @@ serve(async (req) => {
         })
         if (!tsaError && tsaData?.success) {
           rfc3161Token = tsaData.token
+          timeAssurance = {
+            source: 'RFC3161',
+            confidence: 'high'
+          }
+        } else {
+          timeAssurance = {
+            source: 'server_clock',
+            confidence: 'informational'
+          }
         }
       } catch (err) {
         console.warn('RFC 3161 failed:', err)
+        timeAssurance = {
+          source: 'server_clock',
+          confidence: 'informational'
+        }
       }
     }
 

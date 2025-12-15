@@ -336,7 +336,26 @@ serve(async (req) => {
       logger.info('queued_anchors_found', { count: queuedAnchors.length });
 
       for (const anchor of queuedAnchors) {
-        const { result, durationMs } = await withTiming(() => 
+        // Skip if document cancelled Bitcoin
+        if (anchor.user_document_id) {
+          const { data: userDocStatus } = await supabaseAdmin
+            .from('user_documents')
+            .select('bitcoin_status')
+            .eq('id', anchor.user_document_id)
+            .single();
+          if (userDocStatus?.bitcoin_status === 'cancelled') {
+            await supabaseAdmin
+              .from('anchors')
+              .update({
+                anchor_status: 'cancelled',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', anchor.id);
+            continue;
+          }
+        }
+
+        const { result, durationMs } = await withTiming(() =>
           submitToOpenTimestamps(anchor.document_hash)
         );
 
@@ -397,6 +416,25 @@ serve(async (req) => {
       for (const anchor of pendingAnchors) {
         if (!anchor.ots_proof || !anchor.ots_calendar_url) {
           continue;
+        }
+
+        // Skip if document cancelled Bitcoin
+        if (anchor.user_document_id) {
+          const { data: userDocStatus } = await supabaseAdmin
+            .from('user_documents')
+            .select('bitcoin_status')
+            .eq('id', anchor.user_document_id)
+            .single();
+          if (userDocStatus?.bitcoin_status === 'cancelled') {
+            await supabaseAdmin
+              .from('anchors')
+              .update({
+                anchor_status: 'cancelled',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', anchor.id);
+            continue;
+          }
         }
 
         const attempts = (anchor.bitcoin_attempts ?? 0) + 1;

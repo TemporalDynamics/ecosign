@@ -336,7 +336,8 @@ serve(async (req) => {
       logger.info('queued_anchors_found', { count: queuedAnchors.length });
 
       for (const anchor of queuedAnchors) {
-        // Skip if document cancelled Bitcoin
+        // Policy: if the user cancelled Bitcoin, ignore any late confirmations.
+        // Bitcoin is an optional reinforcement layer and must never block or revive once cancelled.
         if (anchor.user_document_id) {
           const { data: userDocStatus } = await supabaseAdmin
             .from('user_documents')
@@ -351,6 +352,11 @@ serve(async (req) => {
                 updated_at: new Date().toISOString()
               })
               .eq('id', anchor.id);
+            logger.info('anchor_cancelled_by_user', {
+              anchorId: anchor.id,
+              userDocumentId: anchor.user_document_id,
+              reason: 'bitcoin_cancelled'
+            });
             continue;
           }
         }
@@ -418,7 +424,7 @@ serve(async (req) => {
           continue;
         }
 
-        // Skip if document cancelled Bitcoin
+        // Policy: late Bitcoin confirmations are ignored after user cancellation.
         if (anchor.user_document_id) {
           const { data: userDocStatus } = await supabaseAdmin
             .from('user_documents')
@@ -433,6 +439,11 @@ serve(async (req) => {
                 updated_at: new Date().toISOString()
               })
               .eq('id', anchor.id);
+            logger.info('anchor_cancelled_by_user', {
+              anchorId: anchor.id,
+              userDocumentId: anchor.user_document_id,
+              reason: 'bitcoin_cancelled'
+            });
             continue;
           }
         }

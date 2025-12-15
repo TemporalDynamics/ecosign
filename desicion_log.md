@@ -506,3 +506,55 @@ Usuario certifica →
 
 **Archivos creados**:
 - `ECO_CERTIFICATION_SETUP.md` (guía completa de configuración y verificación)
+
+---
+
+## Iteración 2025-12-15 — Riesgos aceptados y políticas explícitas
+
+### 🎯 Objetivo
+Dejar por escrito los trade-offs conscientes del sistema de certificación (Bitcoin opcional) y las reglas de coherencia de estados para evitar malinterpretaciones futuras.
+
+### 🧠 Decisiones tomadas
+- **Bitcoin es refuerzo opcional**: El certificado se considera completo con TSA + Polygon (`eco_hash`). Bitcoin aporta irrefutabilidad a largo plazo, pero no habilita ni invalida el certificado.
+- **Cancelaciones conscientes**: Si el usuario elige “descargar ahora” (pending → cancelled), cualquier confirmación Bitcoin posterior se ignora por diseño. El worker debe salir temprano si `bitcoin_status = 'cancelled'`.
+- **Coherencia de estados**: Cualquier cambio en `anchors` debe reflejarse en `user_documents` dentro de la misma transacción/lock (política aplicada con `anchor_polygon_atomic_tx` / `anchor_atomic_tx`).
+- **TSA DER validado**: Los tokens RFC3161 deben ser DER válidos; se eliminó el modo JSON/placeholder. Si la TSA falla, se usa timestamp informativo y se registra el evento.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se cambió la política de completitud del certificado: no se espera a Bitcoin para habilitar descargas.
+- No se agregaron dashboards ni métricas nuevas (solo logging estructurado existente).
+- No se reabrió el flujo de anclaje ni contratos; esto es documentación + guard rails.
+
+### ⚠️ Consideraciones / deuda futura
+- Métricas/alertas: pendiente agregar dashboards/alertas sobre fallos recurrentes de TSA/Polygon/Bitcoin.
+- Copy fino: reforzar en UI que Bitcoin es confirmación independiente y opcional (ya implícito en DocumentsPage).
+
+### 📍 Estado final
+- Política clara y trazable para auditorías: certificados listos con TSA+Polygon; Bitcoin opcional y cancelable sin riesgo de “estado limbo”.
+- Guard clause y comentarios de intención protegen contra reintroducir inconsistencias de estado.
+
+---
+
+## Iteración 2025-12-16 — Quick wins de señal y smoke tests
+
+### 🎯 Objetivo
+Subir la señal del lint en archivos críticos y agregar smoke tests mínimos sin abrir refactors.
+
+### 🧠 Decisiones tomadas
+- Lint más estricto (errores) solo en `LegalCenterModal.jsx` y `DocumentsPage.jsx`; legacy sigue en warning.
+- Smoke tests con `node:test` (sin dependencias nuevas) para hashing, policy de cancelación Bitcoin, rechazo de TSR no DER y parseo de LegalCenterModal.
+
+### 🛠️ Cambios realizados
+- `client/eslint.config.js`: override de reglas (no-unused-vars, no-console) en archivos críticos.
+- `client/smoke/smoke.test.js`: 6 pruebas rápidas (hash SHA-256 estable, mismatch hash, override pending→cancelled, skip cancelados, TSR inválido, parseo JSX).
+- `client/package.json`: script `test:smoke`.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se tocó lógica de certificación ni copy.
+- No se limpió lint legacy fuera de los archivos críticos.
+
+### ⚠️ Consideraciones / deuda futura
+- Aún faltan métricas/dashboards y lint global; pendiente para siguiente iteración.
+
+### 📍 Estado final
+- CI con mejor señal en piezas sensibles y smoke tests básicos sin agregar dependencias.

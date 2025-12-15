@@ -145,6 +145,8 @@ function DocumentsPage() {
     setShowVerifyModal(true);
   };
 
+  // Bitcoin es capa opcional: el usuario puede cancelar la espera y descargar.
+  // Una vez cancelado, cualquier confirmación tardía se ignora por diseño.
   const overrideBitcoinPending = async () => {
     if (!ecoPendingDoc) return;
     try {

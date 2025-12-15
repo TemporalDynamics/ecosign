@@ -1368,21 +1368,19 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </div>
 
                 <div className="space-y-4">
-                  <label
-                    className={`block rounded-xl p-5 cursor-pointer transition ${
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={savePdfChecked}
+                    onClick={() => setSavePdfChecked(!savePdfChecked)}
+                    className={`w-full text-left rounded-xl p-5 transition ${
                       savePdfChecked
                         ? 'border border-gray-900 bg-gray-900 text-white shadow-md'
                         : 'border border-gray-200 bg-white hover:border-gray-300'
                     }`}
-                    onClick={() => setSavePdfChecked(!savePdfChecked)}
                   >
                     <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={savePdfChecked}
-                        onChange={() => setSavePdfChecked(!savePdfChecked)}
-                        className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
-                      />
+                      <Shield className={`w-5 h-5 mt-1 flex-shrink-0 ${savePdfChecked ? 'text-blue-200' : 'text-blue-500'} stroke-2`} />
                       <div className="space-y-1">
                         <p className={`text-base font-semibold ${savePdfChecked ? 'text-white' : 'text-gray-900'}`}>Guardar en EcoSign (recomendado)</p>
                         <p className={`text-sm ${savePdfChecked ? 'text-gray-100' : 'text-gray-600'}`}>
@@ -1393,23 +1391,21 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         </p>
                       </div>
                     </div>
-                  </label>
+                  </button>
 
-                  <label
-                    className={`block rounded-xl p-5 cursor-pointer transition ${
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={downloadPdfChecked}
+                    onClick={() => setDownloadPdfChecked(!downloadPdfChecked)}
+                    className={`w-full text-left rounded-xl p-5 transition ${
                       downloadPdfChecked
                         ? 'border border-gray-900 bg-gray-900 text-white shadow-md'
                         : 'border border-gray-200 bg-white hover:border-gray-300'
                     }`}
-                    onClick={() => setDownloadPdfChecked(!downloadPdfChecked)}
                   >
                     <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={downloadPdfChecked}
-                        onChange={() => setDownloadPdfChecked(!downloadPdfChecked)}
-                        className="mt-1 h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
-                      />
+                      <Shield className={`w-5 h-5 mt-1 flex-shrink-0 ${downloadPdfChecked ? 'text-blue-200' : 'text-blue-500'} stroke-2`} />
                       <div className="space-y-1">
                         <p className={`text-base font-semibold ${downloadPdfChecked ? 'text-white' : 'text-gray-900'}`}>Descargar ahora</p>
                         <p className={`text-sm ${downloadPdfChecked ? 'text-gray-100' : 'text-gray-600'}`}>
@@ -1423,7 +1419,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         </p>
                       </div>
                     </div>
-                  </label>
+                  </button>
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

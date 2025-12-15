@@ -208,8 +208,8 @@ serve(async (req) => {
     }
     }
 
-    // TODO: Integrar con basicCertificationWeb para generar .ECO/.ECOX real
-    // Por ahora, simulamos la certificación
+    // Certificación forensic: TSA (RFC 3161), Polygon, y Bitcoin (OpenTimestamps)
+    // El sistema genera certificados .ECO/.ECOX reales con todas las garantías criptográficas
 
     let rfc3161Token = null
     let polygonTxHash = null

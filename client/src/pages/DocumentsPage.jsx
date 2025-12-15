@@ -26,6 +26,18 @@ const OVERALL_STATUS_CONFIG = {
   revoked: { label: "Revocado", color: "text-red-700", bg: "bg-red-100", icon: XCircle }
 };
 
+const deriveDocState = (doc, planTier) => {
+  const statusKey = doc.eco_hash ? 'certified' : doc.overall_status;
+  const overallConfig = OVERALL_STATUS_CONFIG[statusKey] || OVERALL_STATUS_CONFIG.draft;
+  const bitcoinPending = doc.bitcoin_status === 'pending';
+  const bitcoinConfirmed = doc.bitcoin_status === 'confirmed';
+  const pdfAvailable = !!doc.pdf_storage_path;
+  const ecoAvailable = !!(doc.eco_storage_path || doc.eco_file_data || doc.eco_hash);
+  const ecoxPlanAllowed = ['business', 'enterprise'].includes((planTier || '').toLowerCase());
+  const ecoxAvailable = ecoxPlanAllowed && !!doc.ecox_storage_path;
+  return { overallConfig, bitcoinPending, bitcoinConfirmed, pdfAvailable, ecoAvailable, ecoxAvailable };
+};
+
 function DocumentsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("all");
@@ -626,6 +638,7 @@ function DocumentsPage() {
 
 // Tab 1: Todos los Documentos
 function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, moveToFolder, planTier, onEcoDownload, onEcoxDownload, onVerify, downloadFromPath, requestRegeneration }) {
+  // Solo UI: los estados se derivan en el padre. No agregar lógica aquí.
   if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -671,35 +684,29 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {documents.map((doc) => {
-            const statusKey = doc.eco_hash ? 'certified' : doc.overall_status;
-            const overallConfig = OVERALL_STATUS_CONFIG[statusKey] || OVERALL_STATUS_CONFIG.draft;
+            const { overallConfig, bitcoinPending, pdfAvailable, ecoAvailable, ecoxAvailable } = deriveDocState(doc, planTier);
             const downloadEnabled = doc.download_enabled !== false;
-            const bitcoinPending = doc.bitcoin_status === 'pending';
-            const pdfAvailable = !!doc.pdf_storage_path;
-            const ecoAvailable = !!(doc.eco_storage_path || doc.eco_file_data || doc.eco_hash);
-            const ecoxPlanAllowed = ['business', 'enterprise'].includes((planTier || '').toLowerCase());
-            const ecoxAvailable = ecoxPlanAllowed && !!doc.ecox_storage_path;
 
             return (
               <tr key={doc.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
-            <div className="flex items-center">
-              <FileText className="h-5 w-5 text-gray-400 mr-3" />
-              <div>
-                <div className="text-sm font-medium text-gray-900">{doc.document_name}</div>
-                {bitcoinPending && (
-                  <div className="text-xs text-orange-600 mt-0.5">
-                    Protección adicional en proceso (Bitcoin 4-24h)
+                  <div className="flex items-center">
+                    <FileText className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{doc.document_name}</div>
+                      {bitcoinPending && (
+                        <div className="text-xs text-orange-600 mt-0.5">
+                          Protección adicional en proceso (Bitcoin 4-24h)
+                        </div>
+                      )}
+                      {!pdfAvailable && (
+                        <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3" />
+                          PDF no almacenado (modo privacidad)
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-                {!pdfAvailable && (
-                  <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                    <ShieldCheck className="h-3 w-3" />
-                    PDF no almacenado (modo privacidad)
-                  </div>
-                )}
-              </div>
-            </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {doc.folder_id ? (
@@ -754,16 +761,9 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
                   </button>
                     <button
                       className="text-black hover:text-gray-600"
-                      title="NDA"
-                      onClick={() => { setSelectedNdaDoc(doc); setShowShareModal(true); }}
+                      title="Mover a carpeta"
+                      onClick={() => moveToFolder(doc.id)}
                     >
-                      <Shield className="h-5 w-5" />
-                    </button>
-                  <button
-                    className="text-black hover:text-gray-600"
-                    title="Mover a carpeta"
-                    onClick={() => moveToFolder(doc.id)}
-                  >
                     <MoveRight className="h-5 w-5" />
                   </button>
                   </div>
@@ -779,6 +779,7 @@ function AllDocumentsTab({ documents, loading, formatDate, copyToClipboard, move
 
 // Tab 2: Documentos Certificados
 function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard, planTier, onEcoDownload, onEcoxDownload, onVerify, downloadFromPath, requestRegeneration }) {
+  // Solo UI: los estados se derivan en el padre. No agregar lógica aquí.
   if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -996,22 +997,6 @@ function CertifiedDocumentsTab({ documents, loading, formatDate, copyToClipboard
 // Tab 3: Registro Forense
 function ForensicTab({ documents, formatDate, copyToClipboard }) {
   const [selectedDoc, setSelectedDoc] = useState(null);
-
-  useEffect(() => {
-    if (documents.length > 0 && !selectedDoc) {
-      setSelectedDoc(documents[0]);
-    }
-  }, [documents]);
-
-  if (!selectedDoc) {
-    return (
-      <div className="text-center py-20">
-        <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Selecciona un documento</h3>
-        <p className="text-gray-500">Elige un documento para ver su registro forense completo</p>
-      </div>
-    );
-  }
 
   return (
     <div className="grid grid-cols-12 gap-6">

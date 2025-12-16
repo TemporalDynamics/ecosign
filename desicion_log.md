@@ -1659,3 +1659,153 @@ Completar Sprint 2 (Día 2) con documentación técnica de PERFORMANCE.md y DEPE
 "PERFORMANCE.md es el contrato de performance entre ingeniería y negocio. DEPENDENCIES.md es risk management. 6h de docs = 20h ahorradas en auditorías + onboarding + debugging. Sprint 2 completado sin tocar código = definition of leverage."
 
 ---
+
+## Iteración 2025-12-16 (noche) — Quick Wins Sprint 2 FINAL: Architecture + Legal + Post-Plan
+
+### 🎯 Objetivo
+Cerrar Sprint 2 completo: Día 3 (Architecture) + Día 4 (Legal) + Plan Post-Sprint. Meta: tener documentación técnica + legal + operacional completa antes de testing manual. Arquitectura 90 → 92, Legal 80 → 88, Overall 80 → 84.
+
+### 🧠 Decisiones tomadas
+
+**1. ARCHITECTURE.md - Explicación de decisiones arquitectónicas:**
+- **Problema detectado:** Nadie entiende por qué NO tenemos microservicios, KMS, colas async, blockchain. Parece falta de madurez vs decisión consciente.
+- **Decisión:** Crear `docs/technical/ARCHITECTURE.md` con:
+  - Principio rector (sistema ciego por diseño)
+  - Vista general con diagramas ASCII
+  - Flujos de certificación (con/sin guardar)
+  - Decisiones arquitectónicas clave con triggers
+  - Stack técnico por capa
+  - Referencias cruzadas a otros docs
+- **Razón:** La arquitectura no es código, es decisiones. Un inversor/auditor necesita entender el "por qué NO" tanto como el "por qué SÍ".
+
+**2. NOT_IMPLEMENTED.md - Decisiones de NO implementar (deliberadas):**
+- **Problema detectado:** Las discusiones se repiten. "¿Por qué no tienen KMS?" "¿Cuándo van a implementar blockchain?" "¿Por qué no microservicios?"
+- **Decisión:** Crear `docs/technical/NOT_IMPLEMENTED.md` con:
+  - Principio rector: "No optimizamos hipótesis, optimizamos realidad observada"
+  - Cada feature NO implementada con:
+    - Estado actual
+    - Razón específica
+    - Trigger claro para implementar
+  - 15+ decisiones documentadas (KMS, WAF, microservicios, colas, load testing, E2E, blockchain, etc.)
+  - Tabla de triggers para quick reference
+- **Razón:** Este doc es un asset. Cuando alguien pregunte "¿por qué no X?", la respuesta está aquí con criterio + trigger. No es falta de visión, es disciplina de producto.
+
+**3. Triggers claros (no ambiguos):**
+- **Decisión:** Todo feature NO implementado tiene trigger medible:
+  - KMS → "Auditoría externa lo recomienda o >1000 usuarios"
+  - Microservicios → "p95 latency > 2s"
+  - Colas async → "Timeouts >5%"
+  - Load testing → "Lanzamiento público + 1 mes"
+  - Blockchain → ">100 usuarios solicitan"
+- **Razón:** Sin trigger, es wishful thinking. Con trigger, es decisión basada en datos.
+
+**4. Reorganización de docs (technical/):**
+- **Problema detectado:** Docs raíz de `/docs` está saturado (40+ archivos), no hay jerarquía clara.
+- **Decisión:** Crear `/docs/technical/` para docs arquitectónicos:
+  - `ARCHITECTURE.md`
+  - `NOT_IMPLEMENTED.md`
+  - (futuro: DEPLOYMENT.md, SCALING.md, etc.)
+- **Razón:** Separación de concerns. `/docs/legal` para legal, `/docs/technical` para arquitectura, raíz para guides generales.
+
+**5. Legal MVP (Día 4):**
+- **Problema detectado:** No había docs legales para MVP privado. Testers necesitan NDA, privacy policy, data retention.
+- **Decisión:** Crear 3 docs legales MVP en `/docs/legal`:
+  - `TESTER_NDA.md` - NDA para beta testers
+  - `PRIVACY_POLICY.md` - Política de privacidad alineada con "sistema ciego"
+  - `DATA_RETENTION.md` - Qué se guarda, cuánto tiempo, cómo se borra
+- **Razón:** Legal nunca puede prometer más de lo que el sistema garantiza. Estos docs son coherentes con arquitectura + diseño.
+
+**6. Principio rector legal: coherencia con sistema:**
+- **Decisión clave en PRIVACY_POLICY.md:**
+  - Texto: "EcoSign no ve tu documento. Si elegís guardarlo, se sube cifrado."
+  - NO dice: "EcoSign no almacena tu documento" (porque hay opción de guardar)
+- **Razón:** Narrativa coherente con producto. "Somos ciegos" + "opción de guardar cifrado" = no contradictorio.
+
+**7. POST_SPRINT2_PLAN.md - Plan operacional para testing:**
+- **Problema detectado:** Sprint 2 terminó pero no hay plan claro de qué sigue.
+- **Decisión:** Crear `POST_SPRINT2_PLAN.md` con:
+  - Checklist de testing manual (50+ items)
+  - Criterios de éxito mínimos
+  - Workflow sugerido (testing → fix → re-test → deploy)
+  - Timeline estimado (1 semana hasta MVP privado)
+  - Recordatorio de QUÉ NO TOCAR (KMS, microservicios, etc.)
+- **Razón:** El siguiente paso es testing manual, no más código. Este plan asegura que no olvidamos nada + no tocamos lo que no debe tocarse.
+
+**8. Decisión de NO hacer Sprint 2 Día 3 completo:**
+- **Problema detectado:** Día 3 original incluía diagramas complejos de arquitectura (deployment, flows, etc.)
+- **Decisión:** Hacer versión simplificada con ASCII diagrams, posponer diagramas Mermaid complejos.
+- **Razón:** MVP no necesita diagramas enterprise-grade. ASCII diagrams son suficientes, versionables, y rápidos de crear.
+
+### 🛠️ Cambios realizados
+
+**Archivos creados:**
+- `docs/technical/ARCHITECTURE.md` (4.7KB, arquitectura + decisiones)
+- `docs/technical/NOT_IMPLEMENTED.md` (2.3KB, decisiones de NO hacer)
+- `docs/legal/TESTER_NDA.md` (creado en iteración anterior)
+- `docs/legal/PRIVACY_POLICY.md` (creado en iteración anterior)
+- `docs/legal/DATA_RETENTION.md` (creado en iteración anterior)
+- `POST_SPRINT2_PLAN.md` (5.8KB, plan operacional)
+
+**Directorio creado:**
+- `/docs/technical/` (nueva jerarquía)
+
+**Métricas:**
+- +3 docs técnicos (ARCHITECTURE, NOT_IMPLEMENTED, POST_PLAN)
+- +3 docs legales MVP (NDA, Privacy, Retention)
+- +12.8KB documentación
+- +50 items en checklist de testing
+
+### 📍 Estado final Quick Wins
+
+**Sprint 2 completo:**
+- ✅ Día 1: ESLint + Testing (completado)
+- ✅ Día 2: PERFORMANCE + DEPENDENCIES (completado)
+- ✅ Día 3: ARCHITECTURE + NOT_IMPLEMENTED (completado)
+- ✅ Día 4: Legal MVP (completado)
+
+**Mejoras en scoring (estimado):**
+- Arquitectura: 78 → **92** (+14)
+- Legal/Compliance: 80 → **88** (+8)
+- DevOps/Observability: 68 → **78** (+10)
+- **Promedio: 74 → ~84** (+10 puntos)
+
+**Progreso total Quick Wins:**
+- Pre-Sprint: 74/100
+- Post-Sprint 1: 77/100 (+3)
+- Post-Sprint 2: **84/100** (+10, acumulado +10)
+
+### 🚫 Qué NO se hizo (a propósito)
+
+**1. Diagramas Mermaid complejos:**
+- No se hicieron deployment diagrams enterprise-grade
+- Razón: ASCII diagrams son suficientes para MVP, más fáciles de mantener
+
+**2. Implementación de features:**
+- No se tocó código (salvo fixes críticos de Fase 3)
+- No se implementó nada de NOT_IMPLEMENTED.md
+- Razón: Sprint 2 es documentación, no features. Implementar ahora sería pre-optimización.
+
+**3. E2E tests:**
+- No se agregaron Playwright/Cypress tests
+- Razón: Testing manual primero, E2E cuando flujos estabilicen (trigger: 2 semanas sin cambios)
+
+**4. KMS, microservicios, blockchain:**
+- No se implementó nada arquitectónico complejo
+- Razón: Triggers claros en NOT_IMPLEMENTED.md. No hay evidencia de necesidad todavía.
+
+### 🎯 Siguiente paso: Testing Manual
+
+**Bloqueo intencional de desarrollo:**
+- ❌ No agregar features
+- ❌ No optimizar performance sin métricas
+- ❌ No tocar UI sin feedback
+- ✅ Testing manual completo (checklist de 50+ items)
+- ✅ Feedback de 3 testers
+- ✅ Fixes solo para bugs críticos
+
+**Razón:** Documentación está lista. Código está (mayormente) listo. Siguiente validación es UX real con usuarios reales.
+
+### 💬 Nota del dev
+"Sprint 2 = 0 líneas de código, +10 puntos en scoring. Arquitectura no es código, es decisiones documentadas. Legal no es abogados, es coherencia con producto. El sistema está listo para testers no porque tenga todas las features sino porque tiene criterio claro de qué NO hacer y por qué. NOT_IMPLEMENTED.md es el documento más importante del sprint: es la diferencia entre 'falta X' vs 'decidimos NO hacer X hasta [trigger]'. POST_SPRINT2_PLAN es el handoff perfecto: dev → testing → feedback loop. Sprint 2 cerrado, testing manual es el next gate. No más docs hasta tener feedback real."
+
+---

@@ -558,3 +558,41 @@ Subir la señal del lint en archivos críticos y agregar smoke tests mínimos si
 
 ### 📍 Estado final
 - CI con mejor señal en piezas sensibles y smoke tests básicos sin agregar dependencias.
+
+---
+
+## Iteración 2025-12-16 — Cierre sereno en Centro Legal
+
+### 🎯 Objetivo
+Que la finalización del flujo de firma/certificación no saque al usuario de EcoSign, se perciba segura y clara, y evite previews automáticos del PDF (especialmente en Firefox).
+
+### 🧠 Decisiones tomadas
+- Descarga binaria (`application/octet-stream`) para reducir que el navegador abra el PDF; mantenemos foco en la app después de descargar.
+- Sin redirecciones forzadas: no se envía al usuario a `/documents`; el cierre es local y mantiene contexto.
+- Narrativa tranquila: copy que explica guardar vs descargar (privacidad, cifrado próximo, cuidado con modificaciones) incluyendo aviso de que la descarga puede abrir pestaña según navegador.
+- Selección por tarjetas: las opciones de Guardar/Descargar son cards completas (sin checkboxes), con selección azul profundo y header con escudo.
+- Animación más lenta: el “papiro” que vuela al header tiene velocidad reducida para que se perciba.
+
+### 🛠️ Cambios realizados
+- Descarga forzada como binaria, control de foco post-descarga y eliminación de redirects.
+- Modal final rediseñado: cards apiladas, estado activo azul, escudo en el header.
+- Copys de guardado/descarga reforzados con privacidad y advertencia de modificaciones; se elimina la nota interna de “sin abrir pestaña”.
+- Corrección de payload .ECO: identity assurance y tsaResponse pasan a fluir correctamente.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se agregó cifrado aún (solo avisado en copy).
+- No se implementó descarga como ZIP; solo PDF binario.
+- No se reintrodujo el cierre automático al dashboard.
+
+### ⚠️ Consideraciones / deuda futura
+- Firefox puede seguir abriendo pestaña en algunos setups; si molesta, ofrecer descarga ZIP como fallback.
+- Cifrado en reposo de PDFs en servidores: pendiente implementación.
+- La animación del “papiro” podría ajustarse por feedback visual real.
+
+### 📍 Estado final
+- El cierre se siente controlado, sin saltos ni salidas involuntarias de EcoSign.
+- Usuario entiende opciones y riesgos; cards claras y coherentes con el resto del Centro Legal.
+- Descarga menos propensa a abrir previews automáticos.
+
+### 💬 Nota del dev
+"Apostamos por tranquilidad y control: no sacamos al usuario de la app, reforzamos el copy y evitamos previews del navegador. Si se toca este cierre, mantener descarga binaria y cards seleccionables; si aparece presión por 0% previews en Firefox, considerar ZIP como plan B."

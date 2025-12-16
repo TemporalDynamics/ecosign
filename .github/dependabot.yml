@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # Client dependencies (React app)
+  - package-ecosystem: "npm"
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "TemporalDynamics"
+    labels:
+      - "dependencies"
+      - "security"
+    # Only security updates for now (low noise)
+    versioning-strategy: increase-if-necessary
+    
+  # Eco-packer dependencies
+  - package-ecosystem: "npm"
+    directory: "/eco-packer"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "TemporalDynamics"
+    labels:
+      - "dependencies"
+      - "security"
+    versioning-strategy: increase-if-necessary
+
+  # Root dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "TemporalDynamics"
+    labels:
+      - "dependencies"
+      - "security"
+    versioning-strategy: increase-if-necessary
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "github-actions"

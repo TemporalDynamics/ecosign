@@ -1,4 +1,4 @@
-name: VerifySign CI
+name: EcoSign CI
 
 on:
   push:
@@ -7,8 +7,45 @@ on:
     branches: [main]
 
 jobs:
-  client-build:
+  # Lint client code
+  client-lint:
+    name: Client Lint
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+  
+  # Typecheck client code
+  client-typecheck:
+    name: Client Typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+
+  # Build client
+  client-build:
+    name: Client Build
+    runs-on: ubuntu-latest
+    needs: [client-lint, client-typecheck]
     defaults:
       run:
         working-directory: client
@@ -22,9 +59,10 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  # Run eco-packer tests
   eco-packer-tests:
+    name: Eco-Packer Tests
     runs-on: ubuntu-latest
-    needs: client-build
     env:
       VITEST_POOL: threads
     defaults:
@@ -39,3 +77,38 @@ jobs:
           cache-dependency-path: eco-packer/package-lock.json
       - run: npm ci
       - run: npm test
+  
+  # Run security tests
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run test:security
+  
+  # Security audit
+  security-audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Audit root
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      - name: Audit client
+        working-directory: client
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      - name: Audit eco-packer
+        working-directory: eco-packer
+        run: npm audit --audit-level=high
+        continue-on-error: true

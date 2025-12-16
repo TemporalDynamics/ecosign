@@ -351,7 +351,7 @@ function DocumentsPage() {
         doc.bitcoin_status === "pending"
           ? "Refuerzo probatorio en proceso (Bitcoin)."
           : doc.bitcoin_status === "confirmed"
-            ? "Irrefutable."
+            ? "Certificado Reforzado."
             : null
     };
   };
@@ -553,7 +553,7 @@ function DocumentsPage() {
             </div>
             <p className="text-sm text-gray-700 mb-6">
               Podés descargar ahora. La confirmación independiente seguirá su curso y cuando se confirme el estado
-              subirá a Irrefutable automáticamente.
+              subirá a Certificado Reforzado automáticamente.
             </p>
             <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
               <button

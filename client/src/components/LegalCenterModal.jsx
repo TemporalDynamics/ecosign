@@ -13,7 +13,6 @@ import { anchorToPolygon } from '../lib/polygonAnchor';
 import { getSupabase } from '../lib/supabaseClient';
 import InhackeableTooltip from './InhackeableTooltip';
 import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
-import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 
 /**
  * Centro Legal - Núcleo del producto EcoSign
@@ -107,7 +106,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // Sistema de guía "Mentor Ciego"
   const guide = useLegalCenterGuide();
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
@@ -117,9 +115,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setNdaEnabled(initialAction === 'nda');
     setPreviewMode('compact');
 
-    // Mostrar modal de bienvenida (solo primera vez)
+    // Mostrar toast de bienvenida discreto (solo primera vez)
     if (guide.showWelcomeModal()) {
-      setShowWelcomeModal(true);
+      guide.showGuideToast(
+        'welcome_seen',
+        'Bienvenido al Centro Legal. Para iniciar, subí el documento que querés firmar o certificar. Pensá en EcoSign como alguien que acompaña, pero que es ciego.',
+        { 
+          type: 'default', 
+          position: 'top-right', 
+          duration: 8000,
+          icon: '👋'
+        }
+      );
     }
   }, [initialAction, isOpen]);
 
@@ -300,9 +307,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       });
     });
 
-    // Mostrar errores si hay
+    // Mostrar errores si hay (posición abajo para errores)
     if (errors.length > 0) {
-      toast.error(errors[0], { duration: 4000 });
+      toast.error(errors[0], { duration: 4000, position: 'bottom-right' });
     }
 
     return validSigners;
@@ -311,13 +318,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const handleCertify = async () => {
     if (!file) return;
     if (!file.type?.toLowerCase().includes('pdf')) {
-      toast.error('Subí un PDF para proteger y certificar (otros formatos no son compatibles).');
+      toast.error('Subí un PDF para proteger y certificar (otros formatos no son compatibles).', {
+        position: 'bottom-right'
+      });
       return;
     }
 
     // Validar que si "Mi Firma" está activa, debe existir firma
     if (mySignature && !userHasSignature) {
-      toast.error('Debés aplicar tu firma antes de certificar el documento. Hacé clic en "Mi Firma" y dibujá tu firma.');
+      toast.error('Debés aplicar tu firma antes de certificar el documento. Hacé clic en "Mi Firma" y dibujá tu firma.', {
+        position: 'bottom-right'
+      });
       return;
     }
 
@@ -829,27 +840,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const gridTemplateColumns = `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
 
   return (
-    <>
-      {/* Modal de bienvenida */}
-      <LegalCenterWelcomeModal
-        isOpen={showWelcomeModal}
-        onAccept={() => {
-          guide.markAsSeen('welcome_seen');
-          setShowWelcomeModal(false);
-        }}
-        onReject={() => {
-          guide.markAsSeen('welcome_seen');
-          guide.disableGuide();
-          setShowWelcomeModal(false);
-        }}
-        onNeverShow={() => {
-          guide.disableGuide();
-          setShowWelcomeModal(false);
-        }}
-      />
-
-      {/* Modal principal del Centro Legal */}
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] shadow-xl flex flex-col overflow-hidden">
         {/* Header fijo sobre todo el grid */}
         <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
@@ -1329,8 +1320,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </div>
               </div>
 
-              {/* Tipo de Firma - Solo si hay firma aplicada (mySignature) o workflow activo */}
-              {((mySignature && userHasSignature) || workflowEnabled) && (
+              {/* Tipo de Firma - Solo si hay firma aplicada o workflow SIN mi firma */}
+              {((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && (
               <div className="space-y-2 animate-fadeScaleIn">
                 <div className="grid grid-cols-2 gap-3">
                   {/* Firma Legal */}
@@ -1769,7 +1760,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       )}
         </div>
       </div>
-    </>
   );
 };
 

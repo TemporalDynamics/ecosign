@@ -1358,7 +1358,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             <div className="py-10">
               <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-6">
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-10 h-10 text-green-600" />
+                  <Shield className="w-10 h-10 text-blue-700" />
                   <div>
                     <h3 className="text-2xl font-semibold text-gray-900">Tu documento quedó protegido</h3>
                     <p className="text-sm text-gray-600">
@@ -1375,14 +1375,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     onClick={() => setSavePdfChecked(!savePdfChecked)}
                     className={`w-full text-left rounded-xl p-5 transition ${
                       savePdfChecked
-                        ? 'border border-gray-900 bg-gray-900 text-white shadow-md'
+                        ? 'border border-blue-900 bg-blue-900 text-white shadow-md'
                         : 'border border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <Shield className={`w-5 h-5 mt-1 flex-shrink-0 ${savePdfChecked ? 'text-blue-200' : 'text-blue-500'} stroke-2`} />
                       <div className="space-y-1">
-                        <p className={`text-base font-semibold ${savePdfChecked ? 'text-white' : 'text-gray-900'}`}>Guardar en EcoSign (recomendado)</p>
+                        <p className={`text-lg font-semibold ${savePdfChecked ? 'text-white' : 'text-gray-900'}`}>Guardar en EcoSign (recomendado)</p>
                         <p className={`text-sm ${savePdfChecked ? 'text-gray-100' : 'text-gray-600'}`}>
                           Lo vas a tener siempre disponible en tu espacio privado. Nosotros no vemos tu documento y pronto sumamos cifrado para que ni los servidores puedan leerlo.
                         </p>
@@ -1400,14 +1399,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     onClick={() => setDownloadPdfChecked(!downloadPdfChecked)}
                     className={`w-full text-left rounded-xl p-5 transition ${
                       downloadPdfChecked
-                        ? 'border border-gray-900 bg-gray-900 text-white shadow-md'
+                        ? 'border border-blue-900 bg-blue-900 text-white shadow-md'
                         : 'border border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <Shield className={`w-5 h-5 mt-1 flex-shrink-0 ${downloadPdfChecked ? 'text-blue-200' : 'text-blue-500'} stroke-2`} />
                       <div className="space-y-1">
-                        <p className={`text-base font-semibold ${downloadPdfChecked ? 'text-white' : 'text-gray-900'}`}>Descargar ahora</p>
+                        <p className={`text-lg font-semibold ${downloadPdfChecked ? 'text-white' : 'text-gray-900'}`}>Descargar ahora</p>
                         <p className={`text-sm ${downloadPdfChecked ? 'text-gray-100' : 'text-gray-600'}`}>
                           Guardalo en tu equipo. Evitá modificarlo: cualquier cambio altera el certificado.
                         </p>

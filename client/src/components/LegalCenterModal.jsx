@@ -13,6 +13,7 @@ import { anchorToPolygon } from '../lib/polygonAnchor';
 import { getSupabase } from '../lib/supabaseClient';
 import InhackeableTooltip from './InhackeableTooltip';
 import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
+import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 
 /**
  * Centro Legal - Núcleo del producto EcoSign
@@ -106,6 +107,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // Sistema de guía "Mentor Ciego"
   const guide = useLegalCenterGuide();
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
@@ -115,20 +117,30 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setNdaEnabled(initialAction === 'nda');
     setPreviewMode('compact');
 
-    // Mostrar toast de bienvenida discreto (solo primera vez)
+    // Mostrar modal de bienvenida (solo primera vez)
     if (guide.showWelcomeModal()) {
-      guide.showGuideToast(
-        'welcome_seen',
-        'Bienvenido al Centro Legal. Para iniciar, subí el documento que querés firmar o certificar. Pensá en EcoSign como alguien que acompaña, pero que es ciego.',
-        { 
-          type: 'default', 
-          position: 'top-right', 
-          duration: 8000,
-          icon: '👋'
-        }
-      );
+      setShowWelcomeModal(true);
     }
   }, [initialAction, isOpen]);
+
+  // Handlers para el modal de bienvenida
+  const handleWelcomeAccept = () => {
+    setShowWelcomeModal(false);
+    guide.markAsSeen('welcome_seen');
+    // La guía permanece habilitada
+  };
+
+  const handleWelcomeReject = () => {
+    setShowWelcomeModal(false);
+    guide.markAsSeen('welcome_seen');
+    guide.disableGuide(); // Deshabilita la guía pero permite cambiar después
+  };
+
+  const handleWelcomeNeverShow = () => {
+    setShowWelcomeModal(false);
+    guide.markAsSeen('welcome_seen');
+    guide.disableGuide(); // Deshabilita permanentemente
+  };
 
   // Mostrar confirmación de modo cuando cambian las acciones
   useEffect(() => {
@@ -840,6 +852,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const gridTemplateColumns = `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] shadow-xl flex flex-col overflow-hidden">
         {/* Header fijo sobre todo el grid */}
@@ -1760,6 +1773,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       )}
         </div>
       </div>
+
+      {/* Modal de Bienvenida */}
+      <LegalCenterWelcomeModal
+        isOpen={showWelcomeModal}
+        onAccept={handleWelcomeAccept}
+        onReject={handleWelcomeReject}
+        onNeverShow={handleWelcomeNeverShow}
+      />
+    </>
   );
 };
 

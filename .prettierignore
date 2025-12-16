@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+.vercel
+.next
+coverage
+*.log
+package-lock.json
+.env
+.env.*
+public
+deploy-ready

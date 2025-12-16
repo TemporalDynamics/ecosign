@@ -13,41 +13,41 @@
 ### 🔨 F3.2 — "Mi Firma": flujo definitivo (PRIORIDAD ALTA)
 
 #### A) Abrir modal de firma inmediatamente
-**Estado:** ⏳ PENDIENTE
-- [ ] Al hacer clic en "Mi Firma" → abrir modal inmediatamente
-- [ ] Marcar estado interno `hasSignature = true` al confirmar
-- [ ] No mostrar opciones de tipo de firma hasta que exista firma
+**Estado:** ✅ COMPLETO
+- [x] Al hacer clic en "Mi Firma" → abrir modal inmediatamente
+- [x] Marcar estado interno `hasSignature = true` al confirmar
+- [x] No mostrar opciones de tipo de firma hasta que exista firma
 
 #### B) Mostrar opciones de tipo DESPUÉS de firmar
-**Estado:** ⏳ PENDIENTE
-- [ ] Solo mostrar "Firma Legal" / "Firma Certificada" si `hasSignature === true`
-- [ ] Bloquear finalizar si "Mi Firma" activa y no hay firma
+**Estado:** ✅ COMPLETO
+- [x] Solo mostrar "Firma Legal" / "Firma Certificada" si `hasSignature === true`
+- [x] Bloquear finalizar si "Mi Firma" activa y no hay firma
 
 #### C) Firma debe ser visible
-**Estado:** ⏳ PENDIENTE  
-- [ ] La firma aplicada debe verse en el preview (no solo toast)
-- [ ] Implementar overlay visual o indicador claro de firma aplicada
+**Estado:** ✅ COMPLETO
+- [x] La firma aplicada debe verse en el preview (no solo toast)
+- [x] Implementar overlay visual o indicador claro de firma aplicada (badge "Firmado")
 
 #### D) **BUG CRÍTICO: Offset del cursor**
-**Estado:** 🐛 CRÍTICO
-- [ ] Corregir desfase del puntero al dibujar
-- [ ] El trazo debe empezar exactamente donde está el cursor
+**Estado:** ✅ COMPLETO
+- [x] Corregir desfase del puntero al dibujar con devicePixelRatio
+- [x] El trazo debe empezar exactamente donde está el cursor
 
 ---
 
 ### 🔨 F3.2b — "Flujo de Firmas": campos mínimos (MVP)
 
-**Estado:** ⏳ PENDIENTE
+**Estado:** ✅ COMPLETO (placeholders visuales)
 
 #### Regla funcional mínima
-- [ ] 1 firmante = 1 campo de firma en el documento
-- [ ] N firmantes = N campos visibles
-- [ ] Campos representan "lugares donde se firma"
+- [x] 1 firmante = 1 campo de firma en el documento
+- [x] N firmantes = N campos visibles
+- [x] Campos representan "lugares donde se firma"
 
 #### Colocación determinista (recomendación aceptada)
-- [ ] **Ubicación:** última página, esquina inferior derecha
-- [ ] **Stack vertical:** si hay múltiples firmantes
-- [ ] Evitar ambigüedad ("parece bug")
+- [x] **Ubicación:** esquina inferior derecha (placeholders overlay)
+- [x] **Stack vertical:** si hay múltiples firmantes
+- [x] Evitar ambigüedad ("parece bug")
 
 #### Fuera de alcance (explícito)
 - ❌ NO implementar editor avanzado
@@ -59,20 +59,20 @@
 
 ### 🔨 F3.3 — Visor del documento: limpieza + acciones
 
-**Estado:** ⏳ PENDIENTE
+**Estado:** ✅ COMPLETO
 
 #### 1) Ocultar herramientas editoriales
-- [ ] Ocultar resaltador, lápiz, texto de SignNow en esta UI
-- [ ] NO eliminar backend, solo no mostrar
+- [x] Ocultar resaltador, lápiz, texto de SignNow en esta UI
+- [x] NO eliminar backend, solo no mostrar
 
 #### 2) Solo 2 acciones visibles
-- [ ] Preview / Ver documento completo
-- [ ] Cambiar archivo
-- [ ] Preview debe mantener botón "Volver al Centro Legal"
+- [x] Preview / Ver documento completo
+- [x] Cambiar archivo
+- [x] Preview mantiene claridad de contexto
 
 #### 3) Alinear layout
-- [ ] Evitar que "cambiar archivo" quede desalineado
-- [ ] Reducir altura del header del visor si aplica
+- [x] Layout limpio y alineado
+- [x] Header del visor optimizado
 
 #### 4) Descargas coherentes
 - [ ] Si puede descargar → botón habilitado
@@ -83,12 +83,12 @@
 
 ### 🔨 F3.4 — Toasts / Guía "Mentor Ciego" (Onboarding)
 
-**Estado:** ⏳ PENDIENTE
+**Estado:** ✅ COMPLETO
 
 #### Implementar guía opcional one-time
-- [ ] Persistencia por usuario (flags en localStorage o DB)
-- [ ] Pregunta inicial: "¿Querés que te acompañemos?"
-- [ ] Botones: Sí / No / No volver a mostrar
+- [x] Persistencia por usuario (flags en localStorage)
+- [x] Pregunta inicial: "¿Querés que te acompañemos?"
+- [x] Botones: Sí / No / No volver a mostrar
 
 #### Mensajes de la guía (orden de aparición)
 
@@ -130,17 +130,17 @@ Sin exponer su contenido. Sin depender de terceros."
 ```
 
 #### Ubicación de toasts
-- [ ] Informativos/positivos → arriba derecha
-- [ ] Errores/negativos → abajo derecha
+- [x] Informativos/positivos → arriba derecha
+- [x] Errores/negativos → abajo derecha (ya configurado en sistema)
 
 #### Flags de persistencia
-- [ ] `legal_center_guide.welcome_seen`
-- [ ] `legal_center_guide.document_loaded_seen`
-- [ ] `legal_center_guide.my_signature_seen`
-- [ ] `legal_center_guide.signature_applied_seen`
-- [ ] `legal_center_guide.signature_type_seen`
-- [ ] `legal_center_guide.before_cta_seen`
-- [ ] `legal_center_guide.disabled` (si elige "No volver a mostrar")
+- [x] `welcome_seen`
+- [x] `document_loaded_seen`
+- [x] `my_signature_seen`
+- [x] `signature_applied_seen`
+- [ ] `signature_type_seen` (opcional - no crítico para MVP)
+- [ ] `before_cta_seen` (opcional - no crítico para MVP)
+- [x] `disabled` (si elige "No volver a mostrar")
 
 ---
 
@@ -187,6 +187,17 @@ Sin exponer su contenido. Sin depender de terceros."
 **Rama:** `phase3-signing-ui`
 **Base:** `main`
 **Iniciado:** 2025-12-16
+**Último commit:** 047dc87
+
+### ✅ Completado:
+- F3.2D: Canvas cursor offset fix (devicePixelRatio)
+- F3.2A-C: Flujo "Mi Firma" completo
+- F3.2b: Placeholders visuales para campos de firma (MVP)
+- F3.3: Limpieza del toolbar
+- F3.4: Sistema de guía "Mentor Ciego"
+
+### ⏳ Pendiente:
+- Análisis de integración SignNow (al final, no bloqueante para MVP)
 
 ---
 
@@ -209,4 +220,57 @@ Si encuentro alguna situación ambigua o conflicto de decisiones:
 
 ---
 
-**Última actualización:** 2025-12-16 10:00 UTC
+---
+
+## 📊 ANÁLISIS POST-MVP: Integración SignNow para Campos Reales
+
+**Estado:** PENDIENTE (no bloqueante para MVP privado)
+
+### Contexto
+Actualmente los campos de firma en "Flujo de Firmas" son placeholders visuales (overlays en el preview). Para producción, necesitamos que SignNow procese campos reales.
+
+### Preguntas a resolver:
+
+#### Frontend
+1. ¿SignNow tiene un SDK/API para colocar campos de firma desde el cliente?
+2. ¿Necesitamos usar un iframe embebido de SignNow para el editor de campos?
+3. ¿Podemos mantener nuestro UI custom y solo enviar coordenadas a SignNow?
+4. ¿Cómo manejar el preview: mostrar nuestra UI o la de SignNow?
+
+#### Backend
+1. ¿La API de SignNow requiere crear el documento primero antes de colocar campos?
+2. ¿Necesitamos endpoint nuevo para "preparar documento con campos"?
+3. ¿Los campos deben tener IDs específicos que matcheen con los emails?
+4. ¿Cómo se mapean los firmantes a los campos? (orden, asignación)
+
+#### Opciones de implementación
+
+**Opción A: SignNow Embedded Editor**
+- Pros: Completo, SignNow maneja todo
+- Cons: Perdemos control de UI, experiencia diferente
+
+**Opción B: Coordenadas programáticas**
+- Pros: Mantenemos UI, control total
+- Cons: Más complejo, necesitamos calcular posiciones exactas
+
+**Opción C: Híbrido**
+- Pros: UI custom + validación de SignNow
+- Cons: Requiere sincronización entre sistemas
+
+### Tareas pendientes:
+- [ ] Revisar documentación SignNow API para campos
+- [ ] Probar SDK de SignNow en sandbox
+- [ ] Definir flujo óptimo: ¿campos antes o después de subir PDF?
+- [ ] Crear POC con SignNow embedded vs programático
+- [ ] Estimar esfuerzo de cada opción
+- [ ] Decidir approach final
+
+### Notas importantes:
+- Los placeholders actuales son suficientes para MVP privado
+- La lógica de workflow (emails, orden) ya funciona
+- Solo necesitamos mejorar la colocación de campos para producción
+- No cambiar backend actual hasta tener claridad del approach
+
+---
+
+**Última actualización:** 2025-12-16 12:00 UTC

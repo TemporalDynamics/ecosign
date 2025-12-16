@@ -635,6 +635,41 @@ Cerrar la vista de “Mis documentos” con los 3 estados probatorios definidos 
 
 ---
 
+## Iteración 2025-12-17 — Verificador público alineado a estados probatorios (Fase 6 UX)
+
+### 🎯 Objetivo
+Hacer que el verificador público/interno hable el mismo idioma probatorio (No certificado / Certificado / Certificado reforzado) sin tocar la lógica de verificación ni agregar inputs.
+
+### 🧠 Decisiones tomadas
+- **Badge único de validez**: el verificador muestra solo un estado probatorio derivado (TSA+Polygon => Certificado, +Bitcoin confirmado => Certificado reforzado, resto => No certificado).
+- **Dos preguntas separadas**: 1) ¿El certificado es válido? (badge + copy). 2) ¿El PDF coincide con el certificado? (✔/❌/“no cargado”).
+- **Pedagogía mínima**: se agrega bloque “¿Cómo se verifica este certificado?” con los 5 pasos (identidad, integridad, tiempo, existencia pública, certificación) para usuarios que “no confían” en EcoSign.
+- **Bitcoin pending solo en detalle**: no aparece como estado visible; refuerzo solo cuando está confirmado.
+
+### 🛠️ Cambios realizados
+- `client/src/pages/VerifyPage.jsx`: badge probatorio, copy binario certificado/PDF, bloque de 5 pasos al final. No se modificó la verificación ni se agregaron inputs.
+- `client/src/pages/DashboardVerifyPage.jsx`: misma sección de 5 pasos en la vista interna.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se tocó la lógica de verificación ni las Edge Functions.
+- No se agregaron nuevos campos ni rutas técnicas (workflow hash queda separado).
+- No se expuso Bitcoin pending como estado visible.
+
+### ⚠️ Consideraciones / deuda futura
+- Centralizar mapping de capacidades TSA/Polygon/Bitcoin para no depender de nombres de campos backend.
+- Alinear la nomenclatura “Certificado reforzado” en todos los lugares (Documentos, Verificador, .eco si aplica).
+- Mantener el verificador como instrumento de prueba, no panel técnico (evitar sumar inputs/ruido).
+
+### 📍 Estado final
+- Verificador coherente con la política probatoria: un badge humano-legal y comparación de PDF separada.
+- Narrativa “no dependés de EcoSign” explícita con los 5 pasos.
+- Lógica intacta, procesamiento 100 % local.
+
+### 💬 Nota del dev
+"Solo cambiamos cómo se cuenta la verdad, no cómo se verifica. Un badge, dos preguntas separadas y los 5 pasos para quien no confía en nadie. Bitcoin refuerza, no bloquea. El verificador sigue siendo un instrumento, no un panel técnico."
+
+---
+
 ## Iteración 2025-12-16 — Fase 3: Centro Legal Signing UI / Documentos Funcional
 
 ### 🎯 Objetivo

@@ -12,6 +12,7 @@ import { EventHelpers } from '../utils/eventLogger';
 import { anchorToPolygon } from '../lib/polygonAnchor';
 import { getSupabase } from '../lib/supabaseClient';
 import InhackeableTooltip from './InhackeableTooltip';
+import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
 
 /**
  * Centro Legal - Núcleo del producto EcoSign
@@ -61,6 +62,9 @@ const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
   const [workflowEnabled, setWorkflowEnabled] = useState(initialAction === 'workflow');
   const [ndaEnabled, setNdaEnabled] = useState(initialAction === 'nda');
   
+  // Estado interno para saber si ya se dibujó/aplicó firma
+  const [userHasSignature, setUserHasSignature] = useState(false);
+  
   // Confirmación de modo (aparece temporalmente en el header)
   const [modeConfirmation, setModeConfirmation] = useState('');
   
@@ -100,6 +104,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [signnowTotal, setSignnowTotal] = useState(15); // Total del plan
   const [isEnterprisePlan, setIsEnterprisePlan] = useState(false); // Plan enterprise tiene ilimitadas
 
+  // Sistema de guía "Mentor Ciego"
+  const guide = useLegalCenterGuide();
 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
@@ -108,6 +114,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setWorkflowEnabled(initialAction === 'workflow');
     setNdaEnabled(initialAction === 'nda');
     setPreviewMode('compact');
+
+    // Mostrar toast de bienvenida discreto (solo primera vez)
+    if (guide.showWelcomeModal()) {
+      guide.showGuideToast(
+        'welcome_seen',
+        'Bienvenido al Centro Legal. Para iniciar, subí el documento que querés firmar o certificar. Pensá en EcoSign como alguien que acompaña, pero que es ciego.',
+        { 
+          type: 'default', 
+          position: 'top-right', 
+          duration: 8000,
+          icon: '👋'
+        }
+      );
+    }
   }, [initialAction, isOpen]);
 
   // Mostrar confirmación de modo cuando cambian las acciones
@@ -188,6 +208,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         // Para otros tipos, mostrar icono genérico
         setDocumentPreview(null);
       }
+
+      // Guía: Documento cargado
+      guide.showGuideToast(
+        'document_loaded_seen',
+        'EcoSign no ve tu documento. Si elegís guardarlo, se sube cifrado.',
+        { type: 'default', position: 'top-right' }
+      );
     }
   };
   // Cleanup de URLs de preview para evitar fugas
@@ -280,9 +307,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       });
     });
 
-    // Mostrar errores si hay
+    // Mostrar errores si hay (posición abajo para errores)
     if (errors.length > 0) {
-      toast.error(errors[0], { duration: 4000 });
+      toast.error(errors[0], { duration: 4000, position: 'bottom-right' });
     }
 
     return validSigners;
@@ -291,7 +318,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const handleCertify = async () => {
     if (!file) return;
     if (!file.type?.toLowerCase().includes('pdf')) {
-      toast.error('Subí un PDF para proteger y certificar (otros formatos no son compatibles).');
+      toast.error('Subí un PDF para proteger y certificar (otros formatos no son compatibles).', {
+        position: 'bottom-right'
+      });
+      return;
+    }
+
+    // Validar que si "Mi Firma" está activa, debe existir firma
+    if (mySignature && !userHasSignature) {
+      toast.error('Debés aplicar tu firma antes de certificar el documento. Hacé clic en "Mi Firma" y dibujá tu firma.', {
+        position: 'bottom-right'
+      });
       return;
     }
 
@@ -659,6 +696,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setSignatureType(null);
     setShowCertifiedModal(false);
     setCertifiedSubType(null);
+    setUserHasSignature(false);
 
     // Reset de confirmación de modo
     setModeConfirmation('');
@@ -803,7 +841,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] shadow-xl flex flex-col overflow-hidden">
+        <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] shadow-xl flex flex-col overflow-hidden">
         {/* Header fijo sobre todo el grid */}
         <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -912,9 +950,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                           <Shield className={`w-5 h-5 ${forensicEnabled ? 'fill-gray-900' : ''}`} />
                         </button>
                         <div>
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {file.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {file.name}
+                            </p>
+                            {userHasSignature && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Firmado
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500">
                             {(file.size / 1024 / 1024).toFixed(2)} MB
                           </p>
@@ -923,49 +969,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       <div className="flex gap-2">
                         {documentPreview && (
                           <>
+                            {/* F3.3: Solo Preview y Cambiar archivo - herramientas editoriales ocultas */}
                             <button
                               onClick={() => {
-                                setAnnotationMode(annotationMode === 'signature' ? null : 'signature');
-                                setShowSignatureOnPreview(annotationMode !== 'signature');
-                              }}
-                              className={`p-2 rounded-lg transition-colors ${
-                                annotationMode === 'signature'
-                                  ? 'bg-gray-900 text-white'
-                                  : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                              title="Firmar documento"
-                            >
-                              <Pen className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setAnnotationMode(annotationMode === 'highlight' ? null : 'highlight')}
-                              className={`p-2 rounded-lg transition-colors ${
-                                annotationMode === 'highlight'
-                                  ? 'bg-gray-900 text-white'
-                                  : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                              title="Resaltar texto (marcar desacuerdos)"
-                            >
-                              <Highlighter className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setAnnotationMode(annotationMode === 'text' ? null : 'text')}
-                              className={`p-2 rounded-lg transition-colors ${
-                                annotationMode === 'text'
-                                  ? 'bg-gray-900 text-white'
-                                  : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                              title="Agregar texto (modificaciones)"
-                            >
-                              <Type className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                // Ciclo simple: compact -> expanded -> compact (fullscreen reservado para fase futura)
+                                // Ciclo simple: compact -> expanded -> compact
                                 setPreviewMode((prev) => prev === 'compact' ? 'expanded' : 'compact');
                               }}
                               className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                              title={previewMode === 'compact' ? 'Editar y firmar documento' : 'Minimizar'}
+                              title={previewMode === 'compact' ? 'Ver documento completo' : 'Volver al Centro Legal'}
                             >
                               {previewMode === 'expanded' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                             </button>
@@ -987,62 +998,93 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     <div className={`relative ${
                       previewMode === 'expanded' ? 'h-[60vh]' : PREVIEW_BASE_HEIGHT
                     } bg-gray-100`}>
-                          {documentPreview ? (
+                          {/* Placeholders de campos de firma (workflow) */}
+                          {workflowEnabled && emailInputs.filter(input => input.email.trim()).length > 0 && (
+                            <div className="absolute bottom-4 right-4 z-10 space-y-2">
+                              {emailInputs.filter(input => input.email.trim()).map((input, idx) => (
+                                <div
+                                  key={idx}
+                                  className="bg-blue-50 border-2 border-blue-400 border-dashed rounded-lg px-3 py-2 shadow-sm"
+                                  style={{ width: '180px' }}
+                                >
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Pen className="w-3 h-3 text-blue-600" />
+                                    <p className="text-xs font-semibold text-blue-900">
+                                      Campo de firma {idx + 1}
+                                    </p>
+                                  </div>
+                                  <p className="text-xs text-blue-700 truncate">
+                                    {input.name || input.email.split('@')[0]}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {documentPreview && file.type.startsWith('image/') && (
+                            <img
+                              src={documentPreview}
+                              alt="Preview"
+                              className="max-w-full max-h-full object-contain"
+                            />
+                          )}
+                          
+                          {documentPreview && file.type === 'application/pdf' && (
                             <>
-                              {file.type.startsWith('image/') ? (
-                                <img
-                                  src={documentPreview}
-                                  alt="Preview"
-                                  className="max-w-full max-h-full object-contain"
-                                />
-                              ) : file.type === 'application/pdf' ? (
-                                <>
-                                  {!previewError && (
-                                    <object
-                                      data={documentPreview}
-                                      type="application/pdf"
-                                      className="w-full h-full bg-white"
-                                      onLoad={() => setPreviewError(false)}
-                                      onError={() => setPreviewError(true)}
-                                    >
-                                      <p className="text-sm text-gray-500 p-4">
-                                        No se pudo mostrar el PDF en el navegador. Descargalo para verlo.
-                                      </p>
-                                    </object>
-                                  )}
-                                  {previewError && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-white px-6 text-center">
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-semibold text-gray-900">
-                                          Vista previa desactivada para este PDF.
-                                        </p>
-                                        <p className="text-xs text-gray-600">
-                                          Abrilo en otra pestaña o descargalo para conservar la integridad del archivo.
-                                        </p>
-                                        <div className="flex items-center justify-center gap-2">
-                                          <a
-                                            href={documentPreview}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-sm text-gray-900 font-semibold hover:underline"
-                                          >
-                                            Abrir en nueva pestaña
-                                          </a>
-                                          <span className="text-gray-300">•</span>
-                                          <a
-                                            href={documentPreview}
-                                            download={file?.name || 'documento.pdf'}
-                                            className="text-sm text-gray-900 font-semibold hover:underline"
-                                          >
-                                            Descargar PDF
-                                          </a>
-                                        </div>
-                                      </div>
+                              {!previewError && (
+                                <object
+                                  data={documentPreview}
+                                  type="application/pdf"
+                                  className="w-full h-full bg-white"
+                                  onLoad={() => setPreviewError(false)}
+                                  onError={() => setPreviewError(true)}
+                                >
+                                  <p className="text-sm text-gray-500 p-4">
+                                    No se pudo mostrar el PDF en el navegador. Descargalo para verlo.
+                                  </p>
+                                </object>
+                              )}
+                              {previewError && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white px-6 text-center">
+                                  <div className="space-y-2">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      Vista previa desactivada para este PDF.
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                      Abrilo en otra pestaña o descargalo para conservar la integridad del archivo.
+                                    </p>
+                                    <div className="flex items-center justify-center gap-2">
+                                      <a
+                                        href={documentPreview}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-gray-900 font-semibold hover:underline"
+                                      >
+                                        Abrir en nueva pestaña
+                                      </a>
+                                      <span className="text-gray-300">•</span>
+                                      <a
+                                        href={documentPreview}
+                                        download={file?.name || 'documento.pdf'}
+                                        className="text-sm text-gray-900 font-semibold hover:underline"
+                                      >
+                                        Descargar PDF
+                                      </a>
                                     </div>
-                                  )}
-                                </>
-                              ) : null}
-                            ) : null}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          
+                          {!documentPreview && (
+                            <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                              <div className="text-center">
+                                <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                                <p className="text-sm">Vista previa no disponible</p>
+                                <p className="text-xs">El archivo se procesará al certificar</p>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Modal de firma con tabs */}
                           {showSignatureOnPreview && (
@@ -1189,13 +1231,23 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                         return;
                                       }
 
-                                      // Simplemente cerrar el modo firma
-                                      // La firma se aplicará durante la certificación por addSignatureSheet
+                                      // Marcar que el usuario ya tiene firma
+                                      setUserHasSignature(true);
+                                      setSignatureMode('canvas');
+                                      
+                                      // Cerrar el modo firma
                                       setShowSignatureOnPreview(false);
                                       toast.success('Firma guardada. Se aplicará al certificar el documento.', {
                                         duration: 4000,
                                         icon: '✅'
                                       });
+
+                                      // Guía: Firma aplicada
+                                      guide.showGuideToast(
+                                        'signature_applied_seen',
+                                        'La firma quedó registrada. Ahora podés decidir el peso legal que querés asignarle.',
+                                        { type: 'success', position: 'top-right', duration: 5000 }
+                                      );
                                     }}
                                     className="flex-1 py-2 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
                                     disabled={
@@ -1210,20 +1262,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               </div>
                             </div>
                           )}
-                        </>
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                          <div className="text-center">
-                            <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">Vista previa no disponible</p>
-                            <p className="text-xs">El archivo se procesará al certificar</p>
-                          </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
               {/* Acciones (pueden estar múltiples activas) */}
               <div className="space-y-2">
@@ -1241,7 +1283,21 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMySignature(!mySignature)}
+                    onClick={() => {
+                      const newState = !mySignature;
+                      setMySignature(newState);
+                      // Si se activa "Mi Firma", abrir modal de firma inmediatamente
+                      if (newState && file) {
+                        setShowSignatureOnPreview(true);
+                        
+                        // Guía: Mi Firma (primer uso)
+                        guide.showGuideToast(
+                          'my_signature_seen',
+                          'La firma no es un trámite. Es un acto consciente de autoría.',
+                          { type: 'default', position: 'top-right', duration: 5000 }
+                        );
+                      }
+                    }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                       mySignature
                         ? 'bg-gray-900 text-white'
@@ -1264,8 +1320,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </div>
               </div>
 
-              {/* Tipo de Firma - Solo si hay Mi Firma o Flujo */}
-              {(mySignature || workflowEnabled) && (
+              {/* Tipo de Firma - Solo si hay firma aplicada o workflow SIN mi firma */}
+              {((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && (
               <div className="space-y-2 animate-fadeScaleIn">
                 <div className="grid grid-cols-2 gap-3">
                   {/* Firma Legal */}
@@ -1702,8 +1758,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
         </div>
       )}
-    </div>
-    </div>
+        </div>
+      </div>
   );
 };
 

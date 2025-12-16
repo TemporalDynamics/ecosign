@@ -793,3 +793,121 @@ Pulir el flujo del Centro Legal para que sea inequívoco, calmo y profesional: e
 
 ### 💬 Nota del dev
 "Esta iteración cierra el MVP del flujo de firma. El usuario ahora tiene una experiencia calma y profesional: sabe qué está haciendo, ve resultados claros, y la guía opcional lo acompaña sin molestar. Los placeholders de campos son deliberadamente simples - evitamos over-engineering hasta tener claridad de cómo integrar con SignNow. El fix del canvas es crítico: sin él, la firma se siente rota en pantallas retina (mayoría de usuarios). Si tocan el LegalCenterModal, tener en cuenta que `userHasSignature` es el estado crítico que separa 'toggle activo' de 'firma realmente aplicada' - no son lo mismo. Para integración SignNow: leer análisis completo en PHASE3_ROADMAP.md antes de tocar los placeholders."
+
+---
+
+## Iteración 2025-12-16 (tarde) — Correcciones de alineación Fase 3
+
+### 🎯 Objetivo
+Alinear implementación de Fase 3 con reglas acordadas previamente. No rediseñar, sino corregir desviaciones para que el flujo sea inequívoco, la UI no se adelante a estados, y el Centro Legal sea el protagonista.
+
+### 🧠 Decisiones tomadas
+
+**1. Flujo "Mi Firma" - Lógica de visibilidad:**
+- **Problema detectado:** Los tipos de firma (Legal/Certificada) aparecían al activar "Mi Firma" O "Flujo de Firmas", violando la regla de progressive disclosure.
+- **Decisión:** Los tipos de firma solo deben aparecer si:
+  - "Mi Firma" está activo Y el usuario ya aplicó la firma (`userHasSignature === true`), O
+  - "Flujo de Firmas" está activo Y "Mi Firma" NO está activo
+- **Razón:** Si el usuario activa ambos (Mi Firma + Flujo), debe firmar primero antes de ver opciones de tipo. La UI no debe adelantarse a acciones que aún no ocurrieron.
+
+**2. Posicionamiento de toasts:**
+- **Problema detectado:** Toasts de error aparecían arriba (top-right), rompiendo el criterio visual acordado.
+- **Decisión:** Todos los `toast.error()` ahora usan `position: 'bottom-right'`. Toasts positivos quedan arriba.
+- **Razón:** Consistencia visual: negativo/error = abajo, positivo/éxito = arriba. El cerebro asocia "abajo" con problemas y "arriba" con logros.
+
+**3. Modal de bienvenida → Toast discreto:**
+- **Problema detectado:** Modal bloqueaba vista del Centro Legal, oscurecía fondo, quitaba protagonismo a lo importante.
+- **Decisión:** Eliminado `LegalCenterWelcomeModal` completamente del render. Reemplazado por toast discreto en `top-right`.
+- **Razón:** El Centro Legal es el protagonista. La guía debe acompañar, no invadir. El mensaje de bienvenida puede ser el mismo pero en formato no invasivo. El usuario debe ver el Centro Legal primero, no un modal grande que bloquea todo.
+
+**4. Vista Documentos - Eliminar ruido explicativo:**
+- **Problema detectado:** Subtítulo explicando estados + leyenda visual con dots y labels.
+- **Decisión:** 
+  - Eliminado subtítulo "Tres estados probatorios claros..."
+  - Eliminada leyenda de estados (los 3 dots con labels)
+  - Cambiado "Irrefutable" por "Certificado\nReforzado" (dos líneas, azul)
+  - Badge usa `whitespace-pre-line text-center` para renderizar salto de línea
+- **Razón:** El badge ES la verdad legal visible. No necesita explicación ni leyenda. Si el estado no se entiende por el badge, el problema es el badge, no la falta de explicación. "Irrefutable" sonaba absoluto/jurídico; "Certificado Reforzado" comunica progresión (Certificado → Certificado Reforzado) y el refuerzo es Bitcoin.
+
+### 🛠️ Cambios realizados
+
+**Archivos modificados:**
+- `client/src/components/LegalCenterModal.jsx`
+  - Condición de visibilidad de tipos de firma corregida (línea 1332)
+  - Agregado `position: 'bottom-right'` a 3 toast.error() (líneas 305, 314, 320)
+  - Eliminado import de `LegalCenterWelcomeModal`
+  - Eliminado state `showWelcomeModal`
+  - Eliminado render del modal de bienvenida (20 líneas menos)
+  - Reemplazado por toast discreto con duración 8s e icono 👋
+  - Corregida estructura JSX (eliminado `<>` innecesario)
+
+- `client/src/pages/DocumentsPage.jsx`
+  - Label de estado "irrefutable" cambiado a "Certificado\nReforzado" con salto de línea (línea 25)
+  - Eliminado subtítulo explicativo del header (5 líneas)
+  - Eliminada leyenda de estados con map de PROBATIVE_STATES (12 líneas)
+  - Agregado `whitespace-pre-line text-center` a badges para renderizar dos líneas (líneas 458, 734)
+  - Cambiadas menciones de "Irrefutable" a "Certificado Reforzado" en tooltips (líneas 354, 556)
+
+**Métricas:**
+- LegalCenterModal: -24 líneas (más limpio)
+- DocumentsPage: -17 líneas (menos ruido)
+- Total: 41 líneas eliminadas
+- 2 commits: `9d3efa6`, `0f89bc5`
+
+### 🚫 Qué NO se hizo (a propósito)
+
+**No se tocó el componente WelcomeModal:**
+- Aunque se eliminó del render, el archivo `client/src/components/LegalCenterWelcomeModal.jsx` sigue existiendo.
+- Razón: Puede ser útil en otros contextos o si en el futuro se decide que hay un momento específico donde un modal sí es apropiado (ej: onboarding de cuenta nueva).
+- Decisión: Dejarlo por ahora, eliminar solo si nunca se usa en próximas iteraciones.
+
+**No se cambió lógica de certificación:**
+- Las correcciones fueron solo UI/UX.
+- Toda la lógica de backend, certificación, blindaje, etc. quedó intacta.
+
+### ⚠️ Consideraciones / deuda futura
+
+**Testing crítico:**
+- Estos cambios son sutiles pero críticos para la experiencia.
+- Testing manual debe verificar:
+  - Activar "Mi Firma" → no aparecen tipos de firma hasta aplicar firma
+  - Activar "Flujo de Firmas" solo → sí aparecen tipos de firma
+  - Activar ambos → tipos solo después de firmar
+  - Errores aparecen abajo-derecha
+  - Toast de bienvenida discreto, no modal bloqueante
+  - Badge "Certificado Reforzado" se ve en DOS líneas, no una
+  - No hay subtítulo ni leyenda en vista Documentos
+
+**Copy de "Certificado Reforzado":**
+- Se usa `\n` en el string para salto de línea.
+- Si en algún momento se cambia el sistema de badges o el rendering, verificar que el salto de línea siga funcionando.
+- Alternativa futura: componente Badge que renderice dos líneas con spans separados (más robusto que confiar en `whitespace-pre-line`).
+
+**Modal de bienvenida eliminado:**
+- Si en el futuro se decide que sí se necesita un modal en primer uso (ej: términos y condiciones, tutorial interactivo), no reinventar; usar el componente existente o crear uno nuevo específico para ese caso.
+- El toast actual es suficiente para "acompañar sin invadir".
+
+### 📍 Estado final
+
+**Lo que mejoró:**
+- Flujo "Mi Firma" ahora cumple con progressive disclosure estricta
+- Toasts de error consistentes (todos abajo)
+- Centro Legal es protagonista desde el inicio (guía no invasiva)
+- Vista Documentos limpia: badge habla por sí mismo
+- "Certificado Reforzado" comunica progresión mejor que "Irrefutable"
+- -41 líneas de código (menos es más)
+
+**Lo que queda pendiente:**
+- Testing manual exhaustivo de las 5 correcciones
+- Verificar en diferentes pantallas que badge de dos líneas se vea bien
+- Considerar eliminar `LegalCenterWelcomeModal.jsx` si nunca se usa
+- Si hay feedback de usuarios sobre "Certificado Reforzado", evaluar alternativas (ej: "Certificado Plus", "Certificado Pro")
+
+**Estado del código:**
+- Build compilando sin errores ✅
+- Rama: `phase3-signing-ui`
+- Commits: 11 total (9 previos + 2 correcciones)
+- Listo para testing manual + merge
+
+### 💬 Nota del dev
+"Estas correcciones son ejemplo de por qué testing/review temprano es valioso. Los bugs no eran técnicos sino de 'seguir las reglas acordadas'. Progressive disclosure no es negociable: si dijimos 'firma primero, tipo después', la UI debe reflejarlo. El cambio de modal a toast parece menor pero es crucial: el Centro Legal debe ser lo primero que el usuario ve y procesa, no un mensaje de bienvenida. La guía acompaña, no lidera. En 'Certificado Reforzado', el salto de línea `\n` + `whitespace-pre-line` es frágil; si en el futuro hay problemas de rendering, migrar a componente Badge con <span> separados. El nombre 'Irrefutable' era técnicamente correcto pero jurídicamente cargado; 'Reforzado' comunica lo mismo sin sonar absoluto."

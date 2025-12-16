@@ -18,6 +18,49 @@ import FooterPublic from '../components/FooterPublic';
 import WorkflowVerifier from '../components/WorkflowVerifier';
 import InhackeableTooltip from '../components/InhackeableTooltip';
 
+const PROBATIVE_STATES = {
+  uncertified: { label: 'NO CERTIFICADO', color: 'bg-gray-100 text-gray-800', dot: 'bg-gray-500' },
+  certified: { label: 'CERTIFICADO', color: 'bg-green-100 text-green-800', dot: 'bg-green-500' },
+  reinforced: { label: 'CERTIFICADO REFORZADO', color: 'bg-blue-100 text-blue-800', dot: 'bg-blue-500' }
+};
+
+const deriveProbativeState = (result) => {
+  if (!result) return { level: 'uncertified', tsa: false, polygon: false, bitcoin: false };
+
+  const proof = result.data?.proof || result.manifest?.proof || result.proof;
+  const tsaOk = proof?.tsa?.status === 'ok' || proof?.tsa?.status === 'confirmed' || result.legalTimestamp?.enabled || result.checks?.timestamp?.passed;
+  const polygonOk = proof?.polygon?.status === 'ok' || proof?.polygon?.status === 'confirmed' || result.checks?.blockchain?.passed;
+  const bitcoinConfirmed = proof?.bitcoin?.status === 'confirmed' || proof?.bitcoin?.status === 'ok';
+
+  if (tsaOk && polygonOk && bitcoinConfirmed) {
+    return { level: 'reinforced', tsa: tsaOk, polygon: polygonOk, bitcoin: true };
+  }
+  if (tsaOk && polygonOk) {
+    return { level: 'certified', tsa: tsaOk, polygon: polygonOk, bitcoin: false };
+  }
+  return { level: 'uncertified', tsa: tsaOk, polygon: polygonOk, bitcoin: bitcoinConfirmed };
+};
+
+const ProbativeBadge = ({ level }) => {
+  const config = PROBATIVE_STATES[level] || PROBATIVE_STATES.uncertified;
+  const twoLine = level === 'reinforced';
+  return (
+    <div className={`inline-flex items-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm ${config.color}`}>
+      <span className={`h-2.5 w-2.5 rounded-full ${config.dot}`}></span>
+      <div className="leading-tight text-center">
+        {twoLine ? (
+          <>
+            <div>CERTIFICADO</div>
+            <div>REFORZADO</div>
+          </>
+        ) : (
+          <div>{config.label}</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Configuración de validación
 const ALLOWED_EXTENSIONS = ['.eco', '.pdf', '.zip'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -458,7 +501,61 @@ function VerifyPage() {
         {/* Results */}
         {result && (
           <>
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-1">Estado probatorio</h3>
+                  <p className="text-sm text-gray-600">
+                    Validez legal del certificado según las capas verificadas. Bitcoin pendiente vive en el detalle, nunca en el badge.
+                  </p>
+                </div>
+                <ProbativeBadge level={deriveProbativeState(result).level} />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
+                  <p className="text-xs uppercase tracking-widest text-gray-500 mb-1">Certificado</p>
+                  <p className="text-sm text-gray-900">
+                    {deriveProbativeState(result).level === 'uncertified'
+                      ? 'Este documento no está certificado (falta TSA + Polygon).'
+                      : deriveProbativeState(result).level === 'certified'
+                        ? 'Este documento cuenta con certificación legal verificable (TSA + Polygon).'
+                        : 'Este documento está certificado y reforzado con registro independiente (Bitcoin confirmado).'}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
+                  <p className="text-xs uppercase tracking-widest text-gray-500 mb-1">PDF vs certificado</p>
+                  <p className="text-sm text-gray-900">
+                    {originalFile
+                      ? result.originalFileMatches
+                        ? '✔️ El PDF coincide con el certificado.'
+                        : '❌ El PDF no coincide con el certificado.'
+                      : 'No se cargó el PDF. El certificado sigue siendo válido; no se puede comparar contenido sin el archivo.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <VerificationSummary result={result} originalProvided={!!originalFile} />
+
+            <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">¿Cómo se verifica este certificado?</h3>
+              <div className="space-y-3 text-sm text-gray-800">
+                <p className="font-semibold">Identidad del documento</p>
+                <p className="text-gray-700">El certificado contiene la huella digital única del documento. Cualquier modificación genera una huella diferente.</p>
+                <p className="font-semibold">Integridad</p>
+                <p className="text-gray-700">La huella del documento coincide con la registrada en el certificado, lo que prueba que el contenido no fue alterado.</p>
+                <p className="font-semibold">Tiempo</p>
+                <p className="text-gray-700">El certificado incluye un sello de tiempo legal (RFC 3161) emitido por un tercero independiente, que prueba cuándo existía el documento.</p>
+                <p className="font-semibold">Existencia pública</p>
+                <p className="text-gray-700">Esa huella fue registrada en redes públicas (Polygon y/o Bitcoin), independientes de EcoSign y verificables externamente.</p>
+                <p className="font-semibold">Certificación</p>
+                <p className="text-gray-700">EcoSign firma el certificado para confirmar que este proceso ocurrió correctamente, pero la validez no depende de EcoSign.</p>
+                <p className="text-gray-700 font-medium">
+                  Incluso si EcoSign dejara de existir, este certificado seguiría siendo verificable.
+                </p>
+              </div>
+            </div>
 
             {result.valid && (
               <div className="mt-8">

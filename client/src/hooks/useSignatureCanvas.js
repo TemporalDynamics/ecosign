@@ -15,11 +15,16 @@ export const useSignatureCanvas = () => {
 
     const ctx = canvas.getContext('2d');
 
-    // Configurar canvas con dimensiones correctas SIN escalar
-    // Esto evita el offset del cursor
+    // Configurar canvas con dimensiones correctas considerando devicePixelRatio
+    // Esto evita el offset del cursor en pantallas retina y con zoom
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    const dpr = window.devicePixelRatio || 1;
+    
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    
+    // Escalar el contexto para compensar el aumento de resolución
+    ctx.scale(dpr, dpr);
 
     // Estilo de la línea
     ctx.strokeStyle = '#1f2937'; // gray-800

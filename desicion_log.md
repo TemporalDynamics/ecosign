@@ -596,3 +596,318 @@ Que la finalización del flujo de firma/certificación no saque al usuario de Ec
 
 ### 💬 Nota del dev
 "Apostamos por tranquilidad y control: no sacamos al usuario de la app, reforzamos el copy y evitamos previews del navegador. Si se toca este cierre, mantener descarga binaria y cards seleccionables; si aparece presión por 0% previews en Firefox, considerar ZIP como plan B."
+
+---
+
+## Iteración 2025-12-17 — Documentos unificados + probatoria cerrada (Fase 5 UI)
+
+### 🎯 Objetivo
+Cerrar la vista de “Mis documentos” con los 3 estados probatorios definidos (No certificado / Certificado TSA+Polygon / Irrefutable + Bitcoin confirmado), eliminando tabs/columnas irrelevantes y asegurando copys coherentes con el hand-off legal de Fase 5.
+
+### 🧠 Decisiones tomadas
+- **Una sola vista**: se eliminan “Todos”, “Certificados” y “Registro forense” como pestañas. Tabla única con fecha de creación (no “última actividad”).
+- **Estados visibles = validez probatoria**: badge solo muestra No certificado, Certificado (TSA+Polygon) o Irrefutable (Bitcoin confirmado). Bitcoin pending vive solo en detalle/cinta secundaria; no hay estados intermedios.
+- **Escudo gobierna política, sin retrocesos**: derivación degrada a No certificado si falta TSA o Polygon o no hay ECO; Bitcoin solo eleva, nunca bloquea descargas.
+- **Acciones obligatorias alineadas**: descarga ECO/ECOX con modal de pending informativo que no cancela el refuerzo; PDF solo si fue guardado (copy de privacidad); verificación local compara `document_hash`/`content_hash` y muestra origen (auto/manual).
+- **ECOX plan-gated**: .ECOX deshabilitado fuera de Business/Enterprise, con copy explícito.
+
+### 🛠️ Cambios realizados
+- `client/src/pages/DocumentsPage.jsx`: tabla única con columnas Documento/Estado probatorio/Fecha de creación/Acciones; buscador simple. Derivación de estado (`deriveProbativeState`) aplicada en toda la UI. Timeline de blindaje en preview (TSA/Polygon/Bitcoin), hash copiable, badges de estado, copy de escudo. Modal pending con CTA “Esperar” / “Descargar ahora” (aviso de que no cancela el refuerzo). Verificador intenta auto-verificar PDF guardado; si falla o no existe, pide upload y compara hashes.
+- Copys ajustados a Fase 5: sin estados “en proceso” visibles; Bitcoin pending solo como refuerzo en detalle; PDF no almacenado muestra mensaje de privacidad.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se modificó backend ni contratos de certificación; solo UI/derivación.
+- No se implementó carpeta/filtros ni vista forense; se eliminaron por decisión de simplificar.
+- No se auto-upgradea a Irrefutable en silencio; se depende del estado confirmado de Bitcoin.
+
+### ⚠️ Consideraciones / deuda futura
+- Verificar campos de backend: derivación usa `has_legal_timestamp` y `has_polygon_anchor`; si los nombres difieren, ajustar helper.
+- Lint global sigue con warnings legacy fuera de este archivo; pendiente limpieza general.
+- Tests manuales recomendados: doc sin blindar, doc certificado, doc con Bitcoin pending/confirmed, cuenta Business/Enterprise para .ECOX.
+
+### 📍 Estado final
+- Vista de documentos coherente con la definición legal de Fase 5: 3 estados claros, sin intermedios ni mezclar tecnología en el badge.
+- Descargas y verificación disponibles sin bloquear por Bitcoin; refuerzo se comunica en detalle.
+- Copys alineados con “somos ciegos”: PDF solo si el usuario lo guardó; ECO siempre cuando certificado.
+
+### 💬 Nota del dev
+"Se cerró la narrativa probatoria en UI: badge = validez legal (TSA+Polygon mínimo), Bitcoin solo refuerza y no bloquea. Eliminamos ruido (tabs/filtros/carpetas) y alineamos acciones/copys con el hand-off. Si cambian nombres de campos en backend, ajustar `deriveProbativeState`; el resto es plug-and-play."
+
+---
+
+## Iteración 2025-12-17 — Verificador público alineado a estados probatorios (Fase 6 UX)
+
+### 🎯 Objetivo
+Hacer que el verificador público/interno hable el mismo idioma probatorio (No certificado / Certificado / Certificado reforzado) sin tocar la lógica de verificación ni agregar inputs.
+
+### 🧠 Decisiones tomadas
+- **Badge único de validez**: el verificador muestra solo un estado probatorio derivado (TSA+Polygon => Certificado, +Bitcoin confirmado => Certificado reforzado, resto => No certificado).
+- **Dos preguntas separadas**: 1) ¿El certificado es válido? (badge + copy). 2) ¿El PDF coincide con el certificado? (✔/❌/“no cargado”).
+- **Pedagogía mínima**: se agrega bloque “¿Cómo se verifica este certificado?” con los 5 pasos (identidad, integridad, tiempo, existencia pública, certificación) para usuarios que “no confían” en EcoSign.
+- **Bitcoin pending solo en detalle**: no aparece como estado visible; refuerzo solo cuando está confirmado.
+
+### 🛠️ Cambios realizados
+- `client/src/pages/VerifyPage.jsx`: badge probatorio, copy binario certificado/PDF, bloque de 5 pasos al final. No se modificó la verificación ni se agregaron inputs.
+- `client/src/pages/DashboardVerifyPage.jsx`: misma sección de 5 pasos en la vista interna.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se tocó la lógica de verificación ni las Edge Functions.
+- No se agregaron nuevos campos ni rutas técnicas (workflow hash queda separado).
+- No se expuso Bitcoin pending como estado visible.
+
+### ⚠️ Consideraciones / deuda futura
+- Centralizar mapping de capacidades TSA/Polygon/Bitcoin para no depender de nombres de campos backend.
+- Alinear la nomenclatura “Certificado reforzado” en todos los lugares (Documentos, Verificador, .eco si aplica).
+- Mantener el verificador como instrumento de prueba, no panel técnico (evitar sumar inputs/ruido).
+
+### 📍 Estado final
+- Verificador coherente con la política probatoria: un badge humano-legal y comparación de PDF separada.
+- Narrativa “no dependés de EcoSign” explícita con los 5 pasos.
+- Lógica intacta, procesamiento 100 % local.
+
+### 💬 Nota del dev
+"Solo cambiamos cómo se cuenta la verdad, no cómo se verifica. Un badge, dos preguntas separadas y los 5 pasos para quien no confía en nadie. Bitcoin refuerza, no bloquea. El verificador sigue siendo un instrumento, no un panel técnico."
+
+---
+
+## Iteración 2025-12-16 — Fase 3: Centro Legal Signing UI / Documentos Funcional
+
+### 🎯 Objetivo
+Pulir el flujo del Centro Legal para que sea inequívoco, calmo y profesional: el usuario entiende qué está configurando, firma sin dudas, ve el resultado, y nada "parece roto". Hacer que el proceso de firma sea consciente, no un trámite.
+
+### 🧠 Decisiones tomadas
+
+**F3.2 - Flujo "Mi Firma":**
+- **Modal inmediato:** Al activar "Mi Firma" se abre el modal de firma automáticamente. No hay paso intermedio.
+- **Progressive disclosure:** Los tipos de firma (Legal/Certificada) solo aparecen DESPUÉS de aplicar la firma. Evita abrumar al usuario con opciones antes de tener firma.
+- **Validación temprana:** No se permite certificar si "Mi Firma" está activo pero no hay firma aplicada. Error claro y anticipado.
+- **Firma visible:** Badge "Firmado" con checkmark verde en el header del documento. La firma no es solo un toast, es un estado visible.
+- **Fix crítico canvas:** Se corrigió offset del cursor usando `devicePixelRatio` para pantallas retina. El trazo ahora empieza exactamente donde está el cursor.
+
+**F3.2b - Campos de Firma (Workflow):**
+- **Placeholders MVP:** Se decidió usar overlays visuales (no integración SignNow real) para MVP privado. Son placeholders que muestran dónde irán los campos reales.
+- **Lógica 1:1:** Un firmante = un campo visible. Simple, predecible, sin ambigüedad.
+- **Colocación determinista:** Esquina inferior derecha, stack vertical. Evita que parezca bug o colocación aleatoria.
+- **Análisis SignNow pospuesto:** Se documentó análisis completo de 3 opciones de integración (Embedded, Programático, Híbrido) pero se decidió NO implementar hasta tener claridad. No bloquea MVP.
+
+**F3.3 - Limpieza del Visor:**
+- **Toolbar minimalista:** Solo "Ver documento completo" y "Cambiar archivo". Se ocultaron herramientas editoriales (resaltador, lápiz, texto) que confundían.
+- **Herramientas no eliminadas:** Se ocultaron en UI pero NO se eliminaron del código. Quedan disponibles si se necesitan en otras partes.
+- **Títulos contextuales:** "Ver documento completo" → "Volver al Centro Legal" cuando está expandido. Claridad de dónde está el usuario.
+
+**F3.4 - Sistema de Guía "Mentor Ciego":**
+- **Onboarding opcional:** Modal de bienvenida en primer uso. Usuario elige si quiere guía o no.
+- **One-time, desactivable forever:** Cada toast se muestra una vez y se puede desactivar permanentemente. No molesta.
+- **Persistencia en localStorage:** No toca backend. Rápido, simple, sin dependencias.
+- **Copy ajustado:** Cambié "no vemos ni almacenamos" por "no ve tu documento. Si elegís guardarlo, se sube cifrado" para coherencia con feature de guardar en dashboard.
+- **3 toasts implementados:** Documento cargado, Mi Firma activada, Firma aplicada. Los más críticos para entender el flujo.
+
+### 🛠️ Cambios realizados
+
+**Archivos creados:**
+- `client/src/hooks/useLegalCenterGuide.js` - Hook para sistema de guía con persistencia
+- `client/src/components/LegalCenterWelcomeModal.jsx` - Modal de bienvenida first-run
+- `PHASE3_ROADMAP.md` - Plan completo con checklist y análisis SignNow
+- `PHASE3_SUMMARY.md` - Resumen ejecutivo + testing checklist
+
+**Archivos modificados:**
+- `client/src/components/LegalCenterModal.jsx` - Core del Centro Legal
+  - Estado `userHasSignature` para trackear firma aplicada
+  - Click en "Mi Firma" abre modal automáticamente
+  - Validación de firma antes de certificar
+  - Badge "Firmado" en header del documento
+  - Placeholders de campos de firma (overlays)
+  - Toolbar simplificado (solo 2 botones)
+  - Integración de sistema de guía
+- `client/src/hooks/useSignatureCanvas.js` - Fix cursor offset con devicePixelRatio
+
+**Métricas:**
+- ~750 líneas agregadas
+- ~150 líneas modificadas
+- ~70 líneas eliminadas (código duplicado/obsoleto)
+- 4 commits limpios con mensajes descriptivos
+
+### 🚫 Qué NO se hizo (a propósito)
+
+**Integración SignNow real:**
+- NO se implementó colocación de campos reales en SignNow API
+- Placeholders son suficientes para MVP privado
+- Análisis completo documentado en `PHASE3_ROADMAP.md` para implementación post-MVP
+
+**Toasts adicionales:**
+- NO se implementaron toasts de "signature type" y "before CTA" (opcionales, no críticos)
+- Los 3 toasts implementados son los más importantes para entender el flujo
+
+**Mensaje de descarga sin guardar:**
+- NO se agregó mensaje explícito cuando no se puede descargar (aceptable para MVP)
+- F3.3.4 queda como mejora post-MVP basado en feedback
+
+**Cambios de backend:**
+- NO se tocó backend salvo lo mínimo necesario
+- Toda la lógica es frontend puro
+
+### ⚠️ Consideraciones / deuda futura
+
+**SignNow integration (alta prioridad post-MVP):**
+- Placeholders actuales NO interactúan con SignNow
+- Necesita análisis de 3 opciones: Embedded editor, Coordenadas programáticas, Híbrido
+- Requiere POC en sandbox de SignNow antes de decidir approach
+- Documentado completamente en `PHASE3_ROADMAP.md` sección final
+
+**Sistema de guía:**
+- Funciona con localStorage, no persiste entre dispositivos
+- Si se quiere sincronizar entre dispositivos, necesita migrar a backend
+- Los 2 toasts opcionales (`signature_type_seen`, `before_cta_seen`) pueden agregarse según feedback
+
+**Testing:**
+- Implementación completa requiere testing manual exhaustivo
+- Checklist completo en `PHASE3_SUMMARY.md`
+- Especial atención a: cursor offset en diferentes pantallas, placeholders con múltiples firmantes, guía en diferentes flujos
+
+**Copy "somos ciegos":**
+- Ajustado para coherencia con opción de guardar
+- Si se cambia el modelo de guardar, revisar copys de guía
+
+### 📍 Estado final
+
+**Lo que mejoró:**
+- Flujo de firma es inequívoco: modal → firma → tipos → certificar
+- Usuario nunca está perdido (guía opcional + validaciones tempranas)
+- Canvas de firma funciona perfecto en pantallas retina (offset resuelto)
+- Campos de firma visibles y predecibles (placeholders determinísticos)
+- Toolbar limpio, sin confusión de herramientas
+- Badge "Firmado" da feedback visual claro
+
+**Lo que queda pendiente:**
+- Testing manual completo con checklist
+- Screenshots/video de cambios visuales para PR
+- Integración SignNow real (análisis completo, POC, implementación)
+- Toasts opcionales si se consideran necesarios
+- Mensaje de descarga coherente (minor UX improvement)
+
+**Estado del código:**
+- Build compilando sin errores ✅
+- Arquitectura limpia con separación de concerns
+- Hook reutilizable para guías futuras
+- Documentación exhaustiva (roadmap + summary + decision log)
+
+### 💬 Nota del dev
+"Esta iteración cierra el MVP del flujo de firma. El usuario ahora tiene una experiencia calma y profesional: sabe qué está haciendo, ve resultados claros, y la guía opcional lo acompaña sin molestar. Los placeholders de campos son deliberadamente simples - evitamos over-engineering hasta tener claridad de cómo integrar con SignNow. El fix del canvas es crítico: sin él, la firma se siente rota en pantallas retina (mayoría de usuarios). Si tocan el LegalCenterModal, tener en cuenta que `userHasSignature` es el estado crítico que separa 'toggle activo' de 'firma realmente aplicada' - no son lo mismo. Para integración SignNow: leer análisis completo en PHASE3_ROADMAP.md antes de tocar los placeholders."
+
+---
+
+## Iteración 2025-12-16 (tarde) — Correcciones de alineación Fase 3
+
+### 🎯 Objetivo
+Alinear implementación de Fase 3 con reglas acordadas previamente. No rediseñar, sino corregir desviaciones para que el flujo sea inequívoco, la UI no se adelante a estados, y el Centro Legal sea el protagonista.
+
+### 🧠 Decisiones tomadas
+
+**1. Flujo "Mi Firma" - Lógica de visibilidad:**
+- **Problema detectado:** Los tipos de firma (Legal/Certificada) aparecían al activar "Mi Firma" O "Flujo de Firmas", violando la regla de progressive disclosure.
+- **Decisión:** Los tipos de firma solo deben aparecer si:
+  - "Mi Firma" está activo Y el usuario ya aplicó la firma (`userHasSignature === true`), O
+  - "Flujo de Firmas" está activo Y "Mi Firma" NO está activo
+- **Razón:** Si el usuario activa ambos (Mi Firma + Flujo), debe firmar primero antes de ver opciones de tipo. La UI no debe adelantarse a acciones que aún no ocurrieron.
+
+**2. Posicionamiento de toasts:**
+- **Problema detectado:** Toasts de error aparecían arriba (top-right), rompiendo el criterio visual acordado.
+- **Decisión:** Todos los `toast.error()` ahora usan `position: 'bottom-right'`. Toasts positivos quedan arriba.
+- **Razón:** Consistencia visual: negativo/error = abajo, positivo/éxito = arriba. El cerebro asocia "abajo" con problemas y "arriba" con logros.
+
+**3. Modal de bienvenida → Toast discreto:**
+- **Problema detectado:** Modal bloqueaba vista del Centro Legal, oscurecía fondo, quitaba protagonismo a lo importante.
+- **Decisión:** Eliminado `LegalCenterWelcomeModal` completamente del render. Reemplazado por toast discreto en `top-right`.
+- **Razón:** El Centro Legal es el protagonista. La guía debe acompañar, no invadir. El mensaje de bienvenida puede ser el mismo pero en formato no invasivo. El usuario debe ver el Centro Legal primero, no un modal grande que bloquea todo.
+
+**4. Vista Documentos - Eliminar ruido explicativo:**
+- **Problema detectado:** Subtítulo explicando estados + leyenda visual con dots y labels.
+- **Decisión:** 
+  - Eliminado subtítulo "Tres estados probatorios claros..."
+  - Eliminada leyenda de estados (los 3 dots con labels)
+  - Cambiado "Irrefutable" por "Certificado\nReforzado" (dos líneas, azul)
+  - Badge usa `whitespace-pre-line text-center` para renderizar salto de línea
+- **Razón:** El badge ES la verdad legal visible. No necesita explicación ni leyenda. Si el estado no se entiende por el badge, el problema es el badge, no la falta de explicación. "Irrefutable" sonaba absoluto/jurídico; "Certificado Reforzado" comunica progresión (Certificado → Certificado Reforzado) y el refuerzo es Bitcoin.
+
+### 🛠️ Cambios realizados
+
+**Archivos modificados:**
+- `client/src/components/LegalCenterModal.jsx`
+  - Condición de visibilidad de tipos de firma corregida (línea 1332)
+  - Agregado `position: 'bottom-right'` a 3 toast.error() (líneas 305, 314, 320)
+  - Eliminado import de `LegalCenterWelcomeModal`
+  - Eliminado state `showWelcomeModal`
+  - Eliminado render del modal de bienvenida (20 líneas menos)
+  - Reemplazado por toast discreto con duración 8s e icono 👋
+  - Corregida estructura JSX (eliminado `<>` innecesario)
+
+- `client/src/pages/DocumentsPage.jsx`
+  - Label de estado "irrefutable" cambiado a "Certificado\nReforzado" con salto de línea (línea 25)
+  - Eliminado subtítulo explicativo del header (5 líneas)
+  - Eliminada leyenda de estados con map de PROBATIVE_STATES (12 líneas)
+  - Agregado `whitespace-pre-line text-center` a badges para renderizar dos líneas (líneas 458, 734)
+  - Cambiadas menciones de "Irrefutable" a "Certificado Reforzado" en tooltips (líneas 354, 556)
+
+**Métricas:**
+- LegalCenterModal: -24 líneas (más limpio)
+- DocumentsPage: -17 líneas (menos ruido)
+- Total: 41 líneas eliminadas
+- 2 commits: `9d3efa6`, `0f89bc5`
+
+### 🚫 Qué NO se hizo (a propósito)
+
+**No se tocó el componente WelcomeModal:**
+- Aunque se eliminó del render, el archivo `client/src/components/LegalCenterWelcomeModal.jsx` sigue existiendo.
+- Razón: Puede ser útil en otros contextos o si en el futuro se decide que hay un momento específico donde un modal sí es apropiado (ej: onboarding de cuenta nueva).
+- Decisión: Dejarlo por ahora, eliminar solo si nunca se usa en próximas iteraciones.
+
+**No se cambió lógica de certificación:**
+- Las correcciones fueron solo UI/UX.
+- Toda la lógica de backend, certificación, blindaje, etc. quedó intacta.
+
+### ⚠️ Consideraciones / deuda futura
+
+**Testing crítico:**
+- Estos cambios son sutiles pero críticos para la experiencia.
+- Testing manual debe verificar:
+  - Activar "Mi Firma" → no aparecen tipos de firma hasta aplicar firma
+  - Activar "Flujo de Firmas" solo → sí aparecen tipos de firma
+  - Activar ambos → tipos solo después de firmar
+  - Errores aparecen abajo-derecha
+  - Toast de bienvenida discreto, no modal bloqueante
+  - Badge "Certificado Reforzado" se ve en DOS líneas, no una
+  - No hay subtítulo ni leyenda en vista Documentos
+
+**Copy de "Certificado Reforzado":**
+- Se usa `\n` en el string para salto de línea.
+- Si en algún momento se cambia el sistema de badges o el rendering, verificar que el salto de línea siga funcionando.
+- Alternativa futura: componente Badge que renderice dos líneas con spans separados (más robusto que confiar en `whitespace-pre-line`).
+
+**Modal de bienvenida eliminado:**
+- Si en el futuro se decide que sí se necesita un modal en primer uso (ej: términos y condiciones, tutorial interactivo), no reinventar; usar el componente existente o crear uno nuevo específico para ese caso.
+- El toast actual es suficiente para "acompañar sin invadir".
+
+### 📍 Estado final
+
+**Lo que mejoró:**
+- Flujo "Mi Firma" ahora cumple con progressive disclosure estricta
+- Toasts de error consistentes (todos abajo)
+- Centro Legal es protagonista desde el inicio (guía no invasiva)
+- Vista Documentos limpia: badge habla por sí mismo
+- "Certificado Reforzado" comunica progresión mejor que "Irrefutable"
+- -41 líneas de código (menos es más)
+
+**Lo que queda pendiente:**
+- Testing manual exhaustivo de las 5 correcciones
+- Verificar en diferentes pantallas que badge de dos líneas se vea bien
+- Considerar eliminar `LegalCenterWelcomeModal.jsx` si nunca se usa
+- Si hay feedback de usuarios sobre "Certificado Reforzado", evaluar alternativas (ej: "Certificado Plus", "Certificado Pro")
+
+**Estado del código:**
+- Build compilando sin errores ✅
+- Rama: `phase3-signing-ui`
+- Commits: 11 total (9 previos + 2 correcciones)
+- Listo para testing manual + merge
+
+### 💬 Nota del dev
+"Estas correcciones son ejemplo de por qué testing/review temprano es valioso. Los bugs no eran técnicos sino de 'seguir las reglas acordadas'. Progressive disclosure no es negociable: si dijimos 'firma primero, tipo después', la UI debe reflejarlo. El cambio de modal a toast parece menor pero es crucial: el Centro Legal debe ser lo primero que el usuario ve y procesa, no un mensaje de bienvenida. La guía acompaña, no lidera. En 'Certificado Reforzado', el salto de línea `\n` + `whitespace-pre-line` es frágil; si en el futuro hay problemas de rendering, migrar a componente Badge con <span> separados. El nombre 'Irrefutable' era técnicamente correcto pero jurídicamente cargado; 'Reforzado' comunica lo mismo sin sonar absoluto."

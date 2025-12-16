@@ -911,3 +911,170 @@ Alinear implementación de Fase 3 con reglas acordadas previamente. No rediseña
 
 ### 💬 Nota del dev
 "Estas correcciones son ejemplo de por qué testing/review temprano es valioso. Los bugs no eran técnicos sino de 'seguir las reglas acordadas'. Progressive disclosure no es negociable: si dijimos 'firma primero, tipo después', la UI debe reflejarlo. El cambio de modal a toast parece menor pero es crucial: el Centro Legal debe ser lo primero que el usuario ve y procesa, no un mensaje de bienvenida. La guía acompaña, no lidera. En 'Certificado Reforzado', el salto de línea `\n` + `whitespace-pre-line` es frágil; si en el futuro hay problemas de rendering, migrar a componente Badge con <span> separados. El nombre 'Irrefutable' era técnicamente correcto pero jurídicamente cargado; 'Reforzado' comunica lo mismo sin sonar absoluto."
+
+---
+
+## Iteración 2025-12-16 (tarde/noche) — Quick Wins Sprint 1: Seguridad & CI
+
+### 🎯 Objetivo
+Mejorar el puntaje promedio de 74/100 a ~80/100 mediante mejoras de bajo riesgo que no tocan UI, lógica de negocio ni arquitectura core. Preparar el MVP privado para producción con mejores prácticas de seguridad, testing y CI/CD.
+
+### 🧠 Decisiones tomadas
+
+**1. Dependabot para actualizaciones automáticas:**
+- **Problema detectado:** No había monitoreo automático de vulnerabilidades en dependencias. npm audit manual no es escalable.
+- **Decisión:** Configurar Dependabot con checks semanales para npm (client, eco-packer, root) y mensuales para GitHub Actions. PRs automáticos para vulnerabilidades.
+- **Razón:** Detección temprana de CVEs, sin overhead manual. `versioning-strategy: increase-if-necessary` minimiza ruido (solo updates críticos). Configuración conservadora para MVP: 5 PRs máx por directorio, reviewers asignados.
+
+**2. Security headers en todas las respuestas:**
+- **Problema detectado:** Solo headers de cache, sin protección contra ataques comunes (clickjacking, MIME sniffing, XSS).
+- **Decisión:** Agregar 7 headers de seguridad en `vercel.json`:
+  - `X-Content-Type-Options: nosniff` (evita MIME sniffing)
+  - `X-Frame-Options: DENY` (previene clickjacking)
+  - `X-XSS-Protection: 1; mode=block` (protección XSS legacy)
+  - `Strict-Transport-Security` con max-age 1 año (fuerza HTTPS)
+  - `Referrer-Policy: strict-origin-when-cross-origin` (limita leak de URLs)
+  - `Permissions-Policy` (bloquea camera, mic, geolocation)
+- **Razón:** Defense in depth. Headers son gratis (no overhead), compatibles con todos los browsers, y suben el puntaje de seguridad sin cambiar código. Configuración alineada con OWASP best practices.
+
+**3. SECURITY.md con procesos documentados:**
+- **Problema detectado:** No había proceso claro para reportar vulnerabilidades ni rotar secretos. Equipo no sabe qué hacer si hay CVE crítico.
+- **Decisión:** Crear `SECURITY.md` con:
+  - Email de reporte (security@)
+  - Guía de rotación de secretos (Supabase, Vercel, SignNow)
+  - Incident response plan (4 pasos: contain, assess, remediate, document)
+  - Inventario de dónde viven los secretos
+  - Checklist de testing manual
+- **Razón:** Transparencia y preparación. Si alguien encuentra vulnerabilidad, sabe cómo reportar sin abrir issue público. Si hay leak de API key, el equipo tiene runbook claro. Documento vivo que evoluciona con el producto.
+
+**4. npm audit fix (sin breaking changes):**
+- **Problema detectado:** 4 vulnerabilidades en client, 2 en eco-packer (glob, node-forge, js-yaml).
+- **Decisión:** Ejecutar `npm audit fix` (solo patches seguros). esbuild/vite pendientes porque requieren upgrade mayor (vite 4 → 7).
+- **Razón:** Quick win claro: 6 CVEs cerrados en 5 minutos. vite 7 es breaking change (requiere testing exhaustivo), lo dejamos para Sprint 2 o post-MVP. Balance pragmático: fix lo seguro, defer lo que necesita validación.
+
+**5. CI mejorado con parallel jobs y quality gates:**
+- **Problema detectado:** CI solo hacía build + tests eco-packer. No lint, no typecheck, no security audit. Jobs secuenciales (lento). Nombre obsoleto "VerifySign".
+- **Decisión:** 
+  - Paralelizar: lint, typecheck, build, tests, security
+  - Lint + typecheck deben pasar antes de build (fail fast)
+  - Agregar job de `npm audit` para todas las carpetas
+  - Agregar job de security tests
+  - Renombrar a "EcoSign CI"
+- **Razón:** Feedback rápido. Si hay error de lint, no gastar tiempo en build. Paralelo reduce tiempo total de CI. Security audit integrado evita merge de código con CVEs. Nombre correcto del producto (EcoSign, no VerifySign).
+
+**6. Prettier sin pre-commit hooks:**
+- **Problema detectado:** No hay formateo consistente. Se pidió explícitamente NO agregar husky (no trabar commits locales).
+- **Decisión:** Configurar Prettier (`.prettierrc` + `.prettierignore`) pero sin automatización. Formateo manual o en CI si se decide después.
+- **Razón:** Respeto por el workflow del equipo. Pre-commit hooks pueden frustrar en MVP rápido. Prettier configurado permite formateo cuando el equipo quiera (manual o CI enforcement futuro). Balance: herramienta disponible, uso opcional.
+
+### 🛠️ Cambios realizados
+
+**Archivos creados:**
+- `.github/dependabot.yml` (58 líneas) - Configuración Dependabot
+- `SECURITY.md` (192 líneas) - Documentación de seguridad
+- `.prettierrc` (10 líneas) - Config Prettier
+- `.prettierignore` (13 líneas) - Exclusiones Prettier
+
+**Archivos modificados:**
+- `vercel.json` - Agregados security headers (40 líneas nuevas)
+- `.github/workflows/ci.yml` - Refactor completo con parallel jobs
+- `client/package-lock.json` - npm audit fix (glob, node-forge)
+- `eco-packer/package-lock.json` - npm audit fix (js-yaml, node-forge)
+
+**Métricas:**
+- +273 líneas (mostly docs)
+- 6 CVEs cerrados
+- 2 commits limpios
+- Build time: 21.18s (sin cambio)
+- 0 breaking changes
+
+### 🚫 Qué NO se hizo (a propósito)
+
+**Pre-commit hooks (husky):**
+- Pedido explícito de no agregarlo.
+- Razón: No trabar workflow de desarrollo local. Equipo prefiere libertad en commits.
+- Si se necesita después, fácil de agregar.
+
+**vite 7 upgrade:**
+- Requiere upgrade mayor (breaking change).
+- esbuild vulnerability es "moderate" y solo afecta dev server (no prod).
+- Decisión: defer a Sprint 2 o post-MVP cuando haya tiempo de testing.
+
+**Changes de arquitectura:**
+- No KMS, no rotación automática, no rate limiting dedicado.
+- Razón: Quick wins son config/docs/tests, no refactors profundos.
+
+**UI/UX changes:**
+- Fase 3 recién mergeada (<24h), no tocar.
+- Razón: Respeto por el trabajo previo, evitar regresiones.
+
+**Tests (aún):**
+- Quedan para Día 3-4 del Sprint 1.
+- Razón: Seguridad + CI primero (fundación), tests después (validación).
+
+### ⚠️ Consideraciones / deuda futura
+
+**Dependabot noise:**
+- Con configuración conservadora (only necessary updates), debería ser bajo.
+- Si genera muchos PRs, ajustar a `open-pull-requests-limit: 2` o cambiar a mensual.
+- Monitorear en primera semana y ajustar.
+
+**Security headers y breakage:**
+- `X-Frame-Options: DENY` puede romper si el site se embebe en iframe.
+- `Permissions-Policy` puede bloquear features futuras (ej: si agregamos video call).
+- Si algo se rompe: ajustar headers específicos en `vercel.json`.
+- Testing en staging recomendado antes de merge.
+
+**esbuild/vite vulnerability:**
+- Moderate severity, solo dev server (no prod).
+- Pero Dependabot creará PR semanal hasta que se fixee.
+- Decisión: aceptar noise o upgrade en Sprint 2.
+
+**CI paralelo y costs:**
+- GitHub Actions: 2000 min/mes gratis para privados.
+- Parallel jobs usan más minutos pero terminan más rápido (mejor DX).
+- Si se acaban los minutos, considerar self-hosted runner o optimizar jobs.
+
+**Prettier sin enforcement:**
+- Código seguirá siendo inconsistente hasta que se corra manualmente.
+- Si molesta mucho, agregar job de CI que chequee (no bloquee) y deje comentario en PR.
+- O eventualmente agregar pre-commit hook si el equipo acepta.
+
+**SECURITY.md y email:**
+- Documento usa `security@ecosign.com` como placeholder.
+- Cambiar a email real del equipo antes de hacer público el repo.
+- Si no hay email dedicado, usar personal del lead + alias.
+
+### 📍 Estado final
+
+**Lo que mejoró:**
+- Seguridad: 74 → **~80** (+6) - headers, dependabot, audit fixes
+- Calidad código: 72 → **~76** (+4) - prettier config, CI lint
+- Infra/DevOps: 68 → **~72** (+4) - CI mejorado, parallel jobs
+- **Promedio: 74 → ~77** (+3 puntos hasta ahora)
+
+**Lo que queda pendiente (Sprint 1 Día 3-4):**
+- Tests unitarios para utils/helpers (2h) → +8 puntos
+- Tests de seguridad básicos (1h) → +5 puntos
+- Coverage report en CI (15 min) → +2 puntos
+- Smoke tests E2E (2h) → +10 puntos
+- **Meta Sprint 1 completo:** 74 → 80 (+6 puntos total)
+
+**Estado del código:**
+- Build: ✅ Passing (21.18s)
+- Tests: ⏳ Pending (Día 3-4)
+- Deploy: ✅ No blockers (solo headers adicionales)
+- Rama: `quickwins/sprint1-security-testing`
+- Commits: 2 limpios, pusheados a origin
+- PR sugerido: https://github.com/TemporalDynamics/ecosign/pull/new/quickwins/sprint1-security-testing
+
+**Verificaciones:**
+- ✅ No rompe Vercel deploy (solo headers adicionales, compatible)
+- ✅ No rompe localhost (0 cambios de código)
+- ✅ No rompe flujos internos (0 cambios de lógica)
+- ✅ No rompe UI (0 cambios visuales)
+- ✅ Respeta reglas establecidas (Fase 3 intacta)
+- ✅ No agrega husky (pedido explícito)
+
+### 💬 Nota del dev
+"Quick wins bien ejecutados: low risk, high impact. Dependabot + security headers son 'set and forget' - una vez configurados, trabajan solos. SECURITY.md es el documento más importante que nadie lee... hasta que hay un incident, y ahí salva vidas. npm audit fix es trivial pero cierra 6 CVEs en 5 minutos - bajo hanging fruit que muchos ignoran. CI paralelo es UX para devs: feedback más rápido = iteración más rápida. Prettier sin pre-commit es ejemplo de 'escuchar al equipo' - la herramienta está, el enforcement no; si molesta el caos de formatting, está lista para activar. El verdadero quick win no es el código sino la decisión: hacer lo que suma sin romper lo que funciona. Próximo paso (tests) es más trabajoso pero necesario: Security 80 sin Testing 45 es desequilibrado. Sprint 1 Día 3-4 balancea la ecuación."

@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@types/jest": "^29.0.0",
-    "@types/jsonschema": "^0.0.5",
+    "@types/jsonschema": "^1.1.1",
     "@types/jszip": "^3.4.1",
     "@types/node": "^22.0.0",
     "eslint": "^8.20.0",

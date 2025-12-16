@@ -128,6 +128,36 @@ function DashboardVerifyPage() {
             Actualizar plan
           </Link>
         </div>
+
+        {/* Cómo se verifica este certificado */}
+        <div className="mt-10 bg-white border border-gray-200 rounded-xl p-8">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">¿Cómo se verifica este certificado?</h3>
+          <div className="space-y-3 text-sm text-gray-800">
+            <div>
+              <p className="font-semibold">Identidad del documento</p>
+              <p className="text-gray-700">El certificado contiene la huella digital única del documento. Cualquier modificación genera una huella diferente.</p>
+            </div>
+            <div>
+              <p className="font-semibold">Integridad</p>
+              <p className="text-gray-700">La huella del documento coincide con la registrada en el certificado, lo que prueba que el contenido no fue alterado.</p>
+            </div>
+            <div>
+              <p className="font-semibold">Tiempo</p>
+              <p className="text-gray-700">El certificado incluye un sello de tiempo legal (RFC 3161) emitido por un tercero independiente, que prueba cuándo existía el documento.</p>
+            </div>
+            <div>
+              <p className="font-semibold">Existencia pública</p>
+              <p className="text-gray-700">Esa huella fue registrada en redes públicas (Polygon y/o Bitcoin), independientes de EcoSign y verificables externamente.</p>
+            </div>
+            <div>
+              <p className="font-semibold">Certificación</p>
+              <p className="text-gray-700">EcoSign firma el certificado para confirmar que este proceso ocurrió correctamente, pero la validez no depende de EcoSign.</p>
+            </div>
+            <p className="text-gray-800 font-medium">
+              Incluso si EcoSign dejara de existir, este certificado seguiría siendo verificable.
+            </p>
+          </div>
+        </div>
       </main>
 
       <FooterInternal />

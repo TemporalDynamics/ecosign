@@ -12,6 +12,8 @@ import { EventHelpers } from '../utils/eventLogger';
 import { anchorToPolygon } from '../lib/polygonAnchor';
 import { getSupabase } from '../lib/supabaseClient';
 import InhackeableTooltip from './InhackeableTooltip';
+import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
+import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 
 /**
  * Centro Legal - Núcleo del producto EcoSign
@@ -103,6 +105,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [signnowTotal, setSignnowTotal] = useState(15); // Total del plan
   const [isEnterprisePlan, setIsEnterprisePlan] = useState(false); // Plan enterprise tiene ilimitadas
 
+  // Sistema de guía "Mentor Ciego"
+  const guide = useLegalCenterGuide();
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
@@ -111,6 +116,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setWorkflowEnabled(initialAction === 'workflow');
     setNdaEnabled(initialAction === 'nda');
     setPreviewMode('compact');
+
+    // Mostrar modal de bienvenida (solo primera vez)
+    if (guide.showWelcomeModal()) {
+      setShowWelcomeModal(true);
+    }
   }, [initialAction, isOpen]);
 
   // Mostrar confirmación de modo cuando cambian las acciones
@@ -191,6 +201,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         // Para otros tipos, mostrar icono genérico
         setDocumentPreview(null);
       }
+
+      // Guía: Documento cargado
+      guide.showGuideToast(
+        'document_loaded_seen',
+        'EcoSign no ve tu documento. Si elegís guardarlo, se sube cifrado.',
+        { type: 'default', position: 'top-right' }
+      );
     }
   };
   // Cleanup de URLs de preview para evitar fugas
@@ -812,8 +829,28 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const gridTemplateColumns = `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] shadow-xl flex flex-col overflow-hidden">
+    <>
+      {/* Modal de bienvenida */}
+      <LegalCenterWelcomeModal
+        isOpen={showWelcomeModal}
+        onAccept={() => {
+          guide.markAsSeen('welcome_seen');
+          setShowWelcomeModal(false);
+        }}
+        onReject={() => {
+          guide.markAsSeen('welcome_seen');
+          guide.disableGuide();
+          setShowWelcomeModal(false);
+        }}
+        onNeverShow={() => {
+          guide.disableGuide();
+          setShowWelcomeModal(false);
+        }}
+      />
+
+      {/* Modal principal del Centro Legal */}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] shadow-xl flex flex-col overflow-hidden">
         {/* Header fijo sobre todo el grid */}
         <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -992,62 +1029,71 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               ))}
                             </div>
                           )}
-                          {documentPreview ? (
+                          {documentPreview && file.type.startsWith('image/') && (
+                            <img
+                              src={documentPreview}
+                              alt="Preview"
+                              className="max-w-full max-h-full object-contain"
+                            />
+                          )}
+                          
+                          {documentPreview && file.type === 'application/pdf' && (
                             <>
-                              {file.type.startsWith('image/') ? (
-                                <img
-                                  src={documentPreview}
-                                  alt="Preview"
-                                  className="max-w-full max-h-full object-contain"
-                                />
-                              ) : file.type === 'application/pdf' ? (
-                                <>
-                                  {!previewError && (
-                                    <object
-                                      data={documentPreview}
-                                      type="application/pdf"
-                                      className="w-full h-full bg-white"
-                                      onLoad={() => setPreviewError(false)}
-                                      onError={() => setPreviewError(true)}
-                                    >
-                                      <p className="text-sm text-gray-500 p-4">
-                                        No se pudo mostrar el PDF en el navegador. Descargalo para verlo.
-                                      </p>
-                                    </object>
-                                  )}
-                                  {previewError && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-white px-6 text-center">
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-semibold text-gray-900">
-                                          Vista previa desactivada para este PDF.
-                                        </p>
-                                        <p className="text-xs text-gray-600">
-                                          Abrilo en otra pestaña o descargalo para conservar la integridad del archivo.
-                                        </p>
-                                        <div className="flex items-center justify-center gap-2">
-                                          <a
-                                            href={documentPreview}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-sm text-gray-900 font-semibold hover:underline"
-                                          >
-                                            Abrir en nueva pestaña
-                                          </a>
-                                          <span className="text-gray-300">•</span>
-                                          <a
-                                            href={documentPreview}
-                                            download={file?.name || 'documento.pdf'}
-                                            className="text-sm text-gray-900 font-semibold hover:underline"
-                                          >
-                                            Descargar PDF
-                                          </a>
-                                        </div>
-                                      </div>
+                              {!previewError && (
+                                <object
+                                  data={documentPreview}
+                                  type="application/pdf"
+                                  className="w-full h-full bg-white"
+                                  onLoad={() => setPreviewError(false)}
+                                  onError={() => setPreviewError(true)}
+                                >
+                                  <p className="text-sm text-gray-500 p-4">
+                                    No se pudo mostrar el PDF en el navegador. Descargalo para verlo.
+                                  </p>
+                                </object>
+                              )}
+                              {previewError && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white px-6 text-center">
+                                  <div className="space-y-2">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                      Vista previa desactivada para este PDF.
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                      Abrilo en otra pestaña o descargalo para conservar la integridad del archivo.
+                                    </p>
+                                    <div className="flex items-center justify-center gap-2">
+                                      <a
+                                        href={documentPreview}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-gray-900 font-semibold hover:underline"
+                                      >
+                                        Abrir en nueva pestaña
+                                      </a>
+                                      <span className="text-gray-300">•</span>
+                                      <a
+                                        href={documentPreview}
+                                        download={file?.name || 'documento.pdf'}
+                                        className="text-sm text-gray-900 font-semibold hover:underline"
+                                      >
+                                        Descargar PDF
+                                      </a>
                                     </div>
-                                  )}
-                                </>
-                              ) : null}
-                            ) : null}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          
+                          {!documentPreview && (
+                            <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                              <div className="text-center">
+                                <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                                <p className="text-sm">Vista previa no disponible</p>
+                                <p className="text-xs">El archivo se procesará al certificar</p>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Modal de firma con tabs */}
                           {showSignatureOnPreview && (
@@ -1204,6 +1250,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                         duration: 4000,
                                         icon: '✅'
                                       });
+
+                                      // Guía: Firma aplicada
+                                      guide.showGuideToast(
+                                        'signature_applied_seen',
+                                        'La firma quedó registrada. Ahora podés decidir el peso legal que querés asignarle.',
+                                        { type: 'success', position: 'top-right', duration: 5000 }
+                                      );
                                     }}
                                     className="flex-1 py-2 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
                                     disabled={
@@ -1218,20 +1271,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               </div>
                             </div>
                           )}
-                        </>
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                          <div className="text-center">
-                            <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">Vista previa no disponible</p>
-                            <p className="text-xs">El archivo se procesará al certificar</p>
-                          </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
               {/* Acciones (pueden estar múltiples activas) */}
               <div className="space-y-2">
@@ -1255,6 +1298,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       // Si se activa "Mi Firma", abrir modal de firma inmediatamente
                       if (newState && file) {
                         setShowSignatureOnPreview(true);
+                        
+                        // Guía: Mi Firma (primer uso)
+                        guide.showGuideToast(
+                          'my_signature_seen',
+                          'La firma no es un trámite. Es un acto consciente de autoría.',
+                          { type: 'default', position: 'top-right', duration: 5000 }
+                        );
                       }
                     }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -1717,8 +1767,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
         </div>
       )}
-    </div>
-    </div>
+        </div>
+      </div>
+    </>
   );
 };
 

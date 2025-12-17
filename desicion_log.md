@@ -2200,3 +2200,166 @@ Próximo paso NO es código. Es consenso de equipo. Este documento debe ser apro
 Si alguien futuro lee esto y piensa 'esto es mucho documento para un modal', no entendió. Centro Legal NO es un modal. Es el corazón de EcoSign. Es donde el usuario confía. Es donde la narrativa legal se materializa. Es donde 'acompañar sin dirigir' se prueba. Por eso merece Constitución, no comentarios en el código."
 
 ---
+
+---
+
+## Iteración 2025-12-17 — Legal Center V2: Implementación Quirúrgica
+
+### 🎯 Objetivo
+Implementar LegalCenterModalV2 siguiendo estrictamente LEGAL_CENTER_CONSTITUTION.md sin refactorizar lógica de negocio, manteniendo 100% de paridad visual con el legacy y preservando todos los contratos backend.
+
+### 🧠 Decisiones tomadas
+- **Cirugía, no refactor**: Copiar LegalCenterModal.jsx → LegalCenterModalV2.jsx y aplicar SOLO cambios de lógica según Constitución. No tocar diseño visual, no optimizar "porque sí".
+- **Constitución como fuente de verdad inmutable**: Si el código contradice LEGAL_CENTER_CONSTITUTION.md, el código está mal. No al revés.
+- **Contratos backend sagrados**: `forensicConfig`, `signatureType`, `emailInputs`, `ndaText`, payloads a edge functions → CERO cambios. Si el backend espera algo, V2 debe enviarlo igual.
+- **Switch controlado para A/B testing**: Flag `USE_LEGAL_CENTER_V2 = true` en LegalCenterRoot.jsx permite alternar entre V2 y legacy. Rollback inmediato si es necesario.
+- **Funciones helper puras**: `getCTAText()` e `isCTAEnabled()` son funciones puras del estado. CTA dinámico deriva del estado, no es string hardcodeado. Si el estado cambia, el CTA cambia. Si el CTA miente, el bug está en la función.
+- **Copy inmutable**: Toasts definidos en Constitución (30+ mensajes). "Documento listo" vs "Documento cargado" no es preferencia, es intención. Cada palabra elegida para calmar, no para informar técnicamente.
+- **Visibilidad condicional de acciones**: Acciones (NDA, Mi Firma, Flujo) solo visibles si `(documentLoaded || initialAction)`. Usuario NO ve opciones sin contexto. Sistema responde, no empuja.
+- **Testing exhaustivo antes de cutover**: 9 escenarios documentados. Solo después de validación manual → eliminar legacy. No hay prisa en borrar, hay precisión en validar.
+
+### 🛠️ Cambios realizados
+- **Constitución (Día 1)**:
+  - `LEGAL_CENTER_CONSTITUTION.md` (847 líneas, 22KB)
+  - Define 4 acciones, copy inmutable, CTA dinámico, 9 escenarios de testing
+  - Política de PR: toda PR que toque Centro Legal debe citar qué regla respeta
+  - Versionado: v2.0 (cambios requieren justificación explícita)
+
+- **Botón "Certificar" en Home (Día 1)**:
+  - 4ta acción en DashboardStartPage.jsx
+  - Grid cambiado a 4 columnas
+  - `initialAction = 'certify'` se pasa al abrir Centro Legal
+
+- **LegalCenterModalV2.jsx (Día 1-2)**:
+  - Copiado completo del legacy (1900+ líneas)
+  - Añadido estado `documentLoaded` (control visibilidad acciones)
+  - Añadidas funciones `getCTAText()`, `isCTAEnabled()` (lógica pura)
+  - Modificado `handleFileSelect`: toast "Documento listo", auto-apertura modal firma
+  - Modificado `handleFinalizeClick`: validaciones Constitución + toasts específicos
+  - Modificados botones de acciones: visibilidad condicional + toasts Constitución
+  - Modificado CTA: texto dinámico `{getCTAText()}`, disabled con estilos condicionales
+  - **Visual:** 0 cambios (grid, colores, spacing, animaciones 100% idéntico)
+  - **Lógica certificación:** 0 cambios (`handleCertify` copiado completo, sin tocar)
+
+- **Switch controlado (Día 2)**:
+  - `LegalCenterRoot.jsx`: Flag `USE_LEGAL_CENTER_V2 = true`
+  - Lazy loading condicional: `V2 ? import('V2') : import('Legacy')`
+  - Legacy queda congelado, funcional, no se toca
+
+- **Migración de servicios (Día 2)**:
+  - Análisis exhaustivo: todos los servicios/helpers/contratos ya estaban en V2
+  - `handleCertify()`: completo (TSA + Polygon + Bitcoin)
+  - `handleFinalizeClick()`: completo (descarga + guardado)
+  - `base64ToBlob()`, `buildSignersList()`: copiados
+  - `savePdfChecked`, `downloadPdfChecked`: añadidos
+  - **Payloads a edge functions: SIN CAMBIOS**
+
+- **Documentación (Día 1-2)**:
+  - `LEGAL_CENTER_V2_PLAN.md`: Estrategia de implementación
+  - `LEGAL_CENTER_V2_READY.md`: Testing guide (9 escenarios)
+  - `MIGRATION_PLAN.md`: Plan de migración servicios
+  - `MIGRATION_STATUS.md`: Estado completo (95% listo)
+
+**Código nuevo**: 5 archivos (~2400 líneas contando documentación)  
+**Código modificado**: 3 archivos (V2, switch, Home)  
+**Código legacy**: Intacto (0 cambios)
+
+### 🚫 Qué NO se hizo (a propósito)
+- **NO refactorizamos el legacy**: Queda congelado, funcional, sin tocar. V2 coexiste sin romper nada.
+- **NO cambiamos contratos backend**: Payloads a edge functions idénticos. Si algo cambia, es bug.
+- **NO optimizamos "porque sí"**: Si funcionaba en legacy, se copió tal cual. Optimización viene después de validación.
+- **NO eliminamos código legacy aún**: Solo después de testing completo + aprobación → cutover.
+- **NO tocamos diseño visual**: Grid 3 columnas, colores, spacing, animaciones 100% idéntico. Usuario no debe notar diferencia visual.
+- **NO agregamos features nuevas**: Solo lógica Constitución + limpieza de reglas. Features vienen después.
+- **NO modificamos modal de bienvenida**: Se mantiene igual (puede refinarse después).
+- **NO implementamos toast interactivo de peso legal**: Existe código, falta integrar (no crítico).
+
+### ⚠️ Consideraciones / deuda futura
+- **Testing manual pendiente**: 9 escenarios documentados en LEGAL_CENTER_V2_READY.md. Debe pasar testing exhaustivo antes de cutover.
+- **Cutover planificado en 3 fases**:
+  1. Testing interno → validación
+  2. Deploy staging → usuarios internos
+  3. Cutover: eliminar legacy, renombrar V2 → V1, remover flag
+- **Código obsoleto identificado**: Diff legacy vs V2 revelará qué no se usa. Documento pendiente.
+- **Modal de bienvenida contextual**: Puede mejorarse según `initialAction`, pero no es crítico.
+- **Toast interactivo peso legal**: Ya existe código (Constitución 7.3), falta conectar con evento de firma aplicada.
+- **Panel de opciones descarga/guardado**: Checkboxes existen en legacy/V2 pero UI podría mejorarse.
+
+### 📍 Estado final
+- **Qué quedó mejor**: 
+  - Centro Legal tiene Constitución versionada y ejecutable
+  - Reglas de visibilidad son claras y predecibles
+  - CTA dinámico no puede mentir (función pura)
+  - Copy inmutable elimina inconsistencias
+  - Switch permite rollback sin riesgo
+  - Legacy preservado (cero pérdida de funcionalidad)
+  - Documentación exhaustiva (4 docs, 95% coverage)
+  
+- **Qué sigue pendiente**: 
+  - Testing manual (9 escenarios)
+  - Validación de payloads a edge functions
+  - Certificación end-to-end (TSA + Polygon + Bitcoin)
+  - Análisis de código obsoleto (diff)
+  - Cutover (después de validación)
+
+### 💬 Nota del dev
+
+"Esta iteración demuestra que la madurez técnica NO está en refactorizar todo, sino en saber QUÉ tocar y QUÉ dejar intacto.
+
+Copiamos 1900 líneas de código del legacy sin cambiar ni una coma de la lógica de certificación. ¿Por qué? Porque funciona. Porque no está roto. Porque el riesgo de romper contratos backend es mayor que el beneficio de 'ordenar código'.
+
+La estrategia quirúrgica fue:
+1. Copiar TODO el legacy (diseño + lógica)
+2. Aplicar SOLO cambios de Constitución (visibilidad, CTA, toasts)
+3. Mantener contratos backend INMUTABLES
+4. Documentar exhaustivamente
+5. Testing antes de cutover
+
+Eso no es cobardía, es disciplina. Eso no es falta de ambición, es respeto por lo que funciona.
+
+La Constitución NO es documentación aspiracional. Es contrato ejecutable. El switch NO es 'por si acaso'. Es estrategia de rollback. El testing exhaustivo NO es paranoia. Es profesionalismo.
+
+El momento más peligroso de un producto NO es cuando está roto y lo sabés. Es cuando está 'más o menos bien' y alguien decide 'mejorarlo' sin saber qué va a romper. Esta iteración evita eso.
+
+V2 NO es una reescritura. Es una reimplementación guiada por reglas explícitas. La diferencia es crítica: reescritura = 'hacemos todo de nuevo mejor'. Reimplementación = 'mantenemos lo que funciona, refinamos lo que puede mejorar'.
+
+Copy inmutable ('Documento listo' vs 'Documento cargado') parece detalle menor, pero es intención central. Cada palabra fue elegida para generar calma, no ansiedad. 'Listo' implica completitud. 'Cargado' implica proceso. Esa diferencia sutil cambia percepción subconsciente del usuario.
+
+CTA dinámico como función pura elimina bugs futuros. Antes: string hardcodeado en JSX que se desincroniza del estado. Ahora: derivación pura que no puede mentir. Si `mySignature && userHasSignature && signatureType`, entonces CTA incluye 'firmar'. Si no, no. Simple. Determinista. Confiable.
+
+Visibilidad condicional de acciones es la regla UX más importante: usuario NO ve opciones sin contexto. Si no cargaste documento, no ves acciones. Si elegiste acción desde Home, la ves inmediatamente. Sistema responde al usuario, no lo empuja. Eso es empoderamiento silencioso.
+
+Switch controlado con flag NO es 'para testing'. Es estrategia de producción. Permite:
+- Deploy V2 sin romper V1
+- A/B testing con usuarios reales
+- Rollback instantáneo si falla
+- Validación gradual (internos → beta → todos)
+- Coexistencia sin conflictos
+
+Eso no es sobrecarga, es profesionalismo. Producto maduro NO lanza features sin red de seguridad.
+
+Documentación exhaustiva (4 docs, ~2400 líneas) NO es burocracia. Es transferencia de conocimiento. Si mañana otro dev toca Centro Legal, DEBE leer Constitución primero. Si no puede justificar cambio citando regla, cambio NO pasa. Eso protege producto de deriva aleatoria.
+
+Próximo paso NO es mergear. Es testing manual exhaustivo. 9 escenarios documentados, cada checkbox es regla de negocio. Si pasa → mergear. Si falla → ajustar específicamente lo que falle, NO 'arreglar todo'.
+
+Cutover planificado en 3 fases NO es lentitud. Es prudencia. Testing interno → staging → prod. Eliminar legacy solo después de validación completa. No hay prisa en borrar, hay precisión en validar.
+
+La métrica de éxito NO es 'cuántas líneas refactorizamos'. Es 'cuántos bugs NO introdujimos'. Si después de este cambio todo funciona igual visualmente pero las reglas son más claras, ganamos. Si algo se rompe, perdimos.
+
+Este cambio cierra un ciclo: empezamos con intuiciones ('Polygon certifica, Bitcoin refuerza'), pasamos por decisiones escritas (Fase 5), y ahora tenemos Constitución ejecutable. De implícito → explícito → inmutable.
+
+Si alguien futuro lee esto y piensa 'esto es mucho proceso para un modal', no entendió. Centro Legal NO es un modal. Es el contrato implícito entre EcoSign y el usuario. Es donde 'acompañar sin dirigir' se prueba. Es donde la confianza se gana o se pierde. Por eso merece Constitución, switch, testing exhaustivo, y cutover planificado. Por eso NO se refactoriza 'porque sí'. Por eso cada cambio cita una regla."
+
+**Commits**:
+- `327ad69`: Legal Center Constitution + Certify action
+- `6f62c76`: Align certification state flow in UI (Fase 5 polish)
+- `b922956`: Create LegalCenterModalV2 with Constitution logic
+- `3de174c`: Add V2 switch in LegalCenterRoot
+- `6238408`: Add V2 ready for testing document
+- `a9d56d5`: Migration analysis and status
+
+**Rama**: `feature/legal-center-v2`  
+**Deploy**: ⏳ Pendiente testing manual  
+**Status**: ✅ Ready for Manual Testing (95% complete)
+
+---

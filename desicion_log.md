@@ -2363,3 +2363,95 @@ Si alguien futuro lee esto y piensa 'esto es mucho proceso para un modal', no en
 **Status**: ✅ Ready for Manual Testing (95% complete)
 
 ---
+
+## Iteración 2025-12-17 — Home: Explicaciones sin Ensuciar CTAs
+
+### 🎯 Objetivo
+Educar al usuario sobre las 4 acciones principales sin sobrecargar los CTAs, manteniendo jerarquía visual limpia y reforzando que las acciones son composables.
+
+### 🧠 Decisiones tomadas
+- **CTA limpios, descripción separada**: Los botones NO llevan subtextos. Descripción va debajo, bien espaciada.
+- **Lectura vertical centrada**: No grid de comparación. Fila vertical con mucho aire. Usuario lee secuencialmente, no compara lateralmente.
+- **Orden intencional**: Certificar primero (protagonista), luego Firmar, Flujo, NDA. El orden comunica jerarquía.
+- **Copy corto elegido**: "No son caminos separados. Todas las acciones se pueden combinar en un mismo proceso." Variante corta, clara, sin tecnicismos.
+- **Copy de descripciones alineado con narrativa**:
+  - Certificar: "integridad + trazabilidad" (evidencia, no blockchain)
+  - Firmar: "constancia verificable" (quién, cuándo, cómo)
+  - Flujo: "registrá todo el proceso" (múltiples partes)
+  - NDA: "evidencia verificable" (confidencialidad + proof)
+
+### 🛠️ Cambios realizados
+- Añadido bloque explicativo debajo de los 4 CTAs
+- Estructura: ícono sutil + título bold + 2 líneas descripción
+- Mensaje cierre con border-top (jerarquía visual)
+- Spacing aumentado: `mb-12` entre CTAs y explicaciones
+- Todo centrado, max-w-2xl para lectura cómoda
+
+### 🚫 Qué NO se hizo (a propósito)
+- **NO mezclamos descripción con CTA**: Botón queda limpio, accionable, sin carga cognitiva.
+- **NO usamos cuadrantes**: Grid generaría comparación lateral. Queremos secuencia.
+- **NO hablamos de blockchain ni tecnología**: Copy humano, centrado en beneficio.
+- **NO forzamos un camino**: Copy refuerza libertad ("no son separados").
+
+### ⚠️ Consideraciones / deuda futura
+- **A/B testing copy**: Podríamos testear versión extendida vs corta del mensaje final.
+- **Adaptación por vertical**: Copy podría ajustarse según tipo de usuario (abogado, realtor, empresa).
+- **Video explicativo**: Link opcional "Ver cómo funciona" (no prioritario).
+
+### 📍 Estado final
+- **Qué quedó mejor**: 
+  - Usuario entiende qué hace cada acción sin adivinar
+  - CTA mantienen peso visual y claridad
+  - Certificación tiene protagonismo sin competir visualmente
+  - Mensaje de composabilidad elimina ansiedad de "elegir mal"
+  - Orden comunica jerarquía natural del producto
+  
+- **Qué sigue pendiente**: 
+  - Testing manual (ver si usuarios leen descripciones)
+  - Validar si mensaje de cierre genera acción o confunde
+  - Métricas: % de usuarios que eligen cada acción
+
+### 💬 Nota del dev
+
+"Este cambio es sutil pero crítico. La diferencia entre un producto que 'hace muchas cosas' y uno que 'empodera' está en cómo explica sin empujar.
+
+CTAs limpios = acción clara. Descripción separada = educación sin fricción. Mensaje de cierre = permiso para explorar.
+
+El copy 'No son caminos separados' hace algo muy potente: convierte potencial ansiedad en confianza. Usuario no piensa '¿y si elijo mal?' sino 'puedo empezar tranquilo y ajustar después'.
+
+Eso prepara mentalmente para Centro Legal. Cuando ve que aparecen opciones, activa/desactiva cosas, CTA cambia dinámicamente, su cerebro ya entiende: 'Ah, esto era lo que me dijeron'. No hay sorpresa cognitiva.
+
+El orden (Certificar → Firmar → Flujo → NDA) NO es alfabético ni arbitrario. Es intencional:
+1. Certificar = caballo de batalla, protagonista natural
+2. Firmar = segunda acción más común
+3. Flujo = uso avanzado, multi-party
+4. NDA = caso específico, menos frecuente
+
+Ese orden comunica prioridad sin palabras. Usuario naturalmente mira arriba primero → ve Certificar. Refuerzo subconsciente.
+
+Copy de descripciones evita jerga técnica deliberadamente:
+- NO: 'blockchain', 'hash', 'timestamping'
+- SÍ: 'integridad', 'trazabilidad', 'verificable'
+
+Palabras que generan confianza, no confusión. Legal pero humano. Serio pero accesible.
+
+Íconos sutiles (emoji grises) NO compiten con texto. Solo ayudan a escanear rápido. Usuario que lee completo → ignora íconos. Usuario que escanea → íconos guían. Win-win.
+
+Spacing generoso (mb-12, space-y-8) NO es desperdicio de espacio. Es respiro cognitivo. Interfaz densa genera ansiedad. Interfaz con aire genera calma. Queremos calma.
+
+Border-top en mensaje de cierre NO es decoración. Es señal visual: 'esto es conclusión, no descripción'. Separa información de consejo. Usuario procesa diferente.
+
+Este cambio cierra loop conceptual:
+- Home explica y empodera
+- Centro Legal ejecuta y adapta
+- Usuario lidera, sistema responde
+
+Si alguien futuro quiere cambiar copy: primero preguntá POR QUÉ cada palabra está ahí. 'Integridad' vs 'seguridad', 'verificable' vs 'confiable', 'proceso' vs 'flujo' → cada elección tiene intención.
+
+Próximo paso: ver métricas. Si usuarios leen descripciones → ganamos educación sin fricción. Si las ignoran y eligen correcto igual → CTA son suficientemente claros. Ambos son victoria."
+
+**Commit**: `c29c4b8`  
+**Deploy**: ⏳ Pendiente testing  
+**Status**: ✅ Ready for User Testing
+
+---

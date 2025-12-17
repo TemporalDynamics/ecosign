@@ -36,6 +36,9 @@ const deriveProbativeState = (doc, planTier) => {
   const bitcoinStatus = doc.bitcoin_status;
   const bitcoinPending = bitcoinStatus === "pending";
   const bitcoinConfirmed = bitcoinStatus === "confirmed";
+  
+  // pending_anchor es estado técnico, NO estado probatorio
+  const polygonAnchoring = doc.overall_status === "pending_anchor" && !hasPolygon;
 
   const certified = hasTsa && hasPolygon && ecoAvailable;
   const irrefutable = certified && bitcoinConfirmed;
@@ -55,6 +58,7 @@ const deriveProbativeState = (doc, planTier) => {
     config: PROBATIVE_STATES[level],
     hasTsa,
     hasPolygon,
+    polygonAnchoring,
     ecoAvailable,
     ecoxAvailable,
     bitcoinPending,
@@ -418,6 +422,7 @@ function DocumentsPage() {
                   {filteredDocuments.map((doc) => {
                     const {
                       config,
+                      polygonAnchoring,
                       bitcoinPending,
                       bitcoinConfirmed,
                       ecoAvailable,
@@ -435,6 +440,12 @@ function DocumentsPage() {
                             <FileText className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
                             <div>
                               <div className="text-sm font-medium text-gray-900">{doc.document_name}</div>
+                              {polygonAnchoring && (
+                                <div className="text-xs text-blue-700 mt-0.5 flex items-center gap-1">
+                                  <Clock className="h-3 w-3 animate-pulse" />
+                                  Anclaje en Polygon en proceso (~60s)
+                                </div>
+                              )}
                               {bitcoinPending && (
                                 <div className="text-xs text-blue-700 mt-0.5">
                                   Refuerzo probatorio en proceso (Bitcoin 4-24h)

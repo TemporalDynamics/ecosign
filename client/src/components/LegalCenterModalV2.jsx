@@ -191,8 +191,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   // TODO: FEATURE PARCIAL - UI de anotaciones existe pero no hay lógica de escritura sobre el PDF
   const [annotationMode, setAnnotationMode] = useState(null); // 'signature', 'highlight', 'text'
   const [annotations, setAnnotations] = useState([]); // Lista de anotaciones (highlights y textos)
-  const [savePdfChecked, setSavePdfChecked] = useState(true);
-  const [downloadPdfChecked, setDownloadPdfChecked] = useState(false);
 
   // Helper: Convertir base64 a Blob
   const base64ToBlob = (base64) => {

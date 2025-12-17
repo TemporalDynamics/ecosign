@@ -19,10 +19,16 @@ function DashboardStartPage() {
           <p className="text-lg text-gray-600 max-w-3xl mx-auto mb-8">
             Desde acá podés firmar, certificar, compartir bajo NDA y verificar tus documentos de forma segura. Elegí una acción para continuar.
           </p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <button
+              onClick={() => openLegalCenter('certify')}
+              className="bg-gradient-to-r from-black to-gray-800 text-white font-semibold px-8 py-3 rounded-xl shadow hover:shadow-lg transition text-center"
+            >
+              Certificar Documento
+            </button>
             <button
               onClick={() => openLegalCenter('sign')}
-              className="bg-gradient-to-r from-black to-gray-800 text-white font-semibold px-8 py-3 rounded-xl shadow hover:shadow-lg transition text-center"
+              className="bg-white border-2 border-gray-200 text-gray-700 hover:border-black600 hover:text-black font-semibold px-8 py-3 rounded-xl shadow-sm transition text-center"
             >
               Firmar un Documento
             </button>

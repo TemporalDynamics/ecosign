@@ -103,6 +103,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [showCertifiedModal, setShowCertifiedModal] = useState(false);
   const [certifiedSubType, setCertifiedSubType] = useState(null); // 'qes' | 'mifiel' | 'international' | null
 
+  // MIGRACIÓN: Opciones de descarga/guardado (del legacy)
+  const [savePdfChecked, setSavePdfChecked] = useState(true); // Guardar en Supabase
+  const [downloadPdfChecked, setDownloadPdfChecked] = useState(false); // Descargar localmente
+
   // Saldos de firma (mock data - en producción viene de la DB)
   const [ecosignUsed, setEcosignUsed] = useState(30); // Firmas usadas
   const [ecosignTotal, setEcosignTotal] = useState(50); // Total del plan

@@ -26,8 +26,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
-// Register service worker
-if ('serviceWorker' in navigator) {
+// Register service worker (only in production)
+const isProduction = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
+
+if ('serviceWorker' in navigator && isProduction) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
       .then(registration => {
@@ -36,5 +38,13 @@ if ('serviceWorker' in navigator) {
       .catch(registrationError => {
         console.log('SW registration failed: ', registrationError);
       });
+  });
+} else if ('serviceWorker' in navigator && !isProduction) {
+  // Unregister any existing service workers in development
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(registration => {
+      registration.unregister();
+      console.log('SW unregistered in development:', registration);
+    });
   });
 }

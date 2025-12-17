@@ -10,35 +10,18 @@ const urlsToCache = [
   '/assets/icons/icon-512x512.png',
 ];
 
-// Solo activar en producción (no en localhost)
-const isProduction = !self.location.hostname.includes('localhost') && !self.location.hostname.includes('127.0.0.1');
-
 self.addEventListener('install', (event) => {
-  if (!isProduction) {
-    console.log('[SW] Service Worker disabled in development');
-    self.skipWaiting();
-    return;
-  }
-  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Opened cache');
         return cache.addAll(urlsToCache);
       })
-      .catch((err) => {
-        console.warn('[SW] Cache addAll failed:', err);
-      })
   );
   self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Bypass Service Worker in development
-  if (!isProduction) {
-    return;
-  }
-
   const { request } = event;
   // Network-first for HTML/JS/CSS to avoid serving stale hashed assets
   if (request.destination === 'document' || request.destination === 'script' || request.destination === 'style') {
@@ -52,7 +35,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request)
       .then((response) => response || fetch(request))
-      .catch(() => fetch(request))
   );
 });
 

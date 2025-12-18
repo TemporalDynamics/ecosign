@@ -579,6 +579,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+        hasPolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
         hasBitcoinAnchor: bitcoinRequested,
         bitcoinAnchorId: certResult?.bitcoinAnchor?.anchorId || null,
         bitcoinStatus: bitcoinPending ? 'pending' : null,

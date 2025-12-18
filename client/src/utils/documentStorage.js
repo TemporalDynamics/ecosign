@@ -19,6 +19,7 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     signNowStatus = null,
     signedAt = null,
     hasLegalTimestamp = false,
+    hasPolygonAnchor = false,
     hasBitcoinAnchor = false,
     bitcoinAnchorId = null,
     bitcoinStatus = null,
@@ -113,7 +114,8 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
       signnow_status: signNowStatus,
       signed_at: signedAt,
       eco_hash: documentHash,
-      zero_knowledge_opt_out: !storePdf || zeroKnowledgeOptOut
+      zero_knowledge_opt_out: !storePdf || zeroKnowledgeOptOut,
+      has_polygon_anchor: hasPolygonAnchor
     })
     .select()
     .single();

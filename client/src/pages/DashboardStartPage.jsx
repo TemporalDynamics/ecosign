@@ -45,12 +45,13 @@ function DashboardStartPage() {
               Enviar NDA
             </button>
           </div>
+        </section>
 
-          {/* Explicaciones centradas */}
-          <div className="max-w-2xl mx-auto space-y-8 text-center">
-            <p className="text-sm text-gray-500 font-medium mb-6">
-              ¿No estás seguro por dónde empezar?
-            </p>
+        {/* Explicaciones centradas (fuera del panel blanco) */}
+        <section className="max-w-2xl mx-auto space-y-8 text-center">
+          <p className="text-sm text-gray-500 font-medium mb-6">
+            ¿No estás seguro por dónde empezar?
+          </p>
 
             {/* Certificar */}
             <div className="space-y-2">

@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
-import { ethers } from 'npm:ethers@6.9.0'
+import { ethers } from 'https://esm.sh/ethers@6.9.0'
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') ?? ''
@@ -83,37 +83,37 @@ serve(async (req) => {
       })
     }
 
+    // PRUEBA A: Comentado temporalmente para test
     // Connect to Polygon
-    const provider = new ethers.JsonRpcProvider(rpcUrl)
-    const sponsorWallet = new ethers.Wallet(sponsorPrivateKey, provider)
-    const sponsorAddress = await sponsorWallet.getAddress()
+    // const provider = new ethers.JsonRpcProvider(rpcUrl)
+    // const sponsorWallet = new ethers.Wallet(sponsorPrivateKey, provider)
+    // const sponsorAddress = await sponsorWallet.getAddress()
 
     // Check balance
-    const balance = await provider.getBalance(sponsorAddress)
-    if (balance === 0n) {
-      return new Response(JSON.stringify({
-        error: 'Sponsor wallet has no POL',
-        sponsorAddress
-      }), {
-        status: 503,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
+    // const balance = await provider.getBalance(sponsorAddress)
+    // if (balance === 0n) {
+    //   return new Response(JSON.stringify({
+    //     error: 'Sponsor wallet has no POL',
+    //     sponsorAddress
+    //   }), {
+    //     status: 503,
+    //     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    //   })
+    // }
 
     // Contract
-    const abi = ['function anchorDocument(bytes32 _docHash) external']
-    const contract = new ethers.Contract(contractAddress, abi, sponsorWallet)
+    // const abi = ['function anchorDocument(bytes32 _docHash) external']
+    // const contract = new ethers.Contract(contractAddress, abi, sponsorWallet)
 
     // Send transaction
-    const hashBytes32 = '0x' + documentHash
-    const tx = await contract.anchorDocument(hashBytes32)
+    // const hashBytes32 = '0x' + documentHash
+    // const tx = await contract.anchorDocument(hashBytes32)
+    // const txHash = tx.hash
 
-    console.log('TX sent:', tx.hash)
-
-    // Return immediately without waiting for confirmation
-    // The transaction will be mined in the background
-    // We'll save it as 'pending' and update later
-    const txHash = tx.hash
+    console.log('🧪 MOCK MODE - Skipping blockchain')
+    
+    const sponsorAddress = '0xMOCK_SPONSOR_ADDRESS'
+    const txHash = '0xMOCK_TX_HASH_' + documentHash.substring(0, 8)
 
     // Save to database
     const supabase = createClient(

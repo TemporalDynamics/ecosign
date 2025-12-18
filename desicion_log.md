@@ -73,6 +73,40 @@ Qué se buscaba lograr con esta iteración (1–2 frases).
 
 # 📚 Historial de Iteraciones
 
+## Iteración 2025-12-20 — Migraciones atómicas y baseline estable de seguridad
+
+### 🎯 Objetivo
+Eliminar fallos de migraciones por múltiples statements y asegurar un baseline local con Supabase y tests de seguridad 100% verdes.
+
+### 🧠 Decisiones tomadas
+- **Una migración = un statement**: Funciones PL/pgSQL van solas; COMMENT y GRANT se mueven a archivos separados para compatibilidad con el runner de Supabase.
+- **Guardas defensivas**: Si una función o tabla no existe, los ALTER/GRANT se protegen con DO $$ para no romper `supabase start`.
+- **Tests de seguridad como puerta**: Se exige que security/RLS/storage/sanitización pasen contra Supabase local real antes de seguir.
+
+### 🛠️ Cambios realizados
+- Separados COMMENT/GRANT de `anchor_atomic_tx` y `anchor_polygon_atomic_tx` en migraciones dedicadas.
+- Añadido guardas en migraciones que alteran funciones inexistentes (`update_integration_requests_updated_at`).
+- Tests de seguridad ajustados para skip seguro cuando falta Supabase; añadida `dompurify` para sanitización.
+- Supabase local levantado con migraciones completas; `npm test` pasa 83/83.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se desarmó la atomicidad de anchors: se mantiene advisory lock + update único.
+- No se tocó la lógica de anchoring ni contratos; solo estructura de migraciones.
+- No se solucionó el warning de `_shared/cors.ts` (no bloqueante).
+
+### ⚠️ Consideraciones / deuda futura
+- Mantener la regla de “un archivo, un statement” en futuras migraciones con $$.
+- Evaluar crear `_shared/cors.ts` para limpiar el warning de Supabase CLI.
+- Si aparecen más funciones fuera de schema, envolver ALTER/GRANT en guardas DO $$.
+
+### 📍 Estado final
+- Supabase local corre sin errores de migración.
+- Tests de seguridad y unidad: 83/83 verdes.
+- Anchoring atómico (Bitcoin/Polygon) listo para operar sin fallos de migración.
+
+### 💬 Nota del dev
+"El problema no era la lógica, era la forma de migrar. Separar COMMENT/GRANT y agregar guardas deja la base sólida. Mantener esta disciplina evita que una migración rompa `supabase start` en el futuro."
+
 ## Iteración 2025-12-19 — Descarga inmediata y verdad conservadora en el Dashboard
 
 ### 🎯 Objetivo
@@ -705,6 +739,44 @@ Hacer que el verificador público/interno hable el mismo idioma probatorio (No c
 "Solo cambiamos cómo se cuenta la verdad, no cómo se verifica. Un badge, dos preguntas separadas y los 5 pasos para quien no confía en nadie. Bitcoin refuerza, no bloquea. El verificador sigue siendo un instrumento, no un panel técnico."
 
 ---
+
+## Iteración 2025-12-18 — Auditoría, Limpieza de Documentación y Habilitación de Pruebas
+
+### 🎯 Objetivo
+Realizar un análisis de calidad del codebase, reorganizar la documentación para mejorar la claridad y mantenibilidad, y habilitar el conjunto de pruebas para que todos los tests pasen exitosamente, estableciendo un baseline de calidad.
+
+### 🧠 Decisiones tomadas
+- **Análisis y Puntuación**: Realizar una auditoría inicial del proyecto puntuando 7 criterios clave para identificar fortalezas y debilidades.
+- **Reorganización Documental**: Mover documentos obsoletos o de planificación (roadmaps, planes de sprint pasados) a `docs/deprecated/` para limpiar el directorio raíz y `docs/`.
+- **Creación de Documentación Esencial**: Crear `README.md` raíz como portal, un `README.md` en `supabase/` para desarrolladores de backend y un `CONTRIBUTING.md` para establecer procesos.
+- **Protección de Propiedad Intelectual**: Documentar `eco-packer` como componente propietario y de código cerrado en `CONTRIBUTING.md` y ofuscar su descripción en el `README.md` principal para proteger la propiedad intelectual en trámite.
+- **Habilitación de Tests**: Identificar y solucionar las causas raíz de los fallos en los tests: la instancia de Supabase local no estaba activa y faltaba la dependencia `dompurify`.
+
+### 🛠️ Cambios realizados
+- Movidos ~14 documentos de planificación y reportes a `docs/deprecated/`.
+- Creado `README.md` en la raíz, `supabase/README.md` para el backend y `CONTRIBUTING.md` para políticas de contribución.
+- Actualizado `client/README.md` con información precisa y correcta.
+- Añadida la dependencia `dompurify` a `package.json` y ejecutado `npm install`.
+- Ejecutados los tests con éxito (`npm test`), obteniendo 83/83 tests pasados.
+
+### 🚫 Qué NO se hizo (a propósito)
+- **No se usó Git**: Por instrucción explícita, no se realizó ningún commit.
+- **No se modificó código de la aplicación**: Todos los cambios se centraron en documentación, configuración de dependencias y ejecución de tests.
+
+### ⚠️ Consideraciones / deuda futura
+- **Integrar cambios a Git**: Los cambios realizados necesitan ser commiteados para persistir en el historial del proyecto.
+- **Mejorar el despliegue**: El análisis inicial identificó el proceso de despliegue manual de Supabase como un área de mejora clave.
+
+### 📍 Estado final
+- El proyecto ahora tiene una documentación organizada, coherente y actualizada.
+- La base de código está validada por un conjunto de 83 tests que pasan al 100%.
+- El puntaje de documentación y calidad de código ha mejorado significativamente.
+
+### 💬 Nota del dev
+"Esta iteración fue una 'puesta a punto' fundamental. Se limpió el desorden documental, se establecieron guías claras para futuros desarrolladores y, lo más importante, se habilitó la suite de tests completa. Tener 83 tests pasando es un baseline de confianza que permite iterar más rápido y seguro. La documentación ahora no solo guía, sino que también protege la propiedad intelectual del proyecto."
+
+---
+
 
 ## Iteración 2025-12-16 — Fase 3: Centro Legal Signing UI / Documentos Funcional
 

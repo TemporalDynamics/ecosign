@@ -14,6 +14,25 @@
 -- 1. SECURITY FIXES: Set secure search_path for trigger functions
 -- =================================================================
 
+-- Safety: ensure function exists so ALTER doesn't fail in fresh/local setups
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc WHERE proname = 'update_integration_requests_updated_at'
+  ) THEN
+    CREATE OR REPLACE FUNCTION public.update_integration_requests_updated_at()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    AS $fn$
+    BEGIN
+      NEW.updated_at = now();
+      RETURN NEW;
+    END;
+    $fn$;
+  END IF;
+END;
+$$;
+
 -- Fix for function reported by Supabase
 ALTER FUNCTION public.update_integration_requests_updated_at() SET search_path = public;
 
@@ -56,13 +75,21 @@ CREATE POLICY "Users can view events for their documents"
 COMMENT ON POLICY "Users can view events for their documents" ON public.events IS 'Optimized to evaluate auth.uid() once per query.';
 
 
--- Policy on: public.integration_requests
--- Name: "Users can view their own integration requests"
-DROP POLICY IF EXISTS "Users can view their own integration requests" ON public.integration_requests;
-CREATE POLICY "Users can view their own integration requests"
-  ON public.integration_requests FOR SELECT
-  USING ((SELECT auth.uid()) = user_id);
-COMMENT ON POLICY "Users can view their own integration requests" ON public.integration_requests IS 'Optimized to evaluate auth.uid() once per query.';
+-- Policy on: public.integration_requests (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'integration_requests'
+  ) THEN
+    DROP POLICY IF EXISTS "Users can view their own integration requests" ON public.integration_requests;
+    CREATE POLICY "Users can view their own integration requests"
+      ON public.integration_requests FOR SELECT
+      USING ((SELECT auth.uid()) = user_id);
+    COMMENT ON POLICY "Users can view their own integration requests" ON public.integration_requests IS 'Optimized to evaluate auth.uid() once per query.';
+  END IF;
+END;
+$$;
 
 -- =================================================================
 -- MIGRATION COMPLETE

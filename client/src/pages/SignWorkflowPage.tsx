@@ -849,6 +849,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         {step === 'completed' && signerData && (
           <CompletionScreen
             workflowTitle={signerData.workflow.title}
+            userDocumentId={null}
             onDownloadECO={handleDownloadECO}
             onClose={() => navigate('/')}
           />

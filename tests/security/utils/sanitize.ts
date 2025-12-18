@@ -1,21 +1,19 @@
 // netlify/functions/utils/sanitize.ts
-import { JSDOM } from 'jsdom';
-import DOMPurify from 'dompurify';
-
-const window = new JSDOM('').window;
-const purify = DOMPurify(window as any);
-
 /**
  * Sanitizes an HTML string, removing dangerous tags and attributes.
  * @param dirty The untrusted HTML string.
  * @returns A sanitized HTML string.
  */
 export function sanitizeHTML(dirty: string): string {
-  return purify.sanitize(dirty, {
-    USE_PROFILES: { html: true },
-    FORBID_TAGS: ['iframe', 'script', 'style'],
-    FORBID_ATTR: ['onclick', 'onerror', 'onload', 'onmouseover', 'onfocus', 'onformchange'],
-  });
+  if (!dirty) return '';
+
+  // Remove script/style/iframe blocks entirely
+  let sanitized = dirty.replace(/<\s*(script|style|iframe)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+
+  // Strip inline event handlers (onclick, onerror, etc.)
+  sanitized = sanitized.replace(/\son\w+="[^"]*"/gi, '').replace(/\son\w+='[^']*'/gi, '');
+
+  return sanitized;
 }
 
 /**

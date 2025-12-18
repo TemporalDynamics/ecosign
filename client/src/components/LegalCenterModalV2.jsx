@@ -934,7 +934,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const leftColWidth = (ndaEnabled && step !== 2) ? '320px' : '0px';
   const rightColWidth = (workflowEnabled && step !== 2) ? '320px' : '0px';
   const centerColWidth = 'minmax(640px, 1fr)';
-  const gridTemplateColumns = `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
+  
+  // En step 2, usar grid de 1 columna para centrar mejor el contenido
+  const gridTemplateColumns = step === 2 
+    ? '1fr' 
+    : `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
 
   return (
     <>
@@ -997,7 +1001,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
         
           {/* Center Panel (Main Content) */}
-          <div className="center-panel col-start-2 col-end-3 px-6 py-3 relative z-20">
+          <div className={`center-panel px-6 py-3 relative z-20 ${step === 2 ? '' : 'col-start-2 col-end-3'}`}>
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
               <div className="space-y-3">

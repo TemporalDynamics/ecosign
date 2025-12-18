@@ -572,12 +572,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           fileName: certResult?.fileName || file.name,
           createdAt: new Date().toISOString()
         } : null,
+        ecoBuffer: certResult?.ecoxBuffer,
+        ecoFileName: certResult?.fileName ? certResult.fileName.replace(/\.[^/.]+$/, '.eco') : file.name.replace(/\.[^/.]+$/, '.eco'),
         signNowDocumentId: signNowResult?.signnow_document_id || null,
         signNowStatus: signNowResult?.status || null,
         signedAt: signNowResult ? new Date().toISOString() : null,
         storePdf: false, // No guardar PDF en dashboard (será eliminado)
         zeroKnowledgeOptOut: true // Zero-knowledge: no guardar contenido del PDF
       });
+
+      if (savedDoc) {
+        window.dispatchEvent(new CustomEvent('ecosign:document-created', { detail: savedDoc }));
+      }
 
       // 3. Registrar evento 'created' (ChainLog)
       if (savedDoc?.id) {

@@ -73,6 +73,42 @@ Qué se buscaba lograr con esta iteración (1–2 frases).
 
 # 📚 Historial de Iteraciones
 
+## Iteración 2025-12-19 — Descarga inmediata y verdad conservadora en el Dashboard
+
+### 🎯 Objetivo
+Que el usuario sienta que el certificado existe y está disponible sin refrescar la página, y que el preview muestre solo estados confirmados por el backend con lenguaje claro y sin jerga técnica.
+
+### 🧠 Decisiones tomadas
+- **Eventos en tiempo real (UI)**: El Centro Legal emite `ecosign:document-created` al guardar un certificado; Documents escucha y recarga la lista sin F5. La UI refleja la realidad apenas el backend confirma.
+- **Descarga binaria forzada**: Las descargas de ECO/ECOX/PDF usan fetch + Blob + `<a download>` para evitar que el navegador abra el JSON. Cero dependencia de headers de Supabase.
+- **Copy conservador y humano**: El preview evita jerga (blockchain/TSA) y muestra solo estados confirmados. Se habla de “registro público” y “refuerzo independiente” en lugar de detalles técnicos.
+- **Metadatos probatorios enriquecidos**: El .eco incluye `intended_use` y `human_summary` legibles para abogados, reforzando la comprensión probatoria del certificado.
+
+### 🛠️ Cambios realizados
+- DocumentsPage: escucha `ecosign:document-created` y refresca documentos en caliente; descarga binaria con filename correcto.
+- LegalCenter (V1/V2): emite evento tras guardar; pasa eco buffer/nombre para persistir y descargar; mantiene animación pero ahora la lista se actualiza al instante.
+- Preview: renombrado de estados (“Sello de tiempo verificado”, “Registro público rápido”, “Refuerzo independiente”) y mensaje de escudo “solo muestra lo confirmado por el servidor”.
+- Generación .eco: agrega bloques `intended_use` y `human_summary`.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se implementó un watcher realtime de Supabase; usamos evento local porque basta para el flujo inmediato post-certificación.
+- No se tocaron los contratos ni las políticas de estados probatorios.
+- No se expuso jerga técnica al usuario final (blockchain/TSA quedan ocultos).
+
+### ⚠️ Consideraciones / deuda futura
+- Si el certificado se crea desde otro dispositivo/sesión, hoy requiere refresh manual; podría evaluarse un canal realtime (Supabase) si el caso aparece.
+- Tooltips simples podrían añadirse para explicar “registro público”/“refuerzo independiente” sin hablar de blockchain; lo dejamos opcional.
+- Mantener la regla de oro: el preview nunca debe mostrar más de lo confirmado por el backend.
+
+### 📍 Estado final
+- La lista de Documentos se actualiza al instante tras certificar, sin recarga.
+- Las descargas bajan como archivo binario, no se abren en el navegador.
+- El preview es conservador, claro y sin tecnicismos; refleja la verdad persistida.
+- El .eco lleva contexto probatorio adicional para lectura humana.
+
+### 💬 Nota del dev
+"Prioridad absoluta: verdad conservadora y sensación de control. El usuario ve el certificado aparecer sin refrescar, lo descarga sin abrirlo en el browser y lee estados con lenguaje llano. Si alguien toca la UI de estados, mantener la regla: nunca optimista; solo backend-confirmed."
+
 ## Iteración 2025-12-13 — Estabilización del Centro Legal
 
 ### 🎯 Objetivo

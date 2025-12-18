@@ -1,0 +1,781 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { X, ArrowLeft, Shield, Upload, FileText, Users, Pen, Type, Eraser } from 'lucide-react';
+import toast from 'react-hot-toast';
+import '../styles/legalCenterAnimations.css';
+import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
+import { saveUserDocument } from '../utils/documentStorage';
+import { startSignatureWorkflow } from '../lib/signatureWorkflowService';
+import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
+import { applySignatureToPDF, blobToFile } from '../utils/pdfSignature';
+import { EventHelpers } from '../utils/eventLogger';
+import { getSupabase } from '../lib/supabaseClient';
+import InhackeableTooltip from './InhackeableTooltip';
+import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
+
+/**
+ * Centro Legal V2 - Reimplementación siguiendo LEGAL_CENTER_CONSTITUTION.md
+ * 
+ * FUENTE DE VERDAD: /LEGAL_CENTER_CONSTITUTION.md v2.0
+ * 
+ * Principio Rector:
+ * "EcoSign acompaña, no dirige. Informa cuando hace falta, no interrumpe. Da seguridad, no ansiedad."
+ * 
+ * Axioma de Control:
+ * "El usuario se siente en control, incluso cuando no interviene."
+ * 
+ * Reglas arquitectónicas:
+ * - 4 Acciones: Certificar (default), Firmar, Flujo de Firmas, NDA
+ * - Acciones solo visibles si: (documentLoaded || initialAction)
+ * - CTA dinámico: función pura del estado
+ * - Copy inmutable: según Constitución
+ * - Contrato backend: inmutable
+ */
+const LegalCenterModalV2 = ({ isOpen, onClose, initialAction = null }) => {
+  
+  // ===== ESTADOS (agrupados por función) =====
+  
+  // Control de documento
+  const [file, setFile] = useState(null);
+  const [documentLoaded, setDocumentLoaded] = useState(false);
+  const [documentPreview, setDocumentPreview] = useState(null);
+  const [previewError, setPreviewError] = useState(false);
+  
+  // Acciones activas (inicializadas según initialAction)
+  const [mySignature, setMySignature] = useState(initialAction === 'sign');
+  const [workflowEnabled, setWorkflowEnabled] = useState(initialAction === 'workflow');
+  const [ndaEnabled, setNdaEnabled] = useState(initialAction === 'nda');
+  
+  // Estado de firma
+  const [userHasSignature, setUserHasSignature] = useState(false);
+  const [signatureType, setSignatureType] = useState(null); // 'legal' | 'certified' | null
+  const [signatureMode, setSignatureMode] = useState('none'); // 'none' | 'canvas' | 'signnow'
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [signatureTab, setSignatureTab] = useState('draw'); // 'draw' | 'type' | 'upload'
+  const [typedSignature, setTypedSignature] = useState('');
+  const [uploadedSignature, setUploadedSignature] = useState(null);
+  
+  // Hook de canvas de firma
+  const { canvasRef, hasSignature, clearCanvas, getSignatureData, handlers } = useSignatureCanvas();
+  
+  // Estado de flujo de firmas
+  const [emailInputs, setEmailInputs] = useState([
+    { email: '', name: '', requireLogin: true, requireNda: true }
+  ]);
+  
+  // Estado de NDA
+  const [ndaText, setNdaText] = useState(`ACUERDO DE CONFIDENCIALIDAD (NDA)
+
+Este documento contiene información confidencial. Al acceder, usted acepta:
+
+1. CONFIDENCIALIDAD
+Mantener la información en estricta confidencialidad y no divulgarla a terceros sin autorización previa por escrito.
+
+2. USO LIMITADO
+Utilizar la información únicamente para los fines acordados.
+
+3. PROTECCIÓN
+Implementar medidas de seguridad razonables para proteger la información confidencial.
+
+4. DEVOLUCIÓN
+Devolver o destruir toda la información confidencial cuando se solicite.
+
+5. DURACIÓN
+Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
+  
+  // Certificación forense (default: activa)
+  const [forensicEnabled, setForensicEnabled] = useState(true);
+  const [forensicConfig, setForensicConfig] = useState({
+    useLegalTimestamp: true,    // RFC 3161 TSA
+    usePolygonAnchor: true,      // Polygon
+    useBitcoinAnchor: true       // Bitcoin
+  });
+  
+  // Loading y estados de proceso
+  const [loading, setLoading] = useState(false);
+  const [certificateData, setCertificateData] = useState(null);
+  
+  // Sistema de guía
+  const guide = useLegalCenterGuide();
+  
+  // ===== FUNCIONES HELPER (declarativas, funciones puras del estado) =====
+  
+  /**
+   * Obtiene el texto del CTA según el estado actual
+   * Regla: Certificación ("Proteger") siempre presente
+   */
+  const getCTAText = () => {
+    const actions = ['Proteger']; // Siempre presente (Constitución: Certificar es default)
+    
+    if (mySignature && userHasSignature && signatureType) {
+      actions.push('firmar');
+    }
+    
+    if (workflowEnabled && emailInputs.some(e => e.email.trim())) {
+      actions.push('enviar mails');
+    }
+    
+    return actions.join(' y ');
+  };
+  
+  /**
+   * Determina si el CTA debe estar activo
+   * Regla: Solo certificar → siempre activo
+   * Regla: Mi Firma → requiere firma aplicada + tipo elegido
+   * Regla: Flujo → requiere ≥1 mail válido
+   */
+  const isCTAEnabled = () => {
+    // Solo certificar: siempre activo
+    if (!mySignature && !workflowEnabled && !ndaEnabled) return true;
+    
+    // Si "Mi Firma" activa: debe tener firma Y tipo elegido
+    if (mySignature) {
+      if (!userHasSignature) return false;
+      if (!signatureType) return false;
+    }
+    
+    // Si "Flujo" activo: debe tener ≥1 mail
+    if (workflowEnabled && !emailInputs.some(e => e.email.trim())) return false;
+    
+    // NDA nunca bloquea
+    
+    return true;
+  };
+  
+  /**
+   * Mensaje de bienvenida condicional según initialAction
+   */
+  const getWelcomeMessage = () => {
+    const base = "Para iniciar el proceso, subí el documento que querés firmar o certificar.\n\nAl subir documento, certificación viene por defecto. Para desactivar (no recomendado): toca el escudo.";
+    
+    if (initialAction === 'sign') {
+      return base + "\n\nComo elegiste firmar, se abrirá el modal de firma automáticamente.";
+    }
+    
+    if (initialAction === 'workflow') {
+      return base + "\n\nComo elegiste Flujo de Firmas, cargá los mails de los destinatarios.";
+    }
+    
+    if (initialAction === 'nda') {
+      return base + "\n\nEl panel NDA está listo para editar. Luego podés firmar y/o enviarlo.";
+    }
+    
+    return base;
+  };
+  
+  /**
+   * Mensaje de éxito al finalizar, según acciones activas
+   */
+  const getSuccessMessage = () => {
+    if (mySignature && workflowEnabled) {
+      return 'Documento firmado, protegido y enviado correctamente.';
+    }
+    if (mySignature) {
+      return 'Documento firmado y protegido correctamente.';
+    }
+    if (workflowEnabled) {
+      return 'Documento protegido y enviado correctamente.';
+    }
+    return 'Documento protegido correctamente.';
+  };
+  
+  // ===== HANDLERS (lógica de interacción) =====
+  
+  /**
+   * Handler de selección de archivo
+   * Constitución: Toast "Documento listo. EcoSign no ve tu documento. La certificación está activada por defecto."
+   */
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+    
+    setFile(selectedFile);
+    setDocumentLoaded(true);
+    setPreviewError(false);
+    
+    // Generar preview según tipo
+    if (selectedFile.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => setDocumentPreview(event.target.result);
+      reader.readAsDataURL(selectedFile);
+    } else if (selectedFile.type === 'application/pdf') {
+      const url = URL.createObjectURL(selectedFile);
+      setDocumentPreview(url);
+    } else {
+      setDocumentPreview(null);
+    }
+    
+    // Toast unificado (Constitución: Documento listo)
+    toast('Documento listo.\nEcoSign no ve tu documento.\nLa certificación está activada por defecto.', {
+      icon: '✓',
+      position: 'top-right',
+      duration: 4000
+    });
+    
+    // Abrir modal de firma automáticamente si corresponde
+    if (initialAction === 'sign' || mySignature) {
+      setShowSignatureModal(true);
+      
+      // Toast informativo (Constitución: 7.1)
+      toast('Vas a poder firmar directamente sobre el documento.', {
+        icon: '✍️',
+        position: 'top-right',
+        duration: 3000
+      });
+    }
+  };
+  
+  /**
+   * Cleanup de URLs de preview
+   */
+  useEffect(() => {
+    return () => {
+      if (documentPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(documentPreview);
+      }
+    };
+  }, [documentPreview]);
+  
+  /**
+   * Handler al aplicar firma
+   * Constitución: Toast "Firma aplicada correctamente" + Toast interactivo de tipos
+   */
+  const handleApplySignature = () => {
+    // Validar que hay firma
+    if (
+      (signatureTab === 'draw' && !hasSignature) ||
+      (signatureTab === 'type' && !typedSignature.trim()) ||
+      (signatureTab === 'upload' && !uploadedSignature)
+    ) {
+      toast.error('Completá tu firma para continuar', {
+        position: 'bottom-right'
+      });
+      return;
+    }
+    
+    setSignatureMode('canvas');
+    setUserHasSignature(true);
+    setShowSignatureModal(false);
+    
+    // Toast positivo (Constitución: 7.2)
+    toast.success('Firma aplicada correctamente.', {
+      position: 'top-right',
+      duration: 2000
+    });
+    
+    // Toast interactivo - Elección de peso legal (Constitución: 7.3)
+    toast.custom((t) => (
+      <div className="bg-white p-5 rounded-xl shadow-2xl border border-gray-200 max-w-sm">
+        <h4 className="font-semibold text-gray-900 mb-3">
+          Elegí el peso legal de tu firma
+        </h4>
+        <div className="flex gap-3 mb-2">
+          <button
+            onClick={() => {
+              setSignatureType('legal');
+              toast.dismiss(t.id);
+              toast.success('Firma legal seleccionada', {
+                position: 'top-right',
+                duration: 2000
+              });
+            }}
+            className="flex-1 px-4 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition"
+          >
+            Firma legal
+          </button>
+          <button
+            onClick={() => {
+              setSignatureType('certified');
+              toast.dismiss(t.id);
+              toast.success('Firma certificada seleccionada', {
+                position: 'top-right',
+                duration: 2000
+              });
+              // TODO: Implementar modal de subtipos certificados si es necesario
+            }}
+            className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition"
+          >
+            Firma certificada
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 text-center">
+          Podés cambiar esta elección más adelante.
+        </p>
+      </div>
+    ), {
+      duration: Infinity,
+      position: 'bottom-center'
+    });
+  };
+  
+  /**
+   * Handler de finalización del proceso
+   */
+  const handleFinalize = async () => {
+    // Validaciones según Constitución
+    if (!isCTAEnabled()) {
+      // Determinar qué falta y mostrar toast específico
+      if (mySignature && !signatureType) {
+        toast.error('Elegí el tipo de firma para continuar.', {
+          position: 'bottom-right'
+        });
+        return;
+      }
+      if (workflowEnabled && !emailInputs.some(e => e.email.trim())) {
+        toast.error('Agregá al menos un correo para continuar.', {
+          position: 'bottom-right'
+        });
+        return;
+      }
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // TODO: Implementar lógica de certificación completa
+      // Este es el esqueleto, la lógica real vendrá del legacy adaptada
+      
+      // Toast de éxito según Constitución
+      toast.success(getSuccessMessage(), {
+        position: 'top-right',
+        duration: 3000
+      });
+      
+      // Cerrar modal después de éxito
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error en finalización:', error);
+      toast.error('Ocurrió un error inesperado. No se perdió ningún dato.', {
+        position: 'bottom-right'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // ===== HANDLERS DE PANELS =====
+  
+  const handleAddEmailField = () => {
+    setEmailInputs([...emailInputs, { email: '', name: '', requireLogin: true, requireNda: true }]);
+  };
+  
+  const handleRemoveEmailField = (index) => {
+    if (emailInputs.length <= 1) return;
+    setEmailInputs(emailInputs.filter((_, i) => i !== index));
+  };
+  
+  const handleEmailChange = (index, field, value) => {
+    const updated = [...emailInputs];
+    updated[index][field] = value;
+    setEmailInputs(updated);
+    
+    // Toast al agregar primer mail válido (Constitución: 8.2)
+    if (field === 'email' && value.trim() && emailInputs.filter(e => e.email.trim()).length === 0) {
+      toast.success('Destinatario agregado correctamente.', {
+        position: 'top-right',
+        duration: 2000
+      });
+    }
+  };
+  
+  // ===== RENDER =====
+  
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
+      
+      {/* Modal */}
+      <div className="relative h-full w-full flex items-center justify-center p-4">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-gray-900">Centro Legal</h2>
+              {forensicEnabled && (
+                <InhackeableTooltip
+                  content={
+                    <div className="text-sm max-w-xs">
+                      <p className="font-semibold mb-2">Certificación activa</p>
+                      <p className="mb-2">
+                        La certificación protege tu documento con trazabilidad verificable.
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Si querés, podés desactivarla desde acá (no recomendado).
+                      </p>
+                    </div>
+                  }
+                  position="bottom"
+                >
+                  <button
+                    onClick={() => {
+                      const newState = !forensicEnabled;
+                      setForensicEnabled(newState);
+                      
+                      if (!newState) {
+                        toast('La certificación fue desactivada.\nEl documento tendrá menor protección.', {
+                          icon: '⚠️',
+                          position: 'top-right',
+                          duration: 4000
+                        });
+                      }
+                    }}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    <Shield className={`h-5 w-5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
+                  </button>
+                </InhackeableTooltip>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-gray-100 transition"
+            >
+              <X className="h-6 w-6 text-gray-600" />
+            </button>
+          </div>
+          
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-6">
+            
+            {/* ZONA CENTRAL: Dropzone o Preview */}
+            <div className="mb-6">
+              {!file ? (
+                // Dropzone
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-gray-400 transition">
+                  <input
+                    type="file"
+                    id="file-upload-v2"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    accept=".pdf,.doc,.docx"
+                  />
+                  <label htmlFor="file-upload-v2" className="cursor-pointer">
+                    <Upload className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-xl font-semibold text-gray-900 mb-2">
+                      Arrastrá tu documento o hacé clic para elegirlo
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Soportamos PDF, DOC y DOCX
+                    </p>
+                  </label>
+                </div>
+              ) : (
+                // Preview del documento
+                <div className="border border-gray-300 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-gray-600" />
+                      <span className="font-medium text-gray-900">{file.name}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setFile(null);
+                        setDocumentLoaded(false);
+                        setDocumentPreview(null);
+                      }}
+                      className="text-sm text-gray-600 hover:text-gray-900"
+                    >
+                      Cambiar archivo
+                    </button>
+                  </div>
+                  <div className="h-96 bg-gray-100 flex items-center justify-center">
+                    {documentPreview ? (
+                      documentPreview.startsWith('data:image') ? (
+                        <img src={documentPreview} alt="Preview" className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <iframe src={documentPreview} className="w-full h-full" title="PDF Preview" />
+                      )
+                    ) : (
+                      <p className="text-gray-500">Vista previa no disponible</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* ACCIONES: Solo visibles si (documentLoaded || initialAction) */}
+            {(documentLoaded || initialAction) && (
+              <div className="mb-6">
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setNdaEnabled(!ndaEnabled)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      ndaEnabled ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    NDA
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newState = !mySignature;
+                      setMySignature(newState);
+                      
+                      if (newState && file) {
+                        setShowSignatureModal(true);
+                        toast('Vas a poder firmar directamente sobre el documento.', {
+                          icon: '✍️',
+                          position: 'top-right',
+                          duration: 3000
+                        });
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      mySignature ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Mi Firma
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newState = !workflowEnabled;
+                      setWorkflowEnabled(newState);
+                      
+                      if (newState) {
+                        toast('Agregá los correos de las personas que deben firmar o recibir el documento.', {
+                          position: 'top-right',
+                          duration: 3000
+                        });
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      workflowEnabled ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Flujo de Firmas
+                  </button>
+                </div>
+                
+                {/* Panels condicionales */}
+                {ndaEnabled && (
+                  <div className="mb-4 p-4 border border-gray-200 rounded-lg">
+                    <h3 className="font-semibold mb-2">NDA</h3>
+                    <textarea
+                      value={ndaText}
+                      onChange={(e) => setNdaText(e.target.value)}
+                      className="w-full h-64 p-3 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                )}
+                
+                {workflowEnabled && (
+                  <div className="mb-4 p-4 border border-gray-200 rounded-lg">
+                    <h3 className="font-semibold mb-2">Flujo de Firmas</h3>
+                    {emailInputs.map((input, index) => (
+                      <div key={index} className="flex gap-2 mb-2">
+                        <input
+                          type="email"
+                          placeholder="Email"
+                          value={input.email}
+                          onChange={(e) => handleEmailChange(index, 'email', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Nombre"
+                          value={input.name}
+                          onChange={(e) => handleEmailChange(index, 'name', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                        />
+                        {emailInputs.length > 1 && (
+                          <button
+                            onClick={() => handleRemoveEmailField(index)}
+                            className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      onClick={handleAddEmailField}
+                      className="text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      + Agregar destinatario
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* CTA */}
+            <button
+              type="button"
+              onClick={handleFinalize}
+              disabled={!file || !isCTAEnabled() || loading}
+              className={`w-full px-6 py-4 rounded-xl font-semibold text-lg transition ${
+                file && isCTAEnabled() && !loading
+                  ? 'bg-black text-white hover:bg-gray-800'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {loading ? 'Procesando...' : getCTAText()}
+            </button>
+            
+          </div>
+          
+        </div>
+      </div>
+      
+      {/* Modal de firma */}
+      {showSignatureModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-xl w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-semibold text-gray-900">Firmá tu documento</h4>
+              <button
+                onClick={() => setShowSignatureModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 mb-4">
+              <button
+                onClick={() => setSignatureTab('draw')}
+                className={`px-4 py-2 font-medium transition-colors ${
+                  signatureTab === 'draw'
+                    ? 'text-gray-900 border-b-2 border-gray-900'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Dibujar
+              </button>
+              <button
+                onClick={() => setSignatureTab('type')}
+                className={`px-4 py-2 font-medium transition-colors ${
+                  signatureTab === 'type'
+                    ? 'text-gray-900 border-b-2 border-gray-900'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Teclear
+              </button>
+              <button
+                onClick={() => setSignatureTab('upload')}
+                className={`px-4 py-2 font-medium transition-colors ${
+                  signatureTab === 'upload'
+                    ? 'text-gray-900 border-b-2 border-gray-900'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Subir
+              </button>
+            </div>
+            
+            {/* Contenido del tab */}
+            <div className="mb-4">
+              {signatureTab === 'draw' && (
+                <div>
+                  <canvas
+                    ref={canvasRef}
+                    {...handlers}
+                    className="w-full h-40 border-2 border-gray-300 rounded-lg cursor-crosshair bg-white"
+                  />
+                  <button
+                    onClick={clearCanvas}
+                    className="mt-2 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                  >
+                    <Eraser className="h-4 w-4" />
+                    Limpiar
+                  </button>
+                </div>
+              )}
+              
+              {signatureTab === 'type' && (
+                <div>
+                  <input
+                    type="text"
+                    value={typedSignature}
+                    onChange={(e) => setTypedSignature(e.target.value)}
+                    placeholder="Escribí tu nombre"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4"
+                  />
+                  <div className="h-40 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                    {typedSignature ? (
+                      <p style={{ fontFamily: "'Dancing Script', cursive" }} className="text-5xl text-gray-900">
+                        {typedSignature}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-500">Escribí tu nombre para generar la firma</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {signatureTab === 'upload' && (
+                <div>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = () => setUploadedSignature(reader.result);
+                        reader.readAsDataURL(file);
+                      } else {
+                        toast.error('Subí una imagen en PNG o JPG', {
+                          position: 'bottom-right'
+                        });
+                      }
+                    }}
+                    className="w-full mb-4"
+                  />
+                  <div className="h-40 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                    {uploadedSignature ? (
+                      <img src={uploadedSignature} alt="Firma" className="max-h-32 object-contain" />
+                    ) : (
+                      <p className="text-sm text-gray-500">Subí un PNG o JPG con tu firma</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Botones */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  if (signatureTab === 'draw') clearCanvas();
+                  else if (signatureTab === 'type') setTypedSignature('');
+                  else if (signatureTab === 'upload') setUploadedSignature(null);
+                }}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition"
+              >
+                Limpiar
+              </button>
+              <button
+                onClick={handleApplySignature}
+                disabled={
+                  (signatureTab === 'draw' && !hasSignature) ||
+                  (signatureTab === 'type' && !typedSignature.trim()) ||
+                  (signatureTab === 'upload' && !uploadedSignature)
+                }
+                className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                Aplicar firma
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+    </div>
+  );
+};
+
+export default LegalCenterModalV2;

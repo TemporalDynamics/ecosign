@@ -116,6 +116,12 @@ function base64ToUint8Array(base64) {
  */
 async function createEcoXFormat(project, publicKeyHex, signature, timestamp, options = {}) {
   const tsa = options.tsaResponse;
+  const intendedUse = options.intendedUse || {
+    legal_context: 'evidence_of_integrity_and_time',
+    jurisdiction: 'unspecified',
+    not_a_qes: true
+  };
+  const humanSummary = options.humanSummary || null;
   const identityAssurance = options.identityAssurance || {
     ...IDENTITY_ASSURANCE_BASE,
     timestamp,
@@ -202,6 +208,8 @@ async function createEcoXFormat(project, publicKeyHex, signature, timestamp, opt
       'no_in_person_validation'
     ],
     policy_snapshot_id: POLICY_SNAPSHOT_ID,
+    intended_use: intendedUse,
+    ...(humanSummary ? { human_summary: humanSummary } : {}),
     event_lineage: {
       event_id: crypto.randomUUID(),
       previous_event_id: null,
@@ -349,11 +357,21 @@ export async function certifyFile(file, options = {}) {
     console.log('✅ Manifest signed');
 
     // Step 8: Create .ecox format (compatible with verificationService)
+    const intendedUse = {
+      legal_context: 'evidence_of_integrity_and_time',
+      jurisdiction: 'unspecified',
+      not_a_qes: true
+    };
+    const humanSummary = {
+      summary: `This certificate proves that the document named '${file.name}' existed in this exact form on ${timestamp} and has not been altered since.`
+    };
     const ecoxBuffer = await createEcoXFormat(project, publicKeyHex, signature, timestamp, {
       userId: options.userId,
       userEmail: options.userEmail,
       tsaResponse,
-      identityAssurance
+      identityAssurance,
+      intendedUse,
+      humanSummary
     });
 
     console.log('✅ .ecox file created:', ecoxBuffer.byteLength, 'bytes');
@@ -457,6 +475,8 @@ export async function certifyFile(file, options = {}) {
         identity_assurance: identityAssurance,
         policy_snapshot_id: POLICY_SNAPSHOT_ID
       },
+      intended_use: intendedUse,
+      human_summary: humanSummary,
       intent: {
         intent_confirmed: true,
         intent_method: 'explicit_acceptance'

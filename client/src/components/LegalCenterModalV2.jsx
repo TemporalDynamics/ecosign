@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Pen, Shield, Type, Upload, Users } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Pen, Shield, Type, Upload, Users, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
@@ -16,33 +16,38 @@ import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
 import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 
 /**
- * Centro Legal - Núcleo del producto EcoSign
- *
- * RESPONSABILIDADES:
- * - Gestionar el flujo completo de protección y firma de documentos.
- * - Coordinar firmas propias o workflow multi-firmante.
- * - Aplicar protección forense (TSA + Polygon + Bitcoin).
- * - Mostrar preview con altura fija por modo (compact/expanded).
- *
- * LÍMITES (NO HACE):
- * - No edita PDFs internamente (lo hace SignNow).
- * - No persiste estado entre sesiones; se resetea al cerrar.
- * - No valida formatos de archivo (delegado a libs de certificación).
- *
- * REGLAS DE DISEÑO (NO TOCAR):
- * - Preview: altura fija según modo y solo cambia por acción explícita.
- * - CTA: tamaño/posición fijos; solo cambia texto.
- * - Layout compacto para pantallas 13-14" sin scroll disruptivo.
- *
- * DEUDA CONOCIDA:
- * - signers es legacy (se usa emailInputs); pendiente limpiar.
- * - annotationMode/annotations tienen UI parcial sin lógica de anotación.
- * - Panel forense colapsable desactivado (forensicEnabled && false).
+ * Centro Legal V2 - Reimplementación siguiendo LEGAL_CENTER_CONSTITUTION.md
+ * 
+ * FUENTE DE VERDAD: /LEGAL_CENTER_CONSTITUTION.md v2.0
+ * 
+ * Principio Rector:
+ * "EcoSign acompaña, no dirige. Informa cuando hace falta, no interrumpe. Da seguridad, no ansiedad."
+ * 
+ * Axioma de Control:
+ * "El usuario se siente en control, incluso cuando no interviene."
+ * 
+ * CAMBIOS VS LEGACY:
+ * - Estados limpios según Constitución (añadido: documentLoaded)
+ * - CTA dinámico: getCTAText() e isCTAEnabled() (funciones puras del estado)
+ * - Toasts inmutables según Constitución
+ * - Reglas de visibilidad: acciones solo si (documentLoaded || initialAction)
+ * - Copy refinado ("Documento listo", tooltips actualizados)
+ * 
+ * LO QUE SE MANTIENE INTACTO:
+ * - Grid layout 3 columnas con colapso suave
+ * - Diseño visual completo (colores, spacing, tipografía)
+ * - Preview de documento con altura fija por modo
+ * - Modal de firma dentro del preview
+ * - Panels NDA y Flujo
+ * - Sistema de pasos (1: Elegir y Configurar, 2: Guardar/Descargar)
+ * - Lógica de certificación completa (handleCertify)
+ * - Contrato con backend (estados, tipos)
  */
-const LegalCenterModal = ({ isOpen, onClose, initialAction = null }) => {
+const LegalCenterModalV2 = ({ isOpen, onClose, initialAction = null }) => {
   // Estados del flujo
-  const [step, setStep] = useState(1); // 1: Elegir, 2: Firmar, 3: Listo
+  const [step, setStep] = useState(1); // 1: Elegir y Configurar, 2: Guardar/Descargar
   const [file, setFile] = useState(null);
+  const [documentLoaded, setDocumentLoaded] = useState(false); // CONSTITUCIÓN: Control de visibilidad de acciones
   const [loading, setLoading] = useState(false);
   const [certificateData, setCertificateData] = useState(null);
 
@@ -98,6 +103,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [showCertifiedModal, setShowCertifiedModal] = useState(false);
   const [certifiedSubType, setCertifiedSubType] = useState(null); // 'qes' | 'mifiel' | 'international' | null
 
+  // MIGRACIÓN: Opciones de descarga/guardado (del legacy)
+  const [savePdfChecked, setSavePdfChecked] = useState(true); // Guardar en Supabase
+  const [downloadPdfChecked, setDownloadPdfChecked] = useState(false); // Descargar localmente
+
   // Saldos de firma (mock data - en producción viene de la DB)
   const [ecosignUsed, setEcosignUsed] = useState(30); // Firmas usadas
   const [ecosignTotal, setEcosignTotal] = useState(50); // Total del plan
@@ -108,6 +117,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   // Sistema de guía "Mentor Ciego"
   const guide = useLegalCenterGuide();
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
+  // Control de toasts
+  const [toastsEnabled, setToastsEnabled] = useState(() => {
+    const saved = localStorage.getItem('ecosign_toasts_enabled');
+    return saved === null ? true : saved === 'true';
+  });
+  const [showToastConfirmModal, setShowToastConfirmModal] = useState(false);
 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
@@ -126,18 +142,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   // Handlers para el modal de bienvenida
   const handleWelcomeAccept = () => {
     setShowWelcomeModal(false);
-    guide.markAsSeen('welcome_seen');
+    // Solo cierra el modal, no marca nada permanente
     // La guía permanece habilitada
   };
 
   const handleWelcomeReject = () => {
     setShowWelcomeModal(false);
-    guide.markAsSeen('welcome_seen');
-    guide.disableGuide(); // Deshabilita la guía pero permite cambiar después
+    guide.disableGuide(); // Deshabilita la guía de toasts
+    // El modal volverá a aparecer la próxima vez
   };
 
   const handleWelcomeNeverShow = () => {
-    guide.neverShowWelcome();
+    setShowWelcomeModal(false);
+    guide.neverShowWelcome(); // Marca permanentemente para no volver a mostrar
+    guide.disableGuide(); // También deshabilita la guía de toasts
   };
 
   // Mostrar confirmación de modo cuando cambian las acciones
@@ -180,8 +198,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   // TODO: FEATURE PARCIAL - UI de anotaciones existe pero no hay lógica de escritura sobre el PDF
   const [annotationMode, setAnnotationMode] = useState(null); // 'signature', 'highlight', 'text'
   const [annotations, setAnnotations] = useState([]); // Lista de anotaciones (highlights y textos)
-  const [savePdfChecked, setSavePdfChecked] = useState(true);
-  const [downloadPdfChecked, setDownloadPdfChecked] = useState(false);
 
   // Helper: Convertir base64 a Blob
   const base64ToBlob = (base64) => {
@@ -194,12 +210,64 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     return new Blob([byteArray], { type: 'application/pdf' });
   };
 
+  // Helper para mostrar toasts con X (solo si están habilitados)
+  const showToast = (message, options = {}) => {
+    if (!toastsEnabled) return;
+
+    const {type = 'default', ...restOptions} = options;
+
+    const toastMethod = type === 'success' ? toast.success
+                      : type === 'error' ? toast.error
+                      : toast;
+
+    return toastMethod(
+      (t) => (
+        <div className="flex items-start justify-between gap-3 w-full">
+          <span className="flex-1">{message}</span>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              setShowToastConfirmModal(true);
+            }}
+            className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+            title="Desactivar notificaciones"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+      {
+        ...restOptions,
+        style: {
+          ...restOptions.style,
+          minWidth: '300px'
+        }
+      }
+    );
+  };
+
+  // Handlers para el modal de confirmación de toasts
+  const handleDisableToasts = () => {
+    setToastsEnabled(false);
+    localStorage.setItem('ecosign_toasts_enabled', 'false');
+    setShowToastConfirmModal(false);
+    toast('Notificaciones desactivadas. Podés reactivarlas desde configuración.', {
+      duration: 4000,
+      position: 'bottom-center'
+    });
+  };
+
+  const handleKeepToasts = () => {
+    setShowToastConfirmModal(false);
+  };
+
   if (!isOpen) return null;
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
+      setDocumentLoaded(true); // CONSTITUCIÓN: Controlar visibilidad de acciones
       setPreviewError(false);
       console.log('Archivo seleccionado:', selectedFile.name);
 
@@ -219,12 +287,23 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         setDocumentPreview(null);
       }
 
-      // Guía: Documento cargado
-      guide.showGuideToast(
-        'document_loaded_seen',
-        'EcoSign no ve tu documento. Si elegís guardarlo, se sube cifrado.',
-        { type: 'default', position: 'top-right' }
-      );
+      // CONSTITUCIÓN: Toast unificado "Documento listo"
+      showToast('Documento listo.\nEcoSign no ve tu documento.\nLa certificación está activada por defecto.', {
+        icon: '✓',
+        position: 'top-right',
+        duration: 4000
+      });
+
+      // CONSTITUCIÓN: Abrir modal de firma automáticamente si corresponde
+      if (initialAction === 'sign' || mySignature) {
+        setShowSignatureOnPreview(true);
+
+        showToast('Vas a poder firmar directamente sobre el documento.', {
+          icon: '✍️',
+          position: 'top-right',
+          duration: 3000
+        });
+      }
     }
   };
   // Cleanup de URLs de preview para evitar fugas
@@ -255,9 +334,23 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   };
 
   const handleEmailChange = (index, value) => {
+    const oldEmail = emailInputs[index].email;
     const newInputs = [...emailInputs];
     newInputs[index] = { ...newInputs[index], email: value };
     setEmailInputs(newInputs);
+
+    // CONSTITUCIÓN: Toast "Destinatario agregado correctamente" (líneas 441-451)
+    // Mostrar solo cuando el email cambia de inválido/vacío a válido
+    const wasValid = isValidEmail(oldEmail.trim()).valid;
+    const isNowValid = isValidEmail(value.trim()).valid;
+
+    if (!wasValid && isNowValid) {
+      showToast('Destinatario agregado correctamente.', {
+        type: 'success',
+        duration: 2000,
+        position: 'top-right'
+      });
+    }
   };
 
   const handleNameChange = (index, value) => {
@@ -342,6 +435,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       return;
     }
 
+    // Validar que si "Mi Firma" está activa, debe elegir tipo de firma
+    if (mySignature && userHasSignature && !signatureType) {
+      toast.error('Elegí el tipo de firma para continuar.', {
+        position: 'bottom-right'
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const supabase = getSupabase();
@@ -358,7 +459,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         // Obtener usuario autenticado
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          toast.error('Necesitás iniciar sesión para enviar invitaciones');
+          showToast('Necesitás iniciar sesión para enviar invitaciones', { type: 'error' });
           setLoading(false);
           return;
         }
@@ -378,7 +479,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         if (uploadError) {
           console.error('Error subiendo archivo para workflow:', uploadError);
-          toast.error('No se pudo subir el archivo para enviar las invitaciones');
+          showToast('No se pudo subir el archivo para enviar las invitaciones', { type: 'error' });
           setLoading(false);
           return;
         }
@@ -390,7 +491,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         if (signedUrlError || !signedUrlData?.signedUrl) {
           console.error('Error generando signed URL:', signedUrlError);
-          toast.error('No se pudo generar el enlace del documento');
+          showToast('No se pudo generar el enlace del documento', { type: 'error' });
           setLoading(false);
           return;
         }
@@ -410,13 +511,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           });
 
           console.log('✅ Workflow iniciado:', workflowResult);
-          toast.success(`Invitaciones enviadas a ${validSigners.length} firmante(s). Revisá tu email para el seguimiento.`, {
+          showToast(`Invitaciones enviadas a ${validSigners.length} firmante(s). Revisá tu email para el seguimiento.`, {
+            type: 'success',
             duration: 6000
           });
         } catch (workflowError) {
           console.error('❌ Error al iniciar workflow:', workflowError);
           const errorMessage = workflowError.message || (typeof workflowError === 'string' ? workflowError : 'No se pudo enviar las invitaciones. Verificá los datos e intentá de nuevo.');
-          toast.error(errorMessage);
+          showToast(errorMessage, { type: 'error' });
           setLoading(false);
           return;
         }
@@ -526,7 +628,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         } catch (signNowError) {
           console.error('❌ Error con SignNow:', signNowError);
-          toast.error(`Error al procesar firma legal con SignNow: ${signNowError.message}. Se usará firma estándar.`, {
+          showToast(`Error al procesar firma legal con SignNow: ${signNowError.message}. Se usará firma estándar.`, {
+            type: 'error',
             duration: 6000
           });
 
@@ -558,6 +661,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+        hasPolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
         hasBitcoinAnchor: bitcoinRequested,
         bitcoinAnchorId: certResult?.bitcoinAnchor?.anchorId || null,
         bitcoinStatus: bitcoinPending ? 'pending' : null,
@@ -676,11 +780,25 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         bitcoinAnchorId: certResult?.bitcoinAnchor?.anchorId || null
       });
 
-            setStep(2); // Ir a "Listo" (ahora es paso 2)
+      // CONSTITUCIÓN: Toast de finalización exitosa (líneas 499-521)
+      const hasFirma = signatureType === 'legal' || signatureType === 'certified';
+      let successMessage = 'Documento protegido correctamente.';
+
+      if (hasFirma) {
+        successMessage = 'Documento firmado y protegido correctamente.';
+      }
+
+      showToast(successMessage, {
+        type: 'success',
+        duration: 3000,
+        position: 'top-right'
+      });
+
+      setStep(2); // Ir a paso 2: Guardar/Descargar
     } catch (error) {
       console.error('Error al certificar:', error);
       const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Hubo un problema desconocido al certificar tu documento. Por favor intentá de nuevo.');
-      toast.error(`Error de certificación: ${errorMessage}`);
+      showToast(`Error de certificación: ${errorMessage}`, { type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -797,6 +915,24 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   };
 
   const handleFinalizeClick = async () => {
+    // CONSTITUCIÓN: Validaciones según estado
+    if (!isCTAEnabled()) {
+      // Determinar qué falta y mostrar toast específico
+      if (mySignature && !signatureType) {
+        toast.error('Elegí el tipo de firma para continuar.', {
+          position: 'bottom-right'
+        });
+        return;
+      }
+      if (workflowEnabled && !emailInputs.some(e => e.email.trim())) {
+        toast.error('Agregá al menos un correo para continuar.', {
+          position: 'bottom-right'
+        });
+        return;
+      }
+      return;
+    }
+
     // Ejecutar acciones seleccionadas
     if (file && downloadPdfChecked) {
       // Preferir el PDF firmado si ya existe
@@ -850,10 +986,66 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     if (onClose) onClose();
   };
 
-  const leftColWidth = ndaEnabled ? '320px' : '0px';
-  const rightColWidth = workflowEnabled ? '320px' : '0px';
+  // ===== FUNCIONES HELPER (CONSTITUCIÓN: Funciones puras del estado) =====
+  
+  /**
+   * Obtiene el texto del CTA según el estado actual
+   * CONSTITUCIÓN: Certificación ("Proteger") siempre presente
+   */
+  const getCTAText = () => {
+    const actions = ['Proteger']; // Siempre presente (certificación default)
+
+    if (mySignature && userHasSignature && signatureType) {
+      actions.push('firmar');
+    }
+
+    // Validar que haya al menos un email VÁLIDO (no solo no vacío)
+    if (workflowEnabled && emailInputs.some(e => isValidEmail(e.email.trim()).valid)) {
+      actions.push('enviar mails');
+    }
+
+    // Gramática correcta: usar comas para 3+ acciones
+    if (actions.length === 1) return actions[0];
+    if (actions.length === 2) return actions.join(' y ');
+    // 3 o más: "Proteger, firmar y enviar mails"
+    return actions.slice(0, -1).join(', ') + ' y ' + actions[actions.length - 1];
+  };
+  
+  /**
+   * Determina si el CTA debe estar activo
+   * CONSTITUCIÓN:
+   * - Solo certificar → siempre activo
+   * - Mi Firma → requiere firma aplicada + tipo elegido
+   * - Flujo → requiere ≥1 mail válido (con formato correcto)
+   */
+  const isCTAEnabled = () => {
+    // Solo certificar: siempre activo
+    if (!mySignature && !workflowEnabled && !ndaEnabled) return true;
+
+    // Si "Mi Firma" activa: debe tener firma Y tipo elegido
+    if (mySignature) {
+      if (!userHasSignature) return false;
+      if (!signatureType) return false;
+    }
+
+    // Si "Flujo" activo: debe tener ≥1 mail VÁLIDO (no solo no vacío)
+    if (workflowEnabled && !emailInputs.some(e => isValidEmail(e.email.trim()).valid)) return false;
+
+    // NDA nunca bloquea
+
+    return true;
+  };
+
+  // ===== GRID LAYOUT =====
+  
+  const leftColWidth = (ndaEnabled && step !== 2) ? '320px' : '0px';
+  const rightColWidth = (workflowEnabled && step !== 2) ? '320px' : '0px';
   const centerColWidth = 'minmax(640px, 1fr)';
-  const gridTemplateColumns = `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
+  
+  // En step 2, usar grid de 1 columna para centrar mejor el contenido
+  const gridTemplateColumns = step === 2 
+    ? '1fr' 
+    : `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
 
   return (
     <>
@@ -885,7 +1077,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           style={{ gridTemplateColumns, transition: 'grid-template-columns 300ms ease-in-out' }}
         >
           {/* Left Panel (NDA) */}
-          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${ndaEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-3 pointer-events-none'}`}>
+          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${ndaEnabled && step !== 2 ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-3 pointer-events-none hidden'}`}>
             <div className="h-full flex flex-col">
               {/* Header colapsable del panel */}
               <div className="px-4 py-3 border-b border-gray-200 bg-white">
@@ -916,7 +1108,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
         
           {/* Center Panel (Main Content) */}
-          <div className="center-panel col-start-2 col-end-3 px-6 py-3 relative z-20">
+          <div className={`center-panel relative z-20 ${step === 2 ? 'col-span-full flex items-start justify-center w-full' : 'col-start-2 col-end-3 px-6 py-3'}`}>
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
               <div className="space-y-3">
@@ -983,30 +1175,28 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                           </p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      {/* Iconos alineados en la misma línea */}
+                      <div className="flex items-center gap-2">
                         {documentPreview && (
-                          <>
-                            {/* F3.3: Solo Preview y Cambiar archivo - herramientas editoriales ocultas */}
-                            <button
-                              onClick={() => {
-                                // Ciclo simple: compact -> expanded -> compact
-                                setPreviewMode((prev) => prev === 'compact' ? 'expanded' : 'compact');
-                              }}
-                              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                              title={previewMode === 'compact' ? 'Ver documento completo' : 'Volver al Centro Legal'}
-                            >
-                              {previewMode === 'expanded' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                            </button>
-                          </>
+                          <button
+                            onClick={() => {
+                              // Ciclo simple: compact -> expanded -> compact
+                              setPreviewMode((prev) => prev === 'compact' ? 'expanded' : 'compact');
+                            }}
+                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title={previewMode === 'compact' ? 'Ver documento completo' : 'Volver al Centro Legal'}
+                          >
+                            {previewMode === 'expanded' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                          </button>
                         )}
-                        <label className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Cambiar archivo">
+                        <label className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer flex items-center" title="Cambiar documento">
                           <input
                             type="file"
                             className="hidden"
                             onChange={handleFileSelect}
                             accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                           />
-                          <Upload className="w-4 h-4" />
+                          <RefreshCw className="w-4 h-4" />
                         </label>
                       </div>
                     </div>
@@ -1049,7 +1239,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             <>
                               {!previewError && (
                                 <object
-                                  data={`${documentPreview}#toolbar=0&navpanes=0&scrollbar=0`}
+                                  data={documentPreview}
                                   type="application/pdf"
                                   className="w-full h-full bg-white"
                                   onLoad={() => setPreviewError(false)}
@@ -1251,20 +1441,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                       // Marcar que el usuario ya tiene firma
                                       setUserHasSignature(true);
                                       setSignatureMode('canvas');
-                                      
+
                                       // Cerrar el modo firma
                                       setShowSignatureOnPreview(false);
-                                      toast.success('Firma guardada. Se aplicará al certificar el documento.', {
-                                        duration: 4000,
-                                        icon: '✅'
-                                      });
 
-                                      // Guía: Firma aplicada
-                                      guide.showGuideToast(
-                                        'signature_applied_seen',
-                                        'La firma quedó registrada. Ahora podés decidir el peso legal que querés asignarle.',
-                                        { type: 'success', position: 'top-right', duration: 5000 }
-                                      );
+                                      // Toast simple de confirmación
+                                      showToast('Firma aplicada correctamente.', {
+                                        type: 'success',
+                                        duration: 2000,
+                                        icon: '✓'
+                                      });
                                     }}
                                     className="flex-1 py-2 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
                                     disabled={
@@ -1284,7 +1470,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     )}
                   </div>
 
-              {/* Acciones (pueden estar múltiples activas) */}
+              {/* CONSTITUCIÓN: Acciones solo visibles si (documentLoaded || initialAction) */}
+              {(documentLoaded || initialAction) && (
               <div className="space-y-2">
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -1303,16 +1490,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     onClick={() => {
                       const newState = !mySignature;
                       setMySignature(newState);
-                      // Si se activa "Mi Firma", abrir modal de firma inmediatamente
+                      // CONSTITUCIÓN: Si se activa "Mi Firma", abrir modal + toast
                       if (newState && file) {
                         setShowSignatureOnPreview(true);
                         
-                        // Guía: Mi Firma (primer uso)
-                        guide.showGuideToast(
-                          'my_signature_seen',
-                          'La firma no es un trámite. Es un acto consciente de autoría.',
-                          { type: 'default', position: 'top-right', duration: 5000 }
-                        );
+                        toast('Vas a poder firmar directamente sobre el documento.', {
+                          icon: '✍️',
+                          position: 'top-right',
+                          duration: 3000
+                        });
                       }
                     }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -1325,7 +1511,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </button>
                   <button
                     type="button"
-                    onClick={() => setWorkflowEnabled(!workflowEnabled)}
+                    onClick={() => {
+                      const newState = !workflowEnabled;
+                      setWorkflowEnabled(newState);
+                      
+                      // CONSTITUCIÓN: Toast al activar flujo
+                      if (newState) {
+                        toast('Agregá los correos de las personas que deben firmar o recibir el documento.', {
+                          position: 'top-right',
+                          duration: 3000
+                        });
+                      }
+                    }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                       workflowEnabled
                         ? 'bg-gray-900 text-white'
@@ -1336,6 +1533,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </button>
                 </div>
               </div>
+              )}
 
               {/* Tipo de Firma - Solo si hay firma aplicada o workflow SIN mi firma */}
               {((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && (
@@ -1344,7 +1542,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   {/* Firma Legal */}
                   <button
                     type="button"
-                    onClick={() => setSignatureType('legal')}
+                    onClick={() => {
+                      setSignatureType('legal');
+                      showToast('Firma legal seleccionada', { type: 'success', duration: 2000 });
+                    }}
                     className={`p-4 rounded-lg border-2 transition text-left ${
                       signatureType === 'legal'
                         ? 'border-gray-900 bg-gray-50'
@@ -1374,6 +1575,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     onClick={() => {
                       setSignatureType('certified');
                       setShowCertifiedModal(true);
+                      showToast('Firma certificada seleccionada', { type: 'success', duration: 2000 });
                     }}
                     className={`p-4 rounded-lg border-2 transition text-left ${
                       signatureType === 'certified'
@@ -1397,16 +1599,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </p>
                   </button>
                 </div>
-
               </div>
               )}
-
-
 
               {/* Botón principal */}
               <button
                 onClick={handleCertify}
-                disabled={!file || loading}
+                disabled={!file || loading || !isCTAEnabled()}
                 className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -1415,21 +1614,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     Protegiendo tu documento…
                   </>
                 ) : (
-                  // Texto dinámico con foco emocional, no técnico
-                  (() => {
-                    if (workflowEnabled) return 'Enviar para firmar';
-                    if (mySignature) return 'Proteger y firmar';
-                    return 'Proteger documento';
-                  })()
+                  // CONSTITUCIÓN: Usar getCTAText() para consistencia
+                  getCTAText()
                 )}
               </button>
             </div>
           )}
 
-          {/* PASO 2: LISTO */}
+          {/* PASO 2: GUARDAR/DESCARGAR */}
           {step === 2 && certificateData && (
-            <div className="py-10">
-              <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-6">
+            <div className="py-8 px-6">
+              <div className="max-w-5xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-6">
                 <div className="flex items-center gap-3">
                   <Shield className="w-10 h-10 text-blue-700" />
                   <div>
@@ -1440,26 +1635,30 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <button
                     type="button"
                     role="switch"
                     aria-checked={savePdfChecked}
                     onClick={() => setSavePdfChecked(!savePdfChecked)}
-                    className={`w-full text-left rounded-xl p-5 transition ${
+                    className={`w-full text-left rounded-xl p-6 transition border-2 ${
                       savePdfChecked
-                        ? 'border border-blue-900 bg-blue-900 text-white shadow-md'
-                        : 'border border-gray-200 bg-white hover:border-gray-300'
+                        ? 'border-gray-900 bg-gray-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="space-y-1">
-                        <p className={`text-lg font-semibold ${savePdfChecked ? 'text-white' : 'text-gray-900'}`}>Guardar en EcoSign (recomendado)</p>
-                        <p className={`text-sm ${savePdfChecked ? 'text-gray-100' : 'text-gray-600'}`}>
-                          Lo vas a tener siempre disponible en tu espacio privado. Nosotros no vemos tu documento y pronto sumamos cifrado para que ni los servidores puedan leerlo.
-                        </p>
-                        <p className={`text-xs ${savePdfChecked ? 'text-gray-200' : 'text-gray-500'}`}>
-                          Si lo descargás más adelante desde acá, evitás cambios accidentales: siempre bajás la versión certificada.
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                        savePdfChecked ? 'border-gray-900 bg-gray-900' : 'border-gray-300'
+                      }`}>
+                        {savePdfChecked && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
+                        )}
+                      </div>
+                      <div className="space-y-1 flex-1">
+                        <p className="text-base font-semibold text-gray-900">Guardar en EcoSign (recomendado)</p>
+                        <p className="text-sm text-gray-600">
+                          Lo vas a tener siempre disponible en tu espacio privado. Nosotros no vemos tu documento.
                         </p>
                       </div>
                     </div>
@@ -1470,37 +1669,38 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     role="switch"
                     aria-checked={downloadPdfChecked}
                     onClick={() => setDownloadPdfChecked(!downloadPdfChecked)}
-                    className={`w-full text-left rounded-xl p-5 transition ${
+                    className={`w-full text-left rounded-xl p-6 transition border-2 ${
                       downloadPdfChecked
-                        ? 'border border-blue-900 bg-blue-900 text-white shadow-md'
-                        : 'border border-gray-200 bg-white hover:border-gray-300'
+                        ? 'border-gray-900 bg-gray-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="space-y-1">
-                        <p className={`text-lg font-semibold ${downloadPdfChecked ? 'text-white' : 'text-gray-900'}`}>Descargar ahora</p>
-                        <p className={`text-sm ${downloadPdfChecked ? 'text-gray-100' : 'text-gray-600'}`}>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                        downloadPdfChecked ? 'border-gray-900 bg-gray-900' : 'border-gray-300'
+                      }`}>
+                        {downloadPdfChecked && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
+                        )}
+                      </div>
+                      <div className="space-y-1 flex-1">
+                        <p className="text-base font-semibold text-gray-900">Descargar ahora</p>
+                        <p className="text-sm text-gray-600">
                           Guardalo en tu equipo. Evitá modificarlo: cualquier cambio altera el certificado.
-                        </p>
-                        <p className={`text-xs ${downloadPdfChecked ? 'text-gray-200' : 'text-gray-500'}`}>
-                          Según tu navegador la descarga puede abrirse en otra pestaña, pero tu documento sigue protegido en EcoSign.
-                        </p>
-                        <p className={`text-xs ${downloadPdfChecked ? 'text-gray-200' : 'text-gray-500'}`}>
-                          Si algo se altera por error, podés volver a descargar la copia intacta desde EcoSign siempre que lo hayas guardado.
                         </p>
                       </div>
                     </div>
                   </button>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <p className="text-xs text-gray-500">
+                <div className="space-y-4">
+                  <p className="text-xs text-gray-500 text-center">
                     Tip: podés elegir ambas opciones para tener copia local y respaldo seguro.
                   </p>
                   <button
                     ref={finalizeButtonRef}
                     onClick={handleFinalizeClick}
-                    className="w-full sm:w-auto px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-semibold"
+                    className="w-full px-6 py-3 rounded-lg transition-colors font-semibold bg-gray-900 text-white hover:bg-gray-800"
                   >
                     Finalizar proceso
                   </button>
@@ -1511,7 +1711,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
 
           {/* Right Panel (Workflow) */}
-          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none'}`}>
+          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled && step !== 2 ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none hidden'}`}>
           <div className="h-full flex flex-col">
             {/* Header colapsable del panel */}
             <div className="px-4 py-3 border-b border-gray-200 bg-white">
@@ -1785,8 +1985,46 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         onReject={handleWelcomeReject}
         onNeverShow={handleWelcomeNeverShow}
       />
+
+      {/* Modal de confirmación para desactivar toasts */}
+      {showToastConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[70] animate-fadeIn">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                ¿Desactivar notificaciones?
+              </h3>
+              <button
+                onClick={handleKeepToasts}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Si desactivás las notificaciones, no recibirás más mensajes informativos sobre el proceso. Podés reactivarlas en cualquier momento desde la configuración.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleKeepToasts}
+                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Seguir recibiendo
+              </button>
+              <button
+                onClick={handleDisableToasts}
+                className="flex-1 px-4 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+              >
+                Desactivar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
 
-export default LegalCenterModal;
+export default LegalCenterModalV2;

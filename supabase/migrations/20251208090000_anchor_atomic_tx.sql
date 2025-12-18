@@ -100,7 +100,3 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
-GRANT EXECUTE ON FUNCTION public.anchor_atomic_tx(
-  UUID, UUID, BYTEA, JSONB, JSONB, INTEGER
-) TO service_role;

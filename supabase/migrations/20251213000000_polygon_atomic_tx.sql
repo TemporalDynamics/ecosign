@@ -82,10 +82,3 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
-COMMENT ON FUNCTION public.anchor_polygon_atomic_tx IS 
-'Atomically update anchors + user_documents + audit_logs for Polygon confirmations. Prevents split-brain state.';
-
-GRANT EXECUTE ON FUNCTION public.anchor_polygon_atomic_tx(
-  UUID, UUID, TEXT, BIGINT, TEXT, TIMESTAMPTZ, JSONB, JSONB, INTEGER
-) TO service_role;

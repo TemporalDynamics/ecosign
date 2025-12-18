@@ -363,6 +363,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       return;
     }
 
+    // Validar que si "Mi Firma" está activa, debe elegir tipo de firma
+    if (mySignature && userHasSignature && !signatureType) {
+      toast.error('Elegí el tipo de firma para continuar.', {
+        position: 'bottom-right'
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const supabase = getSupabase();
@@ -1503,7 +1511,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               {/* Botón principal */}
               <button
                 onClick={handleCertify}
-                disabled={!file || loading}
+                disabled={!file || loading || !isCTAEnabled()}
                 className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (

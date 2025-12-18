@@ -137,9 +137,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   };
 
   const handleWelcomeNeverShow = () => {
-    setShowWelcomeModal(false);
-    guide.markAsSeen('welcome_seen');
-    guide.disableGuide(); // Deshabilita permanentemente
+    guide.neverShowWelcome();
   };
 
   // Mostrar confirmación de modo cuando cambian las acciones
@@ -1051,7 +1049,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             <>
                               {!previewError && (
                                 <object
-                                  data={documentPreview}
+                                  data={`${documentPreview}#toolbar=0&navpanes=0&scrollbar=0`}
                                   type="application/pdf"
                                   className="w-full h-full bg-white"
                                   onLoad={() => setPreviewError(false)}

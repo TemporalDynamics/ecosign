@@ -97,13 +97,12 @@ function DashboardStartPage() {
               </p>
             </div>
 
-            {/* Mensaje de cierre (variante corta) */}
-            <div className="pt-6 border-t border-gray-200 mt-10">
-              <p className="text-sm text-gray-700 leading-relaxed">
-                <strong className="font-semibold text-gray-900">No son caminos separados.</strong><br />
-                Todas las acciones se pueden combinar en un mismo proceso.
-              </p>
-            </div>
+          {/* Mensaje de cierre (variante corta) */}
+          <div className="pt-6 border-t border-gray-200 mt-10">
+            <p className="text-sm text-gray-700 leading-relaxed">
+              <strong className="font-semibold text-gray-900">No son caminos separados.</strong><br />
+              Todas las acciones se pueden combinar en un mismo proceso.
+            </p>
           </div>
         </section>
       </main>

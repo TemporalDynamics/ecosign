@@ -930,8 +930,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // ===== GRID LAYOUT =====
   
-  const leftColWidth = ndaEnabled ? '320px' : '0px';
-  const rightColWidth = workflowEnabled ? '320px' : '0px';
+  const leftColWidth = (ndaEnabled && step !== 2) ? '320px' : '0px';
+  const rightColWidth = (workflowEnabled && step !== 2) ? '320px' : '0px';
   const centerColWidth = 'minmax(640px, 1fr)';
   const gridTemplateColumns = `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
 
@@ -965,7 +965,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           style={{ gridTemplateColumns, transition: 'grid-template-columns 300ms ease-in-out' }}
         >
           {/* Left Panel (NDA) */}
-          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${ndaEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-3 pointer-events-none'}`}>
+          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${ndaEnabled && step !== 2 ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-3 pointer-events-none'}`}>
             <div className="h-full flex flex-col">
               {/* Header colapsable del panel */}
               <div className="px-4 py-3 border-b border-gray-200 bg-white">
@@ -1608,7 +1608,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
 
           {/* Right Panel (Workflow) */}
-          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none'}`}>
+          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled && step !== 2 ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none'}`}>
           <div className="h-full flex flex-col">
             {/* Header colapsable del panel */}
             <div className="px-4 py-3 border-b border-gray-200 bg-white">

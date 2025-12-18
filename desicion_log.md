@@ -2455,3 +2455,154 @@ Próximo paso: ver métricas. Si usuarios leen descripciones → ganamos educaci
 **Status**: ✅ Ready for User Testing
 
 ---
+
+## Iteración 2025-12-18 — Legal Center V2: Flujo de Estados y Validaciones
+
+### 🎯 Objetivo
+
+Implementar LegalCenterModalV2 desde cero siguiendo LEGAL_CENTER_CONSTITUTION.md, con flujo de estados correcto, validaciones en el momento preciso, y separación clara entre estados técnicos y probatorios.
+
+### 🧠 Decisiones tomadas
+
+1. **Nuevo componente en rama separada**: En vez de refactorizar el legacy, creamos `LegalCenterModalV2.jsx` para implementar la visión limpia sin contaminar el código funcionando. Estrategia de cirugía, no demolición.
+
+2. **Certificación como default visible**: `has_polygon_anchor` ahora se guarda correctamente en `user_documents`. Polygon NO es "opcional que se activa", es parte del core. Default: TSA + Polygon + Bitcoin (usuario puede desactivar).
+
+3. **Validación de tipo de firma en step 1**: La validación "debe elegir Firma Legal o Firma Certificada" estaba en el CTA de finalización (step 2). Se movió al CTA principal (step 1). Bloqueo visual + toast claro. Usuario no avanza sin decisión consciente.
+
+4. **Grid dinámico por step**: Step 1 usa grid de 3 columnas con paneles colapsables. Step 2 usa grid de 1 columna para centrar modal de Guardar/Descargar. Evita colapso visual incorrecto cuando paneles laterales tienen width 0px.
+
+5. **Home: Separación visual de copy educativo**: Explicaciones de acciones (Certificar, Firmar, Flujo, NDA) viven fuera del panel blanco de CTAs. Jerarquía visual clara: acción arriba, educación abajo. Refuerza "usuario lidera, sistema acompaña".
+
+### 🛠️ Cambios realizados
+
+**LegalCenterModalV2.jsx**:
+- Implementado con `forensicConfig` por default (TSA/Polygon/Bitcoin activos)
+- Grid layout: 3 columnas (NDA | Centro | Workflow) colapsables
+- Step 1: Upload + preview + acciones + CTA con validación
+- Step 2: Modal Guardar/Descargar centrado, paneles laterales ocultos
+- Validación `signatureType` antes de `handleCertify()`
+- CTA disabled usa `isCTAEnabled()` para reflejar estado real
+
+**documentStorage.js**:
+- Agregado parámetro `hasPolygonAnchor` en `saveUserDocument()`
+- Campo `has_polygon_anchor` incluido en insert de `user_documents`
+- Ahora ECO preview muestra "pending" en vez de "no solicitado"
+
+**DashboardStartPage.jsx** (Home):
+- Separado panel blanco (CTAs) de sección educativa (explicaciones)
+- Mejor spacing y jerarquía visual
+- Copy "No son caminos separados" fuera del panel principal
+
+**Estructura visual**:
+```
+Step 1:
+[NDA Panel] [Centro: Upload/Preview/Acciones] [Workflow Panel]
+            ↓ CTA validado
+
+Step 2:
+           [Modal Guardar/Descargar centrado]
+```
+
+### 🚫 Qué NO se hizo (a propósito)
+
+1. **No tocamos el legacy**: `LegalCenterModal.jsx` sigue intacto. V2 es implementación limpia paralela. Switch controlado cuando esté listo para testers.
+
+2. **No refactorizamos lógica de backend**: Contratos con edge functions, workers, y anchoring se mantienen exactos. Solo cambiamos cuándo/cómo se llaman desde UI.
+
+3. **No agregamos estados intermedios visibles**: `pending_anchor` existe técnicamente pero NO es estado probatorio visible. Estados finales: "No certificado", "Certificado", "Certificado reforzado". Política de no-retroceso respetada.
+
+4. **No mostramos mensajes técnicos**: Usuario no ve "blockchain", "hash", "worker". Ve "protección", "trazabilidad", "verificable". Legal pero humano.
+
+5. **No modificamos copys del modal de bienvenida**: Se mantiene coherente con decisiones previas. Solo ajustes de flujo, no de narrativa.
+
+### 📊 Impacto esperado
+
+**Positivo**:
+- Usuario ve Polygon desde el inicio (no parece "no pedido")
+- Flujo más predecible: no puede avanzar sin decisiones clave
+- Estado del documento avanza sin retrocesos
+- Certificación visible y empoderada (no escondida)
+
+**Riesgos mitigados**:
+- Doble mantenimiento: V2 reemplaza legacy antes de testers externos
+- Cambios de contrato: ninguno, solo orquestación UI
+- Sobre-limpieza: código legacy queda identificado pero no borrado hasta validación
+
+### 🔧 Bugs corregidos
+
+1. **Panel NDA/Workflow visibles en step 2**: Se ocultaban mal. Ahora grid cambia a 1fr en step 2.
+2. **Polygon "no solicitado"**: `has_polygon_anchor` no se guardaba. Ahora default true.
+3. **CTA activo sin tipo de firma**: Validación estaba en lugar equivocado. Movida a step 1.
+4. **JSX error en Home**: `</div>` extra causaba crash. Estructura corregida.
+
+### 💡 Aprendizajes clave
+
+**Grid con paneles colapsables**: Usar `0px` en columnas laterales funciona, pero requiere cambiar a grid de 1 columna en estados donde el centro debe estar solo. `col-start-2` con columnas de 0px causa colapso visual.
+
+**Validaciones en UI vs lógica**: El lugar correcto para validar NO es donde procesas, es donde el usuario decide. Validación de `signatureType` debe ser en el CTA que avanza de step, no en el que finaliza.
+
+**Estados técnicos ≠ estados visibles**: `pending_anchor` es estado técnico (worker). Estados visibles son probatorios (legal). Separación crítica para no generar ansiedad.
+
+**Default con control latente > opcional sin default**: Certificación activa por default + escudo para desactivar > checkbox "¿querés certificar?". Empodera sin fricción. Usuario siente "puedo cambiar" sin necesitar hacerlo.
+
+### 📝 Deuda técnica identificada
+
+1. **Legacy LegalCenterModal**: 1500+ líneas con historia de parches. Congelado pero no borrado. Plan: diff consciente cuando V2 esté validado, migrar solo cambios necesarios, deprecar legacy.
+
+2. **forensicConfig acoplado a UI**: Hoy vive en state del modal. Futuro: podría ser contexto global o configuración de usuario. No urgente.
+
+3. **Toasts sin sistema unificado**: Cada toast se define inline. Idealmente: `ToastService.showSignatureTypeRequired()`. Mejora futura.
+
+4. **Grid layout sin breakpoints**: Funciona en desktop. Mobile necesita stack vertical. Pendiente para responsive pass.
+
+### 🎯 Qué sigue
+
+**Inmediato**:
+- Testing manual de flujo completo (certificar, firmar, flujo, NDA)
+- Validar que Polygon aparece como "pending" → "confirmed"
+- Verificar que CTA se bloquea correctamente sin tipo de firma
+
+**Corto plazo**:
+- Diff LegalCenterModal vs LegalCenterModalV2
+- Identificar código obsoleto en legacy
+- Switch final: `USE_NEW_LEGAL_CENTER` flag
+
+**Largo plazo**:
+- Migrar componente legacy a V2 como único
+- Implementar responsive (mobile stack)
+- Sistema de toasts unificado
+
+### 💬 Nota del dev
+
+"Este fue el tipo de trabajo que parece 'solo mover validaciones', pero en realidad es repensar dónde vive la verdad del sistema.
+
+El problema NO era que faltara validación. El problema era que estaba en el lugar equivocado. Validar en step 2 es como cerrar la puerta cuando ya entraste. Validar en step 1 es decir 'elegí tu llave antes de entrar'.
+
+La decisión de crear V2 en vez de refactorizar fue crítica. Refactorizar = navegar con mapa viejo. V2 = dibujar mapa nuevo y comparar. El diff nos va a decir exactamente qué código legacy es accidente histórico vs intención real.
+
+`has_polygon_anchor` es pequeño pero fundamental. No es 'un campo más'. Es la diferencia entre 'Polygon como feature oculto' vs 'Polygon como parte del core'. Usuario que ve 'no solicitado' piensa 'no tengo protección'. Usuario que ve 'pending' piensa 'ya está en proceso'. Narrativa totalmente distinta.
+
+Grid de 1fr en step 2 es ejemplo perfecto de 'solución quirúrgica'. Podríamos haber hecho position absolute, flexbox complicado, o mil hacks. Pero el problema real era: 'grid de 3 columnas con 2 invisibles no es grid de 1 columna'. Cambiar template columns según step = solución correcta.
+
+Home separado en dos secciones NO es cosmético. Es jerarquía cognitiva. Panel blanco = acción. Fuera del panel = contexto. Usuario escanea distinto. CTAs destacan más. Explicaciones no compiten. Copy 'No son caminos separados' tiene más peso cuando no está apretado entre botones.
+
+LEGAL_CENTER_CONSTITUTION.md demostró ser fuente de verdad funcional. Cada vez que hubo duda '¿esto debería bloquear?', '¿cuándo se activa el CTA?', '¿qué estado mostrar?' → la respuesta estaba ahí. Eso aceleró decisiones y evitó debates circulares.
+
+Próximo paso crítico: diff consciente. Ver qué desaparece = probablemente sobraba. Ver qué no migra = queda muerto pero identificado. Ese diff es auditoría de diseño, no solo código.
+
+Usuario final no va a ver 'implementamos V2'. Va a ver 'el flujo tiene sentido'. Va a ver 'Polygon aparece'. Va a ver 'no puedo avanzar sin decidir'. Invisibilidad de complejidad = UX madura.
+
+Si alguien futuro toca validaciones: recordá que el lugar correcto para validar es donde el usuario toma la decisión, no donde el sistema la procesa. Eso es empoderamiento + prevención, no bloqueo reactivo."
+
+**Commits principales**:
+- `638257f` - Block CTA until signature type is chosen
+- `daea2ad` - Show Guardar/Descargar modal in step 2  
+- `7a52344` - Save hasPolygonAnchor flag to user_documents
+- `8bdb0bb` - Home layout + hide NDA/Workflow panels in step 2
+
+**Branch**: `feature/legal-center-v2` (14 commits)  
+**Deploy**: ⏳ Pendiente testing manual  
+**Status**: ✅ Ready for Internal Testing
+
+---

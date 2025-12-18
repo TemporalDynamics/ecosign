@@ -30,7 +30,11 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     notes = null,
     initialStatus = 'draft',
     storePdf = true,
-    zeroKnowledgeOptOut = false
+    zeroKnowledgeOptOut = false,
+    ecoBuffer = null,
+    ecoFileName = pdfFile?.name ? pdfFile.name.replace(/\.[^/.]+$/, '.eco') : `certificate-${Date.now()}.eco`,
+    ecoStoragePath: forcedEcoStoragePath = null,
+    storeEco = true
   } = options;
 
   // Normalize optional eco_file_data payload (bytea expects binary)
@@ -80,6 +84,51 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     storagePath = uploadData.path;
   }
 
+  // Upload ECO to Supabase Storage (always, regardless of PDF storage)
+  let ecoStoragePath = null;
+  if (storeEco) {
+    // Prefer the provided buffer, otherwise serialize ecoData
+    let ecoBytes = null;
+    if (ecoBuffer) {
+      try {
+        ecoBytes = ecoBuffer instanceof Uint8Array ? ecoBuffer : new Uint8Array(ecoBuffer);
+      } catch (err) {
+        console.warn('Unable to normalize ecoBuffer, will fallback to ecoData', err);
+      }
+    }
+    if (!ecoBytes && ecoData) {
+      ecoBytes = new TextEncoder().encode(JSON.stringify(ecoData, null, 2));
+    }
+
+    if (!ecoBytes) {
+      if (storagePath) {
+        await supabase.storage.from('user-documents').remove([storagePath]);
+      }
+      throw new Error('No se pudo generar el archivo ECO para guardar en Storage');
+    }
+
+    const ecoBlob = new Blob([ecoBytes], { type: 'application/json' });
+    const ecoPath = forcedEcoStoragePath || `${user.id}/${Date.now()}-${ecoFileName || 'certificate.eco.json'}`;
+
+    const { data: ecoUploadData, error: ecoUploadError } = await supabase.storage
+      .from('user-documents')
+      .upload(ecoPath, ecoBlob, {
+        contentType: 'application/json',
+        upsert: true
+      });
+
+    if (ecoUploadError) {
+      // Clean up the PDF upload if it happened, to avoid orphaned files
+      if (storagePath) {
+        await supabase.storage.from('user-documents').remove([storagePath]);
+      }
+      console.error('Error uploading ECO:', ecoUploadError);
+      throw new Error(`Error al subir el archivo ECO: ${ecoUploadError.message}`);
+    }
+
+    ecoStoragePath = ecoUploadData?.path || ecoPath;
+  }
+
   // Determine file type from MIME type
   const getFileType = (mimeType) => {
     if (!mimeType) return 'pdf';
@@ -106,6 +155,7 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
       bitcoin_anchor_id: bitcoinAnchorId,
       download_enabled: downloadEnabled, // Controls if .eco can be downloaded
       eco_file_data: ecoFileDataBuffer, // Store .eco buffer for deferred download
+      eco_storage_path: ecoStoragePath, // Always persist path to ECO in storage
       file_type: getFileType(pdfFile.type),
       last_event_at: new Date().toISOString(),
       has_legal_timestamp: hasLegalTimestamp,

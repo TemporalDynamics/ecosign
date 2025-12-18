@@ -85,12 +85,18 @@ export const useLegalCenterGuide = () => {
     };
   };
 
-  // Mostrar modal de bienvenida (solo primera vez)
-  const showWelcomeModal = (onAccept, onReject, onNeverShow) => {
-    if (flags.welcome_seen || flags.disabled) {
+  // Mostrar modal de bienvenida (siempre, excepto si marcaron "No volver a mostrar")
+  const showWelcomeModal = () => {
+    // Solo no mostrar si específicamente marcaron "No volver a mostrar"
+    if (flags.never_show_welcome) {
       return false;
     }
     return true;
+  };
+
+  // Marcar "No volver a mostrar" el modal de bienvenida
+  const neverShowWelcome = () => {
+    setFlags(prev => ({ ...prev, never_show_welcome: true }));
   };
 
   return {
@@ -99,6 +105,7 @@ export const useLegalCenterGuide = () => {
     showGuideToast,
     showWelcomeModal,
     markAsSeen,
-    disableGuide
+    disableGuide,
+    neverShowWelcome
   };
 };

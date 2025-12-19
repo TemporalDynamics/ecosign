@@ -1,21 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react(),
-    nodePolyfills({
-      // Enable polyfills for Buffer (needed by eco-packer)
-      globals: {
-        Buffer: true,
-        global: true,  // Enable global object
-        process: true,  // Enable process object
-      },
-      // Only polyfill what we absolutely need
-      protocolImports: false,
-    })
+    react()
   ],
   define: {
     global: 'globalThis',

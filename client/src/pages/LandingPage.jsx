@@ -47,18 +47,18 @@ const LandingPage = () => {
             <button
               onClick={() => playVideo('you-dont-need-to-trust')}
               className="bg-transparent border-2 border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg inline-flex items-center justify-center gap-2"
-              title="Video de 5 minutos (podcast visual) en inglés y español"
+              title="Entendelo con calma. Usalo cuando lo necesites."
             >
               <Play className="w-5 h-5" />
               Ver cómo funciona
             </button>
           </div>
           <p className="text-sm text-gray-600 max-w-3xl mx-auto mb-4">
-            5 minutos para entenderlo. 30 segundos para usarlo.
+            Entendelo con calma. Usalo cuando lo necesites.
           </p>
           
           <p className="text-[13px] text-gray-500 max-w-2xl mx-auto">
-            Tu contenido nunca se sube. Solo generamos la evidencia.
+            Protección total, sin exponer tu archivo.
           </p>
         </div>
       </header>

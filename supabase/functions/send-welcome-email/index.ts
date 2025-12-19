@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
-import { buildFounderWelcomeEmail, sendEmail } from '../_shared/email.ts'
+import { buildFounderWelcomeEmail } from '../_shared/email.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,10 +48,10 @@ serve(async (req) => {
 
     // Check if welcome email already sent (via metadata or separate table)
     const { data: existingNotification } = await supabase
-      .from('workflow_notifications')
+      .from('system_emails')
       .select('id')
       .eq('recipient_email', user.email)
-      .eq('notification_type', 'welcome_founder')
+      .eq('email_type', 'welcome_founder')
       .maybeSingle()
 
     if (existingNotification) {
@@ -80,48 +80,30 @@ serve(async (req) => {
       supportUrl
     })
 
-    // Insert notification into workflow_notifications for tracking
+    // Queue email into system_emails for processing
     const { error: insertError } = await supabase
-      .from('workflow_notifications')
+      .from('system_emails')
       .insert({
         recipient_email: user.email,
-        notification_type: 'welcome_founder',
+        email_type: 'welcome_founder',
         subject: emailPayload.subject,
         body_html: emailPayload.html,
         delivery_status: 'pending',
-        metadata: {
-          userId: user.id,
-          sentAt: new Date().toISOString()
-        }
+        attempts: 0
       })
 
     if (insertError) {
-      console.error('Error inserting notification:', insertError)
-      // Don't fail - continue to send email directly
-    }
-
-    // Send email via Resend
-    const result = await sendEmail({
-      to: emailPayload.to,
-      subject: emailPayload.subject,
-      html: emailPayload.html
-    })
-
-    if (!result.success) {
-      console.error('Error sending welcome email:', result.error)
+      console.error('Error inserting system_email:', insertError)
       return new Response(
-        JSON.stringify({ error: 'Failed to send email', details: result.error }),
+        JSON.stringify({ error: 'Failed to queue welcome email', details: insertError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log(`✅ Welcome email sent to ${user.email}`)
-
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Welcome email sent to ${user.email}`,
-        emailId: result.id
+        message: `Welcome email queued for ${user.email}`
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

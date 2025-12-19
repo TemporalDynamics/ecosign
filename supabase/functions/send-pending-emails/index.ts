@@ -13,9 +13,10 @@ serve(async (req: Request) => {
   console.log('🟢 send-pending-emails: start');
   try {
     const { data: rows, error } = await supabase
-      .from('workflow_notifications')
+      .from('system_emails')
       .select('*')
       .eq('delivery_status', 'pending')
+      .lt('attempts', MAX_RETRIES)
       .limit(50)
       .order('created_at', { ascending: true });
 
@@ -37,9 +38,9 @@ serve(async (req: Request) => {
         let html = r.body_html || '<p>Notificación</p>';
 
         // Special handling for welcome_founder emails - generate HTML dynamically
-        if (r.notification_type === 'welcome_founder') {
+        if (r.email_type === 'welcome_founder') {
           const siteUrl = Deno.env.get('SITE_URL') || 'https://ecosign.app';
-          const userName = r.metadata?.userName || to.split('@')[0];
+          const userName = (r as any)?.metadata?.userName || to.split('@')[0];
 
           const welcomeEmail = buildFounderWelcomeEmail({
             userEmail: to,
@@ -57,11 +58,10 @@ serve(async (req: Request) => {
 
         if (result.ok) {
           const upd = await supabase
-            .from('workflow_notifications')
+            .from('system_emails')
             .update({
               delivery_status: 'sent',
               sent_at: new Date().toISOString(),
-              resend_email_id: result.id ?? null,
               error_message: null,
             })
             .eq('id', r.id);
@@ -69,14 +69,14 @@ serve(async (req: Request) => {
           if (upd.error) console.error('Error actualizando a sent:', upd.error);
           else console.info(`Email enviado fila ${r.id} resend_id ${result.id}`);
         } else {
-          const retry = (r.retry_count ?? 0) + 1;
+          const retry = (r.attempts ?? 0) + 1;
           const new_status = retry >= MAX_RETRIES ? 'failed' : 'pending';
           const upd = await supabase
-            .from('workflow_notifications')
+            .from('system_emails')
             .update({
               delivery_status: new_status,
               error_message: JSON.stringify(result.error ?? result.body ?? 'Unknown error'),
-              retry_count: retry,
+              attempts: retry,
             })
             .eq('id', r.id);
 

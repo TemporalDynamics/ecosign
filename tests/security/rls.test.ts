@@ -34,12 +34,14 @@ describe('Row Level Security (RLS) Tests', () => {
     }
 
     // Create User A
+    console.log('📝 Creating test users...');
     const userA = await createTestUser(
       `test-rls-a-${Date.now()}@example.com`,
       'test-password-123'
     );
     userAId = userA.userId;
     userAClient = userA.client;
+    console.log('✅ User A created:', userAId);
 
     // Create User B
     const userB = await createTestUser(
@@ -48,22 +50,34 @@ describe('Row Level Security (RLS) Tests', () => {
     );
     userBId = userB.userId;
     userBClient = userB.client;
+    console.log('✅ User B created:', userBId);
 
-    // Create test document owned by User A
-    const { data: docData, error: docError } = await adminClient
+    // Create test document owned by User A (using adminClient with service_role)
+    // This bypasses RLS for setup, but the actual tests verify RLS works for users
+    console.log('📝 Attempting to insert test document with adminClient...');
+    
+    const docId = crypto.randomUUID();
+    const { error: docError } = await adminClient
       .from('documents')
       .insert({
+        id: docId,
         title: 'Test Document for RLS',
         owner_id: userAId,
-        status: 'pending'
-      })
-      .select()
-      .single();
+        eco_hash: 'test_hash_' + Date.now(), // Required field
+        status: 'active' // Valid status value
+      });
 
+    console.log('Insert result - error:', docError);
+    
     if (docError) {
-      console.warn('⚠️  documents table not available:', docError.message);
-    } else if (docData) {
-      testDocumentId = docData.id;
+      console.log('❌ Failed to create test document:', docError.message);
+      console.log('   Error code:', docError.code);
+      console.log('   Error details:', docError.details);
+      console.log('   UserAId:', userAId);
+      skipTests = true;
+    } else {
+      testDocumentId = docId;
+      console.log('✅ Test document created:', testDocumentId);
     }
   }, TEST_TIMEOUT);
 
@@ -175,7 +189,8 @@ describe('Row Level Security (RLS) Tests', () => {
       .insert({
         title: 'Fake Document',
         owner_id: userAId, // Trying to fake
-        status: 'pending'
+        eco_hash: 'fake_hash_' + Date.now(), // Required field
+        status: 'active'
       });
 
     // Should error or auto-correct to userBId

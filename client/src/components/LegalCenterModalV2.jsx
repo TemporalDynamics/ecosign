@@ -9,8 +9,8 @@ import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
 import { applySignatureToPDF, blobToFile, addSignatureSheet } from '../utils/pdfSignature';
 import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
-import { anchorToPolygon } from '../lib/polygonAnchor';
 import { getSupabase } from '../lib/supabaseClient';
+import { isGuestMode } from '../utils/guestMode';
 import InhackeableTooltip from './InhackeableTooltip';
 import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
 import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
@@ -315,6 +315,66 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     };
   }, [documentPreview]);
 
+  // ✅ Realtime subscription: Update protection_level badge when workers complete
+  // Listens to user_documents table changes and updates certificateData
+  useEffect(() => {
+    if (!certificateData?.documentId || step !== 2) return;
+
+    const supabase = getSupabase();
+    const documentId = certificateData.documentId;
+
+    console.log('👂 Subscribing to protection_level changes for document:', documentId);
+
+    // Subscribe to changes on this specific document
+    const channel = supabase
+      .channel(`protection-level-${documentId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_documents',
+          filter: `id=eq.${documentId}`
+        },
+        (payload) => {
+          console.log('🔄 Protection level update received:', payload);
+
+          const newProtectionLevel = payload.new?.protection_level;
+          const oldProtectionLevel = payload.old?.protection_level;
+
+          // Only update if protection_level actually changed
+          if (newProtectionLevel && newProtectionLevel !== oldProtectionLevel) {
+            console.log(`✨ Protection level upgraded: ${oldProtectionLevel} → ${newProtectionLevel}`);
+
+            setCertificateData(prev => ({
+              ...prev,
+              protectionLevel: newProtectionLevel
+            }));
+
+            // Show toast notification
+            const levelNames = {
+              'ACTIVE': 'Protección Activa',
+              'REINFORCED': 'Protección Reforzada',
+              'TOTAL': 'Protección Total'
+            };
+
+            showToast(`🛡️ ${levelNames[newProtectionLevel] || newProtectionLevel} confirmada`, {
+              type: 'success',
+              duration: 4000,
+              position: 'top-right'
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription when component unmounts or step changes
+    return () => {
+      console.log('🔇 Unsubscribing from protection_level changes');
+      supabase.removeChannel(channel);
+    };
+  }, [certificateData?.documentId, step]);
+
   const handleAddEmailField = () => {
     setEmailInputs([...emailInputs, { email: '', name: '', requireLogin: true, requireNda: true }]);
   };
@@ -445,6 +505,21 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
     setLoading(true);
     try {
+      if (isGuestMode()) {
+        showToast('Demo: certificado generado (no se guarda ni se descarga en modo invitado).', { type: 'success' });
+        const signedUrl = URL.createObjectURL(file);
+        setCertificateData({
+          fileName: file.name,
+          ecoFileName: file.name.replace(/\.pdf$/i, '.eco'),
+          downloadEnabled: false,
+          bitcoinPending: false,
+          signedPdfUrl: signedUrl,
+          signedPdfName: file.name.replace(/\.pdf$/i, '_demo.pdf')
+        });
+        setStep(2);
+        setLoading(false);
+        return;
+      }
       const supabase = getSupabase();
       // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
       if (workflowEnabled) {
@@ -655,25 +730,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       // 2. Guardar en Supabase (guardar el PDF procesado, no el original)
       // Status inicial: 'signed' si ya se firmó, 'draft' si no hay firmantes
       const initialStatus = (signatureType === 'legal' || signatureType === 'certified') ? 'signed' : 'draft';
-      const bitcoinRequested = forensicEnabled && forensicConfig.useBitcoinAnchor;
-      const bitcoinPending = bitcoinRequested && Boolean(certResult?.bitcoinAnchor?.anchorId);
-      const overallStatus = bitcoinPending ? 'pending_anchor' : initialStatus === 'signed' ? 'certified' : initialStatus;
+      const overallStatus = initialStatus === 'signed' ? 'certified' : initialStatus;
 
+      // ✅ REFACTOR: Blockchain anchors no bloquean certificación
+      // Los anchors se marcan como 'pending' y se resuelven async
       const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
         hasPolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
-        hasBitcoinAnchor: bitcoinRequested,
-        bitcoinAnchorId: certResult?.bitcoinAnchor?.anchorId || null,
-        bitcoinStatus: bitcoinPending ? 'pending' : null,
+        hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
         initialStatus: initialStatus,
         overallStatus,
-        downloadEnabled: !bitcoinPending,
-        // Guardamos el ECO para liberarlo cuando Bitcoin confirme
-        ecoFileData: bitcoinPending && certResult?.ecoxBuffer ? {
-          buffer: Array.from(new Uint8Array(certResult.ecoxBuffer)),
-          fileName: certResult?.fileName || file.name,
-          createdAt: new Date().toISOString()
-        } : null,
+        downloadEnabled: true, // ✅ Siempre true - .eco disponible inmediatamente
         ecoBuffer: certResult?.ecoxBuffer,
         ecoFileName: certResult?.fileName ? certResult.fileName.replace(/\.[^/.]+$/, '.eco') : file.name.replace(/\.[^/.]+$/, '.eco'),
         signNowDocumentId: signNowResult?.signnow_document_id || null,
@@ -705,45 +772,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         );
       }
 
-      // 4. Blindaje Polygon (si está activado)
-      if (forensicEnabled && forensicConfig.usePolygonAnchor && certResult.ecoData?.documentHash) {
-        console.log('🔗 Iniciando anclaje en Polygon...');
+      // ✅ ARCHITECTURE: Blockchain anchoring ahora es 100% server-side
+      // - Polygon: process-polygon-anchors worker (cron 30s) detecta polygon_status='pending'
+      // - Bitcoin: process-bitcoin-anchors worker (cron 1h) detecta bitcoin_status='pending'
+      // - Workers llaman upgrade_protection_level() tras confirmación
+      // - UI refleja cambios vía realtime subscription (líneas 318-376)
+      // - NO más triggers frontend - confiabilidad server-side garantizada
 
-        // Llamar a Polygon anchor (no bloqueante - se procesa async)
-        anchorToPolygon(certResult.ecoData.documentHash, {
-          documentId: savedDoc?.id || null, // Ensure documentId is a UUID or null
-          userId: savedDoc?.user_id,
-          metadata: {
-            filename: file.name,
-            signatureType: signatureType || 'none'
-          }
-        }).then(result => {
-          if (result.success) {
-            console.log('✅ Polygon anchor exitoso:', result);
-
-            // Registrar evento 'anchored_polygon'
-            if (savedDoc?.id) {
-              EventHelpers.logPolygonAnchor(
-                savedDoc.id,
-                result.txHash,
-                result.blockNumber,
-                {
-                  documentHash: certResult.ecoData.documentHash,
-                  status: result.status,
-                  explorerUrl: result.explorerUrl
-                }
-              );
-            }
-          } else {
-            console.warn('⚠️ Polygon anchor falló (no crítico):', result.error);
-          }
-        }).catch(err => {
-          console.error('❌ Error en Polygon anchor:', err);
-          // No bloquear el flujo - el anchor es opcional
-        });
-      }
-
-      // 5. Enviar notificación por email (no bloqueante)
+      // 4. Enviar notificación por email (no bloqueante)
       if (savedDoc?.id) {
         console.log('📧 Enviando notificación por email...');
         supabase.functions.invoke('notify-document-certified', {
@@ -759,25 +795,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         });
       }
 
-      // 6. Preparar datos para download (PDF firmado + archivo .ECO)
-      // IMPORTANTE: Si Bitcoin está pending, NO permitir descarga del ECO todavía
-      const shouldAllowEcoDownload = !bitcoinPending;
-
+      // 5. Preparar datos para download (PDF firmado + archivo .ECO)
+      // ✅ .eco disponible inmediatamente - workers procesan anchors en background
       setCertificateData({
         ...certResult,
         // URL para descargar el PDF firmado con audit trail
         signedPdfUrl: URL.createObjectURL(fileToProcess),
         signedPdfName: fileToProcess.name.replace(/\.pdf$/i, '_signed.pdf'),
-        // URL para descargar el archivo .ECO (solo si no está pending Bitcoin)
-        ecoDownloadUrl: shouldAllowEcoDownload
-          ? URL.createObjectURL(new Blob([certResult.ecoxBuffer], { type: 'application/octet-stream' }))
-          : null,
+        // URL para descargar el archivo .ECO (siempre disponible)
+        ecoDownloadUrl: URL.createObjectURL(new Blob([certResult.ecoxBuffer], { type: 'application/octet-stream' })),
         ecoFileName: certResult.fileName.replace(/\.[^/.]+$/, '.eco'),
         fileName: certResult.fileName,
         documentId: savedDoc?.id,
-        downloadEnabled: shouldAllowEcoDownload,
-        bitcoinPending,
-        bitcoinAnchorId: certResult?.bitcoinAnchor?.anchorId || null
+        downloadEnabled: true, // ✅ Siempre true
+        protectionLevel: savedDoc?.protection_level || 'ACTIVE'
       });
 
       // CONSTITUCIÓN: Toast de finalización exitosa (líneas 499-521)
@@ -1627,12 +1658,46 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               <div className="max-w-5xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-6">
                 <div className="flex items-center gap-3">
                   <Shield className="w-10 h-10 text-blue-700" />
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-2xl font-semibold text-gray-900">Tu documento quedó protegido</h3>
                     <p className="text-sm text-gray-600">
                       Elegí cómo querés recibirlo. Podés guardarlo en EcoSign o descargarlo ahora mismo.
                     </p>
                   </div>
+                  {/* ✅ Protection Level Badge */}
+                  {(() => {
+                    const level = certificateData?.protectionLevel || 'ACTIVE';
+                    const config = {
+                      ACTIVE: {
+                        label: 'Protección Activa',
+                        bgColor: 'bg-gray-100',
+                        textColor: 'text-gray-700',
+                        borderColor: 'border-gray-300',
+                        icon: '🔒'
+                      },
+                      REINFORCED: {
+                        label: 'Protección Reforzada',
+                        bgColor: 'bg-green-50',
+                        textColor: 'text-green-700',
+                        borderColor: 'border-green-300',
+                        icon: '🛡️'
+                      },
+                      TOTAL: {
+                        label: 'Protección Total',
+                        bgColor: 'bg-blue-50',
+                        textColor: 'text-blue-700',
+                        borderColor: 'border-blue-300',
+                        icon: '🔐'
+                      }
+                    };
+                    const { label, bgColor, textColor, borderColor, icon } = config[level];
+                    return (
+                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${bgColor} ${borderColor}`}>
+                        <span className="text-base">{icon}</span>
+                        <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="space-y-3">

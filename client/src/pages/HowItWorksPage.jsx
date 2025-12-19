@@ -118,6 +118,9 @@ function HowItWorksPage() {
           <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
             EcoSign no es solo una herramienta de firma. Es una nueva manera de garantizar la autenticidad documental sin sacrificar tu privacidad.
           </p>
+          <p className="text-sm text-gray-600 max-w-3xl mx-auto mt-4">
+            No necesitás entender criptografía para usar EcoSign. Esta página es solo para saber qué pasa detrás, si te interesa.
+          </p>
         </div>
       </header>
 
@@ -136,13 +139,6 @@ function HowItWorksPage() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 lg:px-8 pb-24">
         
-        {/* Subtitle */}
-        <div className="mb-16 text-center">
-          <p className="text-lg text-gray-700 italic">
-            Nuestro sistema se basa en el principio <strong>Zero-Knowledge</strong>: tu archivo nunca se sube a nuestros servidores. Todo el proceso ocurre en tu dispositivo.
-          </p>
-        </div>
-
         {/* Privacidad ante Todo */}
         <section className="mb-20">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
@@ -150,10 +146,11 @@ function HowItWorksPage() {
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
-              Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo calcula su <strong><HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> (<SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip>)</strong> directamente en tu navegador.
+              Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo genera una huella matemática única del archivo en tu navegador. El contenido nunca se sube ni se analiza.
             </p>
             <p>
-              Esa <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> es única, irreversible y suficiente para certificar la integridad del documento.
+              Esa huella es única, irreversible y suficiente para certificar la integridad del documento.
+              <span className="text-sm text-gray-500 block mt-1">A esto lo llamamos <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> o <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip>.</span>
             </p>
           </div>
         </section>
@@ -168,12 +165,13 @@ function HowItWorksPage() {
             {/* Paso 1 */}
             <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                <span className="text-gray-400">1.</span> <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>
+                <span className="text-gray-400">1.</span> Huella única
               </h3>
               <ul className="space-y-2 text-lg text-gray-700">
-                <li>• Tu navegador calcula automáticamente el <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> del archivo.</li>
+                <li>• Tu navegador genera automáticamente una huella única del archivo.</li>
                 <li>• La plataforma nunca ve el contenido.</li>
               </ul>
+              <p className="text-sm text-gray-500 mt-2">Nombre técnico: <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> / <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip>.</p>
             </div>
 
             {/* Paso 2 */}
@@ -193,6 +191,7 @@ function HowItWorksPage() {
               <p className="text-lg text-gray-700 mt-3">
                 Todo queda guardado en un <strong><RegistroDigitalInalterableTooltip>Registro de Eventos Inmutable</RegistroDigitalInalterableTooltip></strong>.
               </p>
+              <p className="text-sm text-gray-500 mt-2">Resultado humano: una cronología clara de quién hizo qué y cuándo.</p>
             </div>
 
             {/* Paso 3 */}
@@ -201,7 +200,7 @@ function HowItWorksPage() {
                 <span className="text-gray-400">3.</span> Blindaje Inhackeable (Opcional)
               </h3>
               <p className="text-lg text-gray-700 mb-3">
-                Podés activar el <strong>Blindaje <InhackeableTooltip className="font-semibold" /></strong> para añadir:
+                Podés activar el <strong>Blindaje <InhackeableTooltip className="font-semibold" /></strong> si necesitás fecha cierta legal o máxima protección futura. Añade:
               </p>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
                 <li>• <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> local (tu archivo no se sube)</li>
@@ -220,6 +219,9 @@ function HowItWorksPage() {
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-8">
             Tipos de Firma
           </h2>
+          <p className="text-lg text-gray-700 mb-4">
+            Elegís el tipo de firma según el contexto, no según complejidad.
+          </p>
           
           <div className="space-y-10">
             {/* Firma Legal */}
@@ -273,6 +275,25 @@ function HowItWorksPage() {
               Cualquier auditor puede verificar tu .ECO sin depender de la plataforma.
             </p>
           </div>
+        </section>
+
+        {/* CTA Final */}
+        <section className="text-center pt-12">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
+            ¿Listo para proteger tu trabajo?
+          </h2>
+          <p className="text-xl text-gray-700 mb-4 max-w-2xl mx-auto">
+            No necesitás entender todo para empezar. EcoSign se encarga del resto.
+          </p>
+          <p className="text-xl text-gray-700 mb-8 max-w-2xl mx-auto">
+            Comenzá gratis hoy mismo. Sin tarjeta de crédito, sin vueltas.
+          </p>
+          <Link
+            to="/login"
+            className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg"
+          >
+            Comenzar Gratis
+          </Link>
         </section>
 
         {/* Transparencia Técnica */}

@@ -26,7 +26,6 @@ const DashboardPricingPage = lazy(() => import('./pages/DashboardPricingPage'))
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'))
 const PricingPage = lazy(() => import('./pages/PricingPage'))
 const NdaPage = lazy(() => import('./pages/NdaPage'))
-const GuestPage = lazy(() => import('./pages/GuestPage'))
 const VerifyPage = lazy(() => import('./pages/VerifyPage'))
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'))
 const NdaAccessPage = lazy(() => import('./pages/NdaAccessPage'))
@@ -79,7 +78,6 @@ function DashboardAppRoutes() {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/verify" element={<VerifyPage />} />
             <Route path="/nda" element={<NdaPage />} />
-            <Route path="/guest" element={<GuestPage />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/nda/:token" element={<NdaAccessPage />} />
             <Route path="/sign/:token" element={<SignWorkflowPage mode="dashboard" />} />

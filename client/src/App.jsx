@@ -19,7 +19,6 @@ const DashboardPricingPage = lazy(() => import('./pages/DashboardPricingPage'));
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const NdaPage = lazy(() => import('./pages/NdaPage'));
-const GuestPage = lazy(() => import('./pages/GuestPage'));
 const VerifyPage = lazy(() => import('./pages/VerifyPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 const NdaAccessPage = lazy(() => import('./pages/NdaAccessPage'));
@@ -53,7 +52,23 @@ const DASHBOARD_ENABLED = false;
 
 
 function AppRoutes() {
-  const { videoState, closeVideo } = useVideoPlayer();
+  const { videoState, closeVideo, playNext, playPrevious } = useVideoPlayer();
+
+  const handleVideoEnded = () => {
+    // No hacer nada si no estamos en una playlist
+    if (videoState.playlist.length <= 1) return;
+    
+    // Si es el último video, no hacer nada (o cerrar, opcional)
+    if (videoState.currentIndex === videoState.playlist.length - 1) {
+      // Opcional: podrías cerrar el video con closeVideo() tras un delay
+      return;
+    }
+    
+    // Esperar 3 segundos y reproducir el siguiente
+    setTimeout(() => {
+      playNext();
+    }, 3000);
+  };
 
   return (
     <>
@@ -67,7 +82,6 @@ function AppRoutes() {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/verify" element={<VerifyPage />} />
             <Route path="/nda" element={<NdaPage />} />
-            <Route path="/guest" element={<GuestPage />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/nda/:token" element={<NdaAccessPage />} />
             <Route path="/sign/:token" element={<SignWorkflowPage />} />
@@ -211,6 +225,11 @@ function AppRoutes() {
           videoSrc={videoState.videoSrc}
           videoTitle={videoState.videoTitle}
           onClose={closeVideo}
+          onEnded={handleVideoEnded}
+          onNext={playNext}
+          onPrevious={playPrevious}
+          playlist={videoState.playlist}
+          currentIndex={videoState.currentIndex}
         />
       )}
 

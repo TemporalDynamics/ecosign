@@ -1,31 +1,37 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
-import {
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Copy,
-  Download,
-  Eye,
-  FileText,
-  Search,
-  Shield,
-  ShieldCheck,
-  X
-} from "lucide-react";
+import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Search, X } from "lucide-react";
+import toast from "react-hot-toast";
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 import InhackeableTooltip from "../components/InhackeableTooltip";
+import { isGuestMode } from "../utils/guestMode";
 
 const PROBATIVE_STATES = {
-  uncertified: { label: "No certificado", color: "text-gray-700", bg: "bg-gray-100", dot: "bg-gray-400" },
-  certified: { label: "Certificado", color: "text-green-700", bg: "bg-green-100", dot: "bg-green-500" },
-  irrefutable: { 
-    label: "Certificado\nReforzado", 
-    color: "text-blue-700", 
-    bg: "bg-blue-100", 
-    dot: "bg-blue-500" 
+  none: {
+    label: "Sin protección",
+    color: "text-gray-600",
+    bg: "bg-gray-100",
+    tooltip: "Aún no se generó un certificado para este documento."
+  },
+  active: {
+    label: "Protección\ncertificada",
+    color: "text-blue-700",
+    bg: "bg-blue-100",
+    tooltip: "Sello de tiempo legal (TSA) y huella digital única confirmados."
+  },
+  reinforced: {
+    label: "Protección\nreforzada",
+    color: "text-green-700",
+    bg: "bg-green-100",
+    tooltip: "Registro digital inmutable en red pública independiente."
+  },
+  total: {
+    label: "Protección\ntotal",
+    color: "text-gray-700",
+    bg: "bg-gray-100",
+    tooltip: "Máxima fortaleza probatoria con verificación independiente adicional."
   }
 };
 
@@ -34,20 +40,19 @@ const deriveProbativeState = (doc, planTier) => {
   const hasPolygon = !!doc.has_polygon_anchor;
   const ecoAvailable = !!(doc.eco_storage_path || doc.eco_file_data || doc.eco_hash);
   const bitcoinStatus = doc.bitcoin_status;
-  const bitcoinPending = bitcoinStatus === "pending";
   const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
-  
-  // pending_anchor es estado técnico, NO estado probatorio
-  const polygonAnchoring = doc.overall_status === "pending_anchor" && !hasPolygon;
+  let level = "none";
 
-  const certified = hasTsa && hasPolygon && ecoAvailable;
-  const irrefutable = certified && bitcoinConfirmed;
-  let level = "uncertified";
+  if (hasTsa) {
+    level = "active";
+  }
 
-  if (irrefutable) {
-    level = "irrefutable";
-  } else if (certified) {
-    level = "certified";
+  if (hasTsa && hasPolygon) {
+    level = "reinforced";
+  }
+
+  if (hasTsa && hasPolygon && bitcoinConfirmed) {
+    level = "total";
   }
 
   const ecoxPlanAllowed = ["business", "enterprise"].includes((planTier || "").toLowerCase());
@@ -56,12 +61,8 @@ const deriveProbativeState = (doc, planTier) => {
   return {
     level,
     config: PROBATIVE_STATES[level],
-    hasTsa,
-    hasPolygon,
-    polygonAnchoring,
     ecoAvailable,
     ecoxAvailable,
-    bitcoinPending,
     bitcoinConfirmed,
     ecoxPlanAllowed
   };
@@ -84,13 +85,68 @@ const computeHash = async (fileOrBlob) => {
   return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
 };
 
+const GUEST_DEMO_DOCS = [
+  {
+    id: "guest-doc-1",
+    document_name: "Demo_Proteccion_Certificada.pdf",
+    document_hash: "guest-hash-1",
+    eco_hash: "guest-eco-1",
+    created_at: new Date().toISOString(),
+    last_event_at: new Date().toISOString(),
+    has_legal_timestamp: true,
+    has_polygon_anchor: false,
+    has_bitcoin_anchor: false,
+    polygon_status: "pending",
+    bitcoin_status: "pending",
+    pdf_storage_path: null,
+    eco_storage_path: null,
+    eco_file_data: null,
+    ecox_storage_path: null,
+    status: "certified"
+  },
+  {
+    id: "guest-doc-2",
+    document_name: "Demo_Proteccion_Reforzada.pdf",
+    document_hash: "guest-hash-2",
+    eco_hash: "guest-eco-2",
+    created_at: new Date().toISOString(),
+    last_event_at: new Date().toISOString(),
+    has_legal_timestamp: true,
+    has_polygon_anchor: true,
+    has_bitcoin_anchor: false,
+    polygon_status: "confirmed",
+    bitcoin_status: "pending",
+    pdf_storage_path: null,
+    eco_storage_path: null,
+    eco_file_data: null,
+    ecox_storage_path: null,
+    status: "certified"
+  },
+  {
+    id: "guest-doc-3",
+    document_name: "Demo_Proteccion_Total.pdf",
+    document_hash: "guest-hash-3",
+    eco_hash: "guest-eco-3",
+    created_at: new Date().toISOString(),
+    last_event_at: new Date().toISOString(),
+    has_legal_timestamp: true,
+    has_polygon_anchor: true,
+    has_bitcoin_anchor: true,
+    polygon_status: "confirmed",
+    bitcoin_status: "confirmed",
+    pdf_storage_path: null,
+    eco_storage_path: null,
+    eco_file_data: null,
+    ecox_storage_path: null,
+    status: "certified"
+  }
+];
+
 function DocumentsPage() {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [planTier, setPlanTier] = useState(null); // free | pro | business | enterprise
-  const [ecoPendingDoc, setEcoPendingDoc] = useState(null);
-  const [showEcoPendingModal, setShowEcoPendingModal] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyDoc, setVerifyDoc] = useState(null);
@@ -103,6 +159,11 @@ function DocumentsPage() {
 
   const loadDocuments = useCallback(async () => {
     try {
+      if (isGuestMode()) {
+        setDocuments(GUEST_DEMO_DOCS);
+        setLoading(false);
+        return;
+      }
       const supabase = getSupabase();
       setLoading(true);
       const {
@@ -148,6 +209,10 @@ function DocumentsPage() {
 
   const loadPlan = useCallback(async () => {
     try {
+      if (isGuestMode()) {
+        setPlanTier("guest");
+        return;
+      }
       const supabase = getSupabase();
       const {
         data: { user }
@@ -166,6 +231,7 @@ function DocumentsPage() {
   }, [loadDocuments, loadPlan]);
 
   useEffect(() => {
+    if (isGuestMode()) return;
     if (showVerifyModal && verifyDoc?.pdf_storage_path && !autoVerifyAttempted) {
       setAutoVerifyAttempted(true);
       autoVerifyStoredPdf(verifyDoc);
@@ -181,6 +247,10 @@ function DocumentsPage() {
   }, [loadDocuments]);
 
   const downloadFromPath = async (storagePath, fileName = null) => {
+    if (isGuestMode()) {
+      toast("Modo invitado: descarga disponible solo con cuenta.", { position: "top-right" });
+      return;
+    }
     if (!storagePath) return;
     try {
       const supabase = getSupabase();
@@ -221,6 +291,10 @@ function DocumentsPage() {
   };
 
   const requestRegeneration = async (docId, type) => {
+    if (isGuestMode()) {
+      toast("Modo invitado: regeneración disponible solo con cuenta.", { position: "top-right" });
+      return;
+    }
     try {
       const supabase = getSupabase();
       const { error } = await supabase.rpc("request_certificate_regeneration", {
@@ -275,39 +349,12 @@ function DocumentsPage() {
 
   const handleEcoDownload = (doc) => {
     if (!doc) return;
-    if (doc.bitcoin_status === "pending") {
-      setEcoPendingDoc({ ...doc, pendingType: "eco" });
-      setShowEcoPendingModal(true);
-      return;
-    }
     performEcoDownload(doc);
   };
 
   const handleEcoxDownload = (doc) => {
     if (!doc) return;
-    if (doc.bitcoin_status === "pending") {
-      setEcoPendingDoc({ ...doc, pendingType: "ecox" });
-      setShowEcoPendingModal(true);
-      return;
-    }
     performEcoxDownload(doc);
-  };
-
-  const proceedBitcoinPending = () => {
-    if (!ecoPendingDoc) return;
-    const pendingType = ecoPendingDoc.pendingType;
-    const docCopy = { ...ecoPendingDoc };
-    setShowEcoPendingModal(false);
-    setEcoPendingDoc(null);
-
-    // Recordatorio al usuario: la descarga no detiene el refuerzo.
-    window.setTimeout(() => window.alert("Esta descarga no cancela el refuerzo probatorio."), 50);
-
-    if (pendingType === "eco") {
-      performEcoDownload(docCopy);
-    } else {
-      performEcoxDownload(docCopy);
-    }
   };
 
   const handlePdfDownload = (doc) => {
@@ -394,12 +441,7 @@ function DocumentsPage() {
       matchesContent,
       hash: normalizedHash,
       source,
-      extended:
-        doc.bitcoin_status === "pending"
-          ? "Refuerzo probatorio en proceso (Bitcoin)."
-          : doc.bitcoin_status === "confirmed"
-            ? "Certificado Reforzado."
-            : null
+      extended: doc.bitcoin_status === "confirmed" ? "Protección total confirmada." : null
     };
   };
 
@@ -465,17 +507,10 @@ function DocumentsPage() {
                   {filteredDocuments.map((doc) => {
                     const {
                       config,
-                      polygonAnchoring,
-                      bitcoinPending,
-                      bitcoinConfirmed,
-                      ecoAvailable,
-                      ecoxAvailable,
-                      ecoxPlanAllowed
+                      ecoAvailable
                     } = deriveProbativeState(doc, planTier);
                     const pdfAvailable = !!doc.pdf_storage_path;
-                    const certificationIncomplete = !ecoAvailable && (doc.has_legal_timestamp || doc.has_polygon_anchor);
-                    const ecoxDisabled = !ecoxPlanAllowed;
-
+                    const ecoEnabled = ecoAvailable || doc.eco_hash;
                     return (
                       <tr key={doc.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -485,36 +520,13 @@ function DocumentsPage() {
                               <div className="text-sm font-medium text-gray-900">
                                 {doc.document_name.replace(/\.pdf$/i, '.eco')}
                               </div>
-                              {polygonAnchoring && (
-                                <div className="text-xs text-blue-700 mt-0.5 flex items-center gap-1">
-                                  <Clock className="h-3 w-3 animate-pulse" />
-                                  Anclaje en Polygon en proceso (~60s)
-                                </div>
-                              )}
-                              {bitcoinPending && (
-                                <div className="text-xs text-blue-700 mt-0.5">
-                                  Refuerzo probatorio en proceso (Bitcoin 4-24h)
-                                </div>
-                              )}
-                              {!pdfAvailable && (
-                                <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                                  <ShieldCheck className="h-3 w-3" />
-                                  PDF no almacenado (modo privacidad)
-                                </div>
-                              )}
-                              {certificationIncomplete && (
-                                <div className="text-xs text-orange-700 mt-0.5 flex items-center gap-1">
-                                  <AlertCircle className="h-3 w-3" />
-                                  Certificación incompleta. Se reintentará con TSA + Polygon.
-                                </div>
-                              )}
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <span
                             className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${config.bg} ${config.color} whitespace-pre-line text-center cursor-help`}
-                            title={config.label === "Certificado\nReforzado" ? "Máximo refuerzo probatorio" : undefined}
+                            title={config.tooltip}
                           >
                             {config.label}
                           </span>
@@ -533,22 +545,17 @@ function DocumentsPage() {
                             </button>
                             <button
                               onClick={() => handleEcoDownload(doc)}
-                              className={`${ecoAvailable || doc.eco_hash ? "text-black hover:text-gray-600" : "text-gray-300 cursor-not-allowed"}`}
-                              disabled={!ecoAvailable && !doc.eco_hash}
-                              title={
-                                ecoAvailable
-                                  ? "Descargar certificado .ECO"
-                                  : doc.eco_hash
-                                    ? "Regenerar certificado .ECO"
-                                    : "Certificado .ECO no disponible (puede estar generándose)"
-                              }
+                              className={`${ecoEnabled ? "text-black hover:text-gray-600" : "text-gray-300 cursor-not-allowed"}`}
+                              disabled={!ecoEnabled}
+                              title={ecoEnabled ? "Descargar certificado .ECO" : "Certificado .ECO no disponible"}
                             >
                               <Download className="h-5 w-5" />
                             </button>
                             <button
-                              onClick={() => handlePdfDownload(doc)}
-                              className="text-black hover:text-gray-600"
-                              title="Descargar PDF (si existe)"
+                              onClick={() => pdfAvailable && handlePdfDownload(doc)}
+                              className={`${pdfAvailable ? "text-black hover:text-gray-600" : "text-gray-300 cursor-not-allowed"}`}
+                              disabled={!pdfAvailable}
+                              title={pdfAvailable ? "PDF: descarga disponible" : "PDF: descarga no disponible"}
                             >
                               <FileText className="h-5 w-5" />
                             </button>
@@ -558,23 +565,6 @@ function DocumentsPage() {
                               title="Verificar documento"
                             >
                               <Search className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (!ecoxPlanAllowed) return;
-                                return ecoxAvailable ? handleEcoxDownload(doc) : requestRegeneration(doc.id, "ecox");
-                              }}
-                              className={`${ecoxDisabled ? "text-gray-300 cursor-not-allowed" : "text-black hover:text-gray-600"}`}
-                              title={
-                                ecoxPlanAllowed
-                                  ? ecoxAvailable
-                                    ? "Descargar .ECOX"
-                                    : "Solicitar .ECOX"
-                                  : "Disponible en planes Business / Enterprise"
-                              }
-                              disabled={ecoxDisabled}
-                            >
-                              <ShieldCheck className="h-5 w-5" />
                             </button>
                           </div>
                         </td>
@@ -588,52 +578,6 @@ function DocumentsPage() {
         </main>
       </div>
       <FooterInternal />
-
-      {/* Modal ECO pendiente (Bitcoin en proceso) */}
-      {showEcoPendingModal && ecoPendingDoc && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Protección base lista</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  TSA + Polygon confirmados. El refuerzo Bitcoin sigue en curso (4-24h).
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowEcoPendingModal(false);
-                  setEcoPendingDoc(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="text-sm text-gray-700 mb-6">
-              Podés descargar ahora. La confirmación independiente seguirá su curso y cuando se confirme el estado
-              subirá a Certificado Reforzado automáticamente.
-            </p>
-            <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
-              <button
-                className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 text-sm font-semibold"
-                onClick={() => {
-                  setShowEcoPendingModal(false);
-                  setEcoPendingDoc(null);
-                }}
-              >
-                ⏳ Esperar refuerzo probatorio
-              </button>
-              <button
-                className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold hover:border-gray-400"
-                onClick={proceedBitcoinPending}
-              >
-                ⬇️ Descargar ahora
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal Preview */}
       {previewDoc && (
@@ -690,10 +634,7 @@ function DocumentsPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Verificar documento</h3>
                 <p className="text-xs text-gray-600 mt-1">
-                  Validá integridad comparando hashes (content_hash y document_hash) sin subir tu archivo.
-                </p>
-                <p className="text-xs text-gray-500">
-                  Si guardaste el PDF, la verificación se intenta de forma automática.
+                  Validá que tu PDF coincide con el certificado almacenado.
                 </p>
               </div>
               <button
@@ -708,24 +649,20 @@ function DocumentsPage() {
               </button>
             </div>
 
-            {!verifyDoc.pdf_storage_path && (
-              <p className="text-xs text-gray-600 mb-3">
-                Este documento no fue almacenado. EcoSign no guarda documentos sin tu permiso.
-              </p>
+            {!verifyResult && (
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center mb-4">
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => e.target.files?.[0] && onVerifyFile(e.target.files[0], verifyDoc)}
+                  className="hidden"
+                  id="verify-upload"
+                />
+                <label htmlFor="verify-upload" className="cursor-pointer text-sm text-gray-700 hover:text-gray-900">
+                  {verifying ? "Verificando…" : "Arrastrá o hacé clic para subir el PDF firmado"}
+                </label>
+              </div>
             )}
-
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center mb-4">
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => e.target.files?.[0] && onVerifyFile(e.target.files[0], verifyDoc)}
-                className="hidden"
-                id="verify-upload"
-              />
-              <label htmlFor="verify-upload" className="cursor-pointer text-sm text-gray-700 hover:text-gray-900">
-                {verifying ? "Verificando…" : "Arrastrá o hacé clic para subir el PDF firmado"}
-              </label>
-            </div>
 
             {verifyResult && (
               <div className="mt-4 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm space-y-2">
@@ -777,6 +714,17 @@ function DocumentsPage() {
                     {verifyResult.error} Revisá que estés verificando el archivo correcto.
                   </p>
                 )}
+                <div className="pt-2 flex justify-end">
+                  <button
+                    className="text-xs text-gray-600 hover:text-gray-800 underline"
+                    onClick={() => {
+                      setVerifyResult(null);
+                      setVerifying(false);
+                    }}
+                  >
+                    Verificar otro PDF
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -787,34 +735,15 @@ function DocumentsPage() {
 }
 
 function PreviewBadges({ doc, planTier }) {
-  const { config, level, bitcoinPending, bitcoinConfirmed, ecoxAvailable, ecoxPlanAllowed } = deriveProbativeState(doc, planTier);
+  const { config } = deriveProbativeState(doc, planTier);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span
         className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${config.bg} ${config.color} whitespace-pre-line text-center cursor-help`}
-        title={config.label === "Certificado\nReforzado" ? "Máximo refuerzo probatorio" : undefined}
+        title={config.tooltip}
       >
         {config.label}
       </span>
-      <div className="text-xs text-gray-700 flex items-center gap-1">
-        <Shield className="h-3 w-3" />
-        Escudo {level === "uncertified" ? "apagado" : "activo"} · Solo muestra lo ya confirmado por el servidor
-      </div>
-      {bitcoinPending && (
-        <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs">
-          Refuerzo probatorio en proceso (registro independiente)
-        </span>
-      )}
-      {!ecoxPlanAllowed && (
-        <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs">
-          .ECOX disponible en planes Business / Enterprise
-        </span>
-      )}
-      {ecoxAvailable && (
-        <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs">
-          .ECOX listo para descargar
-        </span>
-      )}
     </div>
   );
 }
@@ -823,30 +752,42 @@ function ProbativeTimeline({ doc }) {
   const hasTsa = !!doc.has_legal_timestamp;
   const hasPolygon = !!doc.has_polygon_anchor;
   const bitcoinStatus = doc.bitcoin_status;
-  const bitcoinPending = bitcoinStatus === "pending";
   const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
+  const timelineItems = [];
 
-  const timelineItems = [
-    {
+  if (hasTsa) {
+    timelineItems.push({
       label: "Sello de tiempo verificado",
-      status: hasTsa ? "ok" : "off",
-      description: hasTsa ? "Fecha y hora firmadas por autoridad independiente." : "No solicitado"
-    },
-    {
-      label: "Registro público rápido",
-      status: hasPolygon ? "ok" : "off",
-      description: hasPolygon ? "Huella publicada en registro digital público." : "No solicitado"
-    },
-    {
-      label: "Refuerzo independiente",
-      status: bitcoinConfirmed ? "ok" : bitcoinPending ? "pending" : "off",
-      description: bitcoinConfirmed
-        ? `Confirmado${doc.bitcoin_confirmed_at ? `: ${formatDate(doc.bitcoin_confirmed_at)}` : ""}`
-        : bitcoinPending
-          ? "En proceso automático (4-24 horas). No requiere acción."
-          : "No solicitado"
-    }
-  ];
+      description: "Fecha y hora firmadas por autoridad independiente.",
+      status: "ok"
+    });
+  }
+
+  if (hasPolygon) {
+    timelineItems.push({
+      label: "Registro público confirmado",
+      description: "Huella publicada en registro digital independiente.",
+      status: "ok"
+    });
+  }
+
+  if (bitcoinConfirmed) {
+    timelineItems.push({
+      label: "Refuerzo independiente confirmado",
+      description: doc.bitcoin_confirmed_at
+        ? `Confirmado: ${formatDate(doc.bitcoin_confirmed_at)}`
+        : "Confirmado.",
+      status: "ok"
+    });
+  }
+
+  if (timelineItems.length === 0) {
+    timelineItems.push({
+      label: "Sin eventos confirmados",
+      description: "Todavía no hay refuerzos confirmados para este documento.",
+      status: "empty"
+    });
+  }
 
   return (
     <div>
@@ -858,18 +799,11 @@ function ProbativeTimeline({ doc }) {
           <div key={item.label} className="flex items-center gap-3">
             {item.status === "ok" ? (
               <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-            ) : item.status === "pending" ? (
-              <Clock className="h-5 w-5 text-orange-600 flex-shrink-0 animate-pulse" />
             ) : (
               <AlertCircle className="h-5 w-5 text-gray-300 flex-shrink-0" />
             )}
             <div className="flex-1">
-              <div className={`text-sm font-medium ${
-                item.status === "ok" ? "text-gray-900" :
-                item.status === "pending" ? "text-orange-700" : "text-gray-400"
-              }`}>
-                {item.label}
-              </div>
+              <div className="text-sm font-medium text-gray-900">{item.label}</div>
               <div className="text-xs text-gray-500">{item.description}</div>
             </div>
           </div>

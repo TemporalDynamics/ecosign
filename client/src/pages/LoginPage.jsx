@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lock } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
+import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
 
 function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -99,67 +98,15 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Header Público */}
-      <nav className="bg-white fixed w-full top-0 z-50 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-            </Link>
-            <div className="hidden md:flex items-center space-x-8">
-              <Link to="/how-it-works" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Cómo funciona
-              </Link>
-              <Link to="/verify" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Verificador
-              </Link>
-              <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Precios
-              </Link>
-              <Link to="/login" className="text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Iniciar Sesión
-              </Link>
-              <Link
-                to="/login"
-                className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300"
-              >
-                Comenzar Gratis
-              </Link>
-            </div>
-            <button
-              className="md:hidden text-gray-600 hover:text-black"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle menu"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-200">
-            <div className="px-4 pt-2 pb-4 space-y-2">
-              <Link to="/how-it-works" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Cómo funciona</Link>
-              <Link to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificador</Link>
-              <Link to="/pricing" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Precios</Link>
-              <Link to="/login" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Iniciar Sesión</Link>
-              <Link
-                to="/login"
-                className="block bg-black hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-center mt-2"
-              >
-                Comenzar Gratis
-              </Link>
-            </div>
-          </div>
-        )}
-      </nav>
+      <HeaderPublic />
 
       <div className="flex-grow flex items-center justify-center p-4 pt-24">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-full mb-4">
-              <Lock className="w-8 h-8 text-white" strokeWidth={2.5} />
+              <svg className="w-8 h-8 text-white" strokeWidth={2.5} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeLinecap="round" strokeLinejoin="round"></path>
+              </svg>
             </div>
             <h1 className="text-3xl font-bold text-black mb-2">EcoSign</h1>
             <p className="text-gray-600">Certificación digital con privacidad total</p>
@@ -275,7 +222,7 @@ function LoginPage() {
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
             <p className="text-gray-600 mb-3">¿Prefieres no crear cuenta?</p>
             <Link
-              to="/guest"
+              to="/inicio?guest=true"
               className="inline-block bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-2 px-6 rounded-lg transition duration-300"
             >
               Continuar como invitado

@@ -4,6 +4,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
+import { withRateLimit } from '../_shared/ratelimit.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +23,7 @@ interface AccessMetadata {
   session_id?: string
 }
 
-serve(async (req) => {
+serve(withRateLimit('verify', async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -256,4 +257,4 @@ serve(async (req) => {
       }
     )
   }
-})
+}))

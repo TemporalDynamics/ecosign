@@ -1,5 +1,4 @@
 // client/src/pages/DashboardVerifyPage.jsx
-import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Info } from 'lucide-react';
 import VerificationComponent from '../components/VerificationComponent';

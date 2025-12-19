@@ -201,7 +201,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     if (selectedFile) {
       setFile(selectedFile);
       setPreviewError(false);
-      console.log('Archivo seleccionado:', selectedFile.name);
+
 
       // Generar preview según el tipo de archivo
       if (selectedFile.type.startsWith('image/')) {
@@ -409,7 +409,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             }
           });
 
-          console.log('✅ Workflow iniciado:', workflowResult);
+
           toast.success(`Invitaciones enviadas a ${validSigners.length} firmante(s). Revisá tu email para el seguimiento.`, {
             duration: 6000
           });
@@ -429,7 +429,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       }
 
       // FLUJO 2: Firma Individual (Caso A) - Yo firmo ahora
-      console.log('✍️ Caso A - Usuario logueado firma el documento');
+
 
       // Obtener datos de firma si está en modo canvas (ya aplicada al PDF)
       const signatureData = signatureMode === 'canvas' ? getSignatureData() : null;
@@ -475,7 +475,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       if (signatureType === 'certified') {
         // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
-        console.log('🔐 Usando SignNow API para firma legalizada');
+
 
         try {
           // Llamar a SignNow con la firma ya embebida
@@ -506,7 +506,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             }
           });
 
-          console.log('✅ SignNow completado:', signNowResult);
+
 
           // Obtener el PDF firmado desde SignNow
           if (signNowResult.signed_pdf_base64) {
@@ -540,7 +540,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         }
       } else {
         // ✅ Usar motor interno (Firma Legal)
-        console.log('📝 Usando motor interno de Firma Legal');
+
         certResult = await certifyFile(fileToProcess, {
           useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
           usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
@@ -603,7 +603,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       // 4. Blindaje Polygon (si está activado)
       if (forensicEnabled && forensicConfig.usePolygonAnchor && certResult.ecoData?.documentHash) {
-        console.log('🔗 Iniciando anclaje en Polygon...');
+
 
         // Llamar a Polygon anchor (no bloqueante - se procesa async)
         anchorToPolygon(certResult.ecoData.documentHash, {
@@ -615,7 +615,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           }
         }).then(result => {
           if (result.success) {
-            console.log('✅ Polygon anchor exitoso:', result);
+
 
             // Registrar evento 'anchored_polygon'
             if (savedDoc?.id) {
@@ -641,14 +641,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       // 5. Enviar notificación por email (no bloqueante)
       if (savedDoc?.id) {
-        console.log('📧 Enviando notificación por email...');
+
         supabase.functions.invoke('notify-document-certified', {
           body: { documentId: savedDoc.id }
         }).then(({ data, error }) => {
           if (error) {
             console.warn('⚠️ Error al enviar email (no crítico):', error);
           } else {
-            console.log('✅ Email de notificación enviado:', data);
+
           }
         }).catch(err => {
           console.warn('⚠️ No se pudo enviar email:', err);
@@ -687,7 +687,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   };
 
   const resetAndClose = () => {
-    console.log('🔒 Cerrando Centro Legal...');
+
     setStep(1);
     setFile(null);
     setPreviewError(false);
@@ -724,7 +724,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
     clearCanvas();
 
-    console.log('✅ Estados reseteados, llamando onClose()');
+
     if (typeof onClose === 'function') {
       onClose();
     } else {

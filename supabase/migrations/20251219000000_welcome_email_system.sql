@@ -184,19 +184,16 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Cron Job: Process welcome emails every 1 minute
 -- =====================================================
 -- NOTE: This requires pg_cron extension and proper configuration
--- Apply manually in dashboard or via supabase CLI
+-- Apply manually in dashboard or via supabase CLI after migration
+--
+-- To create the cron job, run this in Dashboard SQL Editor:
+--
+-- SELECT cron.schedule(
+--   'process-welcome-emails',
+--   '*/1 * * * *',
+--   'SELECT public.process_welcome_email_queue();'
+-- );
 -- =====================================================
-
--- Run this in Dashboard SQL Editor after migration:
-/*
-SELECT cron.schedule(
-  'process-welcome-emails',
-  '*/1 * * * *', -- Every 1 minute
-  $$
-  SELECT public.process_welcome_email_queue();
-  $$
-);
-*/
 
 -- =====================================================
 -- Grant permissions

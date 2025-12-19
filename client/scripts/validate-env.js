@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 /**
  * Build-time validation script
  * Verifies environment variables before deployment

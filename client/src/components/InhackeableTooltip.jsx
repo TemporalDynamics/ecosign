@@ -1,4 +1,3 @@
-import React from 'react';
 import Tooltip from './Tooltip';
 
 // Reusable label for the “inhackeable” concept with a concise explainer.

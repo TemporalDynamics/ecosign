@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
+import { withRateLimit } from '../_shared/ratelimit.ts';
 
 interface CreateInviteRequest {
   documentId: string;
@@ -15,7 +16,7 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400'
 };
 
-serve(async (req) => {
+serve(withRateLimit('invite', async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -167,4 +168,4 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

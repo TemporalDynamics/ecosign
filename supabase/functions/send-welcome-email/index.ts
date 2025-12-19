@@ -71,10 +71,34 @@ serve(async (req) => {
     const docsUrl = `${siteUrl}/docs`
     const supportUrl = `${siteUrl}/support`
 
+    // Badge number: crear si no existe
+    const { data: existingBadge, error: badgeErr } = await supabase
+      .from('founder_badges')
+      .select('badge_number')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    let badgeNumber = existingBadge?.badge_number ?? null
+
+    if (!badgeNumber) {
+      const { data: newBadge, error: insertBadgeErr } = await supabase
+        .from('founder_badges')
+        .insert({ user_id: userId })
+        .select('badge_number')
+        .maybeSingle()
+
+      if (insertBadgeErr) {
+        console.error('Error creating founder badge:', insertBadgeErr)
+      } else {
+        badgeNumber = newBadge?.badge_number ?? null
+      }
+    }
+
     // Build email
     const emailPayload = buildFounderWelcomeEmail({
       userEmail: user.email,
       userName,
+      founderNumber: badgeNumber ?? user.user_metadata?.founder_number ?? user.user_metadata?.founderNumber ?? null,
       dashboardUrl,
       docsUrl,
       supportUrl
@@ -88,6 +112,11 @@ serve(async (req) => {
         email_type: 'welcome_founder',
         subject: emailPayload.subject,
         body_html: emailPayload.html,
+        metadata: {
+          user_id: userId,
+          user_name: userName,
+          founder_number: badgeNumber
+        },
         delivery_status: 'pending',
         attempts: 0
       })

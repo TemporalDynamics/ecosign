@@ -224,20 +224,23 @@ export function buildFounderWelcomeEmail({
   userName,
   dashboardUrl = 'https://ecosign.app/dashboard',
   docsUrl = 'https://ecosign.app/docs',
-  supportUrl = 'https://ecosign.app/support'
+  supportUrl = 'https://ecosign.app/support',
+  founderNumber
 }: {
   userEmail: string;
   userName?: string | null;
   dashboardUrl?: string;
   docsUrl?: string;
   supportUrl?: string;
+  founderNumber?: string | number | null;
 }) {
   const name = userName || userEmail.split('@')[0];
+  const badgeNumber = founderNumber ?? '—';
 
   return {
     from: DEFAULT_FROM,
     to: userEmail,
-    subject: 'Bienvenido a EcoSign',
+    subject: 'Bienvenido a EcoSign — Usuario Founder',
     html: `
 <!DOCTYPE html>
 <html lang="es">
@@ -406,14 +409,14 @@ export function buildFounderWelcomeEmail({
     <!-- Header -->
     <div class="header">
       <h1>Bienvenido a EcoSign</h1>
-      <p>Tu sistema de certificación forense de documentos</p>
+      <p>Firmá y gestioná documentos de forma simple y legal</p>
     </div>
 
     <!-- Founder Badge -->
     <div class="badge-container">
-      <div class="founder-badge">FOUNDER</div>
+      <div class="founder-badge">🛡️ Usuario Founder · Nº ${badgeNumber}</div>
       <p class="badge-subtitle">
-        Como usuario fundador, sos parte de la construcción de EcoSign
+        Acceso temprano · Beneficio permanente
       </p>
     </div>
 
@@ -422,32 +425,32 @@ export function buildFounderWelcomeEmail({
       <h2>Hola ${name},</h2>
 
       <p>
-        Acabás de dar el primer paso hacia un sistema que te permite <strong>proteger tus documentos con certeza legal y técnica</strong>.
+        Tu cuenta fue verificada correctamente y ya podés usar EcoSign. Por haberte registrado en esta etapa inicial, tu usuario quedó identificado como <strong>Usuario Founder</strong>.
       </p>
 
       <p>
-        EcoSign combina criptografía, timestamps legales RFC 3161 y anclaje blockchain para garantizar que tus documentos sean verificables, inmutables y válidos como evidencia.
+        Esto implica dos cosas importantes desde hoy:
       </p>
 
       <div class="divider"></div>
 
       <!-- Benefits -->
       <div class="benefits">
-        <h3>Qué podés hacer ahora</h3>
+        <h3>Qué te permite EcoSign</h3>
         <ul>
-          <li>Certificar documentos con firma criptográfica y timestamp legal</li>
-          <li>Anclar en blockchain (Polygon y Bitcoin) para inmutabilidad</li>
-          <li>Enviar documentos a firmar con SignNow (eIDAS, ESIGN, UETA)</li>
-          <li>Verificar certificados .ECO offline con criptografía pública</li>
-          <li>Descargar evidencia forense aceptable en tribunales</li>
+          <li>Firmar documentos de forma simple, con validez legal</li>
+          <li>Enviar documentos por email mediante links seguros</li>
+          <li>Crear flujos con NDA sin exponer el contenido del archivo</li>
+          <li>Mantener tus documentos organizados y con estados claros</li>
+          <li>Hacer todo desde un solo lugar, sin salir a otras plataformas</li>
         </ul>
       </div>
 
       <!-- Security Note -->
       <div class="security-note">
-        <h4>Arquitectura Zero-Knowledge</h4>
+        <h4>Beneficio Founder</h4>
         <p>
-          Tus documentos nunca se almacenan en nuestros servidores. Solo generamos hashes criptográficos y certificados de integridad. Vos controlás completamente tus archivos.
+          Mientras mantengas tu plan activo, tu precio queda protegido de por vida. No importa cómo evolucione EcoSign en el futuro: tu condición de Founder conserva tu tarifa original.
         </p>
       </div>
 

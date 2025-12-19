@@ -3177,3 +3177,71 @@ Reducir ansiedad en el onboarding sin cambiar la estructura: beneficio antes de 
 
 ### 💬 Nota del dev
 "No cambiamos la arquitectura; solo bajamos la carga cognitiva. Beneficio visible, tecnicismo en nota. Si alguien agrega copy nuevo, seguir la regla: permiso primero, detalle después."
+
+---
+
+## Iteración 2025-12-19 — Email de bienvenida Founder con estética minimalista
+
+### 🎯 Objetivo
+Enviar email de bienvenida automático después de verificar email, con badge "Founder", mensaje alineado al onboarding y estética sobria que refleje la identidad visual de la web (sin gradientes, sin morados, sin emojis).
+
+### 🧠 Decisiones tomadas
+- Sistema automático disparado por confirmación de email: trigger SQL escucha `auth.users.email_confirmed_at`, inserta en cola, cron procesa cada 1 minuto.
+- Email generado dinámicamente: `send-pending-emails` detecta `notification_type='welcome_founder'` y genera HTML vía `buildFounderWelcomeEmail()` (no hardcoded en DB).
+- Estética minimalista alineada a la web: blanco/negro/grises, sin gradientes, sin morados, sin emojis. Badge "FOUNDER" con borde negro sólido (no relleno llamativo).
+- Tono: tranquilidad, seriedad, confianza. Copy enfocado en "certeza" y "zero-knowledge", beneficios listados con guiones (no checkmarks), CTA negro sólido.
+- Un solo email por usuario: constraint `UNIQUE(user_id)` en `welcome_email_queue` previene duplicados.
+
+### 🛠️ Cambios realizados
+
+**Backend (SQL)**:
+- `supabase/migrations/20251219000000_welcome_email_system.sql`: tabla `welcome_email_queue`, trigger `trigger_queue_welcome_email` en `auth.users`, función `process_welcome_email_queue()` (crea notification), cron job SQL commented (apply manual).
+
+**Edge Functions**:
+- `supabase/functions/_shared/email.ts`: +`buildFounderWelcomeEmail()` con template HTML minimalista inline.
+- `supabase/functions/send-pending-emails/index.ts`: +detección de `notification_type='welcome_founder'`, genera HTML dinámicamente (no usa `body_html` de DB).
+- `supabase/functions/send-welcome-email/index.ts`: edge function standalone (opcional, puede llamarse directamente o vía queue).
+
+**Templates**:
+- `supabase/templates/founder-welcome.html`: template HTML standalone de referencia (mismo diseño que inline).
+
+**Documentación**:
+- `supabase/functions/send-welcome-email/README.md`: arquitectura completa, deployment, testing, troubleshooting.
+
+**Estilo del email**:
+- Paleta: `#000000` (títulos/badge/CTA), `#ffffff` (fondo), `#fafafa` (fondos sutiles), `#475569`/`#64748b` (textos), `#e5e7eb` (bordes).
+- Badge: `border: 2px solid #000000`, fondo transparente, uppercase con letter-spacing 1.5px.
+- CTA: `background-color: #000000`, sin gradiente, hover gris oscuro.
+- Lista de beneficios: guiones (`—`) negros, no checkmarks verdes.
+- Sin sombras, sin bordes redondeados exagerados, sin iconos llamativos.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se envía email si usuario no verifica (confirmación es trigger, no registro).
+- No se usa webhook de Supabase Auth (más complejo); en su lugar, trigger SQL + queue + cron.
+- No se hardcodea HTML en DB; se genera dinámicamente para facilitar actualizaciones.
+- No se agregó unsubscribe ni tracking (futuro); MVP solo envía bienvenida.
+
+### ⚠️ Consideraciones / deuda futura
+- **Cron manual**: el cron job NO se crea automáticamente; debe ejecutarse manualmente en Dashboard SQL Editor (ver README).
+- **Variables de entorno**: requiere `RESEND_API_KEY`, `DEFAULT_FROM`, `SITE_URL` configuradas.
+- **Dominio verificado**: Resend debe tener dominio `ecosign.app` verificado (SPF/DKIM) para evitar spam.
+- **Deuda**: agregar A/B testing, tracking (opens/clicks), i18n, emails de onboarding día 3/7.
+
+### 📍 Estado final
+- Migración aplicada (`20251219000000_welcome_email_system.sql`).
+- Edge functions actualizados (`send-pending-emails`, `send-welcome-email`).
+- Template HTML minimalista alineado a estética de la web.
+- Sistema listo para deployment: falta aplicar migración, crear cron, desplegar edge functions, configurar env vars.
+
+### 💬 Nota del dev
+"El email es el primer contacto después del registro. No podía tener gradientes morados ni emojis cuando la web es blanco/negro sobrio. La estética es parte del mensaje: seriedad, no juguete. Badge 'Founder' discreto (borde negro, no relleno flashy) refuerza pertenencia sin romper la coherencia visual. Sistema de queue + cron permite escalar sin bloquear confirmación de email."
+
+**Próximos pasos**:
+1. `supabase db push` (aplicar migración)
+2. Crear cron job manualmente en Dashboard (SQL Editor)
+3. `supabase functions deploy send-pending-emails`
+4. Configurar `SITE_URL` en Supabase Secrets
+5. Verificar dominio en Resend
+6. Test con usuario nuevo
+
+---

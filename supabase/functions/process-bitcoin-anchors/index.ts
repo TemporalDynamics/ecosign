@@ -571,7 +571,8 @@ serve(async (req) => {
                 bitcoin_confirmed_at: confirmedAt,
                 overall_status: 'certified',
                 download_enabled: true,
-                bitcoin_anchor_id: anchor.id
+                bitcoin_anchor_id: anchor.id,
+                has_bitcoin_anchor: true  // ✅ Set flag when confirmed (conservative truth)
               } : null;
 
               // Call atomic function
@@ -603,6 +604,25 @@ serve(async (req) => {
                 confirmedAt: blockData.confirmedAt,
                 attempts
               });
+
+              // ✅ UPGRADE PROTECTION LEVEL (monotonic increase)
+              if (anchor.user_document_id) {
+                try {
+                  await supabaseAdmin.rpc('upgrade_protection_level', {
+                    doc_id: anchor.user_document_id
+                  })
+                  logger.info('protection_level_upgraded', {
+                    documentId: anchor.user_document_id,
+                    anchorId: anchor.id
+                  })
+                } catch (upgradeError) {
+                  logger.error('upgrade_protection_level_failed', {
+                    documentId: anchor.user_document_id,
+                    anchorId: anchor.id
+                  }, upgradeError instanceof Error ? upgradeError : new Error(String(upgradeError)))
+                  // Don't fail the whole process if upgrade fails
+                }
+              }
 
               // Send notifications after successful atomic update
               if (anchor.user_document_id) {
@@ -691,7 +711,8 @@ serve(async (req) => {
             bitcoin_confirmed_at: confirmedAt,
             overall_status: 'certified',
             download_enabled: true,
-            bitcoin_anchor_id: anchor.id
+            bitcoin_anchor_id: anchor.id,
+            has_bitcoin_anchor: true  // ✅ Set flag when confirmed (conservative truth)
           } : null;
 
           // Call atomic function
@@ -712,6 +733,25 @@ serve(async (req) => {
           }
 
           console.log(`✅ Anchor ${anchor.id} atomically confirmed in Bitcoin!`);
+
+          // ✅ UPGRADE PROTECTION LEVEL (monotonic increase)
+          if (anchor.user_document_id) {
+            try {
+              await supabaseAdmin.rpc('upgrade_protection_level', {
+                doc_id: anchor.user_document_id
+              })
+              logger.info('protection_level_upgraded', {
+                documentId: anchor.user_document_id,
+                anchorId: anchor.id
+              })
+            } catch (upgradeError) {
+              logger.error('upgrade_protection_level_failed', {
+                documentId: anchor.user_document_id,
+                anchorId: anchor.id
+              }, upgradeError instanceof Error ? upgradeError : new Error(String(upgradeError)))
+              // Don't fail the whole process if upgrade fails
+            }
+          }
 
           // Send notifications after successful atomic update
           if (anchor.user_document_id) {

@@ -1,0 +1,220 @@
+-- =====================================================
+-- Welcome Email System
+-- =====================================================
+-- Sends a Founder welcome email automatically when a user
+-- confirms their email address for the first time.
+--
+-- Flow:
+-- 1. User confirms email → auth.users.email_confirmed_at updates
+-- 2. Trigger inserts into welcome_email_queue
+-- 3. Cron processes queue every 1 minute
+-- 4. Edge function send-welcome-email sends email via Resend
+-- =====================================================
+
+-- Create queue table for welcome emails
+CREATE TABLE IF NOT EXISTS public.welcome_email_queue (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_email TEXT NOT NULL,
+  user_name TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+  error_message TEXT,
+  attempts INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  sent_at TIMESTAMPTZ,
+  UNIQUE(user_id) -- Ensure only one welcome email per user
+);
+
+-- Index for efficient queue processing
+CREATE INDEX IF NOT EXISTS idx_welcome_email_queue_status
+  ON public.welcome_email_queue(status, created_at)
+  WHERE status = 'pending';
+
+-- Enable RLS (service role will bypass this)
+ALTER TABLE public.welcome_email_queue ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can view their own welcome email status
+CREATE POLICY "Users can view own welcome email status"
+  ON public.welcome_email_queue
+  FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- =====================================================
+-- Trigger Function: Queue welcome email when user confirms email
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION public.queue_welcome_email()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Only queue if:
+  -- 1. email_confirmed_at changed from NULL to a timestamp (first confirmation)
+  -- 2. User has an email
+  -- 3. Not already in queue
+  IF (OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL)
+     AND NEW.email IS NOT NULL
+  THEN
+    -- Insert into queue (ignore if already exists due to UNIQUE constraint)
+    INSERT INTO public.welcome_email_queue (
+      user_id,
+      user_email,
+      user_name,
+      status
+    )
+    VALUES (
+      NEW.id,
+      NEW.email,
+      COALESCE(
+        NEW.raw_user_meta_data->>'full_name',
+        NEW.raw_user_meta_data->>'name',
+        SPLIT_PART(NEW.email, '@', 1)
+      ),
+      'pending'
+    )
+    ON CONFLICT (user_id) DO NOTHING; -- Skip if already queued
+
+    RAISE LOG 'Welcome email queued for user: % (%)', NEW.email, NEW.id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- Trigger: Fire after email confirmation
+-- =====================================================
+
+DROP TRIGGER IF EXISTS trigger_queue_welcome_email ON auth.users;
+
+CREATE TRIGGER trigger_queue_welcome_email
+  AFTER UPDATE OF email_confirmed_at ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.queue_welcome_email();
+
+-- =====================================================
+-- Function: Process welcome email queue
+-- =====================================================
+-- Called by cron every 1 minute to process pending welcome emails
+-- Uses pg_net or edge function to send emails
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION public.process_welcome_email_queue()
+RETURNS void AS $$
+DECLARE
+  queue_record RECORD;
+  email_result JSONB;
+  edge_function_url TEXT;
+BEGIN
+  -- Get edge function URL from environment or use default
+  edge_function_url := COALESCE(
+    current_setting('app.supabase_functions_url', true),
+    'https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/send-welcome-email'
+  );
+
+  -- Process up to 10 pending emails per run
+  FOR queue_record IN
+    SELECT *
+    FROM public.welcome_email_queue
+    WHERE status = 'pending'
+      AND attempts < 3 -- Max 3 attempts
+    ORDER BY created_at ASC
+    LIMIT 10
+    FOR UPDATE SKIP LOCKED -- Avoid race conditions
+  LOOP
+    BEGIN
+      -- Update attempts
+      UPDATE public.welcome_email_queue
+      SET attempts = attempts + 1
+      WHERE id = queue_record.id;
+
+      -- Call edge function using pg_net (requires pg_net extension)
+      -- Alternative: Insert into workflow_notifications and let send-pending-emails handle it
+
+      -- OPTION 1: Use workflow_notifications system (recommended)
+      INSERT INTO public.workflow_notifications (
+        recipient_email,
+        notification_type,
+        subject,
+        body_html,
+        delivery_status,
+        metadata
+      )
+      SELECT
+        queue_record.user_email,
+        'welcome_founder',
+        '👑 Bienvenido a EcoSign - Usuario Fundador',
+        '', -- Will be generated by send-pending-emails using buildFounderWelcomeEmail
+        'pending',
+        jsonb_build_object(
+          'userId', queue_record.user_id,
+          'userName', queue_record.user_name,
+          'queuedAt', queue_record.created_at
+        )
+      WHERE NOT EXISTS (
+        -- Don't duplicate if already sent
+        SELECT 1 FROM public.workflow_notifications
+        WHERE recipient_email = queue_record.user_email
+          AND notification_type = 'welcome_founder'
+      );
+
+      -- Mark as sent in queue
+      UPDATE public.welcome_email_queue
+      SET
+        status = 'sent',
+        sent_at = NOW()
+      WHERE id = queue_record.id;
+
+      RAISE LOG 'Welcome email notification created for: %', queue_record.user_email;
+
+    EXCEPTION WHEN OTHERS THEN
+      -- Mark as failed and log error
+      UPDATE public.welcome_email_queue
+      SET
+        status = 'failed',
+        error_message = SQLERRM
+      WHERE id = queue_record.id;
+
+      RAISE WARNING 'Failed to process welcome email for %: %', queue_record.user_email, SQLERRM;
+    END;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- Cron Job: Process welcome emails every 1 minute
+-- =====================================================
+-- NOTE: This requires pg_cron extension and proper configuration
+-- Apply manually in dashboard or via supabase CLI
+-- =====================================================
+
+-- Run this in Dashboard SQL Editor after migration:
+/*
+SELECT cron.schedule(
+  'process-welcome-emails',
+  '*/1 * * * *', -- Every 1 minute
+  $$
+  SELECT public.process_welcome_email_queue();
+  $$
+);
+*/
+
+-- =====================================================
+-- Grant permissions
+-- =====================================================
+
+-- Allow service role to access queue
+GRANT ALL ON public.welcome_email_queue TO service_role;
+GRANT EXECUTE ON FUNCTION public.process_welcome_email_queue() TO service_role;
+
+-- =====================================================
+-- Comments
+-- =====================================================
+
+COMMENT ON TABLE public.welcome_email_queue IS
+'Queue for welcome emails sent to users after email confirmation. Processed by cron job every 1 minute.';
+
+COMMENT ON FUNCTION public.queue_welcome_email() IS
+'Trigger function that queues a welcome email when user confirms their email for the first time.';
+
+COMMENT ON FUNCTION public.process_welcome_email_queue() IS
+'Processes pending welcome emails by creating workflow_notifications. Called by cron job every 1 minute.';

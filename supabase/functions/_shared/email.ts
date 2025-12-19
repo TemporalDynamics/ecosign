@@ -218,3 +218,269 @@ export function buildDocumentCertifiedEmail({
     `,
   };
 }
+
+export function buildFounderWelcomeEmail({
+  userEmail,
+  userName,
+  dashboardUrl = 'https://ecosign.app/dashboard',
+  docsUrl = 'https://ecosign.app/docs',
+  supportUrl = 'https://ecosign.app/support'
+}: {
+  userEmail: string;
+  userName?: string | null;
+  dashboardUrl?: string;
+  docsUrl?: string;
+  supportUrl?: string;
+}) {
+  const name = userName || userEmail.split('@')[0];
+
+  return {
+    from: DEFAULT_FROM,
+    to: userEmail,
+    subject: 'Bienvenido a EcoSign',
+    html: `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      background-color: #ffffff;
+      color: #0f172a;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+    }
+    .header {
+      padding: 48px 32px 32px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      font-size: 16px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    .badge-container {
+      padding: 24px 32px;
+      background-color: #fafafa;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .founder-badge {
+      display: inline-block;
+      border: 2px solid #000000;
+      color: #000000;
+      padding: 8px 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    .badge-subtitle {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #64748b;
+    }
+    .content {
+      padding: 40px 32px;
+    }
+    .content h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 20px;
+    }
+    .content p {
+      font-size: 15px;
+      color: #475569;
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+    .content strong {
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .benefits {
+      background-color: #fafafa;
+      border-left: 2px solid #000000;
+      padding: 24px;
+      margin: 32px 0;
+    }
+    .benefits h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 16px;
+    }
+    .benefits ul {
+      list-style: none;
+      padding: 0;
+    }
+    .benefits li {
+      padding: 6px 0;
+      padding-left: 20px;
+      position: relative;
+      font-size: 14px;
+      color: #475569;
+      line-height: 1.6;
+    }
+    .benefits li:before {
+      content: "—";
+      position: absolute;
+      left: 0;
+      color: #000000;
+      font-weight: 600;
+    }
+    .cta-button {
+      display: inline-block;
+      background-color: #000000;
+      color: #ffffff;
+      padding: 14px 32px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      margin: 32px 0;
+      transition: background-color 0.2s;
+    }
+    .cta-button:hover {
+      background-color: #1f2937;
+    }
+    .security-note {
+      background-color: #fafafa;
+      border: 1px solid #e5e7eb;
+      padding: 20px;
+      margin: 32px 0;
+    }
+    .security-note h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 8px;
+    }
+    .security-note p {
+      font-size: 13px;
+      color: #64748b;
+      margin: 0;
+      line-height: 1.6;
+    }
+    .footer {
+      background-color: #fafafa;
+      padding: 32px;
+      text-align: center;
+      border-top: 1px solid #e5e7eb;
+    }
+    .footer p {
+      font-size: 13px;
+      color: #64748b;
+      margin: 8px 0;
+    }
+    .footer a {
+      color: #0f172a;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+    .divider {
+      height: 1px;
+      background-color: #e5e7eb;
+      margin: 32px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <!-- Header -->
+    <div class="header">
+      <h1>Bienvenido a EcoSign</h1>
+      <p>Tu sistema de certificación forense de documentos</p>
+    </div>
+
+    <!-- Founder Badge -->
+    <div class="badge-container">
+      <div class="founder-badge">FOUNDER</div>
+      <p class="badge-subtitle">
+        Como usuario fundador, sos parte de la construcción de EcoSign
+      </p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+      <h2>Hola ${name},</h2>
+
+      <p>
+        Acabás de dar el primer paso hacia un sistema que te permite <strong>proteger tus documentos con certeza legal y técnica</strong>.
+      </p>
+
+      <p>
+        EcoSign combina criptografía, timestamps legales RFC 3161 y anclaje blockchain para garantizar que tus documentos sean verificables, inmutables y válidos como evidencia.
+      </p>
+
+      <div class="divider"></div>
+
+      <!-- Benefits -->
+      <div class="benefits">
+        <h3>Qué podés hacer ahora</h3>
+        <ul>
+          <li>Certificar documentos con firma criptográfica y timestamp legal</li>
+          <li>Anclar en blockchain (Polygon y Bitcoin) para inmutabilidad</li>
+          <li>Enviar documentos a firmar con SignNow (eIDAS, ESIGN, UETA)</li>
+          <li>Verificar certificados .ECO offline con criptografía pública</li>
+          <li>Descargar evidencia forense aceptable en tribunales</li>
+        </ul>
+      </div>
+
+      <!-- Security Note -->
+      <div class="security-note">
+        <h4>Arquitectura Zero-Knowledge</h4>
+        <p>
+          Tus documentos nunca se almacenan en nuestros servidores. Solo generamos hashes criptográficos y certificados de integridad. Vos controlás completamente tus archivos.
+        </p>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${dashboardUrl}" class="cta-button">Ir al Dashboard</a>
+      </div>
+
+      <p style="text-align: center; color: #64748b; font-size: 13px;">
+        ¿Tenés dudas? Respondé este email o visitá nuestra <a href="${docsUrl}" style="color: #0f172a;">documentación</a>.
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p style="font-weight: 600; color: #000000; margin-bottom: 12px;">
+        EcoSign
+      </p>
+      <p>
+        <a href="${dashboardUrl}">Dashboard</a> •
+        <a href="${docsUrl}">Documentación</a> •
+        <a href="${supportUrl}">Soporte</a>
+      </p>
+      <p style="margin-top: 16px; font-size: 12px;">
+        Este email fue enviado a ${userEmail} porque creaste una cuenta en EcoSign.
+      </p>
+      <p style="font-size: 11px; color: #94a3b8; margin-top: 8px;">
+        © 2025 EcoSign
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `,
+  };
+}

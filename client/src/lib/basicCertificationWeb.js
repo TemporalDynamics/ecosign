@@ -11,8 +11,6 @@ import * as ed from '@noble/ed25519';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { requestLegalTimestamp } from './tsaService.js';
-import { requestBitcoinAnchor } from './opentimestamps.ts';
-import { anchorToPolygon } from './polygonAnchor.js';
 
 const CERTIFICATE_SCHEMA_VERSION = '1.0';
 const POLICY_SNAPSHOT_ID = 'policy_2025_11';
@@ -376,65 +374,9 @@ export async function certifyFile(file, options = {}) {
 
     console.log('✅ .ecox file created:', ecoxBuffer.byteLength, 'bytes');
 
-    let anchorJob = null;
-    let polygonAnchor = null;
-
-    // Bitcoin Anchoring (OpenTimestamps - 4-24h)
-    if (options.useBitcoinAnchor) {
-      try {
-        console.log('🔗 Requesting Bitcoin anchoring (OpenTimestamps)...');
-        console.log('⏱️  This process takes 4-24 hours for blockchain confirmation');
-
-        // Import dynamically to avoid potential circular dependencies
-        const { requestBitcoinAnchor } = await import('./opentimestamps.ts');
-        anchorJob = await requestBitcoinAnchor(hash, {
-          documentId: projectId,
-          userId: options.userId || null,
-          userEmail: options.userEmail || null,
-          metadata: {
-            requestedFrom: 'certifyFile',
-            documentName: file.name,
-            requestedBitcoinAnchor: true
-          }
-        });
-
-        if (anchorJob) {
-          console.log('✅ Bitcoin anchoring queued successfully');
-          console.log(`📧 Notification will be sent to: ${options.userEmail || 'No email provided'}`);
-        }
-      } catch (anchorError) {
-        console.warn('⚠️ Bitcoin anchoring request failed:', anchorError);
-      }
-    }
-
-    // Polygon Anchoring (Instant - 10-30s)
-    if (options.usePolygonAnchor) {
-      try {
-        console.log('🔗 Requesting Polygon anchoring (Mainnet)...');
-        console.log('⏱️  This process takes 10-30 seconds for blockchain confirmation');
-
-        polygonAnchor = await anchorToPolygon(hash, {
-          documentId: projectId,
-          userId: options.userId || null,
-          userEmail: options.userEmail || null,
-          metadata: {
-            requestedFrom: 'certifyFile',
-            documentName: file.name,
-            requestedPolygonAnchor: true
-          }
-        });
-
-        if (polygonAnchor?.success) {
-          console.log('✅ Polygon anchoring confirmed');
-          console.log(`🔍 Transaction: ${polygonAnchor.explorerUrl}`);
-          console.log(`📦 Block: ${polygonAnchor.blockNumber}`);
-        } else {
-          console.warn('⚠️ Polygon anchoring queued (pending confirmation)');
-        }
-      } catch (anchorError) {
-        console.warn('⚠️ Polygon anchoring request failed:', anchorError);
-      }
-    }
+    // ✅ REFACTOR: Blockchain anchors moved to async post-certification
+    // Bitcoin and Polygon anchoring now happens AFTER certifyFile() completes
+    // This ensures certificate delivery is never blocked by external infrastructure
 
     // Create signatures structure for DB storage
     const signaturesData = [
@@ -522,9 +464,6 @@ export async function certifyFile(file, options = {}) {
       ecoxBuffer: ecoxBuffer,
       ecoxSize: ecoxBuffer.byteLength,
       ecoData: ecoData,  // Structured data for DB storage
-      // Blockchain anchoring
-      bitcoinAnchor: anchorJob,
-      polygonAnchor: polygonAnchor,
       // Legal timestamp info (if requested)
       legalTimestamp: tsaResponse && tsaResponse.success ? {
         enabled: true,
@@ -586,9 +525,8 @@ export function downloadEcox(ecoxBuffer, originalFileName) {
 /**
  * Complete certification flow: certify + download
  *
- * IMPORTANT: If Bitcoin anchoring is requested, the .eco file will NOT be downloaded
- * immediately. Instead, it will be saved to the database and made available for download
- * after the Bitcoin blockchain confirmation (4-24 hours).
+ * NOTE: Blockchain anchoring (Bitcoin/Polygon) happens asynchronously AFTER
+ * certification completes. The .eco file is always immediately available.
  *
  * @param {File} file - The file to certify
  * @param {Object} options - Certification options
@@ -597,25 +535,12 @@ export function downloadEcox(ecoxBuffer, originalFileName) {
 export async function certifyAndDownload(file, options = {}) {
   const result = await certifyFile(file, options);
 
-  // Check if Bitcoin anchoring was requested
-  const bitcoinPending = options.useBitcoinAnchor && result.bitcoinAnchor;
+  // Download .eco immediately (blockchain anchoring happens async)
+  const downloadedFileName = downloadEcox(result.ecoxBuffer, result.fileName);
 
-  // Only download immediately if Bitcoin anchoring is NOT pending
-  if (!bitcoinPending) {
-    const downloadedFileName = downloadEcox(result.ecoxBuffer, result.fileName);
-    return {
-      ...result,
-      downloadedFileName: downloadedFileName,
-      downloadStatus: 'completed'
-    };
-  }
-
-  // Bitcoin anchoring is pending - DO NOT download yet
-  console.log('⏳ Bitcoin anchoring pending - .eco file will be available after blockchain confirmation (4-24h)');
   return {
     ...result,
-    downloadStatus: 'pending_bitcoin_anchor',
-    downloadMessage: 'Your document is being anchored to the Bitcoin blockchain. This process takes 4-24 hours. You will receive an email notification when ready for download.',
-    estimatedCompletionTime: '4-24 hours'
+    downloadedFileName: downloadedFileName,
+    downloadStatus: 'completed'
   };
 }

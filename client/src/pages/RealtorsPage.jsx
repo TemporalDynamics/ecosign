@@ -261,7 +261,7 @@ const RealtorsPage = () => {
             Sumate a los primeros usuarios y mantené tu plan para siempre.
           </h2>
           <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-            <em>Recibirás por correo tu Batch Founder, indicando tu número de usuario inicial.</em>
+            <em>Recibirás por correo tu Insignia Founder, indicando tu número de usuario inicial.</em>
           </p>
           <Link
             to="/login"

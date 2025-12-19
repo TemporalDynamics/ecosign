@@ -6,7 +6,7 @@
 // ============================================
 
 import React, { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -15,6 +15,7 @@ import ScrollToTop from './components/ScrollToTop'
 import { VideoPlayerProvider, useVideoPlayer } from './contexts/VideoPlayerContext'
 import { LegalCenterProvider } from './contexts/LegalCenterContext'
 import LegalCenterRoot from './components/LegalCenterRoot'
+import { initGuestFromLocation } from './contexts/GuestContext'
 
 // Lazy load all page components for code-splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'))
@@ -59,6 +60,11 @@ const DASHBOARD_ENABLED = false
 
 function DashboardAppRoutes() {
   const { videoState, closeVideo } = useVideoPlayer()
+  const location = useLocation()
+
+  React.useEffect(() => {
+    initGuestFromLocation(location.search)
+  }, [location.search])
 
   return (
     <>

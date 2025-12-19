@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -7,6 +7,7 @@ import FloatingVideoPlayer from './components/FloatingVideoPlayer';
 import ScrollToTop from './components/ScrollToTop';
 import { VideoPlayerProvider, useVideoPlayer } from './contexts/VideoPlayerContext';
 import { LegalCenterProvider } from './contexts/LegalCenterContext';
+import { initGuestFromLocation } from './contexts/GuestContext';
 import LegalCenterRoot from './components/LegalCenterRoot';
 
 // Lazy load all page components for code-splitting
@@ -53,6 +54,7 @@ const DASHBOARD_ENABLED = false;
 
 function AppRoutes() {
   const { videoState, closeVideo, playNext, playPrevious } = useVideoPlayer();
+  const location = useLocation();
 
   const handleVideoEnded = () => {
     // No hacer nada si no estamos en una playlist
@@ -69,6 +71,10 @@ function AppRoutes() {
       playNext();
     }, 3000);
   };
+
+  useEffect(() => {
+    initGuestFromLocation(location.search);
+  }, [location.search]);
 
   return (
     <>

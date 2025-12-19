@@ -291,7 +291,7 @@ function DashboardPricingPage() {
             mientras continúen en su plan.
           </p>
           <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-12">
-            <em>Recibirás por correo tu Batch Founder, indicando tu número de usuario inicial.</em>
+            <em>Recibirás por correo tu Insignia Founder, indicando tu número de usuario inicial.</em>
           </p>
         </div>
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, Check, CheckCircle, ArrowLeft, X, Users, HardDrive, FileText, Shield, BarChart3, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import FooterPublic from '../components/FooterPublic';
+import HeaderPublic from '../components/HeaderPublic';
 
 function PricingPage() {
   const [openFAQ, setOpenFAQ] = useState(null);
@@ -160,47 +161,7 @@ function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation - Same as Landing */}
-      <nav className="bg-white fixed w-full top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-            </Link>
-            <div className="hidden md:flex items-center space-x-8">
-              <Link to="/how-it-works" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Cómo funciona
-              </Link>
-              <Link to="/verify" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Verificador
-              </Link>
-              <Link to="/pricing" className="text-black font-medium text-[17px] transition duration-200">
-                Precios
-              </Link>
-              <Link to="/login" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Iniciar Sesión
-              </Link>
-              <Link
-                to="/login"
-                className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300"
-              >
-                Comenzar Gratis
-              </Link>
-            </div>
-            <div className="md:hidden flex items-center space-x-4">
-              <Link to="/login" className="text-gray-600 hover:text-black text-sm font-semibold">
-                Login
-              </Link>
-              <Link
-                to="/login"
-                className="bg-black hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-sm"
-              >
-                Gratis
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <HeaderPublic />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 pt-32">
         <header className="text-center mb-16">

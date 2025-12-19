@@ -41,12 +41,13 @@ Según el tipo de firma elegido (Firma Legal o Firma Certificada), el sistema re
 • Evento de firma
 Todo queda guardado en un registro de eventos inmutable.
 
-3. Blindaje Inhackeable (Opcional)
-Podés activar el Blindaje Inhackeable para añadir:
-• Sello de Integridad local (tu archivo no se sube)
+3. Refuerzo de Evidencia (Opcional)
+Podés añadir un refuerzo adicional si necesitás fecha cierta legal o mayor solidez probatoria a largo plazo.
+Incluye:
+• Sello de Integridad local
 • Sello de Tiempo Legal (TSA independiente)
-• Registro Digital Inalterable (Polygon y Bitcoin; más redes pronto)
-Este proceso garantiza la fecha cierta legal y la inalterabilidad futura.
+• Registro digital inalterable (Polygon y Bitcoin hoy; más redes en el futuro)
+Este refuerzo fortalece la evidencia sin modificar la privacidad ni el contenido del documento.
 
 III. Tipos de Firma
 
@@ -58,7 +59,7 @@ Firma Certificada
 - Propósito: Contratos externos
 - Características: Cumple eIDAS, ESIGN, UETA. Basado en SignNow
 
-Ambas pueden blindarse con el Blindaje Inhackeable.
+Ambas pueden reforzarse con evidencia adicional.
 
 IV. El Certificado .ECO
 Cada certificación genera:
@@ -112,8 +113,12 @@ function HowItWorksPage() {
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
             Cómo funciona EcoSign
           </h1>
-          <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto leading-relaxed">
-            La evidencia se genera sin ver tu documento.
+          <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed">
+            La evidencia se genera sin acceder a tu documento.
+          </p>
+          <p className="text-base text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            No necesitás entender criptografía para usar EcoSign.<br />
+            Esta página explica qué pasa detrás, si querés saber más.
           </p>
         </div>
       </header>
@@ -191,18 +196,21 @@ function HowItWorksPage() {
             {/* Paso 3 */}
             <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                <span className="text-gray-400">3.</span> Blindaje Inhackeable (Opcional)
+                <span className="text-gray-400">3.</span> Refuerzo de evidencia (opcional)
               </h3>
               <p className="text-lg text-gray-700 mb-3">
-                Podés activar el <strong>Blindaje <InhackeableTooltip className="font-semibold" /></strong> si necesitás fecha cierta legal o máxima protección futura. Añade:
+                Podés añadir un refuerzo adicional si necesitás fecha cierta legal o mayor solidez probatoria a largo plazo.
+              </p>
+              <p className="text-lg text-gray-700 mb-3">
+                Incluye:
               </p>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
-                <li>• <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> local (tu archivo no se sube)</li>
+                <li>• <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> local</li>
                 <li>• <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> (TSA independiente)</li>
-                <li>• <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> (<PolygonTooltip>Polygon</PolygonTooltip> y <BitcoinTooltip>Bitcoin</BitcoinTooltip> hoy; más redes pronto)</li>
+                <li>• <RegistroDigitalInalterableTooltip>Registro digital inalterable</RegistroDigitalInalterableTooltip> (<PolygonTooltip>Polygon</PolygonTooltip> y <BitcoinTooltip>Bitcoin</BitcoinTooltip> hoy; más redes en el futuro)</li>
               </ul>
               <p className="text-lg text-gray-700 mt-3">
-                Este proceso garantiza la <strong>fecha cierta legal</strong> y la inalterabilidad futura.
+                Este refuerzo fortalece la evidencia sin modificar la privacidad ni el contenido del documento.
               </p>
             </div>
           </div>
@@ -245,7 +253,7 @@ function HowItWorksPage() {
           </div>
 
           <p className="text-lg text-gray-700 mt-6 font-semibold">
-            Ambas pueden blindarse con el <InhackeableTooltip>Blindaje Inhackeable</InhackeableTooltip>.
+            Ambas pueden reforzarse con evidencia adicional.
           </p>
         </section>
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Shield, Pen, Users, FileText } from 'lucide-react';
 import DashboardNav from '../components/DashboardNav';
 import FooterInternal from '../components/FooterInternal';
 import { useLegalCenter } from '../contexts/LegalCenterContext';
@@ -47,61 +48,61 @@ function DashboardStartPage() {
           </div>
         </section>
 
-        {/* Explicaciones centradas (fuera del panel blanco) */}
-        <section className="max-w-2xl mx-auto space-y-8 text-center">
-          <p className="text-sm text-gray-500 font-medium mb-6">
+        {/* Explicaciones en formato card, con íconos Lucide */}
+        <section className="max-w-5xl mx-auto bg-white/60 rounded-2xl border border-gray-200 shadow-sm p-8">
+          <h2 className="text-xl font-bold text-gray-800 text-center mb-8">
             ¿No estás seguro por dónde empezar?
-          </p>
+          </h2>
 
+          <div className="grid md:grid-cols-2 gap-8">
             {/* Certificar */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-gray-400 text-sm">🛡️</span>
-                <h3 className="text-base font-semibold text-gray-900">Certificar documento</h3>
+            <div className="flex items-start gap-4">
+              <Shield className="h-8 w-8 text-gray-700 flex-shrink-0" strokeWidth={2} />
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Certificar documento</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Protegé la integridad y trazabilidad legal de un archivo, incluso sin firmarlo.
+                </p>
               </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Protegé la integridad y trazabilidad legal de un archivo, incluso sin firmarlo.
-              </p>
             </div>
 
             {/* Firmar */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-gray-400 text-sm">✍️</span>
-                <h3 className="text-base font-semibold text-gray-900">Firmar documento</h3>
+            <div className="flex items-start gap-4">
+              <Pen className="h-8 w-8 text-gray-700 flex-shrink-0" strokeWidth={2} />
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Firmar documento</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Firmá un documento y dejá constancia verificable de quién firmó, cuándo y cómo.
+                </p>
               </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Firmá un documento y dejá constancia verificable de quién firmó, cuándo y cómo.
-              </p>
             </div>
 
             {/* Flujo de firmas */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-gray-400 text-sm">👥</span>
-                <h3 className="text-base font-semibold text-gray-900">Crear flujo de firmas</h3>
+            <div className="flex items-start gap-4">
+              <Users className="h-8 w-8 text-gray-700 flex-shrink-0" strokeWidth={2} />
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Crear flujo de firmas</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Enviá un documento a una o más personas y registrá todo el proceso de firma.
+                </p>
               </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Enviá un documento a una o más personas y registrá todo el proceso de firma.
-              </p>
             </div>
 
             {/* NDA */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-gray-400 text-sm">📄</span>
-                <h3 className="text-base font-semibold text-gray-900">Enviar NDA</h3>
+            <div className="flex items-start gap-4">
+              <FileText className="h-8 w-8 text-gray-700 flex-shrink-0" strokeWidth={2} />
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Enviar NDA</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Compartí un documento bajo acuerdo de confidencialidad, con evidencia verificable.
+                </p>
               </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Compartí un documento bajo acuerdo de confidencialidad, con evidencia verificable.
-              </p>
             </div>
-
-          {/* Mensaje de cierre (variante corta) */}
-          <div className="pt-6 border-t border-gray-200 mt-10">
-            <p className="text-sm text-gray-700 leading-relaxed">
-              <strong className="font-semibold text-gray-900">No son caminos separados.</strong><br />
-              Todas las acciones se pueden combinar en un mismo proceso.
+          </div>
+          
+          <div className="pt-6 border-t border-gray-200 mt-8 text-center">
+            <p className="text-sm text-gray-700">
+              <strong className="font-semibold text-gray-900">Recordá:</strong> todas las acciones se pueden combinar en un mismo proceso.
             </p>
           </div>
         </section>

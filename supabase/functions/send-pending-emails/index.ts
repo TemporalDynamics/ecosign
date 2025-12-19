@@ -2,7 +2,7 @@
 // Reemplazar en supabase/functions/send-pending-emails
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { sendResendEmail } from '../_shared/email.ts';
+import { sendResendEmail, buildFounderWelcomeEmail } from '../_shared/email.ts';
 
 serve(async (req: Request) => {
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
@@ -33,8 +33,25 @@ serve(async (req: Request) => {
       try {
         const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@email.ecosign.app>';
         const to = r.recipient_email;
-        const subject = r.subject || 'Notificación EcoSign';
-        const html = r.body_html || '<p>Notificación</p>';
+        let subject = r.subject || 'Notificación EcoSign';
+        let html = r.body_html || '<p>Notificación</p>';
+
+        // Special handling for welcome_founder emails - generate HTML dynamically
+        if (r.notification_type === 'welcome_founder') {
+          const siteUrl = Deno.env.get('SITE_URL') || 'https://ecosign.app';
+          const userName = r.metadata?.userName || to.split('@')[0];
+
+          const welcomeEmail = buildFounderWelcomeEmail({
+            userEmail: to,
+            userName,
+            dashboardUrl: `${siteUrl}/dashboard`,
+            docsUrl: `${siteUrl}/docs`,
+            supportUrl: `${siteUrl}/support`
+          });
+
+          subject = welcomeEmail.subject;
+          html = welcomeEmail.html;
+        }
 
         const result = await sendResendEmail({ from, to, subject, html });
 

@@ -86,6 +86,7 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
 
   // Upload ECO to Supabase Storage (always, regardless of PDF storage)
   let ecoStoragePath = null;
+  let ecoUploadFailed = false;
   if (storeEco) {
     // Prefer the provided buffer, otherwise serialize ecoData
     let ecoBytes = null;
@@ -101,32 +102,38 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     }
 
     if (!ecoBytes) {
-      if (storagePath) {
-        await supabase.storage.from('user-documents').remove([storagePath]);
+      console.error('❌ No se pudo generar el archivo ECO');
+      ecoUploadFailed = true;
+      // ✅ HOTFIX: Don't throw - allow certificate to be saved anyway
+      // The .eco already exists in memory and in ecoData JSONB column
+    } else {
+      // ✅ Sanitize filename: remove special characters, spaces, accents
+      const sanitizedFileName = (ecoFileName || 'certificate.eco')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove accents
+        .replace(/[^a-zA-Z0-9.-]/g, '_'); // Replace special chars with underscore
+
+      const ecoBlob = new Blob([ecoBytes], { type: 'application/octet-stream' });
+      const ecoPath = forcedEcoStoragePath || `${user.id}/${Date.now()}-${sanitizedFileName}`;
+
+      const { data: ecoUploadData, error: ecoUploadError } = await supabase.storage
+        .from('user-documents')
+        .upload(ecoPath, ecoBlob, {
+          contentType: 'application/octet-stream',
+          upsert: true
+        });
+
+      if (ecoUploadError) {
+        console.error('⚠️ Error uploading ECO to Storage (non-fatal):', ecoUploadError);
+        ecoUploadFailed = true;
+        // ✅ HOTFIX: Don't throw - certificate delivery must never fail
+        // The .eco data is preserved in the eco_data JSONB column
+        // We can retry upload async or regenerate from eco_data
+      } else {
+        ecoStoragePath = ecoUploadData?.path || ecoPath;
+        console.log('✅ ECO uploaded to Storage:', ecoStoragePath);
       }
-      throw new Error('No se pudo generar el archivo ECO para guardar en Storage');
     }
-
-    const ecoBlob = new Blob([ecoBytes], { type: 'application/json' });
-    const ecoPath = forcedEcoStoragePath || `${user.id}/${Date.now()}-${ecoFileName || 'certificate.eco.json'}`;
-
-    const { data: ecoUploadData, error: ecoUploadError } = await supabase.storage
-      .from('user-documents')
-      .upload(ecoPath, ecoBlob, {
-        contentType: 'application/json',
-        upsert: true
-      });
-
-    if (ecoUploadError) {
-      // Clean up the PDF upload if it happened, to avoid orphaned files
-      if (storagePath) {
-        await supabase.storage.from('user-documents').remove([storagePath]);
-      }
-      console.error('Error uploading ECO:', ecoUploadError);
-      throw new Error(`Error al subir el archivo ECO: ${ecoUploadError.message}`);
-    }
-
-    ecoStoragePath = ecoUploadData?.path || ecoPath;
   }
 
   // Determine file type from MIME type
@@ -137,6 +144,33 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
     if (mimeType.includes('image')) return 'img';
     return 'pdf';
   };
+
+  // ✅ Protection level ALWAYS starts at ACTIVE (TSA confirmed)
+  // Level only increases based on CONFIRMED anchors, never on intent
+  // - ACTIVE: Certificate created + TSA confirmed
+  // - REINFORCED: Polygon anchor CONFIRMED (upgraded by worker)
+  // - TOTAL: Bitcoin anchor CONFIRMED (upgraded by worker)
+  const protectionLevel = 'ACTIVE';
+
+  // ✅ Set anchor statuses to PENDING when requested
+  // Workers will resolve these and upgrade protection_level accordingly
+  const polygonStatus = hasPolygonAnchor ? 'pending' : null;
+  const bitcoinStatusFinal = hasBitcoinAnchor ? (bitcoinStatus || 'pending') : null;
+
+  // =====================================================
+  // FIELD SEPARATION (DO NOT MIX RESPONSIBILITIES)
+  // =====================================================
+  // overall_status: Document lifecycle state
+  //   - Values: draft, sent, pending, signed, rejected, expired, certified
+  //   - Purpose: Functional workflow status (signatures, completion)
+  //   - Never derive from protection_level
+  //
+  // protection_level: Probatory hierarchy (NEVER decreases)
+  //   - Values: ACTIVE, REINFORCED, TOTAL
+  //   - Purpose: Legal/cryptographic strength of evidence
+  //   - Only increases based on CONFIRMED blockchain anchors
+  //   - Never derive from overall_status
+  // =====================================================
 
   // Create record in 'user_documents' table
   const { data: docData, error: docError} = await supabase
@@ -149,23 +183,27 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
       mime_type: pdfFile.type || 'application/pdf',
       pdf_storage_path: storagePath,
       eco_data: ecoData, // Store the complete ECO manifest
-      status: initialStatus, // Use the provided initial status
-      overall_status: overallStatus, // Combined status (signatures + anchoring)
-      bitcoin_status: bitcoinStatus, // Bitcoin anchoring status (pending/confirmed)
+      status: initialStatus, // Signature workflow status
+      overall_status: overallStatus, // Document lifecycle state
+      protection_level: protectionLevel, // Probatory hierarchy (ACTIVE/REINFORCED/TOTAL)
+      polygon_status: polygonStatus, // Polygon anchor state (null/pending/confirmed/failed)
+      bitcoin_status: bitcoinStatusFinal, // Bitcoin anchor state (null/pending/confirmed/failed)
       bitcoin_anchor_id: bitcoinAnchorId,
       download_enabled: downloadEnabled, // Controls if .eco can be downloaded
       eco_file_data: ecoFileDataBuffer, // Store .eco buffer for deferred download
-      eco_storage_path: ecoStoragePath, // Always persist path to ECO in storage
+      eco_storage_path: ecoStoragePath, // Path to ECO in storage (null if upload failed)
       file_type: getFileType(pdfFile.type),
       last_event_at: new Date().toISOString(),
       has_legal_timestamp: hasLegalTimestamp,
-      has_bitcoin_anchor: hasBitcoinAnchor,
+      // ✅ VERDAD CONSERVADORA: Never set anchor flags optimistically
+      // Workers will set these to true ONLY when blockchain confirms
+      has_bitcoin_anchor: false,  // Will be set by process-bitcoin-anchors worker
+      has_polygon_anchor: false,  // Will be set by process-polygon-anchors worker
       signnow_document_id: signNowDocumentId,
       signnow_status: signNowStatus,
       signed_at: signedAt,
       eco_hash: documentHash,
-      zero_knowledge_opt_out: !storePdf || zeroKnowledgeOptOut,
-      has_polygon_anchor: hasPolygonAnchor
+      zero_knowledge_opt_out: !storePdf || zeroKnowledgeOptOut
     })
     .select()
     .single();

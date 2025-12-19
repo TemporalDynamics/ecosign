@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 
 const VideoPlayerContext = createContext();
 
@@ -38,41 +38,107 @@ export const videoLibrary = {
   }
 };
 
+// Define el orden de la playlist
+export const defaultPlaylist = [
+  'you-dont-need-to-trust', // English
+  'anatomia-firma',         // Spanish
+  'the-true-cost',          // English
+  'conocimiento-cero',      // Spanish
+  'forensic-integrity',     // English
+  'verdad-verificable'      // Spanish
+];
+
 export function VideoPlayerProvider({ children }) {
   const [videoState, setVideoState] = useState({
     isPlaying: false,
     videoSrc: null,
-    videoTitle: null
+    videoTitle: null,
+    playlist: [],
+    currentIndex: -1,
   });
 
-  const playVideo = (videoKeyOrSrc) => {
-    const video = videoLibrary[videoKeyOrSrc];
+  const playVideo = useCallback((videoKey, playlist = defaultPlaylist) => {
+    const video = videoLibrary[videoKey];
+    const playlistToUse = Array.isArray(playlist) && playlist.length > 0 ? playlist : [videoKey];
+    const newIndex = playlistToUse.indexOf(videoKey);
+
     if (video) {
       setVideoState({
         isPlaying: true,
         videoSrc: video.src,
-        videoTitle: video.title
+        videoTitle: video.title,
+        playlist: playlistToUse,
+        currentIndex: newIndex,
       });
-      return;
+    } else {
+       // Fallback para URLs directas (comportamiento original)
+       setVideoState({
+        isPlaying: true,
+        videoSrc: videoKey,
+        videoTitle: 'Video',
+        playlist: [videoKey],
+        currentIndex: 0,
+      });
     }
-    // fallback: treat as direct src
-    setVideoState({
-      isPlaying: true,
-      videoSrc: videoKeyOrSrc,
-      videoTitle: 'Video'
+  }, []);
+
+  const playNext = useCallback(() => {
+    setVideoState(prevState => {
+      if (!prevState.isPlaying || prevState.playlist.length === 0) return prevState;
+      const nextIndex = (prevState.currentIndex + 1) % prevState.playlist.length;
+      const nextVideoKey = prevState.playlist[nextIndex];
+      const nextVideo = videoLibrary[nextVideoKey];
+      if (nextVideo) {
+        return {
+          ...prevState,
+          videoSrc: nextVideo.src,
+          videoTitle: nextVideo.title,
+          currentIndex: nextIndex,
+        };
+      }
+      return prevState;
     });
-  };
+  }, []);
+
+  const playPrevious = useCallback(() => {
+    setVideoState(prevState => {
+      if (!prevState.isPlaying || prevState.playlist.length === 0) return prevState;
+      const prevIndex = (prevState.currentIndex - 1 + prevState.playlist.length) % prevState.playlist.length;
+      const prevVideoKey = prevState.playlist[prevIndex];
+      const prevVideo = videoLibrary[prevVideoKey];
+      if (prevVideo) {
+        return {
+          ...prevState,
+          videoSrc: prevVideo.src,
+          videoTitle: prevVideo.title,
+          currentIndex: prevIndex,
+        };
+      }
+      return prevState;
+    });
+  }, []);
 
   const closeVideo = () => {
     setVideoState({
       isPlaying: false,
       videoSrc: null,
-      videoTitle: null
+      videoTitle: null,
+      playlist: [],
+      currentIndex: -1,
     });
   };
 
+  const value = {
+    videoState,
+    playVideo,
+    openVideo: playVideo,
+    closeVideo,
+    playNext,
+    playPrevious,
+  };
+
   return (
-    <VideoPlayerContext.Provider value={{ videoState, playVideo, openVideo: playVideo, closeVideo }}>
+    <VideoPlayerContext.Provider value={value}>
       {children}
     </VideoPlayerContext.Provider>
   );

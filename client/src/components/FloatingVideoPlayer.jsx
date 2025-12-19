@@ -1,7 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Maximize2 } from 'lucide-react';
+import { X, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
 
-function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }) {
+function FloatingVideoPlayer({
+  videoSrc,
+  videoTitle = 'EcoSign Video',
+  onClose,
+  onEnded,
+  onNext,
+  onPrevious,
+  playlist = [],
+  currentIndex = -1
+}) {
   const sizes = {
     small: { width: 400, label: 'Pequeño' },
     large: { width: 640, label: 'Grande' }
@@ -15,7 +24,6 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
   const containerRef = useRef(null);
 
   const handleMouseDown = (e) => {
-    // Solo permitir drag desde el header, no desde el video
     if (e.target.closest('.drag-handle')) {
       setIsDragging(true);
       setDragStart({
@@ -30,7 +38,6 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
       
-      // Limitar a la pantalla
       const currentWidth = containerRef.current?.offsetWidth || sizes[size].width;
       const maxX = window.innerWidth - currentWidth;
       const maxY = window.innerHeight - (containerRef.current?.offsetHeight || 300);
@@ -50,7 +57,6 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
     const nextSize = size === 'small' ? 'large' : 'small';
     setSize(nextSize);
     
-    // Ajustar posición si el nuevo tamaño se sale de la pantalla
     const newWidth = sizes[nextSize].width;
     const maxX = window.innerWidth - newWidth;
     const maxY = window.innerHeight - 300;
@@ -72,7 +78,6 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
     }
   }, [isDragging, dragStart, position]);
 
-  // Ajustar posición en resize
   useEffect(() => {
     const handleResize = () => {
       const currentWidth = sizes[size].width;
@@ -88,6 +93,9 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [size]);
+
+  const canGoPrevious = playlist.length > 1 && currentIndex > 0;
+  const canGoNext = playlist.length > 1 && currentIndex < playlist.length - 1;
 
   return (
     <div
@@ -108,6 +116,28 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
       >
         <span className="text-white text-sm font-semibold truncate flex-1 mr-2">{videoTitle}</span>
         <div className="flex items-center gap-1">
+          {/* Playlist Controls */}
+          {playlist.length > 1 && (
+            <>
+              <button
+                onClick={onPrevious}
+                disabled={!canGoPrevious}
+                className="text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed transition p-1 hover:bg-gray-800 rounded"
+                title="Anterior"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onNext}
+                disabled={!canGoNext}
+                className="text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed transition p-1 hover:bg-gray-800 rounded"
+                title="Siguiente"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
           <button
             onClick={toggleSize}
             className="text-gray-400 hover:text-white transition p-1 hover:bg-gray-800 rounded"
@@ -132,8 +162,10 @@ function FloatingVideoPlayer({ videoSrc, videoTitle = 'EcoSign Video', onClose }
           src={videoSrc}
           controls
           autoPlay
+          onEnded={onEnded} // <-- Added onEnded handler
           className="w-full h-auto"
           style={{ maxHeight: '60vh' }}
+          key={videoSrc} // <-- Key to force re-render on src change
         >
           Tu navegador no soporta la reproducción de video.
         </video>

@@ -207,17 +207,22 @@ const LandingPage = () => {
             Ver EcoSign en acción
           </h2>
           <p className="text-xl text-gray-600 mb-12">
-            Firma real en menos de 30 segundos.
+            Mirá cómo funciona en la práctica.
           </p>
           
           <div className="bg-gray-100 rounded-xl p-8 max-w-4xl mx-auto">
-            <div className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Play className="w-10 h-10 text-white" />
-                </div>
-                <p className="text-gray-700 font-medium">Video de demostración</p>
-              </div>
+            <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
+              <video 
+                controls 
+                className="w-full h-full"
+                poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1920 1080'%3E%3Crect fill='%23000' width='1920' height='1080'/%3E%3C/svg%3E"
+              >
+                <source 
+                  src="https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/demo22s.mp4" 
+                  type="video/mp4" 
+                />
+                Tu navegador no soporta video HTML5.
+              </video>
             </div>
           </div>
         </div>

@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- Disable SES lockdown if present (causes issues with crypto libraries) -->
+    <script>
+      if (typeof globalThis.harden !== 'undefined') {
+        console.warn('SES detected - disabling lockdown for crypto compatibility');
+        globalThis.harden = (x) => x;
+        globalThis.lockdown = () => {};
+      }
+    </script>
+
     <!-- Preconnect to critical origins for faster loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

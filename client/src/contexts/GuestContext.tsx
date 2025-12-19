@@ -89,3 +89,22 @@ export const useGuest = (): GuestContextType => {
   }
   return context;
 };
+
+/**
+ * Helper to detect guest mode from URL (e.g. /inicio?guest=true) and set flag.
+ */
+export function initGuestFromLocation(locationSearch: string) {
+  if (!locationSearch) return false;
+  try {
+    const params = new URLSearchParams(locationSearch);
+    if (params.get('guest') === 'true') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('ecosign_guest_mode', 'true');
+      }
+      return true;
+    }
+  } catch (err) {
+    console.warn('Unable to init guest mode from URL', err);
+  }
+  return false;
+}

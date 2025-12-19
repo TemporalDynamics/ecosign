@@ -106,7 +106,7 @@ function DashboardPricingPage() {
       price: '$15',
       period: ' USD',
       originalPrice: '$40',
-      description: 'Promoción de lanzamiento',
+      description: 'Promoción de lanzamiento. Tu tarifa queda protegida mientras sigas en el plan.',
       features: [
         { text: 'Usuarios', value: '2' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
@@ -126,7 +126,7 @@ function DashboardPricingPage() {
       price: '$49',
       period: ' USD',
       originalPrice: '$89',
-      description: 'Para empresas en crecimiento',
+      description: 'Promoción de lanzamiento. Tu tarifa queda protegida mientras sigas en el plan.',
       features: [
         { text: 'Usuarios', value: '5' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
@@ -167,6 +167,7 @@ function DashboardPricingPage() {
         <header className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Planes de Servicio EcoSign</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">Elegí el plan que mejor se adapte a tus necesidades. Precios claros, sin excedentes y sin sorpresas.</p>
+          <p className="text-sm text-gray-600 mt-2">Probá sin tarjeta y podés cancelar cuando quieras.</p>
         </header>
 
         {/* Pricing Cards */}
@@ -196,6 +197,11 @@ function DashboardPricingPage() {
                     )}
                   </div>
                   <p className="text-sm text-gray-600">{plan.description}</p>
+                  {(plan.name === 'PRO' || plan.name === 'BUSINESS') && (
+                    <div className="mt-3 inline-block bg-gray-100 text-gray-800 text-xs font-semibold px-3 py-1 rounded-md">
+                      Tu tarifa queda protegida mientras sigas en el plan
+                    </div>
+                  )}
                 </div>
 
                 <ul className="space-y-3 mb-8 flex-grow">

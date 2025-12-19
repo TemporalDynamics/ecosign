@@ -15,6 +15,7 @@
 import React, { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { isGuestMode } from '../utils/guestMode';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -26,6 +27,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   redirectTo = '/login'
 }) => {
   const { user, loading } = useAuth();
+  const guest = isGuestMode();
 
   // Mostrar loading mientras verificamos auth
   if (loading) {
@@ -39,8 +41,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Si no hay usuario, redirigir a login
-  if (!user) {
+  // Si no hay usuario y no es invitado, redirigir a login
+  if (!user && !guest) {
     return <Navigate to={redirectTo} replace />;
   }
 

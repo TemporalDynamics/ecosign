@@ -30,7 +30,7 @@ const LandingPage = () => {
             No vendemos firmas.<br />Vendemos certeza.
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed">
-            Tu archivo nunca se expone. Tu evidencia siempre se puede verificar.
+            Tu archivo nunca se expone. Tu evidencia siempre se puede verificar. No necesitás entender la tecnología para empezar.
           </p>
           <div className="text-lg md:text-xl text-gray-700 max-w-4xl mx-auto mb-8 leading-relaxed bg-blue-50 py-4 px-6 rounded-lg">
             <p className="font-semibold">Firmá sin exponer tu archivo.</p>
@@ -47,11 +47,15 @@ const LandingPage = () => {
             <button
               onClick={() => playVideo('you-dont-need-to-trust')}
               className="bg-transparent border-2 border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg inline-flex items-center justify-center gap-2"
+              title="Video de 5 minutos (podcast visual) en inglés y español"
             >
               <Play className="w-5 h-5" />
               Ver cómo funciona
             </button>
           </div>
+          <p className="text-sm text-gray-600 max-w-3xl mx-auto mb-4">
+            5 minutos para entenderlo. 30 segundos para usarlo.
+          </p>
           
           <p className="text-[13px] text-gray-500 max-w-2xl mx-auto">
             Tu contenido nunca se sube. Solo generamos la evidencia.
@@ -67,8 +71,9 @@ const LandingPage = () => {
           </h2>
           <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-16 text-center leading-relaxed">
             Firmás y certificás sin subir tu documento.<br />
-            Solo generamos su <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>, un código matemático imposible de reconstruir.<br />
+            Solo generamos una huella matemática única del archivo. No se puede reconstruir el contenido.<br />
             Lo importante queda privado. Lo verificable queda público.
+            <span className="text-sm text-gray-500 block mt-1">(A esto lo llamamos <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> o Sello de Integridad).</span>
           </p>
 
           <div className="grid md:grid-cols-3 gap-16 text-center">
@@ -80,8 +85,11 @@ const LandingPage = () => {
             
             <div>
               <Shield className="w-10 h-10 text-[#0E4B8B] mx-auto mb-4" strokeWidth={1.5} />
-              <h3 className="text-xl font-semibold text-black mb-3">Evidencia infalsificable</h3>
-              <p className="text-gray-600"><HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> + <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>.</p>
+              <h3 className="text-xl font-semibold text-black mb-3">Evidencia que no se puede alterar</h3>
+              <p className="text-gray-600">Generada automáticamente, verificable por cualquiera.</p>
+              <p className="text-xs text-gray-500 mt-2">
+                <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> + <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>.
+              </p>
             </div>
             
             <div>
@@ -90,6 +98,9 @@ const LandingPage = () => {
               <p className="text-gray-600">Cualquiera puede validar el sello sin una cuenta.</p>
             </div>
           </div>
+          <p className="text-sm text-gray-600 text-center mt-10">
+            Si querés, podés seguir sin leer el detalle técnico. EcoSign se encarga.
+          </p>
         </div>
       </section>
 
@@ -99,6 +110,9 @@ const LandingPage = () => {
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-16 text-center">
             Certificá o firmá en solo 3 pasos.
           </h2>
+          <p className="text-sm text-gray-600 text-center -mt-10 mb-8">
+            Todo lo que sigue es opcional: sirve para entender, no para usar.
+          </p>
           
           <div className="space-y-12">
             <div className="text-center md:text-left">
@@ -126,14 +140,14 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div className="text-center mt-12">
-            <Link
-              to="/login"
-              className="inline-block bg-black hover:bg-gray-800 text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
-            >
-              Probar Gratis
-            </Link>
-          </div>
+            <div className="text-center mt-12">
+              <Link
+                to="/login"
+                className="inline-block bg-black hover:bg-gray-800 text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
+              >
+                Probar Gratis
+              </Link>
+            </div>
         </div>
       </section>
 
@@ -237,6 +251,7 @@ const LandingPage = () => {
             <p className="text-xl text-gray-700 max-w-3xl mx-auto">
               Desde prueba gratuita hasta soluciones empresariales
             </p>
+            <p className="text-sm text-gray-600 mt-2">Probá sin tarjeta y podés cancelar cuando quieras.</p>
           </div>
 
           <div className="grid md:grid-cols-4 gap-7 mb-12">
@@ -299,6 +314,11 @@ const LandingPage = () => {
                 <li>✓ Panel de Auditoría</li>
                 <li>✓ API Limitado</li>
               </ul>
+              <div className="text-center pt-2">
+                <div className="inline-block bg-gray-100 text-gray-800 font-medium text-xs px-3 py-1 rounded-md">
+                  Tu tarifa queda protegida para siempre
+                </div>
+              </div>
             </div>
 
             {/* ENTERPRISE */}

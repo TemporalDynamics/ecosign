@@ -3244,4 +3244,32 @@ Enviar email de bienvenida automático después de verificar email, con badge "F
 5. Verificar dominio en Resend
 6. Test con usuario nuevo
 
+### 🔧 Deployment y troubleshooting (2025-12-19)
+
+**Problema: Docker/SELinux en Fedora bloqueando deployments**
+- Error: `Permission denied (os error 13)` al ejecutar `supabase functions deploy`
+- Causa: SELinux en modo `Enforcing` bloqueaba acceso de Docker a archivos del proyecto
+- Los archivos tenían contexto `container_file_t` correcto, pero Docker no podía montar volúmenes
+
+**Solución aplicada**:
+```bash
+sudo chcon -Rt container_file_t /home/manu/dev/ecosign
+```
+- Aplica contexto SELinux correcto a TODO el directorio del proyecto
+- Permite a Docker montar volúmenes sin permisos denegados
+- Solución permanente: los deployments funcionan sin problemas desde CLI
+
+**Deployment completado**:
+- ✅ Migración aplicada: `supabase db push` exitoso
+- ✅ Cron job creado manualmente en Dashboard SQL Editor
+- ✅ Edge functions desplegados: `send-pending-emails` actualizado
+- ✅ Variable `APP_URL` (no `SITE_URL`): código actualizado para usar `APP_URL` que ya existe en secrets
+- ✅ Docker/SELinux fix permite deployments futuros sin intervención manual
+
+**Estado de variables de entorno**:
+- ✅ `RESEND_API_KEY`: configurada
+- ✅ `DEFAULT_FROM`: configurada
+- ✅ `APP_URL`: configurada (usada en vez de `SITE_URL`)
+- ✅ Todas las variables necesarias para el sistema están presentes
+
 ---

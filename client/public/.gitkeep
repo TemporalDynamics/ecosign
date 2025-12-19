@@ -1,0 +1,8 @@
+# Videos should be hosted on CDN, not in bundle
+# Move videos/ to a CDN service like:
+# - Cloudflare R2
+# - Vercel Blob Storage
+# - AWS S3
+# - YouTube/Vimeo
+
+# For now, exclude from build

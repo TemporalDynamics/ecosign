@@ -38,13 +38,16 @@ serve(async (req: Request) => {
         let html = r.body_html || '<p>Notificación</p>';
 
         // Special handling for welcome_founder emails - generate HTML dynamically
-        if (r.email_type === 'welcome_founder') {
+        if (r.email_type === 'welcome_founder' && (!r.body_html || !r.subject)) {
           const siteUrl = Deno.env.get('SITE_URL') || 'https://ecosign.app';
-          const userName = (r as any)?.metadata?.userName || to.split('@')[0];
+          const meta = (r as any)?.metadata || {};
+          const userName = meta.user_name || to.split('@')[0];
+          const founderNumber = meta.founder_number ?? meta.founderNumber ?? null;
 
           const welcomeEmail = buildFounderWelcomeEmail({
             userEmail: to,
             userName,
+            founderNumber,
             dashboardUrl: `${siteUrl}/dashboard`,
             docsUrl: `${siteUrl}/docs`,
             supportUrl: `${siteUrl}/support`

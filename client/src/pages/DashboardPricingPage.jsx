@@ -106,7 +106,7 @@ function DashboardPricingPage() {
       price: '$15',
       period: ' USD',
       originalPrice: '$40',
-      description: 'Promoción de lanzamiento. Tu tarifa queda protegida mientras sigas en el plan.',
+      description: 'Promoción de lanzamiento.',
       features: [
         { text: 'Usuarios', value: '2' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },
@@ -122,11 +122,11 @@ function DashboardPricingPage() {
     },
     {
       name: 'BUSINESS',
-      subtitle: 'Alto Volumen/Equipos',
+      subtitle: 'Alto Volumen/Equipos · Compliance, legales y operaciones',
       price: '$49',
       period: ' USD',
       originalPrice: '$89',
-      description: 'Promoción de lanzamiento. Tu tarifa queda protegida mientras sigas en el plan.',
+      description: 'Promoción de lanzamiento.',
       features: [
         { text: 'Usuarios', value: '5' },
         { text: 'Firmantes Invitados', value: 'Ilimitados' },

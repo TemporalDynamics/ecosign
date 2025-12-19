@@ -190,7 +190,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const finalizeButtonRef = useRef(null);
 
   // Preview del documento
-  const PREVIEW_BASE_HEIGHT = 'h-80';
+  const PREVIEW_BASE_HEIGHT = 'h-[480px]';
   const [documentPreview, setDocumentPreview] = useState(null);
   const [previewError, setPreviewError] = useState(false);
   const [previewMode, setPreviewMode] = useState('compact'); // 'compact' | 'expanded' | 'fullscreen'
@@ -1080,8 +1080,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   return (
     <>
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[92vh] shadow-xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4 py-6">
+        <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[94vh] shadow-xl flex flex-col overflow-hidden">
         {/* Header fijo sobre todo el grid */}
         <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -1146,7 +1146,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               <div>
                 {/* Zona de drop / Preview del documento */}
                                   {!file ? (
-                                    <label className="block border-2 border-dashed border-gray-300 rounded-xl py-12 text-center hover:border-gray-900 transition-colors cursor-pointer">
+                                    <label className="block border-2 border-dashed border-gray-300 rounded-xl py-20 min-h-[480px] text-center hover:border-gray-900 transition-colors cursor-pointer">
                                       <input
                                         type="file"
                                         className="hidden"
@@ -1326,8 +1326,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                           {/* Modal de firma con tabs */}
                           {showSignatureOnPreview && (
-                            <div className="absolute inset-0 bg-black bg-opacity-5 flex items-center justify-center p-4">
-                              <div className="bg-white rounded-xl shadow-2xl p-6 max-w-xl w-full">
+                            <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-6">
+                              <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
                                 <div className="flex justify-between items-center mb-4">
                                   <h4 className="font-semibold text-gray-900">Firmá tu documento</h4>
                                   <button

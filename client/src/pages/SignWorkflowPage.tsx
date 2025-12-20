@@ -106,7 +106,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     phone: ''
   })
   const [embedError, setEmbedError] = useState(false)
-  const [embedTimeout, setEmbedTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [embedTimeout, setEmbedTimeout] = useState<ReturnType<typeof setTimeout> | null>(null)
 
   // Initialize - validate token
   useEffect(() => {
@@ -210,7 +210,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         if (previousSigners && previousSigners.length > 0) {
           // There are signers who should sign before this one
           const pendingNames = previousSigners
-            .map(s => s.name || s.email)
+            .map((s: any) => s.name || s.email)
             .join(', ')
 
           setError(
@@ -226,7 +226,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             eventType: 'sequential_order_violated',
             details: {
               currentOrder: signer.signing_order,
-              pendingSigners: previousSigners.map(s => ({
+              pendingSigners: previousSigners.map((s: any) => ({
                 id: s.id,
                 order: s.signing_order,
                 status: s.status
@@ -397,9 +397,13 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
       // Step 1: Download the PDF from storage (may be encrypted or plain)
       console.log('📄 Downloading PDF from storage...')
+      const documentPath = signerData.workflow.document_path
+      if (!documentPath) {
+        throw new Error('Ruta de documento no disponible')
+      }
       const { data: downloadData, error: downloadError } = await supabase.storage
         .from('user-documents')
-        .download(signerData.workflow.document_path)
+        .download(documentPath)
 
       if (downloadError || !downloadData) {
         throw new Error('No se pudo descargar el documento')
@@ -532,7 +536,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     await logEvent({
       workflowId: signerData.workflow_id,
       signerId: signerData.id,
-      eventType: 'signnow_bypassed',
+      eventType: 'signnow_bypassed' as any,
       details: { reason: 'embed_error' }
     })
 

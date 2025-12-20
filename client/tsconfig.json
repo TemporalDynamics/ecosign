@@ -14,7 +14,7 @@
     "jsx": "react-jsx",
 
     /* Linting */
-    "strict": false,
+    "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
@@ -31,6 +31,6 @@
     /* Type declarations */
     "types": ["vite/client"]
   },
-  "include": ["src"],
+  "include": ["src", "src/types/**/*.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

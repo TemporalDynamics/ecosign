@@ -8,6 +8,35 @@ echo "🚀 EcoSign - Deploy Automático"
 echo "=========================================="
 echo ""
 
+# Configuración Supabase (override con variables de entorno si querés)
+SUPABASE_PROJECT_REF=${SUPABASE_PROJECT_REF:-"uiyojopjbhooxrmamaiw"}
+SUPABASE_AUTOMATE=${SUPABASE_AUTOMATE:-"true"} # exporta a "false" si querés saltar Supabase
+
+# Helpers
+ensure_supabase_cli() {
+  if command -v supabase >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "⚙️  Instalando Supabase CLI..."
+  npm install -g supabase >/dev/null 2>&1
+}
+
+run_supabase_migrations() {
+  echo "📥 Aplicando migraciones de Supabase..."
+  (cd supabase && supabase db push --project-ref "$SUPABASE_PROJECT_REF")
+}
+
+deploy_supabase_functions() {
+  echo "🚀 Desplegando Supabase Functions..."
+  local functions
+  # Desplegamos todos los directorios de supabase/functions excepto los que empiezan con "_"
+  functions=$(find supabase/functions -maxdepth 1 -mindepth 1 -type d -printf "%f\n" | grep -v '^_')
+  for func in $functions; do
+    echo "   → $func"
+    (cd supabase && supabase functions deploy "$func" --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt)
+  done
+}
+
 # Verificar que estamos en la rama main
 CURRENT_BRANCH=$(git branch --show-current)
 if [ "$CURRENT_BRANCH" != "main" ]; then
@@ -37,6 +66,20 @@ if [[ -n $(git status -s) ]]; then
     echo "✅ Cambios commiteados y pusheados"
   else
     echo "⚠️  Continuando sin commitear..."
+  fi
+fi
+
+if [ "$SUPABASE_AUTOMATE" = "true" ]; then
+  echo ""
+  echo "🔗 Verificando Supabase..."
+  ensure_supabase_cli
+  if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+    echo "⚠️  SUPABASE_ACCESS_TOKEN no está definido. Omitiendo migraciones y funciones."
+  else
+    # Aseguramos link (idempotente)
+    (cd supabase && supabase link --project-ref "$SUPABASE_PROJECT_REF" >/dev/null)
+    run_supabase_migrations
+    deploy_supabase_functions
   fi
 fi
 

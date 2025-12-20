@@ -59,7 +59,7 @@ const WorkflowDetailPage = lazy(() => import('./pages/WorkflowDetailPage'))
 const DASHBOARD_ENABLED = false
 
 function DashboardAppRoutes() {
-  const { videoState, closeVideo } = useVideoPlayer()
+  const { videoState, closeVideo, playNext, playPrevious } = useVideoPlayer()
   const location = useLocation()
 
   React.useEffect(() => {
@@ -225,8 +225,11 @@ function DashboardAppRoutes() {
       {videoState.isPlaying && videoState.videoSrc && (
         <FloatingVideoPlayer
           videoSrc={videoState.videoSrc}
-          videoTitle={videoState.videoTitle}
+          videoTitle={videoState.videoTitle ?? undefined}
           onClose={closeVideo}
+          onEnded={playNext}
+          onNext={playNext}
+          onPrevious={playPrevious}
         />
       )}
 

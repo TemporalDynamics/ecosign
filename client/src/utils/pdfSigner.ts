@@ -55,10 +55,7 @@ export async function applySignatureToPDF(
   position?: SignaturePosition
 ): Promise<SignedPDFResult> {
   try {
-    console.log('🔒 Starting PDF signature application (in browser)...')
-
-    // Lazy load pdf-lib
-    const { PDFDocument } = await loadPdfLib();
+    const { PDFDocument, rgb } = await loadPdfLib();
 
     // Load the PDF
     const pdfBytes = await pdfBlob.arrayBuffer()
@@ -115,7 +112,7 @@ export async function applySignatureToPDF(
 
     // Save the modified PDF
     const signedPdfBytes = await pdfDoc.save()
-    const signedPdfBlob = new Blob([signedPdfBytes], { type: 'application/pdf' })
+    const signedPdfBlob = new Blob([new Uint8Array(signedPdfBytes)], { type: 'application/pdf' })
 
     // Calculate hash of signed PDF
     const signedPdfFile = new File([signedPdfBlob], 'signed.pdf', { type: 'application/pdf' })

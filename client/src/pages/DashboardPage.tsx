@@ -1,0 +1,307 @@
+// @ts-nocheck
+import React, { useMemo, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Info } from 'lucide-react';
+const DocumentList = React.lazy(() => import('../components/DocumentList'));
+import DashboardNav from '../components/DashboardNav';
+const FooterInternal = React.lazy(() => import('../components/FooterInternal'));
+import { getUserDocuments } from '../utils/documentStorage';
+import InhackeableTooltip from '../components/InhackeableTooltip';
+import { useLegalCenter } from '../contexts/LegalCenterContext';
+
+function DashboardPage() {
+  const navigate = useNavigate();
+  const [sortConfig, setSortConfig] = useState({ key: 'updatedAt', direction: 'desc' });
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { open: openLegalCenter } = useLegalCenter();
+
+  // Load documents from Supabase
+  useEffect(() => {
+    let isMounted = true; // Para evitar memory leaks
+
+    const loadDocuments = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const docs = await getUserDocuments();
+        if (isMounted) {
+          setDocuments(docs);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Error loading documents:', err);
+          setError(err.message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadDocuments();
+
+    return () => {
+      isMounted = false; // Clean up para evitar memory leaks
+    };
+  }, []);
+
+  const refreshDocuments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const docs = await getUserDocuments();
+      setDocuments(docs);
+    } catch (err) {
+      console.error('Error loading documents:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Refresh documents when certification flow closes
+  // Calculate stats from real data
+  const overviewStats = useMemo(() => {
+    const totalDocs = documents.length;
+    const legalTimestamps = documents.filter(d => d.has_legal_timestamp).length;
+    const bitcoinAnchors = documents.filter(d => d.has_bitcoin_anchor).length;
+    const signedDocs = documents.filter(d => d.signnow_document_id).length;
+
+    return [
+      { key: 'docs', label: 'Documentos certificados', value: totalDocs.toString(), helper: 'Total guardados' },
+      { key: 'signed', label: 'Firmados legalmente', value: signedDocs.toString(), helper: 'Con SignNow' },
+      { key: 'inhackeable', label: <InhackeableTooltip className="font-semibold" />, value: legalTimestamps.toString(), helper: 'Huella + sello legal + anchoring' },
+      { key: 'btc', label: 'Anclajes Bitcoin', value: bitcoinAnchors.toString(), helper: 'En blockchain' }
+    ];
+  }, [documents]);
+
+  // Transform documents into certification rows
+  const certificationRows = useMemo(() => {
+    return documents.map(doc => ({
+      id: doc.id,
+      fileName: doc.document_name,
+      updatedAt: doc.updated_at || doc.certified_at,
+      nda: false, // We don't have NDA tracking yet in this table
+      legal: doc.has_legal_timestamp,
+      concept: doc.notes || 'Documento certificado',
+      signedAt: doc.signed_at,
+      hasSignNow: !!doc.signnow_document_id,
+      hasBitcoinAnchor: doc.has_bitcoin_anchor
+    }));
+  }, [documents]);
+
+  const sortedCertificationRows = useMemo(() => {
+    const rows = [...certificationRows];
+    rows.sort((a, b) => {
+      if (sortConfig.key === 'fileName') {
+        return sortConfig.direction === 'asc'
+          ? a.fileName.localeCompare(b.fileName)
+          : b.fileName.localeCompare(a.fileName);
+      }
+      if (sortConfig.key === 'updatedAt') {
+        return sortConfig.direction === 'asc'
+          ? new Date(a.updatedAt) - new Date(b.updatedAt)
+          : new Date(b.updatedAt) - new Date(a.updatedAt);
+      }
+      return 0;
+    });
+    return rows;
+  }, [sortConfig]);
+
+  const requestSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const handleLogout = () => {
+    navigate('/');
+  };
+
+  return (
+    <div className="min-h-screen bg-white">
+      <DashboardNav onLogout={handleLogout} />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Welcome Section */}
+        <section className="bg-gray-900 rounded-2xl p-8 shadow-lg">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <h2 className="text-3xl font-bold text-white mb-2">Bienvenido a EcoSign</h2>
+              <p className="text-gray-300 text-lg max-w-2xl">
+                Sellá tus documentos, controla cada NDA y verifica tus certificados sin salir del panel. Todo queda registrado en tu archivo .ECO.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => openLegalCenter('certify')}
+                className="bg-white hover:bg-gray-100 text-gray-900 font-bold py-3 px-8 rounded-xl shadow-md transition duration-300"
+              >
+                + Certificar documento
+              </button>
+              <button
+                onClick={() => navigate('/verificador')}
+                className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-gray-900 font-bold py-3 px-8 rounded-xl transition duration-300"
+              >
+                Verificador
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Dashboard Stats - Reduced DOM complexity */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ minHeight: '140px' }}>
+          {overviewStats.map((stat) => (
+            <div key={stat.key} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 h-[140px] flex flex-col justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-2">{stat.label}</p>
+                <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+              </div>
+              <p className="text-xs text-gray-500 mt-auto">{stat.helper}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* Certification Overview */}
+        <section className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm" style={{ minHeight: '400px' }}>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+            <div>
+              <p className="text-sm uppercase tracking-widest text-gray-900 font-semibold">Panel de certificaciones</p>
+              <h3 className="text-2xl font-bold text-gray-900">Estado de tus .ECO</h3>
+              <p className="text-sm text-gray-500">Se actualiza automáticamente a medida que generás certificados</p>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Info className="w-4 h-4" />
+              Haz clic en los encabezados para ordenar
+            </div>
+          </div>
+
+          {loading && (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <p className="text-gray-500 mt-4">Cargando documentos...</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              <p className="font-semibold">Error al cargar documentos</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+
+          {!loading && !error && certificationRows.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No tenés documentos certificados todavía.</p>
+              <button
+                onClick={() => openLegalCenter('certify')}
+                className="mt-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2 px-6 rounded-lg"
+              >
+                Certificar tu primer documento
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && certificationRows.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-gray-600">
+                <thead>
+                  <tr className="text-xs uppercase tracking-wide text-gray-500 border-b">
+                    <th className="py-3 pr-4">
+                      <button
+                        onClick={() => requestSort('fileName')}
+                        className="flex items-center gap-1 font-semibold text-gray-700"
+                      >
+                        Documento
+                        <span className="text-xs text-gray-400">{sortConfig.key === 'fileName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
+                      </button>
+                    </th>
+                    <th className="py-3 pr-4">
+                      <button
+                        onClick={() => requestSort('updatedAt')}
+                        className="flex items-center gap-1 font-semibold text-gray-700"
+                      >
+                        Timestamp
+                        <span className="text-xs text-gray-400">{sortConfig.key === 'updatedAt' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}</span>
+                      </button>
+                    </th>
+                    <th className="py-3 pr-4">Firma</th>
+                    <th className="py-3 pr-4">Concepto</th>
+                    <th className="py-3">Legal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedCertificationRows.map((row) => (
+                    <tr key={row.id} className="border-b last:border-0">
+                      <td className="py-3 pr-4 font-medium text-gray-900 max-w-xs truncate" title={row.fileName}>{row.fileName}</td>
+                      <td className="py-3 pr-4 min-w-[140px]">{new Date(row.updatedAt).toLocaleString()}</td>
+                      <td className="py-3 pr-4 min-w-[80px]">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${row.hasSignNow ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                          {row.hasSignNow ? 'SignNow' : 'Sin firma'}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4 max-w-xs text-gray-700 truncate" title={row.concept}>{row.concept}</td>
+                      <td className="py-3 min-w-[100px]">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${row.legal ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                          {row.legal ? <InhackeableTooltip className="text-white" /> : 'Timestamp'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+
+        {/* Recent Activity - Load only if needed */}
+        <React.Suspense fallback={<div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm h-64"></div>}>
+          <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
+            <div className="space-y-4">
+              <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
+                <div className="text-sm text-gray-900 font-medium mb-1">Hoy, 10:30 AM</div>
+                <p className="text-gray-700">Documento "Proyecto Alpha" firmado por juan@empresa.com</p>
+              </div>
+              <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
+                <div className="text-sm text-gray-900 font-medium mb-1">Ayer, 3:45 PM</div>
+                <p className="text-gray-700">Enlace seguro creado para "Informe Confidencial"</p>
+              </div>
+              <div className="border border-gray-200 p-4 rounded-lg hover:bg-gray-50 transition duration-200">
+                <div className="text-sm text-gray-900 font-medium mb-1">12 Nov, 9:15 AM</div>
+                <p className="text-gray-700">Nuevo certificado .ECO generado para contrato</p>
+              </div>
+            </div>
+          </section>
+        </React.Suspense>
+
+        {/* Document List */}
+        <section className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Documentos Recientes</h2>
+            <button className="text-gray-900 hover:text-gray-700 font-medium text-sm">
+              Ver todos →
+            </button>
+          </div>
+          <React.Suspense fallback={<div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>}>
+            <DocumentList />
+          </React.Suspense>
+        </section>
+      </main>
+
+      <React.Suspense fallback={<div className="bg-white py-8"></div>}>
+        <FooterInternal />
+      </React.Suspense>
+
+    </div>
+  );
+}
+
+export default DashboardPage;

@@ -3417,3 +3417,37 @@ Completar el checklist de seguridad para MVP privado y refinar copy/UX de págin
 
 ---
 
+## Iteración 2025-12-20 — TS strict estable + deploy automatizado y badge de confianza
+
+### 🎯 Objetivo
+Reducir a cero los errores de TypeScript en strict para el frontend público y dashboards, y automatizar Supabase (migraciones + edge functions) en el pipeline de despliegue, dejando una señal visual mínima de protección activa.
+
+### 🧠 Decisiones tomadas
+- **Tipado estricto sin romper UX**: Se migraron componentes, páginas y libs de JS/JSX a TS/TSX, eliminando `any` implícitos y ajustando estados nulos para Documents/Verify/Invite/NDA y flujos de firma.
+- **Automatización de Supabase en deploy**: `deploy.sh` ahora corre `supabase db push` y despliega todas las edge functions antes del deploy a Vercel (opt-out con `SUPABASE_AUTOMATE=false`). En CI se agregó `deploy-supabase.yml` para ejecutar lo mismo en cada push a `main` usando secretos del proyecto.
+- **Señal de confianza mínima**: Header público muestra un escudo (Lucide Shield) junto al nombre EcoSign como marca de protección sin alterar el layout.
+
+### 🛠️ Cambios realizados
+- Renombrado masivo de archivos `.jsx/.js` a `.tsx/.ts` con tipado de props/estados, verificación y descargas (DocumentsPage, VerifyPage, Invite/NdaAccess, SignWorkflow, tooltips y modales).
+- Ajustes en `SignWorkflowPage` para tiempos/descargas tipados y guardas; `WorkflowDetailPage` usa función `get-signed-url` en lugar de acceso directo a `supabaseUrl`.
+- Nuevo workflow `.github/workflows/deploy-supabase.yml` y `deploy.sh` orquestando migraciones + deploy de functions antes de Vercel.
+- Header público actualizado con ícono de escudo para confirmar el build nuevo.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se eliminaron los `// @ts-nocheck` en `documentStorage.ts` y `eventLogger.ts`; quedan como deuda para tipado fino.
+- No se tocó la lógica funcional de certificación/anclajes; solo tipado y plumbing de deploy.
+- No se incorporó buffer polyfill en runtime (solo warning de Vite); se mantiene liviano hasta que sea necesario.
+
+### ⚠️ Consideraciones / deuda futura
+- Quitar `ts-nocheck` en utils de storage/eventLogger tipando inputs/outputs reales.
+- Revisar el warning de Vite sobre `buffer` si aparece uso de `Buffer` en cliente.
+- Mantener secretos `SUPABASE_PROJECT_REF/ACCESS_TOKEN/DB_PASSWORD` actualizados para que el workflow de Supabase siga funcionando.
+
+### 📍 Estado final
+- `npm run typecheck` pasa en strict; build Vercel OK.
+- Supabase deploy automatizado en CI y en `deploy.sh` (incluye migraciones y functions).
+- Header muestra escudo en prod como verificación visual de build reciente.
+
+### 💬 Nota del dev
+"Cerramos el contador de TS a cero sin tocar lógica y amarramos Supabase al deploy para evitar olvidos. Queda pendiente tipar los utils marcados con ts-nocheck; el resto está estable y desplegable con un comando."
+

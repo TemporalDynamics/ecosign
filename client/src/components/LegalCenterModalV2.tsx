@@ -847,9 +847,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       // 3. Registrar evento 'created' (ChainLog)
       if (savedDoc?.id) {
+        const userId = typeof savedDoc.user_id === 'string' ? savedDoc.user_id : String(savedDoc.user_id || '');
         await EventHelpers.logDocumentCreated(
           savedDoc.id,
-          savedDoc.user_id,
+          userId,
           {
             filename: file.name,
             fileSize: file.size,
@@ -892,7 +893,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       const ecoBuffer: Uint8Array = rawEcoBuffer instanceof Uint8Array
         ? rawEcoBuffer
         : new Uint8Array(rawEcoBuffer as ArrayBuffer);
-      const ecoFileName = certResult.fileName.replace(/\.[^/.]+$/, '.eco');
+      const ecoFileName = (certResult.fileName || 'document.pdf').replace(/\.[^/.]+$/, '.eco');
       setCertificateData({
         ...certResult,
         // URL para descargar el PDF firmado con audit trail
@@ -901,10 +902,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         // URL para descargar el archivo .ECO (siempre disponible)
         ecoDownloadUrl: URL.createObjectURL(new Blob([ecoBuffer.slice().buffer], { type: 'application/octet-stream' })),
         ecoFileName,
-        fileName: certResult.fileName,
+        fileName: certResult.fileName || fileToProcess.name,
         documentId: savedDoc?.id,
         downloadEnabled: true, // ✅ Siempre true
-        protectionLevel: savedDoc?.protection_level || 'ACTIVE'
+        protectionLevel: `${savedDoc?.protection_level || 'ACTIVE'}`
       });
 
       // CONSTITUCIÓN: Toast de finalización exitosa (líneas 499-521)

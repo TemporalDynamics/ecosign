@@ -169,21 +169,16 @@ export default function WorkflowDetailPage() {
         return
       }
 
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/get-signed-url`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ path: workflow.document_path, bucket: 'user-documents', expiresIn: 3600 })
+      const { data, error } = await supabase.functions.invoke('get-signed-url', {
+        body: { path: workflow.document_path, bucket: 'user-documents', expiresIn: 3600 },
+        headers: { Authorization: `Bearer ${session.access_token}` }
       })
 
-      if (!response.ok) {
-        throw new Error('Error generando URL firmada')
+      if (error || !data?.signedUrl) {
+        throw error || new Error('Error generando URL firmada')
       }
 
-      const { signedUrl } = await response.json()
-      window.open(signedUrl, '_blank')
+      window.open(data.signedUrl as string, '_blank')
     } catch (err) {
       alert('No se pudo descargar el PDF firmado')
       console.error(err)

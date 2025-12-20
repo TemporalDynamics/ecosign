@@ -6,12 +6,7 @@
 // ============================================
 
 import { useNavigate } from 'react-router-dom'
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
-import {  } from 'lucide-react';
+import { AlertCircle, FileText, Users, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { WorkflowStatusBadge } from './WorkflowStatus'
 
 interface Workflow {

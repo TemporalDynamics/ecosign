@@ -61,7 +61,7 @@ export default function WorkflowsPage() {
 
       // Load all signers for these workflows
       if (workflowsData && workflowsData.length > 0) {
-        const workflowIds = workflowsData.map(w => w.id)
+        const workflowIds = workflowsData.map((w: any) => w.id)
         const { data: signersData, error: signersError } = await supabase
           .from('workflow_signers')
           .select('id, workflow_id, status')

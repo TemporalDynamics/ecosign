@@ -5,8 +5,19 @@ import { createTestUser, deleteTestUser, getAdminClient } from '../helpers/supab
 
 const BUCKET_NAME = 'documents';
 const TEST_TIMEOUT = 15000;
+const supabaseEnvReady = Boolean(
+  process.env.SUPABASE_LOCAL === 'true' &&
+  process.env.SUPABASE_URL &&
+  process.env.SUPABASE_SERVICE_ROLE_KEY &&
+  process.env.SUPABASE_ANON_KEY
+);
+const describeIfSupabase = supabaseEnvReady ? describe : describe.skip;
 
-describe('Storage Security Tests', () => {
+if (!supabaseEnvReady) {
+  console.warn('⚠️  Skipping storage tests: set SUPABASE_LOCAL=true and Supabase env vars to run locally.');
+}
+
+describeIfSupabase('Storage Security Tests', () => {
   let adminClient: ReturnType<typeof getAdminClient>;
   let userClient: any;
   let userId: string;
@@ -24,7 +35,12 @@ describe('Storage Security Tests', () => {
     adminClient = getAdminClient();
 
     try {
-      await adminClient.from('documents').select('id').limit(1);
+      const { error } = await adminClient.from('documents').select('id').limit(1);
+      if (error) {
+        console.warn('⚠️  Skipping storage tests: Supabase no disponible:', error.message);
+        skipTests = true;
+        return;
+      }
     } catch (err) {
       console.warn('⚠️  Skipping storage tests: Supabase no disponible:', (err as Error).message);
       skipTests = true;
@@ -114,6 +130,10 @@ describe('Storage Security Tests', () => {
   }, TEST_TIMEOUT);
 
   test('File size limits should be enforced', async () => {
+    if (skipTests) {
+      console.log('⚠️  Skipping: Supabase no disponible');
+      return;
+    }
     // Bucket configuration should have file size limit
     const MAX_SIZE = 100 * 1024 * 1024; // 100MB
     
@@ -126,6 +146,10 @@ describe('Storage Security Tests', () => {
   }, TEST_TIMEOUT);
 
   test('Can generate signed URLs for files', async () => {
+    if (skipTests) {
+      console.log('⚠️  Skipping: Supabase no disponible');
+      return;
+    }
     const fileName = `signed-url-${Date.now()}.txt`;
     const filePath = `${userId}/${fileName}`;
     const fileContent = new Blob(['Signed content'], { type: 'text/plain' });

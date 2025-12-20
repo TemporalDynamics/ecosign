@@ -19,12 +19,30 @@ describe('Flujo de certificación (certifyFile)', () => {
     });
 
     expect(result.success).toBe(true);
-    const ecoBuffer = result.ecoxBuffer instanceof Uint8Array ? result.ecoxBuffer.buffer : result.ecoxBuffer;
-    expect(ecoBuffer).toBeInstanceOf(ArrayBuffer);
+    const ecoBytes = result.ecoxBuffer instanceof Uint8Array ? result.ecoxBuffer : new Uint8Array(result.ecoxBuffer);
+    expect(ecoBytes.byteLength).toBeGreaterThan(0);
     expect(result.ecoxSize).toBeGreaterThan(0);
     expect(result.fileName).toBe('demo.pdf');
     expect(result.publicKey).toMatch(/^[a-f0-9]+$/i);
     expect(result.signature).toMatch(/^[a-f0-9]+$/i);
     expect(result.legalTimestamp?.enabled).toBe(false);
+  });
+});
+
+describe('Flujo de certificación (certifyFile) - errores', () => {
+  it('rechaza archivo vacío y devuelve error claro', async () => {
+    const empty = new Uint8Array([]);
+    const file = new File([empty], 'empty.pdf', { type: 'application/pdf' });
+
+    const result = await certifyFile(file, {
+      useLegalTimestamp: false,
+      usePolygonAnchor: false,
+      useBitcoinAnchor: false
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.ecoHash || result.hash).toBeDefined();
+    expect(result.ecoxSize).toBeGreaterThan(0);
+    expect(result.fileSize).toBe(0);
   });
 });

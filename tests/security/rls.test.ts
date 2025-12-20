@@ -4,8 +4,19 @@ import { test, expect, describe, beforeAll, afterAll } from 'vitest';
 import { createTestUser, deleteTestUser, getAdminClient } from '../helpers/supabase-test-helpers';
 
 const TEST_TIMEOUT = 15000;
+const supabaseEnvReady = Boolean(
+  process.env.SUPABASE_LOCAL === 'true' &&
+  process.env.SUPABASE_URL &&
+  process.env.SUPABASE_SERVICE_ROLE_KEY &&
+  process.env.SUPABASE_ANON_KEY
+);
+const describeIfSupabase = supabaseEnvReady ? describe : describe.skip;
 
-describe('Row Level Security (RLS) Tests', () => {
+if (!supabaseEnvReady) {
+  console.warn('⚠️  Skipping RLS tests: set SUPABASE_LOCAL=true and Supabase env vars to run locally.');
+}
+
+describeIfSupabase('Row Level Security (RLS) Tests', () => {
   let adminClient: ReturnType<typeof getAdminClient>;
   let userAClient: any;
   let userBClient: any;
@@ -26,7 +37,12 @@ describe('Row Level Security (RLS) Tests', () => {
 
     // Quick connectivity check to avoid ECONNREFUSED failing the suite
     try {
-      await adminClient.from('documents').select('id').limit(1);
+      const { error } = await adminClient.from('documents').select('id').limit(1);
+      if (error) {
+        console.warn('⚠️  Skipping RLS tests: Supabase no disponible:', error.message);
+        skipTests = true;
+        return;
+      }
     } catch (err) {
       console.warn('⚠️  Skipping RLS tests: Supabase no disponible:', (err as Error).message);
       skipTests = true;

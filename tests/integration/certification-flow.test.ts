@@ -1,33 +1,30 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { certifyFile } from '../..//client/src/lib/basicCertificationWeb';
 
-/**
- * Dummy integration test placeholder for the main certification flow.
- *
- * Nota: En este entorno no tenemos backend real ni storage, así que
- * validamos la estructura mínima del resultado simulado de certificar un documento.
- * Cuando se integre con Supabase/edge, reemplazar por llamadas reales o mocks.
- */
+// Integration-lite: ejercita certifyFile con mocks solo para dependencias externas (TSA).
+// No toca Supabase ni redes externas.
+vi.mock('../../client/src/lib/tsaService.js', () => ({
+  requestLegalTimestamp: vi.fn().mockResolvedValue({ success: true, timestamp: new Date().toISOString() })
+}));
 
-describe('Flujo de certificación (placeholder)', () => {
-  it('crea un resultado de certificación con hashes y estados esperados', async () => {
-    // Simulamos el resultado que el frontend espera tras certificar
-    const simulatedCertResult = {
-      ecoxBuffer: new Uint8Array([1, 2, 3]),
-      fileName: 'demo.pdf',
-      ecoHash: 'abc123',
-      protectionLevel: 'ACTIVE',
-      forensicConfig: {
-        usePolygonAnchor: true,
-        useBitcoinAnchor: true,
-        useLegalTimestamp: true
-      }
-    };
+describe('Flujo de certificación (certifyFile)', () => {
+  it('genera ecoxBuffer y metadatos mínimos sin TSA ni anchors', async () => {
+    const sample = new Uint8Array([1, 2, 3, 4, 5]);
+    const file = new File([sample], 'demo.pdf', { type: 'application/pdf' });
 
-    expect(simulatedCertResult.ecoxBuffer).toBeInstanceOf(Uint8Array);
-    expect(simulatedCertResult.fileName).toMatch(/\.pdf$/i);
-    expect(simulatedCertResult.protectionLevel).toBe('ACTIVE');
-    expect(simulatedCertResult.forensicConfig.usePolygonAnchor).toBe(true);
-    expect(simulatedCertResult.forensicConfig.useBitcoinAnchor).toBe(true);
-    expect(simulatedCertResult.forensicConfig.useLegalTimestamp).toBe(true);
+    const result = await certifyFile(file, {
+      useLegalTimestamp: false,
+      usePolygonAnchor: false,
+      useBitcoinAnchor: false
+    });
+
+    expect(result.success).toBe(true);
+    const ecoBuffer = result.ecoxBuffer instanceof Uint8Array ? result.ecoxBuffer.buffer : result.ecoxBuffer;
+    expect(ecoBuffer).toBeInstanceOf(ArrayBuffer);
+    expect(result.ecoxSize).toBeGreaterThan(0);
+    expect(result.fileName).toBe('demo.pdf');
+    expect(result.publicKey).toMatch(/^[a-f0-9]+$/i);
+    expect(result.signature).toMatch(/^[a-f0-9]+$/i);
+    expect(result.legalTimestamp?.enabled).toBe(false);
   });
 });

@@ -1,19 +1,61 @@
-// @ts-nocheck
-// client/src/utils/documentStorage.js
+// client/src/utils/documentStorage.ts
 /**
  * Utilities for storing certified documents in Supabase
  */
 
 import { getSupabase } from '../lib/supabaseClient';
 
+type SaveUserDocumentOptions = {
+  signNowDocumentId?: string | null;
+  signNowStatus?: string | null;
+  signedAt?: string | null;
+  hasLegalTimestamp?: boolean;
+  hasPolygonAnchor?: boolean;
+  hasBitcoinAnchor?: boolean;
+  bitcoinAnchorId?: string | null;
+  bitcoinStatus?: string | null;
+  overallStatus?: string;
+  downloadEnabled?: boolean;
+  ecoFileData?: ArrayBufferView | ArrayBuffer | null;
+  tags?: string[];
+  notes?: string | null;
+  initialStatus?: string;
+  storePdf?: boolean;
+  zeroKnowledgeOptOut?: boolean;
+  ecoBuffer?: ArrayBufferView | ArrayBuffer | null;
+  ecoFileName?: string | null;
+  ecoStoragePath?: string | null;
+  storeEco?: boolean;
+};
+
+type SaveUserDocumentResult = Record<string, unknown> & {
+  id: string;
+  pdf_storage_path?: string | null;
+  eco_storage_path?: string | null;
+  document_hash?: string;
+};
+
+type DownloadResult = {
+  success: boolean;
+  data: Blob | null;
+  error: string | null;
+};
+
+const toUint8Array = (input: ArrayBuffer | ArrayBufferView<ArrayBufferLike>): Uint8Array => {
+  if (input instanceof ArrayBuffer) {
+    return new Uint8Array(input);
+  }
+  return new Uint8Array(input.buffer);
+};
+
 /**
  * Upload a signed PDF to Supabase Storage and create a user_documents record
- * @param {File} pdfFile - The signed PDF file
- * @param {Object} ecoData - The ECO certificate data (manifest + signatures + metadata)
- * @param {Object} options - Additional options
- * @returns {Promise<Object>} The created document record
+ * @param pdfFile - The signed PDF file
+ * @param ecoData - The ECO certificate data (manifest + signatures + metadata)
+ * @param options - Additional options
+ * @returns The created document record
  */
-export async function saveUserDocument(pdfFile, ecoData, options = {}) {
+export async function saveUserDocument(pdfFile: File, ecoData: unknown, options: SaveUserDocumentOptions = {}): Promise<SaveUserDocumentResult> {
   const supabase = getSupabase();
   const {
     signNowDocumentId = null,
@@ -42,9 +84,8 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
   let ecoFileDataBuffer = null;
   if (ecoFileData) {
     try {
-      ecoFileDataBuffer = ecoFileData instanceof Uint8Array
-        ? ecoFileData
-        : new Uint8Array(ecoFileData.buffer || ecoFileData);
+      const normalized = ecoFileData instanceof Uint8Array ? ecoFileData : toUint8Array(ecoFileData);
+      ecoFileDataBuffer = normalized;
     } catch (e) {
       console.warn('Unable to normalize ecoFileData, skipping storage', e);
     }
@@ -63,7 +104,7 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
   const documentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
   // Upload PDF to Supabase Storage (optional for zero-knowledge)
-  let uploadData = null;
+  let uploadData: { path: string } | null = null;
   let uploadError = null;
   let storagePath = null;
 
@@ -82,7 +123,7 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
       console.error('Error uploading PDF:', uploadError);
       throw new Error(`Error al subir el documento: ${uploadError.message}`);
     }
-    storagePath = uploadData.path;
+    storagePath = uploadData?.path || null;
   }
 
   // Upload ECO to Supabase Storage (always, regardless of PDF storage)
@@ -90,10 +131,10 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
   let ecoUploadFailed = false;
   if (storeEco) {
     // Prefer the provided buffer, otherwise serialize ecoData
-    let ecoBytes = null;
+    let ecoBytes: Uint8Array | null = null;
     if (ecoBuffer) {
       try {
-        ecoBytes = ecoBuffer instanceof Uint8Array ? ecoBuffer : new Uint8Array(ecoBuffer);
+        ecoBytes = ecoBuffer instanceof Uint8Array ? ecoBuffer : toUint8Array(ecoBuffer);
       } catch (err) {
         console.warn('Unable to normalize ecoBuffer, will fallback to ecoData', err);
       }
@@ -114,7 +155,8 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
         .replace(/[\u0300-\u036f]/g, '') // Remove accents
         .replace(/[^a-zA-Z0-9.-]/g, '_'); // Replace special chars with underscore
 
-      const ecoBlob = new Blob([ecoBytes], { type: 'application/octet-stream' });
+      const bytesForBlob = new Uint8Array(ecoBytes);
+      const ecoBlob = new Blob([bytesForBlob], { type: 'application/octet-stream' });
       const ecoPath = forcedEcoStoragePath || `${user.id}/${Date.now()}-${sanitizedFileName}`;
 
       const { data: ecoUploadData, error: ecoUploadError } = await supabase.storage
@@ -138,7 +180,7 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
   }
 
   // Determine file type from MIME type
-  const getFileType = (mimeType) => {
+  const getFileType = (mimeType?: string | null) => {
     if (!mimeType) return 'pdf';
     if (mimeType.includes('pdf')) return 'pdf';
     if (mimeType.includes('word') || mimeType.includes('document')) return 'docx';
@@ -238,9 +280,9 @@ export async function saveUserDocument(pdfFile, ecoData, options = {}) {
 
 /**
  * Get all documents for the current user with complete information
- * @returns {Promise<Array>} Array of user documents with all fields
+ * @returns Array of user documents with all fields
  */
-export async function getUserDocuments() {
+export async function getUserDocuments(): Promise<any[]> {
   const supabase = getSupabase();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
@@ -281,11 +323,11 @@ export async function getUserDocuments() {
 
 /**
  * Update document status
- * @param {string} documentId - The document ID
- * @param {string} newStatus - The new status ('draft', 'sent', 'pending', 'signed', 'rejected', 'expired')
- * @returns {Promise<Object>} Updated document
+ * @param documentId - The document ID
+ * @param newStatus - The new status ('draft', 'sent', 'pending', 'signed', 'rejected', 'expired')
+ * @returns Updated document
  */
-export async function updateDocumentStatus(documentId, newStatus) {
+export async function updateDocumentStatus(documentId: string, newStatus: string) {
   const supabase = getSupabase();
   const validStatuses = ['draft', 'sent', 'pending', 'signed', 'rejected', 'expired'];
   
@@ -313,11 +355,11 @@ export async function updateDocumentStatus(documentId, newStatus) {
 
 /**
  * Get a signed URL for downloading a document
- * @param {string} storagePath - The storage path of the document
- * @param {number} expiresIn - Expiration time in seconds (default: 1 hour)
- * @returns {Promise<string>} The signed URL
+ * @param storagePath - The storage path of the document
+ * @param expiresIn - Expiration time in seconds (default: 1 hour)
+ * @returns The signed URL
  */
-export async function getDocumentDownloadUrl(storagePath, expiresIn = 3600) {
+export async function getDocumentDownloadUrl(storagePath: string, expiresIn = 3600): Promise<string> {
   const supabase = getSupabase();
   const { data, error } = await supabase.storage
     .from('user-documents')
@@ -333,7 +375,7 @@ export async function getDocumentDownloadUrl(storagePath, expiresIn = 3600) {
 
 // Signed URL helper (frontend-only fallback)
 // Matches the TS version so bundlers find the export.
-export async function getSignedDocumentUrl(path, expiresIn = 3600) {
+export async function getSignedDocumentUrl(path: string, expiresIn = 3600): Promise<string | null> {
   const supabase = getSupabase();
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -343,7 +385,11 @@ export async function getSignedDocumentUrl(path, expiresIn = 3600) {
     }
 
     // Use edge function to bypass RLS if needed
-    const response = await fetch(`${supabase.supabaseUrl}/functions/v1/get-signed-url`, {
+    const supabaseUrl = (supabase as any).supabaseUrl as string | undefined;
+    if (!supabaseUrl) {
+      throw new Error('Supabase URL no disponible');
+    }
+    const response = await fetch(`${supabaseUrl}/functions/v1/get-signed-url`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -368,10 +414,10 @@ export async function getSignedDocumentUrl(path, expiresIn = 3600) {
 
 /**
  * Delete a user document (both storage and DB record)
- * @param {string} documentId - The document ID
- * @returns {Promise<void>}
+ * @param documentId - The document ID
+ * @returns void
  */
-export async function deleteUserDocument(documentId) {
+export async function deleteUserDocument(documentId: string): Promise<void> {
   const supabase = getSupabase();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
@@ -417,10 +463,10 @@ export async function deleteUserDocument(documentId) {
 
 /**
  * Download a document from Supabase Storage
- * @param {string} storagePath - The storage path of the document
- * @returns {Promise<{ success: boolean, data: Blob | null, error: string | null }>}
+ * @param storagePath - The storage path of the document
+ * @returns result with blob or error
  */
-export async function downloadDocument(storagePath) {
+export async function downloadDocument(storagePath: string): Promise<DownloadResult> {
   const supabase = getSupabase();
   try {
     const { data, error } = await supabase.storage
@@ -434,7 +480,8 @@ export async function downloadDocument(storagePath) {
 
     return { success: true, data: data, error: null };
   } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unexpected error';
     console.error('Unexpected error during download:', err);
-    return { success: false, data: null, error: err.message };
+    return { success: false, data: null, error: message };
   }
 }

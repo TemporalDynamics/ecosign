@@ -1876,7 +1876,21 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   <Shield className="w-10 h-10 text-blue-700" />
                   <div className="flex-1">
                     <h3 className="text-2xl font-semibold text-gray-900">Tu documento quedó protegido</h3>
-                    <p className="text-sm text-gray-600">
+                    <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+                      <p className="text-sm font-semibold text-blue-900 mb-2">
+                        Tu documento ya está protegido
+                      </p>
+                      <p className="text-sm text-blue-800 leading-relaxed">
+                        El proceso se completó con éxito y el documento tiene plena validez jurídica.
+                        EcoSign, de forma automática, aplica protecciones adicionales independientes
+                        para reforzar esta protección y llevarla al nivel más alto posible,
+                        sin que tengas que hacer nada más.
+                      </p>
+                      <p className="text-xs text-blue-700 mt-2">
+                        No se requiere ninguna acción adicional de tu parte.
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-4">
                       Elegí cómo querés recibirlo. Podés guardarlo en EcoSign o descargarlo ahora mismo.
                     </p>
                   </div>

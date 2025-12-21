@@ -19,6 +19,9 @@ type LinkData = {
   nda_accepted?: boolean;
   require_nda?: boolean;
   expires_at?: string;
+  pdf_signed_url?: string | null;
+  eco_signed_url?: string | null;
+  nda_text?: string | null;
   recipient?: RecipientInfo;
   document?: {
     title?: string;
@@ -27,15 +30,13 @@ type LinkData = {
 };
 
 const DEFAULT_NDA_TEXT = `
-Acuerdo de Confidencialidad
+ACUERDO DE CONFIDENCIALIDAD (NDA)
 
 Este documento fue compartido de forma privada a través de EcoSign.
 
 Al continuar, aceptás mantener su contenido confidencial y no divulgarlo a terceros sin autorización del remitente.
 
 Este acceso quedará registrado con fines de auditoría.
-
-Para acceder al documento, aceptá el acuerdo.
 `.trim();
 
 function NdaAccessPage() {
@@ -45,7 +46,9 @@ function NdaAccessPage() {
   const [linkData, setLinkData] = useState<LinkData | null>(null);
   const [ndaAccepted, setNdaAccepted] = useState(false);
   const [accepting, setAccepting] = useState(false);
-  const [showNdaText, setShowNdaText] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [ecoUrl, setEcoUrl] = useState<string | null>(null);
+  const [loadingAccess, setLoadingAccess] = useState(false);
 
   // Form state
   const [signerName, setSignerName] = useState('');
@@ -57,6 +60,11 @@ function NdaAccessPage() {
       verifyAccess();
     }
   }, [token]);
+
+  const applyAccessUrls = (data: LinkData) => {
+    setPdfUrl(data.pdf_signed_url || null);
+    setEcoUrl(data.eco_signed_url || null);
+  };
 
   const verifyAccess = async () => {
     try {
@@ -85,9 +93,8 @@ function NdaAccessPage() {
         setNdaAccepted(true);
       }
 
-      // Pre-fill email if available
-      if (data.recipient?.email) {
-        setSignerEmail(data.recipient.email);
+      if (!data.require_nda || data.nda_accepted) {
+        applyAccessUrls(data as LinkData);
       }
 
     } catch (err) {
@@ -96,6 +103,32 @@ function NdaAccessPage() {
       setError(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshAccessUrls = async (eventType: 'view' | 'download') => {
+    if (!token) return;
+    try {
+      const supabase = getSupabase();
+      setLoadingAccess(true);
+      const { data, error: funcError } = await supabase.functions.invoke('verify-access', {
+        body: { token, event_type: eventType }
+      });
+
+      if (funcError) {
+        throw new Error(funcError.message || 'Error verificando acceso');
+      }
+
+      if (!data.valid) {
+        throw new Error(data.error || 'Enlace inválido o expirado');
+      }
+
+      applyAccessUrls(data as LinkData);
+      setLinkData((prev) => (prev ? { ...prev, ...data } : data));
+    } catch (err) {
+      console.error('Error refreshing access URLs:', err);
+    } finally {
+      setLoadingAccess(false);
     }
   };
 
@@ -133,6 +166,9 @@ function NdaAccessPage() {
       }
 
       setNdaAccepted(true);
+      setLinkData((prev) => (prev ? { ...prev, nda_accepted: true } : prev));
+
+      await refreshAccessUrls('view');
 
       // Track analytics
       trackEvent('nda_accepted', {
@@ -152,20 +188,44 @@ function NdaAccessPage() {
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (kind: 'pdf' | 'eco') => {
     try {
       const supabase = getSupabase();
-      // Log download event
-      await supabase.functions.invoke('verify-access', {
+      setLoadingAccess(true);
+      const { data, error: funcError } = await supabase.functions.invoke('verify-access', {
         body: { token, event_type: 'download' }
       });
 
-      toast.success('Descarga registrada correctamente. Contacta al remitente para obtener el archivo.', {
-        duration: 6000
-      });
+      if (funcError) {
+        throw new Error(funcError.message || 'Error verificando acceso');
+      }
+
+      if (!data.valid) {
+        throw new Error(data.error || 'Enlace inválido o expirado');
+      }
+
+      const url = kind === 'pdf' ? data.pdf_signed_url : data.eco_signed_url;
+      if (!url) {
+        toast.error(kind === 'pdf' ? 'El PDF no está disponible para este enlace.' : 'El certificado no está disponible.');
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_self';
+      link.rel = 'noopener';
+      if (kind === 'eco') {
+        link.download = `${linkData?.document?.original_filename || 'documento'}`.replace(/\.[^/.]+$/, '.eco');
+      }
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (error) {
       console.error('Error logging download:', error);
-      toast.error('Error al registrar la descarga');
+      const message = error instanceof Error ? error.message : 'Error al registrar la descarga';
+      toast.error(message);
+    } finally {
+      setLoadingAccess(false);
     }
   };
 
@@ -251,25 +311,13 @@ function NdaAccessPage() {
             </div>
 
             <p className="text-gray-600 mb-4">
-              Este documento fue compartido de forma privada. Para acceder, aceptá el acuerdo de confidencialidad.
+              Para acceder, aceptá el acuerdo de confidencialidad visible a continuación.
             </p>
 
-            {/* NDA Text Toggle */}
-            <div className="mb-6">
-              <button
-                onClick={() => setShowNdaText(!showNdaText)}
-                className="text-black hover:text-cyan-700 font-medium text-sm"
-              >
-                {showNdaText ? 'Ocultar texto del NDA' : 'Leer texto completo del NDA'}
-              </button>
-
-              {showNdaText && (
-                <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-64 overflow-y-auto">
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {DEFAULT_NDA_TEXT}
-                  </pre>
-                </div>
-              )}
+            <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-72 overflow-y-auto">
+              <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                {linkData?.nda_text || DEFAULT_NDA_TEXT}
+              </pre>
             </div>
 
             {/* Form */}
@@ -309,11 +357,10 @@ function NdaAccessPage() {
                   id="accept-terms"
                   checked={termsAccepted}
                   onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="mt-1 h-5 w-5 rounded border-gray-300 text-black focus:ring-black"
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
                 />
-                <label htmlFor="accept-terms" className="text-sm text-gray-700">
-                  Acepto los términos del Acuerdo de Confidencialidad.
-                  Mi aceptación quedará registrada con fines de auditoría.
+                <label htmlFor="accept-terms" className="text-xs text-gray-700">
+                  Acepto los términos del Acuerdo de Confidencialidad. Mi aceptación quedará registrada con fines de auditoría.
                 </label>
               </div>
 
@@ -333,7 +380,7 @@ function NdaAccessPage() {
             </div>
 
             <p className="text-xs text-gray-500 mt-4">
-              🔒 Este acceso queda registrado con firma digital.
+              🔒 Tu aceptación queda registrada con firma digital para no-repudiación.
             </p>
           </div>
         )}
@@ -355,18 +402,34 @@ function NdaAccessPage() {
               </div>
             </div>
 
+            {pdfUrl ? (
+              <div className="rounded-lg border border-gray-200 overflow-hidden mb-4">
+                <iframe
+                  title="Documento"
+                  src={pdfUrl}
+                  className="w-full h-96"
+                />
+              </div>
+            ) : (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600 mb-4">
+                El documento no está disponible en este enlace. Podés descargar el certificado si está disponible.
+              </div>
+            )}
+
             <div className="space-y-3">
               <button
-                onClick={handleDownload}
-                className="w-full flex items-center justify-center gap-2 bg-black hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition"
+                onClick={() => handleDownload('pdf')}
+                disabled={!pdfUrl || loadingAccess}
+                className="w-full flex items-center justify-center gap-2 bg-black hover:bg-cyan-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download className="w-5 h-5" />
                 Descargar documento
               </button>
 
               <button
-                onClick={handleDownload}
-                className="w-full flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-50 transition"
+                onClick={() => handleDownload('eco')}
+                disabled={!ecoUrl || loadingAccess}
+                className="w-full flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Shield className="w-5 h-5" />
                 Descargar certificado .ECO
@@ -378,7 +441,7 @@ function NdaAccessPage() {
                 💡 ¿Querés guardar tus .ECO en la nube?
               </p>
               <p className="text-xs text-blue-700 mb-3">
-                Creá tu cuenta gratis en EcoSign y tené acceso a tus certificados desde cualquier lugar.
+                Creá tu cuenta gratis en EcoSign. Los documentos quedan cifrados y ni nosotros ni los proveedores de nube pueden ver tu contenido.
               </p>
               <Link
                 to="/login"

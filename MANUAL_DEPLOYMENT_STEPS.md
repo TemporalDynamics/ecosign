@@ -1,483 +1,269 @@
-# Manual Deployment Steps - Welcome Email System
+# 🚨 Manual Deployment Steps - Server-Side Anchoring
 
-El deployment automático falló por problemas con Docker/SELinux. Aquí están los pasos para completar el deployment manualmente desde el Dashboard.
+## ✅ Estado Actual
 
-## ✅ Completado
+### Migraciones Aplicadas
+- ✅ `20251221100000_blockchain_anchoring_trigger.sql` - **APLICADO**
+  - Extension `pg_net` habilitada
+  - Función `trigger_blockchain_anchoring()` creada
+  - Trigger `on_user_documents_blockchain_anchoring` creado
 
-- [x] Migración aplicada (`20251219000000_welcome_email_system.sql`)
-- [x] Tabla `welcome_email_queue` creada
-- [x] Trigger `trigger_queue_welcome_email` configurado
-- [x] Función `process_welcome_email_queue()` lista
+### Migraciones Pendientes (Requieren Dashboard)
+- ⏳ `20251221100001_configure_app_settings.sql` - **PENDIENTE**
+  - Requiere privilegios de superadmin
+  - Debe ejecutarse manualmente en Supabase Dashboard
 
-## 📋 Pasos Pendientes (Dashboard)
-
-### 1. Actualizar Edge Function `send-pending-emails`
-
-**Dashboard URL**: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/functions/send-pending-emails/details
-
-**Pasos**:
-1. Ir a: **Edge Functions** → **send-pending-emails** → **Edit**
-2. Buscar la línea (aproximadamente línea 5):
-   ```typescript
-   import { sendResendEmail } from '../_shared/email.ts';
-   ```
-3. Reemplazar con:
-   ```typescript
-   import { sendResendEmail, buildFounderWelcomeEmail } from '../_shared/email.ts';
-   ```
-
-4. Buscar el loop `for (const r of rows)` (aproximadamente línea 32)
-5. Reemplazar el contenido del loop con este código actualizado:
-
-```typescript
-    for (const r of rows) {
-      try {
-        const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@email.ecosign.app>';
-        const to = r.recipient_email;
-        let subject = r.subject || 'Notificación EcoSign';
-        let html = r.body_html || '<p>Notificación</p>';
-
-        // Special handling for welcome_founder emails - generate HTML dynamically
-        if (r.notification_type === 'welcome_founder') {
-          const siteUrl = Deno.env.get('SITE_URL') || 'https://ecosign.app';
-          const userName = r.metadata?.userName || to.split('@')[0];
-
-          const welcomeEmail = buildFounderWelcomeEmail({
-            userEmail: to,
-            userName,
-            dashboardUrl: `${siteUrl}/dashboard`,
-            docsUrl: `${siteUrl}/docs`,
-            supportUrl: `${siteUrl}/support`
-          });
-
-          subject = welcomeEmail.subject;
-          html = welcomeEmail.html;
-        }
-
-        const result = await sendResendEmail({ from, to, subject, html });
-
-        if (result.ok) {
-          const upd = await supabase
-            .from('workflow_notifications')
-            .update({
-              delivery_status: 'sent',
-              sent_at: new Date().toISOString(),
-              resend_email_id: result.id ?? null,
-              error_message: null,
-            })
-            .eq('id', r.id);
-
-          if (upd.error) console.error('Error actualizando a sent:', upd.error);
-          else console.info(`Email enviado fila ${r.id} resend_id ${result.id}`);
-        } else {
-          const retry = (r.retry_count ?? 0) + 1;
-          const new_status = retry >= MAX_RETRIES ? 'failed' : 'pending';
-          const upd = await supabase
-            .from('workflow_notifications')
-            .update({
-              delivery_status: new_status,
-              error_message: JSON.stringify(result.error ?? result.body ?? 'Unknown error'),
-              retry_count: retry,
-            })
-            .eq('id', r.id);
-
-          console.error(`Error enviando email fila ${r.id}:`, result.error ?? result.body);
-          if (upd.error) console.error('Error actualizando fila error:', upd.error);
-        }
-      } catch (innerErr) {
-        console.error('Excepción procesando fila:', innerErr);
-      }
-    }
-```
-
-6. **Deploy** la función actualizada
+- ⏳ `20251221100002_orphan_recovery_cron.sql` - **PENDIENTE**
+  - Requiere extensión `pg_cron`
+  - Debe ejecutarse manualmente en Supabase Dashboard
 
 ---
 
-### 2. Actualizar `_shared/email.ts`
+## 📋 Pasos Manuales (5 minutos)
 
-**Dashboard URL**: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/functions/_shared/details
+### Paso 1: Configurar App Settings
 
-**Opción A: Agregar al final del archivo**
+**Ubicación**: Supabase Dashboard > SQL Editor
 
-Buscar el final del archivo (después de `buildDocumentCertifiedEmail`) y agregar:
+**SQL a ejecutar**:
+```sql
+-- 1. Configurar Supabase URL (ya conocida)
+ALTER DATABASE postgres SET app.settings.supabase_url = 'https://uiyojopjbhooxrmamaiw.supabase.co';
 
-```typescript
-export function buildFounderWelcomeEmail({
-  userEmail,
-  userName,
-  dashboardUrl = 'https://ecosign.app/dashboard',
-  docsUrl = 'https://ecosign.app/docs',
-  supportUrl = 'https://ecosign.app/support'
-}: {
-  userEmail: string;
-  userName?: string | null;
-  dashboardUrl?: string;
-  docsUrl?: string;
-  supportUrl?: string;
-}) {
-  const name = userName || userEmail.split('@')[0];
+-- 2. Configurar Service Role Key
+-- ⚠️ IMPORTANTE: Copiar desde Project Settings > API > service_role key
+ALTER DATABASE postgres SET app.settings.service_role_key = 'TU_SERVICE_ROLE_KEY_AQUI';
 
-  return {
-    from: DEFAULT_FROM,
-    to: userEmail,
-    subject: 'Bienvenido a EcoSign',
-    html: `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      background-color: #ffffff;
-      color: #0f172a;
-    }
-    .email-container {
-      max-width: 600px;
-      margin: 0 auto;
-      background-color: #ffffff;
-    }
-    .header {
-      padding: 48px 32px 32px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .header h1 {
-      font-size: 32px;
-      font-weight: 700;
-      color: #000000;
-      margin-bottom: 12px;
-      letter-spacing: -0.5px;
-    }
-    .header p {
-      font-size: 16px;
-      color: #64748b;
-      line-height: 1.5;
-    }
-    .badge-container {
-      padding: 24px 32px;
-      background-color: #fafafa;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .founder-badge {
-      display: inline-block;
-      border: 2px solid #000000;
-      color: #000000;
-      padding: 8px 20px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-    .badge-subtitle {
-      margin-top: 12px;
-      font-size: 13px;
-      color: #64748b;
-    }
-    .content {
-      padding: 40px 32px;
-    }
-    .content h2 {
-      font-size: 20px;
-      font-weight: 600;
-      color: #000000;
-      margin-bottom: 20px;
-    }
-    .content p {
-      font-size: 15px;
-      color: #475569;
-      margin-bottom: 16px;
-      line-height: 1.7;
-    }
-    .content strong {
-      color: #0f172a;
-      font-weight: 600;
-    }
-    .benefits {
-      background-color: #fafafa;
-      border-left: 2px solid #000000;
-      padding: 24px;
-      margin: 32px 0;
-    }
-    .benefits h3 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #000000;
-      margin-bottom: 16px;
-    }
-    .benefits ul {
-      list-style: none;
-      padding: 0;
-    }
-    .benefits li {
-      padding: 6px 0;
-      padding-left: 20px;
-      position: relative;
-      font-size: 14px;
-      color: #475569;
-      line-height: 1.6;
-    }
-    .benefits li:before {
-      content: "—";
-      position: absolute;
-      left: 0;
-      color: #000000;
-      font-weight: 600;
-    }
-    .cta-button {
-      display: inline-block;
-      background-color: #000000;
-      color: #ffffff;
-      padding: 14px 32px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 15px;
-      margin: 32px 0;
-      transition: background-color 0.2s;
-    }
-    .cta-button:hover {
-      background-color: #1f2937;
-    }
-    .security-note {
-      background-color: #fafafa;
-      border: 1px solid #e5e7eb;
-      padding: 20px;
-      margin: 32px 0;
-    }
-    .security-note h4 {
-      font-size: 14px;
-      font-weight: 600;
-      color: #000000;
-      margin-bottom: 8px;
-    }
-    .security-note p {
-      font-size: 13px;
-      color: #64748b;
-      margin: 0;
-      line-height: 1.6;
-    }
-    .footer {
-      background-color: #fafafa;
-      padding: 32px;
-      text-align: center;
-      border-top: 1px solid #e5e7eb;
-    }
-    .footer p {
-      font-size: 13px;
-      color: #64748b;
-      margin: 8px 0;
-    }
-    .footer a {
-      color: #0f172a;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .footer a:hover {
-      text-decoration: underline;
-    }
-    .divider {
-      height: 1px;
-      background-color: #e5e7eb;
-      margin: 32px 0;
-    }
-  </style>
-</head>
-<body>
-  <div class="email-container">
-    <!-- Header -->
-    <div class="header">
-      <h1>Bienvenido a EcoSign</h1>
-      <p>Tu sistema de certificación forense de documentos</p>
-    </div>
+-- 3. Verificar configuración
+SELECT name, setting 
+FROM pg_settings 
+WHERE name LIKE 'app.settings.%';
 
-    <!-- Founder Badge -->
-    <div class="badge-container">
-      <div class="founder-badge">FOUNDER</div>
-      <p class="badge-subtitle">
-        Como usuario fundador, sos parte de la construcción de EcoSign
-      </p>
-    </div>
-
-    <!-- Main Content -->
-    <div class="content">
-      <h2>Hola ${name},</h2>
-
-      <p>
-        Acabás de dar el primer paso hacia un sistema que te permite <strong>proteger tus documentos con certeza legal y técnica</strong>.
-      </p>
-
-      <p>
-        EcoSign combina criptografía, timestamps legales RFC 3161 y anclaje blockchain para garantizar que tus documentos sean verificables, inmutables y válidos como evidencia.
-      </p>
-
-      <div class="divider"></div>
-
-      <!-- Benefits -->
-      <div class="benefits">
-        <h3>Qué podés hacer ahora</h3>
-        <ul>
-          <li>Certificar documentos con firma criptográfica y timestamp legal</li>
-          <li>Anclar en blockchain (Polygon y Bitcoin) para inmutabilidad</li>
-          <li>Enviar documentos a firmar con SignNow (eIDAS, ESIGN, UETA)</li>
-          <li>Verificar certificados .ECO offline con criptografía pública</li>
-          <li>Descargar evidencia forense aceptable en tribunales</li>
-        </ul>
-      </div>
-
-      <!-- Security Note -->
-      <div class="security-note">
-        <h4>Arquitectura Zero-Knowledge</h4>
-        <p>
-          Tus documentos nunca se almacenan en nuestros servidores. Solo generamos hashes criptográficos y certificados de integridad. Vos controlás completamente tus archivos.
-        </p>
-      </div>
-
-      <!-- CTA -->
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="${dashboardUrl}" class="cta-button">Ir al Dashboard</a>
-      </div>
-
-      <p style="text-align: center; color: #64748b; font-size: 13px;">
-        ¿Tenés dudas? Respondé este email o visitá nuestra <a href="${docsUrl}" style="color: #0f172a;">documentación</a>.
-      </p>
-    </div>
-
-    <!-- Footer -->
-    <div class="footer">
-      <p style="font-weight: 600; color: #000000; margin-bottom: 12px;">
-        EcoSign
-      </p>
-      <p>
-        <a href="${dashboardUrl}">Dashboard</a> •
-        <a href="${docsUrl}">Documentación</a> •
-        <a href="${supportUrl}">Soporte</a>
-      </p>
-      <p style="margin-top: 16px; font-size: 12px;">
-        Este email fue enviado a ${userEmail} porque creaste una cuenta en EcoSign.
-      </p>
-      <p style="font-size: 11px; color: #94a3b8; margin-top: 8px;">
-        © 2025 EcoSign
-      </p>
-    </div>
-  </div>
-</body>
-</html>
-    `,
-  };
-}
+-- Debe mostrar:
+-- app.settings.supabase_url          | https://uiyojopjbhooxrmamaiw.supabase.co
+-- app.settings.service_role_key      | eyJhbG... (parcial)
 ```
 
-**Opción B: Copiar archivo completo desde repositorio**
-
-Si preferís, podés copiar el contenido completo del archivo desde:
-`supabase/functions/_shared/email.ts` (local)
+**¿Dónde obtener el Service Role Key?**
+1. Ir a Supabase Dashboard
+2. Navegar a **Project Settings** (ícono de engranaje)
+3. Ir a **API**
+4. Sección **Project API keys**
+5. Copiar el key `service_role` (NO el `anon`)
+6. Pegarlo en el SQL de arriba
 
 ---
 
-### 3. Crear Cron Job
+### Paso 2: Crear Cron Job de Recuperación
 
-**Dashboard URL**: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/database/extensions
+**Ubicación**: Supabase Dashboard > SQL Editor
 
-**Pasos**:
-1. Ir a: **Database** → **SQL Editor**
-2. Click en **New query**
-3. Pegar este código:
+**SQL a ejecutar** (copiar desde `supabase/migrations/20251221100002_orphan_recovery_cron.sql`):
 
 ```sql
+-- Habilitar pg_cron si no está activo
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Crear función de recuperación
+CREATE OR REPLACE FUNCTION detect_and_recover_orphan_anchors()
+RETURNS void
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+-- [CÓDIGO COMPLETO EN EL ARCHIVO DE MIGRACIÓN]
+$$;
+
+-- Crear cron job (cada 5 minutos)
 SELECT cron.schedule(
-  'process-welcome-emails',
-  '*/1 * * * *',
-  'SELECT public.process_welcome_email_queue();'
+  'recover-orphan-anchors',
+  '*/5 * * * *',
+  $$SELECT detect_and_recover_orphan_anchors();$$
 );
 ```
 
-4. **Run** la query
-5. Verificar que se creó:
+---
 
+### Paso 3: Verificar Todo Funcionando
+
+**3.1 Verificar trigger existe**:
 ```sql
-SELECT * FROM cron.job WHERE jobname = 'process-welcome-emails';
+SELECT tgname, tgenabled 
+FROM pg_trigger 
+WHERE tgrelid = 'user_documents'::regclass 
+  AND tgname = 'on_user_documents_blockchain_anchoring';
+
+-- Debe retornar: on_user_documents_blockchain_anchoring | O (enabled)
+```
+
+**3.2 Verificar app settings**:
+```sql
+SELECT name, setting 
+FROM pg_settings 
+WHERE name LIKE 'app.settings.%';
+
+-- Debe mostrar ambos settings configurados
+```
+
+**3.3 Verificar cron job**:
+```sql
+SELECT jobname, schedule, active 
+FROM cron.job 
+WHERE jobname = 'recover-orphan-anchors';
+
+-- Debe retornar: recover-orphan-anchors | */5 * * * * | t
 ```
 
 ---
 
-### 4. Verificar Variable de Entorno `SITE_URL`
+## 🧪 Testing Manual Post-Deploy
 
-**Dashboard URL**: https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/settings/functions
+### Test 1: Certificar Documento Real
 
-**Pasos**:
-1. Ir a: **Settings** → **Edge Functions** → **Manage secrets**
-2. Verificar que existe: `SITE_URL=https://ecosign.app`
-3. Si no existe, agregarlo
+1. Ir a la aplicación web
+2. Certificar un documento con Polygon activado
+3. **Esperar 5 segundos** (tiempo de trigger + edge function)
 
-**Variables necesarias**:
-- ✅ `RESEND_API_KEY` (ya existe)
-- ✅ `DEFAULT_FROM` (ya existe)
-- ⚠️ `SITE_URL` (verificar)
+### Test 2: Verificar Trigger Creó Anchor
+
+```sql
+-- Obtener último documento
+SELECT id, document_name, polygon_status, bitcoin_status, created_at
+FROM user_documents 
+ORDER BY created_at DESC 
+LIMIT 1;
+
+-- Copiar el ID del documento de arriba
+-- Verificar que trigger creó anchor
+SELECT a.id, a.anchor_type, a.anchor_status, a.created_at
+FROM anchors a
+WHERE a.user_document_id = 'PEGAR_ID_AQUI';
+
+-- Debe mostrar 1-2 anchors (Polygon y/o Bitcoin) con status='pending'
+```
+
+### Test 3: Esperar Confirmación Polygon (~60s)
+
+```sql
+-- Esperar 60 segundos
+-- Verificar que Polygon confirmó
+SELECT 
+  id,
+  document_name,
+  polygon_status,
+  protection_level,
+  polygon_confirmed_at
+FROM user_documents 
+WHERE id = 'PEGAR_ID_DOCUMENTO';
+
+-- Debe mostrar:
+-- polygon_status: 'confirmed'
+-- protection_level: 'REINFORCED'
+-- polygon_confirmed_at: timestamp reciente
+```
 
 ---
 
-## 🧪 Testing
+## ✅ Checklist Completo
 
-Después de completar todos los pasos:
+- [ ] **Paso 1**: App settings configurados (Supabase URL + Service Role Key)
+- [ ] **Paso 2**: Cron job creado (`recover-orphan-anchors`)
+- [ ] **Paso 3.1**: Trigger verificado (existe y está enabled)
+- [ ] **Paso 3.2**: App settings verificados (ambos presentes)
+- [ ] **Paso 3.3**: Cron job verificado (activo)
+- [ ] **Test 1**: Documento certificado con Polygon
+- [ ] **Test 2**: Anchor creado en tabla `anchors` (~5s)
+- [ ] **Test 3**: Polygon confirmado + protection_level=REINFORCED (~60s)
 
-### Test 1: Verificar Trigger
+---
 
+## 🚨 Troubleshooting
+
+### Error: "Trigger no crea anchors"
+
+**Diagnóstico**:
 ```sql
--- Simular confirmación de email
-UPDATE auth.users
-SET email_confirmed_at = NOW()
-WHERE email = 'test@ecosign.app'
-  AND email_confirmed_at IS NULL;
-
--- Verificar que se agregó a la cola
-SELECT * FROM welcome_email_queue
-WHERE user_email = 'test@ecosign.app';
+-- Verificar que app settings están configurados
+SELECT name, setting 
+FROM pg_settings 
+WHERE name LIKE 'app.settings.%';
 ```
 
-### Test 2: Procesar Cola Manualmente
+**Solución**: Volver a Paso 1 y configurar app settings.
 
+### Error: "Polygon no confirma"
+
+**Diagnóstico**:
 ```sql
--- Ejecutar procesamiento de cola
-SELECT process_welcome_email_queue();
-
--- Verificar que se creó la notificación
-SELECT * FROM workflow_notifications
-WHERE notification_type = 'welcome_founder'
-  AND recipient_email = 'test@ecosign.app';
-```
-
-### Test 3: Verificar Email Enviado
-
-Esperar 1 minuto (el cron corre cada minuto) y verificar:
-
-```sql
-SELECT
-  recipient_email,
-  notification_type,
-  subject,
-  delivery_status,
-  sent_at,
-  error_message
-FROM workflow_notifications
-WHERE notification_type = 'welcome_founder'
-ORDER BY created_at DESC
+-- Ver logs de anchor
+SELECT 
+  anchor_status,
+  error_message,
+  created_at,
+  updated_at
+FROM anchors 
+WHERE anchor_type = 'polygon'
+ORDER BY created_at DESC 
 LIMIT 5;
 ```
 
+**Posibles causas**:
+1. Wallet sin fondos POL
+2. RPC URL incorrecta
+3. Contract address incorrecto
+4. Service role key incorrecto
+
+**Solución**: Verificar variables en Supabase Secrets.
+
+### Error: "Cron job no corre"
+
+**Diagnóstico**:
+```sql
+-- Verificar cron job existe
+SELECT * FROM cron.job WHERE jobname = 'recover-orphan-anchors';
+
+-- Ejecutar manualmente
+SELECT detect_and_recover_orphan_anchors();
+```
+
+**Solución**: Si no existe, volver a Paso 2.
+
 ---
 
-## ✅ Checklist Final
+## 📊 Métricas de Éxito (24h post-deploy)
 
-- [ ] `send-pending-emails` actualizado (import + loop)
-- [ ] `_shared/email.ts` tiene `buildFounderWelcomeEmail()`
-- [ ] Cron job `process-welcome-emails` creado
-- [ ] Variable `SITE_URL` configurada
-- [ ] Test con usuario nuevo completado
-- [ ] Email de bienvenida recibido correctamente
+```sql
+-- Documentos huérfanos (debe ser 0)
+SELECT COUNT(*) as orphan_count
+FROM user_documents ud
+LEFT JOIN anchors a ON a.user_document_id = ud.id
+WHERE (ud.polygon_status = 'pending' OR ud.bitcoin_status = 'pending')
+  AND a.id IS NULL
+  AND ud.created_at < NOW() - INTERVAL '5 minutes';
+
+-- Tasa de éxito de Polygon (debe ser >95%)
+SELECT 
+  COUNT(*) as total,
+  SUM(CASE WHEN polygon_status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+  ROUND(100.0 * SUM(CASE WHEN polygon_status = 'confirmed' THEN 1 ELSE 0 END) / COUNT(*), 1) as success_rate
+FROM user_documents
+WHERE polygon_status IN ('pending', 'confirmed', 'failed')
+  AND created_at >= NOW() - INTERVAL '24 hours';
+```
 
 ---
 
-**Una vez completados todos los pasos, el sistema de bienvenida estará 100% funcional.**
+## 📝 Notas Importantes
+
+- ⚠️ **Service Role Key es SECRETO**: Nunca compartir ni commitear
+- ⏱️ **Tiempos normales**: 
+  - Trigger: ~2-5 segundos
+  - Polygon confirmación: ~30-120 segundos
+  - Bitcoin pending: ~5-10 minutos
+  - Bitcoin confirmación: 4-24 horas
+- 🔄 **Recovery automático**: Cron job detecta y repara orphans cada 5 minutos
+- 📊 **Monitoring**: Revisar métricas cada 24h durante primera semana
+
+---
+
+**Próximo paso**: Ejecutar Paso 1 en Supabase Dashboard → SQL Editor

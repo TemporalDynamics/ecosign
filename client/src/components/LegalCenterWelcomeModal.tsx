@@ -34,7 +34,7 @@ const LegalCenterWelcomeModal: React.FC<LegalCenterWelcomeModalProps> = ({ isOpe
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
-      <div className="bg-white rounded-lg max-w-sm w-full shadow-xl animate-fadeScaleIn p-5">
+      <div className="bg-white rounded-2xl max-w-sm w-full shadow-xl animate-fadeScaleIn p-5">
 
         {/* Header */}
         <div className="text-center mb-4">
@@ -59,7 +59,7 @@ const LegalCenterWelcomeModal: React.FC<LegalCenterWelcomeModalProps> = ({ isOpe
               onClick={() => setGuideSelection('yes')}
               className={`flex-1 py-2 px-3 text-sm rounded border transition-all ${
                 guideSelection === 'yes'
-                  ? 'border-gray-900 bg-gray-900 text-white'
+                  ? 'border-gray-900 bg-gray-50 text-gray-900 shadow-sm'
                   : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
               }`}
             >
@@ -69,7 +69,7 @@ const LegalCenterWelcomeModal: React.FC<LegalCenterWelcomeModalProps> = ({ isOpe
               onClick={() => setGuideSelection('no')}
               className={`flex-1 py-2 px-3 text-sm rounded border transition-all ${
                 guideSelection === 'no'
-                  ? 'border-gray-900 bg-gray-900 text-white'
+                  ? 'border-gray-900 bg-gray-50 text-gray-900 shadow-sm'
                   : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
               }`}
             >

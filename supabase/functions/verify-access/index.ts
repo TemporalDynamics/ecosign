@@ -66,6 +66,7 @@ serve(withRateLimit('verify', async (req) => {
         expires_at,
         revoked_at,
         require_nda,
+        nda_text,
         created_at
       `)
       .eq('token_hash', tokenHash)
@@ -216,7 +217,43 @@ serve(withRateLimit('verify', async (req) => {
       .limit(1)
       .single()
 
-    const ndaAccepted = !ndaError && ndaAcceptance
+    const ndaAccepted = !ndaError && !!ndaAcceptance
+    const allowAccess = !link.require_nda || ndaAccepted
+
+    let pdfSignedUrl: string | null = null
+    let ecoSignedUrl: string | null = null
+
+    if (allowAccess) {
+      const { data: userDoc, error: userDocError } = await supabase
+        .from('user_documents')
+        .select('pdf_storage_path, eco_storage_path')
+        .eq('id', link.document_id)
+        .single()
+
+      if (!userDocError && userDoc) {
+        if (userDoc.pdf_storage_path) {
+          const { data: pdfUrlData, error: pdfUrlError } = await supabase
+            .storage
+            .from('user-documents')
+            .createSignedUrl(userDoc.pdf_storage_path, 3600)
+
+          if (!pdfUrlError) {
+            pdfSignedUrl = pdfUrlData?.signedUrl || null
+          }
+        }
+
+        if (userDoc.eco_storage_path) {
+          const { data: ecoUrlData, error: ecoUrlError } = await supabase
+            .storage
+            .from('user-documents')
+            .createSignedUrl(userDoc.eco_storage_path, 3600)
+
+          if (!ecoUrlError) {
+            ecoSignedUrl = ecoUrlData?.signedUrl || null
+          }
+        }
+      }
+    }
 
     // Return link status and document metadata
     return new Response(
@@ -234,10 +271,13 @@ serve(withRateLimit('verify', async (req) => {
           email: recipient.email
         },
         require_nda: link.require_nda,
+        nda_text: link.nda_text || null,
         nda_accepted: ndaAccepted,
         nda_accepted_at: ndaAcceptance?.accepted_at || null,
         expires_at: link.expires_at,
-        session_id: metadata.session_id
+        session_id: metadata.session_id,
+        pdf_signed_url: pdfSignedUrl,
+        eco_signed_url: ecoSignedUrl
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

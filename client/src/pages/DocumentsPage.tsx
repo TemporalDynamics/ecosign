@@ -292,8 +292,24 @@ function DocumentsPage() {
     const handleDocumentCreated = () => {
       loadDocuments();
     };
+    const handleDocumentUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ id?: string; pdf_storage_path?: string | null }>).detail;
+      if (!detail?.id) {
+        loadDocuments();
+        return;
+      }
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === detail.id ? { ...doc, pdf_storage_path: detail.pdf_storage_path ?? doc.pdf_storage_path } : doc
+        )
+      );
+    };
     window.addEventListener("ecosign:document-created", handleDocumentCreated);
-    return () => window.removeEventListener("ecosign:document-created", handleDocumentCreated);
+    window.addEventListener("ecosign:document-updated", handleDocumentUpdated);
+    return () => {
+      window.removeEventListener("ecosign:document-created", handleDocumentCreated);
+      window.removeEventListener("ecosign:document-updated", handleDocumentUpdated);
+    };
   }, [loadDocuments]);
 
   const downloadFromPath = async (storagePath: string | null | undefined, fileName: string | null = null) => {
@@ -432,6 +448,12 @@ function DocumentsPage() {
     }
     setShareDoc(doc);
   };
+
+  const handlePdfStored = useCallback((documentId: string, storagePath: string) => {
+    setDocuments((prev) =>
+      prev.map((doc) => (doc.id === documentId ? { ...doc, pdf_storage_path: storagePath } : doc))
+    );
+  }, []);
 
   const onVerifyFile = async (file: File, doc: DocumentRecord | null) => {
     if (!doc || !file) return;
@@ -631,7 +653,9 @@ function DocumentsPage() {
                               className="text-black hover:text-gray-600"
                               title="Enviar con NDA"
                             >
-                              <Share2 className="h-5 w-5" />
+                              <span className="inline-flex items-center justify-center rounded border border-gray-300 px-2 py-0.5 text-[10px] font-semibold tracking-wide">
+                                NDA
+                              </span>
                             </button>
                           </div>
                         </td>
@@ -697,10 +721,10 @@ function DocumentsPage() {
       {shareDoc && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <ShareLinkGenerator
-            documentId={shareDoc.id}
-            documentTitle={shareDoc.document_name}
+            document={shareDoc}
             onClose={() => setShareDoc(null)}
             lockNda={true}
+            onPdfStored={handlePdfStored}
           />
         </div>
       )}

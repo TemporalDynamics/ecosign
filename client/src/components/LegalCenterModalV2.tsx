@@ -64,6 +64,7 @@ interface CertificateData {
   ecoFileName?: string;
   signedPdfUrl?: string;
   signedPdfName?: string;
+  pdfStoragePath?: string | null;
   documentId?: string;
   downloadEnabled?: boolean;
   bitcoinPending?: boolean;
@@ -1119,6 +1120,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       }, 100); // mantener foco en la app
     }
 
+    if (savePdfChecked && certificateData?.documentId) {
+      const saved = await persistPdfToStorage(certificateData.documentId);
+      if (!saved) {
+        return;
+      }
+    }
+
     // Guardar documento (si procede) — reutilizamos handleCertify si había archivo y aún no se guardó
     if (file && savePdfChecked && !certificateData) {
       try {
@@ -1132,6 +1140,94 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     playFinalizeAnimation();
     resetAndClose();
     if (onClose) onClose();
+  };
+
+  const persistPdfToStorage = async (documentId: string): Promise<boolean> => {
+    try {
+      const supabase = getSupabase();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        showToast('Necesitás iniciar sesión para guardar el PDF.', { type: 'error' });
+        return false;
+      }
+
+      const { data: existingDoc, error: existingError } = await supabase
+        .from('user_documents')
+        .select('pdf_storage_path')
+        .eq('id', documentId)
+        .single();
+
+      if (existingError) {
+        console.warn('Error verificando PDF guardado:', existingError);
+      }
+
+      if (existingDoc?.pdf_storage_path) {
+        setCertificateData(prev => prev ? ({
+          ...prev,
+          pdfStoragePath: existingDoc.pdf_storage_path
+        }) : prev);
+        return true;
+      }
+
+      let pdfFile: File | null = null;
+      if (certificateData?.signedPdfUrl) {
+        const response = await fetch(certificateData.signedPdfUrl);
+        const blob = await response.blob();
+        pdfFile = new File([blob], certificateData.signedPdfName || file?.name || 'documento.pdf', {
+          type: blob.type || 'application/pdf'
+        });
+      } else if (file) {
+        pdfFile = file;
+      }
+
+      if (!pdfFile) {
+        showToast('No se pudo recuperar el PDF para guardarlo.', { type: 'error' });
+        return false;
+      }
+
+      const storagePath = `${user.id}/${Date.now()}-${pdfFile.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('user-documents')
+        .upload(storagePath, pdfFile, {
+          contentType: pdfFile.type || 'application/pdf',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Error subiendo PDF:', uploadError);
+        showToast(`No se pudo guardar el PDF: ${uploadError.message}`, { type: 'error' });
+        return false;
+      }
+
+      const finalPath = uploadData?.path || storagePath;
+      const { error: updateError } = await supabase
+        .from('user_documents')
+        .update({
+          pdf_storage_path: finalPath,
+          zero_knowledge_opt_out: false,
+          last_event_at: new Date().toISOString()
+        })
+        .eq('id', documentId);
+
+      if (updateError) {
+        console.error('Error actualizando pdf_storage_path:', updateError);
+        showToast('No se pudo actualizar el documento guardado.', { type: 'error' });
+        return false;
+      }
+
+      setCertificateData(prev => prev ? ({
+        ...prev,
+        pdfStoragePath: finalPath
+      }) : prev);
+      window.dispatchEvent(new CustomEvent('ecosign:document-updated', {
+        detail: { id: documentId, pdf_storage_path: finalPath }
+      }));
+      return true;
+    } catch (error) {
+      console.error('Error guardando PDF:', error);
+      showToast('No se pudo guardar el PDF. Intentá nuevamente.', { type: 'error' });
+      return false;
+    }
   };
 
   // ===== FUNCIONES HELPER (CONSTITUCIÓN: Funciones puras del estado) =====
@@ -1988,7 +2084,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       {/* Modal secundario: Selector de tipo de firma certificada */}
       {showCertifiedModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Elegí el tipo de firma certificada
@@ -2076,7 +2172,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       {/* Modal secundario: Protección Legal */}
       {showProtectionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Shield className="w-5 h-5" />
@@ -2174,7 +2270,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       {/* Modal de confirmación para desactivar toasts */}
       {showToastConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[70] animate-fadeIn">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 ¿Desactivar notificaciones?

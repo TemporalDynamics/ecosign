@@ -150,7 +150,7 @@ export function renderEnvErrorUI(): string {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>VerifySign - Configuration Error</title>
+        <title>EcoSign - Configuration Error</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
@@ -235,7 +235,7 @@ export function renderEnvErrorUI(): string {
           <div class="icon">⚠️</div>
           <h1>Error de Configuración</h1>
           <p>
-            VerifySign no pudo iniciar porque faltan variables de entorno requeridas.
+            EcoSign no pudo iniciar porque faltan variables de entorno requeridas.
             Verifica la consola del navegador para más detalles.
           </p>
 

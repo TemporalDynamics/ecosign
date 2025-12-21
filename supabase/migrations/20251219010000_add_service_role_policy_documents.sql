@@ -46,8 +46,15 @@ CREATE POLICY "Service role can delete documents"
   TO service_role
   USING (true);
 
--- Add helpful comment
-COMMENT ON POLICY "Service role can manage all documents" ON documents IS
-  'Allows service_role (backend/tests) full access to documents table. 
-   This bypasses RLS for administrative operations while keeping user data protected.
-   Frontend uses anon_key and remains protected by authenticated user policies.';
+-- Add helpful comments to each policy
+COMMENT ON POLICY "Service role can read documents" ON documents IS
+  'Allows service_role (backend/tests) full read access to documents table.';
+
+COMMENT ON POLICY "Service role can insert documents" ON documents IS
+  'Allows service_role (backend/tests) to insert documents.';
+
+COMMENT ON POLICY "Service role can update documents" ON documents IS
+  'Allows service_role (backend/tests) to update documents.';
+
+COMMENT ON POLICY "Service role can delete documents" ON documents IS
+  'Allows service_role (backend/tests) to delete documents.';

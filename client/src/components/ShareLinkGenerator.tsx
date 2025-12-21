@@ -286,7 +286,7 @@ function ShareLinkGenerator({ document, onClose, lockNda = false, onPdfStored }:
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 max-w-4xl w-full p-6">
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 max-w-4xl w-full p-6 max-h-[90vh] md:max-h-none overflow-y-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center">

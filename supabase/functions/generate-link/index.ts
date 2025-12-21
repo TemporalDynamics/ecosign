@@ -17,6 +17,7 @@ interface GenerateLinkRequest {
   recipient_email: string
   expires_in_hours?: number
   require_nda?: boolean
+  nda_text?: string
 }
 
 serve(withRateLimit('generate', async (req) => {
@@ -54,7 +55,8 @@ serve(withRateLimit('generate', async (req) => {
       document_id,
       recipient_email,
       expires_in_hours = 72, // Default 3 days
-      require_nda = true
+      require_nda = true,
+      nda_text = null
     } = body
 
     if (!document_id || !recipient_email) {
@@ -70,7 +72,7 @@ serve(withRateLimit('generate', async (req) => {
     // Verify document belongs to user
     const { data: doc, error: docError } = await supabase
       .from('user_documents')
-      .select('id, user_id, document_name')
+      .select('id, user_id, document_name, document_hash, eco_hash')
       .eq('id', document_id)
       .single()
 
@@ -80,6 +82,31 @@ serve(withRateLimit('generate', async (req) => {
 
     if (doc.user_id !== user.id) {
       throw new Error('Not authorized to share this document')
+    }
+
+    // Ensure a documents row exists for link/recipient FKs (legacy table)
+    const { data: legacyDoc, error: legacyError } = await supabase
+      .from('documents')
+      .select('id, owner_id')
+      .eq('id', document_id)
+      .single()
+
+    if (legacyError || !legacyDoc) {
+      const { error: insertLegacyError } = await supabase
+        .from('documents')
+        .insert({
+          id: document_id,
+          owner_id: user.id,
+          title: doc.document_name,
+          original_filename: doc.document_name,
+          eco_hash: doc.eco_hash || doc.document_hash,
+          status: 'active'
+        })
+
+      if (insertLegacyError) {
+        console.error('Error creating legacy document record:', insertLegacyError)
+        throw new Error('Failed to create document record')
+      }
     }
 
     // Generate secure random token (32 bytes = 64 hex chars)
@@ -131,7 +158,8 @@ serve(withRateLimit('generate', async (req) => {
         recipient_id: recipient.id, // Direct link to recipient for correct attribution
         token_hash: tokenHash,
         expires_at: expiresAt,
-        require_nda
+        require_nda,
+        nda_text
       })
       .select()
       .single()

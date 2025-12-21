@@ -83,37 +83,34 @@ serve(async (req) => {
       })
     }
 
-    // PRUEBA A: Comentado temporalmente para test
+    // ✅ PRODUCTION: Real blockchain anchoring
     // Connect to Polygon
-    // const provider = new ethers.JsonRpcProvider(rpcUrl)
-    // const sponsorWallet = new ethers.Wallet(sponsorPrivateKey, provider)
-    // const sponsorAddress = await sponsorWallet.getAddress()
+    const provider = new ethers.JsonRpcProvider(rpcUrl)
+    const sponsorWallet = new ethers.Wallet(sponsorPrivateKey, provider)
+    const sponsorAddress = await sponsorWallet.getAddress()
 
     // Check balance
-    // const balance = await provider.getBalance(sponsorAddress)
-    // if (balance === 0n) {
-    //   return new Response(JSON.stringify({
-    //     error: 'Sponsor wallet has no POL',
-    //     sponsorAddress
-    //   }), {
-    //     status: 503,
-    //     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    //   })
-    // }
+    const balance = await provider.getBalance(sponsorAddress)
+    if (balance === 0n) {
+      return new Response(JSON.stringify({
+        error: 'Sponsor wallet has no POL',
+        sponsorAddress
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
     // Contract
-    // const abi = ['function anchorDocument(bytes32 _docHash) external']
-    // const contract = new ethers.Contract(contractAddress, abi, sponsorWallet)
+    const abi = ['function anchorDocument(bytes32 _docHash) external']
+    const contract = new ethers.Contract(contractAddress, abi, sponsorWallet)
 
     // Send transaction
-    // const hashBytes32 = '0x' + documentHash
-    // const tx = await contract.anchorDocument(hashBytes32)
-    // const txHash = tx.hash
-
-    console.log('🧪 MOCK MODE - Skipping blockchain')
+    const hashBytes32 = '0x' + documentHash
+    const tx = await contract.anchorDocument(hashBytes32)
+    const txHash = tx.hash
     
-    const sponsorAddress = '0xMOCK_SPONSOR_ADDRESS'
-    const txHash = '0xMOCK_TX_HASH_' + documentHash.substring(0, 8)
+    console.log('✅ Real transaction submitted to Polygon:', txHash)
 
     // Save to database
     const supabase = createClient(

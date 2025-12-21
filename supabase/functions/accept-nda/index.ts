@@ -90,12 +90,27 @@ serve(withRateLimit('accept', async (req) => {
                       null
     const userAgent = req.headers.get('user-agent') || null
 
-    // Generate NDA hash (hash of the acceptance details for non-repudiation)
+    // Fetch NDA text for this recipient (latest link)
+    let ndaText: string | null = null
+    const { data: linkData, error: linkError } = await supabase
+      .from('links')
+      .select('nda_text')
+      .eq('recipient_id', recipient_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!linkError && linkData?.nda_text) {
+      ndaText = linkData.nda_text
+    }
+
+    // Generate NDA hash (hash of the acceptance details + NDA text)
     const ndaContent = JSON.stringify({
       recipient_id,
       signer_name,
       signer_email,
       nda_version,
+      nda_text: ndaText || null,
       timestamp: new Date().toISOString(),
       ip_address: ipAddress,
       user_agent: userAgent
@@ -116,7 +131,8 @@ serve(withRateLimit('accept', async (req) => {
       acceptance_timestamp: new Date().toISOString(),
       browser_fingerprint: browser_fingerprint || null,
       consent_text: 'I acknowledge that I have read and agree to be bound by the terms of this Non-Disclosure Agreement.',
-      legal_text_hash: ndaHash
+      legal_text_hash: ndaHash,
+      nda_text: ndaText || null
     }
 
     // Insert NDA acceptance record

@@ -196,7 +196,7 @@ export default function CreateWorkflowWizard({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-4xl rounded-lg bg-white shadow-xl">
+      <div className="relative w-full max-w-4xl rounded-2xl bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b p-6">
           <div>

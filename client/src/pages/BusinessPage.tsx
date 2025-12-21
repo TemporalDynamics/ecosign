@@ -126,7 +126,7 @@ const BusinessPage = () => {
               <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900 min-w-[200px]">Beneficio Corporativo</th>
+                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900 min-w-[140px] w-[30%]">Beneficio Corporativo</th>
                     <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900">¿Cómo lo logramos?</th>
                   </tr>
                 </thead>

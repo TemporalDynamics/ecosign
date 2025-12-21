@@ -323,7 +323,7 @@ function PricingPage() {
             <table className="min-w-full divide-y divide-gray-300">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900 min-w-[200px]">Característica</th>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900 min-w-[140px] w-[30%]">Característica</th>
                   <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900">Propuesta de Valor (Blindaje Forense)</th>
                 </tr>
               </thead>

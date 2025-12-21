@@ -7,7 +7,7 @@ import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 import InhackeableTooltip from "../components/InhackeableTooltip";
 import ShareLinkGenerator from "../components/ShareLinkGenerator";
-import { isGuestMode } from "../utils/guestMode";
+import { disableGuestMode, isGuestMode } from "../utils/guestMode";
 
 type DocumentRecord = {
   id: string;
@@ -210,11 +210,6 @@ function DocumentsPage() {
 
   const loadDocuments = useCallback(async () => {
     try {
-      if (isGuestMode()) {
-        setDocuments(GUEST_DEMO_DOCS);
-        setLoading(false);
-        return;
-      }
       const supabase = getSupabase();
       setLoading(true);
       const {
@@ -222,11 +217,18 @@ function DocumentsPage() {
         error: userError
       } = await supabase.auth.getUser();
 
+      if (!user && isGuestMode()) {
+        setDocuments(GUEST_DEMO_DOCS);
+        setLoading(false);
+        return;
+      }
+
       if (userError || !user) {
         console.error("Error getting user:", userError);
         setDocuments([]);
         return;
       }
+      disableGuestMode();
 
       const query = supabase
         .from("user_documents")
@@ -260,16 +262,19 @@ function DocumentsPage() {
 
   const loadPlan = useCallback(async () => {
     try {
-      if (isGuestMode()) {
-        setPlanTier("guest");
-        return;
-      }
       const supabase = getSupabase();
       const {
         data: { user }
       } = await supabase.auth.getUser();
+      if (!user && isGuestMode()) {
+        setPlanTier("guest");
+        return;
+      }
       const tier = user?.user_metadata?.plan || user?.user_metadata?.tier || null;
       setPlanTier(tier);
+      if (user) {
+        disableGuestMode();
+      }
     } catch (err) {
       console.warn("No se pudo obtener el plan del usuario:", err);
       setPlanTier(null);

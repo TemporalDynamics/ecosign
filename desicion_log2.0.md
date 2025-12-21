@@ -136,3 +136,36 @@ Aclarar el resultado de Lighthouse y dejar una decisión operativa sobre su uso.
 ### 💬 Nota del dev
 "Lo que estaban viendo es exactamente el comportamiento esperado cuando Lighthouse se corre bien técnicamente, pero en el entorno incorrecto para medir Performance. En dev server, Performance no es confiable; en preview/prod sí."
 
+## Iteración 2025-12-21 — Mobile en Documentos + NDA + navegación interna
+
+### 🎯 Objetivo
+Mejorar la usabilidad mobile en Documentos y evitar que el modo invitado se mezcle con cuentas reales.
+
+### 🧠 Decisiones tomadas
+- **Cards + menú en mobile**: En Documentos se usa layout en cards con 2 acciones visibles y el resto en un menú para reducir ruido.
+- **NDA modal con acordeones**: El modal de compartir NDA se organiza en secciones colapsables en mobile.
+- **Guest mode aislado**: Si hay usuario autenticado, se ignora y limpia el flag de modo invitado.
+- **Nav interna mobile**: Menú desplegable en el header interno para acceder a las páginas privadas.
+
+### 🛠️ Cambios realizados
+- Documentos mobile: cards con “Ver detalle” + “NDA” visibles y acciones secundarias en “Más”.
+- Modal NDA: acordeones en mobile para NDA y configuración de envío.
+- Login + Documents: limpieza de `guest mode` cuando hay usuario real.
+- Navegación interna: menú móvil con enlaces y cierre de sesión.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se cambió la lógica de backend ni el modelo de documentos.
+- No se tocó el diseño desktop.
+
+### ⚠️ Consideraciones / deuda futura
+- Si se agregan nuevas acciones en Documentos, mantener la jerarquía: 2 visibles + menú.
+- Revisar estados de `guest mode` en otros módulos si aparecen casos similares.
+
+### 📍 Estado final
+- Documentos usable en mobile y sin mezcla con demo.
+- NDA modal más legible en pantallas chicas.
+- Navegación interna accesible en mobile.
+
+### 💬 Nota del dev
+"Mobile necesitaba jerarquía clara. Cards + menú reduce ruido y el flag de guest no debe pisar cuentas reales. Mantener esa separación."\
+

@@ -108,3 +108,31 @@ Hacer que el Centro Legal sea usable en mobile sin cambiar el flujo ni la lógic
 ### 💬 Nota del dev
 "La prioridad fue reducir fricción en mobile sin tocar la lógica. Si alguien modifica el Centro Legal, mantener la separación entre mobile (columna única + fullscreen) y desktop (grid original)."
 
+## Iteración 2025-12-21 — Nota sobre Lighthouse en entorno local
+
+### 🎯 Objetivo
+Aclarar el resultado de Lighthouse y dejar una decisión operativa sobre su uso.
+
+### 🧠 Decisiones tomadas
+- **Resultados esperados en dev**: Lo que se vio (P0 + “No timing information available”) es comportamiento esperado al correr Lighthouse contra Vite + SPA en headless.
+- **No usar dev para Performance**: Performance queda invalidada en ese entorno; el resto de categorías sí es útil.
+- **Uso correcto**: Lighthouse solo se usará para Performance en build/preview o producción.
+
+### 🛠️ Cambios realizados
+- Se documentó el diagnóstico: no es bug de EcoSign ni del script.
+- Se dejó la regla: no medir Performance en dev server.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se insistió con más corridas en dev.
+- No se abrió investigación de bugs en la app por esos P0.
+
+### ⚠️ Consideraciones / deuda futura
+- Si hace falta Performance real, correr Lighthouse contra `preview` o producción.
+
+### 📍 Estado final
+- Entendimiento alineado: P0 en dev no representa el rendimiento real.
+- Decisión clara sobre cuándo usar Lighthouse.
+
+### 💬 Nota del dev
+"Lo que estaban viendo es exactamente el comportamiento esperado cuando Lighthouse se corre bien técnicamente, pero en el entorno incorrecto para medir Performance. En dev server, Performance no es confiable; en preview/prod sí."
+

@@ -190,6 +190,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     return saved === null ? true : saved === 'true';
   });
   const [showToastConfirmModal, setShowToastConfirmModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [ndaAccordionOpen, setNdaAccordionOpen] = useState(false);
+  const [workflowAccordionOpen, setWorkflowAccordionOpen] = useState(false);
+  const workflowAutoCollapsed = useRef(false);
 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
@@ -204,6 +208,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       setShowWelcomeModal(true);
     }
   }, [initialAction, isOpen]);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Handlers para el modal de bienvenida
   const handleWelcomeAccept = () => {
@@ -257,6 +268,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // Preview del documento
   const PREVIEW_BASE_HEIGHT = 'h-[480px]';
+  const previewBaseHeight = isMobile ? 'h-[220px]' : PREVIEW_BASE_HEIGHT;
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('compact'); // 'compact' | 'expanded' | 'fullscreen'
@@ -1280,6 +1292,45 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     return true;
   };
 
+  const signerCount = emailInputs.filter((input) => input.email.trim()).length;
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (ndaEnabled) {
+      setNdaAccordionOpen(true);
+    } else {
+      setNdaAccordionOpen(false);
+    }
+  }, [isMobile, ndaEnabled]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (workflowEnabled) {
+      setWorkflowAccordionOpen(true);
+    } else {
+      setWorkflowAccordionOpen(false);
+      workflowAutoCollapsed.current = false;
+    }
+  }, [isMobile, workflowEnabled]);
+
+  useEffect(() => {
+    if (!isMobile || !workflowEnabled) return;
+    if (workflowAutoCollapsed.current) return;
+    if (signerCount > 0 && workflowAccordionOpen) {
+      setWorkflowAccordionOpen(false);
+      workflowAutoCollapsed.current = true;
+    }
+  }, [isMobile, workflowEnabled, signerCount, workflowAccordionOpen]);
+
+  useEffect(() => {
+    if (isMobile && previewMode === 'expanded') {
+      setPreviewMode('compact');
+    }
+    if (!isMobile && previewMode === 'fullscreen') {
+      setPreviewMode('compact');
+    }
+  }, [isMobile, previewMode]);
+
   // ===== GRID LAYOUT =====
   
   const leftColWidth = (ndaEnabled && step !== 2) ? '320px' : '0px';
@@ -1287,14 +1338,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const centerColWidth = 'minmax(640px, 1fr)';
   
   // En step 2, usar grid de 1 columna para centrar mejor el contenido
-  const gridTemplateColumns = step === 2 
-    ? '1fr' 
+  const gridTemplateColumns = (step === 2 || isMobile)
+    ? '1fr'
     : `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
+  const isPreviewFullscreen = isMobile && previewMode === 'fullscreen';
 
   return (
     <>
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4 py-6">
-        <div className="modal-container bg-white rounded-2xl w-full max-w-7xl max-h-[94vh] shadow-xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-0 py-0 md:px-4 md:py-6">
+        <div className="modal-container bg-white rounded-none md:rounded-2xl w-full max-w-7xl max-h-full md:max-h-[94vh] shadow-xl flex flex-col overflow-hidden">
         {/* Header fijo sobre todo el grid */}
         <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -1321,7 +1373,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           style={{ gridTemplateColumns, transition: 'grid-template-columns 300ms ease-in-out' }}
         >
           {/* Left Panel (NDA) */}
-          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${ndaEnabled && step !== 2 ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-3 pointer-events-none hidden'}`}>
+          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled && step !== 2 ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
             <div className="h-full flex flex-col">
               {/* Header colapsable del panel */}
               <div className="px-4 py-3 border-b border-gray-200 bg-white">
@@ -1352,14 +1404,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
         
           {/* Center Panel (Main Content) */}
-          <div className={`center-panel relative z-20 ${step === 2 ? 'col-span-full flex items-start justify-center w-full' : 'col-start-2 col-end-3 px-6 py-3'}`}>
+          <div className={`center-panel relative z-20 ${step === 2 ? 'col-span-full flex items-start justify-center w-full' : isMobile ? 'col-span-full px-4 py-3' : 'col-start-2 col-end-3 px-6 py-3'}`}>
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
-              <div className="space-y-3">
+              <div className={`space-y-3 ${isMobile ? 'pb-24' : ''}`}>
               <div>
                 {/* Zona de drop / Preview del documento */}
                                   {!file ? (
-                                    <label className="block border-2 border-dashed border-gray-300 rounded-xl py-20 min-h-[480px] text-center hover:border-gray-900 transition-colors cursor-pointer">
+                                    <label className="block border-2 border-dashed border-gray-300 rounded-xl py-10 md:py-20 min-h-[240px] md:min-h-[480px] text-center hover:border-gray-900 transition-colors cursor-pointer">
                                       <input
                                         type="file"
                                         className="hidden"
@@ -1367,7 +1419,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                         accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                                       />
                                       {/* Título principal */}
-                                      <p className="text-xl font-semibold text-gray-900 mb-4">
+                                      <p className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
                                         Arrastrá tu documento o hacé clic para elegirlo
                                       </p>
                                       {/* Ícono del dropzone */}
@@ -1386,9 +1438,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                         </p>
                                       </div>
                                     </label>
-                                  ) : (                  <div className="border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+                                  ) : (                  <div className={`border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 ${isPreviewFullscreen ? 'fixed inset-0 z-50 rounded-none border-0 bg-white flex flex-col' : ''}`}>
                     {/* Header del preview */}
-                    <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                    <div className={`bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between ${isPreviewFullscreen ? 'sticky top-0 z-10' : ''}`}>
                       <div className="flex items-center gap-3">
                         {/* Escudo de Protección Legal */}
                         <button
@@ -1424,13 +1476,27 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         {documentPreview && (
                           <button
                             onClick={() => {
+                              if (isMobile) {
+                                setPreviewMode((prev) => prev === 'fullscreen' ? 'compact' : 'fullscreen');
+                                return;
+                              }
                               // Ciclo simple: compact -> expanded -> compact
                               setPreviewMode((prev) => prev === 'compact' ? 'expanded' : 'compact');
                             }}
-                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="hidden md:inline-flex p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                             title={previewMode === 'compact' ? 'Ver documento completo' : 'Volver al Centro Legal'}
                           >
                             {previewMode === 'expanded' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                          </button>
+                        )}
+                        {documentPreview && (
+                          <button
+                            onClick={() => {
+                              setPreviewMode((prev) => prev === 'fullscreen' ? 'compact' : 'fullscreen');
+                            }}
+                            className="md:hidden text-xs font-semibold text-gray-900 px-2 py-1 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
+                          >
+                            {isPreviewFullscreen ? 'Volver al Centro Legal' : 'Ver documento completo'}
                           </button>
                         )}
                         <label className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer flex items-center" title="Cambiar documento">
@@ -1447,7 +1513,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                     {/* Preview del contenido - altura fija según modo */}
                     <div className={`relative ${
-                      previewMode === 'expanded' ? 'h-[60vh]' : PREVIEW_BASE_HEIGHT
+                      isPreviewFullscreen ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
                     } bg-gray-100`}>
                           {/* Placeholders de campos de firma (workflow) */}
                           {workflowEnabled && emailInputs.filter(input => input.email.trim()).length > 0 && (
@@ -1539,8 +1605,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                           {/* Modal de firma con tabs */}
                           {showSignatureOnPreview && (
-                            <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] flex items-center justify-center p-6">
-                              <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
+                            <div className={`${isMobile ? 'fixed inset-0 z-[70] bg-white' : 'absolute inset-0 bg-black/20 backdrop-blur-[1px]'} flex items-center justify-center p-4 md:p-6`}>
+                              <div className={`bg-white shadow-2xl w-full ${isMobile ? 'h-full rounded-none p-6 overflow-y-auto flex flex-col' : 'rounded-2xl p-8 max-w-2xl'}`}>
                                 <div className="flex justify-between items-center mb-4">
                                   <h4 className="font-semibold text-gray-900">Firmá tu documento</h4>
                                   <button
@@ -1720,7 +1786,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               {/* CONSTITUCIÓN: Acciones solo visibles si (documentLoaded || initialAction) */}
               {(documentLoaded || initialAction) && (
               <div className="space-y-2">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setNdaEnabled(!ndaEnabled)}
@@ -1782,10 +1848,129 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </div>
               )}
 
+              {isMobile && (ndaEnabled || workflowEnabled) && (
+                <div className="space-y-3">
+                  {ndaEnabled && (
+                    <div className="border border-gray-200 rounded-xl bg-white">
+                      <button
+                        type="button"
+                        onClick={() => setNdaAccordionOpen((prev) => !prev)}
+                        className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-gray-900"
+                      >
+                        <span>NDA</span>
+                        <span className="flex items-center gap-2 text-xs text-gray-500">
+                          {!ndaAccordionOpen && <span className="text-green-700">NDA aceptado ✓</span>}
+                          {ndaAccordionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </span>
+                      </button>
+                      {ndaAccordionOpen && (
+                        <div className="px-4 pb-4">
+                          <p className="text-xs text-gray-600 mb-3">
+                            Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
+                          </p>
+                          <textarea
+                            value={ndaText}
+                            onChange={(e) => setNdaText(e.target.value)}
+                            className="w-full h-64 px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
+                            placeholder="Escribí aquí el texto del NDA..."
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {workflowEnabled && (
+                    <div className="border border-gray-200 rounded-xl bg-white">
+                      <button
+                        type="button"
+                        onClick={() => setWorkflowAccordionOpen((prev) => !prev)}
+                        className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-gray-900"
+                      >
+                        <span>Flujo de Firmas</span>
+                        <span className="flex items-center gap-2 text-xs text-gray-500">
+                          {!workflowAccordionOpen && signerCount > 0 && (
+                            <span className="text-gray-700">
+                              {signerCount === 1 ? '1 firmante cargado' : `${signerCount} firmantes cargados`}
+                            </span>
+                          )}
+                          {workflowAccordionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </span>
+                      </button>
+                      {workflowAccordionOpen && (
+                        <div className="px-4 pb-4">
+                          <p className="text-xs text-gray-500 mb-4">
+                            Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
+                          </p>
+
+                          <div className="space-y-4 mb-4">
+                            {emailInputs.map((input, index) => (
+                              <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                                    {index + 1}
+                                  </div>
+                                  <input
+                                    type="email"
+                                    value={input.email}
+                                    onChange={(e) => handleEmailChange(index, e.target.value)}
+                                    placeholder="email@ejemplo.com"
+                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                  />
+                                  {emailInputs.length > 1 && (
+                                    <button
+                                      onClick={() => handleRemoveEmailField(index)}
+                                      className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                                      title="Eliminar firmante"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={input.name}
+                                    onChange={(e) => handleNameChange(index, e.target.value)}
+                                    placeholder="Juan Pérez (opcional)"
+                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <button
+                            onClick={handleAddEmailField}
+                            className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 mb-4"
+                          >
+                            <Users className="w-4 h-4" />
+                            Agregar otro firmante
+                          </button>
+
+                          <div className="p-3 bg-gray-100 border border-gray-200 rounded-lg">
+                            <div className="flex gap-2">
+                              <Shield className="w-4 h-4 text-gray-900 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-xs font-medium text-gray-900">
+                                  Seguridad obligatoria
+                                </p>
+                                <p className="text-xs text-gray-700 mt-1">
+                                  Todos los firmantes requieren login y aceptación de NDA antes de firmar
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Tipo de Firma - Solo si hay firma aplicada o workflow SIN mi firma */}
               {((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && (
               <div className="space-y-2 animate-fadeScaleIn">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Firma Legal */}
                   <button
                     type="button"
@@ -1850,21 +2035,39 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               )}
 
               {/* Botón principal */}
-              <button
-                onClick={handleCertify}
-                disabled={!file || loading || !isCTAEnabled()}
-                className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Protegiendo tu documento…
-                  </>
-                ) : (
-                  // CONSTITUCIÓN: Usar getCTAText() para consistencia
-                  getCTAText()
-                )}
-              </button>
+              <div className="hidden md:block">
+                <button
+                  onClick={handleCertify}
+                  disabled={!file || loading || !isCTAEnabled()}
+                  className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Protegiendo tu documento…
+                    </>
+                  ) : (
+                    // CONSTITUCIÓN: Usar getCTAText() para consistencia
+                    getCTAText()
+                  )}
+                </button>
+              </div>
+              <div className="md:hidden sticky bottom-0 bg-white pt-2 pb-3 border-t border-gray-200">
+                <button
+                  onClick={handleCertify}
+                  disabled={!file || loading || !isCTAEnabled()}
+                  className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Protegiendo tu documento…
+                    </>
+                  ) : (
+                    getCTAText()
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
@@ -2006,7 +2209,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
 
           {/* Right Panel (Workflow) */}
-          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out ${workflowEnabled && step !== 2 ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-3 pointer-events-none hidden'}`}>
+          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${workflowEnabled && step !== 2 ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:translate-x-3 md:pointer-events-none md:hidden'}`}>
           <div className="h-full flex flex-col">
             {/* Header colapsable del panel */}
             <div className="px-4 py-3 border-b border-gray-200 bg-white">
@@ -2097,8 +2300,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       {/* Modal secundario: Selector de tipo de firma certificada */}
       {showCertifiedModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
+        <div className="fixed inset-0 bg-white md:bg-black md:bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn p-0 md:p-6">
+          <div className="bg-white rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-md p-6 shadow-2xl animate-fadeScaleIn overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Elegí el tipo de firma certificada
@@ -2185,8 +2388,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       {/* Modal secundario: Protección Legal */}
       {showProtectionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
+        <div className="fixed inset-0 bg-white md:bg-black md:bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn p-0 md:p-6">
+          <div className="bg-white rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-md p-6 shadow-2xl animate-fadeScaleIn overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Shield className="w-5 h-5" />
@@ -2283,8 +2486,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       {/* Modal de confirmación para desactivar toasts */}
       {showToastConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[70] animate-fadeIn">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fadeScaleIn">
+        <div className="fixed inset-0 bg-white md:bg-black md:bg-opacity-60 flex items-center justify-center z-[70] animate-fadeIn p-0 md:p-6">
+          <div className="bg-white rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-md p-6 shadow-2xl animate-fadeScaleIn overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 ¿Desactivar notificaciones?

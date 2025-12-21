@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getSupabase } from '../lib/supabaseClient';
 import HeaderPublic from '../components/HeaderPublic';
 import FooterPublic from '../components/FooterPublic';
+import { disableGuestMode } from '../utils/guestMode';
 
 function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -42,6 +43,7 @@ function LoginPage() {
         if (error) throw error;
 
         console.log('✅ Login exitoso:', data.user.email);
+        disableGuestMode();
         setSuccess('¡Bienvenido de nuevo!');
 
         // Redirigir a la página de inicio después de un breve delay

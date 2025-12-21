@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Shield, Clock, FileText, AlertTriangle, CheckCircle, Download, User, Mail, Building2, Briefcase, Lock } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
+import { trackEvent } from '../lib/analytics';
 
 type RecipientInfo = {
   id: string;
@@ -132,6 +133,15 @@ function NdaAccessPage() {
       }
 
       setNdaAccepted(true);
+
+      // Track analytics
+      trackEvent('nda_accepted', {
+        recipientId: linkData.recipient.id,
+        documentId: linkData.document?.id,
+        documentTitle: linkData.document?.title,
+        acceptanceId: data.acceptance_id,
+        ndaHash: data.nda_hash
+      });
 
     } catch (err) {
       console.error('Error accepting NDA:', err);

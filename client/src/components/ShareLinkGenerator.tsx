@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link2, Send, Check, Copy, Clock, Shield } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { getSupabase } from '../lib/supabaseClient';
 import { trackEvent } from '../lib/analytics';
 
@@ -7,6 +8,7 @@ interface ShareLinkGeneratorProps {
   documentId: string;
   documentTitle?: string;
   onClose: () => void;
+  lockNda?: boolean;
 }
 
 interface LinkResponse {
@@ -19,7 +21,7 @@ interface LinkResponse {
   [key: string]: unknown;
 }
 
-function ShareLinkGenerator({ documentId, documentTitle, onClose }: ShareLinkGeneratorProps) {
+function ShareLinkGenerator({ documentId, documentTitle, onClose, lockNda = false }: ShareLinkGeneratorProps) {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [expiresInHours, setExpiresInHours] = useState(72);
   const [requireNda, setRequireNda] = useState(true);
@@ -29,15 +31,13 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }: ShareLinkGen
   const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!recipientEmail.trim()) {
-      setError('Ingresa el email del destinatario');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(recipientEmail)) {
-      setError('Email inválido');
-      return;
+    // Email is optional - only validate format if provided
+    if (recipientEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(recipientEmail)) {
+        setError('Email inválido');
+        return;
+      }
     }
 
     try {
@@ -45,10 +45,13 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }: ShareLinkGen
       setGenerating(true);
       setError(null);
 
+      // If no email provided, use placeholder (link will be shared manually)
+      const emailToSend = recipientEmail.trim() || `noemail-${Date.now()}@ecosign.local`;
+
       const { data, error: funcError } = await supabase.functions.invoke<LinkResponse>('generate-link', {
         body: {
           document_id: documentId,
-          recipient_email: recipientEmail.trim(),
+          recipient_email: emailToSend,
           expires_in_hours: expiresInHours,
           require_nda: requireNda
         }
@@ -87,9 +90,11 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }: ShareLinkGen
     try {
       await navigator.clipboard.writeText(generatedLink.access_url);
       setCopied(true);
+      toast.success('Link copiado al portapapeles');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Error copying:', err);
+      toast.error('Error al copiar el link');
     }
   };
 
@@ -112,13 +117,13 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }: ShareLinkGen
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email del destinatario
+              Email del destinatario <span className="text-gray-500 text-xs">(opcional)</span>
             </label>
             <input
               type="email"
               value={recipientEmail}
               onChange={(e) => setRecipientEmail(e.target.value)}
-              placeholder="destinatario@email.com"
+              placeholder="destinatario@email.com (dejar vacío para compartir por WhatsApp)"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black500 focus:border-black500"
             />
           </div>
@@ -144,12 +149,16 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }: ShareLinkGen
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-gray-600" />
               <span className="text-sm text-gray-700">Requerir NDA</span>
+              {lockNda && (
+                <span className="text-xs text-gray-500">(obligatorio)</span>
+              )}
             </div>
             <button
-              onClick={() => setRequireNda(!requireNda)}
+              onClick={() => !lockNda && setRequireNda(!requireNda)}
+              disabled={lockNda}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 requireNda ? 'bg-black' : 'bg-gray-300'
-              }`}
+              } ${lockNda ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -204,16 +213,22 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }: ShareLinkGen
                 type="text"
                 readOnly
                 value={generatedLink.access_url}
-                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm"
+                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm font-mono"
               />
               <button
                 onClick={handleCopy}
-                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                className="px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg transition flex items-center gap-2"
               >
                 {copied ? (
-                  <Check className="w-4 h-4 text-emerald-600" />
+                  <>
+                    <Check className="w-4 h-4" />
+                    Copiado
+                  </>
                 ) : (
-                  <Copy className="w-4 h-4 text-gray-600" />
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Copiar
+                  </>
                 )}
               </button>
             </div>

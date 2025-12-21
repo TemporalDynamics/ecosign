@@ -25,31 +25,17 @@ type LinkData = {
   };
 };
 
-const NDA_TEXT = `
-ACUERDO DE CONFIDENCIALIDAD (NDA)
+const DEFAULT_NDA_TEXT = `
+Acuerdo de Confidencialidad
 
-Al acceder a este documento, usted acepta los siguientes términos:
+Este documento fue compartido de forma privada a través de EcoSign.
 
-1. DEFINICIÓN DE INFORMACIÓN CONFIDENCIAL
-Toda la información contenida en el documento compartido, incluyendo pero no limitado a: datos técnicos, comerciales, financieros, estratégicos, creativos y cualquier otra información marcada como confidencial.
+Al continuar, aceptás mantener su contenido confidencial y no divulgarlo a terceros sin autorización del remitente.
 
-2. OBLIGACIONES DEL RECEPTOR
-- Mantener estricta confidencialidad de la información recibida.
-- No divulgar, copiar, distribuir o usar la información para fines distintos a los autorizados.
-- No compartir el enlace de acceso con terceros.
-- Proteger la información con el mismo cuidado que protege su propia información confidencial.
+Este acceso quedará registrado con fines de auditoría.
 
-3. DURACIÓN
-Las obligaciones de confidencialidad permanecerán vigentes por un período de 5 años desde la fecha de aceptación.
-
-4. REGISTRO Y TRAZABILIDAD
-VerifySign registra: fecha, hora, dirección IP, navegador y país desde donde se acepta este acuerdo. Esta información constituye evidencia digital de la aceptación.
-
-5. JURISDICCIÓN
-Este acuerdo se rige por las leyes aplicables y cualquier disputa será resuelta en los tribunales competentes.
-
-Al hacer clic en "Acepto los términos", usted declara que ha leído, entendido y acepta quedar vinculado por los términos de este Acuerdo de Confidencialidad.
-`;
+Para acceder al documento, aceptá el acuerdo.
+`.trim();
 
 function NdaAccessPage() {
   const { token } = useParams();
@@ -211,7 +197,7 @@ function NdaAccessPage() {
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-xl font-bold text-gray-900">
-              VerifySign
+              EcoSign
             </Link>
             <div className="text-sm text-gray-500">
               Acceso seguro a documento
@@ -255,7 +241,7 @@ function NdaAccessPage() {
             </div>
 
             <p className="text-gray-600 mb-4">
-              Para acceder a este documento, debes aceptar los términos de confidencialidad.
+              Este documento fue compartido de forma privada. Para acceder, aceptá el acuerdo de confidencialidad.
             </p>
 
             {/* NDA Text Toggle */}
@@ -269,8 +255,8 @@ function NdaAccessPage() {
 
               {showNdaText && (
                 <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-64 overflow-y-auto">
-                  <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
-                    {NDA_TEXT}
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                    {DEFAULT_NDA_TEXT}
                   </pre>
                 </div>
               )}
@@ -316,8 +302,8 @@ function NdaAccessPage() {
                   className="mt-1 h-5 w-5 rounded border-gray-300 text-black focus:ring-black"
                 />
                 <label htmlFor="accept-terms" className="text-sm text-gray-700">
-                  He leído y acepto los términos del Acuerdo de Confidencialidad.
-                  Entiendo que mi aceptación quedará registrada con mi IP, fecha y hora.
+                  Acepto los términos del Acuerdo de Confidencialidad.
+                  Mi aceptación quedará registrada con fines de auditoría.
                 </label>
               </div>
 
@@ -337,7 +323,7 @@ function NdaAccessPage() {
             </div>
 
             <p className="text-xs text-gray-500 mt-4">
-              🔒 Tu aceptación se registra con firma digital para garantizar no-repudiación.
+              🔒 Este acceso queda registrado con firma digital.
             </p>
           </div>
         )}
@@ -382,7 +368,7 @@ function NdaAccessPage() {
                 💡 ¿Querés guardar tus .ECO en la nube?
               </p>
               <p className="text-xs text-blue-700 mb-3">
-                Creá tu cuenta gratis en VerifySign y tené acceso a tus certificados desde cualquier lugar.
+                Creá tu cuenta gratis en EcoSign y tené acceso a tus certificados desde cualquier lugar.
               </p>
               <Link
                 to="/login"
@@ -399,7 +385,7 @@ function NdaAccessPage() {
       <footer className="bg-white border-t border-gray-200 py-6 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <p className="text-gray-500 text-sm">
-            © 2025 VerifySign por Temporal Dynamics LLC
+            © 2025 EcoSign por Temporal Dynamics LLC
           </p>
         </div>
       </footer>

@@ -3739,3 +3739,232 @@ Sistema técnicamente limpio y listo para:
 
 ---
 
+
+## Iteración 2025-12-21 — Analytics Básico para MVP privado (Fase 1)
+
+### 🎯 Objetivo
+Implementar sistema de analytics básico para trackear eventos críticos del usuario durante MVP privado, permitiendo observabilidad de flujos clave sin comprometer privacy.
+
+### 🧠 Decisiones tomadas
+- **Nueva tabla product_events**: No reusar tablas existentes (conversion_events, events, access_events, nda_events) porque son purpose-specific. Product analytics ≠ audit trail.
+- **Privacy-first design**: Solo metadata esencial, no PII, user_id nullable para tracking anónimo
+- **Silent error handling**: Analytics nunca debe romper la app (try-catch + console.error, no throw)
+- **Session tracking via sessionStorage**: Persistencia cross-page sin cookies, se limpia al cerrar tab
+- **RLS permisivo para INSERT**: Permitir eventos anónimos + autenticados (crítico para pre-login tracking)
+- **4 eventos iniciales clave**: opened_legal_center, uploaded_doc, cert_completed, share_link_created
+
+### 🛠️ Cambios realizados
+
+#### Database Migration (product_events table)
+- **Archivo**: `supabase/migrations/20251221044721_create_product_events.sql`
+- **Estructura**:
+  - `id` UUID primary key
+  - `user_id` UUID nullable (permite tracking anónimo)
+  - `session_id` TEXT NOT NULL (generado en cliente)
+  - `event_name` TEXT NOT NULL
+  - `event_data` JSONB (metadata flexible sin schema migrations)
+  - `page_path` TEXT (contexto de navegación)
+  - `user_agent` TEXT (info de cliente)
+  - `created_at` TIMESTAMPTZ default now()
+- **Índice**: Compuesto `(user_id, created_at DESC)` para queries por usuario
+- **RLS Policies**:
+  - INSERT: Permite anónimos (`auth.uid() IS NULL`) y autenticados (`auth.uid() = user_id`)
+  - SELECT: Solo propios eventos (`user_id = auth.uid()`)
+  - UPDATE/DELETE: Bloqueados (no hay policies, append-only)
+
+#### Analytics Helper Library
+- **Archivo**: `client/src/lib/analytics.ts` (NUEVO)
+- **Funciones exportadas**:
+  - `trackEvent(eventName, eventData)`: Core tracking function
+  - `trackPageView(pageName)`: Wrapper para page_view events
+  - `trackError(errorMessage, errorDetails)`: Wrapper para error tracking
+- **getSessionId()**: Genera/recupera session_id desde sessionStorage
+  - Formato: `${timestamp}-${random}` (e.g., `1734842160000-x7k9m2p`)
+  - Persiste en `ecosign_session_id` key
+  - Se regenera solo al cerrar tab, no al refresh
+- **Privacy features**:
+  - No captura full filename, solo extension (`.pdf`, `.docx`)
+  - user_agent capturado automáticamente pero no parseable sin effort
+  - Eventos 100% opt-out (basta desactivar JS o bloquear supabase)
+
+#### Auto Page View Tracking
+- **Archivo**: `client/src/App.jsx`
+- **Cambio**: Agregado `useEffect` en AppRoutes que escucha `location.pathname`
+- **Comportamiento**: Cada navegación → `trackPageView(pathname)` automático
+- **Ejemplo**: User navega a `/inicio` → evento `page_view` con `{ page_name: '/inicio' }`
+
+#### Event Instrumentation (4 eventos clave)
+
+**1. opened_legal_center**
+- **Archivo**: `client/src/contexts/LegalCenterContext.tsx:48`
+- **Trigger**: Al abrir modal de Legal Center (via `open()`)
+- **Metadata**:
+  - `action`: 'certify' | 'sign' | 'workflow' | 'nda' | 'none'
+  - `source`: 'context' (siempre, porque viene del context)
+- **Utilidad**: Medir qué acción inicial motiva apertura del modal
+
+**2. uploaded_doc**
+- **Archivo**: `client/src/components/LegalCenterModalV2.tsx` (en `handleFileSelect`)
+- **Trigger**: Al seleccionar archivo en file input
+- **Metadata**:
+  - `fileType`: MIME type completo (e.g., `application/pdf`)
+  - `fileSize`: Bytes (e.g., `1048576`)
+  - `fileName`: Solo extensión (e.g., `pdf`, `docx`) — NO full path/nombre
+- **Utilidad**: Analizar tipos de docs más comunes, tamaños promedio
+
+**3. cert_completed**
+- **Archivo**: `client/src/components/LegalCenterModalV2.tsx` (después de `saveDocument`)
+- **Trigger**: Al completar certificación exitosamente (después de guardar en DB)
+- **Metadata**:
+  - `documentId`: UUID del documento creado
+  - `hasSignature`: boolean (¿firmó o solo certificó?)
+  - `signatureType`: 'drawn' | 'typed' | 'none'
+  - `forensicEnabled`: boolean
+  - `fileSize`: bytes
+  - `fileType`: MIME type
+- **Utilidad**: Conversion funnel, % que firma vs solo certifica
+
+**4. share_link_created**
+- **Archivo**: `client/src/components/ShareLinkGenerator.tsx:68`
+- **Trigger**: Al generar enlace compartido exitosamente
+- **Metadata**:
+  - `documentId`: UUID del doc compartido
+  - `requireNda`: boolean (¿se pidió NDA?)
+  - `expiresIn`: number (horas) o 0 si no expira
+  - `hasRecipient`: boolean (¿se especificó email?)
+- **Utilidad**: Medir uso de feature de compartir, frecuencia de NDAs
+
+### 🚫 Qué NO se hizo (a propósito)
+- **No third-party analytics (GA, Mixpanel, Amplitude)**: Filosofía privacy-first = data en nuestra DB, no compartida
+- **No tracking de contenido de docs**: Jamás se captura content, hashes, ni metadata del PDF mismo
+- **No cookies**: Session ID vive en sessionStorage, no persiste cross-device ni cross-browser
+- **No tracking de clicks genéricos**: Solo eventos de negocio con valor analítico, no "click en botón X"
+- **No retroactive tracking**: No se agregaron eventos históricos, solo forward desde este deploy
+- **No dashboards todavía**: Raw events en DB, queries manuales por ahora (dashboard = post-MVP)
+
+### ⚠️ Consideraciones / deuda futura
+
+#### Eventos adicionales pendientes (no críticos para MVP)
+- `workflow_sent`: Al enviar workflow de firma a destinatarios
+- `nda_signed`: Al firmar un NDA standalone
+- `doc_verified`: Al verificar un documento en /verificador
+- `payment_completed`: Al completar compra de plan (requiere Stripe integration)
+- `doc_downloaded`: Al descargar PDF protegido (puede inflar métricas si se descarga múltiples veces)
+
+#### Analytics avanzados (post-MVP)
+- **Funnels automatizados**: Query que calcula conversion de upload → cert → share
+- **Cohort analysis**: Agrupar users por fecha de signup y medir retention
+- **Dashboard interno**: Panel simple con métricas clave (volumen diario, % conversión, features más usadas)
+- **Alertas**: Notificación si evento crítico no ocurre en N horas (¿sistema caído?)
+
+#### Privacy y compliance
+- **GDPR data export**: Si user pide sus datos, query a product_events by user_id
+- **Right to deletion**: Cascade delete product_events cuando user elimina cuenta
+- **Anonimización**: Considerar anonimizar `user_agent` después de N días (retener solo browser family)
+
+#### Performance
+- **Batch inserts**: Si volumen crece mucho, considerar batching en cliente (enviar cada 10 eventos o 30seg)
+- **Partitioning**: Si tabla crece >10M rows, particionar por created_at (mes/trimestre)
+- **Archival**: Mover eventos >1 año a table de archivo fría
+
+### 📍 Estado final
+
+#### ✅ Checklist Fase 1 Completada
+- [x] Tabla `product_events` creada con RLS
+- [x] Helper `trackEvent()` implementado
+- [x] Auto page view tracking en App.jsx
+- [x] 4 eventos clave instrumentados:
+  - [x] opened_legal_center
+  - [x] uploaded_doc
+  - [x] cert_completed
+  - [x] share_link_created
+- [x] Commits atómicos en branch `feat/analytics-basico-fase1`:
+  - `0d455ce` - Create product_events table
+  - `29143fc` - Create trackEvent() helper
+  - `bd819a2` - Instrument 4 key events
+
+#### 📊 Métricas
+- **Tiempo invertido**: ~2.5 horas
+- **Archivos nuevos**: 2 (migration + analytics.ts)
+- **Archivos modificados**: 4 (App.jsx, LegalCenterContext, LegalCenterModalV2, ShareLinkGenerator)
+- **Líneas agregadas**: ~180
+- **Migration SQL**: 73 líneas
+- **TypeScript**: ~130 líneas (helpers + types + instrumentation)
+
+#### 🎯 Próximo Deploy
+Al mergear esta branch a main y deployar:
+1. **Tabla se creará en Supabase producción** (migration automática)
+2. **Eventos empiezan a grabarse inmediatamente** (sin config adicional)
+3. **Page views automáticos** de todas las rutas
+4. **4 eventos de negocio** listos para analizar
+
+#### 📈 Queries útiles para MVP testing
+
+**Volumen de eventos por día:**
+```sql
+SELECT 
+  DATE(created_at) as fecha,
+  event_name,
+  COUNT(*) as total
+FROM product_events
+WHERE created_at >= NOW() - INTERVAL '7 days'
+GROUP BY fecha, event_name
+ORDER BY fecha DESC, total DESC;
+```
+
+**Funnel de certificación:**
+```sql
+WITH funnel AS (
+  SELECT
+    session_id,
+    MAX(CASE WHEN event_name = 'opened_legal_center' THEN 1 ELSE 0 END) as opened,
+    MAX(CASE WHEN event_name = 'uploaded_doc' THEN 1 ELSE 0 END) as uploaded,
+    MAX(CASE WHEN event_name = 'cert_completed' THEN 1 ELSE 0 END) as completed
+  FROM product_events
+  WHERE created_at >= NOW() - INTERVAL '7 days'
+  GROUP BY session_id
+)
+SELECT
+  SUM(opened) as step1_opened,
+  SUM(uploaded) as step2_uploaded,
+  SUM(completed) as step3_completed,
+  ROUND(100.0 * SUM(uploaded) / NULLIF(SUM(opened), 0), 1) as conversion_upload,
+  ROUND(100.0 * SUM(completed) / NULLIF(SUM(uploaded), 0), 1) as conversion_cert
+FROM funnel;
+```
+
+**Usuarios más activos (últimos 7 días):**
+```sql
+SELECT 
+  user_id,
+  COUNT(*) as total_events,
+  COUNT(DISTINCT session_id) as sessions,
+  MIN(created_at) as first_event,
+  MAX(created_at) as last_event
+FROM product_events
+WHERE created_at >= NOW() - INTERVAL '7 days'
+  AND user_id IS NOT NULL
+GROUP BY user_id
+ORDER BY total_events DESC
+LIMIT 10;
+```
+
+### 💬 Nota del dev
+
+**Filosofía aplicada: "Observability sin paranoia"**
+
+✅ **Analytics es herramienta, no vigilancia**: Solo eventos que nos ayudan a mejorar producto, no tracking exhaustivo de cada click.
+
+✅ **Privacy by design**: user_id nullable, sessionStorage (no cookies), solo extensiones de archivos, no third-parties.
+
+✅ **Fail silently**: Si Supabase cae, app sigue funcionando. Analytics nunca debe ser single point of failure.
+
+✅ **JSONB flexible**: Metadata en event_data permite agregar campos sin migrations. Si mañana queremos trackear `theme: 'dark'`, solo agregamos al objeto.
+
+✅ **Atomic commits**: 3 commits separados porque son 3 responsabilidades distintas (schema, helpers, instrumentation). Git history cuenta historias.
+
+**Lección clave**: No reutilizar tablas de propósito específico. `conversion_events` es para marketing, `access_events` es audit trail, `nda_events` es legal compliance. `product_events` es para nosotros entender cómo se usa el producto. Mezclarlos sería antipatrón.
+
+**Próximo paso natural**: Fase 2 (Refactor Legal Center) ahora que tenemos observabilidad. Vamos a poder medir impacto real del cambio: ¿mejora conversion? ¿reduce time-to-complete? Sin analytics, sería volar a ciegas.
+
+---

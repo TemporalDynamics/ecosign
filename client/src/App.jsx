@@ -9,6 +9,7 @@ import { VideoPlayerProvider, useVideoPlayer } from './contexts/VideoPlayerConte
 import { LegalCenterProvider } from './contexts/LegalCenterContext';
 import { initGuestFromLocation } from './contexts/GuestContext';
 import LegalCenterRoot from './components/LegalCenterRoot';
+import { trackPageView } from './lib/analytics';
 
 // Lazy load all page components for code-splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -75,6 +76,11 @@ function AppRoutes() {
   useEffect(() => {
     initGuestFromLocation(location.search);
   }, [location.search]);
+
+  // Track page views
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
 
   return (
     <>

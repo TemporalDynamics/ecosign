@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
+import { trackEvent } from '../lib/analytics';
 
 // --- Type Definitions ---
 
@@ -42,6 +43,12 @@ export function LegalCenterProvider({ children }: LegalCenterProviderProps) {
   const open = (action: LegalCenterAction = null) => {
     setInitialAction(action);
     setIsOpen(true);
+
+    // Track analytics
+    trackEvent('opened_legal_center', {
+      action: action || 'none',
+      source: 'context'
+    });
   };
 
   const close = () => setIsOpen(false);

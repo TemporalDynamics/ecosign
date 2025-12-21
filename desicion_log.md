@@ -3644,3 +3644,98 @@ $ npm test -- tests/security/
 
 ---
 
+## Iteración 2025-12-21 — Limpieza técnica pre-MVP privado (Fase 0)
+
+### 🎯 Objetivo
+Preparar el sistema para el lanzamiento del MVP privado con círculo 2 (testers con conocimiento técnico) eliminando errores técnicos visibles y configurando observabilidad básica.
+
+### 🧠 Decisiones tomadas
+- **Sentry como prioridad #1**: Sin monitoring de errores = volando a ciegas. Se decidió configurar completamente antes que cualquier feature nueva.
+- **Zero tolerance para lint errors**: Pasar de 5 errores + 9 warnings a 0/0. No es solo limpieza estética, es disciplina de código que evita bugs sutiles.
+- **Limpieza conservadora**: Solo tocar lo estrictamente necesario. No refactors grandes, no optimizaciones prematuras. Principio: "no romper nada que funciona".
+- **console.log solo donde corresponde**: Removidos de código de producción, mantenidos en scripts CLI legítimos (validate-env.js).
+
+### 🛠️ Cambios realizados
+
+#### Sentry (Error Monitoring)
+- Agregado `VITE_SENTRY_DSN` al `.env` local para desarrollo
+- Configuradas 3 variables en Vercel Production vía CLI:
+  - `VITE_SENTRY_DSN` - DSN del proyecto
+  - `VITE_SENTRY_ENV=production`
+  - `VITE_SENTRY_RELEASE=ecosign@0.1.0`
+- Confirmado que código de inicialización ya existía en `main.jsx` (bien configurado con privacy-first)
+- Supabase ya tenía variables configuradas para Edge Functions
+
+#### Lint Errors Resueltos (5 → 0)
+1. **smoke/smoke.test.js**: Importado `Buffer` desde `node:buffer` (era global en Node pero ESLint flat config no lo reconoce)
+2. **App.jsx**: Importado `useEffect` desde React (estaba en uso pero faltaba en imports)
+3. **UseCasesInternalPage.jsx**: Escapadas comillas con `&quot;` en JSX (react/no-unescaped-entities)
+
+#### Lint Warnings Resueltos (9 → 0)
+1. **main.jsx**: Removidos 2 `console.log` del service worker registration (reemplazado success por comentario silencioso, error por `console.error`)
+2. **service-worker.js**: Removido `console.log('Opened cache')` innecesario
+3. **validate-env.js**: Agregado `/* eslint no-console: "off" */` (script CLI legítimo que necesita logs)
+4. **App.jsx**: Removido import `React` sin usar, comentadas páginas sin usar (`ServiceStatusPage`, `VideosPage`)
+5. **DocumentationInternalPage.jsx**: Removido import `Link` sin usar
+6. **ReportIssueInternalPage.jsx**: Removido import `React` sin usar
+
+#### Resultado
+```bash
+$ npm run lint
+✓ 0 errors, 0 warnings
+```
+
+### 🚫 Qué NO se hizo (a propósito)
+- **No se implementó analytics todavía**: Es la siguiente prioridad (Fase 1), pero se decidió asegurar base limpia primero.
+- **No se tocó LegalCenterModalV2**: Refactor está planeado (Fase 2) pero se evitó para no romper funcionalidad crítica.
+- **No se eliminaron archivos muertos detectados por knip**: Se limpiaron imports sin usar, pero archivos completos se dejan para revisión posterior (pueden tener valor futuro).
+- **No se optimizó bundle**: Build ya está en buen estado (2.7 MB, ~390 KB gzipped). Optimización prematura = deuda técnica.
+- **No se removieron todos los console.log**: Solo los críticos. Los de service-worker y scripts están OK. Terser los elimina en producción de todas formas.
+
+### ⚠️ Consideraciones / deuda futura
+- **Edge Functions sin Sentry**: Backend (Supabase) tiene variables configuradas pero no hay código de inicialización en las funciones. No es crítico para MVP pero debería agregarse post-lanzamiento.
+- **Source maps deshabilitados**: Por seguridad en producción (vite.config: `sourcemap: false`). Si necesitamos debug en producción, Sentry tiene sistema propio de source maps via plugin.
+- **Vercel redeploy pendiente**: Las variables de Sentry solo aplicarán al próximo deploy a producción.
+- **Warnings de build**: Existe `ESLintEnvWarning` sobre `/* eslint-env */` deprecado, pero solo afecta a validate-env.js y está silenciado.
+
+### 📍 Estado final
+
+#### ✅ Checklist Fase 0 Completada
+- [x] Sentry DSN configurado (local + Vercel)
+- [x] 0 errores de lint
+- [x] 0 warnings de lint
+- [x] console.log limpiados de código crítico
+- [x] Imports sin usar removidos
+- [x] Commit limpio: `12735b8`
+
+#### 📊 Métricas
+- **Tiempo invertido**: ~1 hora
+- **Archivos modificados**: 8
+- **Líneas cambiadas**: +12, -15 (net: -3 líneas)
+- **Errores eliminados**: 5 críticos
+- **Warnings eliminados**: 9
+
+#### 🎯 Preparación para MVP
+Sistema técnicamente limpio y listo para:
+1. **Fase 1** (siguiente): Implementar analytics para observabilidad
+2. **Fase 2**: Refactor mínimo de Centro Legal (sacar NDA, hacer Certificar visible)
+3. **Fase 3**: Completar NDA Standalone para círculo 2
+
+### 💬 Nota del dev
+
+**Filosofía aplicada: "Injerto limpio, no cirugía mayor"**
+
+✅ **Limpiar el ruido antes de construir**: Lint errors y warnings son como "ruido de fondo" que dificulta detectar problemas reales. Con 0/0, cualquier warning nuevo es señal inmediata.
+
+✅ **Sentry primero, features después**: No tiene sentido lanzar a testers si no podemos ver qué rompe. Esto no es paranoia, es profesionalismo.
+
+✅ **Tocar solo lo necesario**: 8 archivos modificados, -3 líneas netas. No refactors, no optimizaciones, no "mejoras". Solo arreglar lo roto.
+
+✅ **Commits atómicos y descriptivos**: Cada commit cuenta una historia. `fix: resolve all lint errors and warnings, configure Sentry` dice exactamente qué y por qué.
+
+**Regla de oro para próximas iteraciones**: Si no está roto y no bloquea el MVP, no lo toques. La deuda técnica conocida y documentada es mejor que el refactor prematuro.
+
+**Próximo paso crítico**: Analytics (Fase 1). Sin `trackEvent()` instrumentado, no sabremos qué funciona cuando los testers empiecen a usar el sistema. Prioridad absoluta: observabilidad antes que features.
+
+---
+

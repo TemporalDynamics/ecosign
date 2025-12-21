@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
-import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Search, X, Share2 } from "lucide-react";
+import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
@@ -204,6 +204,7 @@ function DocumentsPage() {
   const [autoVerifyAttempted, setAutoVerifyAttempted] = useState(false);
   const [search, setSearch] = useState("");
   const [shareDoc, setShareDoc] = useState<DocumentRecord | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const handleLogout = () => navigate("/");
 
@@ -567,8 +568,113 @@ function DocumentsPage() {
               <p className="text-gray-500">Comienza certificando tu primer documento</p>
             </div>
           ) : (
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
+            <>
+              <div className="md:hidden space-y-4">
+                {filteredDocuments.map((doc) => {
+                  const {
+                    config,
+                    ecoAvailable
+                  } = deriveProbativeState(doc, planTier);
+                  const pdfAvailable = !!doc.pdf_storage_path;
+                  const ecoEnabled = ecoAvailable || doc.eco_hash;
+                  const menuOpen = openMenuId === doc.id;
+                  return (
+                    <div key={doc.id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {doc.document_name.replace(/\.pdf$/i, ".eco")}
+                          </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span
+                              className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${config.bg} ${config.color} whitespace-pre-line text-center`}
+                            >
+                              {config.label}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {formatDate(doc.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setOpenMenuId(menuOpen ? null : doc.id)}
+                          className="text-xs font-semibold text-gray-700 border border-gray-200 rounded-md px-2 py-1"
+                        >
+                          {menuOpen ? "Cerrar" : "Más"}
+                        </button>
+                      </div>
+
+                      <div className="mt-4 flex items-center gap-3">
+                        <button
+                          className="flex items-center gap-2 text-sm font-semibold text-gray-900"
+                          onClick={() => {
+                            setPreviewDoc(doc);
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                          Ver detalle
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleShareDoc(doc);
+                            setOpenMenuId(null);
+                          }}
+                          className="flex items-center gap-2 text-sm font-semibold text-gray-900"
+                        >
+                          <span className="inline-flex items-center justify-center rounded border border-gray-300 px-2 py-0.5 text-[10px] font-semibold tracking-wide">
+                            NDA
+                          </span>
+                          Enviar
+                        </button>
+                      </div>
+
+                      {menuOpen && (
+                        <div className="mt-4 border-t border-gray-200 pt-3 grid gap-2">
+                          <button
+                            onClick={() => {
+                              handleEcoDownload(doc);
+                              setOpenMenuId(null);
+                            }}
+                            className={`text-left text-sm font-medium ${
+                              ecoEnabled ? "text-gray-700" : "text-gray-300"
+                            }`}
+                            disabled={!ecoEnabled}
+                          >
+                            Descargar certificado .ECO
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (pdfAvailable) {
+                                handlePdfDownload(doc);
+                              }
+                              setOpenMenuId(null);
+                            }}
+                            className={`text-left text-sm font-medium ${
+                              pdfAvailable ? "text-gray-700" : "text-gray-300"
+                            }`}
+                            disabled={!pdfAvailable}
+                          >
+                            Descargar PDF
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleVerifyDoc(doc);
+                              setOpenMenuId(null);
+                            }}
+                            className="text-left text-sm font-medium text-gray-700"
+                          >
+                            Verificar documento
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -665,6 +771,7 @@ function DocumentsPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </main>
       </div>

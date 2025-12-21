@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Link2, Send, Check, Copy, Clock, Shield, Upload, FileCheck2, AlertTriangle, FileText } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link2, Send, Check, Copy, Clock, Shield, Upload, FileCheck2, AlertTriangle, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getSupabase } from '../lib/supabaseClient';
 import { trackEvent } from '../lib/analytics';
@@ -66,6 +66,9 @@ function ShareLinkGenerator({ document, onClose, lockNda = false, onPdfStored }:
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [ndaText, setNdaText] = useState(DEFAULT_NDA_TEXT);
   const [ndaFileError, setNdaFileError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [ndaAccordionOpen, setNdaAccordionOpen] = useState(true);
+  const [shareAccordionOpen, setShareAccordionOpen] = useState(true);
 
   const requiresPdf = useMemo(() => shareTarget === 'pdf' || shareTarget === 'both', [shareTarget]);
   const requiresCertificate = useMemo(() => shareTarget === 'certificate' || shareTarget === 'both', [shareTarget]);
@@ -74,6 +77,13 @@ function ShareLinkGenerator({ document, onClose, lockNda = false, onPdfStored }:
     if (shareTarget === 'certificate') return 'El NDA cubre evidencia probatoria y metadatos.';
     return 'El NDA cubre contenido + evidencia.';
   }, [shareTarget]);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleGenerate = async () => {
     if (!hasCertificate && requiresCertificate) {
@@ -291,8 +301,20 @@ function ShareLinkGenerator({ document, onClose, lockNda = false, onPdfStored }:
       </div>
 
       {!generatedLink ? (
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6">
-          <div className="space-y-3">
+        <div className={isMobile ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6'}>
+          <div className={isMobile ? 'border border-gray-200 rounded-xl' : 'space-y-3'}>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setNdaAccordionOpen((prev) => !prev)}
+                className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-gray-900"
+              >
+                <span>NDA que se va a enviar</span>
+                {ndaAccordionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            )}
+            {(!isMobile || ndaAccordionOpen) && (
+              <div className={isMobile ? 'px-4 pb-4 space-y-3' : 'space-y-3'}>
             <div className="flex items-center justify-between">
               <label className="block text-sm font-semibold text-gray-700">
                 NDA que se va a enviar
@@ -312,16 +334,30 @@ function ShareLinkGenerator({ document, onClose, lockNda = false, onPdfStored }:
               <textarea
                 value={ndaText}
                 onChange={(e) => setNdaText(e.target.value)}
-                rows={14}
-                className="w-full h-80 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-black"
+                rows={isMobile ? 10 : 14}
+                className="w-full h-60 md:h-80 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-black"
               />
             </div>
             {ndaFileError && (
               <div className="text-xs text-red-600">{ndaFileError}</div>
             )}
+            </div>
+            )}
           </div>
 
-          <div className="space-y-4">
+          <div className={isMobile ? 'border border-gray-200 rounded-xl' : 'space-y-4'}>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setShareAccordionOpen((prev) => !prev)}
+                className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-gray-900"
+              >
+                <span>Qué vas a compartir</span>
+                {shareAccordionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            )}
+            {(!isMobile || shareAccordionOpen) && (
+              <div className={isMobile ? 'px-4 pb-4 space-y-4' : 'space-y-4'}>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Qué vas a compartir
@@ -450,6 +486,8 @@ function ShareLinkGenerator({ document, onClose, lockNda = false, onPdfStored }:
                 </>
               )}
             </button>
+              </div>
+            )}
           </div>
         </div>
       ) : (

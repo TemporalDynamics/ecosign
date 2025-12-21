@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link2, Send, Check, Copy, Clock, Shield } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
+import { trackEvent } from '../lib/analytics';
 
 interface ShareLinkGeneratorProps {
   documentId: string;
@@ -62,6 +63,14 @@ function ShareLinkGenerator({ documentId, documentTitle, onClose }: ShareLinkGen
       }
 
       setGeneratedLink(data);
+
+      // Track analytics
+      trackEvent('share_link_created', {
+        documentId,
+        requireNda: requireNda,
+        expiresIn: expiresIn,
+        hasRecipient: !!recipientEmail
+      });
 
     } catch (err) {
       console.error('Error generating link:', err);

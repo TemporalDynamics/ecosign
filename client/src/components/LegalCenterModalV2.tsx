@@ -17,6 +17,7 @@ import { isGuestMode } from '../utils/guestMode';
 import InhackeableTooltip from './InhackeableTooltip';
 import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
 import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
+import { trackEvent } from '../lib/analytics';
 
 type InitialAction = 'sign' | 'workflow' | 'nda' | 'certify';
 type SignatureType = 'legal' | 'certified' | null;
@@ -334,6 +335,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       setDocumentLoaded(true); // CONSTITUCIÓN: Controlar visibilidad de acciones
       setPreviewError(false);
       console.log('Archivo seleccionado:', selectedFile.name);
+
+      // Track analytics
+      trackEvent('uploaded_doc', {
+        fileType: selectedFile.type,
+        fileSize: selectedFile.size,
+        fileName: selectedFile.name.split('.').pop() || 'unknown' // solo extensión
+      });
 
       // Generar preview según el tipo de archivo
       if (selectedFile.type.startsWith('image/')) {
@@ -843,6 +851,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       if (savedDoc) {
         window.dispatchEvent(new CustomEvent('ecosign:document-created', { detail: savedDoc }));
+
+        // Track analytics
+        trackEvent('cert_completed', {
+          documentId: savedDoc.id,
+          hasSignature: !!signatureType,
+          signatureType: signatureType || 'none',
+          forensicEnabled: forensicEnabled,
+          fileSize: file.size,
+          fileType: file.type
+        });
       }
 
       // 3. Registrar evento 'created' (ChainLog)

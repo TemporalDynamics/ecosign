@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* eslint-env node */
+/* eslint no-console: "off" */
 /**
  * Build-time validation script
  * Verifies environment variables before deployment

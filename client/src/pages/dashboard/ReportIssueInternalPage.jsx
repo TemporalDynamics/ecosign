@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { CheckCircle, Upload, AlertCircle } from 'lucide-react';
 import DashboardNav from '../../components/DashboardNav';
 import FooterInternal from '../../components/FooterInternal';

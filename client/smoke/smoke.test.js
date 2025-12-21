@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { createHash, webcrypto } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import fs from 'node:fs';
 
 import parser from '../node_modules/@babel/parser/lib/index.js';

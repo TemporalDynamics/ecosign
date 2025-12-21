@@ -150,7 +150,7 @@ export default function UseCasesInternalPage() {
                     Antes de presentar un pitch, el equipo certifica: repositorio ZIP, commits clave, documentación interna.
                   </p>
                   <p className="text-gray-700 font-semibold">
-                    Resultado: Si un inversor o partner se "inspira demasiado", EcoSign prueba autoría inmediata.
+                    Resultado: Si un inversor o partner se &quot;inspira demasiado&quot;, EcoSign prueba autoría inmediata.
                   </p>
                 </div>
               </div>

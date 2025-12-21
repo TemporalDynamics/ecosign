@@ -216,6 +216,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (!isMobile || !isOpen) return;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [isMobile, isOpen]);
+
   // Handlers para el modal de bienvenida
   const handleWelcomeAccept = () => {
     setShowWelcomeModal(false);
@@ -268,7 +280,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // Preview del documento
   const PREVIEW_BASE_HEIGHT = 'h-[480px]';
-  const previewBaseHeight = isMobile ? 'h-[220px]' : PREVIEW_BASE_HEIGHT;
+  const previewBaseHeight = isMobile ? 'h-[40vh]' : PREVIEW_BASE_HEIGHT;
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('compact'); // 'compact' | 'expanded' | 'fullscreen'
@@ -1346,7 +1358,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   return (
     <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-0 py-0 md:px-4 md:py-6">
-        <div className="modal-container bg-white rounded-none md:rounded-2xl w-full max-w-7xl max-h-full md:max-h-[94vh] shadow-xl flex flex-col overflow-hidden">
+        <div className="modal-container bg-white rounded-none md:rounded-2xl w-full max-w-7xl max-h-full md:max-h-[94vh] h-[100svh] md:h-auto shadow-xl flex flex-col overflow-hidden">
         {/* Header fijo sobre todo el grid */}
         <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -1605,8 +1617,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                           {/* Modal de firma con tabs */}
                           {showSignatureOnPreview && (
-                            <div className={`${isMobile ? 'fixed inset-0 z-[70] bg-white' : 'absolute inset-0 bg-black/20 backdrop-blur-[1px]'} flex items-center justify-center p-4 md:p-6`}>
-                              <div className={`bg-white shadow-2xl w-full ${isMobile ? 'h-full rounded-none p-6 overflow-y-auto flex flex-col' : 'rounded-2xl p-8 max-w-2xl'}`}>
+                            <div className={`${isMobile ? 'fixed inset-0 z-[70] bg-white' : 'absolute inset-0 bg-black/20 backdrop-blur-[1px]'} flex ${isMobile ? 'items-stretch' : 'items-center'} justify-center p-0 md:p-6`}>
+                              <div className={`bg-white shadow-2xl w-full ${isMobile ? 'h-[100svh] rounded-none p-6 overflow-y-auto flex flex-col' : 'rounded-2xl p-8 max-w-2xl'}`}>
                                 <div className="flex justify-between items-center mb-4">
                                   <h4 className="font-semibold text-gray-900">Firmá tu documento</h4>
                                   <button

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getSupabase } from '../lib/supabaseClient';
 import { useLegalCenter } from '../contexts/LegalCenterContext';
@@ -5,6 +6,7 @@ import { useLegalCenter } from '../contexts/LegalCenterContext';
 function DashboardNav({ onLogout = () => {} }) {
   const location = useLocation();
   const { open: openLegalCenter } = useLegalCenter();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navItems = [
     { label: 'Inicio', to: '/inicio' },
     { label: 'Documentos', to: '/documentos' },
@@ -61,15 +63,52 @@ function DashboardNav({ onLogout = () => {} }) {
           </nav>
           <div className="md:hidden">
             <button
-              onClick={handleLogout}
-              className="text-gray-600 hover:text-gray-900 text-sm font-semibold"
-              aria-label="Cerrar sesión"
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              className="text-gray-900 text-sm font-semibold border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50"
+              aria-label="Abrir menú"
+              aria-expanded={mobileMenuOpen}
             >
-              Cerrar
+              Menú
             </button>
           </div>
         </div>
       </div>
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-gray-200 bg-white shadow-sm">
+          <nav className="px-4 py-3 flex flex-col gap-2">
+            {navItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`py-2 text-sm font-semibold ${
+                  location.pathname === item.to ? 'text-gray-900' : 'text-gray-600'
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+            <button
+              onClick={() => {
+                openLegalCenter();
+                setMobileMenuOpen(false);
+              }}
+              className="py-2 text-left text-sm font-semibold text-gray-600"
+            >
+              Centro Legal
+            </button>
+            <button
+              onClick={async () => {
+                setMobileMenuOpen(false);
+                await handleLogout();
+              }}
+              className="mt-2 py-2 text-left text-sm font-semibold text-gray-900 border-t border-gray-200"
+            >
+              Cerrar sesión
+            </button>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

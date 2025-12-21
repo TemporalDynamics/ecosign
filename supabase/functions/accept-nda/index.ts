@@ -13,6 +13,7 @@ const corsHeaders = {
 
 interface AcceptNdaRequest {
   recipient_id: string
+  link_id?: string  // NEW: specific link ID to ensure correct NDA text
   signer_name: string
   signer_email: string
   nda_version?: string
@@ -35,6 +36,7 @@ serve(withRateLimit('accept', async (req) => {
     const body: AcceptNdaRequest = await req.json()
     const {
       recipient_id,
+      link_id,
       signer_name,
       signer_email,
       nda_version = '1.0',
@@ -90,18 +92,33 @@ serve(withRateLimit('accept', async (req) => {
                       null
     const userAgent = req.headers.get('user-agent') || null
 
-    // Fetch NDA text for this recipient (latest link)
+    // Fetch NDA text for this link (specific link_id or fallback to latest)
     let ndaText: string | null = null
-    const { data: linkData, error: linkError } = await supabase
-      .from('links')
-      .select('nda_text')
-      .eq('recipient_id', recipient_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
 
-    if (!linkError && linkData?.nda_text) {
-      ndaText = linkData.nda_text
+    if (link_id) {
+      // NEW: Use specific link_id to ensure correct NDA text
+      const { data: linkData, error: linkError } = await supabase
+        .from('links')
+        .select('nda_text')
+        .eq('id', link_id)
+        .single()
+
+      if (!linkError && linkData?.nda_text) {
+        ndaText = linkData.nda_text
+      }
+    } else {
+      // FALLBACK: For backward compatibility, use latest link (old behavior)
+      const { data: linkData, error: linkError } = await supabase
+        .from('links')
+        .select('nda_text')
+        .eq('recipient_id', recipient_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!linkError && linkData?.nda_text) {
+        ndaText = linkData.nda_text
+      }
     }
 
     // Generate NDA hash (hash of the acceptance details + NDA text)

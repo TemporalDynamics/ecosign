@@ -16,6 +16,7 @@ type RecipientInfo = {
 type LinkData = {
   valid?: boolean;
   error?: string;
+  link_id?: string;  // NEW: specific link ID from verify-access
   nda_accepted?: boolean;
   require_nda?: boolean;
   expires_at?: string;
@@ -152,6 +153,7 @@ function NdaAccessPage() {
       const { data, error: funcError } = await supabase.functions.invoke('accept-nda', {
         body: {
           recipient_id: linkData.recipient.id,
+          link_id: linkData.link_id,  // NEW: pass specific link_id
           signer_name: signerName.trim(),
           signer_email: signerEmail.trim()
         }

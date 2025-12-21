@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
-import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Search, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Search, X, Share2 } from "lucide-react";
 import toast from "react-hot-toast";
 import DashboardNav from "../components/DashboardNav";
 import FooterInternal from "../components/FooterInternal";
 import InhackeableTooltip from "../components/InhackeableTooltip";
+import ShareLinkGenerator from "../components/ShareLinkGenerator";
 import { isGuestMode } from "../utils/guestMode";
 
 type DocumentRecord = {
@@ -202,6 +203,7 @@ function DocumentsPage() {
   const [verifying, setVerifying] = useState(false);
   const [autoVerifyAttempted, setAutoVerifyAttempted] = useState(false);
   const [search, setSearch] = useState("");
+  const [shareDoc, setShareDoc] = useState<DocumentRecord | null>(null);
 
   const handleLogout = () => navigate("/");
 
@@ -422,6 +424,15 @@ function DocumentsPage() {
     setShowVerifyModal(true);
   };
 
+  const handleShareDoc = (doc: DocumentRecord | null) => {
+    if (!doc) return;
+    if (isGuestMode()) {
+      toast("Modo invitado: compartir documentos disponible solo con cuenta.", { position: "top-right" });
+      return;
+    }
+    setShareDoc(doc);
+  };
+
   const onVerifyFile = async (file: File, doc: DocumentRecord | null) => {
     if (!doc || !file) return;
     setVerifying(true);
@@ -615,6 +626,13 @@ function DocumentsPage() {
                             >
                               <Search className="h-5 w-5" />
                             </button>
+                            <button
+                              onClick={() => handleShareDoc(doc)}
+                              className="text-black hover:text-gray-600"
+                              title="Enviar con NDA"
+                            >
+                              <Share2 className="h-5 w-5" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -672,6 +690,18 @@ function DocumentsPage() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Modal Share Link Generator */}
+      {shareDoc && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <ShareLinkGenerator
+            documentId={shareDoc.id}
+            documentTitle={shareDoc.document_name}
+            onClose={() => setShareDoc(null)}
+            lockNda={true}
+          />
         </div>
       )}
 

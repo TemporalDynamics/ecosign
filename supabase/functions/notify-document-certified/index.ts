@@ -49,7 +49,7 @@ serve(async (req) => {
     const hasPolygonAnchor = document.eco_data?.metadata?.anchoring?.polygon === true;
 
     // Build and send email
-    const emailPayload = buildDocumentCertifiedEmail({
+    const emailPayload = await buildDocumentCertifiedEmail({
       ownerEmail: user.email,
       ownerName: user.user_metadata?.full_name || user.user_metadata?.name,
       documentName: document.document_name,
@@ -57,7 +57,8 @@ serve(async (req) => {
       documentId: document.id,
       hasForensicHardening,
       hasLegalTimestamp,
-      hasPolygonAnchor
+      hasPolygonAnchor,
+      siteUrl: Deno.env.get('SITE_URL')
     });
 
     const result = await sendEmail(emailPayload);

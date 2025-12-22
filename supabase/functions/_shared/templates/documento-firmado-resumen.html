@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Documento certificado</title>
+  <title>Documento firmado</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -19,15 +19,6 @@
     .content h1 { font-size: 22px; font-weight: 600; margin-bottom: 16px; }
     .content p { font-size: 14px; color: #111111; margin-bottom: 16px; }
     .content p.secondary { color: #555555; }
-    .cta-button {
-      display: inline-block;
-      background-color: #0ea5e9;
-      color: #ffffff;
-      padding: 12px 22px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 14px;
-    }
     .footer { padding: 24px 32px 32px; border-top: 1px solid #EAEAEA; }
     .footer p { font-size: 12px; color: #555555; margin: 6px 0; }
     .footer a { color: #111111; }
@@ -39,17 +30,11 @@
       <img src="{{siteUrl}}/assets/icons/icon-128x128.png" alt="EcoSign" class="logo" />
     </div>
     <div class="content">
-      <h1>Documento certificado</h1>
-      <p>Tu documento fue certificado correctamente.</p>
-      <p class="secondary"><strong>{{documentName}}</strong></p>
-      <p class="secondary">Hash: {{documentHash}}</p>
-      <p class="secondary">Blockchain: {{chainName}}</p>
-      <p class="secondary">
-        Tx: <a href="{{explorerUrl}}" style="color:#111111;">{{txHash}}</a>
-      </p>
-      <div style="margin: 20px 0;">
-        <a class="cta-button" href="{{downloadUrl}}" target="_blank" rel="noopener">Descargar certificado</a>
-      </div>
+      <h1>Documento firmado</h1>
+      <p>{{signer_name}} firmo el documento <strong>{{document_name}}</strong>.</p>
+      <p class="secondary">Email del firmante: {{signer_email}}</p>
+      <p class="secondary">Fecha: {{signed_at}}</p>
+      <p class="secondary">ID interno: {{document_id}}</p>
     </div>
     <div class="footer">
       <p>No vendemos firmas. Vendemos certeza.</p>

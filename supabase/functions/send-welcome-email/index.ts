@@ -95,7 +95,7 @@ serve(async (req) => {
     }
 
     // Build email
-    const emailPayload = buildFounderWelcomeEmail({
+    const emailPayload = await buildFounderWelcomeEmail({
       userEmail: user.email,
       userName,
       founderNumber: badgeNumber ?? user.user_metadata?.founder_number ?? user.user_metadata?.founderNumber ?? null,

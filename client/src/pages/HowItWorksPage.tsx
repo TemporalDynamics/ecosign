@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Copy, CheckCircle } from 'lucide-react';
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import InhackeableTooltip from '../components/InhackeableTooltip';
 import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
@@ -105,7 +105,7 @@ ecosign.app`;
 function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <HeaderPublic />
+      <Header variant="public" />
 
       {/* Hero */}
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">

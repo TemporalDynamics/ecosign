@@ -52,6 +52,25 @@ Actualiza delivery_status: 'sent' o 'failed'
 
 ## 🔧 Cómo Usar las Plantillas
 
+### Variables globales (importante)
+
+Para templates custom (las que rendereamos nosotros), normalizamos `{{siteUrl}}` como base para assets y links.
+En cambio, los templates de Supabase Auth usan `{{ .SiteURL }}` y no deben modificarse.
+
+Ejemplo:
+- Custom: `<img src="{{siteUrl}}/assets/icons/icon-128x128.png" />`
+- Supabase Auth: `<img src="{{ .SiteURL }}/assets/icons/icon-128x128.png" />`
+
+### Renderer oficial para templates custom
+
+Los templates custom se renderizan con el helper:
+`supabase/functions/_shared/template-renderer.ts`
+
+Para que funcionen en Edge Functions, las plantillas deben existir en:
+`supabase/functions/_shared/templates/`
+
+`siteUrl` se inyecta siempre como parte del contrato base.
+
 ### Paso 1: Cargar la Plantilla
 
 ```typescript

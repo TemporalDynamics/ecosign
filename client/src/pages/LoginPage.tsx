@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getSupabase } from '../lib/supabaseClient';
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import { disableGuestMode } from '../utils/guestMode';
 
@@ -100,7 +100,7 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <Header variant="public" />
 
       <div className="flex-grow flex items-center justify-center p-4 pt-24">
         <div className="w-full max-w-md">

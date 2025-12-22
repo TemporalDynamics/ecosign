@@ -1,4 +1,4 @@
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 import { Upload, FileCheck, Download, Shield } from 'lucide-react';
@@ -11,7 +11,7 @@ import InhackeableTooltip from '../components/InhackeableTooltip';
 export default function QuickGuidePage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <Header variant="public" />
       
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">

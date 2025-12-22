@@ -51,7 +51,7 @@ BEGIN
     VALUES (
       NEW.email,
       'welcome_founder',
-      'Bienvenido a EcoSign — Usuario Founder',
+      'Tu cuenta ya esta activa',
       '', -- se generará en la función de envío
       'pending',
       jsonb_build_object(

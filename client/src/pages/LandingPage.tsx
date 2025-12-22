@@ -6,7 +6,7 @@ import {
   Play
 } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
 import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
@@ -21,7 +21,7 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <HeaderPublic />
+      <Header variant="public" />
 
       {/* 1. HERO PRINCIPAL - Directo, minimalista, blanco y negro */}
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">

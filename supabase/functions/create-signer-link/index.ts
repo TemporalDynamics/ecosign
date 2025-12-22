@@ -169,12 +169,14 @@ serve(async (req) => {
     // Enviar email de invitación
     console.log('📬 [create-signer-link] Enviando email a:', signerEmail);
 
-    const emailPayload = buildSignerInvitationEmail({
+    const emailPayload = await buildSignerInvitationEmail({
       signerEmail: signerEmail,
+      signerName: signerName || null,
       documentName: document.document_name,
       signLink: signLink,
       expiresAt: signerLink.expires_at,
-      senderName: signerName || undefined
+      senderName: signerName || undefined,
+      siteUrl: frontendUrl
     });
 
     const emailResult = await sendEmail(emailPayload);

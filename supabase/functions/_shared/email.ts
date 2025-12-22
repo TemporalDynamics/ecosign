@@ -1,4 +1,21 @@
+import { renderTemplateFromFile } from './template-renderer.ts';
+
 const DEFAULT_FROM = Deno.env.get('RESEND_FROM') || 'EcoSign <notificaciones@ecosign.app>';
+const DEFAULT_SITE_URL = Deno.env.get('SITE_URL') || 'https://ecosign.app';
+
+function normalizeSiteUrl(siteUrl?: string | null) {
+  const raw = siteUrl || DEFAULT_SITE_URL;
+  return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+}
+
+function deriveSiteUrlFromLink(link?: string | null) {
+  if (!link) return null;
+  try {
+    return new URL(link).origin;
+  } catch {
+    return null;
+  }
+}
 
 // Robust helper for sending email via Resend
 // Do NOT hardcode API keys here. Use RESEND_API_KEY env var.
@@ -59,72 +76,85 @@ export async function sendEmail(payload: { from?: string; to: string | string[];
   };
 }
 
-export function buildSignerInvitationEmail({
+export async function buildSignerInvitationEmail({
   signerEmail,
+  signerName,
   documentName,
   signLink,
   expiresAt,
   senderName,
+  siteUrl,
 }: {
   signerEmail: string;
+  signerName?: string | null;
   documentName: string;
   signLink: string;
   expiresAt?: string | null;
   senderName?: string;
+  siteUrl?: string | null;
 }) {
-  const until = expiresAt ? new Date(expiresAt).toLocaleString('es-AR') : 'sin fecha de expiración';
+  const until = expiresAt ? new Date(expiresAt).toLocaleString('es-AR') : 'sin fecha de expiracion';
   const sender = senderName || 'EcoSign';
+  const resolvedSiteUrl = normalizeSiteUrl(siteUrl ?? deriveSiteUrlFromLink(signLink));
+  const displayName = signerName || signerEmail;
 
   return {
     from: DEFAULT_FROM,
     to: signerEmail,
-    subject: `Tienes un documento para revisar: ${documentName}`,
-    html: `
-      <div style="font-family:Inter,Arial,sans-serif;padding:24px;background:#f7f8fa;color:#0f172a;">
-        <h2 style="margin:0 0 12px;font-size:20px;">Hola,</h2>
-        <p style="margin:0 0 12px;">${sender} te envió un documento para revisar y firmar en EcoSign.</p>
-        <p style="margin:0 0 12px;"><strong>${documentName}</strong></p>
-        <a href="${signLink}" style="display:inline-block;margin:16px 0;padding:12px 18px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Abrir documento</a>
-        <p style="margin:12px 0 0;font-size:12px;color:#475569;">El enlace vence: ${until}</p>
-      </div>
-    `,
+    subject: `Tenes un documento para firmar: ${documentName}`,
+    html: await renderTemplateFromFile({
+      templateName: 'firmante-invitacion.html',
+      siteUrl: resolvedSiteUrl,
+      variables: {
+        display_name: displayName,
+        document_name: documentName,
+        sign_url: signLink,
+        expiration_date: until,
+        sender_name: sender,
+      },
+    }),
   };
 }
 
-export function buildSignerOtpEmail({
+export async function buildSignerOtpEmail({
   signerEmail,
   signerName,
   workflowTitle,
   otpCode,
+  siteUrl,
 }: {
   signerEmail: string;
   signerName?: string | null;
   workflowTitle: string;
   otpCode: string;
+  siteUrl?: string | null;
 }) {
-  const name = signerName || 'hola';
+  const name = signerName || 'Hola';
+  const resolvedSiteUrl = normalizeSiteUrl(siteUrl);
   return {
     from: DEFAULT_FROM,
     to: signerEmail,
-    subject: 'Tu código de acceso seguro a EcoSign',
-    html: `
-      <div style="font-family:Inter,Arial,sans-serif;padding:24px;background:#f7f8fa;color:#0f172a;">
-        <p style="margin:0 0 8px;">${name}, usa este código para acceder al documento:</p>
-        <div style="font-size:28px;font-weight:700;letter-spacing:6px;margin:12px 0 16px;color:#0ea5e9;">${otpCode}</div>
-        <p style="margin:0 0 8px;">Documento: <strong>${workflowTitle}</strong></p>
-        <p style="margin:0;font-size:12px;color:#475569;">El código expira en 10 minutos y es válido solo para esta revisión.</p>
-      </div>
-    `,
+    subject: 'Tu codigo de acceso seguro a EcoSign',
+    html: await renderTemplateFromFile({
+      templateName: 'firmante-otp.html',
+      siteUrl: resolvedSiteUrl,
+      variables: {
+        display_name: name,
+        otp_code: otpCode,
+        workflow_title: workflowTitle,
+      },
+    }),
   };
 }
 
-export function buildDocumentSignedEmail({
+export async function buildDocumentSignedEmail({
   ownerEmail,
   documentName,
   signerName,
   signerEmail,
   signedAt,
   documentId,
+  siteUrl,
 }: {
   ownerEmail: string;
   documentName: string;
@@ -132,54 +162,63 @@ export function buildDocumentSignedEmail({
   signerEmail: string;
   signedAt: string;
   documentId: string;
+  siteUrl?: string | null;
 }) {
   const when = new Date(signedAt).toLocaleString('es-AR');
+  const resolvedSiteUrl = normalizeSiteUrl(siteUrl);
   return {
     from: DEFAULT_FROM,
     to: ownerEmail,
     subject: `Documento firmado: ${documentName}`,
-    html: `
-      <div style="font-family:Inter,Arial,sans-serif;padding:24px;background:#f7f8fa;color:#0f172a;">
-        <h2 style="margin:0 0 12px;">Documento firmado</h2>
-        <p style="margin:0 0 8px;">${signerName || signerEmail} completó la firma del documento <strong>${documentName}</strong>.</p>
-        <p style="margin:0 0 8px;">Fecha: ${when}</p>
-        <p style="margin:0;font-size:12px;color:#475569;">ID interno: ${documentId}</p>
-      </div>
-    `,
+    html: await renderTemplateFromFile({
+      templateName: 'documento-firmado-resumen.html',
+      siteUrl: resolvedSiteUrl,
+      variables: {
+        signer_name: signerName || signerEmail,
+        signer_email: signerEmail,
+        document_name: documentName,
+        signed_at: when,
+        document_id: documentId,
+      },
+    }),
   };
 }
 
-export function buildSignerPackageEmail({
+export async function buildSignerPackageEmail({
   signerEmail,
   signerName,
   documentName,
   downloadUrl,
   ecoUrl,
+  siteUrl,
 }: {
   signerEmail: string;
   signerName?: string | null;
   documentName: string;
   downloadUrl: string;
   ecoUrl?: string | null;
+  siteUrl?: string | null;
 }) {
   const name = signerName || 'Hola';
+  const resolvedSiteUrl = normalizeSiteUrl(siteUrl ?? deriveSiteUrlFromLink(downloadUrl));
   return {
     from: DEFAULT_FROM,
     to: signerEmail,
     subject: `Tu copia firmada: ${documentName}`,
-    html: `
-      <div style="font-family:Inter,Arial,sans-serif;padding:24px;background:#f7f8fa;color:#0f172a;">
-        <p style="margin:0 0 8px;">${name}, aquí tienes tu copia final.</p>
-        <p style="margin:0 0 12px;"><strong>${documentName}</strong></p>
-        <a href="${downloadUrl}" style="display:inline-block;margin:12px 8px 12px 0;padding:12px 18px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar PDF</a>
-        ${ecoUrl ? `<a href="${ecoUrl}" style="display:inline-block;margin:12px 0;padding:12px 18px;background:#111827;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar ECO</a>` : ''}
-        <p style="margin:12px 0 0;font-size:12px;color:#475569;">Incluye sellos forenses para no-repudio.</p>
-      </div>
-    `,
+    html: await renderTemplateFromFile({
+      templateName: 'firmante-confirmacion.html',
+      siteUrl: resolvedSiteUrl,
+      variables: {
+        display_name: name,
+        document_name: documentName,
+        pdf_url: downloadUrl,
+        ecox_url: ecoUrl ?? '',
+      },
+    }),
   };
 }
 
-export function buildDocumentCertifiedEmail({
+export async function buildDocumentCertifiedEmail({
   ownerEmail,
   ownerName,
   documentName,
@@ -187,7 +226,8 @@ export function buildDocumentCertifiedEmail({
   documentId,
   hasForensicHardening,
   hasLegalTimestamp,
-  hasPolygonAnchor
+  hasPolygonAnchor,
+  siteUrl,
 }: {
   ownerEmail: string;
   ownerName?: string | null;
@@ -197,29 +237,31 @@ export function buildDocumentCertifiedEmail({
   hasForensicHardening: boolean;
   hasLegalTimestamp: boolean;
   hasPolygonAnchor: boolean;
+  siteUrl?: string | null;
 }) {
   const name = ownerName || 'Hola';
+  const resolvedSiteUrl = normalizeSiteUrl(siteUrl);
   return {
     from: DEFAULT_FROM,
     to: ownerEmail,
     subject: `Certificado disponible: ${documentName}`,
-    html: `
-      <div style="font-family:Inter,Arial,sans-serif;padding:24px;background:#f7f8fa;color:#0f172a;">
-        <p style="margin:0 0 8px;">${name}, tu documento fue certificado.</p>
-        <p style="margin:0 0 8px;"><strong>${documentName}</strong></p>
-        <p style="margin:0 0 8px;">Fecha: ${new Date(certifiedAt).toLocaleString('es-AR')}</p>
-        <ul style="margin:8px 0 12px;padding-left:16px;color:#0f172a;">
-          <li>Hardening: ${hasForensicHardening ? 'Sí' : 'No'}</li>
-          <li>Timestamp legal: ${hasLegalTimestamp ? 'Sí' : 'No'}</li>
-          <li>Anchor Polygon: ${hasPolygonAnchor ? 'Sí' : 'No'}</li>
-        </ul>
-        <p style="margin:0;font-size:12px;color:#475569;">ID interno: ${documentId}</p>
-      </div>
-    `,
+    html: await renderTemplateFromFile({
+      templateName: 'documento-certificado-resumen.html',
+      siteUrl: resolvedSiteUrl,
+      variables: {
+        owner_name: name,
+        document_name: documentName,
+        certified_at: new Date(certifiedAt).toLocaleString('es-AR'),
+        document_id: documentId,
+        hardening: hasForensicHardening ? 'Si' : 'No',
+        legal_timestamp: hasLegalTimestamp ? 'Si' : 'No',
+        polygon_anchor: hasPolygonAnchor ? 'Si' : 'No',
+      },
+    }),
   };
 }
 
-export function buildFounderWelcomeEmail({
+export async function buildFounderWelcomeEmail({
   userEmail,
   userName,
   dashboardUrl = 'https://ecosign.app/dashboard',
@@ -235,255 +277,22 @@ export function buildFounderWelcomeEmail({
   founderNumber?: string | number | null;
 }) {
   const name = userName || userEmail.split('@')[0];
-  const badgeNumber = founderNumber ?? '—';
+  const baseUrl = dashboardUrl.replace(/\/dashboard\/?$/, '');
+  const siteUrl = normalizeSiteUrl(baseUrl);
 
   return {
     from: DEFAULT_FROM,
     to: userEmail,
-    subject: 'Bienvenido a EcoSign — Usuario Founder',
-    html: `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      background-color: #ffffff;
-      color: #0f172a;
-    }
-    .email-container {
-      max-width: 600px;
-      margin: 0 auto;
-      background-color: #ffffff;
-    }
-    .header {
-      padding: 48px 32px 32px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .header h1 {
-      font-size: 32px;
-      font-weight: 700;
-      color: #000000;
-      margin-bottom: 12px;
-      letter-spacing: -0.5px;
-    }
-    .header p {
-      font-size: 16px;
-      color: #64748b;
-      line-height: 1.5;
-    }
-    .badge-container {
-      padding: 24px 32px;
-      background-color: #fafafa;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .founder-badge {
-      display: inline-block;
-      border: 2px solid #000000;
-      color: #000000;
-      padding: 8px 20px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-    .badge-subtitle {
-      margin-top: 12px;
-      font-size: 13px;
-      color: #64748b;
-    }
-    .content {
-      padding: 40px 32px;
-    }
-    .content h2 {
-      font-size: 20px;
-      font-weight: 600;
-      color: #000000;
-      margin-bottom: 20px;
-    }
-    .content p {
-      font-size: 15px;
-      color: #475569;
-      margin-bottom: 16px;
-      line-height: 1.7;
-    }
-    .content strong {
-      color: #0f172a;
-      font-weight: 600;
-    }
-    .benefits {
-      background-color: #fafafa;
-      border-left: 2px solid #000000;
-      padding: 24px;
-      margin: 32px 0;
-    }
-    .benefits h3 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #000000;
-      margin-bottom: 16px;
-    }
-    .benefits ul {
-      list-style: none;
-      padding: 0;
-    }
-    .benefits li {
-      padding: 6px 0;
-      padding-left: 20px;
-      position: relative;
-      font-size: 14px;
-      color: #475569;
-      line-height: 1.6;
-    }
-    .benefits li:before {
-      content: "—";
-      position: absolute;
-      left: 0;
-      color: #000000;
-      font-weight: 600;
-    }
-    .cta-button {
-      display: inline-block;
-      background-color: #000000;
-      color: #ffffff;
-      padding: 14px 32px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 15px;
-      margin: 32px 0;
-      transition: background-color 0.2s;
-    }
-    .cta-button:hover {
-      background-color: #1f2937;
-    }
-    .security-note {
-      background-color: #fafafa;
-      border: 1px solid #e5e7eb;
-      padding: 20px;
-      margin: 32px 0;
-    }
-    .security-note h4 {
-      font-size: 14px;
-      font-weight: 600;
-      color: #000000;
-      margin-bottom: 8px;
-    }
-    .security-note p {
-      font-size: 13px;
-      color: #64748b;
-      margin: 0;
-      line-height: 1.6;
-    }
-    .footer {
-      background-color: #fafafa;
-      padding: 32px;
-      text-align: center;
-      border-top: 1px solid #e5e7eb;
-    }
-    .footer p {
-      font-size: 13px;
-      color: #64748b;
-      margin: 8px 0;
-    }
-    .footer a {
-      color: #0f172a;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .footer a:hover {
-      text-decoration: underline;
-    }
-    .divider {
-      height: 1px;
-      background-color: #e5e7eb;
-      margin: 32px 0;
-    }
-  </style>
-</head>
-<body>
-  <div class="email-container">
-    <!-- Header -->
-    <div class="header">
-      <h1>Bienvenido a EcoSign</h1>
-      <p>Firmá y gestioná documentos de forma simple y legal</p>
-    </div>
-
-    <!-- Founder Badge -->
-    <div class="badge-container">
-      <div class="founder-badge">🛡️ Usuario Founder · Nº ${badgeNumber}</div>
-      <p class="badge-subtitle">
-        Acceso temprano · Beneficio permanente
-      </p>
-    </div>
-
-    <!-- Main Content -->
-    <div class="content">
-      <h2>Hola ${name},</h2>
-
-      <p>
-        Tu cuenta fue verificada correctamente y ya podés usar EcoSign. Por haberte registrado en esta etapa inicial, tu usuario quedó identificado como <strong>Usuario Founder</strong>.
-      </p>
-
-      <p>
-        Esto implica dos cosas importantes desde hoy:
-      </p>
-
-      <div class="divider"></div>
-
-      <!-- Benefits -->
-      <div class="benefits">
-        <h3>Qué te permite EcoSign</h3>
-        <ul>
-          <li>Firmar documentos de forma simple, con validez legal</li>
-          <li>Enviar documentos por email mediante links seguros</li>
-          <li>Crear flujos con NDA sin exponer el contenido del archivo</li>
-          <li>Mantener tus documentos organizados y con estados claros</li>
-          <li>Hacer todo desde un solo lugar, sin salir a otras plataformas</li>
-        </ul>
-      </div>
-
-      <!-- Security Note -->
-      <div class="security-note">
-        <h4>Beneficio Founder</h4>
-        <p>
-          Mientras mantengas tu plan activo, tu precio queda protegido de por vida. No importa cómo evolucione EcoSign en el futuro: tu condición de Founder conserva tu tarifa original.
-        </p>
-      </div>
-
-      <!-- CTA -->
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="${dashboardUrl}" class="cta-button">Ir al Dashboard</a>
-      </div>
-
-      <p style="text-align: center; color: #64748b; font-size: 13px;">
-        ¿Tenés dudas? Respondé este email o visitá nuestra <a href="${docsUrl}" style="color: #0f172a;">documentación</a>.
-      </p>
-    </div>
-
-    <!-- Footer -->
-    <div class="footer">
-      <p style="font-weight: 600; color: #000000; margin-bottom: 12px;">
-        EcoSign
-      </p>
-      <p>
-        <a href="${dashboardUrl}">Dashboard</a> •
-        <a href="${docsUrl}">Documentación</a> •
-        <a href="${supportUrl}">Soporte</a>
-      </p>
-      <p style="margin-top: 16px; font-size: 12px;">
-        Este email fue enviado a ${userEmail} porque creaste una cuenta en EcoSign.
-      </p>
-      <p style="font-size: 11px; color: #94a3b8; margin-top: 8px;">
-        © 2025 EcoSign
-      </p>
-    </div>
-  </div>
-</body>
-</html>
-    `,
+    subject: 'Tu cuenta ya esta activa',
+    html: await renderTemplateFromFile({
+      templateName: 'founder-welcome.html',
+      siteUrl,
+      variables: {
+        userName: name,
+        dashboardUrl,
+        docsUrl,
+        supportUrl,
+      },
+    }),
   };
 }

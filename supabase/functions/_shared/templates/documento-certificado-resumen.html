@@ -19,15 +19,7 @@
     .content h1 { font-size: 22px; font-weight: 600; margin-bottom: 16px; }
     .content p { font-size: 14px; color: #111111; margin-bottom: 16px; }
     .content p.secondary { color: #555555; }
-    .cta-button {
-      display: inline-block;
-      background-color: #0ea5e9;
-      color: #ffffff;
-      padding: 12px 22px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 14px;
-    }
+    .content ul { margin: 12px 0 16px 20px; font-size: 14px; color: #111111; }
     .footer { padding: 24px 32px 32px; border-top: 1px solid #EAEAEA; }
     .footer p { font-size: 12px; color: #555555; margin: 6px 0; }
     .footer a { color: #111111; }
@@ -40,16 +32,16 @@
     </div>
     <div class="content">
       <h1>Documento certificado</h1>
-      <p>Tu documento fue certificado correctamente.</p>
-      <p class="secondary"><strong>{{documentName}}</strong></p>
-      <p class="secondary">Hash: {{documentHash}}</p>
-      <p class="secondary">Blockchain: {{chainName}}</p>
-      <p class="secondary">
-        Tx: <a href="{{explorerUrl}}" style="color:#111111;">{{txHash}}</a>
-      </p>
-      <div style="margin: 20px 0;">
-        <a class="cta-button" href="{{downloadUrl}}" target="_blank" rel="noopener">Descargar certificado</a>
-      </div>
+      <p>{{owner_name}}, tu documento fue certificado.</p>
+      <p class="secondary"><strong>{{document_name}}</strong></p>
+      <p class="secondary">Fecha: {{certified_at}}</p>
+      <p class="secondary">Capas de certificacion:</p>
+      <ul>
+        <li>Hardening: {{hardening}}</li>
+        <li>Timestamp legal: {{legal_timestamp}}</li>
+        <li>Anchor Polygon: {{polygon_anchor}}</li>
+      </ul>
+      <p class="secondary">ID interno: {{document_id}}</p>
     </div>
     <div class="footer">
       <p>No vendemos firmas. Vendemos certeza.</p>

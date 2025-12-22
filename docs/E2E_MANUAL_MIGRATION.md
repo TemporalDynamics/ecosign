@@ -49,10 +49,14 @@ WHERE id NOT IN (SELECT user_id FROM public.profiles);
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id
 ON public.profiles(user_id);
 
--- RLS Policies
+-- Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Users can read own profile"
+-- Drop policy if exists (safe way)
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
+
+-- Create policy
+CREATE POLICY "Users can read own profile"
 ON public.profiles
 FOR SELECT
 USING (auth.uid() = user_id);

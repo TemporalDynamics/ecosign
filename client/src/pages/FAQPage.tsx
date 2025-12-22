@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 import { ChevronUp, ChevronDown } from 'lucide-react';

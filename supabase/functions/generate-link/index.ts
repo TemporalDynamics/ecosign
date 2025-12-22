@@ -182,12 +182,14 @@ serve(withRateLimit('generate', async (req) => {
     let emailSent = false;
     try {
       const senderName = user.user_metadata?.full_name || user.email; // Get sender name from user metadata or email
-      const emailPayload = buildSignerInvitationEmail({
+      const emailPayload = await buildSignerInvitationEmail({
         signerEmail: recipient_email,
+        signerName: null,
         documentName: doc.document_name,
         signLink: accessUrl,
         expiresAt: expiresAt || '', // Ensure expiresAt is a string
-        senderName: senderName
+        senderName: senderName,
+        siteUrl: appUrl
       });
       const emailResult = await sendEmail(emailPayload);
       emailSent = emailResult.success;

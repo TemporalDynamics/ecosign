@@ -1,11 +1,11 @@
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 
 const ReportPage = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <Header variant="public" />
 
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4">

@@ -142,13 +142,75 @@ Settings > Authentication > SMTP Settings
 
 **Confirm Signup**:
 ```html
-<h2>Bienvenido a VerifySign</h2>
-<p>Haz click en el siguiente enlace para confirmar tu cuenta:</p>
-<p><a href="{{ .ConfirmationURL }}">Confirmar Email</a></p>
-
-<p style="color: #666; font-size: 12px;">
-  Este link expira en 24 horas.
-</p>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verifica tu email para comenzar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.5;
+      background-color: #ffffff;
+      color: #111111;
+    }
+    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { padding: 24px 32px; border-bottom: 1px solid #EAEAEA; }
+    .logo { display: block; width: 32px; height: 32px; }
+    .content { padding: 32px; }
+    .content h1 { font-size: 22px; font-weight: 600; margin-bottom: 16px; }
+    .content p { font-size: 14px; color: #111111; margin-bottom: 16px; }
+    .content p.secondary { color: #555555; }
+    .cta-button {
+      display: inline-block;
+      background-color: #0ea5e9;
+      color: #ffffff;
+      padding: 12px 22px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .footer { padding: 24px 32px 32px; border-top: 1px solid #EAEAEA; }
+    .footer p { font-size: 12px; color: #555555; margin: 6px 0; }
+    .link-box { font-size: 12px; color: #555555; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="{{ .SiteURL }}/assets/icons/icon-128x128.png" alt="EcoSign" class="logo" />
+    </div>
+    <div class="content">
+      <h1>Verifica tu email para comenzar</h1>
+      <p>Hola,</p>
+      <p>
+        Recibimos una solicitud para crear una cuenta en EcoSign con esta direccion de email.
+      </p>
+      <p>
+        Antes de continuar, necesitamos confirmar que sos vos quien inicio el proceso.
+        Este paso nos permite proteger tu identidad y evitar accesos no autorizados.
+      </p>
+      <div style="margin: 20px 0;">
+        <a href="{{ .ConfirmationURL }}" class="cta-button">Confirmar mi cuenta</a>
+      </div>
+      <p class="secondary">
+        Si el boton no funciona, copia y pega el siguiente enlace en tu navegador:
+      </p>
+      <p class="link-box">{{ .ConfirmationURL }}</p>
+      <p class="secondary">
+        Si no iniciaste esta accion, podes ignorar este mensaje.
+        Tu cuenta no sera creada sin esta confirmacion.
+      </p>
+    </div>
+    <div class="footer">
+      <p>No vendemos firmas. Vendemos certeza.</p>
+      <p>Si no reconoces esta accion, contactanos.</p>
+    </div>
+  </div>
+</body>
+</html>
 ```
 
 **Reset Password**:

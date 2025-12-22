@@ -53,6 +53,11 @@ WHERE status = 'pending';
 -- RLS Policies
 ALTER TABLE document_shares ENABLE ROW LEVEL SECURITY;
 
+-- Drop policies if exist (for idempotency)
+DROP POLICY IF EXISTS "Users can view shares of their documents" ON document_shares;
+DROP POLICY IF EXISTS "Users can create shares for their documents" ON document_shares;
+DROP POLICY IF EXISTS "Service role full access" ON document_shares;
+
 -- Owner can see all shares of their documents
 CREATE POLICY "Users can view shares of their documents"
 ON document_shares
@@ -81,8 +86,12 @@ ON document_shares
 FOR ALL
 USING (auth.role() = 'service_role');
 
--- Auto-expire shares (cron job or trigger)
-CREATE OR REPLACE FUNCTION expire_document_shares()
+-- Drop trigger and function if exist (for idempotency)
+DROP TRIGGER IF EXISTS auto_expire_shares ON document_shares;
+DROP FUNCTION IF EXISTS expire_document_shares();
+
+-- Auto-expire shares function
+CREATE FUNCTION expire_document_shares()
 RETURNS TRIGGER AS $$
 BEGIN
   UPDATE document_shares
@@ -94,7 +103,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to auto-expire on each access check
-CREATE OR REPLACE TRIGGER auto_expire_shares
+CREATE TRIGGER auto_expire_shares
 AFTER SELECT ON document_shares
 FOR EACH STATEMENT
 EXECUTE FUNCTION expire_document_shares();

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
@@ -40,7 +40,7 @@ const HelpPage = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <Header variant="public" />
 
       {/* Content */}
       <main className="pt-32 pb-24 bg-white">

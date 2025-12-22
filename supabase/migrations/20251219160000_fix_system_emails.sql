@@ -41,7 +41,7 @@ BEGIN
     VALUES (
       NEW.email,
       'welcome_founder',
-      'Bienvenido a EcoSign',
+      'Tu cuenta ya esta activa',
       '', -- Generated dynamically by send-pending-emails
       'pending'
     )

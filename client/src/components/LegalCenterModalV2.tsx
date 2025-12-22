@@ -1428,7 +1428,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                         type="file"
                                         className="hidden"
                                         onChange={handleFileSelect}
-                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                        accept=".pdf"
                                       />
                                       {/* Título principal */}
                                       <p className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
@@ -1438,15 +1438,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                       <FileText className="w-12 h-12 text-gray-900 mx-auto mb-4" />
                                       {/* Texto de formatos */}
                                       <p className="text-xs text-gray-500 mt-2">
-                                        PDF, Word, Excel, imágenes (máx 50MB)
+                                        Formato PDF (máx 50MB)
                                       </p>
                                       <div className="mt-6 pt-4 border-t border-gray-200">
                                         {/* Texto de privacidad */}
-                                        <p className="text-sm text-gray-700 font-medium">
-                                          Tu documento es privado: no lo vemos ni lo guardamos.
+                                        <p className="text-sm text-gray-700 font-medium flex items-center justify-center gap-2">
+                                          <Shield className="w-4 h-4 text-gray-700" />
+                                          Tu documento está protegido por defecto
                                         </p>
                                         <p className="text-xs text-gray-500 mt-1">
-                                          Solo generamos su protección y evidencia.
+                                          No lo vemos ni podemos acceder a su contenido.
                                         </p>
                                       </div>
                                     </label>

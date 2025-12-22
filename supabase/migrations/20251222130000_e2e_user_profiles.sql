@@ -1,25 +1,40 @@
 -- ============================================
--- E2E Encryption: User Profiles
+-- E2E Encryption: Profiles Table
 -- ============================================
--- Add wrap_salt to user_profiles for key derivation
--- This salt is PUBLIC (not secret) and used for PBKDF2
+-- Create profiles table for user-specific E2E metadata
+-- wrap_salt is PUBLIC (not secret) and used for PBKDF2
 
--- Add wrap_salt column
-ALTER TABLE user_profiles 
-ADD COLUMN IF NOT EXISTS wrap_salt TEXT;
+-- Create profiles table
+CREATE TABLE IF NOT EXISTS public.profiles (
+  user_id UUID PRIMARY KEY
+    REFERENCES auth.users(id)
+    ON DELETE CASCADE,
+  wrap_salt TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- Generate salt for existing users (if NULL)
-UPDATE user_profiles 
-SET wrap_salt = encode(gen_random_bytes(16), 'hex')
-WHERE wrap_salt IS NULL;
+COMMENT ON TABLE public.profiles
+IS 'User profile metadata for E2E encryption and preferences';
 
--- Make it NOT NULL going forward
-ALTER TABLE user_profiles 
-ALTER COLUMN wrap_salt SET NOT NULL;
+COMMENT ON COLUMN public.profiles.wrap_salt
+IS 'Public salt for session unwrap key derivation (PBKDF2). Generated once per user, never changes.';
+
+-- Backfill existing users with wrap_salt
+INSERT INTO public.profiles (user_id, wrap_salt)
+SELECT id, encode(gen_random_bytes(16), 'hex')
+FROM auth.users
+WHERE id NOT IN (SELECT user_id FROM public.profiles);
 
 -- Add index for faster lookups
-CREATE INDEX IF NOT EXISTS idx_user_profiles_wrap_salt 
-ON user_profiles(user_id, wrap_salt);
+CREATE INDEX IF NOT EXISTS idx_profiles_user_id
+ON public.profiles(user_id);
 
--- Comment
-COMMENT ON COLUMN user_profiles.wrap_salt IS 'Public salt for session unwrap key derivation (PBKDF2). Generated once per user, never changes.';
+-- Enable RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Users can only read their own profile
+CREATE POLICY IF NOT EXISTS "Users can read own profile"
+ON public.profiles
+FOR SELECT
+USING (auth.uid() = user_id);
+

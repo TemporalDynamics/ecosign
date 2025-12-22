@@ -39,7 +39,7 @@ export async function initializeSessionCrypto(userId: string): Promise<void> {
   // 2. Get user's wrap salt from DB (public, not secret)
   const supabase = getSupabase();
   const { data: profile, error } = await supabase
-    .from('user_profiles')
+    .from('profiles')
     .select('wrap_salt')
     .eq('user_id', userId)
     .single();
@@ -165,7 +165,7 @@ export async function ensureUserWrapSalt(userId: string): Promise<string> {
   
   // Check if salt exists
   const { data: existing } = await supabase
-    .from('user_profiles')
+    .from('profiles')
     .select('wrap_salt')
     .eq('user_id', userId)
     .single();
@@ -182,7 +182,7 @@ export async function ensureUserWrapSalt(userId: string): Promise<string> {
   
   // Store in DB
   const { error } = await supabase
-    .from('user_profiles')
+    .from('profiles')
     .upsert({
       user_id: userId,
       wrap_salt: saltHex,

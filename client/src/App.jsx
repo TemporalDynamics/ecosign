@@ -48,6 +48,7 @@ const InvitePage = lazy(() => import('./pages/InvitePage'));
 const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'));
 const WorkflowsPage = lazy(() => import('./pages/WorkflowsPage'));
 const WorkflowDetailPage = lazy(() => import('./pages/WorkflowDetailPage'));
+const LogoTest = lazy(() => import('./pages/LogoTest'));
 
 // Kill switch para dashboard legacy
 const DASHBOARD_ENABLED = false;
@@ -120,6 +121,9 @@ function AppRoutes() {
             <Route path="/quick-guide" element={<QuickGuidePage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/use-cases" element={<UseCasesPage />} />
+
+            {/* Design testing routes */}
+            <Route path="/logo-test" element={<LogoTest />} />
 
             {/* Protected routes */}
             <Route

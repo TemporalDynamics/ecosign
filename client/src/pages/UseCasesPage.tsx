@@ -1,4 +1,4 @@
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 import { Briefcase, FlaskConical, Palette, Building2 } from 'lucide-react';
@@ -6,7 +6,7 @@ import { Briefcase, FlaskConical, Palette, Building2 } from 'lucide-react';
 export default function UseCasesPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <Header variant="public" />
       
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">

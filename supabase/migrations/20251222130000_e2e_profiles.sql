@@ -32,9 +32,11 @@ ON public.profiles(user_id);
 -- Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+-- Drop policy if exists (safe way for idempotency)
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
+
 -- RLS Policy: Users can only read their own profile
-CREATE POLICY IF NOT EXISTS "Users can read own profile"
+CREATE POLICY "Users can read own profile"
 ON public.profiles
 FOR SELECT
 USING (auth.uid() = user_id);
-

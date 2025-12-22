@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, Check, CheckCircle, ArrowLeft, X, Users, HardDrive, FileText, Shield, BarChart3, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import FooterPublic from '../components/FooterPublic';
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 
 function PricingPage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
@@ -161,7 +161,7 @@ function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <HeaderPublic />
+      <Header variant="public" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 pt-32">
         <header className="text-center mb-16">

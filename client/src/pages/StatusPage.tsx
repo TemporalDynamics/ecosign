@@ -1,5 +1,5 @@
 import { CheckCircle } from 'lucide-react';
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 import InhackeableTooltip from '../components/InhackeableTooltip';
@@ -20,7 +20,7 @@ const StatusPage = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <Header variant="public" />
 
       {/* Content */}
       <main className="flex-grow pt-16">

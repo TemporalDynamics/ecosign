@@ -133,12 +133,13 @@ serve(async (req) => {
     }
 
     // Send email to signer
-    const emailPayload = buildSignerPackageEmail({
+    const emailPayload = await buildSignerPackageEmail({
       signerEmail: signer.email,
       signerName: signer.name,
       documentName: signer.workflow.title || 'Documento',
       downloadUrl: pdfSigned.signedUrl,
-      ecoUrl
+      ecoUrl,
+      siteUrl: Deno.env.get('SITE_URL')
     })
     await sendEmail(emailPayload)
 

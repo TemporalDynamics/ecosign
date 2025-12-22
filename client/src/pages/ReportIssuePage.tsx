@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle, Upload, AlertCircle } from 'lucide-react';
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 
@@ -45,7 +45,7 @@ export default function ReportIssuePage() {
   if (submitted) {
     return (
       <div className="min-h-screen flex flex-col bg-white">
-        <HeaderPublic />
+        <Header variant="public" />
         <main className="flex-grow">
           <div className="max-w-3xl mx-auto px-4 pt-24 pb-24">
             <div className="text-center">
@@ -74,7 +74,7 @@ export default function ReportIssuePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <HeaderPublic />
+      <Header variant="public" />
       <main className="flex-grow">
         <div className="max-w-3xl mx-auto px-4 pt-24 pb-24">
           <PageTitle>Reportar un Problema</PageTitle>

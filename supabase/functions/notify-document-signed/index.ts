@@ -129,13 +129,14 @@ serve(async (req) => {
     }
 
     // Preparar email
-    const emailPayload = buildDocumentSignedEmail({
+    const emailPayload = await buildDocumentSignedEmail({
       ownerEmail: owner.email,
       documentName: signerLink.user_documents.document_name,
       signerName: signerLink.signer_name || 'Firmante',
       signerEmail: signerLink.signer_email,
       signedAt: signerLink.signed_at,
-      documentId: signerLink.user_documents.id
+      documentId: signerLink.user_documents.id,
+      siteUrl: Deno.env.get('SITE_URL')
     });
 
     // Enviar email

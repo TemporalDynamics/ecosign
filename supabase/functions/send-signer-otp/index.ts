@@ -81,11 +81,12 @@ serve(async (req) => {
     }
 
     // Send email
-    const emailPayload = buildSignerOtpEmail({
+    const emailPayload = await buildSignerOtpEmail({
       signerEmail: signer.email,
       signerName: signer.name,
       workflowTitle: signer.workflow?.title || 'Documento',
-      otpCode: code
+      otpCode: code,
+      siteUrl: Deno.env.get('SITE_URL')
     })
     const emailRes = await sendEmail(emailPayload)
     if (!emailRes.success) {

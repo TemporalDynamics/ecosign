@@ -1,19 +1,17 @@
 import { useLocation } from 'react-router-dom';
-import HeaderPublic from '../components/HeaderPublic';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
-import DashboardNav from '../components/DashboardNav';
 import FooterInternal from '../components/FooterInternal';
 import PageTitle from '../components/PageTitle';
 
 const TermsPage = () => {
   const location = useLocation();
   const isDashboard = location.pathname.startsWith('/dashboard');
-  const Header = isDashboard ? DashboardNav : HeaderPublic;
   const Footer = isDashboard ? FooterInternal : FooterPublic;
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Header />
+      <Header variant={isDashboard ? 'private' : 'public'} />
 
       <main className="flex-grow pt-16">
         <div className="max-w-4xl mx-auto px-4 pb-24">

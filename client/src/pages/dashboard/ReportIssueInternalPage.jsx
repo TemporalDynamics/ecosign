@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle, Upload, AlertCircle } from 'lucide-react';
-import DashboardNav from '../../components/DashboardNav';
+import Header from '../../components/Header';
 import FooterInternal from '../../components/FooterInternal';
 import PageTitle from '../../components/PageTitle';
 
@@ -37,7 +37,7 @@ export default function ReportIssueInternalPage() {
   if (submitted) {
     return (
       <div className="min-h-screen flex flex-col bg-white">
-        <DashboardNav />
+        <Header variant="private" />
         <main className="flex-grow">
           <div className="max-w-3xl mx-auto px-4 pt-24 pb-24">
             <div className="text-center">
@@ -66,7 +66,7 @@ export default function ReportIssueInternalPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <DashboardNav />
+      <Header variant="private" />
       <main className="flex-grow">
         <div className="max-w-3xl mx-auto px-4 pt-24 pb-24">
           <PageTitle>Reportar un Problema</PageTitle>

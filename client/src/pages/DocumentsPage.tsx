@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
 import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Search, X } from "lucide-react";
 import toast from "react-hot-toast";
-import DashboardNav from "../components/DashboardNav";
+import Header from "../components/Header";
 import FooterInternal from "../components/FooterInternal";
 import InhackeableTooltip from "../components/InhackeableTooltip";
 import ShareLinkGenerator from "../components/ShareLinkGenerator";
+import { ProtectedBadge } from "../components/ProtectedBadge";
+import { ShareWithOTPModal } from "../components/ShareWithOTPModal";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
 
 type DocumentRecord = {
@@ -204,6 +206,7 @@ function DocumentsPage() {
   const [autoVerifyAttempted, setAutoVerifyAttempted] = useState(false);
   const [search, setSearch] = useState("");
   const [shareDoc, setShareDoc] = useState<DocumentRecord | null>(null);
+  const [shareOTPDoc, setShareOTPDoc] = useState<DocumentRecord | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const handleLogout = () => navigate("/");
@@ -455,6 +458,16 @@ function DocumentsPage() {
     setShareDoc(doc);
   };
 
+  const handleShareWithOTP = (doc: DocumentRecord | null) => {
+    if (!doc) return;
+    if (isGuestMode()) {
+      toast("Modo invitado: compartir documentos disponible solo con cuenta.", { position: "top-right" });
+      return;
+    }
+    // Por ahora todos los documentos usan OTP share (E2E encrypted by default)
+    setShareOTPDoc(doc);
+  };
+
   const handlePdfStored = useCallback((documentId: string, storagePath: string) => {
     setDocuments((prev) =>
       prev.map((doc) => (doc.id === documentId ? { ...doc, pdf_storage_path: storagePath } : doc))
@@ -518,7 +531,7 @@ function DocumentsPage() {
       : null;
     const matchesContent = expectedContentHash ? normalizedHash === expectedContentHash.toLowerCase() : null;
 
-    const matches =
+    const matches = 
       (matchesDocument === false || matchesContent === false)
         ? false
         : matchesDocument || matchesContent || null;
@@ -542,7 +555,7 @@ function DocumentsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <DashboardNav onLogout={handleLogout} />
+      <Header variant="private" onLogout={handleLogout} />
       <div className="flex-grow">
         <main className="max-w-7xl mx-auto px-4 pt-8 pb-24">
           <header className="mb-10 text-center">
@@ -587,8 +600,11 @@ function DocumentsPage() {
                     <div key={doc.id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-sm font-semibold text-gray-900">
-                            {doc.document_name.replace(/\.pdf$/i, ".eco")}
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900">
+                              {doc.document_name.replace(/\.pdf$/i, ".eco")}
+                            </span>
+                            <ProtectedBadge variant="default" compact showText={false} />
                           </div>
                           <div className="mt-2 flex items-center gap-2">
                             <span
@@ -622,15 +638,15 @@ function DocumentsPage() {
                         </button>
                         <button
                           onClick={() => {
-                            handleShareDoc(doc);
+                            handleShareWithOTP(doc);
                             setOpenMenuId(null);
                           }}
                           className="flex items-center gap-2 text-sm font-semibold text-gray-900"
                         >
                           <span className="inline-flex items-center justify-center rounded border border-gray-300 px-2 py-0.5 text-[10px] font-semibold tracking-wide">
-                            NDA
+                            OTP
                           </span>
-                          Enviar
+                          Compartir
                         </button>
                       </div>
 
@@ -641,9 +657,7 @@ function DocumentsPage() {
                               handleEcoDownload(doc);
                               setOpenMenuId(null);
                             }}
-                            className={`text-left text-sm font-medium ${
-                              ecoEnabled ? "text-gray-700" : "text-gray-300"
-                            }`}
+                            className={`text-left text-sm font-medium ${ecoEnabled ? "text-gray-700" : "text-gray-300"}`}
                             disabled={!ecoEnabled}
                           >
                             Descargar certificado .ECO
@@ -655,9 +669,7 @@ function DocumentsPage() {
                               }
                               setOpenMenuId(null);
                             }}
-                            className={`text-left text-sm font-medium ${
-                              pdfAvailable ? "text-gray-700" : "text-gray-300"
-                            }`}
+                            className={`text-left text-sm font-medium ${pdfAvailable ? "text-gray-700" : "text-gray-300"}`}
                             disabled={!pdfAvailable}
                           >
                             Descargar PDF
@@ -710,8 +722,11 @@ function DocumentsPage() {
                           <div className="flex items-start">
                             <FileText className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
                             <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {doc.document_name.replace(/\.pdf$/i, '.eco')}
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-900">
+                                  {doc.document_name.replace(/\.pdf$/i, '.eco')}
+                                </span>
+                                <ProtectedBadge variant="default" compact showText={false} />
                               </div>
                             </div>
                           </div>
@@ -760,9 +775,9 @@ function DocumentsPage() {
                               <Search className="h-5 w-5" />
                             </button>
                             <button
-                              onClick={() => handleShareDoc(doc)}
+                              onClick={() => handleShareWithOTP(doc)}
                               className="text-black hover:text-gray-600"
-                              title="Enviar con NDA"
+                              title="Compartir con código OTP"
                             >
                               <span className="inline-flex items-center justify-center rounded border border-gray-300 px-2 py-0.5 text-[10px] font-semibold tracking-wide">
                                 NDA
@@ -841,6 +856,18 @@ function DocumentsPage() {
         </div>
       )}
 
+      {/* Modal Share with OTP (E2E encrypted) */}
+      {shareOTPDoc && (
+        <ShareWithOTPModal
+          isOpen={true}
+          onClose={() => setShareOTPDoc(null)}
+          document={{
+            id: shareOTPDoc.id,
+            filename: shareOTPDoc.document_name,
+          }}
+        />
+      )}
+
       {/* Modal Verificar documento */}
       {showVerifyModal && verifyDoc && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -881,10 +908,7 @@ function DocumentsPage() {
 
             {verifyResult && (
               <div className="mt-4 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm space-y-2">
-                <p className={`font-semibold ${
-                  verifyResult.matches === false ? "text-red-700" :
-                  verifyResult.matches ? "text-green-700" : "text-gray-700"
-                }`}>
+                <p className={`font-semibold ${verifyResult.matches === false ? "text-red-700" : verifyResult.matches ? "text-green-700" : "text-gray-700"}`}>
                   {verifyResult.matches === false
                     ? "❌ Documento alterado"
                     : verifyResult.matches

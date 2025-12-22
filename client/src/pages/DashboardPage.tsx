@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
 const DocumentList = React.lazy(() => import('../components/DocumentList'));
-import DashboardNav from '../components/DashboardNav';
+import Header from '../components/Header';
 const FooterInternal = React.lazy(() => import('../components/FooterInternal'));
 import { getUserDocuments } from '../utils/documentStorage';
 import InhackeableTooltip from '../components/InhackeableTooltip';
@@ -126,7 +126,7 @@ function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <DashboardNav onLogout={handleLogout} />
+      <Header variant="private" onLogout={handleLogout} openLegalCenter={openLegalCenter} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Welcome Section */}

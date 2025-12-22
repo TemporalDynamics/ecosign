@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Shield, Pen, Users, FileText } from 'lucide-react';
-import DashboardNav from '../components/DashboardNav';
+import Header from '../components/Header';
 import FooterInternal from '../components/FooterInternal';
 import { useLegalCenter } from '../contexts/LegalCenterContext';
 
@@ -11,7 +11,7 @@ function DashboardStartPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-cyan-50 to-blue-50 flex flex-col">
-      <DashboardNav onLogout={handleLogout} />
+      <Header variant="private" onLogout={handleLogout} openLegalCenter={openLegalCenter} />
       <main className="flex-grow max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 pb-24 space-y-12">
         <section className="text-center bg-white/80 rounded-3xl p-10 shadow-lg border border-black100">
           <p className="text-black font-semibold tracking-[0.2em] uppercase mb-4">workspace</p>

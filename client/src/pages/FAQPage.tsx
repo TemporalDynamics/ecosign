@@ -81,7 +81,7 @@ export default function FAQPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <HeaderPublic />
+      <Header variant="public" />
       
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">

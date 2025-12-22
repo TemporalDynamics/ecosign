@@ -1,4 +1,4 @@
-import DashboardNav from '../../components/DashboardNav';
+import Header from '../../components/Header';
 import FooterInternal from '../../components/FooterInternal';
 import PageTitle from '../../components/PageTitle';
 import { Briefcase, FlaskConical, Palette, Building2 } from 'lucide-react';
@@ -6,7 +6,7 @@ import { Briefcase, FlaskConical, Palette, Building2 } from 'lucide-react';
 export default function UseCasesInternalPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <DashboardNav />
+      <Header variant="private" />
       
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">

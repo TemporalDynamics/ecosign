@@ -1,12 +1,12 @@
 import React from "react";
-import DashboardNav from "../components/DashboardNav";
+import Header from "../components/Header";
 import FooterInternal from "../components/FooterInternal";
 import InhackeableTooltip from "../components/InhackeableTooltip";
 
 export default function RoadmapPage() {
   return (
     <>
-      <DashboardNav />
+      <Header variant="private" />
       <main className="max-w-4xl mx-auto px-4 pt-16 pb-24">
         <header className="mb-10">
           <h1 className="text-4xl font-semibold tracking-tight text-black">

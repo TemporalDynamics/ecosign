@@ -1,6 +1,6 @@
 import React from "react";
 import { Play } from 'lucide-react';
-import DashboardNav from "../components/DashboardNav";
+import Header from "../components/Header";
 import FooterInternal from "../components/FooterInternal";
 import { useVideoPlayer } from "../contexts/VideoPlayerContext";
 
@@ -42,7 +42,7 @@ export default function VideosPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <DashboardNav />
+      <Header variant="private" />
       
       <main className="flex-grow">
         <div className="max-w-4xl mx-auto px-4 pt-16 pb-24">

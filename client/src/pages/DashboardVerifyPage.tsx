@@ -2,7 +2,7 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Info } from 'lucide-react';
 import VerificationComponent from '../components/VerificationComponent';
-import DashboardNav from '../components/DashboardNav';
+import Header from '../components/Header';
 import FooterInternal from '../components/FooterInternal';
 
 function DashboardVerifyPage() {
@@ -14,7 +14,7 @@ function DashboardVerifyPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-cyan-50">
-      <DashboardNav onLogout={handleLogout} />
+      <Header variant="private" onLogout={handleLogout} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}

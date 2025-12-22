@@ -1,6 +1,6 @@
 import React from "react";
 import { CheckCircle } from 'lucide-react';
-import DashboardNav from "../components/DashboardNav";
+import Header from "../components/Header";
 import FooterInternal from "../components/FooterInternal";
 
 export default function ServiceStatusPage() {
@@ -14,7 +14,7 @@ export default function ServiceStatusPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <DashboardNav />
+      <Header variant="private" />
       
       <main className="flex-grow">
         <div className="max-w-4xl mx-auto px-4 pt-16 pb-24">

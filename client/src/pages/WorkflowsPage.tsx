@@ -2,12 +2,12 @@
 // WorkflowsPage - NEW Dashboard for Workflows
 // ============================================
 // Replaces DashboardPage for new schema
-// Reuses DashboardNav and FooterInternal
+// Reuses Header and FooterInternal
 // ============================================
 
 import { useState, useEffect, useMemo } from 'react'
 import { getSupabase } from '@/lib/supabaseClient'
-import DashboardNav from '../components/DashboardNav'
+import Header from '../components/Header'
 import FooterInternal from '../components/FooterInternal'
 import WorkflowList from '@/components/workflows/WorkflowList'
 import CreateWorkflowWizard from '@/components/workflows/CreateWorkflowWizard'
@@ -143,7 +143,7 @@ export default function WorkflowsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
-      <DashboardNav />
+      <Header variant="private" />
 
       <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">

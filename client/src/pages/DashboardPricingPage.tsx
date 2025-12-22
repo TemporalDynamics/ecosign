@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, X, ChevronUp, ChevronDown } from 'lucide-react';
-import DashboardNav from '../components/DashboardNav';
+import Header from '../components/Header';
 import FooterInternal from '../components/FooterInternal';
 import InhackeableTooltip from '../components/InhackeableTooltip';
 
@@ -161,7 +161,7 @@ function DashboardPricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <DashboardNav />
+      <Header variant="private" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 pt-32">
         <header className="text-center mb-16">

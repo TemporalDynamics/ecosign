@@ -54,6 +54,7 @@ const InvitePage = lazy(() => import('./pages/InvitePage'))
 const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'))
 const WorkflowsPage = lazy(() => import('./pages/WorkflowsPage'))
 const WorkflowDetailPage = lazy(() => import('./pages/WorkflowDetailPage'))
+const SharedDocumentAccessPage = lazy(() => import('./pages/SharedDocumentAccessPage'))
 
 // Kill switch para dashboard legacy
 const DASHBOARD_ENABLED = false
@@ -88,6 +89,7 @@ function DashboardAppRoutes() {
             <Route path="/nda/:token" element={<NdaAccessPage />} />
             <Route path="/sign/:token" element={<SignWorkflowPage mode="dashboard" />} />
             <Route path="/invite/:token" element={<InvitePage />} />
+            <Route path="/shared/:shareId" element={<SharedDocumentAccessPage />} />
 
             {/* New specialized pages */}
             <Route path="/realtors" element={<RealtorsPage />} />

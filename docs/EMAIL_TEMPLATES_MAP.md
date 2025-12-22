@@ -3,6 +3,24 @@
 Version: v1.0
 Estado: activo
 
+## Regla oficial (perimetro)
+
+Todo email de producto debe:
+- Usar template en `supabase/functions/_shared/templates/`
+- Renderizarse via `supabase/functions/_shared/template-renderer.ts`
+- Inyectar `siteUrl` desde el renderer
+
+Cualquier excepcion se considera legacy o tactica.
+
+## Checklist tecnico minimo
+- Ninguna edge function nueva manda HTML inline "oficial".
+- `supabase/functions/_shared/template-renderer.ts` es el unico renderer permitido para emails de producto.
+- `siteUrl` siempre se inyecta desde el renderer (sin hardcode).
+- Las plantillas viven dentro del bundle en `supabase/functions/_shared/templates/`.
+
+## Estado del sistema
+Este sistema se considera cerrado (v1). Cualquier nuevo email de producto debe registrarse en `decision_log2.0.md` antes de implementarse.
+
 ## Templates en archivos (sistema oficial)
 
 Para Edge Functions, las plantillas se duplican en:

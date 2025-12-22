@@ -28,7 +28,7 @@ Actualiza delivery_status: 'sent' o 'failed'
 
 ## 📁 Plantillas Disponibles
 
-### Ubicación: `client/email-templates/`
+### Ubicación: `supabase/functions/_shared/templates/`
 
 | Plantilla | Uso | Variables |
 |-----------|-----|-----------|
@@ -41,7 +41,7 @@ Actualiza delivery_status: 'sent' o 'failed'
 | **owner-acceso-vencido.html** | Link vencido | `{{ownerName}}`, `{{signerEmail}}`, `{{documentName}}` |
 | **owner-link-REENVIO.html** | Reenvío para owner | `{{ownerName}}`, `{{newLink}}` |
 
-### Ubicación alternativa: `emails/templates/`
+### Ubicación alternativa: `emails/templates/` (legacy)
 
 | Plantilla | Uso | Variables |
 |-----------|-----|-----------|
@@ -71,14 +71,17 @@ Para que funcionen en Edge Functions, las plantillas deben existir en:
 
 `siteUrl` se inyecta siempre como parte del contrato base.
 
+Nota:
+Aunque las plantillas puedan existir en `client/email-templates/`, la fuente efectiva en runtime para Edge Functions es siempre `supabase/functions/_shared/templates/`.
+
 ### Paso 1: Cargar la Plantilla
 
 ```typescript
 // Ejemplo en una Edge Function
 import { readFileSync } from 'fs'; // En Deno usa Deno.readTextFile
 
-// Opción A: Desde client/email-templates/
-const templatePath = './client/email-templates/firmante-invitacion.html';
+// Opción A: Desde supabase/functions/_shared/templates/
+const templatePath = './supabase/functions/_shared/templates/firmante-invitacion.html';
 const template = await Deno.readTextFile(templatePath);
 
 // Opción B: Template inline (para Edge Functions)
@@ -161,6 +164,9 @@ for (const notification of pending) {
 ---
 
 ## 📝 Ejemplo Completo: Invitación a Firmar
+
+⚠️ Ejemplo legacy / didáctico.
+En el sistema oficial, este HTML debe vivir en una plantilla y renderizarse via `template-renderer.ts`.
 
 ```typescript
 // En start-signature-workflow/index.ts
@@ -442,9 +448,9 @@ supabase functions logs send-pending-emails
 
 Para cada tipo de notificación:
 
-- [ ] Crear plantilla HTML en `client/email-templates/`
+- [ ] Crear plantilla HTML en `supabase/functions/_shared/templates/`
 - [ ] Documentar variables necesarias
-- [ ] Implementar función `renderTemplate()` si no existe
+- [ ] Usar `template-renderer.ts` (no HTML inline oficial)
 - [ ] En la Edge Function que genera el evento:
   - [ ] Cargar plantilla
   - [ ] Renderizar con variables
@@ -465,7 +471,7 @@ Para cada tipo de notificación:
 
 ### Post-MVP (Mejoras)
 
-1. Crear función helper `renderTemplate()` compartida
+1. Agregar tipado fuerte para variables de templates
 2. Agregar soporte para Markdown → HTML
 3. Implementar unsubscribe links
 4. Agregar tracking de opens/clicks (Resend Webhooks)

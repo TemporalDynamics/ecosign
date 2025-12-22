@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getSupabase } from '@/lib/supabaseClient'
 import { formatHashForDisplay } from '@/utils/hashDocument'
-import DashboardNav from '@/components/DashboardNav'
+import Header from '@/components/Header'
 import FooterInternal from '@/components/FooterInternal'
 import { ArrowLeft, Clock, Download, FileText, RefreshCw, ShieldCheck, Users, XCircle } from 'lucide-react';
 
@@ -254,7 +254,7 @@ export default function WorkflowDetailPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      <DashboardNav />
+      <Header variant="private" />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8">
         <div className="flex items-center gap-3">
           <button

@@ -1,6 +1,6 @@
 import React from "react";
 import { BookOpen, ChevronRight } from 'lucide-react';
-import DashboardNav from "../components/DashboardNav";
+import Header from "../components/Header";
 import FooterInternal from "../components/FooterInternal";
 import { Link } from "react-router-dom";
 
@@ -16,7 +16,7 @@ export default function HelpCenterPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <DashboardNav />
+      <Header variant="private" />
       
       <main className="flex-grow">
         <div className="max-w-4xl mx-auto px-4 pt-16 pb-24">

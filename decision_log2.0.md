@@ -398,3 +398,57 @@ Completar la implementación E2E desde arquitectura hasta UI user-facing, con co
 
 ### 💬 Nota del dev
 "Esta iteración cierra el gap entre arquitectura y percepción. Antes teníamos la crypto correcta pero no era visible. Ahora el usuario VE el shield, VE el OTP flow, y entiende que su contenido está protegido sin necesidad de leer un whitepaper. El copy evita 'solo' (que minimiza el laburo interno), evita 'encriptado' (que es jerga), y evita 'evidencia' en upload (que es concepto futuro). La decisión de shield monocromático no es estética: bicolor transmite 'estado intermedio' / 'no completo', y eso mata confianza en un claim de seguridad. Copy final: chill by design, matemáticamente cierto, auditable."
+
+---
+
+## Iteración 2024-12-22 — Logo oficial y sistema de brand assets
+
+### 🎯 Objetivo
+Definir el logo definitivo de EcoSign y cerrar el diseño para siempre, con assets técnicos y reglas claras de uso.
+
+### 🧠 Decisiones tomadas
+- **Opción C como ganadora**: E cursiva integrada tipográficamente como primera letra de "EcoSign", sin punto, solo azul (#0E4B8B).
+- **Razón conceptual**: Para un protocolo de infraestructura, el logo debe sentirse como "lenguaje", no como "marca de consumo". La E es fundacional, no ornamental.
+- **Sistema dual**: Logo vivo (componente React) para web/app, logo imagen (PNG) para emails/PDFs/certificados. Nunca mezclar.
+- **Una sola versión oficial**: No variantes creativas, no rediseños. Este tema queda cerrado permanentemente.
+
+### 🛠️ Cambios realizados
+- Creado componente `Logo.tsx` con 3 variantes (A, B, C) para exploración inicial.
+- Implementada Opción C en el header con altura óptima de 32px.
+- Generados derivados técnicos:
+  - PNG 1x, 2x, 3x para pantallas retina
+  - Versión optimizada para emails
+  - Favicons en múltiples resoluciones (512, 192, 180, 32, 16)
+- Documentado todo en `BRAND.md` con reglas de uso, specs técnicas y filosofía de diseño.
+- Assets organizados en `/client/public/assets/images/brand/{logo,favicon}/`
+
+### 🚫 Qué NO se hizo (a propósito)
+- **No se creó SVG**: La imagen PNG de alta resolución (@3x) es suficiente para todos los casos de uso.
+- **No se crearon variantes de color**: Solo azul #0E4B8B. No versión negra, blanca o "especial para X".
+- **No se dejó el punto en la E**: En la Opción C (logo final), el punto se eliminó para evitar ruido visual y conflicto con la integración tipográfica.
+- **No se implementó la Opción A ni B como oficiales**: Quedaron en el componente para referencia histórica, pero Opción C es la única oficial.
+
+### ⚠️ Consideraciones / deuda futura
+- **Deprecar logo antiguo**: El archivo `/assets/images/logo.png` (logo original) debe marcarse como obsoleto o eliminarse en futuras limpiezas.
+- **SVG futuro (opcional)**: Si en algún momento se necesita escalabilidad infinita, considerar recrear el logo como SVG vectorial, pero no es prioridad.
+- **Actualizar favicon global**: Los nuevos favicons generados deben reemplazar los actuales en `index.html` y manifest.
+
+### 📍 Estado final
+- ✅ Logo oficial implementado en header (32px, perfecto)
+- ✅ 9 assets técnicos generados (logos + favicons)
+- ✅ Documentación completa en BRAND.md
+- ✅ Regla clara: logo vivo vs logo imagen
+- ✅ Tema cerrado para siempre
+
+**Logo actual en producción:**
+- Archivo: `/client/public/assets/images/brand/logo/ecosign-logo.png`
+- Componente: `<Logo to="/" variant="option-c" />`
+- Altura en header: 32px
+
+**Assets disponibles:**
+- Logo completo: 1x, 2x, 3x, email
+- Favicons: 512, 192, 180, 32, 16
+
+### 💬 Nota del dev
+"El proceso fue iterativo pero eficiente: exploramos 3 opciones, ajustamos tamaño y alineación con precisión quirúrgica (translate-y, items-baseline, mb ajustes finos), y cerramos con assets técnicos + documentación. La Opción C ganó porque comunica 'sistema' en vez de 'producto'. No parece branding, parece lenguaje. Filosofía: fundación > decoración. El logo no grita, pero tampoco desaparece. La regla dual (vivo vs imagen) evita futuros conflictos de implementación. BRAND.md es el contrato: si alguien pregunta por el logo, la respuesta está ahí. Este tema no se vuelve a tocar."
+

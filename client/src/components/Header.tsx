@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import Logo from './Logo';
 
 interface HeaderProps {
   variant: 'public' | 'private';
@@ -136,10 +137,7 @@ const Header = ({ variant, onLogout = () => {}, openLegalCenter = () => console.
     <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <Link to={variant === 'public' ? '/' : '/inicio'} className="flex items-center space-x-3">
-            <img src="/assets/images/logo.png" alt="EcoSign Logo" className="h-8 w-auto" />
-            <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-          </Link>
+          <Logo to={variant === 'public' ? '/' : '/inicio'} variant="option-c" />
           <nav className="hidden md:flex items-center space-x-8 translate-y-[2px]">
             {variant === 'public' ? <PublicNavDesktop /> : <PrivateNavDesktop onLogout={onLogout} openLegalCenter={openLegalCenter} />}
           </nav>

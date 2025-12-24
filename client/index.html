@@ -7,7 +7,6 @@
     <!-- Disable SES lockdown if present (causes issues with crypto libraries) -->
     <script>
       if (typeof globalThis.harden !== 'undefined') {
-        console.warn('SES detected - disabling lockdown for crypto compatibility');
         globalThis.harden = (x) => x;
         globalThis.lockdown = () => {};
       }
@@ -88,13 +87,13 @@
     <!-- Security: Content-Security-Policy -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com;
+      script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com;
       worker-src 'self' blob:;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: blob: https://images.unsplash.com;
       media-src 'self' https://uiyojopjbhooxrmamaiw.supabase.co blob:;
-      connect-src 'self' https://uiyojopjbhooxrmamaiw.supabase.co wss://uiyojopjbhooxrmamaiw.supabase.co data: blob:;
+      connect-src 'self' https://uiyojopjbhooxrmamaiw.supabase.co wss://uiyojopjbhooxrmamaiw.supabase.co https://va.vercel-scripts.com https://*.ingest.us.sentry.io data: blob:;
       frame-src 'self' blob: https://uiyojopjbhooxrmamaiw.supabase.co;
       object-src 'self' blob:;
       base-uri 'self';

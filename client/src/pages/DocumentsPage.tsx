@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
-import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, MoreVertical, Search, Share2, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
 import FooterInternal from "../components/FooterInternal";
@@ -59,14 +59,14 @@ const PROBATIVE_STATES = {
   },
   active: {
     label: "Protección\ncertificada",
-    color: "text-blue-700",
-    bg: "bg-blue-100",
+    color: "text-emerald-700",
+    bg: "bg-emerald-100",
     tooltip: "Sello de tiempo legal (TSA) y huella digital única confirmados."
   },
   reinforced: {
     label: "Protección\nreforzada",
-    color: "text-green-700",
-    bg: "bg-green-100",
+    color: "text-blue-700",
+    bg: "bg-blue-100",
     tooltip: "Registro digital inmutable en red pública independiente."
   },
   total: {
@@ -584,27 +584,35 @@ function DocumentsPage() {
                   return (
                     <div key={doc.id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
                       <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-gray-900">
-                              {doc.document_name.replace(/\.pdf$/i, ".eco")}
-                            </span>
-                            <ProtectedBadge variant="default" compact showText={false} />
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {/* Escudo mobile alineado con texto */}
+                          <div className="relative group flex-shrink-0">
+                            <Shield className="h-5 w-5 text-gray-700" />
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-10 w-64 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg">
+                                Todos tus documentos son privados. Ni EcoSign ni el servidor de la nube pueden verlos.
+                              </div>
+                            </div>
                           </div>
-                          <div className="mt-2 flex items-center gap-2">
-                            <span
-                              className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${config.bg} ${config.color} whitespace-pre-line text-center`}
-                            >
-                              {config.label}
+                          <div className="flex-1 min-w-0">
+                            {/* Nombre sin extensión ni badge */}
+                            <span className="text-sm font-semibold text-gray-900 truncate block">
+                              {doc.document_name.replace(/\.(pdf|eco|ecox)$/i, '')}
                             </span>
-                            <span className="text-xs text-gray-500">
-                              {formatDate(doc.created_at)}
-                            </span>
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                              {/* Estado probatorio con color */}
+                              <span className={`text-xs font-semibold ${config.color}`}>
+                                {config.label}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatDate(doc.created_at)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <button
                           onClick={() => setOpenMenuId(menuOpen ? null : doc.id)}
-                          className="text-xs font-semibold text-gray-700 border border-gray-200 rounded-md px-2 py-1"
+                          className="text-xs font-semibold text-gray-700 border border-gray-200 rounded-md px-2 py-1 flex-shrink-0"
                         >
                           {menuOpen ? "Cerrar" : "Más"}
                         </button>
@@ -704,21 +712,26 @@ function DocumentsPage() {
                     return (
                       <tr key={doc.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-start">
-                            <FileText className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-gray-900">
-                                  {doc.document_name.replace(/\.pdf$/i, '.eco')}
-                                </span>
-                                <ProtectedBadge variant="default" compact showText={false} />
+                          <div className="flex items-center gap-3">
+                            {/* Escudo alineado con texto */}
+                            <div className="relative group flex-shrink-0">
+                              <Shield className="h-5 w-5 text-gray-700" />
+                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-10 w-64 pointer-events-none">
+                                <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg">
+                                  Todos tus documentos son privados. Ni EcoSign ni el servidor de la nube pueden verlos.
+                                </div>
                               </div>
                             </div>
+                            {/* Nombre sin extensión ni badge */}
+                            <span className="text-sm font-medium text-gray-900">
+                              {doc.document_name.replace(/\.(pdf|eco|ecox)$/i, '')}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
+                          {/* Estado probatorio con color */}
                           <span
-                            className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${config.bg} ${config.color} whitespace-pre-line text-center cursor-help`}
+                            className={`text-xs font-semibold ${config.color} whitespace-pre-line cursor-help`}
                             title={config.tooltip}
                           >
                             {config.label}

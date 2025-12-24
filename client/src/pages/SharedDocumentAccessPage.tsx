@@ -3,13 +3,63 @@
  * 
  * Página pública para acceder a documentos compartidos con OTP.
  * Ruta: /shared/:shareId
+ * 
+ * Flujo:
+ * 1. Si tiene NDA → Mostrar NDAAcceptanceScreen
+ * 2. Usuario acepta NDA → Mostrar OTPAccessModal
+ * 3. Usuario ingresa código correcto → Descarga documento
  */
 
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { OTPAccessModal } from '../components/OTPAccessModal';
+import { NDAAcceptanceScreen } from '../components/NDAAcceptanceScreen';
+import { getSupabase } from '../lib/supabaseClient';
 
-export function SharedDocumentAccessPage() {
+export default function SharedDocumentAccessPage() {
   const { shareId } = useParams<{ shareId: string }>();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Share data
+  const [ndaEnabled, setNdaEnabled] = useState(false);
+  const [ndaText, setNdaText] = useState('');
+  const [documentName, setDocumentName] = useState('Documento');
+  
+  // Flow state
+  const [ndaAccepted, setNdaAccepted] = useState(false);
+
+  useEffect(() => {
+    if (!shareId) return;
+
+    const fetchShareData = async () => {
+      try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+          .from('document_shares')
+          .select('nda_enabled, nda_text, user_documents!inner(document_name)')
+          .eq('id', shareId)
+          .eq('status', 'pending')
+          .single();
+
+        if (error || !data) {
+          setError('Enlace inválido o expirado');
+          return;
+        }
+
+        setNdaEnabled(data.nda_enabled || false);
+        setNdaText(data.nda_text || '');
+        setDocumentName(data.user_documents?.document_name || 'Documento');
+      } catch (err) {
+        console.error('Error fetching share:', err);
+        setError('Error al cargar el documento compartido');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchShareData();
+  }, [shareId]);
 
   if (!shareId) {
     return (
@@ -26,12 +76,50 @@ export function SharedDocumentAccessPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Error
+          </h1>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Flujo con NDA
+  if (ndaEnabled && !ndaAccepted) {
+    return (
+      <NDAAcceptanceScreen
+        ndaText={ndaText}
+        documentName={documentName}
+        onAccept={() => setNdaAccepted(true)}
+        onReject={() => window.location.href = '/'}
+      />
+    );
+  }
+
+  // Flujo normal (OTP)
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <OTPAccessModal
         isOpen={true}
         onClose={() => window.location.href = '/'}
         shareId={shareId}
+        documentName={documentName}
       />
     </div>
   );

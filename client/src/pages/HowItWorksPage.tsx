@@ -75,7 +75,7 @@ Si querés profundizar en los detalles del proceso de huella digital, registro i
 Algunas partes del proyecto serán abiertas para la comunidad de desarrolladores a medida que la plataforma evolucione.
 
 Para desarrolladores y usuarios técnicos:
-https://github.com/TemporalDynamics/verifysign/blob/main/COMO%20LO%20HACEMOS
+https://github.com/TemporalDynamics/ecosign/blob/main/COMO%20LO%20HACEMOS
 
 Firma Legal - Certificación digital con privacidad total
 ecosign.app`;
@@ -301,7 +301,7 @@ function HowItWorksPage() {
                 Para desarrolladores y usuarios técnicos que deseen verificar nuestros protocolos:
               </p>
               <a
-                href="https://github.com/TemporalDynamics/verifysign/blob/main/COMO%20LO%20HACEMOS"
+                href="https://github.com/TemporalDynamics/ecosign/blob/main/COMO%20LO%20HACEMOS"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-gray-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-200 transition font-medium text-base"

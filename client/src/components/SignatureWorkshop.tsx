@@ -68,8 +68,8 @@ const SignatureWorkshop: React.FC<SignatureWorkshopProps> = ({
 
   useEffect(() => {
     // Cargar firma guardada si está disponible
-    const storedSignature = localStorage.getItem('verifysign_signature');
-    const signatureExpiry = localStorage.getItem('verifysign_signature_expiry');
+    const storedSignature = localStorage.getItem('ecosign_signature');
+    const signatureExpiry = localStorage.getItem('ecosign_signature_expiry');
 
     // Verificar si la firma ha expirado (por ejemplo, después de 30 días)
     if (storedSignature && signatureExpiry) {
@@ -81,8 +81,8 @@ const SignatureWorkshop: React.FC<SignatureWorkshopProps> = ({
         setHasSavedSignature(true);
       } else {
         // Limpiar firma expirada
-        localStorage.removeItem('verifysign_signature');
-        localStorage.removeItem('verifysign_signature_expiry');
+        localStorage.removeItem('ecosign_signature');
+        localStorage.removeItem('ecosign_signature_expiry');
       }
     }
   }, []);
@@ -169,8 +169,8 @@ const SignatureWorkshop: React.FC<SignatureWorkshopProps> = ({
     const now = new Date().getTime();
     const expiryTime = now + (30 * 24 * 60 * 60 * 1000); // 30 días en milisegundos
 
-    localStorage.setItem('verifysign_signature', dataUrl);
-    localStorage.setItem('verifysign_signature_expiry', expiryTime.toString());
+    localStorage.setItem('ecosign_signature', dataUrl);
+    localStorage.setItem('ecosign_signature_expiry', expiryTime.toString());
     setSignatureImage(dataUrl);
     setHasSavedSignature(true);
   };
@@ -187,8 +187,8 @@ const SignatureWorkshop: React.FC<SignatureWorkshopProps> = ({
     clearCanvas();
     setSignatureImage(null);
     setHasSavedSignature(false);
-    localStorage.removeItem('verifysign_signature');
-    localStorage.removeItem('verifysign_signature_expiry');
+    localStorage.removeItem('ecosign_signature');
+    localStorage.removeItem('ecosign_signature_expiry');
   };
 
   const handleSignaturePointerDown = (event: MouseEvent | TouchEvent, resize = false) => {

@@ -4,6 +4,7 @@ import { getSupabase } from '../lib/supabaseClient';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import { disableGuestMode } from '../utils/guestMode';
+import { initializeSessionCrypto } from '../lib/e2e/sessionCrypto';
 
 function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -43,6 +44,11 @@ function LoginPage() {
         if (error) throw error;
 
         console.log('✅ Login exitoso:', data.user.email);
+        
+        // Inicializar sesión crypto inmediatamente después del login
+        await initializeSessionCrypto(data.user.id);
+        console.log('✅ Sesión crypto inicializada para:', data.user.id);
+        
         disableGuestMode();
         setSuccess('¡Bienvenido de nuevo!');
 

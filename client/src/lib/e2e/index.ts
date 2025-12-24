@@ -34,6 +34,7 @@ export {
   isSessionInitialized,
   clearSessionCrypto,
   ensureUserWrapSalt,
+  ensureCryptoSession,
 } from './sessionCrypto';
 
 // Document encryption

@@ -110,7 +110,7 @@ serve(async (req) => {
       }, 400)
     }
 
-    const appUrl = Deno.env.get('APP_URL') || 'https://app.verifysign.pro'
+    const appUrl = Deno.env.get('APP_URL') || 'https://ecosign.app'
 
     if (action === 'reject') {
       // === RECHAZAR CAMBIOS ===

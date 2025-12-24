@@ -417,8 +417,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // ✅ Realtime subscription: Update protection_level badge when workers complete
   // Listens to user_documents table changes and updates certificateData
+  // (Ya no necesario porque no hay Step 2)
   useEffect(() => {
-    if (!certificateData?.documentId || step !== 2) return;
+    if (!certificateData?.documentId) return;
 
     const supabase = getSupabase();
     const documentId = certificateData.documentId;
@@ -607,16 +608,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     try {
       if (isGuestMode()) {
         showToast('Demo: certificado generado (no se guarda ni se descarga en modo invitado).', { type: 'success' });
-        const signedUrl = URL.createObjectURL(file);
-        setCertificateData({
-          fileName: file.name,
-          ecoFileName: file.name.replace(/\.pdf$/i, '.eco'),
-          downloadEnabled: false,
-          bitcoinPending: false,
-          signedPdfUrl: signedUrl,
-          signedPdfName: file.name.replace(/\.pdf$/i, '_demo.pdf')
-        });
-        setStep(2);
+
+        // Ejecutar animación y cerrar (modo demo)
+        playFinalizeAnimation();
+
+        setTimeout(() => {
+          resetAndClose();
+          if (onClose) onClose();
+        }, 100);
+
         setLoading(false);
         return;
       }
@@ -866,12 +866,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         overallStatus,
         downloadEnabled: true, // ✅ Siempre true - .eco disponible inmediatamente
         ecoBuffer: certResult?.ecoxBuffer,
+        ecoFileData: certResult?.ecoxBuffer, // ✅ Guardar buffer ECO para deferred download
         ecoFileName: certResult?.fileName ? certResult.fileName.replace(/\.[^/.]+$/, '.eco') : file.name.replace(/\.[^/.]+$/, '.eco'),
         signNowDocumentId: signNowResult?.signnow_document_id || null,
         signNowStatus: signNowResult?.status || null,
         signedAt: signNowResult ? new Date().toISOString() : null,
-        storePdf: false, // No guardar PDF en dashboard (será eliminado)
-        zeroKnowledgeOptOut: true // Zero-knowledge: no guardar contenido del PDF
+        storePdf: true, // ✅ Guardar PDF cifrado para permitir compartir
+        zeroKnowledgeOptOut: false // ✅ E2E encryption: guardar cifrado, no plaintext
       });
 
       if (savedDoc) {
@@ -965,7 +966,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         position: 'top-right'
       });
 
-      setStep(2); // Ir a paso 2: Guardar/Descargar
+      // Ejecutar animación y cerrar (ya no hay Step 2)
+      playFinalizeAnimation();
+
+      // Pequeño delay para que se vea la animación antes de cerrar
+      setTimeout(() => {
+        resetAndClose();
+        if (onClose) onClose();
+      }, 100);
     } catch (error) {
       console.error('Error al certificar:', error);
       const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Hubo un problema desconocido al certificar tu documento. Por favor intentá de nuevo.');
@@ -1023,12 +1031,22 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   const playFinalizeAnimation = () => {
     try {
+      console.log('🎬 Iniciando animación de documento volando...');
       const buttonEl = finalizeButtonRef.current;
       const targetEl =
         document.querySelector<HTMLAnchorElement>('a[href="/documentos"]') ||
         document.querySelector<HTMLAnchorElement>('a[href="/dashboard/documents"]');
 
-      if (!buttonEl || !targetEl) return;
+      console.log('🎯 Elementos de animación:', {
+        buttonEl: !!buttonEl,
+        targetEl: !!targetEl,
+        targetHref: targetEl?.getAttribute('href')
+      });
+
+      if (!buttonEl || !targetEl) {
+        console.warn('⚠️ No se puede ejecutar animación: falta buttonEl o targetEl');
+        return;
+      }
 
       const startRect = buttonEl.getBoundingClientRect();
       const targetRect = targetEl.getBoundingClientRect();
@@ -1057,6 +1075,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       ghost.style.pointerEvents = 'none';
       document.body.appendChild(ghost);
 
+      console.log('✨ Elemento ghost creado, iniciando animación...');
+
       const duration = 850;
       const startTime = performance.now();
 
@@ -1077,6 +1097,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
+          console.log('🎉 Animación completada, removiendo ghost');
           ghost.remove();
         }
       };
@@ -1345,12 +1366,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // ===== GRID LAYOUT =====
   
-  const leftColWidth = (ndaEnabled && step !== 2) ? '320px' : '0px';
-  const rightColWidth = (workflowEnabled && step !== 2) ? '320px' : '0px';
+  const leftColWidth = ndaEnabled ? '320px' : '0px';
+  const rightColWidth = workflowEnabled ? '320px' : '0px';
   const centerColWidth = 'minmax(640px, 1fr)';
   
-  // En step 2, usar grid de 1 columna para centrar mejor el contenido
-  const gridTemplateColumns = (step === 2 || isMobile)
+  // En mobile, usar grid de 1 columna
+  const gridTemplateColumns = isMobile
     ? '1fr'
     : `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
   const isPreviewFullscreen = isMobile && previewMode === 'fullscreen';
@@ -1385,7 +1406,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           style={{ gridTemplateColumns, transition: 'grid-template-columns 300ms ease-in-out' }}
         >
           {/* Left Panel (NDA) */}
-          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled && step !== 2 ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
+          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
             <div className="h-full flex flex-col">
               {/* Header colapsable del panel */}
               <div className="px-4 py-3 border-b border-gray-200 bg-white">
@@ -1416,7 +1437,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           </div>
         
           {/* Center Panel (Main Content) */}
-          <div className={`center-panel relative z-20 ${step === 2 ? 'col-span-full flex items-start justify-center w-full' : isMobile ? 'col-span-full px-4 py-3' : 'col-start-2 col-end-3 px-6 py-3'}`}>
+          <div className={`center-panel relative z-20 ${isMobile ? 'col-span-full px-4 py-3' : 'col-start-2 col-end-3 px-6 py-3'}`}>
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
               <div className={`space-y-3 ${isMobile ? 'pb-24' : ''}`}>
@@ -2050,6 +2071,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               {/* Botón principal */}
               <div className="hidden md:block">
                 <button
+                  ref={finalizeButtonRef}
                   onClick={handleCertify}
                   disabled={!file || loading || !isCTAEnabled()}
                   className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
@@ -2084,145 +2106,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
           )}
 
-          {/* PASO 2: GUARDAR/DESCARGAR */}
-          {step === 2 && certificateData && (
-            <div className="py-8 px-6">
-              <div className="max-w-5xl mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-8 space-y-6">
-                <div className="flex items-center gap-3">
-                  <Shield className="w-10 h-10 text-blue-700" />
-                  <div className="flex-1">
-                    <h3 className="text-2xl font-semibold text-gray-900">Tu documento quedó protegido</h3>
-                    <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
-                      <p className="text-sm font-semibold text-blue-900 mb-2">
-                        Tu documento ya está protegido
-                      </p>
-                      <p className="text-sm text-blue-800 leading-relaxed">
-                        El proceso se completó con éxito y el documento tiene plena validez jurídica.
-                        EcoSign, de forma automática, aplica protecciones adicionales independientes
-                        para reforzar esta protección y llevarla al nivel más alto posible,
-                        sin que tengas que hacer nada más.
-                      </p>
-                      <p className="text-xs text-blue-700 mt-2">
-                        No se requiere ninguna acción adicional de tu parte.
-                      </p>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-4">
-                      Elegí cómo querés recibirlo. Podés guardarlo en EcoSign o descargarlo ahora mismo.
-                    </p>
-                  </div>
-                  {/* ✅ Protection Level Badge */}
-                  {(() => {
-                    const level = (certificateData?.protectionLevel || 'ACTIVE') as ProtectionLevel;
-                    const config: Record<ProtectionLevel, { label: string; bgColor: string; textColor: string; borderColor: string; icon: string }> = {
-                      ACTIVE: {
-                        label: 'Protección Activa',
-                        bgColor: 'bg-gray-100',
-                        textColor: 'text-gray-700',
-                        borderColor: 'border-gray-300',
-                        icon: '🔒'
-                      },
-                      REINFORCED: {
-                        label: 'Protección Reforzada',
-                        bgColor: 'bg-green-50',
-                        textColor: 'text-green-700',
-                        borderColor: 'border-green-300',
-                        icon: '🛡️'
-                      },
-                      TOTAL: {
-                        label: 'Protección Total',
-                        bgColor: 'bg-blue-50',
-                        textColor: 'text-blue-700',
-                        borderColor: 'border-blue-300',
-                        icon: '🔐'
-                      }
-                    };
-                    const { label, bgColor, textColor, borderColor, icon } = config[level] || config.ACTIVE;
-                    return (
-                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${bgColor} ${borderColor}`}>
-                        <span className="text-base">{icon}</span>
-                        <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={savePdfChecked}
-                    onClick={() => setSavePdfChecked(!savePdfChecked)}
-                    className={`w-full text-left rounded-xl p-6 transition border-2 ${
-                      savePdfChecked
-                        ? 'border-gray-900 bg-gray-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                        savePdfChecked ? 'border-gray-900 bg-gray-900' : 'border-gray-300'
-                      }`}>
-                        {savePdfChecked && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
-                        )}
-                      </div>
-                      <div className="space-y-1 flex-1">
-                        <p className="text-base font-semibold text-gray-900">Guardar en EcoSign (recomendado)</p>
-                        <p className="text-sm text-gray-600">
-                          Lo vas a tener siempre disponible en tu espacio privado. Nosotros no vemos tu documento.
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={downloadPdfChecked}
-                    onClick={() => setDownloadPdfChecked(!downloadPdfChecked)}
-                    className={`w-full text-left rounded-xl p-6 transition border-2 ${
-                      downloadPdfChecked
-                        ? 'border-gray-900 bg-gray-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                        downloadPdfChecked ? 'border-gray-900 bg-gray-900' : 'border-gray-300'
-                      }`}>
-                        {downloadPdfChecked && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
-                        )}
-                      </div>
-                      <div className="space-y-1 flex-1">
-                        <p className="text-base font-semibold text-gray-900">Descargar ahora</p>
-                        <p className="text-sm text-gray-600">
-                          Guardalo en tu equipo. Evitá modificarlo: cualquier cambio altera el certificado.
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <p className="text-xs text-gray-500 text-center">
-                    Tip: podés elegir ambas opciones para tener copia local y respaldo seguro.
-                  </p>
-                  <button
-                    ref={finalizeButtonRef}
-                    onClick={handleFinalizeClick}
-                    className="w-full px-6 py-3 rounded-lg transition-colors font-semibold bg-gray-900 text-white hover:bg-gray-800"
-                  >
-                    Finalizar proceso
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* PASO 2: Eliminado - ya no es necesario porque los documentos se encriptan */}
           </div>
 
           {/* Right Panel (Workflow) */}
-          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${workflowEnabled && step !== 2 ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:translate-x-3 md:pointer-events-none md:hidden'}`}>
+          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${workflowEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:translate-x-3 md:pointer-events-none md:hidden'}`}>
           <div className="h-full flex flex-col">
             {/* Header colapsable del panel */}
             <div className="px-4 py-3 border-b border-gray-200 bg-white">

@@ -52,8 +52,8 @@ export function OTPAccessModal({
 
       const result = await accessSharedDocument({
         shareId,
-        otp: otp.replace(/\s+/g, '').toUpperCase(),
-        recipientEmail,
+        otp: otp.replace(/[-\s]/g, '').toUpperCase(), // Remove dashes and spaces, uppercase
+        recipientEmail: `access-${Date.now()}@ecosign.local`, // Placeholder
       });
 
       clearInterval(progressInterval);
@@ -69,15 +69,14 @@ export function OTPAccessModal({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      // Success - close modal after brief delay
+      // Success - close modal immediately after download starts
       setTimeout(() => {
         onClose();
-      }, 1000);
+      }, 300); // Shorter delay for better UX
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al acceder al documento');
       setProgress(0);
-    } finally {
-      setLoading(false);
+      setLoading(false); // Only set loading to false on error
     }
   };
 
@@ -85,13 +84,11 @@ export function OTPAccessModal({
     // Remove all non-alphanumeric characters
     const clean = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     
-    // Format as XXXX-XXXX-XXXX
-    const parts = [];
-    for (let i = 0; i < clean.length; i += 4) {
-      parts.push(clean.slice(i, i + 4));
+    // Format as XXXX-XXXX
+    if (clean.length <= 4) {
+      return clean;
     }
-    
-    return parts.join('-').slice(0, 14); // Max 12 chars + 2 dashes
+    return `${clean.slice(0, 4)}-${clean.slice(4, 8)}`;
   };
 
   const handleOTPChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,32 +158,18 @@ export function OTPAccessModal({
               type="text"
               value={otp}
               onChange={handleOTPChange}
-              placeholder="X7K9-M2P4-W8N6"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent font-mono text-center text-lg tracking-wider"
-              maxLength={14}
+              placeholder="5MSC-Q29L"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent font-mono text-center text-lg tracking-wider uppercase"
+              maxLength={9} // 8 chars + 1 dash
               required
-            />
-          </div>
-
-          {/* Email input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tu Email
-            </label>
-            <input
-              type="email"
-              value={recipientEmail}
-              onChange={(e) => setRecipientEmail(e.target.value)}
-              placeholder="destinatario@ejemplo.com"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              required
+              autoFocus
             />
           </div>
 
           {/* Info box */}
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-xs text-gray-600">
-              ℹ️ El código de acceso te llegó por email. Ingresalo junto con tu email para acceder.
+              ℹ️ Ingresá el código de 8 caracteres (números y letras) que recibiste.
             </p>
           </div>
 
@@ -208,7 +191,7 @@ export function OTPAccessModal({
           </button>
           <button
             onClick={handleAccess}
-            disabled={!otp || !recipientEmail || loading}
+            disabled={!otp || loading}
             className="flex-1 px-4 py-3 bg-gray-900 text-white rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Acceder

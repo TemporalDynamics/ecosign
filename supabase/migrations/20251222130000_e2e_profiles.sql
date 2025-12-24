@@ -19,11 +19,16 @@ IS 'User profile metadata for E2E encryption and preferences';
 COMMENT ON COLUMN public.profiles.wrap_salt
 IS 'Public salt for session unwrap key derivation (PBKDF2). Generated once per user, never changes.';
 
+-- Enable pgcrypto extension for gen_random_bytes
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Backfill existing users with wrap_salt
+-- Use md5(gen_random_uuid()::text) as fallback for random bytes
 INSERT INTO public.profiles (user_id, wrap_salt)
-SELECT id, encode(gen_random_bytes(16), 'hex')
+SELECT id, substring(md5(gen_random_uuid()::text || id::text) from 1 for 32)
 FROM auth.users
-WHERE id NOT IN (SELECT user_id FROM public.profiles);
+WHERE id NOT IN (SELECT user_id FROM public.profiles)
+ON CONFLICT (user_id) DO NOTHING;
 
 -- Add index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id

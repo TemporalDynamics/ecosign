@@ -882,3 +882,112 @@ Completar la transición de marca de "VerifySign" a "EcoSign" en todo el codebas
 
 ---
 
+
+## Iteración 2025-12-24 — Quick Wins UX: Analytics, cleanup y mensajes de error
+
+### 🎯 Objetivo
+Mejorar percepción de calidad del MVP sin tocar lógica de negocio. Implementar mejoras visuales y operacionales rápidas (25 minutos) con alto ROI antes del lanzamiento beta privado.
+
+### 🧠 Decisiones tomadas
+
+**1. Activar Vercel Analytics (ya instalado)**
+- Decisión: Inyectar `@vercel/analytics` en `main.jsx` con una línea
+- Razón: Package ya estaba en dependencies pero sin uso
+- Beneficio: Métricas reales de usuarios sin configuración adicional
+- No requiere env vars ni setup de backend
+
+**2. Humanizar mensajes de error genéricos**
+- Antes: `"Error al copiar"` (vago, no accionable)
+- Después: `"No pudimos copiar al portapapeles. Intentá seleccionar y copiar manualmente."`
+- Antes: `"Error al revocar acceso"` (técnico, sin contexto)
+- Después: `"No pudimos revocar el acceso. Verificá tu conexión e intentá de nuevo."`
+- Principio: Todo error debe tener (1) qué falló + (2) qué hacer
+
+**3. Limpieza de archivos legacy/timestamp**
+- Eliminados:
+  - `ShareLinkGenerator.tsx.legacy` (modal antiguo de compartir)
+  - `vite.config.js.timestamp-1766488868129-d8a5a0ea3a65d8.mjs` (build artifact)
+- Razón: Archivos legacy dan percepción de "código descuidado"
+- No afectan funcionalidad pero sí profesionalismo visual del repo
+
+**4. Favicon actualizado**
+- Agregado: `client/public/assets/favicon.ico`
+- Decisión: Favicon consistente con brand EcoSign
+- Impacto visual: Tab del browser muestra identidad
+
+### 🛠️ Cambios realizados
+
+**Código (3 archivos modificados):**
+- `client/src/main.jsx`: Inyectado Vercel Analytics con `inject()`
+- `client/src/components/ShareDocumentModal.tsx`: Humanizados 2 mensajes de error críticos
+- `client/index.html`: Favicon actualizado (cambio previo, incluido en commit)
+
+**Limpieza (2 archivos eliminados):**
+- `client/src/components/ShareLinkGenerator.tsx.legacy`
+- `client/vite.config.js.timestamp-1766488868129-d8a5a0ea3a65d8.mjs`
+
+**Assets (1 archivo agregado):**
+- `client/public/assets/favicon.ico`
+
+### 🚫 Qué NO se hizo (a propósito)
+
+**No se agregaron loading states globales:**
+- Razón: Ya existen loading states en acciones críticas
+- Principio: No duplicar esfuerzo en lo que ya funciona
+
+**No se modificó lógica de negocio:**
+- Razón: Quick wins son **solo UX/copy**, no tocan backend
+- Principio: Minimizar superficie de cambio = minimizar riesgo
+
+**No se limpiaron console.logs:**
+- Razón: Reservado para siguiente quick win (batch separado)
+- Principio: Commits pequeños y atómicos
+
+**No se agregó README en /client:**
+- Razón: Diferido a siguiente iteración
+- Principio: Este batch es solo "funcional + operacional"
+
+### ⚠️ Consideraciones / deuda futura
+
+**Vercel Analytics sin config avanzada:**
+- Solo tracking básico (page views, unique visitors)
+- No hay custom events ni funnels todavía
+- Suficiente para beta privada, mejorar después
+
+**Mensajes de error solo en ShareDocumentModal:**
+- Quedan ~50+ archivos con toast.error genéricos
+- Humanizar todos los errores es tarea de 1-2 días completos
+- Priorizamos modal de compartir (path crítico de MVP)
+
+**Limpieza superficial:**
+- Solo eliminamos 2 archivos legacy obvios
+- Limpieza profunda requiere más tiempo (no quick win)
+
+### 📍 Estado final
+
+**✅ Implementado en ~25 minutos:**
+1. Analytics: Vercel inyectado y funcionando
+2. Copy: 2 errores humanizados en modal crítico
+3. Cleanup: 2 archivos legacy eliminados
+4. Brand: Favicon actualizado
+
+**📊 Impacto estimado:**
+- UX: +2 puntos (errores humanizados)
+- Operations: +3 puntos (analytics funcionando)
+- Código: +1 punto (limpieza visible)
+- **Total: De 82 → 88/100 estimado** (quick wins completos darían +5-6 puntos)
+
+**Branch:**
+- `feature/quick-wins-ux-improvements`
+- Commit: `76d62a9`
+
+**Próximos quick wins disponibles:**
+1. Limpiar console.logs (20 min)
+2. Empty states en Dashboard (1 hora)
+3. Loading states adicionales (1 hora)
+4. README en /client (20 min)
+
+### 💬 Nota del dev
+"Quick wins son cambios quirúrgicos con máximo ROI. En 25 minutos reales mejoramos la percepción de calidad sin tocar lógica de negocio. Analytics se activó con inject() porque el package ya estaba. Los errores en ShareDocumentModal son críticos porque es el path de engagement. Limpiamos solo archivos visibles sin refactor profundo. Favicon es detalle pero tabs sin icono se ven amateur. Estrategia: cambios pequeños, impacto grande, riesgo cero. Próximo batch: console.logs y empty states."
+
+---

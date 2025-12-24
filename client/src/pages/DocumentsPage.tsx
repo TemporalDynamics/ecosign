@@ -585,15 +585,8 @@ function DocumentsPage() {
                     <div key={doc.id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          {/* Escudo mobile alineado con texto */}
-                          <div className="relative group flex-shrink-0">
-                            <Shield className="h-5 w-5 text-gray-700" />
-                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-10 w-64 pointer-events-none">
-                              <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg">
-                                Todos tus documentos son privados. Ni EcoSign ni el servidor de la nube pueden verlos.
-                              </div>
-                            </div>
-                          </div>
+                          {/* Escudo sin tooltip */}
+                          <Shield className="h-5 w-5 text-gray-700 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             {/* Nombre sin extensión ni badge */}
                             <span className="text-sm font-semibold text-gray-900 truncate block">
@@ -713,15 +706,8 @@ function DocumentsPage() {
                       <tr key={doc.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            {/* Escudo alineado con texto */}
-                            <div className="relative group flex-shrink-0">
-                              <Shield className="h-5 w-5 text-gray-700" />
-                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-10 w-64 pointer-events-none">
-                                <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg">
-                                  Todos tus documentos son privados. Ni EcoSign ni el servidor de la nube pueden verlos.
-                                </div>
-                              </div>
-                            </div>
+                            {/* Escudo sin tooltip */}
+                            <Shield className="h-5 w-5 text-gray-700 flex-shrink-0" />
                             {/* Nombre sin extensión ni badge */}
                             <span className="text-sm font-medium text-gray-900">
                               {doc.document_name.replace(/\.(pdf|eco|ecox)$/i, '')}

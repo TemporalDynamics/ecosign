@@ -25,6 +25,8 @@ export interface ShareDocumentOptions {
   recipientEmail: string;
   expiresInDays?: number;
   message?: string;
+  ndaEnabled?: boolean;
+  ndaText?: string;
 }
 
 export interface ShareDocumentResult {
@@ -48,6 +50,8 @@ export async function shareDocument(
     recipientEmail,
     expiresInDays = SHARE_CONFIG.DEFAULT_EXPIRATION_DAYS,
     message,
+    ndaEnabled = false,
+    ndaText,
   } = options;
 
   const supabase = getSupabase();
@@ -60,8 +64,8 @@ export async function shareDocument(
     // 1. Get document metadata
     console.log('📄 Fetching document...');
     const { data: doc, error: docError } = await supabase
-      .from('documents')
-      .select('id, filename, encrypted, wrapped_key, wrap_iv, owner_id')
+      .from('user_documents')
+      .select('id, document_name, encrypted, wrapped_key, wrap_iv, user_id')
       .eq('id', documentId)
       .single();
 
@@ -77,11 +81,11 @@ export async function shareDocument(
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user || doc.owner_id !== user.id) {
+    if (!user || doc.user_id !== user.id) {
       throw new Error('Access denied');
     }
 
-    console.log('✅ Document found:', doc.filename);
+    console.log('✅ Document found:', doc.document_name);
 
     // 2. Unwrap document key with owner's session key
     console.log('🔓 Unwrapping document key...');
@@ -125,6 +129,8 @@ export async function shareDocument(
       status: 'pending',
       expires_at: expiresAt.toISOString(),
       created_by: user.id,
+      nda_enabled: ndaEnabled,
+      nda_text: ndaEnabled ? ndaText : null,
     });
 
     if (shareError) {
@@ -144,7 +150,7 @@ export async function shareDocument(
           recipientEmail,
           otp,
           shareUrl,
-          documentName: doc.filename,
+          documentName: doc.document_name,
           senderName: user.email,
           message,
         },
@@ -190,17 +196,24 @@ export async function accessSharedDocument(
     console.log('🔍 Verifying OTP...');
     const otpHash = await hashOTP(otp);
 
-    const { data: share, error: shareError } = await supabase
+    // Build query - email validation is optional
+    let query = supabase
       .from('document_shares')
-      .select('*, documents!inner(filename, encrypted_path)')
+      .select('*, user_documents!inner(document_name, encrypted_path)')
       .eq('id', shareId)
-      .eq('recipient_email', recipientEmail)
       .eq('otp_hash', otpHash)
       .eq('status', 'pending')
-      .gt('expires_at', new Date().toISOString())
-      .single();
+      .gt('expires_at', new Date().toISOString());
+    
+    // Only validate email if it's not a placeholder
+    if (recipientEmail && !recipientEmail.includes('@ecosign.local')) {
+      query = query.eq('recipient_email', recipientEmail);
+    }
+    
+    const { data: share, error: shareError } = await query.single();
 
     if (shareError || !share) {
+      console.error('Share query error:', shareError);
       throw new Error('Invalid or expired OTP');
     }
 
@@ -222,7 +235,7 @@ export async function accessSharedDocument(
     console.log('📥 Downloading file...');
     const { data: encryptedBlob, error: downloadError } = await supabase.storage
       .from('user-documents')
-      .download(share.documents.encrypted_path);
+      .download(share.user_documents.encrypted_path);
 
     if (downloadError || !encryptedBlob) {
       throw new Error('Failed to download file');
@@ -245,7 +258,7 @@ export async function accessSharedDocument(
 
     return {
       blob: decryptedBlob,
-      filename: share.documents.filename,
+      filename: share.user_documents.document_name,
     };
   } catch (error) {
     console.error('❌ Access error:', error);
@@ -264,7 +277,7 @@ export async function listDocumentShares(documentId: string) {
 
   const { data, error } = await supabase
     .from('document_shares')
-    .select('id, recipient_email, status, expires_at, accessed_at, created_at')
+    .select('id, recipient_email, status, expires_at, accessed_at, created_at, nda_enabled, nda_text')
     .eq('document_id', documentId)
     .order('created_at', { ascending: false });
 

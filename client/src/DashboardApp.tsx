@@ -5,7 +5,7 @@
 // Includes all routes: landing, dashboard, marketing, etc.
 // ============================================
 
-import React, { lazy, Suspense } from 'react'
+import React, { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -63,9 +63,15 @@ function DashboardAppRoutes() {
   const { videoState, closeVideo, playNext, playPrevious } = useVideoPlayer()
   const location = useLocation()
 
-  React.useEffect(() => {
+  useEffect(() => {
     initGuestFromLocation(location.search)
   }, [location.search])
+
+  // ❌ REMOVED: beforeunload listener was clearing session prematurely
+  // Session crypto now persists across page navigations and refreshes
+  // It's only cleared on explicit logout (via useAuthWithE2E hook)
+  // This allows documents to be encrypted once and shared multiple times
+  // without regenerating sessionSecret (which would invalidate wrapped_keys)
 
   return (
     <>

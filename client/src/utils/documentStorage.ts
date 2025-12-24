@@ -4,6 +4,16 @@
  */
 
 import { getSupabase } from '../lib/supabaseClient';
+import {
+  generateDocumentKey,
+  encryptFile,
+  wrapDocumentKey,
+  getSessionUnwrapKey,
+  isSessionInitialized,
+  initializeSessionCrypto,
+  bytesToBase64,
+  bytesToHex
+} from '../lib/e2e';
 
 type SaveUserDocumentOptions = {
   signNowDocumentId?: string | null;
@@ -97,33 +107,53 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
     throw new Error('Usuario no autenticado');
   }
 
-  // Generate document hash
+  // Generate document hash (of original file, before encryption)
   const arrayBuffer = await pdfFile.arrayBuffer();
   const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const documentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-  // Upload PDF to Supabase Storage (optional for zero-knowledge)
+  // ======================================
+  // E2E ENCRYPTION
+  // ======================================
+  // Initialize session crypto if not already done
+  if (!isSessionInitialized()) {
+    await initializeSessionCrypto(user.id);
+  }
+
+  // Generate document key and encrypt the file
+  const documentKey = await generateDocumentKey();
+  const encryptedBlob = await encryptFile(pdfFile, documentKey);
+
+  // Wrap document key with session unwrap key
+  const sessionUnwrapKey = getSessionUnwrapKey();
+  const { wrappedKey, wrapIv } = await wrapDocumentKey(documentKey, sessionUnwrapKey);
+
+  // Upload ENCRYPTED PDF to Supabase Storage
   let uploadData: { path: string } | null = null;
   let uploadError = null;
   let storagePath = null;
+  let encryptedPath = null;
 
   if (storePdf) {
-    const fileName = `${user.id}/${Date.now()}-${pdfFile.name}`;
+    // Upload encrypted file
+    const encryptedFileName = `${user.id}/${Date.now()}-${pdfFile.name}.encrypted`;
     const uploadResult = await supabase.storage
       .from('user-documents')
-      .upload(fileName, pdfFile, {
-        contentType: pdfFile.type || 'application/pdf',
+      .upload(encryptedFileName, encryptedBlob, {
+        contentType: 'application/octet-stream',
         upsert: false
       });
     uploadData = uploadResult.data;
     uploadError = uploadResult.error;
 
     if (uploadError) {
-      console.error('Error uploading PDF:', uploadError);
-      throw new Error(`Error al subir el documento: ${uploadError.message}`);
+      console.error('Error uploading encrypted PDF:', uploadError);
+      throw new Error(`Error al subir el documento cifrado: ${uploadError.message}`);
     }
-    storagePath = uploadData?.path || null;
+    encryptedPath = uploadData?.path || null;
+    // Keep pdf_storage_path null (we don't store plaintext PDF)
+    storagePath = null;
   }
 
   // Upload ECO to Supabase Storage (always, regardless of PDF storage)
@@ -225,6 +255,11 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
       document_size: pdfFile.size,
       mime_type: pdfFile.type || 'application/pdf',
       pdf_storage_path: storagePath,
+      // E2E Encryption fields
+      encrypted: true,
+      encrypted_path: encryptedPath,
+      wrapped_key: wrappedKey, // Already base64 from wrapDocumentKey
+      wrap_iv: wrapIv, // Already hex from wrapDocumentKey
       eco_data: ecoData, // Store the complete ECO manifest
       status: initialStatus, // Signature workflow status
       overall_status: overallStatus, // Document lifecycle state
@@ -252,9 +287,9 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
     .single();
 
   if (docError) {
-    // If DB insert fails, try to clean up the uploaded file
-    if (storagePath) {
-      await supabase.storage.from('user-documents').remove([storagePath]);
+    // If DB insert fails, try to clean up the uploaded encrypted file
+    if (encryptedPath) {
+      await supabase.storage.from('user-documents').remove([encryptedPath]);
     }
     console.error('Error creating document record:', docError);
     throw new Error(`Error al guardar el registro: ${docError.message}`);

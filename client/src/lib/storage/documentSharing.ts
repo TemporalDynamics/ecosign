@@ -62,7 +62,6 @@ export async function shareDocument(
     }
 
     // 1. Get document metadata
-    console.log('📄 Fetching document...');
     const { data: doc, error: docError } = await supabase
       .from('user_documents')
       .select('id, document_name, encrypted, wrapped_key, wrap_iv, user_id')
@@ -85,10 +84,7 @@ export async function shareDocument(
       throw new Error('Access denied');
     }
 
-    console.log('✅ Document found:', doc.document_name);
-
     // 2. Unwrap document key with owner's session key
-    console.log('🔓 Unwrapping document key...');
     const sessionUnwrapKey = getSessionUnwrapKey();
     const documentKey = await unwrapDocumentKey(
       doc.wrapped_key,
@@ -99,14 +95,12 @@ export async function shareDocument(
     // 3. Generate OTP
     const otp = generateOTP();
     const otpHash = await hashOTP(otp);
-    console.log('🎫 OTP generated');
 
     // 4. Derive recipient key from OTP
     const recipientSalt = randomBytes(16);
     const recipientKey = await deriveKeyFromOTP(otp, recipientSalt);
 
     // 5. Re-wrap document key with recipient key
-    console.log('🔒 Wrapping key for recipient...');
     const { wrappedKey, wrapIv } = await wrapDocumentKey(
       documentKey,
       recipientKey
@@ -137,8 +131,6 @@ export async function shareDocument(
       throw new Error(`Failed to create share: ${shareError.message}`);
     }
 
-    console.log('✅ Share created');
-
     // 8. Generate share URL
     const appUrl = window.location.origin;
     const shareUrl = `${appUrl}/shared/${shareId}`;
@@ -155,7 +147,6 @@ export async function shareDocument(
           message,
         },
       });
-      console.log('✅ OTP email sent');
     } catch (emailError) {
       console.warn('⚠️ Failed to send email, but share created:', emailError);
       // Don't fail the whole operation if email fails
@@ -193,7 +184,6 @@ export async function accessSharedDocument(
 
   try {
     // 1. Verify OTP and get share
-    console.log('🔍 Verifying OTP...');
     const otpHash = await hashOTP(otp);
 
     // Build query - email validation is optional
@@ -217,10 +207,7 @@ export async function accessSharedDocument(
       throw new Error('Invalid or expired OTP');
     }
 
-    console.log('✅ OTP verified');
-
     // 2. Derive recipient key from OTP
-    console.log('🔓 Deriving decryption key...');
     const recipientSalt = hexToBytes(share.recipient_salt);
     const recipientKey = await deriveKeyFromOTP(otp, recipientSalt);
 
@@ -232,7 +219,6 @@ export async function accessSharedDocument(
     );
 
     // 4. Download encrypted file
-    console.log('📥 Downloading file...');
     const { data: encryptedBlob, error: downloadError } = await supabase.storage
       .from('user-documents')
       .download(share.user_documents.encrypted_path);
@@ -242,7 +228,6 @@ export async function accessSharedDocument(
     }
 
     // 5. Decrypt file
-    console.log('🔓 Decrypting...');
     const decryptedBlob = await decryptFile(encryptedBlob, documentKey);
 
     // 6. Mark as accessed (one-time access)
@@ -253,8 +238,6 @@ export async function accessSharedDocument(
         accessed_at: new Date().toISOString(),
       })
       .eq('id', shareId);
-
-    console.log('✅ Document accessed');
 
     return {
       blob: decryptedBlob,
@@ -304,6 +287,4 @@ export async function revokeShare(shareId: string): Promise<void> {
   if (error) {
     throw new Error(`Failed to revoke share: ${error.message}`);
   }
-
-  console.log('✅ Share revoked');
 }

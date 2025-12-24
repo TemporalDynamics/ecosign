@@ -107,7 +107,7 @@ export async function wrapDocumentKey(
 ): Promise<{ wrappedKey: string; wrapIv: string }> {
   // Generate IV for wrapping
   const wrapIv = randomBytes(CRYPTO_CONFIG.KEY_WRAPPING.ivLength);
-  
+
   // Wrap the document key
   const wrappedKeyBuffer = await crypto.subtle.wrapKey(
     'raw',
@@ -118,9 +118,12 @@ export async function wrapDocumentKey(
       iv: wrapIv,
     }
   );
+
+  const wrappedKeyBytes = new Uint8Array(wrappedKeyBuffer);
+  const wrappedKeyBase64 = bytesToBase64(wrappedKeyBytes);
   
   return {
-    wrappedKey: bytesToBase64(new Uint8Array(wrappedKeyBuffer)),
+    wrappedKey: wrappedKeyBase64,
     wrapIv: Array.from(wrapIv)
       .map(b => b.toString(16).padStart(2, '0'))
       .join(''),

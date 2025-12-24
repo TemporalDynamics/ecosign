@@ -101,37 +101,15 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
   // Validaciones
   const hasPdf = !!document.pdf_storage_path;
   const hasEco = !!(document.eco_storage_path || document.eco_file_data);
-  
-  // Debug logs
-  console.log('🔍 ShareDocumentModal - Document:', {
-    id: document.id,
-    name: document.document_name,
-    encrypted: document.encrypted,
-    pdf_storage_path: document.pdf_storage_path,
-    eco_storage_path: document.eco_storage_path,
-    has_eco_file_data: !!document.eco_file_data,
-    hasPdf,
-    hasEco,
-  });
-  
+
   const canShare = useMemo(() => {
-    if (selectedFormats.size === 0) {
-      console.log('❌ canShare: false (no formats selected)');
-      return false;
-    }
-    
+    if (selectedFormats.size === 0) return false;
+
     for (const format of selectedFormats) {
-      if (format === 'pdf' && !hasPdf) {
-        console.log('❌ canShare: false (PDF selected but not available)');
-        return false;
-      }
-      if (format === 'eco' && !hasEco) {
-        console.log('❌ canShare: false (ECO selected but not available)');
-        return false;
-      }
+      if (format === 'pdf' && !hasPdf) return false;
+      if (format === 'eco' && !hasEco) return false;
     }
-    
-    console.log('✅ canShare: true');
+
     return true;
   }, [selectedFormats, hasPdf, hasEco]);
   
@@ -386,12 +364,6 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
                   onClick={() => {
                     setShareResult(null);
                     setShowCreateForm(false);
-                    // Recargar shares
-                    setLoadingShares(true);
-                    listDocumentShares(document.id).then(shares => {
-                      setExistingShares(shares);
-                      setLoadingShares(false);
-                    });
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
                 >

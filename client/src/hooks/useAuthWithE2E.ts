@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { User, AuthError } from '@supabase/supabase-js';
+import toast from 'react-hot-toast';
 import { getSupabase } from '../lib/supabaseClient';
 import {
   initializeSessionCrypto,
@@ -51,8 +52,13 @@ export const useAuthWithE2E = (): UseAuthWithE2EReturn => {
     } catch (err) {
       console.error('❌ Failed to initialize E2E session:', err);
       setE2eReady(false);
-      // Don't throw - allow user to continue without E2E
-      // They just won't be able to use encrypted documents
+      
+      // Show user-friendly error message
+      const errorMessage = err instanceof Error ? err.message : 'Error al inicializar el cifrado';
+      toast.error(errorMessage, {
+        duration: 6000,
+        position: 'top-center',
+      });
     }
   }, []);
 

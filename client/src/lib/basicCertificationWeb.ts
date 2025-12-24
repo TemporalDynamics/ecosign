@@ -360,7 +360,7 @@ export async function certifyFile(file: File, options: CertificationOptions = {}
         createdAt: timestamp,
         modifiedAt: timestamp,
         author: options.userEmail || 'anonymous',
-        tags: ['certified', 'verifysign', 'web']
+        tags: ['certified', 'ecosign', 'web']
       },
       assets: [
         {

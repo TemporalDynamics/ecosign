@@ -26,16 +26,24 @@ let _currentSession: SessionCrypto | null = null;
 
 /**
  * Initialize session crypto after successful login
- * 
+ *
  * This MUST be called after auth success.
  * Generates a client-side session secret and derives the unwrap key.
- * 
+ *
  * @param userId - User ID from Supabase Auth
+ * @param forceReinit - Force reinitialization even if session exists (use with caution)
  */
-export async function initializeSessionCrypto(userId: string): Promise<void> {
+export async function initializeSessionCrypto(userId: string, forceReinit: boolean = false): Promise<void> {
+  // CRITICAL: Don't reinitialize if session already exists for this user
+  // Reinitializing creates a NEW sessionSecret which invalidates all previous wrapped keys
+  if (_currentSession && _currentSession.userId === userId && !forceReinit) {
+    console.log('⚠️ Session crypto already initialized for this user, skipping reinitialization');
+    return;
+  }
+
   // 1. Generate session secret (client-side only)
   const sessionSecret = randomBytes(CRYPTO_CONFIG.SESSION_SECRET.length);
-  
+
   // 2. Get user's wrap salt from DB (public, not secret)
   const supabase = getSupabase();
   const { data: profile, error } = await supabase
@@ -43,16 +51,17 @@ export async function initializeSessionCrypto(userId: string): Promise<void> {
     .select('wrap_salt')
     .eq('user_id', userId)
     .single();
-  
+
   if (error || !profile?.wrap_salt) {
-    throw new Error('Failed to get user wrap salt');
+    console.error('❌ Failed to get user wrap salt:', error);
+    throw new Error('No se pudo inicializar el cifrado. Por favor, cierra sesión e inicia sesión nuevamente.');
   }
-  
+
   const salt = hexToBytes(profile.wrap_salt);
-  
+
   // 3. Derive unwrap key from session secret + salt
   const unwrapKey = await deriveUnwrapKey(sessionSecret, salt);
-  
+
   // 4. Store in memory (volatile)
   _currentSession = {
     sessionSecret,
@@ -60,13 +69,8 @@ export async function initializeSessionCrypto(userId: string): Promise<void> {
     userId,
     initializedAt: new Date(),
   };
-  
+
   console.log('✅ Session crypto initialized for user:', userId);
-  
-  // 5. Auto-clear on tab close
-  window.addEventListener('beforeunload', () => {
-    clearSessionCrypto();
-  });
 }
 
 /**
@@ -133,6 +137,32 @@ export function getSessionInfo(): { userId: string; initializedAt: Date } | null
  */
 export function isSessionInitialized(): boolean {
   return _currentSession !== null;
+}
+
+/**
+ * Ensure session crypto is initialized
+ * 
+ * Safe function that re-initializes ONLY if needed.
+ * Use this before any crypto operation (sharing, encrypting, etc.)
+ * 
+ * @param userId - User ID
+ * @returns true if session is ready, false if initialization failed
+ */
+export async function ensureCryptoSession(userId: string): Promise<boolean> {
+  // If already initialized for this user, we're good
+  if (_currentSession && _currentSession.userId === userId) {
+    return true;
+  }
+  
+  // If not initialized, try to initialize
+  try {
+    console.log('🔄 Crypto session not initialized, initializing now...');
+    await initializeSessionCrypto(userId, false);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to ensure crypto session:', error);
+    return false;
+  }
 }
 
 /**

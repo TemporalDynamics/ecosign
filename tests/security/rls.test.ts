@@ -68,12 +68,11 @@ describeIfSupabase('Row Level Security (RLS) Tests', () => {
     userBClient = userB.client;
     console.log('✅ User B created:', userBId);
 
-    // Create test document owned by User A (using adminClient with service_role)
-    // This bypasses RLS for setup, but the actual tests verify RLS works for users
-    console.log('📝 Attempting to insert test document with adminClient...');
+    // Create test document owned by User A (using userAClient to ensure RLS context)
+    console.log('📝 Attempting to insert test document with userAClient...');
     
     const docId = crypto.randomUUID();
-    const { error: docError } = await adminClient
+    const { error: docError } = await userAClient
       .from('documents')
       .insert({
         id: docId,

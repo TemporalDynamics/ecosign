@@ -1,0 +1,135 @@
+/**
+ * NDAAcceptanceScreen Component
+ * 
+ * Pantalla 1 del flujo de acceso con NDA
+ * Muestra el acuerdo de confidencialidad y solicita aceptación
+ */
+
+import { useState } from 'react';
+import { Shield, FileText, X } from 'lucide-react';
+
+interface NDAAcceptanceScreenProps {
+  ndaText: string;
+  documentName: string;
+  onAccept: () => void;
+  onReject: () => void;
+}
+
+export function NDAAcceptanceScreen({
+  ndaText,
+  documentName,
+  onAccept,
+  onReject,
+}: NDAAcceptanceScreenProps) {
+  const [accepted, setAccepted] = useState(false);
+  const [showFullNDA, setShowFullNDA] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b bg-gray-50">
+          <div className="flex items-center gap-3">
+            <Shield className="w-6 h-6 text-gray-700" />
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Acuerdo de Confidencialidad
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {documentName}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onReject}
+            className="text-gray-400 hover:text-gray-600 transition"
+            title="Cancelar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto flex-1">
+          {/* Warning box */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-yellow-800">
+              ⚠️ <strong>Importante:</strong> Este documento está protegido por un acuerdo de confidencialidad. 
+              Debes aceptarlo antes de acceder al contenido.
+            </p>
+          </div>
+
+          {/* NDA Preview */}
+          <div className="bg-gray-50 rounded-lg p-6 mb-6 border border-gray-200">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="w-5 h-5 text-gray-600" />
+              <h3 className="font-semibold text-gray-900">
+                Resumen del Acuerdo
+              </h3>
+            </div>
+            
+            <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap line-clamp-8">
+              {ndaText}
+            </div>
+
+            {ndaText.length > 500 && (
+              <button
+                onClick={() => setShowFullNDA(!showFullNDA)}
+                className="mt-4 text-sm text-gray-700 hover:text-gray-900 font-medium underline"
+              >
+                {showFullNDA ? 'Ver menos' : 'Leer acuerdo completo'}
+              </button>
+            )}
+          </div>
+
+          {/* Full NDA (expandable) */}
+          {showFullNDA && (
+            <div className="bg-white rounded-lg p-6 mb-6 border border-gray-300 max-h-96 overflow-y-auto">
+              <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
+                {ndaText}
+              </div>
+            </div>
+          )}
+
+          {/* Acceptance checkbox */}
+          <label className="flex items-start gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              className="mt-1 w-5 h-5 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
+            />
+            <span className="text-sm text-gray-700">
+              <strong>Acepto el acuerdo de confidencialidad</strong> y me comprometo a mantener 
+              el contenido de este documento en confidencialidad, no divulgarlo a terceros 
+              sin autorización, y cumplir con los términos establecidos.
+            </span>
+          </label>
+
+          {/* Legal notice */}
+          <p className="text-xs text-gray-500 mt-4">
+            ℹ️ Tu aceptación quedará registrada con fines de auditoría y validez legal.
+            El timestamp y hash de este acuerdo formarán parte del registro criptográfico del acceso.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t bg-gray-50 flex gap-3">
+          <button
+            onClick={onReject}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition"
+          >
+            Rechazar
+          </button>
+          <button
+            onClick={onAccept}
+            disabled={!accepted}
+            className="flex-1 px-4 py-3 bg-gray-900 text-white rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Aceptar y Continuar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

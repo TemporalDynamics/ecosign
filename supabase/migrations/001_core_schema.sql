@@ -1,5 +1,5 @@
 -- ========================================
--- VerifySign - Core Database Schema
+-- EcoSign - Core Database Schema
 -- Version: 1.0.1 (Patched for robustness)
 -- Date: 2025-11-15
 -- ========================================
@@ -44,7 +44,7 @@ ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS ecox_hash TEXT;
 -- COMMENTS AND INDEXES
 -- ========================================
 
-COMMENT ON TABLE documents IS 'Documentos certificados por VerifySign';
+COMMENT ON TABLE documents IS 'Documentos certificados por EcoSign';
 COMMENT ON COLUMN documents.eco_hash IS 'SHA-256 del certificado .ECO';
 COMMENT ON COLUMN documents.ecox_hash IS 'SHA-256 del archivo .ECOX con trazabilidad completa';
 

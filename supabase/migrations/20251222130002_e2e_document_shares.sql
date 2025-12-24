@@ -36,18 +36,18 @@ CREATE TABLE IF NOT EXISTS document_shares (
 );
 
 -- Indexes
-CREATE INDEX idx_document_shares_document 
+CREATE INDEX IF NOT EXISTS idx_document_shares_document
 ON document_shares(document_id);
 
-CREATE INDEX idx_document_shares_recipient 
+CREATE INDEX IF NOT EXISTS idx_document_shares_recipient
 ON document_shares(recipient_email, status);
 
-CREATE INDEX idx_document_shares_otp 
-ON document_shares(otp_hash) 
+CREATE INDEX IF NOT EXISTS idx_document_shares_otp
+ON document_shares(otp_hash)
 WHERE status = 'pending';
 
-CREATE INDEX idx_document_shares_expires 
-ON document_shares(expires_at) 
+CREATE INDEX IF NOT EXISTS idx_document_shares_expires
+ON document_shares(expires_at)
 WHERE status = 'pending';
 
 -- RLS Policies
@@ -86,27 +86,9 @@ ON document_shares
 FOR ALL
 USING (auth.role() = 'service_role');
 
--- Drop trigger and function if exist (for idempotency)
-DROP TRIGGER IF EXISTS auto_expire_shares ON document_shares;
-DROP FUNCTION IF EXISTS expire_document_shares();
-
--- Auto-expire shares function
-CREATE FUNCTION expire_document_shares()
-RETURNS TRIGGER AS $$
-BEGIN
-  UPDATE document_shares
-  SET status = 'expired'
-  WHERE status = 'pending'
-    AND expires_at < NOW();
-  RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger to auto-expire on each access check
-CREATE TRIGGER auto_expire_shares
-AFTER SELECT ON document_shares
-FOR EACH STATEMENT
-EXECUTE FUNCTION expire_document_shares();
+-- Note: Auto-expiration is handled in application logic
+-- PostgreSQL doesn't support AFTER SELECT triggers
+-- Consider using pg_cron for periodic cleanup if needed
 
 -- Comments
 COMMENT ON TABLE document_shares IS 'OTP-based document sharing for E2E encrypted documents';

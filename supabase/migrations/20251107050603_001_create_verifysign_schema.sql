@@ -1,8 +1,8 @@
 /*
-  # VerifySign Database Schema - Certificación Digital y Trazabilidad Forense
+  # EcoSign Database Schema - Certificación Digital y Trazabilidad Forense
 
   ## Descripción
-  Crea la infraestructura de base de datos para el sistema VerifySign, implementando
+  Crea la infraestructura de base de datos para el sistema EcoSign, implementando
   el paradigma .ECO/.ECOX con trazabilidad completa y seguridad forense.
 
   ## Tablas Creadas
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS eco_records (
   eco_metadata JSONB NOT NULL,
 
   blockchain_tx_id TEXT,
-  blockchain_network TEXT DEFAULT 'verifysign-testnet',
+  blockchain_network TEXT DEFAULT 'ecosign-testnet',
 
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'anchored', 'verified', 'revoked')),
 

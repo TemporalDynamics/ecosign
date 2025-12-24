@@ -284,7 +284,7 @@ async function sendConfirmationEmail(
       ${blockHeight ? `<li><strong>Bloque:</strong> ${blockHeight}</li>` : ''}
     </ul>
     <p>Tu certificado .ECO ya está disponible para descarga en tu cuenta.</p>
-    <p style="color: #666; font-size: 12px;">Mensaje automático de VerifySign.</p>
+    <p style="color: #666; font-size: 12px;">Mensaje automático de EcoSign.</p>
   `;
 
   const result = await sendResendEmail({

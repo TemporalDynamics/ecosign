@@ -103,7 +103,7 @@ export function validateEnvironment(): EnvConfig {
       '  2. Configura tus credenciales de Supabase',
       '  3. Reinicia el servidor de desarrollo',
       '',
-      '🔗 Guía: https://github.com/your-org/verifysign/blob/main/client/README.md'
+      '🔗 Guía: https://github.com/your-org/ecosign/blob/main/client/README.md'
     ].join('\n');
 
     throw new EnvValidationError(message, missingVars);
@@ -255,7 +255,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGc...
           </div>
 
           <p style="text-align: center; margin-top: 24px;">
-            <a href="https://github.com/your-org/verifysign/blob/main/LOCAL-DEV.md" target="_blank">
+            <a href="https://github.com/your-org/ecosign/blob/main/LOCAL-DEV.md" target="_blank">
               Ver guía completa →
             </a>
           </p>

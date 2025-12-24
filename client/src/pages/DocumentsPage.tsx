@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
-import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Search, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, MoreVertical, Search, Share2, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
 import FooterInternal from "../components/FooterInternal";
 import InhackeableTooltip from "../components/InhackeableTooltip";
-import ShareLinkGenerator from "../components/ShareLinkGenerator";
+import ShareDocumentModal from "../components/ShareDocumentModal";
 import { ProtectedBadge } from "../components/ProtectedBadge";
-import { ShareWithOTPModal } from "../components/ShareWithOTPModal";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
+import { useLegalCenter } from "../contexts/LegalCenterContext";
 
 type DocumentRecord = {
   id: string;
@@ -27,6 +27,7 @@ type DocumentRecord = {
   bitcoin_status?: string | null;
   bitcoin_confirmed_at?: string | null;
   pdf_storage_path?: string | null;
+  encrypted_path?: string | null;
   pdf_url?: string | null;
   eco_storage_path?: string | null;
   ecox_storage_path?: string | null;
@@ -195,6 +196,7 @@ const GUEST_DEMO_DOCS: DocumentRecord[] = [
 
 function DocumentsPage() {
   const navigate = useNavigate();
+  const { open: openLegalCenter } = useLegalCenter();
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [planTier, setPlanTier] = useState<PlanTier>(null); // free | pro | business | enterprise
@@ -206,7 +208,6 @@ function DocumentsPage() {
   const [autoVerifyAttempted, setAutoVerifyAttempted] = useState(false);
   const [search, setSearch] = useState("");
   const [shareDoc, setShareDoc] = useState<DocumentRecord | null>(null);
-  const [shareOTPDoc, setShareOTPDoc] = useState<DocumentRecord | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const handleLogout = () => navigate("/");
@@ -458,22 +459,6 @@ function DocumentsPage() {
     setShareDoc(doc);
   };
 
-  const handleShareWithOTP = (doc: DocumentRecord | null) => {
-    if (!doc) return;
-    if (isGuestMode()) {
-      toast("Modo invitado: compartir documentos disponible solo con cuenta.", { position: "top-right" });
-      return;
-    }
-    // Por ahora todos los documentos usan OTP share (E2E encrypted by default)
-    setShareOTPDoc(doc);
-  };
-
-  const handlePdfStored = useCallback((documentId: string, storagePath: string) => {
-    setDocuments((prev) =>
-      prev.map((doc) => (doc.id === documentId ? { ...doc, pdf_storage_path: storagePath } : doc))
-    );
-  }, []);
-
   const onVerifyFile = async (file: File, doc: DocumentRecord | null) => {
     if (!doc || !file) return;
     setVerifying(true);
@@ -555,7 +540,7 @@ function DocumentsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <Header variant="private" onLogout={handleLogout} />
+      <Header variant="private" onLogout={handleLogout} openLegalCenter={openLegalCenter} />
       <div className="flex-grow">
         <main className="max-w-7xl mx-auto px-4 pt-8 pb-24">
           <header className="mb-10 text-center">
@@ -638,14 +623,13 @@ function DocumentsPage() {
                         </button>
                         <button
                           onClick={() => {
-                            handleShareWithOTP(doc);
+                            handleShareDoc(doc);
                             setOpenMenuId(null);
                           }}
                           className="flex items-center gap-2 text-sm font-semibold text-gray-900"
+                          title="Compartir enlace seguro"
                         >
-                          <span className="inline-flex items-center justify-center rounded border border-gray-300 px-2 py-0.5 text-[10px] font-semibold tracking-wide">
-                            OTP
-                          </span>
+                          <Share2 className="h-4 w-4" />
                           Compartir
                         </button>
                       </div>
@@ -690,8 +674,9 @@ function DocumentsPage() {
                 })}
               </div>
 
-              <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div className="hidden md:block bg-white border border-gray-200 rounded-lg">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -752,37 +737,56 @@ function DocumentsPage() {
                               <Eye className="h-5 w-5" />
                             </button>
                             <button
-                              onClick={() => handleEcoDownload(doc)}
-                              className={`${ecoEnabled ? "text-black hover:text-gray-600" : "text-gray-300 cursor-not-allowed"}`}
-                              disabled={!ecoEnabled}
-                              title={ecoEnabled ? "Descargar certificado .ECO" : "Certificado .ECO no disponible"}
-                            >
-                              <Download className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => pdfAvailable && handlePdfDownload(doc)}
-                              className={`${pdfAvailable ? "text-black hover:text-gray-600" : "text-gray-300 cursor-not-allowed"}`}
-                              disabled={!pdfAvailable}
-                              title={pdfAvailable ? "PDF: descarga disponible" : "PDF: descarga no disponible"}
-                            >
-                              <FileText className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleVerifyDoc(doc)}
+                              onClick={() => handleShareDoc(doc)}
                               className="text-black hover:text-gray-600"
-                              title="Verificar documento"
+                              title="Compartir enlace seguro"
                             >
-                              <Search className="h-5 w-5" />
+                              <Share2 className="h-5 w-5" />
                             </button>
-                            <button
-                              onClick={() => handleShareWithOTP(doc)}
-                              className="text-black hover:text-gray-600"
-                              title="Compartir con código OTP"
-                            >
-                              <span className="inline-flex items-center justify-center rounded border border-gray-300 px-2 py-0.5 text-[10px] font-semibold tracking-wide">
-                                NDA
-                              </span>
-                            </button>
+                            <div className="relative">
+                              <button
+                                onClick={() => setOpenMenuId(openMenuId === doc.id ? null : doc.id)}
+                                className="text-gray-500 hover:text-gray-700"
+                                title="Mas acciones"
+                              >
+                                <MoreVertical className="h-5 w-5" />
+                              </button>
+                              {openMenuId === doc.id && (
+                                <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg z-10">
+                                  <button
+                                    onClick={() => {
+                                      handleEcoDownload(doc);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className={`w-full text-left px-4 py-2 text-sm ${ecoEnabled ? "text-gray-700 hover:bg-gray-50" : "text-gray-300 cursor-not-allowed"}`}
+                                    disabled={!ecoEnabled}
+                                  >
+                                    Descargar certificado .ECO
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (pdfAvailable) {
+                                        handlePdfDownload(doc);
+                                      }
+                                      setOpenMenuId(null);
+                                    }}
+                                    className={`w-full text-left px-4 py-2 text-sm ${pdfAvailable ? "text-gray-700 hover:bg-gray-50" : "text-gray-300 cursor-not-allowed"}`}
+                                    disabled={!pdfAvailable}
+                                  >
+                                    Descargar PDF
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      handleVerifyDoc(doc);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                  >
+                                    Verificar documento
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -790,7 +794,8 @@ function DocumentsPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+                </div>
+              </div>
             </>
           )}
         </main>
@@ -844,27 +849,18 @@ function DocumentsPage() {
         </div>
       )}
 
-      {/* Modal Share Link Generator */}
+      {/* Modal Compartir Documento */}
       {shareDoc && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <ShareLinkGenerator
-            document={shareDoc}
-            onClose={() => setShareDoc(null)}
-            lockNda={true}
-            onPdfStored={handlePdfStored}
-          />
-        </div>
-      )}
-
-      {/* Modal Share with OTP (E2E encrypted) */}
-      {shareOTPDoc && (
-        <ShareWithOTPModal
-          isOpen={true}
-          onClose={() => setShareOTPDoc(null)}
+        <ShareDocumentModal
           document={{
-            id: shareOTPDoc.id,
-            filename: shareOTPDoc.document_name,
+            id: shareDoc.id,
+            document_name: shareDoc.document_name,
+            encrypted: true, // Todos los documentos en EcoSign son cifrados
+            pdf_storage_path: shareDoc.encrypted_path || shareDoc.pdf_storage_path,
+            eco_storage_path: shareDoc.eco_storage_path,
+            eco_file_data: shareDoc.eco_file_data,
           }}
+          onClose={() => setShareDoc(null)}
         />
       )}
 

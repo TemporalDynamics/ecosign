@@ -1,6 +1,6 @@
 {
-  "name": "VerifySign",
-  "short_name": "VerifySign",
+  "name": "EcoSign",
+  "short_name": "EcoSign",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

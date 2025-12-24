@@ -153,7 +153,7 @@ export async function addSignatureSheet(
     });
 
     // Logo/Título
-    signaturePage.drawText('VERIFYSIGN', {
+    signaturePage.drawText('ECOSIGN', {
       x: 50,
       y: height - 50,
       size: 10,
@@ -505,7 +505,7 @@ export async function addSignatureSheet(
 
     currentY -= 20;
 
-    signaturePage.drawText('CERTIFICADO DIGITAL VERIFYSIGN', {
+    signaturePage.drawText('CERTIFICADO DIGITAL ECOSIGN', {
       x: 50,
       y: currentY,
       size: 9,

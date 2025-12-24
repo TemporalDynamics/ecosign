@@ -112,7 +112,7 @@ export default function DocumentationPage() {
               Para profundizar en los detalles técnicos de implementación:
             </p>
             <a
-              href="https://github.com/TemporalDynamics/verifysign/blob/main/COMO%20LO%20HACEMOS"
+              href="https://github.com/TemporalDynamics/ecosign/blob/main/COMO%20LO%20HACEMOS"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block bg-black text-white px-8 py-4 rounded-lg font-semibold hover:bg-gray-800 transition"

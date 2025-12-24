@@ -2,9 +2,13 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import * as Sentry from '@sentry/react'
+import { inject } from '@vercel/analytics'
 import { DashboardApp } from './DashboardApp'
 import { SignerApp } from './SignerApp'
 import './index.css'
+
+// Initialize Vercel Analytics
+inject()
 
 // Initialize Sentry for error tracking
 if (import.meta.env.VITE_SENTRY_DSN) {

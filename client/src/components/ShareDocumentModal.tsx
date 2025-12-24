@@ -195,7 +195,7 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
       }
     } catch (err) {
       console.error('Error copying:', err);
-      toast.error('Error al copiar');
+      toast.error('No pudimos copiar al portapapeles. Intentá seleccionar y copiar manualmente.');
     }
   };
 
@@ -235,7 +235,7 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
       setConfirmRevoke(null);
     } catch (err) {
       console.error('Error revoking:', err);
-      toast.error('Error al revocar acceso');
+      toast.error('No pudimos revocar el acceso. Verificá tu conexión e intentá de nuevo.');
     }
   };
 

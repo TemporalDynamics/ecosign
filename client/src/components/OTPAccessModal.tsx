@@ -5,7 +5,7 @@
  * Zero Server-Side Knowledge Architecture.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Shield } from 'lucide-react';
 import { accessSharedDocument } from '../lib/storage';
 import type { AccessSharedDocumentOptions } from '../lib/storage';
@@ -30,8 +30,18 @@ export function OTPAccessModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [successUrl, setSuccessUrl] = useState<string | null>(null);
+  const [downloadName, setDownloadName] = useState('documento.pdf');
 
   if (!isOpen) return null;
+
+  useEffect(() => {
+    return () => {
+      if (successUrl) {
+        URL.revokeObjectURL(successUrl);
+      }
+    };
+  }, [successUrl]);
 
   const handleAccess = async () => {
     setError(null);
@@ -59,20 +69,10 @@ export function OTPAccessModal({
       clearInterval(progressInterval);
       setProgress(100);
 
-      // Download the file
       const url = URL.createObjectURL(result.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = result.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      // Success - close modal immediately after download starts
-      setTimeout(() => {
-        onClose();
-      }, 300); // Shorter delay for better UX
+      setSuccessUrl(url);
+      setDownloadName(result.filename);
+      setLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al acceder al documento');
       setProgress(0);
@@ -118,6 +118,56 @@ export function OTPAccessModal({
             <p className="text-sm text-gray-600">
               Procesando en tu dispositivo de forma segura...
             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (successUrl) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+        <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-gray-700" />
+              Documento listo
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-gray-700">
+              El documento se abre acá mismo. Podés descargarlo si lo necesitás.
+            </p>
+            <div className="w-full h-[60vh] rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
+              <iframe
+                title="Documento compartido"
+                src={successUrl}
+                className="w-full h-full"
+              />
+            </div>
+          </div>
+
+          <div className="p-6 border-t flex gap-3">
+            <button
+              onClick={() => {
+                const a = document.createElement('a');
+                a.href = successUrl;
+                a.download = downloadName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              }}
+              className="flex-1 px-4 py-3 bg-gray-900 text-white rounded-lg font-semibold hover:bg-gray-800 transition"
+            >
+              Descargar
+            </button>
           </div>
         </div>
       </div>

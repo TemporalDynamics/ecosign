@@ -79,6 +79,14 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
     shareId?: string;
     all?: boolean;
   } | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Inicializar TODO en paralelo
   useEffect(() => {
@@ -596,7 +604,7 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
   return (
     <div className="fixed inset-0 bg-black/50 z-50 p-4">
       {/* Panel lateral (NDA) - Solo visible si está activo */}
-      {ndaEnabled && (
+      {ndaEnabled && !isMobile && (
         <div 
           className="fixed top-1/2 bg-gray-50 overflow-y-auto rounded-l-2xl shadow-xl border border-r-0 border-gray-200 transition-all duration-300"
           style={{
@@ -631,8 +639,17 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
 
       {/* Panel principal (INMUTABLE - posición ABSOLUTA fija) */}
       <div
-        className="fixed top-1/2 bg-white rounded-2xl shadow-xl border border-gray-200 p-6 flex flex-col transition-all duration-300"
-        style={{
+        className="fixed bg-white rounded-2xl shadow-xl border border-gray-200 p-6 flex flex-col transition-all duration-300"
+        style={isMobile ? {
+          top: '1rem',
+          left: '1rem',
+          right: '1rem',
+          width: 'auto',
+          height: 'calc(100vh - 2rem)',
+          maxHeight: 'calc(100vh - 2rem)',
+          transform: 'none',
+        } : {
+          top: '50%',
           right: '80px', // FIJO - NUNCA cambia
           width: '480px', // FIJO - NUNCA cambia
           height: 'calc(100vh - 2rem)', // MISMA altura que step2

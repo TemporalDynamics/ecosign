@@ -197,7 +197,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !documentLoaded) {
+      setModeConfirmation('');
+      return;
+    }
     setMySignature(initialAction === 'sign');
     setWorkflowEnabled(initialAction === 'workflow');
     setNdaEnabled(initialAction === 'nda');
@@ -268,7 +271,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     } else {
       setModeConfirmation('');
     }
-  }, [mySignature, workflowEnabled, ndaEnabled, isOpen]);
+  }, [mySignature, workflowEnabled, ndaEnabled, isOpen, documentLoaded]);
 
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState<SignatureMode>('none'); // 'none', 'canvas', 'signnow'
@@ -1406,6 +1409,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           style={{ gridTemplateColumns, transition: 'grid-template-columns 300ms ease-in-out' }}
         >
           {/* Left Panel (NDA) */}
+          {documentLoaded && (
           <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
             <div className="h-full flex flex-col">
               {/* Header colapsable del panel */}
@@ -1435,6 +1439,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </div>
             </div>
           </div>
+          )}
         
           {/* Center Panel (Main Content) */}
           <div className={`center-panel relative z-20 ${isMobile ? 'col-span-full px-4 py-3' : 'col-start-2 col-end-3 px-6 py-3'}`}>
@@ -1817,8 +1822,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     )}
                   </div>
 
-              {/* CONSTITUCIÓN: Acciones solo visibles si (documentLoaded || initialAction) */}
-              {(documentLoaded || initialAction) && (
+              {/* CONSTITUCIÓN: Acciones solo visibles si documentLoaded */}
+              {documentLoaded && (
               <div className="space-y-2">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <button
@@ -1882,7 +1887,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </div>
               )}
 
-              {isMobile && (ndaEnabled || workflowEnabled) && (
+              {documentLoaded && isMobile && (ndaEnabled || workflowEnabled) && (
                 <div className="space-y-3">
                   {ndaEnabled && (
                     <div className="border border-gray-200 rounded-xl bg-white">
@@ -2002,7 +2007,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               )}
 
               {/* Tipo de Firma - Solo si hay firma aplicada o workflow SIN mi firma */}
-              {((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && (
+              {documentLoaded && ((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && (
               <div className="space-y-2 animate-fadeScaleIn">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Firma Legal */}

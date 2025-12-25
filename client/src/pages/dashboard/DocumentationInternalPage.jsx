@@ -108,7 +108,7 @@ export default function DocumentationInternalPage() {
               Si querés profundizar en los detalles técnicos, revisá nuestra documentación completa en GitHub:
             </p>
             <a
-              href="https://github.com/TemporalDynamics/ecosign/blob/main/COMO%20LO%20HACEMOS"
+              href="https://github.com/TemporalDynamics/ecosign/blob/main/COMO%20LO%20HACEMOS.md"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-[#0A66C2] hover:underline font-medium"

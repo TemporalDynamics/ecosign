@@ -1,0 +1,44 @@
+{
+  "version": "1.1.0",
+  "certificate_schema_version": "1.0",
+  "manifest": {
+    "projectId": "doc-1700000000000",
+    "metadata": {
+      "title": "contrato-ejemplo.pdf",
+      "createdAt": "2025-01-01T12:00:00Z",
+      "author": "user@example.com"
+    },
+    "assets": [
+      {
+        "assetId": "asset-1700000000000",
+        "name": "contrato-ejemplo.pdf",
+        "size": 123456,
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ]
+  },
+  "signatures": [
+    {
+      "algorithm": "Ed25519",
+      "publicKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "signature": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "timestamp": "2025-01-01T12:00:00Z",
+      "legalTimestamp": {
+        "standard": "RFC 3161",
+        "tsa": "https://freetsa.org/tsr",
+        "tokenSize": 4200,
+        "verified": true
+      }
+    }
+  ],
+  "metadata": {
+    "certifiedAt": "2025-01-01T12:00:00Z",
+    "forensicEnabled": true,
+    "anchoring": { "polygon": true, "bitcoin": false },
+    "example_notice": "Sample file with placeholder hashes and signatures."
+  },
+  "intent": { "intent_confirmed": true, "intent_method": "explicit_acceptance" },
+  "time_assurance": { "source": "RFC3161", "confidence": "high" },
+  "policy_snapshot_id": "policy_2025_11",
+  "event_lineage": { "event_id": "00000000-0000-0000-0000-000000000000", "previous_event_id": null }
+}

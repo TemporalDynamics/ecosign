@@ -1,0 +1,8 @@
+{
+  "name": "@temporaldynamics/eco-packer-public",
+  "version": "0.1.0",
+  "description": "Public interfaces for eco-packer (stubs only)",
+  "main": "index.ts",
+  "type": "module",
+  "license": "MIT"
+}

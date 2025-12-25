@@ -12,6 +12,16 @@ We will respond within 48 hours and work with you to understand and address the 
 
 ---
 
+## 🔎 Disclosure Boundary
+
+This repository uses selective disclosure for certain components.
+Public artifacts focus on verification behavior, data contracts, and interfaces.
+Internal implementations are intentionally abstracted for strategic reasons.
+
+See: `NOTICE.md`
+
+---
+
 ## 🔑 Secret Management
 
 ### Where Secrets Live

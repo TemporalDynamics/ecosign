@@ -682,24 +682,6 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
           {/* Content */}
           <div className="flex-1 overflow-y-auto">
             
-            {/* NDA Acordeón mobile (solo visible en mobile cuando está activado) */}
-            {ndaEnabled && (
-              <div className="lg:hidden mb-5 border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 p-3">
-                  <h4 className="font-semibold text-gray-900 text-sm mb-1">Acuerdo de confidencialidad</h4>
-                  <p className="text-xs text-gray-500">
-                    El destinatario deberá aceptar este acuerdo antes de acceder al documento.
-                  </p>
-                </div>
-                <textarea
-                  value={ndaText}
-                  onChange={(e) => setNdaText(e.target.value)}
-                  className="w-full h-40 px-3 py-2 border-t border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-0 resize-none font-mono bg-white"
-                  placeholder="Texto del acuerdo..."
-                />
-              </div>
-            )}
-            
             {/* Copy introductorio */}
             <p className="text-sm text-gray-600 mb-5">
               Generá un enlace seguro para compartir este documento. El acceso requiere un código de seguridad.
@@ -788,10 +770,28 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
               
               {ndaEnabled && (
                 <p className="text-xs text-gray-500 mt-2">
-                  El destinatario deberá aceptar el acuerdo antes de acceder. Editá el texto en el panel lateral.
+                  El destinatario deberá aceptar el acuerdo antes de acceder. Editá el texto debajo.
                 </p>
               )}
             </div>
+
+            {/* NDA Acordeón mobile (solo visible en mobile cuando está activado) */}
+            {ndaEnabled && (
+              <div className="lg:hidden mb-5 border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 p-3">
+                  <h4 className="font-semibold text-gray-900 text-sm mb-1">Acuerdo de confidencialidad</h4>
+                  <p className="text-xs text-gray-500">
+                    El destinatario deberá aceptar este acuerdo antes de acceder al documento.
+                  </p>
+                </div>
+                <textarea
+                  value={ndaText}
+                  onChange={(e) => setNdaText(e.target.value)}
+                  className="w-full h-40 px-3 py-2 border-t border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-0 resize-none font-mono bg-white"
+                  placeholder="Texto del acuerdo..."
+                />
+              </div>
+            )}
 
             {/* Expiración */}
             <div className="mb-5">

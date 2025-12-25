@@ -172,3 +172,5 @@ claims/
 /.env
 .env.local
 .env*.local
+ECOSIGN_AUDIT_REPORT.md
+INVESTOR_ROOM/

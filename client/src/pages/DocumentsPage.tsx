@@ -209,6 +209,8 @@ function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [shareDoc, setShareDoc] = useState<DocumentRecord | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const isSearchActive = search.trim().length > 0;
+  const hasDocuments = documents.length > 0;
 
   const handleLogout = () => navigate("/");
 
@@ -333,14 +335,14 @@ function DocumentsPage() {
       const { data, error } = await supabase.storage.from("user-documents").createSignedUrl(storagePath, 3600);
       if (error) {
         console.error("Error creando URL de descarga:", error);
-        window.alert("No se pudo generar la descarga. Intenta regenerar el archivo.");
+        window.alert("No pudimos preparar la descarga. Probá regenerar el certificado y reintentá.");
         return;
       }
 
       const response = await fetch(data.signedUrl);
       if (!response.ok) {
         console.error("Error descargando archivo:", response.status, response.statusText);
-        window.alert("No se pudo descargar el archivo. Intenta regenerarlo.");
+        window.alert("La descarga falló. Probá regenerar el archivo y volver a intentar.");
         return;
       }
 
@@ -362,7 +364,7 @@ function DocumentsPage() {
       }, 200);
     } catch (err) {
       console.error("Error descargando:", err);
-      window.alert("No se pudo descargar el archivo.");
+      window.alert("No pudimos completar la descarga. Revisá tu conexión e intentá de nuevo.");
     }
   };
 
@@ -379,38 +381,29 @@ function DocumentsPage() {
       });
       if (error) {
         console.error("Error solicitando regeneración:", error);
-        window.alert("No se pudo solicitar la regeneración.");
+        window.alert("No pudimos solicitar la regeneración. Probá de nuevo en unos segundos.");
         return;
       }
-      window.alert("Solicitud de regeneración enviada");
+      window.alert("Listo: estamos regenerando el certificado. Te avisamos cuando esté.");
     } catch (err) {
       console.error("Error solicitando regeneración:", err);
-      window.alert("No se pudo solicitar la regeneración.");
+      window.alert("No pudimos solicitar la regeneración. Probá de nuevo en unos segundos.");
     }
   };
 
   const performEcoDownload = (doc: DocumentRecord | null) => {
     if (!doc) return;
 
-    console.log('📦 Intentando descargar .ECO:', {
-      eco_storage_path: doc.eco_storage_path,
-      eco_hash: doc.eco_hash,
-      eco_file_data: doc.eco_file_data
-    });
-
     if (doc.eco_storage_path) {
-      console.log('✅ Descargando desde eco_storage_path');
       const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
       downloadFromPath(doc.eco_storage_path, ecoName);
       return;
     }
     if (doc.eco_hash) {
-      console.log('🔄 Solicitando regeneración del .ECO');
       requestRegeneration(doc.id, "eco");
       return;
     }
-    console.warn('❌ No hay certificado .ECO disponible');
-    window.alert("No hay certificado .ECO disponible para este documento. El archivo puede estar generándose.");
+    window.alert("Todavía no hay certificado .ECO para este documento. Puede estar generándose; reintentá en unos minutos.");
   };
 
   const performEcoxDownload = (doc: DocumentRecord | null) => {
@@ -435,7 +428,7 @@ function DocumentsPage() {
 
   const handlePdfDownload = (doc: DocumentRecord | null) => {
     if (!doc?.pdf_storage_path) {
-      window.alert("Este documento no fue almacenado. EcoSign no guarda documentos sin tu permiso.");
+      window.alert("Este documento no tiene copia guardada. Solo se almacena si lo habilitaste.");
       return;
     }
     downloadFromPath(doc.pdf_storage_path, doc.document_name);
@@ -470,7 +463,7 @@ function DocumentsPage() {
       console.error("Error verificando PDF:", err);
       setVerifyResult({
         matches: false,
-        error: "No se pudo verificar el documento."
+        error: "No pudimos verificar el documento. Probá nuevamente."
       });
     } finally {
       setVerifying(false);
@@ -499,7 +492,7 @@ function DocumentsPage() {
       console.warn("Verificación automática falló, se pedirá el PDF al usuario:", err);
       setVerifyResult({
         matches: null,
-        error: "No pudimos verificar automáticamente. Subí el PDF para compararlo."
+        error: "No pudimos verificarlo automáticamente. Subí el PDF para compararlo con el certificado."
       });
     } finally {
       setVerifying(false);
@@ -565,10 +558,43 @@ function DocumentsPage() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
             </div>
           ) : filteredDocuments.length === 0 ? (
-            <div className="text-center py-20">
+            <div className="text-center py-16">
               <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay documentos</h3>
-              <p className="text-gray-500">Comienza certificando tu primer documento</p>
+              {isSearchActive && hasDocuments ? (
+                <>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No hay resultados</h3>
+                  <p className="text-gray-500 mb-4">
+                    No encontramos documentos que coincidan con “{search.trim()}”.
+                  </p>
+                  <button
+                    onClick={() => setSearch("")}
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black transition"
+                  >
+                    Borrar búsqueda
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Todavía no hay documentos</h3>
+                  <p className="text-gray-500 mb-6">
+                    Empezá certificando tu primer archivo y vas a verlo acá.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button
+                      onClick={() => (isGuestMode() ? navigate("/login") : openLegalCenter("certify"))}
+                      className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-black text-white text-sm font-semibold hover:bg-gray-800 transition"
+                    >
+                      {isGuestMode() ? "Crear cuenta" : "Certificar documento"}
+                    </button>
+                    <button
+                      onClick={() => navigate("/inicio")}
+                      className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black transition"
+                    >
+                      Ir al centro de acciones
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <>

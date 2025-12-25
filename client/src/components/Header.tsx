@@ -130,7 +130,7 @@ const PrivateNavMobile = ({ onLogout, openLegalCenter, setMobileMenuOpen }) => {
     );
 };
 
-const Header = ({ variant, onLogout = () => {}, openLegalCenter = () => console.log("Open Legal Center") }: HeaderProps) => {
+const Header = ({ variant, onLogout = () => {}, openLegalCenter = () => {} }: HeaderProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (

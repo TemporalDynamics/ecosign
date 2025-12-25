@@ -102,7 +102,7 @@ export default function InvitePage() {
 
   async function handleAcceptNDA() {
     if (!ndaCheckbox) {
-      toast.error('Debes aceptar los términos del NDA para continuar');
+      toast.error('Aceptá los términos del NDA para continuar.');
       return;
     }
 

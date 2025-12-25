@@ -89,7 +89,7 @@ function VerifyPage() {
   // Validar archivo
   const validateFile = (file: File | null): { valid: boolean; error?: string } => {
     if (!file) {
-      return { valid: false, error: 'No se seleccionó ningún archivo' };
+      return { valid: false, error: 'Elegí un archivo para verificar.' };
     }
 
     // Validar tamaño
@@ -102,7 +102,7 @@ function VerifyPage() {
 
     // Validar tamaño mínimo (evitar archivos vacíos)
     if (file.size === 0) {
-      return { valid: false, error: 'El archivo está vacío' };
+      return { valid: false, error: 'El archivo está vacío. Elegí otro archivo.' };
     }
 
     // Validar extensión

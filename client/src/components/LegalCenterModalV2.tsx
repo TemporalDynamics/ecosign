@@ -1586,48 +1586,60 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                           
                           {documentPreview && file.type === 'application/pdf' && (
                             <>
-                              {!previewError && (
-                                <object
-                                  data={documentPreview}
-                                  type="application/pdf"
-                                  className="w-full h-full bg-white"
-                                  onLoad={() => setPreviewError(false)}
-                                  onError={() => setPreviewError(true)}
-                                >
-                                  <p className="text-sm text-gray-500 p-4">
-                                    No se pudo mostrar el PDF en el navegador. Descargalo para verlo.
-                                  </p>
-                                </object>
-                              )}
-                              {previewError && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-white px-6 text-center">
-                                  <div className="space-y-2">
-                                    <p className="text-sm font-semibold text-gray-900">
-                                      Vista previa desactivada para este PDF.
-                                    </p>
-                                    <p className="text-xs text-gray-600">
-                                      Abrilo en otra pestaña o descargalo para conservar la integridad del archivo.
-                                    </p>
-                                    <div className="flex items-center justify-center gap-2">
-                                      <a
-                                        href={documentPreview}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-sm text-gray-900 font-semibold hover:underline"
-                                      >
-                                        Abrir en nueva pestaña
-                                      </a>
-                                      <span className="text-gray-300">•</span>
-                                      <a
-                                        href={documentPreview}
-                                        download={file?.name || 'documento.pdf'}
-                                        className="text-sm text-gray-900 font-semibold hover:underline"
-                                      >
-                                        Descargar PDF
-                                      </a>
-                                    </div>
-                                  </div>
+                              {isMobile ? (
+                                <div className="w-full h-full bg-white">
+                                  <iframe
+                                    title="Vista previa PDF"
+                                    src={documentPreview}
+                                    className="w-full h-full"
+                                  />
                                 </div>
+                              ) : (
+                                <>
+                                  {!previewError && (
+                                    <object
+                                      data={documentPreview}
+                                      type="application/pdf"
+                                      className="w-full h-full bg-white"
+                                      onLoad={() => setPreviewError(false)}
+                                      onError={() => setPreviewError(true)}
+                                    >
+                                      <p className="text-sm text-gray-500 p-4">
+                                        No se pudo mostrar el PDF en el navegador. Descargalo para verlo.
+                                      </p>
+                                    </object>
+                                  )}
+                                  {previewError && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-white px-6 text-center">
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-semibold text-gray-900">
+                                          Vista previa desactivada para este PDF.
+                                        </p>
+                                        <p className="text-xs text-gray-600">
+                                          Abrilo en otra pestaña o descargalo para conservar la integridad del archivo.
+                                        </p>
+                                        <div className="flex items-center justify-center gap-2">
+                                          <a
+                                            href={documentPreview}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm text-gray-900 font-semibold hover:underline"
+                                          >
+                                            Abrir en nueva pestaña
+                                          </a>
+                                          <span className="text-gray-300">•</span>
+                                          <a
+                                            href={documentPreview}
+                                            download={file?.name || 'documento.pdf'}
+                                            className="text-sm text-gray-900 font-semibold hover:underline"
+                                          >
+                                            Descargar PDF
+                                          </a>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </>
                           )}

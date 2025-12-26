@@ -85,22 +85,32 @@ serve(async (req) => {
       source: metadata?.['source'] || 'client'
     };
 
-    // If userDocumentId is provided but document_id or user_email are missing,
-    // fetch them from user_documents to ensure notifications can be sent
+    let projectId: string | null = typeof (metadata as Record<string, unknown>)?.['projectId'] === 'string'
+      ? String((metadata as Record<string, unknown>)['projectId'])
+      : null
+
+    // If userDocumentId is provided but document_id, user_email or projectId are missing,
+    // fetch them from user_documents to ensure notifications can be sent and state is linked
     let finalDocumentId = documentId
     let finalUserEmail = userEmail
     let finalUserId = validUserId
 
-    if (userDocumentId && (!documentId || !userEmail)) {
+    if (userDocumentId && (!documentId || !userEmail || !projectId || !finalUserId)) {
       const { data: userDoc } = await client
         .from('user_documents')
-        .select('document_id, user_id')
+        .select('document_id, user_id, eco_data')
         .eq('id', userDocumentId)
         .single()
 
       if (userDoc) {
         finalDocumentId = finalDocumentId || userDoc.document_id
         finalUserId = finalUserId || userDoc.user_id
+        if (!projectId) {
+          const ecoData = userDoc.eco_data as Record<string, unknown> | null
+          const manifest = (ecoData?.['manifest'] as Record<string, unknown>) || null
+          const manifestProjectId = manifest?.['projectId']
+          projectId = typeof manifestProjectId === 'string' ? manifestProjectId : projectId
+        }
 
         // Fetch user email if needed
         if (!userEmail && userDoc.user_id) {
@@ -122,7 +132,10 @@ serve(async (req) => {
         user_email: finalUserEmail,
         anchor_type: 'opentimestamps',
         anchor_status: 'queued',
-        metadata: enrichedMetadata
+        metadata: {
+          ...enrichedMetadata,
+          projectId: projectId || undefined
+        }
       })
       .select()
       .single();
@@ -135,6 +148,20 @@ serve(async (req) => {
         code: error?.code,
         hint: error?.hint
       }, 500);
+    }
+
+    if (projectId) {
+      const anchorRequestedAt = new Date().toISOString()
+      const { error: stateError } = await client
+        .from('anchor_states')
+        .upsert({
+          project_id: projectId,
+          anchor_requested_at: anchorRequestedAt
+        }, { onConflict: 'project_id' })
+
+      if (stateError) {
+        console.warn('Failed to upsert anchor_states for Bitcoin request:', stateError)
+      }
     }
 
     // Update user_documents to reflect Bitcoin anchoring has started

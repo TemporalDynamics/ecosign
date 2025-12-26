@@ -18,11 +18,11 @@ const supabase = createClient(
 )
 
 // Define interface for Anchor Data from DB
-interface AnchorData {
+interface AnchorStateData {
   project_id: string; // Corresponds to manifest.projectId
+  anchor_requested_at: string | null;
   polygon_confirmed_at: string | null;
   bitcoin_confirmed_at: string | null;
-  // Add any other relevant anchor fields that indicate request/status
 }
 
 interface VerificationResult {
@@ -313,6 +313,12 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
     : undefined
 
   const computedPolicySnapshotId = policySnapshotId || metadata?.policy_snapshot_id
+  const rawEventLineage = eventLineage || metadata?.event_lineage
+  const computedEventLineage = rawEventLineage ? {
+    eventId: rawEventLineage.event_id ?? rawEventLineage.eventId,
+    previousEventId: rawEventLineage.previous_event_id ?? rawEventLineage.previousEventId ?? null,
+    cause: rawEventLineage.cause
+  } : undefined
 
   // --- Proof Resolver Logic ---
   const probativeSignals: VerificationResult['probativeSignals'] = {
@@ -325,17 +331,19 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
   if (manifest.projectId) { // Only query if projectId is available
     try {
       const { data, error } = await supabase
-        .from('anchors') // Assuming 'anchors' is the table name
-        .select('polygon_confirmed_at, bitcoin_confirmed_at')
+        .from('anchor_states')
+        .select('anchor_requested_at, polygon_confirmed_at, bitcoin_confirmed_at')
         .eq('project_id', manifest.projectId)
-        .maybeSingle();
+        .maybeSingle<AnchorStateData>();
 
       if (error) {
-        console.error('Error querying anchor data:', error.message);
-        warnings.push(`No se pudo consultar el estado de anclaje: ${error.message}`);
+        console.error('Error querying anchor state:', error);
+        warnings.push('No se pudo consultar el estado de anclaje externo.');
         probativeSignals.fetchError = true;
       } else if (data) {
-        probativeSignals.anchorRequested = true; // Record found means anchor was requested
+        probativeSignals.anchorRequested = !!data.anchor_requested_at
+          || !!data.polygon_confirmed_at
+          || !!data.bitcoin_confirmed_at;
         probativeSignals.polygonConfirmed = !!data.polygon_confirmed_at;
         probativeSignals.bitcoinConfirmed = !!data.bitcoin_confirmed_at;
       }
@@ -347,7 +355,7 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
       probativeSignals.fetchError = true;
     }
   } else {
-    warnings.push('No se encontró projectId en el manifiesto. No se consultarán los anclajes.');
+    warnings.push('El certificado no incluye projectId. No se puede resolver estado de anclaje externo.');
   }
   // --- End of Proof Resolver Logic ---
 

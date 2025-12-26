@@ -43,7 +43,7 @@ Resumen conceptual:
 4) Se empaqueta en `.ECO` (contenedor de evidencia).  
 5) El `.ECO` se entrega al usuario inmediatamente.
 
-> Resultado: el usuario tiene un artefacto portable que puede verificar sin la plataforma.
+> Resultado esperado: el usuario tiene un artefacto portable que puede verificar sin la plataforma.
 
 ---
 
@@ -69,7 +69,7 @@ Esta etapa **no reemplaza** la verificación offline; la complementa.
 - Presentar el resultado como **“observaciones”** y, cuando sea posible, incluir **identificadores públicos** (txid, block, etc.) para que un tercero pueda corroborarlos.
 
 **Regla de oro:**
-- Si no se puede consultar o no hay datos aún → mostrar **“No consultado / Pendiente”**, no “Inválido”.
+- Si no se puede consultar o no hay datos aún → presenta **“No consultado / Pendiente”**, no “Inválido”.
 
 ---
 

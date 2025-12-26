@@ -123,17 +123,26 @@ serve(async (req) => {
     let finalDocumentId = documentId
     let finalUserEmail = userEmail
     let finalUserId = userId
+    let projectId: string | null = typeof (metadata as Record<string, unknown>)?.['projectId'] === 'string'
+      ? String((metadata as Record<string, unknown>)['projectId'])
+      : null
 
-    if (userDocumentId && (!documentId || !userEmail)) {
+    if (userDocumentId && (!documentId || !userEmail || !projectId || !finalUserId)) {
       const { data: userDoc } = await supabase
         .from('user_documents')
-        .select('document_id, user_id')
+        .select('document_id, user_id, eco_data')
         .eq('id', userDocumentId)
         .single()
 
       if (userDoc) {
         finalDocumentId = finalDocumentId || userDoc.document_id
         finalUserId = finalUserId || userDoc.user_id
+        if (!projectId) {
+          const ecoData = userDoc.eco_data as Record<string, unknown> | null
+          const manifest = (ecoData?.['manifest'] as Record<string, unknown>) || null
+          const manifestProjectId = manifest?.['projectId']
+          projectId = typeof manifestProjectId === 'string' ? manifestProjectId : projectId
+        }
 
         // Fetch user email if needed
         if (!userEmail && userDoc.user_id) {
@@ -160,7 +169,8 @@ serve(async (req) => {
         sponsorAddress,
         network: 'polygon-mainnet',
         submittedAt: new Date().toISOString(),
-        ...metadata
+        ...metadata,
+        projectId: projectId || undefined
       }
     }).select().single()
 
@@ -173,6 +183,20 @@ serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
+    }
+
+    if (projectId) {
+      const anchorRequestedAt = new Date().toISOString()
+      const { error: stateError } = await supabase
+        .from('anchor_states')
+        .upsert({
+          project_id: projectId,
+          anchor_requested_at: anchorRequestedAt
+        }, { onConflict: 'project_id' })
+
+      if (stateError) {
+        console.warn('Failed to upsert anchor_states for Polygon request:', stateError)
+      }
     }
 
     // P0-2 FIX: Update user_documents status when queueing (consistent with Bitcoin)

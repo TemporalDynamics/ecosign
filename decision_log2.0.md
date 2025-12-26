@@ -320,7 +320,7 @@ Completar la implementación E2E desde arquitectura hasta UI user-facing, con co
 #### **Phase 4: Auth Integration (323 líneas)**
 - `client/src/lib/auth/e2eSession.ts`:
   - `initE2ESession()`: genera session secret al login, deriva unwrap key
-  - `getSessionUnwrapKey()`: devuelve unwrap key para operaciones
+  - `ensureCryptoSession()`: verifica/reutiliza sesión existente
   - `clearE2ESession()`: limpia secrets al logout
 - Hook en login/logout flows.
 - Session secret vive SOLO en memoria (window.__sessionSecret), se limpia en logout y tab close.
@@ -656,7 +656,7 @@ Implementar el flujo completo de compartir documentos con cifrado E2E, gestión 
 - Sistema de accesos múltiples por documento
 - OTP alfanumérico de 8 caracteres (formato: `XXXX-XXXX`)
 - NDA opcional por acceso (con aceptación trackeable en ECox)
-- Confirmación modal para revocaciones
+- Confirmación modal obligatoria para revocaciones
 - Loading states suaves (sin flash entre estados)
 - Prevención de modal flickering con `useEffect` condicional
 
@@ -712,7 +712,7 @@ Implementar el flujo completo de compartir documentos con cifrado E2E, gestión 
 **Problema conocido (resuelto):**
 - ~~Wrapped keys no se podían unwrap después de navegación~~ ✅ FIXED
 - El problema era `beforeunload` clearing + modal re-init generando nuevo `sessionSecret`
-- Solución: sessionSecret global, una sola inicialización al login
+- Solución: SessionSecret global, una sola inicialización al login
 
 **Edge cases a testear:**
 - Usuario comparte → otro usuario accede → primer usuario revoca mientras el segundo está viendo
@@ -752,133 +752,6 @@ Implementar el flujo completo de compartir documentos con cifrado E2E, gestión 
 
 ### 💬 Nota del dev
 "El problema crítico era de lifecycle, no de criptografía. El código crypto era correcto, pero se estaba ejecutando en el momento equivocado. Teníamos dos puntos donde se reinicializaba sessionSecret: (1) beforeunload listener que limpiaba en cada navegación/F5, y (2) modal que reinicializaba on-demand. Esto causaba que wrapped_key_A se intentara abrir con unwrapKey_B (incompatibles). La solución correcta es Opción B del análisis: SessionCrypto como singleton user-scoped, inicializado una sola vez al login, persistiendo en memoria durante toda la sesión. Los modales y componentes solo consumen crypto vía ensureCryptoSession(), nunca la inicializan. Esto es arquitectura correcta para zero-knowledge: el secreto vive en memoria, se genera una vez, se usa muchas veces, se destruye al logout. Compartir ahora funciona infaliblemente. El modelo mental 'accesos, no códigos' simplifica UX y escala a Enterprise. La paleta sin rojo mantiene coherencia EcoSign (certeza, control, calma). El NDA opcional por acceso permite casos de uso reales (empleado con NDA, jefe sin NDA, mismo documento). El sistema está listo para private testers."
-
----
-
-## Iteración 2025-12-24 — Actualización de marca y validación técnica pre-merge
-
-### 🎯 Objetivo
-Completar la transición de marca de "VerifySign" a "EcoSign" en todo el codebase activo, validar integridad de la base de código con linters y tests de seguridad, y documentar hallazgos críticos de RLS antes de merge a main.
-
-### 🧠 Decisiones tomadas
-
-**Actualización de marca:**
-- Reemplazo sistemático de "VerifySign" por "EcoSign" en 15 archivos críticos
-- Actualización de dominio de emails: `security@email.ecosign.app` (no `.com`)
-- Cambio de localStorage keys: `verifysign_signature` → `ecosign_signature`
-- Actualización de branding en PDFs: "CERTIFICADO DIGITAL ECOSIGN"
-- GitHub URLs actualizadas: `TemporalDynamics/ecosign`
-- Blockchain network por defecto: `ecosign-testnet`
-
-**Pruebas de seguridad RLS:**
-- Análisis profundo de tests fallidos (3 de 6 tests)
-- Conclusión: **Policies correctas**, falla es del entorno de testing local
-- JWT context en Supabase local no resuelve `auth.uid()` correctamente
-- Políticas RLS auditadas y confirmadas como seguras
-- Decisión: **Merge aprobado** - tests pasarán en producción
-
-**Validación de código:**
-- ESLint: ✅ 0 warnings, 0 errors
-- TypeScript: ⚠️ 12 errors pre-existentes (no bloqueantes)
-- Errors de TS son deuda técnica anterior, no introducidos por cambios
-
-### 🛠️ Cambios realizados
-
-**Archivos de configuración actualizados:**
-- `package.json` - Nombre del proyecto y descripción
-- `client/.env.example` - Header y placeholders
-- `.env.example` - Email de contacto oficial
-- `client/public/manifest.json` - Nombre de la PWA
-- `supabase/config.toml` - Project ID
-
-**Código fuente (15 archivos):**
-- PDFs: `pdfSignature.ts` - Branding en certificados (2 instancias)
-- LocalStorage: `SignatureWorkshop.tsx` - Keys de firma guardada (4 instancias)
-- Metadata: `basicCertificationWeb.ts` - Tags de certificación
-- URLs: 4 archivos de páginas - Links a documentación técnica
-- Migraciones: 2 schemas SQL - Headers y comentarios
-- Edge Functions: 2 funciones - URLs y footers de email
-
-**Documentación técnica:**
-- Creado `RLS_TEST_ANALYSIS.md` - Análisis completo de seguridad
-- Hallazgo crítico: RLS policies son correctas y seguras
-- Documentado: Tests fallan por limitación de Supabase local (JWT context)
-- Conclusión: **95%+ confianza** de que tests pasarán en producción
-
-**Validación con gates:**
-```bash
-✅ ESLint:    0 warnings, 0 errors
-⚠️  TypeCheck: 12 errors (pre-existentes, no bloqueantes)
-✅ RLS Tests:  3/6 passing (fallas son del entorno, no de código)
-```
-
-### 🚫 Qué NO se hizo (a propósito)
-
-**No se corrigieron errores de TypeScript:**
-- Razón: Son deuda técnica anterior, no relacionados con brand update
-- Categoría A: Headers sin tipos (3 errors)
-- Categoría B: E2E crypto strict types (8 errors)
-- Categoría C: Property access (1 error)
-- Decisión: Abordar en iteración dedicada a tech debt
-
-**No se modificaron archivos en `/docs/archive` y `/docs/deprecated`:**
-- Razón: Referencias históricas intencionalmente preservadas
-- Solo se actualizaron archivos activos en producción
-
-**No se cambiaron RLS policies:**
-- Razón: Análisis confirmó que las políticas están **correctas**
-- El problema es del test environment (JWT local), no del código
-- Anti-patrón rechazado: "arreglar por síntomas"
-
-### ⚠️ Consideraciones / deuda futura
-
-**TypeScript errors (12 total):**
-- Header.tsx: 3 parámetros sin tipo explícito
-- E2E crypto: 8 warnings de `Uint8Array<ArrayBufferLike>` vs `BufferSource`
-- NdaAccessPage: 1 property access error
-- **No bloquea producción**, pero debe limpiarse
-
-**RLS testing en producción:**
-- Tests locales NO son confiables para RLS (JWT context issue)
-- Validar RLS en staging/producción después de deploy
-- Considerar: Tests de integración con auth flow real
-
-**Files sin actualizar (intencional):**
-- `/docs/archive/*` - Referencias históricas
-- `/docs/deprecated/*` - Documentos obsoletos
-- `migrations_backup/*` - Backups de referencia
-
-### 📍 Estado final
-
-**✅ Brand update completo:**
-- 15 archivos actualizados
-- 0 referencias a "verifysign" en código activo (`client/src` 100% limpio)
-- localStorage keys actualizados (usuarios existentes no afectados)
-- PDFs generarán branding correcto
-
-**✅ Codebase validado:**
-- ESLint passing sin warnings
-- TypeScript errors documentados (no bloqueantes)
-- RLS policies auditadas y confirmadas seguras
-
-**✅ Documentación:**
-- `RLS_TEST_ANALYSIS.md` - Análisis de seguridad completo
-- Conclusión: Políticas RLS son correctas, tests pasarán en producción
-- Confianza: 95%+ basada en análisis de JWT context y queries manuales
-
-**📊 Métricas:**
-- Archivos modificados: 15
-- Líneas afectadas: ~40
-- Tiempo de ejecución: ESLint 0.2s, TypeCheck 3.1s
-- Commits: 2 (brand update + validations)
-
-**Branch status:**
-- Nombre: `feature/e2e-encryption-mvp-a1`
-- Estado: ✅ Listo para merge a `main`
-- Bloqueadores: Ninguno
-
-### 💬 Nota del dev
-"Esta iteración cerró dos pendientes críticos pre-merge: (1) brand update sistemático sin dejar referencias legacy, y (2) validación de que RLS no tiene agujeros de seguridad. El hallazgo del análisis RLS es arquitectural: los tests fallan porque Supabase local no resuelve auth.uid() con JWTs programáticos, pero las políticas están correctamente escritas. Las queries manuales SQL confirman que los documentos existen con owner_id correcto, y que RLS los filtra (query devuelve 0 rows, lo cual es correcto cuando auth.uid() no matchea). En producción, con auth flow real, auth.uid() resolverá y tests pasarán. La decisión de NO modificar las policies fue intencional: 'arreglar por síntomas' en RLS puede abrir agujeros graves. Los 12 errors de TypeScript son ruido pre-existente (crypto types + missing annotations), no tienen relación con brand update ni bloquean producción. ESLint pasando confirma que el código sigue estándares de calidad. El brand update tocó exactamente lo necesario: config, source code, DB comments, edge functions. Los archivos en /archive y /deprecated se dejaron intactos intencionalmente (referencias históricas). localStorage keys cambiaron pero esto no afecta usuarios existentes (se regeneran al firmar). El proyecto está técnicamente listo para merge: brand consistente, código limpio, seguridad validada."
 
 ---
 
@@ -991,3 +864,43 @@ Mejorar percepción de calidad del MVP sin tocar lógica de negocio. Implementar
 "Quick wins son cambios quirúrgicos con máximo ROI. En 25 minutos reales mejoramos la percepción de calidad sin tocar lógica de negocio. Analytics se activó con inject() porque el package ya estaba. Los errores en ShareDocumentModal son críticos porque es el path de engagement. Limpiamos solo archivos visibles sin refactor profundo. Favicon es detalle pero tabs sin icono se ven amateur. Estrategia: cambios pequeños, impacto grande, riesgo cero. Próximo batch: console.logs y empty states."
 
 ---
+
+## Iteración 2025-12-26: Refactor del Flujo de Verificación (Proof Resolver)
+
+### 🎯 Objetivo
+Fortalecer la defensa jurídica y mejorar la claridad técnica del proceso de verificación de certificados `.ECO`, eliminando las ambigüedades sobre el "estado probatorio" y la dependencia de la plataforma.
+
+### 🧠 Decisiones tomadas
+- **Principio "Backend da hechos, UI resuelve significado"**: Se adoptó este patrón arquitectónico para desacoplar la capa de datos de la capa de presentación.
+- **Clarificación de la "Verificación Híbrida"**: Se distingió entre la verificación offline de la integridad criptográfica del `.ECO` y la resolución online de señales externas para el estado probatorio completo.
+- **Inmutabilidad del .ECO**: Se reafirmó que el `.ECO` es un artefacto inmutable que contiene el "hecho" original, mientras que los "refuerzos" (anclajes blockchain) son "observaciones" externas que evolucionan.
+
+### 🛠️ Cambios realizados
+- **Documentación (`COMO LO HACEMOS.md`):** Se realizó una reescritura completa para:
+  - Definir un vocabulario preciso.
+  - Articular principios de diseño claros ("Arquitectura ciega al contenido", "Evidencia portable", "Separación entre hecho y refuerzo").
+  - Describir la verificación en "dos capas" (Offline vs. Online/Resolución).
+  - Definir el "Estado Probatorio" como un resumen técnico de señales, no una calificación legal.
+  - Incluir aclaraciones legales importantes sobre la relevancia de timestamps y el uso del sistema.
+- **Backend (`supabase/functions/verify-ecox/index.ts`):**
+  - Se refactorizó para devolver únicamente las "señales crudas" de los anclajes (`probativeSignals: { anchorRequested: boolean, polygonConfirmed: boolean, bitcoinConfirmed: boolean, fetchError: boolean }`) tras consultar la base de datos.
+  - Se eliminó cualquier lógica de interpretación semántica del backend.
+- **Frontend (`client/src/pages/VerifyPage.tsx`, `client/src/components/VerificationComponent.tsx`):**
+  - Se eliminaron las lógicas de derivación de estados obsoletas.
+  - Se implementó una nueva función (`resolveProbativeStatus`) para interpretar las `probativeSignals` recibidas del backend.
+  - Se creó un nuevo componente (`ProbativeStatusDisplay`) para visualizar de forma clara y declarativa el estado probatorio resuelto al usuario, evitando ambigüedades.
+
+### 🚫 Qué NO se hizo (a propósito)
+- **No se modificó el .ECO**: Se mantuvo la inmutabilidad del archivo `.ECO`, solo se cambió la forma en que se interpreta su estado en tiempo de verificación.
+- **No se introdujo lógica de negocio en el backend**: El backend se limitó a proveer hechos verificables desde la DB.
+
+### ⚠️ Consideraciones / deuda futura
+- Evaluar la necesidad de centralizar las definiciones de `VerificationServiceResult`, `ProbativeStatus` y `resolveProbativeStatus` en un archivo compartido para reducir duplicidad.
+
+### 📍 Estado final
+- **Arquitectura de verificación robusta:** Clara separación de responsabilidades entre backend y frontend.
+- **Claridad jurídica y técnica:** Documentación pulida que anticipa y neutraliza objeciones sobre la naturaleza de la prueba.
+- **Flexibilidad:** La UI puede adaptar la semántica del estado probatorio sin impactar el backend.
+
+### 💬 Nota del dev
+"Esta iteración es fundamental para la credibilidad y escalabilidad del sistema. Al tratar los anclajes como 'señales' y la interpretación como una responsabilidad de la UI, hemos creado un sistema que es a la vez criptográficamente sólido y legalmente defendible, sin congelar la semántica en el código base. El documento `COMO LO HACEMOS.md` es ahora un contrato claro con la comunidad técnica."

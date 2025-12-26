@@ -3,11 +3,26 @@ import JSZip from 'npm:jszip@3.10.1'
 import * as ed from 'npm:@noble/ed25519@2.0.0'
 import { sha256 } from 'npm:@noble/hashes@1.3.2/sha256'
 import { bytesToHex, hexToBytes } from 'npm:@noble/hashes@1.3.2/utils'
+import { createClient } from 'npm:@supabase/supabase-js@2.42.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
+}
+
+// Initialize Supabase client
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+)
+
+// Define interface for Anchor Data from DB
+interface AnchorData {
+  project_id: string; // Corresponds to manifest.projectId
+  polygon_confirmed_at: string | null;
+  bitcoin_confirmed_at: string | null;
+  // Add any other relevant anchor fields that indicate request/status
 }
 
 interface VerificationResult {
@@ -43,6 +58,12 @@ interface VerificationResult {
     inPersonVerification?: boolean
   }
   limitations?: string[]
+  probativeSignals?: { // REPLACED probativeState
+    anchorRequested: boolean,
+    polygonConfirmed: boolean,
+    bitcoinConfirmed: boolean,
+    fetchError: boolean,
+  }
   policySnapshotId?: string
   eventLineage?: {
     eventId?: string
@@ -106,7 +127,7 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
 
   let manifest: any
   let signatures: any[]
-  let metadata: any
+    let metadata: any
   let manifestJson: string
   let identityAssurance: {
     level?: string
@@ -291,14 +312,44 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
     ? (limitations || metadata?.limitations)
     : undefined
 
-  const rawEventLineage = eventLineage || metadata?.event_lineage
-  const computedEventLineage = rawEventLineage ? {
-    eventId: rawEventLineage.event_id,
-    previousEventId: rawEventLineage.previous_event_id,
-    cause: rawEventLineage.cause
-  } : undefined
-
   const computedPolicySnapshotId = policySnapshotId || metadata?.policy_snapshot_id
+
+  // --- Proof Resolver Logic ---
+  const probativeSignals: VerificationResult['probativeSignals'] = {
+    anchorRequested: false,
+    polygonConfirmed: false,
+    bitcoinConfirmed: false,
+    fetchError: false,
+  };
+
+  if (manifest.projectId) { // Only query if projectId is available
+    try {
+      const { data, error } = await supabase
+        .from('anchors') // Assuming 'anchors' is the table name
+        .select('polygon_confirmed_at, bitcoin_confirmed_at')
+        .eq('project_id', manifest.projectId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error querying anchor data:', error.message);
+        warnings.push(`No se pudo consultar el estado de anclaje: ${error.message}`);
+        probativeSignals.fetchError = true;
+      } else if (data) {
+        probativeSignals.anchorRequested = true; // Record found means anchor was requested
+        probativeSignals.polygonConfirmed = !!data.polygon_confirmed_at;
+        probativeSignals.bitcoinConfirmed = !!data.bitcoin_confirmed_at;
+      }
+      // If data is null, anchorRequested remains false, which is correct.
+
+    } catch (dbError) {
+      console.error('Unexpected database error during anchor query:', dbError);
+      warnings.push(`Error inesperado al consultar anclajes: ${(dbError as Error).message}`);
+      probativeSignals.fetchError = true;
+    }
+  } else {
+    warnings.push('No se encontró projectId en el manifiesto. No se consultarán los anclajes.');
+  }
+  // --- End of Proof Resolver Logic ---
 
   const result: VerificationResult = {
     valid: signatureValid && errors.length === 0,
@@ -313,6 +364,7 @@ async function extractAndVerifyEcox(fileBuffer: ArrayBuffer): Promise<Verificati
     environment: computedEnvironment,
     systemCapabilities: computedCapabilities,
     limitations: computedLimitations,
+    probativeSignals: probativeSignals, // Add new field
     policySnapshotId: computedPolicySnapshotId,
     eventLineage: computedEventLineage,
     signature: {

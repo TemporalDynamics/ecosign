@@ -1,257 +1,128 @@
-# COMO LO HACEMOS (version tecnica para desarrolladores)
+# CÓMO LO HACEMOS — Guía técnica (EcoSign)
 
-Este documento describe el flujo tecnico y las interfaces publicas del sistema.
-En algunos puntos se omiten detalles internos por razones de proteccion
-estrategica. Donde corresponde, se usan seudocodigos y contratos de datos
-estables.
+Este documento describe el **comportamiento verificable** del sistema y el **contrato público de datos** del formato `.ECO`.
+No describe detalles internos propietarios (optimización, packaging interno, pipelines, etc.).
 
-Referencias:
-- `NOTICE.md`
-- `docs/OPEN_SOURCE_STRATEGY.md`
-- `docs/verification-cli.md`
-- `docs/examples/sample.eco.json`
+## 0) Vocabulario (para evitar ambigüedad)
 
-## Principios clave (mapeo a codigo)
+- **Documento original**: el archivo (PDF, imagen, etc.).
+- **.ECO**: contenedor de evidencia técnica (no contiene el documento en claro).
+- **Manifiesto**: metadatos + hash del documento + timestamps (si aplica).
+- **Integridad criptográfica**: prueba de que el `.ECO` no fue alterado y que el hash corresponde a un contenido.
+- **Anclaje**: registro posterior en redes públicas (ej. Polygon / Bitcoin) que refuerza la evidencia.
+- **Estado probatorio**: resumen de señales técnicas disponibles al momento de verificar (puede mejorar con el tiempo).
 
-- Zero-knowledge aplicado a evidencia: la huella (SHA-256) se calcula en el
-  navegador y la evidencia se construye sin exponer el contenido. Ver
-  `client/src/lib/basicCertificationWeb.ts`.
-- E2E siempre activo para almacenamiento: los documentos se suben cifrados
-  lado cliente; la plataforma no accede al contenido en claro. Ver
-  `client/src/lib/storage/encryptedDocumentStorage.ts`.
-- Certificado verificable sin la plataforma: la verificacion es determinista y
-  se basa en el manifiesto, firma y hash. Ver `supabase/functions/verify-ecox/index.ts`.
-- Timestamp legal opcional (RFC 3161) con validacion local del token.
-  Ver `client/src/lib/tsaService.ts` y `client/src/lib/tsrVerifier.ts`.
-- Anclaje opcional en blockchain (Polygon y Bitcoin) sin bloquear la entrega del
-  certificado. Ver `client/src/lib/polygonAnchor.ts`, `supabase/functions/anchor-polygon/index.ts`,
-  `supabase/functions/anchor-bitcoin/index.ts` y comentarios en
-  `client/src/lib/basicCertificationWeb.ts`.
-- Auditabilidad completa con trazas de eventos. Ver `client/src/utils/eventLogger.ts` y
-  `supabase/functions/log-ecox-event/index.ts`.
-- Certificado .ECO que contiene prueba y cronologia, no el documento original.
-  Ver `client/src/lib/basicCertificationWeb.ts` y `supabase/functions/verify-ecox/index.ts`.
-- Almacenamiento E2E siempre activo cuando se sube el documento.
-  Ver `client/src/lib/storage/encryptedDocumentStorage.ts`.
-- Firma certificada con proveedor externo (p. ej. SignNow) en flujo separado.
-  Ver `supabase/functions/signnow/index.ts` y `supabase/functions/signnow-webhook/index.ts`.
+> Nota importante: el `.ECO` es **inmutable**. Lo que cambia con el tiempo no es el `.ECO`, sino la **disponibilidad de señales externas** (confirmaciones/observaciones).
 
-## Flujo principal: certificacion local
+---
 
-Seudocodigo (sin detalles propietarios):
+## 1) Principios de diseño
 
-```
-function certify(file, options):
-  bytes = readLocal(file)
-  hash = sha256(bytes)
-  keys = getOrCreateEd25519Keypair()
+1. **Arquitectura ciega al contenido (server-side)**  
+   EcoSign no necesita acceder al contenido del documento en claro para generar evidencia. El hash se calcula en el cliente. **Ciega al contenido en sentido operativo: los servidores no acceden ni interpretan el contenido en claro durante el proceso de emisión.**
 
-  if options.useLegalTimestamp:
-    tsa = requestRFC3161(hash)         // Edge Function + validacion local del token
-    timestamp = tsa.timestamp
-  else:
-    timestamp = localClock()
+2. **Evidencia portable y verificable**  
+   El `.ECO` permite verificar **offline** la integridad criptográfica (estructura, firma y hash).
 
-  manifest = buildManifest(fileMeta, hash, timestamp)
-  signature = sign(manifest, keys.privateKey)
+3. **Separación entre “hecho” y “refuerzo”**  
+   - El **hecho**: la integridad del `.ECO` y su vínculo con el documento (si se provee el original).  
+   - El **refuerzo**: anclajes en redes públicas y/o sellos de tiempo de terceros (si existen).
 
-  eco = buildEcoJSON(
-    manifest,
-    signature,
-    timestamp,
-    metadata = { clientInfo, intent, policySnapshot, ... }
-  )
+4. **Sin falsos negativos por disponibilidad**  
+   Si una señal externa no está disponible (por ejemplo, no se puede consultar el estado de un anclaje), el verificador debe mostrar **“no consultado / no disponible”**, nunca “falso”.
 
-  persistEcoMetadata(eco)              // DB + storage
-  return { eco, hash, timestamp }
-```
+---
 
-Codigo relacionado: `client/src/lib/basicCertificationWeb.ts`,
-`client/src/utils/documentStorage.ts`.
+## 2) Flujo de emisión: del documento al `.ECO`
 
-## Flujo de verificacion (.ECO)
+Resumen conceptual:
 
-Seudocodigo (Edge Function):
+1) El cliente calcula `hash = SHA-256(documento)` localmente.  
+2) Se construye un manifiesto con el hash y metadatos (nombre, tamaño, timestamp, etc.).  
+3) Se firma el manifiesto con **Ed25519** (clave del lado del cliente).  
+4) Se empaqueta en `.ECO` (contenedor de evidencia).  
+5) El `.ECO` se entrega al usuario inmediatamente.
 
-```
-function verify(ecoFile, originalFile?):
-  if isJSON(ecoFile):
-    manifest, signatures, metadata = parseUnifiedEco(ecoFile)
-  else:
-    manifest, signatures, metadata = parseLegacyZip(ecoFile)
+> Resultado: el usuario tiene un artefacto portable que puede verificar sin la plataforma.
 
-  signatureValid = verifyEd25519(manifest, signatures[0])
-  hashMatches = true
+---
 
-  if originalFile provided:
-    hashMatches = sha256(originalFile) == manifest.asset.hash
+## 3) Verificación: dos capas (sin promesas peligrosas)
 
-  return result(valid = signatureValid && hashMatches, warnings, errors)
-```
+La verificación se divide en **dos etapas**:
 
-Codigo relacionado: `supabase/functions/verify-ecox/index.ts`,
-`client/src/lib/verificationService.ts`.
+### A) Verificación OFFLINE (integridad criptográfica)
+Esta etapa es autosuficiente y no requiere red.
 
-## Timestamp legal (RFC 3161)
+- Validar estructura del `.ECO`
+- Validar firma(s) del manifiesto (Ed25519)
+- Si se provee el documento original: recalcular SHA-256 y comparar con el hash del manifiesto
 
-Seudocodigo:
+**Salida mínima (offline):**
+- Integridad del `.ECO`: ✅ / ❌
+- Coincidencia con documento original (si aplica): ✅ / ❌
 
-```
-function requestRFC3161(hash):
-  token = edgeFunction('legal-timestamp', { hash })
-  verified = verifyTsrTokenLocally(token, hash)
-  return { token, verified, timestamp, tsaInfo }
-```
+### B) Resolución de señales externas (opcional, online)
+Esta etapa **no reemplaza** la verificación offline; la complementa.
 
-Codigo relacionado: `client/src/lib/tsaService.ts`,
-`client/src/lib/tsrVerifier.ts`.
+- Consultar señales asociadas al `.ECO` (por ejemplo, anclajes registrados por la plataforma)
+- Presentar el resultado como **“observaciones”** y, cuando sea posible, incluir **identificadores públicos** (txid, block, etc.) para que un tercero pueda corroborarlos.
 
-## Anclaje en blockchain (opcional)
+**Regla de oro:**
+- Si no se puede consultar o no hay datos aún → mostrar **“No consultado / Pendiente”**, no “Inválido”.
 
-Polygon (tx on-chain) y Bitcoin (OpenTimestamps) se solicitan de forma
-asincrotonica para no bloquear la entrega del .ECO.
+---
 
-Seudocodigo:
+## 4) Estado probatorio (definición precisa y no ansiógena)
 
-```
-function anchorHash(hash):
-  if options.polygon:
-    queuePolygonAnchor(hash)  // Edge Function -> contrato en Polygon
-  if options.bitcoin:
-    queueBitcoinAnchor(hash)  // Edge Function -> OpenTimestamps
-```
+El verificador muestra un **resumen** basado en señales disponibles:
 
-Codigo relacionado: `client/src/lib/polygonAnchor.ts`,
-`supabase/functions/anchor-polygon/index.ts`,
-`supabase/functions/anchor-bitcoin/index.ts`.
+- **INTEGRIDAD OK**: el `.ECO` es consistente y las firmas/hashes validan.
+- **ANCLAJE PENDIENTE**: se solicitó refuerzo, pero todavía no hay confirmación disponible.
+- **ANCLAJE CONFIRMADO (POLYGON)**: existe confirmación disponible en Polygon (si se conoce el txid, es verificable públicamente).
+- **ANCLAJE CONFIRMADO (BITCOIN)**: existe confirmación disponible en Bitcoin / OpenTimestamps (si aplica y hay evidencia pública disponible).
+- **ANCLAJE NO CONSULTADO**: el verificador no pudo obtener la señal en este momento (ej. sin red / servicio no disponible).
 
-## Audit trail y eventos
+---
 
-Cada paso relevante puede generar eventos de auditoria (creacion, firma,
-descarga, verificacion). Esto permite reconstruir la cronologia sin exponer el
-contenido del documento.
+## 5) Qué guardamos y qué no
 
-Codigo relacionado: `client/src/utils/eventLogger.ts`,
-`supabase/functions/log-ecox-event/index.ts`,
-`supabase/functions/process-signature/index.ts`.
+EcoSign puede almacenar:
+- Metadatos del `.ECO` (no el contenido del documento en claro)
+- Datos necesarios para correlacionar anclajes (timestamps, identificadores públicos cuando existan)
 
-## Que guardamos y que no guardamos
+EcoSign no necesita almacenar:
+- El contenido del documento en claro para emitir/verificar evidencia
+- Claves privadas del usuario
 
-Guardamos (segun flujo):
-- Hash del documento y metadatos de certificado (JSONB).
-- .ECO en storage si el usuario habilita descarga diferida.
-- Eventos de auditoria y anclajes.
-- Documento cifrado E2E cuando se sube el archivo.
+---
 
-No guardamos:
-- El contenido del documento para generar evidencia.
-- El contenido del documento en claro.
+## 6) Contrato de datos `.ECO` (concepto)
 
-Ver `client/src/lib/storage/encryptedDocumentStorage.ts`.
+El `.ECO` contiene:
+- Manifiesto (hash, metadatos, timestamps)
+- Firma(s)
 
-## eco-packer (boundary de propiedad intelectual)
+Y puede contener:
+- **Intención de anclaje** (qué refuerzos se solicitaron en el momento de emisión)
 
-eco-packer es una libreria interna para empaquetado y validacion avanzada de
-.ECO/.ECOX. En este repo se publica solo su interfaz y uso externo. La
-implementacion interna y optimizaciones criptograficas permanecen reservadas
-por razones estrategicas.
+> Nota: el `.ECO` puede reflejar “intención/solicitud” de anclaje al momento de emisión.  
+> Las confirmaciones posteriores se presentan como **observaciones** en el verificador (para no romper inmutabilidad).
 
-Seudocodigo de interfaz (sin detalles):
+---
 
-```
-eco = EcoPacker.pack(manifest, signatures, metadata)
-EcoPacker.verify(eco)
-```
+## 7) Cómo debe verse el resultado (ejemplo de UX técnico)
 
-Si necesitas integrar eco-packer en otro proyecto, consulta el equipo para
-licenciamiento y acceso a la version completa.
+- Integridad del `.ECO`: ✅  
+- Coincide con documento original: ✅  
+- Refuerzo (Polygon): Pendiente / Confirmado / No consultado  
+- Refuerzo (Bitcoin): Pendiente / Confirmado / No consultado  
+- Resumen: **Integridad OK + Refuerzos según disponibilidad**
 
-## Diagrama de flujo (alto nivel)
+---
 
-```mermaid
-sequenceDiagram
-  participant U as Usuario
-  participant C as Cliente (Web)
-  participant E as Edge Functions
-  participant S as Storage/DB
-  participant P as Polygon
-  participant B as Bitcoin
+## 8) Aclaraciones Importantes
 
-  U->>C: Selecciona archivo
-  C->>C: Calcula hash (SHA-256)
-  C->>E: (Opcional) Solicita timestamp RFC3161
-  E-->>C: Token TSA + verificacion local
-  C->>C: Firma manifiesto (Ed25519)
-  C->>S: Guarda metadatos + .ECO
-  C->>S: Sube documento cifrado E2E
-  C-->>U: Entrega .ECO inmediato
-  C->>E: (Opcional) Anchoring Polygon/Bitcoin
-  E->>P: Tx on-chain
-  E->>B: OpenTimestamps
-  E-->>C: Estado de anclaje
-```
-
-## Contrato de datos (.ECO unificado)
-
-Ejemplo JSON de alto nivel (campos esenciales):
-
-```json
-{
-  "version": "1.1.0",
-  "certificate_schema_version": "1.0",
-  "manifest": {
-    "projectId": "doc-1700000000000",
-    "metadata": {
-      "title": "contrato.pdf",
-      "createdAt": "2025-01-01T12:00:00Z",
-      "author": "user@email.com"
-    },
-    "assets": [
-      {
-        "assetId": "asset-1700000000000",
-        "name": "contrato.pdf",
-        "size": 123456,
-        "hash": "sha256_hex"
-      }
-    ]
-  },
-  "signatures": [
-    {
-      "algorithm": "Ed25519",
-      "publicKey": "hex",
-      "signature": "hex",
-      "timestamp": "2025-01-01T12:00:00Z",
-      "legalTimestamp": {
-        "standard": "RFC 3161",
-        "tsa": "https://freetsa.org/tsr",
-        "tokenSize": 4200,
-        "verified": true
-      }
-    }
-  ],
-  "metadata": {
-    "certifiedAt": "2025-01-01T12:00:00Z",
-    "forensicEnabled": true,
-    "anchoring": { "polygon": true, "bitcoin": false }
-  },
-  "intent": { "intent_confirmed": true, "intent_method": "explicit_acceptance" },
-  "time_assurance": { "source": "RFC3161", "confidence": "high" },
-  "policy_snapshot_id": "policy_2025_11",
-  "event_lineage": { "event_id": "uuid", "previous_event_id": null }
-}
-```
-
-## Estrategia de apertura de codigo (eco-packer)
-
-Objetivo: abrir el repo sin exponer la implementacion sensible.
-
-Plan sugerido:
-1) Extraer `eco-packer/` a un repo privado y publicar solo una API surface
-   minima (stubs o interfaces) en este repo.
-2) Reemplazar imports por un wrapper publico que defina tipos y contratos,
-   y deje la implementacion privada via build step o paquete privado.
-3) Publicar un SDK reducido con funciones seguras: `pack()`, `verify()`,
-   `unpack()` sin detalles internos.
-4) En este repo, documentar solo el contrato JSON y ejemplos, no algoritmos.
-5) Agregar un `NOTICE.md` indicando que hay componentes con implementacion
-   reservada por razones estrategicas.
+- **Sobre el "Estado Probatorio"**: El estado probatorio es un **resumen técnico** de señales disponibles, no una calificación procesal ni judicial.
+- **Sobre Sellos de Tiempo de Terceros**: La relevancia jurídica de sellos de tiempo de terceros depende del marco normativo aplicable y la jurisdicción.
+- **Sobre el Uso del Sistema**: Este sistema no sustituye evaluaciones periciales, notariales o judiciales, sino que provee evidencia técnica verificable que puede ser considerada en dichos procesos.

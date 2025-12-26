@@ -6,25 +6,116 @@ import {
   AlertCircle,
   Clock,
   ShieldCheck,
-  FileCheck
+  FileCheck,
+  Loader2,
+  Anchor,
+  Shield
 } from 'lucide-react';
 import { verifyEcoWithOriginal } from '../lib/verificationService';
 
-type VerificationResult = {
-  valid: boolean;
-  fileName?: string;
-  hash?: string;
-  timestamp?: string | number | null;
-  timestampType?: string | null;
-  anchorChain?: string | null;
-  signature?: { algorithm?: string; valid?: boolean } | null;
-  documentIntegrity?: boolean;
-  signatureValid?: boolean;
-  timestampValid?: boolean;
+// INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
+interface VerificationServiceResult {
+  valid: boolean
+  fileName: string
+  hash: string
+  timestamp: string
+  timestampType: string
+  probativeSignals?: {
+    anchorRequested: boolean,
+    polygonConfirmed: boolean,
+    bitcoinConfirmed: boolean,
+    fetchError: boolean,
+  }
   errors?: string[];
   warnings?: string[];
   error?: string;
+  [key: string]: any; // Permite otros campos
+}
+
+interface ProbativeStatus {
+  level: 'base' | 'pending' | 'medium' | 'strong' | 'error';
+  label: string;
+  description: string;
+  Icon: React.ElementType;
+}
+
+// NUEVA FUNCIÓN RESOLVER (LÓGICA EN UI)
+function resolveProbativeStatus(signals: VerificationServiceResult['probativeSignals']): ProbativeStatus {
+  if (!signals || signals.fetchError) {
+    return {
+      level: 'error',
+      label: 'Anclaje No Consultado',
+      description: 'No se pudo obtener el estado del refuerzo externo. La integridad del .ECO sigue siendo válida.',
+      Icon: AlertCircle
+    }
+  }
+
+  if (signals.bitcoinConfirmed) {
+    return {
+      level: 'strong',
+      label: 'Protección Reforzada',
+      description: 'Registro adicional confirmado en la blockchain de Bitcoin.',
+      Icon: Anchor
+    }
+  }
+
+  if (signals.polygonConfirmed) {
+    return {
+      level: 'medium',
+      label: 'Protección Activa',
+      description: 'Registro confirmado en la red pública de Polygon.',
+      Icon: CheckCircle
+    }
+  }
+
+  if (signals.anchorRequested) {
+    return {
+      level: 'pending',
+      label: 'Protección en Proceso',
+      description: 'El registro en blockchain fue solicitado y está pendiente de confirmación.',
+      Icon: Loader2
+    }
+  }
+
+  return {
+    level: 'base',
+    label: 'Documento Íntegro',
+    description: 'La integridad del certificado y su firma son válidas. No se solicitó refuerzo externo.',
+    Icon: Shield
+  }
+}
+
+// NUEVO COMPONENTE DE UI
+const ProbativeStatusDisplay = ({ status }: { status: ProbativeStatus }) => {
+  const colorClasses = {
+    base: 'bg-gray-100 text-gray-800 border-gray-200',
+    pending: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+    medium: 'bg-blue-50 text-blue-800 border-blue-200',
+    strong: 'bg-green-50 text-green-800 border-green-200',
+    error: 'bg-red-50 text-red-800 border-red-200',
+  }
+
+  const iconColorClasses = {
+    base: 'text-gray-600',
+    pending: 'text-yellow-600',
+    medium: 'text-blue-600',
+    strong: 'text-green-600',
+    error: 'text-red-600',
+  }
+
+  return (
+    <div className={`p-4 rounded-xl border ${colorClasses[status.level]}`}>
+      <div className="flex items-start gap-3">
+        <status.Icon className={`w-6 h-6 flex-shrink-0 mt-0.5 ${iconColorClasses[status.level]} ${status.level === 'pending' ? 'animate-spin' : ''}`} />
+        <div>
+          <p className="font-semibold">{status.label}</p>
+          <p className="text-sm">{status.description}</p>
+        </div>
+      </div>
+    </div>
+  );
 };
+
 
 interface VerificationComponentProps {
   initialFile?: File | null;
@@ -33,7 +124,7 @@ interface VerificationComponentProps {
 const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFile = null }) => {
   const [ecoFile, setEcoFile] = useState<File | null>(initialFile ?? null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
+  const [verificationResult, setVerificationResult] = useState<VerificationServiceResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
@@ -66,11 +157,9 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
 
     try {
       const result = await verifyEcoWithOriginal(ecoFile, pdfFile);
-      
-      if (result.valid) {
-        setVerificationResult(result);
-      } else {
-        setError(result.error || 'La verificación falló');
+      setVerificationResult(result);
+      if (!result.valid) {
+        setError(result.error || result.errors?.join(', ') || 'La verificación falló');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al verificar el archivo');
@@ -187,7 +276,7 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
       </div>
 
       {/* Error Message */}
-      {error && (
+      {error && !verificationResult?.valid && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
@@ -232,18 +321,24 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
               )}
               <div>
                 <h3 className={`text-xl font-bold ${verificationResult.valid ? 'text-green-800' : 'text-red-800'}`}>
-                  {verificationResult.valid ? '✓ Verificación Exitosa' : '✗ Verificación Fallida'}
+                  {verificationResult.valid ? '✓ Verificación Válida' : '✗ Verificación Fallida'}
                 </h3>
                 <p className="text-sm text-gray-700 mt-1">
                   {verificationResult.valid 
-                    ? 'El certificado es válido y la integridad del documento está confirmada' 
-                    : 'El certificado no es válido o el documento ha sido modificado'}
+                    ? 'La integridad del certificado y el documento son correctas.' 
+                    : 'El certificado no es válido o el documento ha sido modificado.'}
                 </p>
               </div>
             </div>
           </div>
 
           <div className="p-6 space-y-6">
+            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-[#0A66C2]" />
+              Resumen Probatorio
+            </h4>
+            <ProbativeStatusDisplay status={resolveProbativeStatus(verificationResult.probativeSignals)} />
+
             {/* Document Info */}
             <div>
               <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -269,50 +364,12 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
                   <Clock className="w-5 h-5 text-[#0A66C2]" />
                   Información de Timestamp
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                     <p className="text-xs text-gray-600 mb-1">Fecha de Certificación</p>
                     <p className="font-medium text-sm text-gray-900">{new Date(verificationResult.timestamp).toLocaleString()}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                    <p className="text-xs text-gray-600 mb-1">Tipo de Timestamp</p>
-                    <p className="font-medium text-sm text-gray-900">{verificationResult.timestampType || 'Estándar'}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                    <p className="text-xs text-gray-600 mb-1">Anclaje</p>
-                    <p className="font-medium text-sm text-gray-900">{verificationResult.anchorChain || 'No disponible'}</p>
-                  </div>
-                </div>
               </div>
             )}
-
-            {/* Verification Details */}
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-[#0A66C2]" />
-                Detalles de Verificación
-              </h4>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <span className="text-sm text-gray-700">Integridad del Documento</span>
-                  <span className={`font-semibold text-sm ${verificationResult.documentIntegrity ? 'text-green-600' : 'text-red-600'}`}>
-                    {verificationResult.documentIntegrity ? '✓ Verificado' : '✗ No Verificado'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <span className="text-sm text-gray-700">Firma Digital</span>
-                  <span className={`font-semibold text-sm ${verificationResult.signatureValid ? 'text-green-600' : 'text-red-600'}`}>
-                    {verificationResult.signatureValid ? '✓ Válida' : '✗ Inválida'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <span className="text-sm text-gray-700">Timestamp Válido</span>
-                  <span className={`font-semibold text-sm ${verificationResult.timestampValid ? 'text-green-600' : 'text-red-600'}`}>
-                    {verificationResult.timestampValid ? '✓ Válido' : '✗ Inválido'}
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}

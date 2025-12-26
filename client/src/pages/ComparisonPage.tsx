@@ -70,10 +70,10 @@ const ComparisonPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            Firma Legal y Firma Certificada
+            Firma Técnica y Firma Legal Regulada
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Dos niveles de protección. Una misma tecnología de verdad inmutable.
+            Dos niveles de protección. Una misma tecnología de evidencia verificable.
           </p>
         </div>
       </header>
@@ -82,13 +82,13 @@ const ComparisonPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <p className="text-xl text-gray-700 mb-16 text-center leading-relaxed">
-            Elegí la agilidad de la Firma Legal para tu día a día o la potencia de la Firma Certificada para tus acuerdos más críticos. En ambos casos, tu evidencia te pertenece.
+            Elegí la agilidad de la firma técnica para tu día a día o la potencia de la firma legal regulada para tus acuerdos más críticos. En ambos casos, tu evidencia te pertenece.
           </p>
 
           {/* EcoSign Section */}
           <div className="bg-gray-50 p-8 md:p-12 rounded-xl mb-20">
             <div className="text-center mb-8">
-              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">Firma Legal (El "Caballo de Batalla")</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">Firma Técnica de Integridad (El "Caballo de Batalla")</h2>
               <p className="text-xl text-gray-700 mb-4">Ideal para: RRHH, Operaciones, Aprobaciones Internas, Acuerdos Comerciales Ágiles.</p>
               <div className="w-16 h-1 bg-black mx-auto"></div>
             </div>
@@ -97,10 +97,10 @@ const ComparisonPage = () => {
               <div>
                 <h3 className="text-xl font-semibold text-black mb-4 flex items-center">
                   <Shield className="w-5 h-5 text-[#0E4B8B] mr-3" />
-                  Productividad Ilimitada con Blindaje Forense
+                  Productividad Ilimitada con Evidencia Técnica
                 </h3>
                 <p className="text-gray-700 mb-6">
-                  La firma electrónica avanzada diseñada para eliminar la fricción y los costos ocultos, sin sacrificar la seguridad técnica.
+                  La firma técnica de integridad diseñada para eliminar la fricción y los costos ocultos, sin sacrificar la seguridad técnica.
                 </p>
 
                 <h4 className="font-semibold text-black mb-3">Por qué elegirla:</h4>
@@ -111,11 +111,11 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Más que una Firma Simple:</strong> A diferencia de las firmas básicas del mercado, la Firma Legal captura un rastro de auditoría forense completo (IP, dispositivo, geolocalización) y protege tu documento con tecnología Blockchain.</span>
+                    <span><strong>Más que una Firma Simple:</strong> A diferencia de las firmas básicas del mercado, la firma técnica captura un rastro de auditoría completo (IP, dispositivo, geolocalización) y protege tu documento con registro en blockchain.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><InhackeableTooltip className="font-semibold" /> en cada documento: hash SHA-256, sello legal y anclaje blockchain listos para peritos.</span>
+                    <span><InhackeableTooltip className="font-semibold" /> en cada documento: hash SHA-256, sello de tiempo criptográfico y registro blockchain verificables por peritos.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -123,13 +123,13 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Nivel Legal:</strong> Firma Electrónica Avanzada (AES) Reforzada. Perfecta para demostrar identidad e integridad en el 90% de los casos comerciales.</span>
+                    <span><strong>Especificación Técnica:</strong> Firma Electrónica Avanzada (AES) Reforzada. Perfecta para demostrar identidad e integridad en la mayoría de los casos comerciales.</span>
                   </li>
                 </ul>
               </div>
               <div className="flex items-center justify-center">
                 <div className="bg-white p-6 rounded-lg border-2 border-gray-200 text-center max-w-sm">
-                  <div className="text-4xl font-bold text-black mb-2">Firma Legal</div>
+                  <div className="text-4xl font-bold text-black mb-2">Firma Técnica</div>
                   <div className="text-gray-700 mb-4">Firma Electrónica Avanzada Reforzada</div>
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-700">Documentos privados • Evidencia verificable • Sin límites</p>
@@ -142,7 +142,7 @@ const ComparisonPage = () => {
           {/* LegalSign Section */}
           <div className="bg-blue-50 p-8 md:p-12 rounded-xl">
             <div className="text-center mb-8">
-              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">Firma Certificada (El "Tanque Legal")</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">Firma Legal Regulada (El "Tanque Legal")</h2>
               <p className="text-xl text-gray-700 mb-4">Ideal para: Contratos de Alto Valor, Disputas Legales Potenciales, Cumplimiento Normativo Estricto.</p>
               <div className="w-16 h-1 bg-black mx-auto"></div>
             </div>
@@ -151,17 +151,17 @@ const ComparisonPage = () => {
               <div>
                 <h3 className="text-xl font-semibold text-black mb-4 flex items-center">
                   <Shield className="w-5 h-5 text-[#0E4B8B] mr-3" />
-                  La Potencia de un Proveedor Certificado + Blindaje <InhackeableTooltip className="font-semibold" />
+                  Proveedor Externo Acreditado + Evidencia Técnica <InhackeableTooltip className="font-semibold" />
                 </h3>
                 <p className="text-gray-700 mb-6">
-                  Combinamos la validez normativa de SignNow (proveedor global acreditado) con nuestra tecnología de inmutabilidad para crear la firma más robusta del mercado.
+                  Combinamos la firma legal regulada de SignNow (proveedor global acreditado) con nuestra tecnología de evidencia verificable para crear la protección más robusta del mercado.
                 </p>
 
                 <h4 className="font-semibold text-black mb-3">Por qué elegirla:</h4>
                 <ul className="space-y-3">
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Certificación Global:</strong> Utilizamos la API de SignNow para emitir firmas que cumplen con estándares eIDAS (UE), ESIGN y UETA (EE.UU.).</span>
+                    <span><strong>Firma Legal Regulada:</strong> Utilizamos la API de SignNow para firmas que cumplen con estándares eIDAS (UE), ESIGN y UETA (EE.UU.).</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -169,24 +169,24 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Blindaje <InhackeableTooltip className="font-semibold" /> (SmartHash):</strong> Encapsulamos la firma en nuestro contenedor forense con hash, sello legal y anclaje (Bitcoin/Polygon) más los que se sumen.</span>
+                    <span><strong>Evidencia Técnica <InhackeableTooltip className="font-semibold" />:</strong> Encapsulamos la firma en nuestro contenedor de protección legal con hash, sello de tiempo criptográfico y registro (Bitcoin/Polygon) más los que se sumen.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Auditoría de Lujo:</strong> Entregamos un historial "claro como el agua" donde se vincula la identidad certificada con la inmutabilidad de la Blockchain.</span>
+                    <span><strong>Auditoría Completa:</strong> Entregamos un historial técnico donde se vincula la identidad regulada con el registro público en blockchain.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Nivel Legal:</strong> Firma Certificada (QES/AES vía Proveedor) + Blindaje Forense. La máxima protección posible para transacciones donde el riesgo no es una opción.</span>
+                    <span><strong>Especificación:</strong> Firma Legal Regulada (QES/AES vía Proveedor) + Evidencia Técnica Verificable. La máxima protección posible para transacciones donde el riesgo no es una opción.</span>
                   </li>
                 </ul>
               </div>
               <div className="flex items-center justify-center">
                 <div className="bg-white p-6 rounded-lg border-2 border-gray-200 text-center max-w-sm">
-                  <div className="text-4xl font-bold text-black mb-2">Firma Certificada</div>
-                  <div className="text-gray-700 mb-4">Firma Certificada + Blindaje Forense</div>
+                  <div className="text-4xl font-bold text-black mb-2">Firma Legal Regulada</div>
+                  <div className="text-gray-700 mb-4">Firma Regulada + Evidencia Técnica</div>
                   <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-700">Validación global • Presunción legal • Máxima protección</p>
+                    <p className="text-sm text-gray-700">Proveedor acreditado • Presunción legal • Máxima protección</p>
                   </div>
                 </div>
               </div>
@@ -198,20 +198,20 @@ const ComparisonPage = () => {
       {/* Comparison Table */}
       <section className="py-24 bg-white">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-black mb-6 text-center">El Ranking de Seguridad Legal: No todas las firmas son iguales.</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-black mb-6 text-center">Comparación Técnica: No todas las firmas son iguales.</h2>
           <p className="text-lg text-gray-700 mb-12 text-center max-w-4xl mx-auto">
-            Comprendé qué requisitos técnicos y legales son necesarios para garantizar el no repudio. Así es cómo nuestras Firma Legal y Firma Certificada superan el estándar de la industria.
+            Comprendé qué requisitos técnicos son necesarios para reducir el riesgo de repudio. Así es cómo nuestras opciones de firma superan el estándar de la industria.
           </p>
 
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900 min-w-[220px]">Requisito Legal Clave (Prueba en Juicio)</th>
+                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-900 min-w-[220px]">Requisito Técnico Clave</th>
                   <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-gray-50">Firma Simple (SES)</th>
                   <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-gray-50">Firma Avanzada (AES Estándar)</th>
-                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">Firma Legal (Avanzada y Blindada)</th>
-                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">Firma Certificada (Pago por uso)</th>
+                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">Firma Técnica EcoSign</th>
+                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-900 bg-blue-100">Firma Legal Regulada (Pago por uso)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -237,11 +237,11 @@ const ComparisonPage = () => {
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">✓ ✓ ✓ ✓ (Proveedor + Blockchain)</td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-4 text-sm font-medium text-gray-900">Blindaje <InhackeableTooltip className="font-semibold" /></td>
+                  <td className="py-4 px-4 text-sm font-medium text-gray-900">Evidencia Técnica <InhackeableTooltip className="font-semibold" /></td>
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">-</td>
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">-</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Hash + sello legal + anclaje (incluido)</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Hash + sello legal + anclaje (incluido)</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Hash + sello de tiempo + registro (incluido)</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Hash + sello de tiempo + registro (incluido)</td>
                 </tr>
                 <tr>
                   <td className="py-4 px-4 text-sm font-medium text-gray-900">Verificación Independiente</td>
@@ -251,18 +251,18 @@ const ComparisonPage = () => {
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">✓ ✓ (Verificable Offline + Proveedor)</td>
                 </tr>
                 <tr>
-                  <td className="py-4 px-4 text-sm font-medium text-gray-900">Privacidad del Contenido (Zero Knowledge)</td>
+                  <td className="py-4 px-4 text-sm font-medium text-gray-900">Privacidad del Contenido</td>
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">-</td>
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">-</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">✓ ✓ ✓ (El documento no abandona tu dispositivo)</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">- (Se requiere el envío al Certificador)</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">✓ ✓ ✓ (No accede al contenido)</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">- (Requiere envío al proveedor)</td>
                 </tr>
                 <tr>
                   <td className="py-4 px-4 text-sm font-medium text-gray-900">Plataformas Típicas</td>
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">Free-Tiers genéricos</td>
                   <td className="py-4 px-4 text-sm text-gray-700 text-center bg-gray-50">DocuSign, Adobe Sign, etc.</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Firma Legal</td>
-                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Firma Certificada</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Firma Técnica EcoSign</td>
+                  <td className="py-4 px-4 text-sm text-gray-700 text-center bg-blue-50">Firma Legal Regulada EcoSign</td>
                 </tr>
                 <tr>
                   <td className="py-4 px-4 text-sm font-medium text-gray-900">Ideal para...</td>
@@ -284,27 +284,27 @@ const ComparisonPage = () => {
               Somos la única plataforma que te ofrece dos caminos de máxima seguridad, manteniendo siempre la transparencia sobre el manejo de tus archivos:
             </p>
             <div className="mt-4">
-              <h4 className="font-semibold text-black mb-2">🛡️ Firma Legal: Tu documento es solo tuyo (Zero Knowledge)</h4>
+              <h4 className="font-semibold text-black mb-2">🛡️ Firma Técnica: Tu documento es solo tuyo</h4>
               <p className="text-gray-700 mb-2">
-                <strong>Privacidad:</strong> Absoluta. Cuando firmas con la Firma Legal, tu documento jamás se carga a nuestros servidores.
+                <strong>Privacidad:</strong> Absoluta. Con la firma técnica, EcoSign no accede al contenido del documento. Tu archivo jamás se carga a nuestros servidores.
               </p>
               <p className="text-gray-700 mb-2">
-                El proceso criptográfico que genera el Hash (la huella digital inmutable) se realiza completamente en tu dispositivo.
+                El proceso criptográfico que genera el hash (la huella digital) se realiza completamente en tu dispositivo.
               </p>
               <p className="text-gray-700">
                 Esta es la opción ideal para secretos comerciales, patentes o cualquier documento donde la confidencialidad es la prioridad N° 1.
               </p>
             </div>
             <div className="mt-4">
-              <h4 className="font-semibold text-black mb-2">⚖️ Firma Certificada: Auditoría Externa</h4>
+              <h4 className="font-semibold text-black mb-2">⚖️ Firma Legal Regulada: Procesamiento Externo</h4>
               <p className="text-gray-700 mb-2">
-                <strong>Privacidad:</strong> Procesamiento Externo Necesario. Para darte una firma de nivel Certificado/QES que te brinde la máxima validez en la mayoría de las jurisdicciones, el documento debe ser procesado por nuestro proveedor certificado (SignNow).
+                <strong>Privacidad:</strong> Procesamiento Externo Necesario. Para utilizar firma legal regulada mediante proveedores externos acreditados, el documento debe ser procesado por el proveedor (SignNow).
               </p>
               <p className="text-gray-700 mb-2">
-                <strong>Nuestro blindaje extra:</strong> Aunque el archivo sube a los servidores del proveedor, nosotros registramos su huella (Hash) en la Blockchain antes de enviarlo.
+                <strong>Nuestra evidencia adicional:</strong> Aunque el archivo sube a los servidores del proveedor, nosotros registramos su hash en blockchain antes de enviarlo.
               </p>
               <p className="text-gray-700">
-                <strong>Tu Garantía:</strong> Si alguien (incluso el proveedor) intentara alterar el archivo, nuestro registro inmutable lo detectaría inmediatamente. Este mecanismo nos convierte en el "Auditor del Auditor", ofreciéndote una capa de seguridad superior a un QES tradicional.
+                <strong>Protección adicional:</strong> Si alguien (incluso el proveedor) intentara alterar el archivo, nuestro registro público lo detectaría inmediatamente. Este mecanismo proporciona una capa de verificación adicional.
               </p>
             </div>
           </div>
@@ -329,7 +329,7 @@ const ComparisonPage = () => {
               </h3>
               <p className="text-gray-700 mb-4">
                 La mayoría de las plataformas te "secuestran": si dejas de pagarles, pierdes la forma de validar tus firmas.
-                Con nosotros, generamos archivos .ECO y .ECOX que son autocontenidos. Puedes verificarlos en nuestra web o con
+                Con nosotros, generamos contenedores de protección legal (.ECO y .ECOX) que son autocontenidos. Puedes verificarlos en nuestra web o con
                 herramientas de código abierto, hoy y dentro de 10 años, sin depender de nuestros servidores.
               </p>
             </div>
@@ -337,28 +337,28 @@ const ComparisonPage = () => {
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <h3 className="text-2xl font-bold text-black mb-4 flex items-center">
                 <Anchor className="w-6 h-6 text-[#0E4B8B] mr-3" />
-                2. Blindaje <InhackeableTooltip className="font-semibold" />
+                2. Evidencia Técnica <InhackeableTooltip className="font-semibold" />
               </h3>
               <p className="text-gray-700 mb-4">
-                Mientras otros solo ponen una firma digital, nosotros blindamos tu documento en tres capas:
+                Mientras otros solo ponen una firma digital, nosotros protegemos tu documento en tres capas:
               </p>
               <ul className="space-y-2 ml-6 text-gray-700">
                 <li className="flex items-start">
                   <span className="font-semibold mr-2">• Criptografía:</span>
-                  <span>Hash SHA-256 inalterable.</span>
+                  <span>Hash SHA-256 verificable.</span>
                 </li>
                 <li className="flex items-start">
                   <span className="font-semibold mr-2">• Tiempo:</span>
-                  <span>Sello de tiempo legal (TSA independiente).</span>
+                  <span>Sello de tiempo criptográfico verificable (TSA independiente).</span>
                 </li>
                 <li className="flex items-start">
-                  <span className="font-semibold mr-2">• Eternidad:</span>
-                  <span>Anchoring público en blockchain (hoy Polygon/Bitcoin; pronto más redes).</span>
+                  <span className="font-semibold mr-2">• Registro Público:</span>
+                  <span>Registro público en blockchain (hoy Polygon/Bitcoin; pronto más redes).</span>
                 </li>
               </ul>
               <p className="text-gray-700 mt-4">
-                Esto significa que, ante un tribunal, tienes la evidencia técnica más sólida posible para demostrar
-                quién firmó, cuándo y qué se firmó, sin lugar a dudas.
+                Esto significa que tienes evidencia técnica sólida y verificable para demostrar
+                quién firmó, cuándo y qué se firmó. La validez legal depende del contexto y la jurisdicción.
               </p>
             </div>
           </div>

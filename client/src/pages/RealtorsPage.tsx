@@ -70,13 +70,13 @@ const RealtorsPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            Firma Legal para Profesionales de Bienes Raíces
+            Protección Legal para Profesionales de Bienes Raíces
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed font-bold">
             De la Reserva a la Escritura: Cerrá operaciones con la velocidad de un clic.
           </p>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Detené la fricción, eliminá los costos ocultos y documentá cada paso de la operación sin exponer la información más sensible. Firma Legal es tu aliado para el 90% de los acuerdos previos a la firma notarial.
+            Detené la fricción, eliminá los costos ocultos y documentá cada paso de la operación sin exponer la información más sensible. La firma técnica es tu aliado para la mayoría de los acuerdos previos a la firma notarial.
           </p>
         </div>
       </header>
@@ -121,7 +121,7 @@ const RealtorsPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-12 text-center">
-            Firma Legal: Más que una firma, un acelerador de negocios
+            Protección Legal: Más que una firma, un acelerador de negocios
           </h2>
 
           <div className="bg-blue-50 rounded-xl p-8">
@@ -140,15 +140,15 @@ const RealtorsPage = () => {
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Confidencialidad Total</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">El archivo nunca sale de tu poder. El proceso de firma ocurre en tu dispositivo. Tu información valiosa no se sube a servidores externos.</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">EcoSign no accede al contenido del documento. El proceso ocurre en tu dispositivo. Tu información valiosa no se sube a servidores externos.</td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Costo Cero</td>
                     <td className="py-4 px-4 text-sm text-gray-700">Sin sobres, sin límites. Un solo plan te da firmas ilimitadas. Tu costo es fijo y predecible.</td>
                   </tr>
                   <tr className="bg-gray-50">
-                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Evidencia Inmutable</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Cada documento genera un archivo .ECO blindado con <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>. La evidencia se valida sola, garantizando la trazabilidad ante cualquier disputa.</td>
+                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Evidencia Técnica Verificable</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Cada documento genera un contenedor de protección legal .ECO con <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>. La evidencia es verificable, asegurando la trazabilidad técnica ante cualquier disputa.</td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Ideal para el Flujo Inmobiliario</td>
@@ -213,7 +213,7 @@ const RealtorsPage = () => {
 
           <div className="grid md:grid-cols-2 gap-12">
             <div className="bg-blue-50 p-8 rounded-xl">
-              <h3 className="text-2xl font-bold text-black mb-4 text-center">¿Cuándo usar Firma Legal? (Volumen Diario)</h3>
+              <h3 className="text-2xl font-bold text-black mb-4 text-center">¿Cuándo usar firma técnica? (Volumen Diario)</h3>
               <ul className="space-y-3">
                 <li className="flex items-start">
                   <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
@@ -235,7 +235,7 @@ const RealtorsPage = () => {
             </div>
 
             <div className="bg-gray-100 p-8 rounded-xl">
-              <h3 className="text-2xl font-bold text-black mb-4 text-center">¿Cuándo usar Firma Certificada? (Máximo Riesgo)</h3>
+              <h3 className="text-2xl font-bold text-black mb-4 text-center">¿Cuándo usar firma legal regulada? (Máximo Riesgo Legal)</h3>
               <ul className="space-y-3">
                 <li className="flex items-start">
                   <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
@@ -243,11 +243,11 @@ const RealtorsPage = () => {
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="text-green-600 w-5 h-5 flex-shrink-0 mt-0.5 mr-2" />
-                  <span><strong>Contratos de Alto Valor/Sensibles</strong> - Donde se necesite una certificación oficial</span>
+                  <span><strong>Contratos de Alto Valor/Sensibles</strong> - Donde se requiera firma regulada mediante proveedores externos</span>
                 </li>
               </ul>
               <p className="mt-4 text-center font-semibold text-black">
-                Recordá: La plataforma te permite usar Firma Certificada en el mismo flujo de trabajo.
+                Recordá: EcoSign te permite usar firma legal regulada en el mismo flujo de trabajo. La validez legal depende del contexto y la jurisdicción.
               </p>
             </div>
           </div>

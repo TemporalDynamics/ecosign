@@ -71,13 +71,13 @@ const LawyersPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            Firma Legal para Abogados y Estudios Jurídicos
+            Protección Legal para Abogados y Estudios Jurídicos
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed font-bold">
-            La Evidencia Irrefutable. La Firma Electrónica diseñada para Litigio.
+            Evidencia Técnica Verificable. Firma Electrónica diseñada para Profesionales Legales.
           </p>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Dejá de depender de archivos volátiles y plataformas que exponen la confidencialidad de tu cliente. Firma Legal te da la soberanía total sobre la prueba, con un blindaje forense que resiste la impugnación.
+            Dejá de depender de archivos volátiles y plataformas que exponen la confidencialidad de tu cliente. EcoSign te da control sobre la evidencia técnica con un proceso verificable que resiste la impugnación.
           </p>
         </div>
       </header>
@@ -122,7 +122,7 @@ const LawyersPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-12 text-center">
-            Firma Legal: Tu Blindaje Forense y Procesal
+            Protección Legal: Evidencia Técnica Verificable
           </h2>
 
           <div className="bg-blue-50 rounded-xl p-8">
@@ -136,20 +136,20 @@ const LawyersPage = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   <tr>
-                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Soberanía Absoluta de la Prueba</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">El documento nunca toca servidores externos. La información crítica de tu cliente permanece confidencial y en tu poder.</td>
+                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Control de la Evidencia</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">EcoSign no accede al contenido del documento. La información crítica de tu cliente permanece confidencial y en tu poder.</td>
                   </tr>
                   <tr className="bg-gray-50">
-                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Evidencia Inmutable (.ECO)</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Toda la historia del documento, cronología y firmas, encapsulada en un solo archivo verificable para siempre (<HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>).</td>
+                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Contenedor de Protección Legal (.ECO)</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Toda la historia del documento, cronología y firmas, encapsulada en un archivo verificable para siempre (<HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>).</td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Verificación Independiente</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">La prueba se valida sin depender de nosotros. Tu evidencia es autosuficiente, un perito puede verificarla localmente sin acceder a servicios web.</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">La evidencia se valida sin depender de nosotros. Un perito puede verificarla localmente sin acceder a servicios web.</td>
                   </tr>
                   <tr className="bg-gray-50">
-                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Menos Riesgo de Repudio</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Registros forenses detallados disponibles inmediatamente para respaldar la autenticidad e integridad en cualquier instancia judicial.</td>
+                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Menor Riesgo de Repudio</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Registros técnicos detallados disponibles inmediatamente para respaldar la autenticidad e integridad. La validez legal depende del contexto y la jurisdicción.</td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Cero Fricción para el Cliente</td>
@@ -247,16 +247,16 @@ const LawyersPage = () => {
             <h3 className="text-2xl font-bold text-black mb-6 text-center">La Doble Opción</h3>
             <div className="grid md:grid-cols-2 gap-8">
               <div>
-                <h4 className="text-xl font-bold text-black mb-3">Firma Legal:</h4>
-                <p className="text-gray-700">Para la mayoría de tus documentos privados y la máxima confidencialidad.</p>
+                <h4 className="text-xl font-bold text-black mb-3">Firma Técnica:</h4>
+                <p className="text-gray-700">Para la mayoría de tus documentos privados y la máxima confidencialidad. EcoSign no accede al contenido.</p>
               </div>
               <div>
-                <h4 className="text-xl font-bold text-black mb-3">Firma Certificada (pago por uso):</h4>
-                <p className="text-gray-700">Para procesos que exigen la certificación de un Proveedor Acreditado, dándote la presunción de validez legal cuando más lo necesitás.</p>
+                <h4 className="text-xl font-bold text-black mb-3">Firma Legal Regulada (pago por uso):</h4>
+                <p className="text-gray-700">Disponible opcionalmente mediante proveedores externos acreditados, para procesos que exigen ese nivel. La validez legal depende del contexto y la jurisdicción.</p>
               </div>
             </div>
             <p className="text-xl font-semibold text-black mt-6 text-center">
-              Ambas herramientas están integradas para que vos definas el nivel de armadura legal de cada documento, sin cambiar de plataforma.
+              Ambas herramientas están integradas para que vos definas el nivel de protección de cada documento, sin cambiar de plataforma.
             </p>
           </div>
         </div>

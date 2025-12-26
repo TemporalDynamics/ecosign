@@ -19,21 +19,21 @@ type FAQ = {
 const faqs: FAQ[] = [
   {
     question: "¿Mi documento se sube a los servidores de EcoSign?",
-    answer: <>No. La plataforma aplica el principio Zero-Knowledge: el archivo nunca se sube ni se almacena.</>
+    answer: <>No. EcoSign no accede al contenido del documento. El archivo nunca se sube ni se almacena en su forma legible.</>
   },
   {
     question: "¿Qué es un archivo .ECO?",
-    answer: <>Es un certificado portable que contiene la evidencia del proceso: <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>, <SelloDeTiempoLegalTooltip>Sellos de Tiempo Legales</SelloDeTiempoLegalTooltip>, <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> y la auditoría completa. No incluye tu documento.</>
+    answer: <>Es un contenedor de protección legal que contiene la evidencia del proceso: <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>, sellos de tiempo criptográficos, <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> y la auditoría completa. No incluye tu documento.</>
   },
   {
-    question: "¿En qué se diferencia Firma Legal de una firma tradicional?",
-    answer: <>Firma Legal (Ilimitada): <InhackeableTooltip>evidencia forense</InhackeableTooltip> + trazabilidad (uso interno). Firma Certificada: cumplimiento jurídico pleno (eIDAS/ESIGN/UETA).</>
+    question: "¿Qué diferencia hay entre los tipos de firma?",
+    answer: <>Firma técnica de integridad y autoría: <InhackeableTooltip>evidencia forense</InhackeableTooltip> + trazabilidad (uso interno). Firma legal regulada: disponible opcionalmente mediante proveedores externos certificados (eIDAS/ESIGN/UETA).</>
   },
   {
-    question: "¿Cómo garantizan la fecha cierta?",
+    question: "¿Cómo aseguran la fecha cierta?",
     answer: (
       <span>
-        Con blindaje <InhackeableTooltip>Inhackeable</InhackeableTooltip>: <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> local, <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> y <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> (hoy <PolygonTooltip>Polygon</PolygonTooltip> / <BitcoinTooltip>Bitcoin</BitcoinTooltip>; más redes pronto).
+        Mediante evidencia técnica: <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> local, sello de tiempo criptográfico verificable y <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> (hoy <PolygonTooltip>Polygon</PolygonTooltip> / <BitcoinTooltip>Bitcoin</BitcoinTooltip>; más redes pronto). La validez legal depende del contexto y la jurisdicción.
       </span>
     )
   },

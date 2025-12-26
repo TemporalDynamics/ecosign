@@ -73,7 +73,10 @@ export default function FooterPublic() {
         {/* Línea divisoria y texto legal centrado */}
         <div className="pt-8 border-t border-white/10 text-center">
           <p className="text-sm text-gray-400 mb-2">
-            EcoSign es un servicio independiente de certificación y firma digital. 
+            EcoSign no actúa como autoridad certificante ni garantiza validez legal automática. 
+            Proporciona protección y evidencia técnica verificable que puede ser utilizada en contextos legales según corresponda.
+          </p>
+          <p className="text-sm text-gray-400 mb-2">
             El formato .ECO y los procesos asociados están en proceso de registro de propiedad intelectual.
           </p>
           <p className="text-sm text-gray-400">© 2025 EcoSign. Todos los derechos reservados.</p>

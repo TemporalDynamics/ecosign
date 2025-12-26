@@ -15,16 +15,16 @@ function DashboardStartPage() {
       <main className="flex-grow max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 pb-24 space-y-12">
         <section className="text-center bg-white/80 rounded-3xl p-10 shadow-lg border border-black100">
           <p className="text-black font-semibold tracking-[0.2em] uppercase mb-4">workspace</p>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6">Tu centro de firma y certificación</h1>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6">Tu centro de firma y protección legal</h1>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto mb-8">
-            Desde acá podés firmar, certificar, compartir bajo NDA y verificar tus documentos de forma segura. Elegí una acción para continuar.
+            Desde acá podés firmar, proteger, compartir bajo NDA y verificar tus documentos de forma segura. Elegí una acción para continuar.
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-12">
             <button
               onClick={() => openLegalCenter('certify')}
               className="bg-gradient-to-r from-black to-gray-800 text-white font-semibold px-8 py-3 rounded-xl shadow hover:shadow-lg transition text-center"
             >
-              Certificar Documento
+              Proteger Documento
             </button>
             <button
               onClick={() => openLegalCenter('sign')}
@@ -58,9 +58,9 @@ function DashboardStartPage() {
             <div className="flex items-start gap-4">
               <Shield className="h-8 w-8 text-gray-700 flex-shrink-0" strokeWidth={2} />
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Certificar documento</h3>
+                <h3 className="text-lg font-bold text-gray-900">Proteger documento</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Protegé la integridad y trazabilidad legal de un archivo, incluso sin firmarlo.
+                  Protegé la integridad y trazabilidad técnica de un archivo mediante evidencia verificable, incluso sin firmarlo.
                 </p>
               </div>
             </div>

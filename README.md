@@ -1,6 +1,6 @@
 # Ecosign
 
-Ecosign es una aplicación JAMStack para la certificación de documentos y firmas digitales con capacidades de anclaje en blockchain (Polygon y Bitcoin).
+Ecosign es una aplicación JAMStack para la protección y evidencia técnica de documentos digitales con capacidades de registro en blockchain (Polygon y Bitcoin).
 
 Este es un monorepo que contiene todos los paquetes y aplicaciones de Ecosign.
 
@@ -17,7 +17,7 @@ El repositorio está organizado de la siguiente manera:
 - **`/client`**: La aplicación principal de cara al usuario. Es una Single-Page Application (SPA) construida con React y Vite.
 - **`/supabase`**: Contiene todo el backend de Supabase. Para instrucciones sobre el desarrollo local, consulta la **[Guía de Desarrollo del Backend](./supabase/README.md)**.
 - **`/eco-packer`**: Una librería compartida que encapsula la lógica de negocio principal y la gestión de formatos de Ecosign.
-- **`/contracts`**: Contratos inteligentes (Solidity) para el anclaje en la blockchain de Polygon.
+- **`/contracts`**: Contratos inteligentes (Solidity) para el registro en la blockchain de Polygon.
 - **`/docs`**: Documentación técnica, diagramas y decisiones de arquitectura.
 - **`/scripts`**: Scripts de utilidad para tareas de mantenimiento, despliegue o pruebas.
 

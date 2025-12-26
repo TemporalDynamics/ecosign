@@ -24,6 +24,38 @@ interface SessionCrypto {
 // Singleton for current session
 let _currentSession: SessionCrypto | null = null;
 
+const SESSION_SECRET_STORAGE_PREFIX = 'ecosign_session_secret_v1';
+
+const getSessionStorageKey = (userId: string) => `${SESSION_SECRET_STORAGE_PREFIX}:${userId}`;
+
+const loadStoredSessionSecret = (userId: string): Uint8Array | null => {
+  try {
+    const stored = localStorage.getItem(getSessionStorageKey(userId));
+    if (!stored) return null;
+    const decoded = atob(stored);
+    const bytes = new Uint8Array(decoded.length);
+    for (let i = 0; i < decoded.length; i++) {
+      bytes[i] = decoded.charCodeAt(i);
+    }
+    if (bytes.length !== CRYPTO_CONFIG.SESSION_SECRET.length) {
+      return null;
+    }
+    return bytes;
+  } catch (error) {
+    console.warn('⚠️ Unable to load stored session secret:', error);
+    return null;
+  }
+};
+
+const storeSessionSecret = (userId: string, secret: Uint8Array) => {
+  try {
+    const encoded = btoa(String.fromCharCode(...secret));
+    localStorage.setItem(getSessionStorageKey(userId), encoded);
+  } catch (error) {
+    console.warn('⚠️ Unable to persist session secret:', error);
+  }
+};
+
 /**
  * Initialize session crypto after successful login
  *
@@ -41,8 +73,9 @@ export async function initializeSessionCrypto(userId: string, forceReinit: boole
     return;
   }
 
-  // 1. Generate session secret (client-side only)
-  const sessionSecret = randomBytes(CRYPTO_CONFIG.SESSION_SECRET.length);
+  // 1. Load or generate session secret (client-side only)
+  const storedSecret = !forceReinit ? loadStoredSessionSecret(userId) : null;
+  const sessionSecret = storedSecret ?? randomBytes(CRYPTO_CONFIG.SESSION_SECRET.length);
 
   // 2. Get user's wrap salt from DB (public, not secret)
   const supabase = getSupabase();
@@ -69,6 +102,10 @@ export async function initializeSessionCrypto(userId: string, forceReinit: boole
     userId,
     initializedAt: new Date(),
   };
+
+  if (!storedSecret) {
+    storeSessionSecret(userId, sessionSecret);
+  }
 
   console.log('✅ Session crypto initialized for user:', userId);
 }

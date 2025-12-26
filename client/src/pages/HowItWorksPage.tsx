@@ -15,17 +15,15 @@ import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
 const CopyToClipboardButton = () => {
   const [isCopied, setIsCopied] = useState(false);
   
-  const fullText = `Cómo Funciona EcoSign - Verdad Verificable y Privacidad Absoluta
+  const fullText = `Cómo Funciona EcoSign - Evidencia Técnica Verificable
 
 Si necesitás ayuda extra, copiá toda esta página y mostrásela a tu IA de confianza (ChatGPT, Claude, Gemini).
 
-EcoSign no es solo una herramienta de firma. Es una nueva manera de garantizar la autenticidad documental sin sacrificar tu privacidad.
-
-Nuestro sistema se basa en el principio Zero-Knowledge: tu archivo nunca se sube a nuestros servidores. Todo el proceso ocurre en tu dispositivo.
+EcoSign protege documentos digitales mediante evidencia técnica verificable, sin acceder a su contenido.
 
 I. Privacidad ante Todo
 Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo calcula su Huella Digital (Sello de Integridad) directamente en tu navegador.
-Esa Huella Digital es única, irreversible y suficiente para certificar la integridad del documento.
+Esa Huella Digital es única, irreversible y suficiente para proteger la integridad del documento.
 
 II. El Proceso en 3 Pasos Simples
 
@@ -34,7 +32,7 @@ II. El Proceso en 3 Pasos Simples
 • La plataforma nunca ve el contenido
 
 2. Firma y Trazabilidad
-Según el tipo de firma elegido (Firma Legal o Firma Certificada), el sistema registra:
+Según el tipo de firma elegido, el sistema registra:
 • Nombre
 • Fecha/hora
 • Dirección IP
@@ -42,29 +40,29 @@ Según el tipo de firma elegido (Firma Legal o Firma Certificada), el sistema re
 Todo queda guardado en un registro de eventos inmutable.
 
 3. Refuerzo de Evidencia (Opcional)
-Podés añadir un refuerzo adicional si necesitás fecha cierta legal o mayor solidez probatoria a largo plazo.
+Podés añadir un refuerzo adicional si necesitás fecha cierta o mayor solidez probatoria a largo plazo.
 Incluye:
 • Sello de Integridad local
-• Sello de Tiempo Legal (TSA independiente)
+• Sello de tiempo criptográfico verificable (TSA independiente)
 • Registro digital inalterable (Polygon y Bitcoin hoy; más redes en el futuro)
 Este refuerzo fortalece la evidencia sin modificar la privacidad ni el contenido del documento.
 
 III. Tipos de Firma
 
-Firma Legal (Ilimitada)
+Firma técnica de integridad y autoría
 - Propósito: Trazabilidad interna
 - Características: Hoja de Auditoría, registro completo, privacidad absoluta
 
-Firma Certificada
+Firma legal regulada disponible mediante proveedores externos
 - Propósito: Contratos externos
-- Características: Cumple eIDAS, ESIGN, UETA. Basado en SignNow
+- Características: Cumple eIDAS, ESIGN, UETA. Basado en proveedores certificados
 
 Ambas pueden reforzarse con evidencia adicional.
 
-IV. El Certificado .ECO
-Cada certificación genera:
+IV. El Contenedor .ECO
+Cada proceso genera:
 • Tu PDF firmado
-• Un archivo .ECO con toda la evidencia forense
+• Un archivo de protección legal .ECO con toda la evidencia forense
 
 El .ECO no contiene el documento original. Solo incluye la prueba criptográfica y la cronología de eventos.
 Cualquier auditor puede verificar tu .ECO sin depender de la plataforma.
@@ -77,8 +75,10 @@ Algunas partes del proyecto serán abiertas para la comunidad de desarrolladores
 Para desarrolladores y usuarios técnicos:
 https://github.com/TemporalDynamics/ecosign/blob/main/COMO%20LO%20HACEMOS.md
 
-Firma Legal - Certificación digital con privacidad total
-ecosign.app`;
+EcoSign - Protección legal para documentos digitales
+ecosign.app
+
+La validez legal depende del contexto y la jurisdicción.`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(fullText);
@@ -148,7 +148,7 @@ function HowItWorksPage() {
               Cuando cargás un archivo, EcoSign no lo almacena ni lo analiza. Solo genera una huella matemática única del archivo en tu navegador. El contenido nunca se sube ni se analiza.
             </p>
             <p>
-              Esa huella es única, irreversible y suficiente para certificar la integridad del documento.
+              Esa huella es única, irreversible y suficiente para proteger la integridad del documento.
               <span className="text-sm text-gray-500 block mt-1">A esto lo llamamos <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> o <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip>.</span>
             </p>
           </div>
@@ -199,14 +199,14 @@ function HowItWorksPage() {
                 <span className="text-gray-400">3.</span> Refuerzo de evidencia (opcional)
               </h3>
               <p className="text-lg text-gray-700 mb-3">
-                Podés añadir un refuerzo adicional si necesitás fecha cierta legal o mayor solidez probatoria a largo plazo.
+                Podés añadir un refuerzo adicional si necesitás fecha cierta o mayor solidez probatoria a largo plazo.
               </p>
               <p className="text-lg text-gray-700 mb-3">
                 Incluye:
               </p>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
                 <li>• <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> local</li>
-                <li>• <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> (TSA independiente)</li>
+                <li>• Sello de tiempo criptográfico verificable (TSA independiente)</li>
                 <li>• <RegistroDigitalInalterableTooltip>Registro digital inalterable</RegistroDigitalInalterableTooltip> (<PolygonTooltip>Polygon</PolygonTooltip> y <BitcoinTooltip>Bitcoin</BitcoinTooltip> hoy; más redes en el futuro)</li>
               </ul>
               <p className="text-lg text-gray-700 mt-3">
@@ -229,12 +229,12 @@ function HowItWorksPage() {
             {/* Firma Legal */}
             <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                Firma Legal <span className="text-base text-gray-500 font-normal">(Trazabilidad interna)</span>
+                Firma técnica de integridad y autoría <span className="text-base text-gray-500 font-normal">(Trazabilidad interna)</span>
               </h3>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
                 <li>• Hoja de Auditoría completa.</li>
                 <li>• Registro de eventos inmutable.</li>
-                <li>• Privacidad absoluta (Zero-Knowledge).</li>
+                <li>• Privacidad absoluta.</li>
                 <li>• Firmas ilimitadas incluidas.</li>
               </ul>
             </div>
@@ -242,11 +242,11 @@ function HowItWorksPage() {
             {/* Firma Certificada */}
             <div>
               <h3 className="text-2xl font-semibold text-black mb-3">
-                Firma Certificada <span className="text-base text-gray-500 font-normal">(Contratos externos)</span>
+                Firma legal regulada <span className="text-base text-gray-500 font-normal">(Contratos externos)</span>
               </h3>
               <ul className="space-y-2 text-lg text-gray-700 ml-4">
                 <li>• Cumple con normativas eIDAS, ESIGN y UETA.</li>
-                <li>• Integrado con proveedores de firma legal avanzada.</li>
+                <li>• Disponible opcionalmente mediante proveedores externos.</li>
                 <li>• Validez legal para acuerdos con terceros.</li>
               </ul>
             </div>
@@ -260,21 +260,24 @@ function HowItWorksPage() {
         {/* El Certificado .ECO */}
         <section className="mb-20">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
-            El Certificado .ECO
+            El Contenedor de Protección Legal (.ECO)
           </h2>
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
             <p>
-              Cada certificación genera:
+              Cada proceso genera:
             </p>
             <ul className="space-y-2 ml-4">
               <li>• Tu <strong>PDF firmado</strong></li>
-              <li>• Un archivo <strong>.ECO</strong> con toda la evidencia forense</li>
+              <li>• Un archivo de protección legal <strong>.ECO</strong> con toda la evidencia forense</li>
             </ul>
             <p className="mt-4">
               El <strong>.ECO</strong> no contiene el documento original. Solo incluye la prueba criptográfica y la cronología de eventos.
             </p>
             <p>
               Cualquier auditor puede verificar tu .ECO sin depender de la plataforma.
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              La validez legal depende del contexto y la jurisdicción.
             </p>
           </div>
         </section>

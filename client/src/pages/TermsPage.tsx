@@ -21,17 +21,28 @@ const TermsPage = () => {
 
           <div className="space-y-6 text-base text-gray-700 leading-relaxed mt-8">
             <p>
-              EcoSign ofrece herramientas de certificación digital, firma electrónica y verificación de documentos.
+              EcoSign proporciona protección y evidencia técnica verificable para documentos digitales.
               Al utilizar el servicio, aceptás que:
             </p>
 
             <div className="space-y-4">
               <div>
                 <h2 className="text-xl font-semibold text-black mb-2">
+                  Naturaleza del servicio
+                </h2>
+                <p>
+                  EcoSign no actúa como autoridad certificante ni garantiza validez legal automática. 
+                  Proporciona protección y evidencia técnica verificable que puede ser utilizada en contextos legales según corresponda. 
+                  La validez legal depende del contexto y la jurisdicción.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="text-xl font-semibold text-black mb-2">
                   Privacidad del archivo
                 </h2>
                 <p>
-                  EcoSign no recibe ni almacena tu archivo. La certificación se realiza únicamente con su huella digital (hash SHA-256).
+                  EcoSign no accede al contenido del documento. La protección se realiza sin leer ni almacenar el contenido.
                 </p>
               </div>
 
@@ -55,10 +66,10 @@ const TermsPage = () => {
 
               <div>
                 <h2 className="text-xl font-semibold text-black mb-2">
-                  Firmas legales de terceros
+                  Firmas reguladas de terceros
                 </h2>
                 <p>
-                  Las firmas legales provistas mediante servicios como SignNow están sujetas a los términos y políticas del proveedor externo.
+                  La firma legal regulada disponible opcionalmente mediante proveedores externos está sujeta a los términos y políticas del proveedor externo correspondiente.
                 </p>
               </div>
 
@@ -67,7 +78,7 @@ const TermsPage = () => {
                   Exclusión de responsabilidad
                 </h2>
                 <p>
-                  EcoSign no se hace responsable por daños derivados del uso del servicio, pérdida de archivos, demoras o decisiones tomadas sobre la base de nuestros certificados.
+                  EcoSign no se hace responsable por daños derivados del uso del servicio, pérdida de archivos, demoras o decisiones tomadas sobre la base de los contenedores de protección generados.
                 </p>
               </div>
 

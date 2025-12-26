@@ -72,13 +72,13 @@ const BusinessPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            Firma Legal para Empresas
+            Protección Legal para Empresas
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed font-bold">
-            Firma, Certificación y Control Corporativo sin Límites ni Exposición.
+            Firma, Protección y Control Corporativo sin Límites ni Exposición.
           </p>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Detené los sobrecostos y la fricción operacional. Firma Legal te permite certificar el 95% de tus documentos internos y B2B con una seguridad forense superior y un modelo de costo predecible.
+            Detené los sobrecostos y la fricción operacional. La firma técnica te permite proteger la mayoría de tus documentos internos y B2B con evidencia técnica verificable y un modelo de costo predecible.
           </p>
         </div>
       </header>
@@ -118,7 +118,7 @@ const BusinessPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-12 text-center">
-            Firma Legal: Control, Privacidad y Eficiencia Inigualable
+            Protección Legal: Control, Privacidad y Eficiencia Inigualable
           </h2>
 
           <div className="bg-blue-50 rounded-xl p-8">
@@ -132,8 +132,8 @@ const BusinessPage = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   <tr>
-                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Privacidad Total (Zero Knowledge)</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Tu documento NUNCA toca nuestros servidores. Mantené el control absoluto de tus archivos más sensibles dentro de tu entorno.</td>
+                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Privacidad Total</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">EcoSign no accede al contenido del documento. Tu archivo NUNCA toca nuestros servidores. Mantené el control absoluto de tus archivos más sensibles dentro de tu entorno.</td>
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Costo Fijo y Crecimiento Ilimitado</td>
@@ -141,15 +141,15 @@ const BusinessPage = () => {
                   </tr>
                   <tr>
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Auditoría Simple y Portable</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Registros forenses claros (.ECO) que contienen toda la evidencia. Verificable para siempre, sin depender de nosotros.</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Contenedores de protección legal (.ECO) que contienen toda la evidencia técnica. Verificable para siempre, sin depender de nosotros.</td>
                   </tr>
                   <tr className="bg-gray-50">
-                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Certificación Instantánea</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Procesos internos (órdenes, autorizaciones) validados y sellados con <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> y <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> en segundos, no días.</td>
+                    <td className="py-4 px-4 text-sm font-medium text-gray-900">Protección Instantánea</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Procesos internos (órdenes, autorizaciones) protegidos con <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> y sello de tiempo criptográfico verificable en segundos, no días.</td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 text-sm font-medium text-gray-900">Menos Riesgo, Más Control</td>
-                    <td className="py-4 px-4 text-sm text-gray-700">Blindamos tus documentos con tecnología <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> y te damos la certeza de que tu evidencia es inmutable y tuya.</td>
+                    <td className="py-4 px-4 text-sm text-gray-700">Protegemos tus documentos con <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> y te damos evidencia técnica verificable que es tuya.</td>
                   </tr>
                 </tbody>
               </table>
@@ -242,16 +242,16 @@ const BusinessPage = () => {
 
           <div className="bg-white p-8 rounded-xl shadow-sm">
             <p className="text-xl text-gray-700 mb-4 text-center">
-              <strong>Firma Legal</strong> es ideal para la inmensa mayoría de documentos donde necesitás eficiencia, costo fijo y privacidad.
+              <strong>La firma técnica</strong> es ideal para la mayoría de documentos donde necesitás eficiencia, costo fijo y privacidad.
             </p>
             <p className="text-xl text-gray-700 mb-6 text-center">
-              <strong>¿Cuándo usar Firma Certificada (pago por uso)?</strong>
+              <strong>¿Cuándo usar firma legal regulada (pago por uso)?</strong>
             </p>
             <p className="text-xl text-gray-700 mb-4 text-center">
-              Para aquellos procesos críticos que legalmente requieren una firma legal corporativa certificada por un proveedor externo, como acuerdos de alta exposición o licitaciones que exigen ese nivel.
+              Para aquellos procesos críticos que requieren firma legal regulada mediante proveedores externos acreditados, como acuerdos de alta exposición o licitaciones que exigen ese nivel. La validez legal depende del contexto y la jurisdicción.
             </p>
             <p className="text-xl font-semibold text-black text-center">
-              Firma Legal te ofrece ambas opciones en el mismo flujo de trabajo, para que nunca tengas que cambiar de herramienta.
+              EcoSign te ofrece ambas opciones en el mismo flujo de trabajo, para que nunca tengas que cambiar de herramienta.
             </p>
           </div>
         </div>

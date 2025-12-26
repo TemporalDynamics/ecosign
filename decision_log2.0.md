@@ -904,3 +904,39 @@ Fortalecer la defensa jurídica y mejorar la claridad técnica del proceso de ve
 
 ### 💬 Nota del dev
 "Esta iteración es fundamental para la credibilidad y escalabilidad del sistema. Al tratar los anclajes como 'señales' y la interpretación como una responsabilidad de la UI, hemos creado un sistema que es a la vez criptográficamente sólido y legalmente defendible, sin congelar la semántica en el código base. El documento `COMO LO HACEMOS.md` es ahora un contrato claro con la comunidad técnica."
+
+---
+
+## Iteración 2025-12-26 — Estado agregado de anclajes (anchor_states) + guard probatorio
+
+### 🎯 Objetivo
+Separar estado operativo de anclajes del estado probatorio agregado y asegurar que la verificación solo opere con señales verificables y contractuales.
+
+### 🧠 Decisiones tomadas
+- **Tabla nueva para estado agregado:** `anchor_states` representa el estado probatorio por `project_id` (una fila por proyecto).
+- **anchors sigue siendo operativa:** se conserva como cola/eventos, fuera del flujo probatorio.
+- **Guard explícito de projectId:** si el certificado no incluye `projectId`, no se consulta estado externo.
+
+### 🛠️ Cambios realizados
+- **DB:** se agregó `anchor_states` con RLS pública para verificación y trigger de `updated_at`.
+- **Backend (`verify-ecox`):** lectura desde `anchor_states` y warning controlado si falta `projectId`.
+- **Edge functions:** `anchor-bitcoin` y `anchor-polygon` resuelven `projectId` desde `eco_data` y hacen upsert de `anchor_states`.
+- **Workers:** `process-bitcoin-anchors` y `process-polygon-anchors` actualizan `anchor_states` al confirmar.
+- **Fix de lineage:** se reconstruye `eventLineage` a partir de `event_lineage`/`eventLineage` sin romper el contrato.
+- **Docs:** ajustes de tono en `COMO LO HACEMOS.md` (menos declarativo).
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se refactorizó la tabla `anchors`.
+- No se cambió el esquema del `.ECO`.
+- No se agregó semántica nueva en backend; solo señales.
+
+### ⚠️ Consideraciones / deuda futura
+- Migrar señales adicionales (future anchors) solo agregando columnas en `anchor_states`.
+- Revisión de exposición de errores en otras funciones (hardening gradual).
+
+### 📍 Estado final
+- Verificación probatoria desacoplada del pipeline operativo.
+- Contrato estable: una fila por `projectId` con confirmaciones agregadas.
+
+### 💬 Nota del dev
+"El estado probatorio vive en `anchor_states`: una fila por proyecto, señales explícitas. `anchors` queda como motor operativo. Ante ausencia de `projectId`, el verificador limita el alcance y no deriva estado externo."

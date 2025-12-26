@@ -45,6 +45,24 @@ const jsonResponse = (data: unknown, status = 200) =>
     }
   });
 
+async function resolveProjectId(anchor: any): Promise<string | null> {
+  const fromMetadata = anchor?.metadata?.projectId
+  if (typeof fromMetadata === 'string' && fromMetadata.trim()) {
+    return fromMetadata
+  }
+  if (!supabaseAdmin || !anchor?.user_document_id) return null
+  const { data, error } = await supabaseAdmin
+    .from('user_documents')
+    .select('eco_data')
+    .eq('id', anchor.user_document_id)
+    .maybeSingle()
+  if (error || !data?.eco_data) return null
+  const ecoData = data.eco_data as Record<string, unknown>
+  const manifest = ecoData?.['manifest'] as Record<string, unknown> | undefined
+  const projectId = manifest?.['projectId']
+  return typeof projectId === 'string' ? projectId : null
+}
+
 /**
  * Submit hash to OpenTimestamps calendar servers
  */
@@ -597,6 +615,26 @@ serve(async (req) => {
                 continue;
               }
 
+              const projectId = await resolveProjectId(anchor);
+              if (projectId) {
+                const anchorRequestedAt = anchor.created_at || new Date().toISOString();
+                const { error: stateError } = await supabaseAdmin
+                  .from('anchor_states')
+                  .upsert({
+                    project_id: projectId,
+                    anchor_requested_at: anchorRequestedAt,
+                    bitcoin_confirmed_at: confirmedAt,
+                  }, { onConflict: 'project_id' });
+
+                if (stateError) {
+                  logger.warn('anchor_state_upsert_failed', {
+                    anchorId: anchor.id,
+                    projectId,
+                    error: stateError.message
+                  });
+                }
+              }
+
               logger.info('anchor_confirmed', {
                 anchorId: anchor.id,
                 txid,
@@ -730,6 +768,26 @@ serve(async (req) => {
             failed++;
             processed++;
             continue;
+          }
+
+          const projectId = await resolveProjectId(anchor);
+          if (projectId) {
+            const anchorRequestedAt = anchor.created_at || new Date().toISOString();
+            const { error: stateError } = await supabaseAdmin
+              .from('anchor_states')
+              .upsert({
+                project_id: projectId,
+                anchor_requested_at: anchorRequestedAt,
+                bitcoin_confirmed_at: confirmedAt,
+              }, { onConflict: 'project_id' });
+
+            if (stateError) {
+              logger.warn('anchor_state_upsert_failed', {
+                anchorId: anchor.id,
+                projectId,
+                error: stateError.message
+              });
+            }
           }
 
           console.log(`✅ Anchor ${anchor.id} atomically confirmed in Bitcoin!`);

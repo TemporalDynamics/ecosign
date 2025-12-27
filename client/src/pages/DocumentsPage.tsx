@@ -702,7 +702,7 @@ function DocumentsPage() {
               </div>
 
               <div className="hidden md:block bg-white border border-gray-200 rounded-lg">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-visible">
                   <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -731,11 +731,11 @@ function DocumentsPage() {
                     return (
                       <tr key={doc.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
                             {/* Escudo sin tooltip */}
                             <Shield className="h-5 w-5 text-gray-700 flex-shrink-0" />
                             {/* Nombre sin extensión ni badge */}
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-gray-900 truncate max-w-[320px]">
                               {doc.document_name.replace(/\.(pdf|eco|ecox)$/i, '')}
                             </span>
                           </div>

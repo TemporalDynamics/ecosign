@@ -64,6 +64,8 @@ MILESTONE_*.md
 PASOS_*.md
 MONITORING_*.md
 PERFORMANCE_*.md
+POST_MVP_*.md
+POST_MVP_PRIVATE_MANIFESTO.md
 
 # Vite cache
 .vite/

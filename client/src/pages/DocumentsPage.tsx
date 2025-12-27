@@ -777,7 +777,7 @@ function DocumentsPage() {
                                 <MoreVertical className="h-5 w-5" />
                               </button>
                               {openMenuId === doc.id && (
-                                <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg z-10">
+                                <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg z-10 flex flex-col items-stretch">
                                   <button
                                     onClick={() => {
                                       handleEcoDownload(doc);

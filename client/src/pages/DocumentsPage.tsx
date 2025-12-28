@@ -10,6 +10,7 @@ import ShareDocumentModal from "../components/ShareDocumentModal";
 import { ProtectedBadge } from "../components/ProtectedBadge";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
 import { useLegalCenter } from "../contexts/LegalCenterContext";
+import { decryptFile, ensureCryptoSession, getSessionUnwrapKey, unwrapDocumentKey } from "../lib/e2e";
 
 type DocumentRecord = {
   id: string;
@@ -28,6 +29,9 @@ type DocumentRecord = {
   bitcoin_confirmed_at?: string | null;
   pdf_storage_path?: string | null;
   encrypted_path?: string | null;
+  encrypted?: boolean | null;
+  wrapped_key?: string | null;
+  wrap_iv?: string | null;
   pdf_url?: string | null;
   eco_storage_path?: string | null;
   ecox_storage_path?: string | null;
@@ -324,6 +328,21 @@ function DocumentsPage() {
     };
   }, [loadDocuments]);
 
+  const triggerDownload = (blob: Blob, fileName: string) => {
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = fileName;
+    link.style.display = "none";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    }, 200);
+  };
+
   const downloadFromPath = async (storagePath: string | null | undefined, fileName: string | null = null) => {
     if (isGuestMode()) {
       toast("Modo invitado: descarga disponible solo con cuenta.", { position: "top-right" });
@@ -347,25 +366,51 @@ function DocumentsPage() {
       }
 
       const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
       const fallbackName = storagePath.split("/").pop() || "archivo.eco";
-
-      link.href = downloadUrl;
-      link.download = fileName || fallbackName;
-      link.style.display = "none";
-      link.rel = "noopener";
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(downloadUrl);
-      }, 200);
+      triggerDownload(blob, fileName || fallbackName);
     } catch (err) {
       console.error("Error descargando:", err);
       window.alert("No pudimos completar la descarga. Revisá tu conexión e intentá de nuevo.");
     }
+  };
+
+  const fetchEncryptedPdfBlob = async (doc: DocumentRecord) => {
+    if (!doc.encrypted_path || !doc.wrapped_key || !doc.wrap_iv) {
+      throw new Error("No tenemos la información de cifrado para este documento.");
+    }
+
+    const supabase = getSupabase();
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Necesitás iniciar sesión para descargar este PDF.");
+    }
+
+    const cryptoReady = await ensureCryptoSession(user.id);
+    if (!cryptoReady) {
+      throw new Error("No se pudo inicializar el cifrado de sesión. Cerrá sesión e ingresá nuevamente.");
+    }
+
+    const { data, error } = await supabase.storage
+      .from("user-documents")
+      .createSignedUrl(doc.encrypted_path, 3600);
+
+    if (error || !data?.signedUrl) {
+      throw new Error("No pudimos preparar la descarga del PDF.");
+    }
+
+    const response = await fetch(data.signedUrl);
+    if (!response.ok) {
+      throw new Error("No se pudo descargar el PDF cifrado.");
+    }
+
+    const encryptedBlob = await response.blob();
+    const sessionUnwrapKey = getSessionUnwrapKey();
+    const documentKey = await unwrapDocumentKey(doc.wrapped_key, doc.wrap_iv, sessionUnwrapKey);
+    return decryptFile(encryptedBlob, documentKey);
   };
 
   const requestRegeneration = async (docId: string, type: string) => {
@@ -427,11 +472,21 @@ function DocumentsPage() {
   };
 
   const handlePdfDownload = (doc: DocumentRecord | null) => {
-    if (!doc?.pdf_storage_path) {
-      window.alert("Este documento no tiene copia guardada. Solo se almacena si lo habilitaste.");
+    if (!doc) return;
+    if (doc.pdf_storage_path) {
+      downloadFromPath(doc.pdf_storage_path, doc.document_name);
       return;
     }
-    downloadFromPath(doc.pdf_storage_path, doc.document_name);
+    if (doc.encrypted_path) {
+      fetchEncryptedPdfBlob(doc)
+        .then((blob) => triggerDownload(blob, doc.document_name))
+        .catch((err) => {
+          console.error("Error descargando PDF cifrado:", err);
+          window.alert(err instanceof Error ? err.message : "No pudimos descargar el PDF.");
+        });
+      return;
+    }
+    window.alert("Este documento no tiene copia guardada.");
   };
 
   const handleVerifyDoc = (doc: DocumentRecord | null) => {
@@ -471,20 +526,25 @@ function DocumentsPage() {
   };
 
   const autoVerifyStoredPdf = async (doc: DocumentRecord) => {
-    if (!doc.pdf_storage_path) return;
+    if (!doc.pdf_storage_path && !doc.encrypted_path) return;
     try {
       const supabase = getSupabase();
       setVerifying(true);
       setVerifyResult(null);
-      const { data, error } = await supabase.storage.from("user-documents").createSignedUrl(doc.pdf_storage_path, 600);
-      if (error || !data?.signedUrl) {
-        throw error || new Error("No se pudo crear el enlace de verificación automática.");
+      let blob: Blob;
+      if (doc.pdf_storage_path) {
+        const { data, error } = await supabase.storage.from("user-documents").createSignedUrl(doc.pdf_storage_path, 600);
+        if (error || !data?.signedUrl) {
+          throw error || new Error("No se pudo crear el enlace de verificación automática.");
+        }
+        const response = await fetch(data.signedUrl);
+        if (!response.ok) {
+          throw new Error("No se pudo descargar el PDF almacenado.");
+        }
+        blob = await response.blob();
+      } else {
+        blob = await fetchEncryptedPdfBlob(doc);
       }
-      const response = await fetch(data.signedUrl);
-      if (!response.ok) {
-        throw new Error("No se pudo descargar el PDF almacenado.");
-      }
-      const blob = await response.blob();
       const hash = await computeHash(blob);
       const result = buildVerificationResult(hash, doc, "stored");
       setVerifyResult(result);
@@ -604,7 +664,7 @@ function DocumentsPage() {
                     config,
                     ecoAvailable
                   } = deriveProbativeState(doc, planTier);
-                  const pdfAvailable = !!doc.pdf_storage_path;
+                  const pdfAvailable = !!(doc.pdf_storage_path || doc.encrypted_path);
                   const ecoEnabled = ecoAvailable || doc.eco_hash;
                   const menuOpen = openMenuId === doc.id;
                   return (
@@ -726,7 +786,7 @@ function DocumentsPage() {
                       config,
                       ecoAvailable
                     } = deriveProbativeState(doc, planTier);
-                    const pdfAvailable = !!doc.pdf_storage_path;
+                    const pdfAvailable = !!(doc.pdf_storage_path || doc.encrypted_path);
                     const ecoEnabled = ecoAvailable || doc.eco_hash;
                     return (
                       <tr key={doc.id} className="hover:bg-gray-50">

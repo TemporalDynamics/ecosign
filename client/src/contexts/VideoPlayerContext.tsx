@@ -7,6 +7,7 @@ interface Video {
   src: string;
   title: string;
   description: string;
+  language: 'es' | 'en';
 }
 
 // Defines the allowed keys for the video library, derived from the object itself
@@ -41,32 +42,38 @@ export const videoLibrary: Record<string, Video> = {
   'you-dont-need-to-trust': {
     src: `${SUPABASE_STORAGE_URL}/Trust%20no%20need.mp4`,
     title: 'You Don\'t Need to Trust',
-    description: 'Comprende por qué EcoSign no requiere confianza ciega'
+    description: 'Comprende por qué EcoSign no requiere confianza ciega',
+    language: 'en'
   },
   'anatomia-firma': {
     src: `${SUPABASE_STORAGE_URL}/Anatomiafirma.mp4`,
     title: 'Anatomía de una Firma',
-    description: 'Descubre cómo funciona cada componente de una firma digital'
+    description: 'Descubre cómo funciona cada componente de una firma digital',
+    language: 'es'
   },
   'verdad-verificable': {
     src: `${SUPABASE_STORAGE_URL}/Verificable.mp4`,
     title: 'Verdad Verificable',
-    description: 'Aprende sobre la verificación matemática de documentos'
+    description: 'Aprende sobre la verificación matemática de documentos',
+    language: 'es'
   },
   'conocimiento-cero': {
     src: `${SUPABASE_STORAGE_URL}/ConocimientoCero.mp4`,
     title: 'Conocimiento Cero',
-    description: 'Explora cómo protegemos tu privacidad sin ver tus documentos'
+    description: 'Explora cómo protegemos tu privacidad sin ver tus documentos',
+    language: 'es'
   },
   'the-true-cost': {
     src: `${SUPABASE_STORAGE_URL}/EcoSign%20TrueCost.mp4`,
     title: 'The True Cost',
-    description: 'El verdadero costo de las soluciones tradicionales'
+    description: 'El verdadero costo de las soluciones tradicionales',
+    language: 'en'
   },
   'forensic-integrity': {
     src: `${SUPABASE_STORAGE_URL}/Forensic_Integrity.mp4`,
     title: 'Forensic Integrity',
-    description: 'Integridad forense y evidencia digital irrefutable'
+    description: 'Integridad forense y evidencia digital irrefutable',
+    language: 'en'
   }
 };
 

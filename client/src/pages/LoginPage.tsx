@@ -237,7 +237,7 @@ function LoginPage() {
             </button>
             {!isLogin && (
               <p className="mt-3 text-xs text-gray-500 text-center">
-                Tu cuenta queda activa automaticamente en el plan gratuito.
+                Tu cuenta queda activa automáticamente en el plan gratuito.
               </p>
             )}
           </form>
@@ -259,22 +259,17 @@ function LoginPage() {
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
             <p className="text-gray-700 mb-2">¿Querés probar sin registrarte?</p>
             <p className="text-sm text-gray-600 mb-4">
-              Entrá como invitado y probá como funciona EcoSign sin crear una cuenta.
+              Entrá como invitado y explorá EcoSign sin crear una cuenta.
             </p>
-            <div className="mb-4 inline-flex items-start justify-center gap-2 text-left text-xs text-gray-500">
-              <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 8h.01M11 12h1v4h1" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <p>
-                Modo invitado: ideal para probar el sistema o generar un sello de tiempo. Para firmas con validez legal necesitás una cuenta.
-              </p>
-            </div>
             <div className="text-sm text-gray-700 mb-4">
-              <p className="font-semibold mb-1">Como invitado podes:</p>
-              <p>Subir un documento · Ver el flujo completo · Obtener un sello de tiempo</p>
-              <p className="mt-2 text-xs text-gray-500">
-                Los documentos creados como invitado no tienen validez legal porque no podemos verificar la identidad del firmante.
+              <p className="font-semibold mb-2">Como invitado podés:</p>
+              <ul className="space-y-1">
+                <li>Subir un documento</li>
+                <li>Ver el flujo completo</li>
+                <li>Obtener un sello de tiempo</li>
+              </ul>
+              <p className="mt-3 text-xs text-gray-500">
+                Los documentos creados como invitado no tienen validez legal.
               </p>
             </div>
             <Link

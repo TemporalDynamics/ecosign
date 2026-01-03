@@ -38,12 +38,15 @@ const LandingPage = () => {
           </div>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 mb-8">
-            <Link
-              to="/login"
-              className="bg-black hover:bg-gray-800 text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
-            >
-              Comenzar Gratis
-            </Link>
+            <div className="flex flex-col items-center gap-2">
+              <Link
+                to="/login?mode=signup"
+                className="bg-black hover:bg-gray-800 text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
+              >
+                Comenzar Gratis
+              </Link>
+              <p className="text-xs text-gray-500">Sin tarjeta · Plan gratuito · En minutos</p>
+            </div>
             <button
               onClick={() => playVideo('you-dont-need-to-trust')}
               className="bg-transparent border-2 border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg inline-flex items-center justify-center gap-2"

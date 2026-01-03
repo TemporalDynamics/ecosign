@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { User, AuthError } from '@supabase/supabase-js';
 import { getSupabase } from '../lib/supabaseClient';
+import { disableGuestMode, isGuestMode } from '../utils/guestMode';
 
 interface UseAuthReturn {
   user: User | null;
@@ -43,6 +44,12 @@ export const useAuth = (): UseAuthReturn => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (user && isGuestMode()) {
+      disableGuestMode();
+    }
+  }, [user]);
 
   /**
    * Sign In con email y password

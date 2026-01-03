@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getSupabase } from '../lib/supabaseClient';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
@@ -14,9 +14,17 @@ function LoginPage() {
     confirmPassword: ''
   });
   const [loading, setLoading] = useState(false);
+  const [cryptoInitializing, setCryptoInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode');
+    setIsLogin(mode !== 'signup');
+  }, [location.search]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -46,14 +54,15 @@ function LoginPage() {
         console.log('✅ Login exitoso:', data.user.email);
         
         // Inicializar sesión crypto inmediatamente después del login
+        setCryptoInitializing(true);
         await initializeSessionCrypto(data.user.id);
         console.log('✅ Sesión crypto inicializada para:', data.user.id);
         
         disableGuestMode();
         setSuccess('¡Bienvenido de nuevo!');
 
-        // Redirigir a la página de inicio después de un breve delay
-        setTimeout(() => navigate('/inicio'), 500);
+        // Redirigir a la página de inicio cuando crypto esté listo
+        navigate('/inicio');
       } else {
         // REGISTRO
         // Validar que las contraseñas coincidan
@@ -101,6 +110,7 @@ function LoginPage() {
       setError(errorMessage);
     } finally {
       setLoading(false);
+      setCryptoInitializing(false);
     }
   };
 
@@ -122,13 +132,22 @@ function LoginPage() {
 
         <div className="bg-white p-8 rounded-xl border-2 border-gray-200">
           <h2 className="text-2xl font-bold text-center text-black mb-2">
-            {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+            {isLogin ? 'Iniciar Sesión' : 'Creá tu cuenta gratuita'}
           </h2>
           <p className="text-gray-600 text-center mb-6">
             {isLogin
               ? 'Accede a tu panel de control y gestiona tus documentos.'
-              : 'Regístrate para acceder a todas las funciones de EcoSign.'}
+              : 'Accedé al plan gratuito de EcoSign. No pedimos tarjeta ni datos de pago.'}
           </p>
+          {!isLogin && (
+            <div className="mb-6 text-sm text-gray-700">
+              <ul className="list-disc list-inside space-y-1">
+                <li>Firmá y protegé documentos</li>
+                <li>Evidencia técnica verificable</li>
+                <li>Control total de tus archivos</li>
+              </ul>
+            </div>
+          )}
 
           {/* Mensaje de error */}
           {error && (
@@ -141,6 +160,11 @@ function LoginPage() {
           {success && (
             <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-green-700 text-sm font-medium">✅ {success}</p>
+            </div>
+          )}
+          {cryptoInitializing && (
+            <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-gray-700 text-sm font-medium">Inicializando cifrado seguro...</p>
             </div>
           )}
 
@@ -208,9 +232,14 @@ function LoginPage() {
                   {isLogin ? 'Iniciando sesión...' : 'Creando cuenta...'}
                 </span>
               ) : (
-                isLogin ? 'Iniciar Sesión' : 'Registrarse'
+                isLogin ? 'Iniciar Sesión' : 'Crear cuenta gratis'
               )}
             </button>
+            {!isLogin && (
+              <p className="mt-3 text-xs text-gray-500 text-center">
+                Tu cuenta queda activa automaticamente en el plan gratuito.
+              </p>
+            )}
           </form>
 
           <div className="mt-6 text-center">
@@ -228,13 +257,35 @@ function LoginPage() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-            <p className="text-gray-600 mb-3">¿Prefieres no crear cuenta?</p>
+            <p className="text-gray-700 mb-2">¿Querés probar sin registrarte?</p>
+            <p className="text-sm text-gray-600 mb-4">
+              Entrá como invitado y probá como funciona EcoSign sin crear una cuenta.
+            </p>
+            <div className="mb-4 inline-flex items-start justify-center gap-2 text-left text-xs text-gray-500">
+              <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8h.01M11 12h1v4h1" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <p>
+                Modo invitado: ideal para probar el sistema o generar un sello de tiempo. Para firmas con validez legal necesitás una cuenta.
+              </p>
+            </div>
+            <div className="text-sm text-gray-700 mb-4">
+              <p className="font-semibold mb-1">Como invitado podes:</p>
+              <p>Subir un documento · Ver el flujo completo · Obtener un sello de tiempo</p>
+              <p className="mt-2 text-xs text-gray-500">
+                Los documentos creados como invitado no tienen validez legal porque no podemos verificar la identidad del firmante.
+              </p>
+            </div>
             <Link
               to="/inicio?guest=true"
               className="inline-block bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-2 px-6 rounded-lg transition duration-300"
             >
-              Continuar como invitado
+              Entrar como invitado
             </Link>
+            <p className="mt-3 text-xs text-gray-500">
+              No guardamos tus documentos ni accedemos a su contenido.
+            </p>
           </div>
         </div>
 

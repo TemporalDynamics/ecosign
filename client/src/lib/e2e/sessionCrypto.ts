@@ -85,12 +85,23 @@ export async function initializeSessionCrypto(userId: string, forceReinit: boole
     .eq('user_id', userId)
     .single();
 
+  let saltHex: string;
+
   if (error || !profile?.wrap_salt) {
-    console.error('❌ Failed to get user wrap salt:', error);
-    throw new Error('No se pudo inicializar el cifrado. Por favor, cierra sesión e inicia sesión nuevamente.');
+    console.warn('⚠️ User wrap salt not found, creating it now...', error);
+    // Auto-crear wrap_salt si no existe
+    try {
+      saltHex = await ensureUserWrapSalt(userId);
+      console.log('✅ Wrap salt created successfully');
+    } catch (createError) {
+      console.error('❌ Failed to create user wrap salt:', createError);
+      throw new Error('No se pudo inicializar el cifrado. Por favor, cierra sesión e inicia sesión nuevamente.');
+    }
+  } else {
+    saltHex = profile.wrap_salt;
   }
 
-  const salt = hexToBytes(profile.wrap_salt);
+  const salt = hexToBytes(saltHex);
 
   // 3. Derive unwrap key from session secret + salt
   const unwrapKey = await deriveUnwrapKey(sessionSecret, salt);

@@ -1,11 +1,13 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Shield,
   Lock,
   CheckCircle,
-  Play
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import { useVideoPlayer } from '../contexts/VideoPlayerContext';
+import { defaultPlaylist, useVideoPlayer, videoLibrary } from '../contexts/VideoPlayerContext';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
@@ -17,7 +19,37 @@ import InhackeableTooltip from '../components/InhackeableTooltip';
 import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
 
 const LandingPage = () => {
-  const { playVideo } = useVideoPlayer();
+  const { playVideo, videoState } = useVideoPlayer();
+  const [floatingRequested, setFloatingRequested] = useState(false);
+  const [landingVideoIndex, setLandingVideoIndex] = useState(0);
+  const inlineVideoRef = useRef<HTMLVideoElement | null>(null);
+  const isLandingVideoPlaying = floatingRequested && videoState.isPlaying && videoState.videoSrc === currentVideo?.src;
+  const landingPlaylist = useMemo(() => defaultPlaylist, []);
+  const currentVideoKey = landingPlaylist[landingVideoIndex] ?? landingPlaylist[0];
+  const currentVideo = videoLibrary[currentVideoKey];
+  const nextVideoKey = landingPlaylist[(landingVideoIndex + 1) % landingPlaylist.length];
+  const prevVideoKey = landingPlaylist[(landingVideoIndex - 1 + landingPlaylist.length) % landingPlaylist.length];
+  const nextVideoLang = videoLibrary[nextVideoKey]?.language === 'es' ? 'español' : 'inglés';
+  const prevVideoLang = videoLibrary[prevVideoKey]?.language === 'es' ? 'español' : 'inglés';
+
+  useEffect(() => {
+    if (!videoState.isPlaying && floatingRequested) {
+      setFloatingRequested(false);
+    }
+  }, [videoState.isPlaying, floatingRequested]);
+
+  useEffect(() => {
+    const video = inlineVideoRef.current;
+    if (!video) return;
+    const handleLoadedMetadata = () => {
+      video.currentTime = 0.1;
+      video.pause();
+    };
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [currentVideo?.src]);
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -37,34 +69,91 @@ const LandingPage = () => {
             <p className="mt-1">Cerrá acuerdos en minutos, no días.</p>
           </div>
           
-          <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 mb-8">
-            <div className="flex flex-col items-center gap-2">
-              <Link
-                to="/login?mode=signup"
-                className="bg-black hover:bg-gray-800 text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
-              >
-                Comenzar Gratis
-              </Link>
-              <p className="text-xs text-gray-500">Sin tarjeta · Plan gratuito · En minutos</p>
-            </div>
-            <button
-              onClick={() => playVideo('you-dont-need-to-trust')}
-              className="bg-transparent border-2 border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg inline-flex items-center justify-center gap-2"
-              title="Entendelo con calma. Usalo cuando lo necesites."
-            >
-              <Play className="w-5 h-5" />
-              Ver cómo funciona
-            </button>
-          </div>
-          <p className="text-sm text-gray-600 max-w-3xl mx-auto mb-4">
-            Entendelo con calma. Usalo cuando lo necesites.
-          </p>
-          
           <p className="text-[13px] text-gray-500 max-w-2xl mx-auto">
             Evidencia técnica verificable, sin acceder al contenido.
           </p>
         </div>
       </header>
+
+      {/* 2. VIDEO - Cómo funciona */}
+      <section className="py-20 bg-white">
+        <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-4">
+            Cómo funciona
+          </h2>
+          <p className="text-xl text-gray-600 mb-12">
+            Entendelo con calma. Usalo cuando lo necesites.
+          </p>
+
+          <div className="max-w-4xl mx-auto">
+            <div className="aspect-video bg-black rounded-lg overflow-hidden relative flex items-center justify-center">
+              {isLandingVideoPlaying ? (
+                <p className="text-sm text-gray-300">El video está abierto en una ventana flotante.</p>
+              ) : (
+                <>
+                  <video
+                    controls
+                    ref={inlineVideoRef}
+                    preload="metadata"
+                    className="w-full h-full"
+                    playsInline
+                    key={currentVideo?.src}
+                  >
+                    <source src={currentVideo?.src} type="video/mp4" />
+                    Tu navegador no soporta video HTML5.
+                  </video>
+                  <button
+                    type="button"
+                    onClick={() => setLandingVideoIndex((prev) => (prev - 1 + landingPlaylist.length) % landingPlaylist.length)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/50 text-white hover:bg-black/70 transition"
+                    title={`Video en ${prevVideoLang}`}
+                    aria-label={`Anterior: video en ${prevVideoLang}`}
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLandingVideoIndex((prev) => (prev + 1) % landingPlaylist.length)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/50 text-white hover:bg-black/70 transition"
+                    title={`Video en ${nextVideoLang}`}
+                    aria-label={`Siguiente: video en ${nextVideoLang}`}
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600 max-w-4xl mx-auto">
+            <p>Podés navegar por todas las páginas, incluso registrarte. El video te acompaña donde quieras.</p>
+            <button
+              onClick={() => {
+                setFloatingRequested(true);
+                playVideo(currentVideoKey);
+              }}
+              disabled={isLandingVideoPlaying}
+              className={`font-semibold px-3 py-2 rounded-lg transition ${
+                isLandingVideoPlaying
+                  ? 'text-gray-400 border border-gray-200 cursor-not-allowed'
+                  : 'text-gray-700 border border-gray-300 hover:border-gray-500 hover:text-black'
+              }`}
+              title="Abrir en ventana flotante"
+            >
+              Ver en ventana flotante
+            </button>
+          </div>
+
+          <div className="mt-10 flex flex-col items-center gap-2">
+            <Link
+              to="/login?mode=signup"
+              className="bg-black hover:bg-gray-800 text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
+            >
+              Comenzar Gratis
+            </Link>
+            <p className="text-xs text-gray-500">Sin tarjeta · Plan gratuito · En minutos</p>
+          </div>
+        </div>
+      </section>
 
       {/* 2. BENEFICIO ÚNICO - Tu diferencia real (privacidad) */}
       <section className="py-24 bg-white">
@@ -203,34 +292,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* 6. DEMO - Una sola vez */}
-      <section className="py-24 bg-white">
-        <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-4">
-            Ver EcoSign en acción
-          </h2>
-          <p className="text-xl text-gray-600 mb-12">
-            Mirá cómo funciona en la práctica.
-          </p>
-          
-          <div className="bg-gray-100 rounded-xl p-8 max-w-4xl mx-auto">
-            <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
-              <video 
-                controls 
-                className="w-full h-full"
-                poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1920 1080'%3E%3Crect fill='%23000' width='1920' height='1080'/%3E%3C/svg%3E"
-              >
-                <source 
-                  src="https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/demo22s.mp4" 
-                  type="video/mp4" 
-                />
-                Tu navegador no soporta video HTML5.
-              </video>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* 7. CTA FINAL - Cierre emocional */}
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
@@ -241,7 +302,7 @@ const LandingPage = () => {
             EcoSign genera evidencia técnica que permite demostrar que un documento existía, no fue modificado y pertenece a una acción específica en el tiempo.
           </p>
           <Link
-            to="/login"
+            to="/login?mode=signup"
             className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg"
           >
             Comenzar Gratis

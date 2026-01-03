@@ -19,14 +19,11 @@ const PublicNavDesktop = () => (
     <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200 flex items-center h-10">
       Precios
     </Link>
-    <Link to="/login" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200 flex items-center h-10">
-      Iniciar Sesión
-    </Link>
     <Link
       to="/login"
-      className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300 flex items-center h-10"
+      className="border border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold px-4 py-2 rounded-lg transition duration-200 flex items-center h-10"
     >
-      Comenzar Gratis
+      Iniciar Sesión
     </Link>
   </>
 );
@@ -74,13 +71,12 @@ const PublicNavMobile = ({ setMobileMenuOpen }) => (
         <Link onClick={() => setMobileMenuOpen(false)} to="/how-it-works" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Cómo funciona</Link>
         <Link onClick={() => setMobileMenuOpen(false)} to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificador</Link>
         <Link onClick={() => setMobileMenuOpen(false)} to="/pricing" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Precios</Link>
-        <Link onClick={() => setMobileMenuOpen(false)} to="/login" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Iniciar Sesión</Link>
         <Link
-            onClick={() => setMobileMenuOpen(false)}
-            to="/login"
-            className="block bg-black hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-center mt-2"
+          onClick={() => setMobileMenuOpen(false)}
+          to="/login"
+          className="block border border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold px-3 py-2 rounded-lg text-center"
         >
-            Comenzar Gratis
+          Iniciar Sesión
         </Link>
     </div>
 );

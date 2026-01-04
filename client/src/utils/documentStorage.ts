@@ -15,6 +15,18 @@ import {
   bytesToHex
 } from '../lib/e2e';
 
+/**
+ * Sanitiza un nombre de archivo para usarlo como key en Supabase Storage
+ * Remueve espacios, caracteres especiales y asegura compatibilidad
+ */
+function sanitizeFileName(fileName: string): string {
+  return fileName
+    .replace(/\s+/g, '_')           // Espacios → guiones bajos
+    .replace(/[^a-zA-Z0-9._-]/g, '') // Solo alfanuméricos, punto, guión bajo, guión
+    .replace(/_{2,}/g, '_')          // Múltiples guiones bajos → uno solo
+    .toLowerCase();                  // Minúsculas para consistencia
+}
+
 type SaveUserDocumentOptions = {
   signNowDocumentId?: string | null;
   signNowStatus?: string | null;
@@ -136,8 +148,9 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
   let encryptedPath = null;
 
   if (storePdf) {
-    // Upload encrypted file
-    const encryptedFileName = `${user.id}/${Date.now()}-${pdfFile.name}.encrypted`;
+    // Upload encrypted file con nombre sanitizado
+    const sanitizedName = sanitizeFileName(pdfFile.name);
+    const encryptedFileName = `${user.id}/${Date.now()}-${sanitizedName}.encrypted`;
     const uploadResult = await supabase.storage
       .from('user-documents')
       .upload(encryptedFileName, encryptedBlob, {
@@ -179,12 +192,8 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
       // ✅ HOTFIX: Don't throw - allow certificate to be saved anyway
       // The .eco already exists in memory and in ecoData JSONB column
     } else {
-      // ✅ Sanitize filename: remove special characters, spaces, accents
-      const sanitizedFileName = (ecoFileName || 'certificate.eco')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // Remove accents
-        .replace(/[^a-zA-Z0-9.-]/g, '_'); // Replace special chars with underscore
-
+      // Sanitizar nombre del archivo ECO
+      const sanitizedFileName = sanitizeFileName(ecoFileName || 'certificate.eco');
       const bytesForBlob = new Uint8Array(ecoBytes);
       const ecoBlob = new Blob([bytesForBlob], { type: 'application/octet-stream' });
       const ecoPath = forcedEcoStoragePath || `${user.id}/${Date.now()}-${sanitizedFileName}`;

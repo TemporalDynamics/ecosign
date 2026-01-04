@@ -16,7 +16,7 @@ import { VideoPlayerProvider, useVideoPlayer } from './contexts/VideoPlayerConte
 import { LegalCenterProvider } from './contexts/LegalCenterContext'
 import LegalCenterRoot from './components/LegalCenterRoot'
 import { initGuestFromLocation } from './contexts/GuestContext'
-import { diagnoseCryptoSession } from './lib/e2e'
+import { diagnoseCryptoSession, forceSaveSessionSecret } from './lib/e2e'
 
 // Lazy load all page components for code-splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'))
@@ -71,7 +71,10 @@ function DashboardAppRoutes() {
   // Expose crypto diagnostics globally for debugging
   useEffect(() => {
     (window as any).checkCryptoSession = diagnoseCryptoSession;
-    console.log('💡 Debug helper available: Run checkCryptoSession() in console to diagnose crypto session');
+    (window as any).forceSaveSession = forceSaveSessionSecret;
+    console.log('💡 Debug helpers available:');
+    console.log('  - checkCryptoSession() - Diagnose crypto session');
+    console.log('  - forceSaveSession() - Force save session to localStorage');
   }, []);
 
   // ❌ REMOVED: beforeunload listener was clearing session prematurely

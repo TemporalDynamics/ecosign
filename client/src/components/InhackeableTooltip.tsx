@@ -21,7 +21,7 @@ export default function InhackeableTooltip({
           <p className="font-semibold text-white">Blindaje Inhackeable:</p>
           <p>Es la combinación de:</p>
           <p>• Una Huella Digital (Sello de Integridad) única de tu documento.</p>
-          <p>• Un Sello de Tiempo Legal (TSA).</p>
+          <p>• Un sello de tiempo verificable (TSA, RFC 3161 o equivalente).</p>
           <p>• Y el Registro Digital Inalterable de estas pruebas en redes públicas como Polygon y Bitcoin.</p>
         </div>
       }

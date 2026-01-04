@@ -65,7 +65,7 @@ const PROBATIVE_STATES = {
     label: "Protección\ncertificada",
     color: "text-emerald-700",
     bg: "bg-emerald-100",
-    tooltip: "Sello de tiempo legal (TSA) y huella digital única confirmados."
+    tooltip: "Sello de tiempo verificable (TSA) y huella digital única confirmados."
   },
   reinforced: {
     label: "Protección\nreforzada",

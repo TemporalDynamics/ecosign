@@ -271,6 +271,44 @@ export async function verifyOTP(otp: string, hash: string): Promise<boolean> {
 ```
 </details>
 
+<details>
+<summary>Ver prueba técnica (código real, derivación de clave desde OTP)</summary>
+
+Fuente: `client/src/lib/e2e/otpSystem.ts`
+
+```ts
+export async function deriveKeyFromOTP(
+  otp: string,
+  salt: Uint8Array
+): Promise<CryptoKey> {
+  const otpBytes = new TextEncoder().encode(otp);
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    otpBytes,
+    CRYPTO_CONFIG.OTP_KEY_DERIVATION.algorithm,
+    false,
+    ['deriveKey']
+  );
+
+  return await crypto.subtle.deriveKey(
+    {
+      name: CRYPTO_CONFIG.OTP_KEY_DERIVATION.algorithm,
+      salt,
+      iterations: CRYPTO_CONFIG.OTP_KEY_DERIVATION.iterations,
+      hash: CRYPTO_CONFIG.OTP_KEY_DERIVATION.hash,
+    },
+    keyMaterial,
+    {
+      name: CRYPTO_CONFIG.KEY_WRAPPING.algorithm,
+      length: CRYPTO_CONFIG.KEY_WRAPPING.keyLength,
+    },
+    false,
+    ['wrapKey', 'unwrapKey']
+  );
+}
+```
+</details>
+
 ---
 
 ### El limite del conocimiento
@@ -341,6 +379,54 @@ export async function encryptFile(
   result.set(new Uint8Array(encryptedBuffer), iv.length);
 
   return new Blob([result], { type: 'application/octet-stream' });
+}
+```
+</details>
+
+<details>
+<summary>Ver prueba técnica (código real, wrapping de clave)</summary>
+
+Fuente: `client/src/lib/e2e/documentEncryption.ts`
+
+```ts
+export async function wrapDocumentKey(
+  documentKey: CryptoKey,
+  unwrapKey: CryptoKey
+): Promise<{ wrappedKey: string; wrapIv: string }> {
+  const wrapIv = randomBytes(CRYPTO_CONFIG.KEY_WRAPPING.ivLength);
+  const wrappedKeyBuffer = await crypto.subtle.wrapKey(
+    'raw',
+    documentKey,
+    unwrapKey,
+    { name: CRYPTO_CONFIG.KEY_WRAPPING.algorithm, iv: wrapIv }
+  );
+  const wrappedKeyBytes = new Uint8Array(wrappedKeyBuffer);
+  const wrappedKeyBase64 = bytesToBase64(wrappedKeyBytes);
+  return {
+    wrappedKey: wrappedKeyBase64,
+    wrapIv: Array.from(wrapIv).map(b => b.toString(16).padStart(2, '0')).join('')
+  };
+}
+```
+</details>
+
+<details>
+<summary>Ver prueba técnica (código real, sesión cripto client-side)</summary>
+
+Fuente: `client/src/lib/e2e/sessionCrypto.ts`
+
+```ts
+export async function initializeSessionCrypto(userId: string, forceReinit: boolean = false): Promise<void> {
+  if (_currentSession && _currentSession.userId === userId && !forceReinit) {
+    return;
+  }
+
+  const storedSecret = !forceReinit ? loadStoredSessionSecret(userId) : null;
+  const sessionSecret = storedSecret ?? randomBytes(CRYPTO_CONFIG.SESSION_SECRET.length);
+  const salt = hexToBytes(saltHex);
+  const unwrapKey = await deriveUnwrapKey(sessionSecret, salt);
+
+  _currentSession = { sessionSecret, unwrapKey, userId, initializedAt: new Date() };
 }
 ```
 </details>

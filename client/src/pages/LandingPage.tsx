@@ -148,7 +148,7 @@ const LandingPage = () => {
               to="/login?mode=signup"
               className="bg-black hover:bg-gray-800 text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
             >
-              Comenzar Gratis
+              Comenzar gratis
             </Link>
             <p className="text-xs text-gray-500">Sin tarjeta · Plan gratuito · En minutos</p>
           </div>
@@ -163,8 +163,8 @@ const LandingPage = () => {
           </h2>
           <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-16 text-center leading-relaxed">
             EcoSign no accede al contenido del documento.<br />
-            Solo genera una huella matemática única del archivo. No se puede reconstruir el contenido.<br />
-            La protección se realiza sin leer ni almacenar el contenido.
+            En su lugar, genera una huella única —como una huella dactilar—<br />
+            que identifica el archivo sin revelar su contenido.
             <span className="text-sm text-gray-500 block mt-1">(A esto lo llamamos <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> o Sello de Integridad).</span>
           </p>
 
@@ -232,50 +232,6 @@ const LandingPage = () => {
             </div>
           </div>
 
-            <div className="text-center mt-12">
-              <Link
-                to="/login"
-                className="inline-block bg-black hover:bg-gray-800 text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
-              >
-                Probar Gratis
-              </Link>
-            </div>
-        </div>
-      </section>
-
-      {/* 4. PARA QUIÉN ES - Editorial, sin cajas */}
-      <section className="py-24 bg-white">
-        <div className="max-w-5xl mx-auto px-6 lg:px-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-16 text-center">
-            Hecho para quienes necesitan evidencia real.
-          </h2>
-
-          <div className="grid md:grid-cols-2 gap-x-12 gap-y-8 text-lg text-gray-700">
-            <div>
-              <h3 className="font-semibold text-black mb-2">Creadores y emprendedores</h3>
-              <p>que quieren probar autoría sin revelar contenido.</p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold text-black mb-2">Equipos legales</h3>
-              <p>que necesitan contratos con validez internacional.</p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold text-black mb-2">Científicos y laboratorios</h3>
-              <p>que deben sellar fechas exactas.</p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold text-black mb-2">Equipos de RRHH o Compliance</h3>
-              <p>que necesitan cadenas de aprobación claras.</p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold text-black mb-2">Desarrolladores</h3>
-              <p>que quieren certificar código, commits o releases.</p>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -298,15 +254,18 @@ const LandingPage = () => {
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
             Protegé tu trabajo. Generá evidencia verificable.
           </h2>
-          <p className="text-xl text-gray-700 mb-12 max-w-3xl mx-auto">
-            EcoSign genera evidencia técnica que permite demostrar que un documento existía, no fue modificado y pertenece a una acción específica en el tiempo.
+          <p className="text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
+            Creá tu cuenta gratuita y empezá a proteger documentos en minutos.
           </p>
           <Link
             to="/login?mode=signup"
             className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg"
           >
-            Comenzar Gratis
+            Comenzar gratis
           </Link>
+          <p className="text-xs text-gray-500 mt-3">
+            Sin tarjeta · Plan gratuito · Creás tu cuenta al continuar
+          </p>
         </div>
       </section>
 

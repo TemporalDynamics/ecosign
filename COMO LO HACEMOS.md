@@ -120,6 +120,78 @@ assert resultado.integridad == OK
 
 ---
 
+## 4.1) Dos formas de "entregar evidencia" (y por que no son equivalentes)
+
+Cuando una plataforma de firma dice "te entregamos la evidencia", es importante hacer una distincion tecnica que suele pasarse por alto.
+
+### Modelo A — Log de auditoria (evidencia basada en confianza)
+
+Es el modelo mas comun en la industria.
+
+La plataforma entrega:
+
+- un PDF firmado, y
+- un "certificado de auditoria" o "audit log".
+
+Ese certificado describe eventos como:
+
+- quien firmo,
+- desde que IP,
+- en que fecha,
+- segun los registros internos de la plataforma.
+
+Este modelo funciona operativamente, pero tiene una limitacion estructural:
+
+La evidencia depende de que la plataforma testifique sobre la integridad de sus propios servidores.
+
+En un juicio o auditoria profunda, ese log:
+
+- no es autosuficiente,
+- no es independiente,
+- y no puede validarse sin confiar en la empresa que lo emitio.
+
+La verdad vive dentro del sistema.
+
+Si la plataforma deja de existir, se pierde acceso, o el sistema no puede auditarse externamente, la evidencia queda huerfana.
+
+### Modelo B — Contenedor de evidencia (evidencia basada en prueba)
+
+EcoSign utiliza un modelo distinto.
+
+No entrega un resumen de lo que ocurrio en sus servidores.  
+Entrega un objeto criptografico portable que contiene:
+
+- la huella digital original del documento,
+- firmas criptograficas verificables,
+- y referencias publicas de refuerzo (cuando aplican).
+
+El archivo .ECO:
+
+- puede verificarse offline,
+- no requiere una cuenta,
+- no depende de que EcoSign este disponible,
+- y no necesita que la plataforma "declare" nada.
+
+La evidencia no depende de la palabra de EcoSign.  
+Depende de las matematicas.
+
+La verdad viaja con el documento.
+
+### La diferencia clave
+
+Ambos modelos dicen "entregamos evidencia".  
+Pero no entregan lo mismo.
+
+Uno entrega un relato de lo que paso.  
+El otro entrega una prueba verificable de que ocurrio.
+
+EcoSign no invalida otros modelos.  
+Simplemente adopta un estandar mas exigente.
+
+> Un log explica lo que un sistema dice que paso. Una prueba permite demostrar lo que ocurrio.
+
+---
+
 ## 5) El contenedor .ECO: pequeño, portable, verificable
 
 El .ECO no es un PDF firmado. No es un log interno. No es un ZIP gigante.
@@ -186,6 +258,19 @@ El sistema registra:
 
 Eso crea **eventos verificables** que fortalecen la cadena de custodia, sin que tengas que perseguir confirmaciones.
 
+<details>
+<summary>Ver prueba técnica (código real, OTP de acceso)</summary>
+
+Fuente: `client/src/lib/e2e/otpSystem.ts`
+
+```ts
+export async function verifyOTP(otp: string, hash: string): Promise<boolean> {
+  const otpHash = await hashOTP(otp);
+  return otpHash === hash;
+}
+```
+</details>
+
 ---
 
 ### El limite del conocimiento
@@ -228,6 +313,38 @@ recibir(firma)        // OK
 recibir(documento)    // NO
 ```
 
+<details>
+<summary>Ver prueba técnica (código real, client-side encryption)</summary>
+
+Fuente: `client/src/lib/e2e/documentEncryption.ts`
+
+```ts
+/**
+ * Client-side encryption/decryption of documents.
+ * All operations happen in the browser, server never sees plaintext.
+ */
+export async function encryptFile(
+  file: File,
+  documentKey: CryptoKey
+): Promise<Blob> {
+  const fileBuffer = await file.arrayBuffer();
+  const iv = randomBytes(CRYPTO_CONFIG.DOCUMENT_ENCRYPTION.ivLength);
+
+  const encryptedBuffer = await crypto.subtle.encrypt(
+    { name: CRYPTO_CONFIG.DOCUMENT_ENCRYPTION.algorithm, iv },
+    documentKey,
+    fileBuffer
+  );
+
+  const result = new Uint8Array(iv.length + encryptedBuffer.byteLength);
+  result.set(iv, 0);
+  result.set(new Uint8Array(encryptedBuffer), iv.length);
+
+  return new Blob([result], { type: 'application/octet-stream' });
+}
+```
+</details>
+
 ---
 
 ### La evidencia nace en el borde
@@ -263,7 +380,54 @@ function emitirECO(documento):
   return eco
 ```
 
+<details>
+<summary>Ver prueba técnica (código real, hash local SHA‑256)</summary>
+
+Fuente: `client/src/utils/hashDocument.ts`
+
+```ts
+export async function calculateDocumentHash(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return hashHex
+}
+```
+</details>
+
 No mostramos el motor interno de empaquetado. Ese componente pertenece a **EcoPacker**, parte del claim 2 de la PPA y en proceso de registro de propiedad intelectual.
+
+<details>
+<summary>Ver prueba técnica (código real, upload solo cifrado)</summary>
+
+Fuente: `client/src/utils/documentStorage.ts`
+
+```ts
+// Generate document hash (of original file, before encryption)
+const arrayBuffer = await pdfFile.arrayBuffer();
+const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+const hashArray = Array.from(new Uint8Array(hashBuffer));
+const documentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+// Generate document key and encrypt the file
+const documentKey = await generateDocumentKey();
+const encryptedBlob = await encryptFile(pdfFile, documentKey);
+
+// Upload ENCRYPTED PDF to Supabase Storage
+if (storePdf) {
+  const encryptedFileName = `${user.id}/${Date.now()}-${pdfFile.name}.encrypted`;
+  const uploadResult = await supabase.storage
+    .from('user-documents')
+    .upload(encryptedFileName, encryptedBlob, {
+      contentType: 'application/octet-stream',
+      upsert: false
+    });
+  // Keep pdf_storage_path null (we don't store plaintext PDF)
+  storagePath = null;
+}
+```
+</details>
 
 ---
 
@@ -320,6 +484,42 @@ sha256sum doc.txt
 
 Un solo byte cambia todo el hash. Eso es lo que hace detectable cualquier alteracion.
 
+<details>
+<summary>Ver prueba técnica (código real, verificación .ECO)</summary>
+
+Fuente: `client/src/lib/verificationService.ts`
+
+```ts
+export async function verifyEcoWithOriginal(
+  ecoFile: File,
+  originalFile?: File | null
+): Promise<VerificationBaseResult> {
+  const supabase = getSupabase();
+  const formData = new FormData();
+  formData.append('ecox', ecoFile);
+  if (originalFile) {
+    formData.append('original', originalFile);
+  }
+
+  const { data, error } = await supabase.functions.invoke('verify-ecox', {
+    body: formData
+  });
+
+  if (error) throw new Error(error.message || 'Error al verificar el archivo');
+  if (!data) throw new Error('La verificación no devolvió datos');
+
+  return {
+    valid: data.valid,
+    hash: data.hash,
+    originalHash: data.originalHash || null,
+    originalFileMatches: data.originalFileMatches || false,
+    signature: { algorithm: data.signature?.algorithm || 'Ed25519', valid: data.signature?.valid || false },
+    manifest: data.manifest || null
+  };
+}
+```
+</details>
+
 ### B) Observaciones online (refuerzos)
 
 - Consultar anclajes y sellos de tiempo
@@ -349,6 +549,79 @@ La logica es simple:
 Por eso combinamos redes y sellos: redundancia, independencia y resiliencia.
 
 La evidencia no se apoya en una sola cadena. Se apoya en la realidad.
+
+<details>
+<summary>Ver prueba técnica (código real, anclaje Polygon)</summary>
+
+Fuente: `client/src/lib/polygonAnchor.ts`
+
+```ts
+export async function anchorToPolygon(documentHash: string, options: AnchorRequestOptions = {}) {
+  const supabase = getSupabase();
+  if (!documentHash || !/^[a-f0-9]{64}$/i.test(documentHash)) {
+    throw new Error('Invalid document hash. Must be SHA-256 hex string.');
+  }
+
+  const { data, error } = await supabase.functions.invoke('anchor-polygon', {
+    body: {
+      documentHash: documentHash.toLowerCase(),
+      documentId: options.documentId || null,
+      userId: options.userId || null,
+      userEmail: options.userEmail || null
+    }
+  });
+
+  if (error) throw new Error(error.message || 'Failed to anchor to Polygon');
+  return { success: true, anchorId: data.anchorId, txHash: data.txHash, status: data.status };
+}
+```
+</details>
+
+<details>
+<summary>Ver prueba técnica (código real, anclaje Bitcoin/OpenTimestamps)</summary>
+
+Fuente: `client/src/lib/opentimestamps.ts`
+
+```ts
+export async function requestBitcoinAnchor(
+  documentHash: string,
+  context: AnchorContext = {}
+): Promise<BitcoinAnchorResponse | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.functions.invoke<BitcoinAnchorResponse>('anchor-bitcoin', {
+    body: {
+      documentHash,
+      documentId: context.documentId ?? null,
+      userId: context.userId ?? null,
+      userEmail: context.userEmail ?? null
+    }
+  });
+  if (error) throw new Error(error.message || 'No se pudo crear la solicitud de anclaje');
+  return data ?? null;
+}
+```
+</details>
+
+<details>
+<summary>Ver prueba técnica (código real, TSA RFC 3161)</summary>
+
+Fuente: `client/src/lib/tsaService.ts`
+
+```ts
+export async function requestLegalTimestamp(hashHex: string, options: TimestampOptions = {}) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.functions.invoke('legal-timestamp', {
+    body: { hash_hex: hashHex.toLowerCase(), tsa_url: options.tsaUrl || DEFAULT_TSA_URL }
+  });
+
+  if (error) throw new Error(error.message || 'No se pudo contactar a la TSA');
+  if (!data?.success || !data.token) throw new Error(data?.error || 'La TSA no devolvió un token válido');
+
+  const parsed = await verifyTSRToken(data.token, hashHex);
+  return { timestamp: parsed?.timestamp, token: data.token, verified: parsed?.hashMatches !== false };
+}
+```
+</details>
 
 ---
 
@@ -531,6 +804,18 @@ Invariantes verificables:
 - Offline OK es condicion necesaria.
 - Online nunca invalida lo offline.
 - No hay "Inválido" por falta de red.
+
+<details>
+<summary>Ver prueba técnica (código real, validación de hash)</summary>
+
+Fuente: `client/src/utils/hashDocument.ts`
+
+```ts
+export function isValidSHA256(hash: string): boolean {
+  return /^[a-f0-9]{64}$/i.test(hash)
+}
+```
+</details>
 
 ---
 

@@ -170,7 +170,11 @@ export async function unwrapDocumentKey(
     
     return documentKey;
   } catch (error) {
-    console.error('Unwrap error:', error);
+    console.error('❌ Unwrap error:', error);
+    console.error('   This usually means:');
+    console.error('   1. Session secret changed (localStorage cleared or different browser)');
+    console.error('   2. Document was created with a different session');
+    console.error('   3. Document crypto data is corrupted');
     throw new Error(CRYPTO_ERRORS.UNWRAP_FAILED);
   }
 }

@@ -85,12 +85,24 @@ export async function shareDocument(
     }
 
     // 2. Unwrap document key with owner's session key
+    console.log('🔓 Attempting to unwrap document key...');
+    console.log('  - Document ID:', documentId);
+    console.log('  - Has wrapped_key:', !!doc.wrapped_key);
+    console.log('  - Has wrap_iv:', !!doc.wrap_iv);
+
+    if (!doc.wrapped_key || !doc.wrap_iv) {
+      throw new Error('Este documento no tiene cifrado E2E. No se puede compartir con OTP.');
+    }
+
     const sessionUnwrapKey = getSessionUnwrapKey();
+    console.log('  - Session unwrap key obtained');
+
     const documentKey = await unwrapDocumentKey(
       doc.wrapped_key,
       doc.wrap_iv,
       sessionUnwrapKey
     );
+    console.log('✅ Document key unwrapped successfully');
 
     // 3. Generate OTP
     const otp = generateOTP();

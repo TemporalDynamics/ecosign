@@ -337,7 +337,7 @@ function HowItWorksPage() {
           
           <div className="space-y-4 text-lg text-gray-700 leading-relaxed max-w-3xl mx-auto">
             <p>
-              EcoSign fue diseñado para que el contenido del documento nunca esté accesible para la plataforma, salvo en los casos en que una obligación legal válida lo exija.
+              Por diseño, es técnicamente imposible que EcoSign acceda al contenido de tu archivo. El documento se cifra íntegramente en el navegador y la plataforma nunca recibe ni puede reconstruir el contenido en claro, garantizando la privacidad incluso frente a terceros o requerimientos externos.
             </p>
             <p>
               Cuando subís un archivo, el documento se protege de forma automática antes de llegar a cualquier servidor. Eso significa que nadie puede abrirlo sin autorización del usuario.

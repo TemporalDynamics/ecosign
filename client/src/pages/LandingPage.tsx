@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Shield,
@@ -10,6 +10,7 @@ import {
 import { defaultPlaylist, useVideoPlayer, videoLibrary } from '../contexts/VideoPlayerContext';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
+import VideoPlayer from '../components/VideoPlayer';
 import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
 import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
 import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
@@ -22,7 +23,6 @@ const LandingPage = () => {
   const { playVideo, videoState } = useVideoPlayer();
   const [floatingRequested, setFloatingRequested] = useState(false);
   const [landingVideoIndex, setLandingVideoIndex] = useState(0);
-  const inlineVideoRef = useRef<HTMLVideoElement | null>(null);
   const isLandingVideoPlaying = floatingRequested && videoState.isPlaying && videoState.videoSrc === currentVideo?.src;
   const landingPlaylist = useMemo(() => defaultPlaylist, []);
   const currentVideoKey = landingPlaylist[landingVideoIndex] ?? landingPlaylist[0];
@@ -37,19 +37,6 @@ const LandingPage = () => {
       setFloatingRequested(false);
     }
   }, [videoState.isPlaying, floatingRequested]);
-
-  useEffect(() => {
-    const video = inlineVideoRef.current;
-    if (!video) return;
-    const handleLoadedMetadata = () => {
-      video.currentTime = 0.1;
-      video.pause();
-    };
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    return () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-    };
-  }, [currentVideo?.src]);
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -86,26 +73,21 @@ const LandingPage = () => {
           </p>
 
           <div className="max-w-4xl mx-auto">
-            <div className="aspect-video bg-black rounded-lg overflow-hidden relative flex items-center justify-center">
+            <div className="bg-white rounded-lg overflow-hidden relative">
               {isLandingVideoPlaying ? (
-                <p className="text-sm text-gray-300">El video está abierto en una ventana flotante.</p>
+                <div className="aspect-video bg-white flex items-center justify-center border border-gray-200">
+                  <p className="text-sm text-gray-500">El video está abierto en una ventana flotante.</p>
+                </div>
               ) : (
                 <>
-                  <video
-                    controls
-                    ref={inlineVideoRef}
-                    preload="metadata"
-                    className="w-full h-full"
-                    playsInline
-                    key={currentVideo?.src}
-                  >
-                    <source src={currentVideo?.src} type="video/mp4" />
-                    Tu navegador no soporta video HTML5.
-                  </video>
+                  <VideoPlayer 
+                    src={currentVideo?.src || ''}
+                    className="w-full"
+                  />
                   <button
                     type="button"
                     onClick={() => setLandingVideoIndex((prev) => (prev - 1 + landingPlaylist.length) % landingPlaylist.length)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/50 text-white hover:bg-black/70 transition"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/90 text-gray-700 hover:bg-white hover:text-black transition shadow-md z-10"
                     title={`Video en ${prevVideoLang}`}
                     aria-label={`Anterior: video en ${prevVideoLang}`}
                   >
@@ -114,7 +96,7 @@ const LandingPage = () => {
                   <button
                     type="button"
                     onClick={() => setLandingVideoIndex((prev) => (prev + 1) % landingPlaylist.length)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/50 text-white hover:bg-black/70 transition"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/90 text-gray-700 hover:bg-white hover:text-black transition shadow-md z-10"
                     title={`Video en ${nextVideoLang}`}
                     aria-label={`Siguiente: video en ${nextVideoLang}`}
                   >
@@ -196,54 +178,54 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* 3. CÓMO FUNCIONA - Solo 3 pasos, sin bloques */}
+      {/* 3. DEMO EN ACCIÓN - Video como evidencia */}
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-16 text-center">
-            Protegé o firmá en solo 3 pasos.
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
+            Mirá EcoSign en acción
           </h2>
-          <p className="text-sm text-gray-600 text-center -mt-10 mb-8">
-            Todo lo que sigue es opcional: sirve para entender, no para usar.
+          <p className="text-xl text-gray-700 text-center mb-12 leading-relaxed">
+            Así se ve el flujo real de EcoSign, sin atajos ni simulaciones.
           </p>
           
-          <div className="space-y-12">
-            <div className="text-center md:text-left">
-              <div className="inline-block bg-black text-white text-3xl font-bold w-14 h-14 rounded-full flex items-center justify-center mb-4">
-                1
-              </div>
-              <h3 className="text-2xl font-semibold text-black mb-2">Subí tu archivo (o arrastralo)</h3>
-              <p className="text-lg text-gray-600">Nunca se almacena. Solo se calcula la <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>.</p>
-            </div>
-            
-            <div className="text-center md:text-left">
-              <div className="inline-block bg-black text-white text-3xl font-bold w-14 h-14 rounded-full flex items-center justify-center mb-4">
-                2
-              </div>
-              <h3 className="text-2xl font-semibold text-black mb-2">Elegí el tipo de protección</h3>
-              <p className="text-lg text-gray-600">Firma técnica de integridad y autoría, o firma legal regulada mediante proveedores externos.</p>
-            </div>
-            
-            <div className="text-center md:text-left">
-              <div className="inline-block bg-black text-white text-3xl font-bold w-14 h-14 rounded-full flex items-center justify-center mb-4">
-                3
-              </div>
-              <h3 className="text-2xl font-semibold text-black mb-2">Descargá tu PDF + Contenedor .ECO</h3>
-              <p className="text-lg text-gray-600">Contenedor de protección legal (.ECO) con evidencia técnica completa y Hoja de Auditoría.</p>
+          <div className="mb-8 max-w-5xl mx-auto">
+            <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+              <VideoPlayer 
+                src="https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/firma.mp4"
+                className="w-full"
+              />
             </div>
           </div>
 
+          <ul className="space-y-3 text-lg text-gray-700 max-w-2xl mx-auto">
+            <li>• Documento nunca expuesto</li>
+            <li>• Evidencia generada automáticamente</li>
+            <li>• Resultado descargable y verificable</li>
+          </ul>
         </div>
       </section>
 
-      {/* 5. FIRMAS INDIVIDUALES/MÚLTIPLES - Unificado */}
+      {/* 5. FIRMAS INDIVIDUALES/MÚLTIPLES - Video como evidencia */}
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">
-            Firmas individuales, múltiples o en cadena. Sin fricción.
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
+            Firmas individuales, múltiples o en cadena.
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 leading-relaxed">
-            Agregás los correos en el orden que quieras.<br />
-            EcoSign se encarga de enviar, registrar, auditar y entregar cada documento firmado sin que tengas que mover un dedo.
+            El mismo proceso, incluso cuando intervienen múltiples firmantes.
+          </p>
+          
+          <div className="mb-8 max-w-5xl mx-auto">
+            <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+              <VideoPlayer 
+                src="https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/flujodefirmas.mp4"
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          <p className="text-lg text-gray-700 text-center max-w-2xl mx-auto">
+            EcoSign gestiona el orden, el envío y el registro sin intervención manual.
           </p>
         </div>
       </section>

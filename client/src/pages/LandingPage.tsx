@@ -139,7 +139,7 @@ const LandingPage = () => {
               <h3 className="text-xl font-semibold text-black mb-3">Evidencia técnica verificable</h3>
               <p className="text-gray-600">Generada automáticamente, verificable por cualquiera.</p>
               <p className="text-xs text-gray-500 mt-2">
-                <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> + <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>.
+                <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> + <SelloDeTiempoLegalTooltip>Sello de tiempo verificable</SelloDeTiempoLegalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>.
               </p>
             </div>
             

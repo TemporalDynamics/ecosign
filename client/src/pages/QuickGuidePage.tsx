@@ -63,7 +63,7 @@ export default function QuickGuidePage() {
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-[#0A66C2] mt-1">•</span>
-                    <span>Podés activar el <strong>Blindaje <InhackeableTooltip>Inhackeable</InhackeableTooltip></strong> para sumar <SelloDeTiempoLegalTooltip>Sello de Tiempo Legal</SelloDeTiempoLegalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>.</span>
+                    <span>Podés activar el <strong>Blindaje <InhackeableTooltip>Inhackeable</InhackeableTooltip></strong> para sumar <SelloDeTiempoLegalTooltip>Sello de tiempo verificable</SelloDeTiempoLegalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>.</span>
                   </li>
                 </ul>
               </div>

@@ -80,7 +80,7 @@ export default function DocumentationPage() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#0A66C2] mt-1">•</span>
-                <span>Sello de tiempo legal (TSA independiente)</span>
+                <span>Sello de tiempo verificable (TSA independiente)</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-[#0A66C2] mt-1">•</span>

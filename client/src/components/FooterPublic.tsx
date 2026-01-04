@@ -1,14 +1,11 @@
 import { Link } from 'react-router-dom';
-import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 
 export default function FooterPublic() {
-  const { playVideo } = useVideoPlayer();
-
   return (
     <footer className="bg-black py-12 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-6">
         {/* Grid de columnas */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           {/* Columna 1: Producto */}
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Producto</h4>
@@ -18,6 +15,7 @@ export default function FooterPublic() {
               <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
               <li><Link to="/quick-guide" className="hover:text-[#0E4B8B] hover:underline transition">Guía rápida</Link></li>
               <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificador</Link></li>
+              <li><Link to="/videos" className="hover:text-[#0E4B8B] hover:underline transition">Videos</Link></li>
               <li><Link to="/login" className="hover:text-[#0E4B8B] hover:underline transition">Comenzar Gratis</Link></li>
             </ul>
           </div>
@@ -35,20 +33,7 @@ export default function FooterPublic() {
             </ul>
           </div>
 
-          {/* Columna 3: Videos */}
-          <div className="text-left">
-            <h4 className="font-semibold text-white mb-3">Videos</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('anatomia-firma'); }} className="hover:text-[#0E4B8B] hover:underline transition">Anatomía de una Firma</a></li>
-              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('verdad-verificable'); }} className="hover:text-[#0E4B8B] hover:underline transition">Verdad Verificable</a></li>
-              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('conocimiento-cero'); }} className="hover:text-[#0E4B8B] hover:underline transition">Conocimiento Cero</a></li>
-              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('the-true-cost'); }} className="hover:text-[#0E4B8B] hover:underline transition">The True Cost</a></li>
-              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('forensic-integrity'); }} className="hover:text-[#0E4B8B] hover:underline transition">Forensic Integrity</a></li>
-              <li><a href="#" onClick={(e) => { e.preventDefault(); playVideo('you-dont-need-to-trust'); }} className="hover:text-[#0E4B8B] hover:underline transition">You Don&apos;t Need to Trust</a></li>
-            </ul>
-          </div>
-
-          {/* Columna 4: Legal */}
+          {/* Columna 3: Legal */}
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Legal</h4>
             <ul className="space-y-2 text-sm text-gray-400">
@@ -58,7 +43,7 @@ export default function FooterPublic() {
             </ul>
           </div>
 
-          {/* Columna 5: Soporte */}
+          {/* Columna 4: Soporte */}
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Soporte</h4>
             <ul className="space-y-2 text-sm text-gray-400">

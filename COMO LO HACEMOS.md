@@ -1,128 +1,584 @@
-# CÓMO LO HACEMOS — Guía técnica (EcoSign)
+# CÓMO LO HACEMOS — Manifiesto técnico‑narrativo (EcoSign)
 
-Este documento describe el **comportamiento verificable** del sistema y el **contrato público de datos** del formato `.ECO`.
-No describe detalles internos propietarios (optimización, packaging interno, pipelines, etc.).
+Este documento es un manifiesto técnico‑narrativo. Explica **qué hacemos**, **por qué importa** y **cómo puede verificarse**, sin revelar detalles internos propietarios.
 
-## 0) Vocabulario (para evitar ambigüedad)
+No es marketing y no es asesoramiento legal. Es una guía clara para entender:
 
-- **Documento original**: el archivo (PDF, imagen, etc.).
-- **.ECO**: contenedor de evidencia técnica (no contiene el documento en claro).
-- **Manifiesto**: metadatos + hash del documento + timestamps (si aplica).
-- **Integridad criptográfica**: prueba de que el `.ECO` no fue alterado y que el hash corresponde a un contenido.
-- **Anclaje**: registro posterior en redes públicas (ej. Polygon / Bitcoin) que refuerza la evidencia.
-- **Estado probatorio**: resumen de señales técnicas disponibles al momento de verificar (puede mejorar con el tiempo).
+- por qué la evidencia digital importa,
+- qué necesita una firma para ser creíble en un juicio,
+- cómo EcoSign construye evidencia verificable,
+- y qué podés comprobar por vos mismo.
 
-> Nota importante: el `.ECO` es **inmutable**. Lo que cambia con el tiempo no es el `.ECO`, sino la **disponibilidad de señales externas** (confirmaciones/observaciones).
+Si venís sin contexto técnico, este texto te acompana desde cero. Si sos técnico, vas a encontrar contratos de datos y pseudocódigo. Si sos abogado, perito o compliance, vas a encontrar criterios y límites claros.
 
 ---
 
-## 1) Principios de diseño
+Durante años, la industria de la firma digital confundió **operar** con **probar**.  
+Firmar es facil. Demostrar la verdad, no.  
+EcoSign existe porque ese error tiene consecuencias legales, económicas y humanas.
 
-1. **Arquitectura ciega al contenido (server-side)**  
-   EcoSign no necesita acceder al contenido del documento en claro para generar evidencia. El hash se calcula en el cliente. **Ciega al contenido en sentido operativo: los servidores no acceden ni interpretan el contenido en claro durante el proceso de emisión.**
+**Interludio — la pregunta que casi nadie hace**  
+Si mañana desaparece la plataforma, que pasa con la verdad que firmaste hoy.
+Si tu prueba muere con tu proveedor, nunca fue prueba: fue alquiler.
 
-2. **Evidencia portable y verificable**  
-   El `.ECO` permite verificar **offline** la integridad criptográfica (estructura, firma y hash).
+## 1) El problema real no es firmar, es probar la verdad
 
-3. **Separación entre “hecho” y “refuerzo”**  
-   - El **hecho**: la integridad del `.ECO` y su vínculo con el documento (si se provee el original).  
-   - El **refuerzo**: anclajes en redes públicas y/o sellos de tiempo de terceros (si existen).
+Firmar un documento es facil. Probar que una firma es **verdadera**, **intacta** y **temporalmente ubicable** es otra cosa.
 
-4. **Sin falsos negativos por disponibilidad**  
-   Si una señal externa no está disponible (por ejemplo, no se puede consultar el estado de un anclaje), el verificador debe mostrar **“no consultado / no disponible”**, nunca “falso”.
+Muchas plataformas de firma se apoyan en confianza: logs internos, dashboards, versiones, correos de confirmacion. Eso sirve para operar. Pero **no siempre sirve para demostrar**.
 
----
+EcoSign parte de otra premisa:
 
-## 2) Flujo de emisión: del documento al `.ECO`
+> No pedimos confianza. Entregamos evidencia verificable.
 
-Resumen conceptual:
+Ese cambio de paradigma es el punto de partida de todo lo demas.
 
-1) El cliente calcula `hash = SHA-256(documento)` localmente.  
-2) Se construye un manifiesto con el hash y metadatos (nombre, tamaño, timestamp, etc.).  
-3) Se firma el manifiesto con **Ed25519** (clave del lado del cliente).  
-4) Se empaqueta en `.ECO` (contenedor de evidencia).  
-5) El `.ECO` se entrega al usuario inmediatamente.
+Dos tesis que incomodan, pero son tecnicamente ciertas:
 
-> Resultado esperado: el usuario tiene un artefacto portable que puede verificar sin la plataforma.
+- **La verdad que depende de una empresa no es verdad independiente.**
+- **Si la evidencia no puede salir del sistema, no es evidencia: es un log.**
 
----
-
-## 3) Verificación: dos capas (sin promesas peligrosas)
-
-La verificación se divide en **dos etapas**:
-
-### A) Verificación OFFLINE (integridad criptográfica)
-Esta etapa es autosuficiente y no requiere red.
-
-- Validar estructura del `.ECO`
-- Validar firma(s) del manifiesto (Ed25519)
-- Si se provee el documento original: recalcular SHA-256 y comparar con el hash del manifiesto
-
-**Salida mínima (offline):**
-- Integridad del `.ECO`: ✅ / ❌
-- Coincidencia con documento original (si aplica): ✅ / ❌
-
-### B) Resolución de señales externas (opcional, online)
-Esta etapa **no reemplaza** la verificación offline; la complementa.
-
-- Consultar señales asociadas al `.ECO` (por ejemplo, anclajes registrados por la plataforma)
-- Presentar el resultado como **“observaciones”** y, cuando sea posible, incluir **identificadores públicos** (txid, block, etc.) para que un tercero pueda corroborarlos.
-
-**Regla de oro:**
-- Si no se puede consultar o no hay datos aún → presenta **“No consultado / Pendiente”**, no “Inválido”.
+No todo lo digital es probatorio.  
+No todo lo firmado es demostrable.
 
 ---
 
-## 4) Estado probatorio (definición precisa y no ansiógena)
+## 2) Que necesita una firma para ser valida en un juicio
 
-El verificador muestra un **resumen** basado en señales disponibles:
+No existe una formula unica para todos los paises, pero los tribunales y peritos suelen mirar lo mismo:
 
-- **INTEGRIDAD OK**: el `.ECO` es consistente y las firmas/hashes validan.
-- **ANCLAJE PENDIENTE**: se solicitó refuerzo, pero todavía no hay confirmación disponible.
-- **ANCLAJE CONFIRMADO (POLYGON)**: existe confirmación disponible en Polygon (si se conoce el txid, es verificable públicamente).
-- **ANCLAJE CONFIRMADO (BITCOIN)**: existe confirmación disponible en Bitcoin / OpenTimestamps (si aplica y hay evidencia pública disponible).
-- **ANCLAJE NO CONSULTADO**: el verificador no pudo obtener la señal en este momento (ej. sin red / servicio no disponible).
+- **Integridad**: el documento no fue alterado.
+- **Autoría**: quien firmo puede ser identificado.
+- **Temporalidad**: se puede ubicar en el tiempo.
+- **Cadena de custodia**: la evidencia es verificable por terceros.
+- **Independencia**: no depende solo de la palabra de una plataforma.
+
+EcoSign no garantiza resultados judiciales. Lo que sí garantiza es esto:
+
+> Evidencia tecnica verificable, portable y revisable por terceros.
+
+Si falta una sola de esas piezas, la firma deja de ser prueba y pasa a ser opinion.
 
 ---
 
-## 5) Qué guardamos y qué no
+## 3) Tipos de firma y que valida cada una
+
+No todas las firmas tienen el mismo peso probatorio. Esta tabla compara enfoques de mercado (genericos) con el enfoque EcoSign.
+
+| Tipo | Que valida | Donde vive la evidencia | Verificacion independiente | Peso probatorio tipico |
+| --- | --- | --- | --- | --- |
+| Firma simple | Intencion basica | Logs internos | Limitada | Bajo‑medio |
+| Firma electronica avanzada (AES) | Autenticacion + integridad | Plataforma | Parcial | Medio |
+| Firma cualificada (QES) | Identidad certificada + dispositivo | Proveedor + certificador | Alto (dependiente) | Alto |
+| Firma con evidencia verificable (EcoSign) | Integridad + trazabilidad + refuerzo externo | Contenedor portable (.ECO) + registros publicos | Alta | Alto (segun jurisdiccion y evidencia) |
+
+Notas importantes:
+
+- Esta comparacion es tecnica, no legal. Cada jurisdiccion tiene reglas propias.
+- En la practica, muchas firmas “digitales” son simples, aunque el usuario no lo sepa.
+
+Si el peso probatorio no viaja con el documento, no viaja.
+
+---
+
+### El modelo que no escala
+
+## 4) El cambio de paradigma: de confianza a evidencia
+
+En EcoSign no existe la idea de “confiá en nuestro dashboard”.
+
+Existe la idea de **entregarte un objeto de evidencia** que podés verificar sin nosotros. Eso cambia la relacion entre plataforma y usuario.
+
+- El documento es tuyo.
+- La evidencia es tuya.
+- La verificacion no depende de que EcoSign exista.
+
+> EcoSign no guarda tu verdad. Te la entrega.
+La plataforma es un medio. La evidencia es el producto.
+
+Una plataforma no deberia ser testigo de si misma.  
+Si la prueba solo existe mientras la plataforma existe, esa prueba es fragil.
+
+**Interludio — evidencia huerfana**  
+Llamamos “evidencia huerfana” a toda prueba que solo puede verificarse mientras el sistema que la emitio siga vivo.  
+EcoSign evita esa dependencia por diseño.
+
+Históricamente, el firmante es la parte mas débil del sistema: firma, pero no conserva la prueba.  
+EcoSign invierte esa asimetria.
+
+Pseudocodigo de independencia total:
+
+```pseudo
+resultado = verificarOffline(eco, documento)
+
+// No requiere:
+// - API
+// - cuenta
+// - servidor EcoSign
+assert resultado.integridad == OK
+```
+
+---
+
+## 5) El contenedor .ECO: pequeño, portable, verificable
+
+El .ECO no es un PDF firmado. No es un log interno. No es un ZIP gigante.
+
+Es un **contenedor de evidencia** liviano y portable que incluye:
+
+- el hash criptografico del documento,
+- metadatos basicos,
+- firmas criptograficas,
+- y la intencion de refuerzos externos (si aplica).
+
+Lo importante:
+
+- **No contiene el documento en claro.**
+- **Pesa poco.**
+- **Viaja con el documento.**
+- **Se puede verificar offline.**
+
+Este diseno elimina una dependencia comun: que la verdad viva dentro de un sistema privado.
+
+Un contenedor que pesa bytes puede cargar con toda la verdad.
+
+---
+
+### La evidencia debe viajar
+
+## 6) Documentos claros, sin dashboards confusos
+
+Un documento deberia poder explicar su historia sin obligarte a navegar un tablero complejo.
+
+EcoSign trata cada documento como un objeto claro:
+
+- tiene evidencia,
+- tiene historial,
+- tiene verificacion,
+- puede compartirse sin friccion.
+
+No escondemos el contenido en estados opacos. El archivo y su evidencia son el centro.
+
+Si para entender la validez de un documento necesitas acceso a un dashboard privado, entonces la evidencia no esta en el documento.  
+Esta secuestrada por el sistema.
+
+En EcoSign, el documento es el dashboard.
+
+---
+
+### Compartir sin friccion
+
+## 7) Compartir documentos con NDA, link y codigo
+
+Compartir evidencia no deberia requerir una cuenta, ni un proceso manual.
+
+EcoSign permite compartir desde documentos:
+
+- **Link directo**
+- **Codigo OTP**
+- **Registro de apertura**
+
+El sistema registra:
+
+- quien abre,
+- cuando,
+- y desde donde.
+
+Eso crea **eventos verificables** que fortalecen la cadena de custodia, sin que tengas que perseguir confirmaciones.
+
+---
+
+### El limite del conocimiento
+
+## 8) Zero Knowledge y cifrado, explicado sin humo
+
+EcoSign opera con un principio simple:
+
+- El hash del documento se calcula en el cliente.
+- El contenido no necesita pasar por nuestros servidores en claro.
+
+Eso es lo que llamamos **zero‑knowledge operativo**. No es un slogan: es una decision de arquitectura.
+
+Pero tambien somos transparentes:
+
+- Si un usuario usa integraciones externas o APIs de terceros, esas partes quedan sujetas a las politicas de esos proveedores.
+- Cuando esto sucede, lo declaramos claramente en el flujo.
+
+En otras palabras:
+
+> Decimos que hacemos. Decimos que no hacemos. Y decimos cuando delegamos.
+
+**Nota sobre el uso de pseudocodigo**  
+En este documento se utiliza pseudocodigo y esquemas conceptuales para explicar comportamientos verificables, contratos de datos e invariantes del sistema.  
+Algunos componentes internos —como mecanismos de empaquetado, optimizacion y orquestacion— no se muestran en codigo ejecutable por razones de proteccion de propiedad intelectual en proceso.  
+Esta decision no limita la posibilidad de verificacion: todo lo que se afirma aqui puede comprobarse a partir de los artefactos entregados (.ECO), los resultados del verificador y las senales publicas asociadas.  
+Mostramos lo suficiente para que puedas verificar. No mas de lo necesario para que alguien copie.
+
+Pseudocodigo de limites (lo que el servidor **no** recibe):
+
+```pseudo
+// Cliente
+documento = leerArchivo()
+hash = SHA256(documento)
+firma = sign(hash, claveUsuario)
+
+// Servidor
+recibir(hash)         // OK
+recibir(firma)        // OK
+recibir(documento)    // NO
+```
+
+---
+
+### La evidencia nace en el borde
+
+## 9) Flujo de emision (conceptual + pseudocodigo)
+
+La emision es sencilla, verificable y en el borde del usuario.
+
+### Resumen conceptual
+
+1) El cliente calcula el hash local.
+2) Construye el manifiesto con metadatos.
+3) Firma el manifiesto con su clave.
+4) Empaqueta el .ECO.
+5) Recibe el .ECO inmediatamente.
+
+### Pseudocodigo (alto nivel)
+
+```pseudo
+function emitirECO(documento):
+  hash = SHA256(documento)
+  manifiesto = {
+    hash: hash,
+    size: bytes(documento),
+    createdAt: nowUTC(),
+    meta: { nombre, tipo }
+  }
+
+  firma = Ed25519.sign(manifiesto, clavePrivadaCliente)
+
+  eco = empaquetar({ manifiesto, firma })
+  entregar(eco)
+  return eco
+```
+
+No mostramos el motor interno de empaquetado. Ese componente pertenece a **EcoPacker**, parte del claim 2 de la PPA y en proceso de registro de propiedad intelectual.
+
+---
+
+### La verdad primero
+
+## 10) Verificacion: offline primero, online como refuerzo
+
+### A) Verificacion offline (base de verdad)
+
+- Validar estructura del .ECO
+- Validar firmas del manifiesto
+- Si se provee el documento original: recomputar hash y comparar
+
+Resultado minimo:
+
+- Integridad del .ECO: OK / NO
+- Coincidencia con documento: OK / NO
+
+Offline es la verdad. Online es el eco.
+
+Pseudocodigo de verificacion offline:
+
+```pseudo
+function verificarOffline(eco, documentoOpcional):
+  assert validarEstructura(eco)
+  assert verificarFirma(eco.manifiesto, eco.firma)
+
+  if documentoOpcional:
+    assert SHA256(documentoOpcional) == eco.manifiesto.hash
+```
+
+Pseudocodigo de inmutabilidad logica:
+
+```pseudo
+ecoOriginal = eco
+ecoConObservaciones = eco + observacionesExternas
+
+assert hash(ecoOriginal) == hash(ecoConObservaciones)
+```
+
+Try it yourself (prueba minima, local):
+
+```bash
+# 1) Crear doc
+echo "hola" > doc.txt
+
+# 2) Hash
+sha256sum doc.txt
+
+# 3) Cambiar doc
+echo "hola!" > doc.txt
+sha256sum doc.txt
+```
+
+Un solo byte cambia todo el hash. Eso es lo que hace detectable cualquier alteracion.
+
+### B) Observaciones online (refuerzos)
+
+- Consultar anclajes y sellos de tiempo
+- Mostrar resultados como **observaciones**, no como verdad unica
+
+Regla de oro:
+
+- Si no se puede consultar, se muestra “No consultado / Pendiente”.
+- Nunca se muestra “falso” por falta de red.
+
+---
+
+### El refuerzo no reemplaza el hecho
+
+## 11) Que aporta la blockchain (y por que usamos varias)
+
+No usamos blockchain como marketing. La usamos como **refuerzo de evidencia**.
+
+- **Polygon**: confirmaciones rapidas y costo eficiente.
+- **Bitcoin / OpenTimestamps**: anclaje de mayor permanencia historica.
+- **TSA (sellos de tiempo)**: refuerzos adicionales cuando aplica.
+
+La logica es simple:
+
+> Si EcoSign desaparece mañana, tu evidencia sigue viva.
+
+Por eso combinamos redes y sellos: redundancia, independencia y resiliencia.
+
+La evidencia no se apoya en una sola cadena. Se apoya en la realidad.
+
+---
+
+### Orquestacion sin friccion
+
+## 12) Como se orquesta el refuerzo (colas, workers, triggers)
+
+Los refuerzos se procesan en segundo plano para no frenar al usuario.
+
+Modelo conceptual:
+
+```pseudo
+onECOEmitido(eco):
+  enqueue(anclajePolygon, eco)
+  enqueue(anclajeBitcoin, eco)
+
+worker(anclajePolygon):
+  txid = enviarPolygon(eco.manifiesto.hash)
+  registrarObservacion(eco.id, txid)
+
+worker(anclajeBitcoin):
+  ots = enviarOpenTimestamps(eco.manifiesto.hash)
+  registrarObservacion(eco.id, ots)
+```
+
+Se expone el resultado verificable (txid, block, ots), nunca la logica interna de empaquetado.
+
+---
+
+### Lo que guardamos y lo que no
+
+## 13) Que guardamos y que no guardamos
 
 EcoSign puede almacenar:
-- Metadatos del `.ECO` (no el contenido del documento en claro)
-- Datos necesarios para correlacionar anclajes (timestamps, identificadores públicos cuando existan)
+
+- Metadatos del .ECO
+- Registros de observaciones (txid, timestamps, ids)
 
 EcoSign no necesita almacenar:
-- El contenido del documento en claro para emitir/verificar evidencia
+
+- El documento en claro
 - Claves privadas del usuario
 
+Esto no es una promesa de marketing. Es una decision de arquitectura.
+
 ---
 
-## 6) Contrato de datos `.ECO` (concepto)
+### El resumen que no confunde
 
-El `.ECO` contiene:
+## 14) Estado probatorio (definicion exacta)
+
+El verificador muestra un resumen tecnico basado en señales disponibles:
+
+- INTEGRIDAD OK
+- ANCLAJE PENDIENTE
+- ANCLAJE CONFIRMADO (POLYGON)
+- ANCLAJE CONFIRMADO (BITCOIN / OTS)
+- ANCLAJE NO CONSULTADO
+
+Esto **no es una calificacion judicial**. Es un resumen de evidencia tecnica disponible.
+
+---
+
+## 15) Falsificacion, deteccion y recuperacion de la verdad
+
+EcoSign no promete que un documento no pueda ser modificado. Promete algo mas importante: que cualquier modificacion sea detectable (tamper‑evident).
+
+Cualquier archivo digital puede ser alterado. Un PDF puede editarse. Un .ECO puede abrirse. Un JSON puede tocarse.  
+Eso no es una falla del sistema. Es una realidad del mundo digital.
+
+Lo que EcoSign garantiza es esto:
+
+- Si el documento o el .ECO se modifican, la verificacion falla.
+- No hay forma de alterar un archivo sin romper la relacion criptografica entre ambos.
+- No existen falsos positivos: un documento alterado nunca valida como autentico.
+
+Y al mismo tiempo evita el problema inverso:
+
+- Si un usuario modifica un documento por error o pierde una copia local, puede recuperar el original desde su espacio y volver a verificarlo.
+
+En otras palabras:
+
+> EcoSign no hace que la falsificacion sea imposible. Hace inevitable su deteccion.
+
+La falsificacion existe. Lo que EcoSign elimina es la duda.
+
+Pseudocodigo minimo:
+
+```pseudo
+resultado = verificarOffline(eco, documento)
+
+if resultado == OK:
+  mostrar("Documento autentico")
+else:
+  mostrar("Documento modificado o no correspondiente")
+```
+
+Micro‑casos (cristalino):
+
+- Si editas el PDF, rompe el hash y no valida.
+- Si editas el .ECO, rompe firma/estructura y no valida.
+- Si editas ambos, no podes recrear la evidencia original sin las claves correctas.
+- Si perdes el PDF, el .ECO sigue verificando su integridad propia (offline).
+- Si el PDF existe en tu espacio cifrado, lo recuperas y volves a validar.
+
+---
+
+### Costo y verdad
+
+## 16) Por que nuestra firma economica vale mas que muchas “firmas digitales”
+
+En muchos servicios, el plan economico ofrece solo **logs internos**. Eso puede ser operativo, pero no siempre es probatorio.
+
+En EcoSign, incluso la firma mas accesible incluye:
+
+- integridad criptografica verificable,
+- evidencia portable,
+- refuerzos externos cuando aplica,
+- y verificacion independiente.
+
+Eso no garantiza un juicio. Pero entrega lo que un juez o perito busca revisar.
+
+---
+
+## 17) Transparencia de costos
+
+Nuestro modelo es liviano porque:
+
+- el procesamiento principal ocurre en el cliente,
+- la evidencia es liviana,
+- y la infraestructura es minima.
+
+Eso nos permite precios bajos y previsibles.
+
+- Las firmas certificadas tienen costo puntual.
+- Se cobran cuando se usan, no antes ni despues.
+
+No hay lock‑in oculto ni costos sorpresa.
+
+---
+
+## 18) Etica del producto
+
+EcoSign no vende datos, no almacena documentos y no monetiza tu contenido.
+
+Buscamos un modelo de relacion simple:
+
+- vos conservas tu documento,
+- vos conservas tu evidencia,
+- y nosotros hacemos el trabajo duro de generar pruebas verificables.
+
+La transparencia no es una funcion. Es el centro del producto.
+
+---
+
+### El contrato minimo
+
+## 19) Contrato de datos del .ECO (conceptual)
+
+El .ECO contiene:
+
 - Manifiesto (hash, metadatos, timestamps)
-- Firma(s)
+- Firmas
+- Intencion de anclajes (si aplica)
 
-Y puede contener:
-- **Intención de anclaje** (qué refuerzos se solicitaron en el momento de emisión)
+Las confirmaciones posteriores **no alteran** el .ECO. Se presentan como observaciones externas.
 
-> Nota: el `.ECO` puede reflejar “intención/solicitud” de anclaje al momento de emisión.  
-> Las confirmaciones posteriores se presentan como **observaciones** en el verificador (para no romper inmutabilidad).
+Contrato minimo (conceptual, no propietario):
+
+```
+manifest.hashAlgo = "SHA-256"
+manifest.docHash = <hex>
+manifest.createdAt = <ISO8601>
+signatures[] = { algo: "Ed25519", pubKey, sig }
+requestedReinforcements = { polygon: true, bitcoin: true, tsa: optional }
+```
+
+Invariantes verificables:
+
+- Offline OK es condicion necesaria.
+- Online nunca invalida lo offline.
+- No hay "Inválido" por falta de red.
 
 ---
 
-## 7) Cómo debe verse el resultado (ejemplo de UX técnico)
+### Lo que decimos y lo que no
 
-- Integridad del `.ECO`: ✅  
-- Coincide con documento original: ✅  
-- Refuerzo (Polygon): Pendiente / Confirmado / No consultado  
-- Refuerzo (Bitcoin): Pendiente / Confirmado / No consultado  
-- Resumen: **Integridad OK + Refuerzos según disponibilidad**
+## 20) Aclaraciones legales (necesarias y honestas)
+
+- El estado probatorio es un resumen tecnico, no una sentencia.
+- La relevancia de sellos de tiempo depende de la jurisdiccion.
+- EcoSign no reemplaza peritajes, notarias ni tribunales.
+- La evidencia tecnica puede ser considerada en esos procesos.
 
 ---
 
-## 8) Aclaraciones Importantes
+## 21) Lo que no mostramos (y por que)
 
-- **Sobre el "Estado Probatorio"**: El estado probatorio es un **resumen técnico** de señales disponibles, no una calificación procesal ni judicial.
-- **Sobre Sellos de Tiempo de Terceros**: La relevancia jurídica de sellos de tiempo de terceros depende del marco normativo aplicable y la jurisdicción.
-- **Sobre el Uso del Sistema**: Este sistema no sustituye evaluaciones periciales, notariales o judiciales, sino que provee evidencia técnica verificable que puede ser considerada en dichos procesos.
+EcoSign es transparente, pero responsable. No exponemos detalles de EcoPacker, el motor interno de empaquetado, porque forma parte del claim 2 de la PPA y esta en proceso de registro de propiedad intelectual.
+
+Mostramos:
+
+- flujos conceptuales,
+- contratos de datos,
+- pseudocodigo,
+- resultados verificables.
+
+No mostramos:
+
+- algoritmos internos de empaquetado,
+- optimizaciones propietarias,
+- pipelines internos.
+
+---
+
+### Cierre
+
+## 22) En resumen
+
+EcoSign no es un dashboard. Es un sistema de evidencia.
+
+No busca que confies. Busca que verifiques.
+
+Si sos curioso, este documento es tu onboarding.
+Si sos tecnico, este documento es tu contrato.
+Si sos legal o compliance, este documento es tu base de revision.
+
+La evidencia no deberia depender de una empresa.
+Deberia depender de la realidad.
+
+EcoSign se construye para eso.
+
+La verdad no debería pedir permiso.

@@ -21,6 +21,14 @@ export default function FooterInternal() {
                   Estado del Servicio
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/videos"
+                  className="text-gray-700 hover:text-black transition-colors text-sm"
+                >
+                  Videos
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -77,14 +85,6 @@ export default function FooterInternal() {
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Guía Rápida
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/videos"
-                  className="text-gray-700 hover:text-black transition-colors text-sm"
-                >
-                  Videos
                 </Link>
               </li>
               <li>

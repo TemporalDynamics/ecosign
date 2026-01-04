@@ -96,6 +96,7 @@ function DashboardAppRoutes() {
             <Route path="/sign/:token" element={<SignWorkflowPage mode="dashboard" />} />
             <Route path="/invite/:token" element={<InvitePage />} />
             <Route path="/shared/:shareId" element={<SharedDocumentAccessPage />} />
+            <Route path="/videos" element={<VideosPage />} />
 
             {/* New specialized pages */}
             <Route path="/realtors" element={<RealtorsPage />} />

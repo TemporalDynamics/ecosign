@@ -313,6 +313,10 @@ export async function deriveKeyFromOTP(
 
 ### El limite del conocimiento
 
+Tiempo estimado de lectura: 12–15 minutos  
+No necesitás leer esto para usar EcoSign.  
+Leelo si querés auditar cómo se construye la evidencia.
+
 ## 8) Zero Knowledge y cifrado, explicado sin humo
 
 EcoSign opera con un principio simple:
@@ -626,7 +630,7 @@ No usamos blockchain como marketing. La usamos como **refuerzo de evidencia**.
 
 - **Polygon**: confirmaciones rapidas y costo eficiente.
 - **Bitcoin / OpenTimestamps**: anclaje de mayor permanencia historica.
-- **TSA (sellos de tiempo)**: refuerzos adicionales cuando aplica.
+- **TSA (sellos de tiempo verificable)**: refuerzos adicionales cuando aplica.
 
 La logica es simple:
 

@@ -47,12 +47,28 @@ const loadStoredSessionSecret = (userId: string): Uint8Array | null => {
   }
 };
 
-const storeSessionSecret = (userId: string, secret: Uint8Array) => {
+const storeSessionSecret = (userId: string, secret: Uint8Array): boolean => {
   try {
     const encoded = btoa(String.fromCharCode(...secret));
-    localStorage.setItem(getSessionStorageKey(userId), encoded);
+    const storageKey = getSessionStorageKey(userId);
+
+    localStorage.setItem(storageKey, encoded);
+
+    // CRITICAL: Verify the secret was actually saved
+    const verification = localStorage.getItem(storageKey);
+    if (verification !== encoded) {
+      console.error('❌ CRITICAL: Session secret was NOT persisted correctly to localStorage!');
+      console.error('   This will cause documents to become inaccessible after logout.');
+      return false;
+    }
+
+    console.log('✅ Session secret persisted to localStorage:', storageKey);
+    return true;
   } catch (error) {
-    console.warn('⚠️ Unable to persist session secret:', error);
+    console.error('❌ CRITICAL: Failed to persist session secret:', error);
+    console.error('   localStorage may be disabled or full.');
+    console.error('   Documents will become inaccessible after logout!');
+    return false;
   }
 };
 
@@ -120,8 +136,17 @@ export async function initializeSessionCrypto(userId: string, forceReinit: boole
     initializedAt: new Date(),
   };
 
-  if (!storedSecret) {
-    storeSessionSecret(userId, sessionSecret);
+  // CRITICAL: Always try to persist the session secret (even if it was already stored)
+  // This ensures the current session secret is always in localStorage
+  const persistSuccess = storeSessionSecret(userId, sessionSecret);
+
+  if (!persistSuccess) {
+    console.error('⚠️ WARNING: Session initialized but could NOT be persisted!');
+    console.error('   Documents created in this session will become INACCESSIBLE after logout.');
+    console.error('   Please check your browser localStorage settings.');
+
+    // Still continue - session will work for current browser session
+    // But user should be warned
   }
 
   console.log('✅ Session crypto initialized for user:', userId);
@@ -200,23 +225,83 @@ export function isSessionInitialized(): boolean {
 export function diagnoseCryptoSession(): void {
   console.log('=== CRYPTO SESSION DIAGNOSTICS ===');
 
+  // Test localStorage availability
+  try {
+    const testKey = '__ecosign_test__';
+    localStorage.setItem(testKey, 'test');
+    const testRead = localStorage.getItem(testKey);
+    localStorage.removeItem(testKey);
+
+    if (testRead !== 'test') {
+      console.log('⚠️ localStorage appears to be disabled or not working');
+    } else {
+      console.log('✅ localStorage is working');
+    }
+  } catch (e) {
+    console.log('❌ localStorage ERROR:', e);
+  }
+
   if (_currentSession) {
     console.log('✅ Session initialized');
     console.log('  - User ID:', _currentSession.userId);
     console.log('  - Initialized at:', _currentSession.initializedAt);
     console.log('  - Has unwrap key:', !!_currentSession.unwrapKey);
     console.log('  - Has session secret:', !!_currentSession.sessionSecret);
+    console.log('  - Session secret length:', _currentSession.sessionSecret.length, 'bytes');
 
     // Check localStorage
     const storageKey = getSessionStorageKey(_currentSession.userId);
-    const hasStored = !!localStorage.getItem(storageKey);
-    console.log('  - Session secret in localStorage:', hasStored);
+    const storedValue = localStorage.getItem(storageKey);
+    console.log('  - Storage key:', storageKey);
+    console.log('  - Session secret in localStorage:', !!storedValue);
+
+    if (storedValue) {
+      console.log('  - Stored value length:', storedValue.length, 'chars (base64)');
+
+      // Verify we can decode it
+      try {
+        const decoded = atob(storedValue);
+        console.log('  - Decoded length:', decoded.length, 'bytes');
+        console.log('  - Expected length:', CRYPTO_CONFIG.SESSION_SECRET.length, 'bytes');
+
+        if (decoded.length !== CRYPTO_CONFIG.SESSION_SECRET.length) {
+          console.log('  ⚠️ WARNING: Stored secret has wrong length!');
+        }
+      } catch (e) {
+        console.log('  ❌ ERROR decoding stored secret:', e);
+      }
+    } else {
+      console.log('  ⚠️ WARNING: Session is active but NOT persisted to localStorage!');
+      console.log('  - This means documents created now will become inaccessible after logout');
+    }
   } else {
     console.log('❌ Session NOT initialized');
     console.log('  - Call initializeSessionCrypto(userId) to initialize');
   }
 
   console.log('=================================');
+}
+
+/**
+ * Force save current session secret to localStorage
+ * Call this if you suspect the session wasn't persisted properly
+ */
+export function forceSaveSessionSecret(): boolean {
+  if (!_currentSession) {
+    console.error('❌ Cannot save: No active session');
+    return false;
+  }
+
+  try {
+    storeSessionSecret(_currentSession.userId, _currentSession.sessionSecret);
+    console.log('✅ Session secret saved to localStorage');
+    console.log('  - User ID:', _currentSession.userId);
+    console.log('  - Storage key:', getSessionStorageKey(_currentSession.userId));
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to save session secret:', error);
+    return false;
+  }
 }
 
 /**

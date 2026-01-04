@@ -36,6 +36,7 @@ export {
   ensureUserWrapSalt,
   ensureCryptoSession,
   diagnoseCryptoSession,
+  forceSaveSessionSecret,
 } from './sessionCrypto';
 
 // Document encryption

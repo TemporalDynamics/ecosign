@@ -1095,3 +1095,36 @@ Actualizar todo el copy público de EcoSign para eliminar promesas jurídicament
 "Este refactor es control de riesgo legal, no marketing. Cada palabra eliminada era una promesa que no podíamos garantizar jurídicamente. Cada palabra agregada describe una función técnica que sí podemos demostrar. El cambio de 'Firma Legal' a 'Firma Técnica' como producto core no es semántico: separa claramente función técnica de validez legal. 'Contenedor de protección legal (.ECO)' describe exactamente qué es sin prometer autoridad. Los disclaimers no debilitan el producto, lo protegen: aclaran que proporcionamos evidencia técnica, pero la validez legal depende del contexto jurisdiccional. El resultado es copy que puede defenderse en un tribunal porque describe funciones, no promete autoridad. Todo puede reducirse a: 'EcoSign protege documentos generando evidencia técnica verificable, sin acceder al contenido'. Eso es matemáticamente cierto, auditable y defendible. La arquitectura ya era Zero Server-Side Knowledge, ahora el copy lo refleja con precisión quirúrgica."
 
 ---
+## Iteración 2026-01-04 — Manifiesto técnico‑narrativo + Biblioteca de videos
+
+### 🎯 Objetivo
+Blindar la narrativa técnica con un manifiesto verificable y ordenar la experiencia de videos sin ruido en la landing.
+
+### 🧠 Decisiones tomadas
+- Convertir `COMO LO HACEMOS.md` en un manifiesto técnico‑narrativo con tesis claras, límites explícitos y pseudocódigo verificable.
+- Separar la experiencia de videos en una página editorial `/videos`, dejando la landing con un único video fijo + disclaimer contextual.
+- Simplificar el footer a un único acceso a “Videos” para evitar listas extensas y mantener consistencia visual.
+
+### 🛠️ Cambios realizados
+- Reescritura total de `COMO LO HACEMOS.md` con interludios, micro‑títulos, contrato mínimo `.ECO`, casos de alteración detectables y disclaimer de pseudocódigo.
+- Nueva `/videos` con layout editorial, contexto por video, notas aclaratorias y CTAs relevantes.
+- Landing: video fijo “You Don’t Need to Trust”, sin carrusel, con nota contextual y thumbnails alineados.
+- Footer público e interno: eliminación de lista de videos y agregado de link único a `/videos`.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se expusieron detalles internos de EcoPacker ni lógica propietaria de empaquetado.
+- No se cambió el contenido de los videos ni se regrabó material.
+
+### ⚠️ Consideraciones / deuda futura
+- Revisar si el manifiesto necesita versiones por idioma o un índice navegable.
+- Mantener coherencia de disclaimers entre GitHub y páginas públicas.
+
+### 📍 Estado final
+- Manifiesto con narrativa, rigor y verificabilidad sin exponer IP sensible.
+- Página de videos limpia y extensible, sin carrusel y con contexto probatorio.
+- Landing sin ruido, con video único y disclaimer claro.
+
+### 💬 Nota del dev
+"La estrategia fue mover la evidencia al centro: el manifiesto ahora educa y convence sin prometer de más, y los videos viven donde pueden tener contexto y disclaimers sin ensuciar la landing. Todo lo verificable quedó expuesto; lo propietario quedó protegido."
+
+---

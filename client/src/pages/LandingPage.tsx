@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Shield,
   Lock,
   CheckCircle,
-  ChevronLeft,
-  ChevronRight
 } from 'lucide-react';
-import { defaultPlaylist, useVideoPlayer, videoLibrary } from '../contexts/VideoPlayerContext';
+import { useVideoPlayer, videoLibrary } from '../contexts/VideoPlayerContext';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import VideoPlayer from '../components/VideoPlayer';
@@ -22,15 +20,10 @@ import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
 const LandingPage = () => {
   const { playVideo, videoState } = useVideoPlayer();
   const [floatingRequested, setFloatingRequested] = useState(false);
-  const [landingVideoIndex, setLandingVideoIndex] = useState(0);
-  const isLandingVideoPlaying = floatingRequested && videoState.isPlaying && videoState.videoSrc === currentVideo?.src;
-  const landingPlaylist = useMemo(() => defaultPlaylist, []);
-  const currentVideoKey = landingPlaylist[landingVideoIndex] ?? landingPlaylist[0];
+  const currentVideoKey = 'you-dont-need-to-trust';
   const currentVideo = videoLibrary[currentVideoKey];
-  const nextVideoKey = landingPlaylist[(landingVideoIndex + 1) % landingPlaylist.length];
-  const prevVideoKey = landingPlaylist[(landingVideoIndex - 1 + landingPlaylist.length) % landingPlaylist.length];
-  const nextVideoLang = videoLibrary[nextVideoKey]?.language === 'es' ? 'español' : 'inglés';
-  const prevVideoLang = videoLibrary[prevVideoKey]?.language === 'es' ? 'español' : 'inglés';
+  const isLandingVideoPlaying = floatingRequested && videoState.isPlaying && videoState.videoSrc === currentVideo?.src;
+  const firmasPoster = '/assets/images/videos/firmas-thumb.jpg';
 
   useEffect(() => {
     if (!videoState.isPlaying && floatingRequested) {
@@ -71,6 +64,10 @@ const LandingPage = () => {
           <p className="text-xl text-gray-600 mb-12">
             Entendelo con calma. Usalo cuando lo necesites.
           </p>
+          <p className="text-sm text-gray-500 max-w-3xl mx-auto mb-8">
+            Nota: En este video se utilizan conceptos generales para explicar el modelo de EcoSign.
+            Algunos términos técnicos o denominaciones pueden variar según la configuración o evolución del producto.
+          </p>
 
           <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-lg overflow-hidden relative">
@@ -79,30 +76,10 @@ const LandingPage = () => {
                   <p className="text-sm text-gray-500">El video está abierto en una ventana flotante.</p>
                 </div>
               ) : (
-                <>
                   <VideoPlayer 
                     src={currentVideo?.src || ''}
                     className="w-full"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setLandingVideoIndex((prev) => (prev - 1 + landingPlaylist.length) % landingPlaylist.length)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/90 text-gray-700 hover:bg-white hover:text-black transition shadow-md z-10"
-                    title={`Video en ${prevVideoLang}`}
-                    aria-label={`Anterior: video en ${prevVideoLang}`}
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLandingVideoIndex((prev) => (prev + 1) % landingPlaylist.length)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/90 text-gray-700 hover:bg-white hover:text-black transition shadow-md z-10"
-                    title={`Video en ${nextVideoLang}`}
-                    aria-label={`Siguiente: video en ${nextVideoLang}`}
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </>
               )}
             </div>
           </div>
@@ -111,7 +88,7 @@ const LandingPage = () => {
             <button
               onClick={() => {
                 setFloatingRequested(true);
-                playVideo(currentVideoKey);
+                playVideo(currentVideoKey, [currentVideoKey]);
               }}
               disabled={isLandingVideoPlaying}
               className={`font-semibold px-3 py-2 rounded-lg transition ${
@@ -192,6 +169,7 @@ const LandingPage = () => {
             <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
               <VideoPlayer 
                 src="https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/firma.mp4"
+                poster={firmasPoster}
                 className="w-full"
               />
             </div>
@@ -219,6 +197,7 @@ const LandingPage = () => {
             <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
               <VideoPlayer 
                 src="https://uiyojopjbhooxrmamaiw.supabase.co/storage/v1/object/public/videos/flujodefirmas.mp4"
+                poster={firmasPoster}
                 className="w-full"
               />
             </div>

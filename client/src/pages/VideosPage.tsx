@@ -1,93 +1,158 @@
-import React from "react";
-import { Play } from 'lucide-react';
+import { Link } from "react-router-dom";
 import Header from "../components/Header";
-import FooterInternal from "../components/FooterInternal";
-import { useVideoPlayer } from "../contexts/VideoPlayerContext";
+import FooterPublic from "../components/FooterPublic";
+import VideoPlayer from "../components/VideoPlayer";
+import { videoLibrary } from "../contexts/VideoPlayerContext";
+
+const githubDocsUrl = "https://github.com/TemporalDynamics/ecosign/blob/main/COMO%20LO%20HACEMOS.md";
+
+const videos = [
+  {
+    id: "you-dont-need-to-trust",
+    title: "You Don't Need to Trust",
+    intro: "Este video introduce el cambio de paradigma que propone EcoSign: pasar de un modelo basado en confianza a uno basado en evidencia verificable.",
+    context: "El enfoque es conceptual y explicativo. No describe flujos completos ni configuraciones específicas.",
+    note: "Algunos términos técnicos se utilizan de forma general para facilitar la comprensión del modelo. Las implementaciones concretas pueden variar según jurisdicción y tipo de firma.",
+    ctas: [
+      { label: "Ver “Verdad verificable”", href: "#verdad-verificable" },
+      { label: "Ir a documentación técnica", href: "/documentation" }
+    ]
+  },
+  {
+    id: "anatomia-firma",
+    title: "Cómo funciona EcoSign (visión general)",
+    intro: "Una explicación visual y pausada del flujo completo de EcoSign, desde la carga del documento hasta la generación de evidencia.",
+    context: "Muestra el proceso general sin entrar en decisiones legales específicas.",
+    ctas: [
+      { label: "Probar EcoSign", href: "/login?mode=signup" },
+      { label: "Ver verificador", href: "/verify" }
+    ]
+  },
+  {
+    id: "conocimiento-cero",
+    title: "Conocimiento Cero",
+    intro: "Una explicación detallada del principio de conocimiento cero aplicado a la certificación documental.",
+    context: "Describe el modelo criptográfico y de privacidad del sistema.",
+    note: "Las analogías utilizadas buscan facilitar la comprensión de conceptos criptográficos complejos.",
+    ctas: [
+      { label: "Documentación técnica", href: "/documentation" },
+      { label: "GitHub", href: githubDocsUrl, external: true }
+    ]
+  },
+  {
+    id: "verdad-verificable",
+    title: "Verdad verificable",
+    intro: "Este video explica cómo EcoSign transforma documentos en pruebas verificables mediante huellas digitales, sellos de tiempo y registros públicos.",
+    context: "El foco está en la verificación independiente, no en la custodia del documento.",
+    note: "Algunos nombres de firma utilizados corresponden a etapas previas del producto.",
+    ctas: [
+      { label: "Verificador universal", href: "/verify" },
+      { label: "Cómo funciona", href: "/how-it-works" }
+    ]
+  },
+  {
+    id: "forensic-integrity",
+    title: "Arquitectura de prueba / Evidencia forense",
+    intro: "Un análisis profundo del costo del mistrust digital y cómo una arquitectura de prueba nativa lo elimina.",
+    context: "Orientado a equipos técnicos, legales y de compliance.",
+    note: "Algunas referencias a estándares o implementaciones pueden evolucionar con el producto.",
+    ctas: [
+      { label: "GitHub", href: githubDocsUrl, external: true }
+    ]
+  },
+  {
+    id: "the-true-cost",
+    title: "Firmar en segundos (velocidad y fricción)",
+    intro: "Este video analiza el costo oculto de la burocracia documental y cómo EcoSign reduce fricción operativa.",
+    context: "Los ejemplos de costos son ilustrativos y refieren a estimaciones de mercado.",
+    note: "Los valores mencionados representan promedios de la industria y pueden variar según región y proceso.",
+    ctas: [
+      { label: "Ver planes", href: "/pricing" },
+      { label: "Casos de uso empresariales", href: "/business" }
+    ]
+  }
+];
 
 export default function VideosPage() {
-  const { playVideo } = useVideoPlayer();
-
-  const videos = [
-    {
-      id: "anatomia-firma",
-      title: "Anatomía de una Firma",
-      description: "Desglose paso a paso del proceso.",
-    },
-    {
-      id: "verdad-verificable",
-      title: "Verdad Verificable",
-      description: "Explicación del por qué detrás de EcoSign.",
-    },
-    {
-      id: "conocimiento-cero",
-      title: "Conocimiento Cero",
-      description: "Cómo funciona el principio Zero-Knowledge.",
-    },
-    {
-      id: "the-true-cost",
-      title: "The True Cost",
-      description: "Qué pagás realmente con otros servicios.",
-    },
-    {
-      id: "forensic-integrity",
-      title: "Forensic Integrity",
-      description: "Cómo se construye una evidencia irrefutable.",
-    },
-    {
-      id: "you-dont-need-trust",
-      title: "You Don't Need to Trust",
-      description: "La filosofía general de EcoSign.",
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Header variant="private" />
+      <Header variant="public" />
       
       <main className="flex-grow">
-        <div className="max-w-4xl mx-auto px-4 pt-16 pb-24">
-          {/* Header */}
+        <div className="max-w-6xl mx-auto px-6 pt-16 pb-24">
           <div className="text-center mb-16">
-            <h1 className="mt-0 text-4xl font-bold text-black mb-4">
-              Biblioteca de Videos EcoSign
+            <h1 className="mt-0 text-4xl md:text-5xl font-bold text-black mb-4">
+              Videos de EcoSign
             </h1>
-            <p className="text-lg text-gray-600">
-              Tutoriales rápidos y demostraciones para entender cómo funciona EcoSign en la práctica.
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Seis piezas clave para entender el modelo, la verificación y la arquitectura de evidencia.
             </p>
           </div>
 
-          {/* Videos Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {videos.map((video, index) => (
-              <button
-                key={index}
-                onClick={() => playVideo(video.id)}
-                className="group p-6 bg-white border-2 border-gray-200 rounded-lg hover:border-black transition-all text-left"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 bg-black rounded-full flex items-center justify-center group-hover:bg-gray-800 transition-colors">
-                    <Play className="w-6 h-6 text-white" />
+          <div className="space-y-12">
+            {videos.map((video) => {
+              const videoSrc = videoLibrary[video.id]?.src;
+              return (
+                <section
+                  key={video.id}
+                  id={video.id}
+                  className="grid grid-cols-1 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-8 items-start border-b border-gray-200 pb-12 scroll-mt-24"
+                >
+                  <div className="w-full">
+                    <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-white">
+                      <VideoPlayer src={videoSrc || ""} className="w-full" />
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-black mb-2">
-                      {video.title}
-                    </h3>
-                    <p className="text-gray-600">
-                      {video.description}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
 
-          <p className="mt-8 text-center text-gray-600">
-            Todos los videos se pueden reproducir sin abandonar la página.
-          </p>
+                  <div className="text-left">
+                    <h2 className="text-2xl md:text-3xl font-bold text-black mb-3">
+                      {video.title}
+                    </h2>
+                    <p className="text-gray-700 mb-4">
+                      {video.intro}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      <span className="font-semibold text-gray-700">Contexto:</span> {video.context}
+                    </p>
+                    {video.note && (
+                      <p className="text-sm text-gray-500 mb-5">
+                        <span className="font-semibold text-gray-600">Nota aclaratoria:</span> {video.note}
+                      </p>
+                    )}
+                    {video.ctas && (
+                      <div className="flex flex-wrap gap-3">
+                        {video.ctas.map((cta) => (
+                          cta.external ? (
+                            <a
+                              key={cta.label}
+                              href={cta.href}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-semibold text-gray-700 rounded-lg hover:border-gray-500 hover:text-black transition"
+                            >
+                              {cta.label}
+                            </a>
+                          ) : (
+                            <Link
+                              key={cta.label}
+                              to={cta.href}
+                              className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-semibold text-gray-700 rounded-lg hover:border-gray-500 hover:text-black transition"
+                            >
+                              {cta.label}
+                            </Link>
+                          )
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
         </div>
       </main>
 
-      <FooterInternal />
+      <FooterPublic />
     </div>
   );
 }

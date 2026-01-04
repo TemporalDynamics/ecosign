@@ -41,7 +41,7 @@ const RealtorsPage = lazy(() => import('./pages/RealtorsPage'));
 const LawyersPage = lazy(() => import('./pages/LawyersPage'));
 const BusinessPage = lazy(() => import('./pages/BusinessPage'));
 const ComparisonPage = lazy(() => import('./pages/ComparisonPage'));
-// const VideosPage = lazy(() => import('./pages/VideosPage'));
+const VideosPage = lazy(() => import('./pages/VideosPage'));
 const RoadmapPage = lazy(() => import('./pages/RoadmapPage'));
 const UpdatesPage = lazy(() => import('./pages/UpdatesPage'));
 const InvitePage = lazy(() => import('./pages/InvitePage'));
@@ -98,6 +98,7 @@ function AppRoutes() {
             <Route path="/nda/:token" element={<NdaAccessPage />} />
             <Route path="/sign/:token" element={<SignWorkflowPage />} />
             <Route path="/invite/:token" element={<InvitePage />} />
+            <Route path="/videos" element={<VideosPage />} />
 
             {/* New specialized pages */}
             <Route path="/realtors" element={<RealtorsPage />} />

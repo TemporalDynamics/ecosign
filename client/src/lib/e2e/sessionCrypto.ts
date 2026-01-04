@@ -77,6 +77,12 @@ export async function initializeSessionCrypto(userId: string, forceReinit: boole
   const storedSecret = !forceReinit ? loadStoredSessionSecret(userId) : null;
   const sessionSecret = storedSecret ?? randomBytes(CRYPTO_CONFIG.SESSION_SECRET.length);
 
+  if (storedSecret) {
+    console.log('✅ Loaded existing session secret from localStorage for user:', userId);
+  } else {
+    console.log('🆕 Generated NEW session secret for user:', userId, '(previous documents may become inaccessible)');
+  }
+
   // 2. Get user's wrap salt from DB (public, not secret)
   const supabase = getSupabase();
   const { data: profile, error } = await supabase
@@ -185,6 +191,32 @@ export function getSessionInfo(): { userId: string; initializedAt: Date } | null
  */
 export function isSessionInitialized(): boolean {
   return _currentSession !== null;
+}
+
+/**
+ * Diagnostic function to check session crypto status
+ * Call from browser console: window.checkCryptoSession()
+ */
+export function diagnoseCryptoSession(): void {
+  console.log('=== CRYPTO SESSION DIAGNOSTICS ===');
+
+  if (_currentSession) {
+    console.log('✅ Session initialized');
+    console.log('  - User ID:', _currentSession.userId);
+    console.log('  - Initialized at:', _currentSession.initializedAt);
+    console.log('  - Has unwrap key:', !!_currentSession.unwrapKey);
+    console.log('  - Has session secret:', !!_currentSession.sessionSecret);
+
+    // Check localStorage
+    const storageKey = getSessionStorageKey(_currentSession.userId);
+    const hasStored = !!localStorage.getItem(storageKey);
+    console.log('  - Session secret in localStorage:', hasStored);
+  } else {
+    console.log('❌ Session NOT initialized');
+    console.log('  - Call initializeSessionCrypto(userId) to initialize');
+  }
+
+  console.log('=================================');
 }
 
 /**

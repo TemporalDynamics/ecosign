@@ -17,6 +17,10 @@ import { getSupabase } from './supabaseClient';
  */
 type AnchorRequestOptions = {
   documentId?: string | null;
+  /**
+   * @deprecated Use documentId when available.
+   */
+  documentHash?: string | null;
   userId?: string | null;
   userEmail?: string | null;
   metadata?: Record<string, unknown>;
@@ -58,6 +62,7 @@ export async function anchorToPolygon(documentHash: string, options: AnchorReque
         userEmail: options.userEmail || null,
         metadata: {
           ...options.metadata,
+          ...(options.documentId ? { document_entity_id: options.documentId } : {}),
           requestedFrom: 'polygonAnchor.js',
           clientTimestamp: new Date().toISOString()
         }

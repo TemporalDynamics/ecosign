@@ -8,6 +8,8 @@ import { sendResendEmail } from '../_shared/email.ts';
 import { createLogger, withTiming } from '../_shared/logger.ts';
 import { Buffer } from 'node:buffer';
 
+// TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
+
 const logger = createLogger('process-bitcoin-anchors');
 
 const corsHeaders = {

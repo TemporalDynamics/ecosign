@@ -4,6 +4,8 @@ import { ethers } from 'npm:ethers@6.9.0'
 import { createLogger, withTiming } from '../_shared/logger.ts'
 import { shouldRetry, RETRY_CONFIGS, getNextRetryTime } from '../_shared/retry.ts'
 
+// TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
+
 const logger = createLogger('process-polygon-anchors')
 
 const corsHeaders = {

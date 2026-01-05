@@ -25,6 +25,7 @@ function DashboardPage() {
       try {
         setLoading(true);
         setError(null);
+        // TODO(legacy-cleanup): replace with document_entities adapter when dashboard migrates off user_documents.
         const docs = await getUserDocuments();
         if (isMounted) {
           setDocuments(docs);
@@ -52,6 +53,7 @@ function DashboardPage() {
     try {
       setLoading(true);
       setError(null);
+      // TODO(legacy-cleanup): replace with document_entities adapter when dashboard migrates off user_documents.
       const docs = await getUserDocuments();
       setDocuments(docs);
     } catch (err) {
@@ -76,6 +78,19 @@ function DashboardPage() {
       { key: 'inhackeable', label: <InhackeableTooltip className="font-semibold" />, value: legalTimestamps.toString(), helper: 'Huella + sello legal + anchoring' },
       { key: 'btc', label: 'Anclajes Bitcoin', value: bitcoinAnchors.toString(), helper: 'En blockchain' }
     ];
+  }, [documents]);
+
+  const recentDocuments = useMemo(() => {
+    return (documents || []).map((doc) => ({
+      id: doc.id,
+      title: doc.document_name || doc.title || 'Sin título',
+      fileName: doc.document_name || doc.title || 'Sin título',
+      createdAt: new Date(doc.created_at),
+      ecoHash: doc.document_hash ? doc.document_hash.substring(0, 12) + '...' : 'N/A',
+      status: doc.status || doc.overall_status || 'verified',
+      accessCount: 0,
+      lastAccess: null
+    }));
   }, [documents]);
 
   // Transform documents into certification rows
@@ -291,7 +306,7 @@ function DashboardPage() {
             </button>
           </div>
           <React.Suspense fallback={<div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>}>
-            <DocumentList />
+            <DocumentList documents={recentDocuments} loading={loading} error={error} />
           </React.Suspense>
         </section>
       </main>

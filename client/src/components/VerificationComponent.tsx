@@ -27,6 +27,7 @@ interface VerificationServiceResult {
     polygon?: { status?: string } | null;
     bitcoin?: { status?: string } | null;
   } | null;
+  signedAuthority?: 'internal' | 'external';
   errors?: string[];
   warnings?: string[];
   error?: string;
@@ -41,7 +42,13 @@ const buildEvidenceItems = (result: VerificationServiceResult): string[] => {
   }
 
   if (result.signatureValid) {
-    items.push('Existe una firma registrada en el certificado.');
+    if (result.signedAuthority === 'internal') {
+      items.push('Existe una firma registrada por una autoridad interna.');
+    } else if (result.signedAuthority === 'external') {
+      items.push('Existe una firma registrada por una autoridad externa.');
+    } else {
+      items.push('Existe una firma registrada en el certificado.');
+    }
   }
 
   if (result.timestamp) {

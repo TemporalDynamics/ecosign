@@ -15,6 +15,8 @@ type VerificationBaseResult = {
   timestampType?: string;
   anchorChain?: string;
   signature?: { algorithm?: string; valid?: boolean };
+  signedAuthority?: 'internal' | 'external';
+  signedAuthorityRef?: Record<string, unknown> | null;
   documentIntegrity?: boolean;
   signatureValid?: boolean;
   timestampValid?: boolean;
@@ -37,7 +39,12 @@ const parseEcoJson = async (file: File): Promise<unknown | null> => {
   }
 };
 
-const mapEcoV2Result = (result: VerificationResult, fileName: string): VerificationBaseResult => {
+const mapEcoV2Result = (
+  result: VerificationResult,
+  fileName: string,
+  signedAuthority?: 'internal' | 'external',
+  signedAuthorityRef?: Record<string, unknown> | null
+): VerificationBaseResult => {
   const valid = result.status === 'valid' || result.status === 'incomplete';
   const warnings =
     result.status === 'incomplete'
@@ -61,6 +68,8 @@ const mapEcoV2Result = (result: VerificationResult, fileName: string): Verificat
       algorithm: 'hash-chain',
       valid: !!result.signed_hash
     },
+    signedAuthority,
+    signedAuthorityRef,
     documentIntegrity: valid,
     signatureValid: !!result.signed_hash,
     timestampValid: true,
@@ -92,8 +101,10 @@ export async function verifyEcoFile(file: File): Promise<VerificationBaseResult>
   try {
     const parsed = await parseEcoJson(file);
     if (parsed && typeof parsed === 'object' && (parsed as { version?: string }).version === 'eco.v2') {
+      const signedAuthority = (parsed as { signed?: { authority?: 'internal' | 'external' } }).signed?.authority;
+      const signedAuthorityRef = (parsed as { signed?: { authority_ref?: Record<string, unknown> } }).signed?.authority_ref ?? null;
       const result = verifyEcoV2(parsed);
-      return mapEcoV2Result(result, file.name);
+      return mapEcoV2Result(result, file.name, signedAuthority, signedAuthorityRef);
     }
 
     // Crear FormData para enviar el archivo
@@ -175,9 +186,11 @@ export async function verifyEcoWithOriginal(ecoFile: File, originalFile?: File |
   try {
     const parsed = await parseEcoJson(ecoFile);
     if (parsed && typeof parsed === 'object' && (parsed as { version?: string }).version === 'eco.v2') {
+      const signedAuthority = (parsed as { signed?: { authority?: 'internal' | 'external' } }).signed?.authority;
+      const signedAuthorityRef = (parsed as { signed?: { authority_ref?: Record<string, unknown> } }).signed?.authority_ref ?? null;
       const result = verifyEcoV2(parsed);
       return {
-        ...mapEcoV2Result(result, ecoFile.name),
+        ...mapEcoV2Result(result, ecoFile.name, signedAuthority, signedAuthorityRef),
         originalFileProvided: !!originalFile,
         originalFileName: originalFile?.name || null
       };

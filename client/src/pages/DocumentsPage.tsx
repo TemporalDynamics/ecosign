@@ -112,7 +112,12 @@ type ProbativeStateResult = {
 const deriveProbativeState = (doc: DocumentRecord, planTier: PlanTier): ProbativeStateResult => {
   const hasTsa = !!doc.has_legal_timestamp;
   const hasPolygon = !!doc.has_polygon_anchor;
-  const ecoAvailable = !!(doc.eco_storage_path || doc.eco_file_data || doc.eco_hash);
+  const ecoAvailable = !!(
+    doc.eco_storage_path ||
+    doc.eco_file_data ||
+    doc.eco_hash ||
+    doc.content_hash
+  );
   const bitcoinStatus = doc.bitcoin_status;
   const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
   let level: ProbativeLevel = "none";

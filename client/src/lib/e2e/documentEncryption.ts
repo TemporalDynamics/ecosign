@@ -87,7 +87,9 @@ export async function decryptFile(
       ciphertext
     );
     
-    return new Blob([decryptedBuffer]);
+    // CRITICAL: Return Blob with correct MIME type for PDF
+    // Without this, browsers render the decrypted bytes as raw binary ("figuritas")
+    return new Blob([decryptedBuffer], { type: 'application/pdf' });
   } catch (error) {
     console.error('Decryption error:', error);
     throw new Error(CRYPTO_ERRORS.DECRYPTION_FAILED);

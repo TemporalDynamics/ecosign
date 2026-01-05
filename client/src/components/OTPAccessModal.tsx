@@ -74,9 +74,33 @@ export function OTPAccessModal({
       setDownloadName(result.filename);
       setLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al acceder al documento');
+      clearInterval(progressInterval);
+      
+      // Mensajes de error humanos (no técnicos)
+      let errorMessage = 'No pudimos abrir el documento todavía';
+      let errorDetails = '';
+      
+      if (err instanceof Error) {
+        const msg = err.message.toLowerCase();
+        
+        if (msg.includes('invalid') || msg.includes('otp')) {
+          errorMessage = 'Código incorrecto';
+          errorDetails = 'Verificá que hayas copiado bien el código de 8 caracteres. No incluyas espacios ni guiones.';
+        } else if (msg.includes('expired')) {
+          errorMessage = 'El enlace expiró';
+          errorDetails = 'Pedile a quien te compartió el documento que genere un nuevo enlace.';
+        } else if (msg.includes('decrypt') || msg.includes('unwrap') || msg.includes('key')) {
+          errorMessage = 'No pudimos reconstruir el documento';
+          errorDetails = 'El enlace es válido, pero este navegador no pudo procesar el documento de forma segura. Probá: abrir el enlace nuevamente, usar otro navegador, o copiar el enlace en una ventana nueva.';
+        } else if (msg.includes('download') || msg.includes('storage')) {
+          errorMessage = 'Error de conexión';
+          errorDetails = 'No pudimos descargar el archivo encriptado. Verificá tu conexión a internet y probá de nuevo.';
+        }
+      }
+      
+      setError(errorDetails || errorMessage);
       setProgress(0);
-      setLoading(false); // Only set loading to false on error
+      setLoading(false);
     }
   };
 
@@ -142,6 +166,11 @@ export function OTPAccessModal({
           </div>
 
           <div className="p-6 space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-green-800">
+                ✅ Documento desencriptado correctamente en tu ordenador. Todo el procesamiento ocurrió de forma local y segura.
+              </p>
+            </div>
             <p className="text-sm text-gray-700">
               El documento se abre acá mismo. Podés descargarlo si lo necesitás.
             </p>

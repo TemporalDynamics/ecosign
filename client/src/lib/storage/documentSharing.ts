@@ -242,12 +242,13 @@ export async function accessSharedDocument(
     // 5. Decrypt file
     const decryptedBlob = await decryptFile(encryptedBlob, documentKey);
 
-    // 6. Mark as accessed (one-time access)
+    // 6. Mark as accessed (but keep status 'pending' for reusability)
+    //    The share link can be opened multiple times with the same OTP
     await supabase
       .from('document_shares')
       .update({
-        status: 'accessed',
         accessed_at: new Date().toISOString(),
+        // Keep status as 'pending' to allow multiple accesses
       })
       .eq('id', shareId);
 

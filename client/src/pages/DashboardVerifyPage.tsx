@@ -45,10 +45,10 @@ function DashboardVerifyPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900 mb-3">Verificación Independiente</h2>
-              <p className="text-gray-700 mb-4">
-                Esta herramienta analiza tu documento y su certificado asociado para confirmar su autenticidad, su integridad y su validez legal.
+          <p className="text-gray-700 mb-4">
+                Esta herramienta analiza tu documento y su certificado asociado para confirmar su integridad y la evidencia disponible en el .ECO.
                 La verificación se realiza de forma local, sin exponer tus archivos.
-              </p>
+          </p>
               <p className="text-sm text-gray-900 font-semibold">
                 EcoSign nunca ve tu documento. Nunca se sube. Todo ocurre en tu navegador.
               </p>
@@ -73,7 +73,7 @@ function DashboardVerifyPage() {
             </li>
             <li className="flex items-start">
               <span className="mr-2">-</span>
-              <span>Autenticidad de la Firma Legal</span>
+              <span>Firmas registradas en el certificado, si existen</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">-</span>
@@ -81,7 +81,7 @@ function DashboardVerifyPage() {
             </li>
             <li className="flex items-start">
               <span className="mr-2">-</span>
-              <span>Sello de integridad y fecha original</span>
+              <span>Sellos de tiempo y anclajes, si existen</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">-</span>
@@ -113,7 +113,7 @@ function DashboardVerifyPage() {
             </li>
             <li className="flex items-start">
               <span className="mr-2">-</span>
-              <span>Validación extendida de sellos y anclajes</span>
+              <span>Validación extendida de sellos y anclajes cuando existan</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">-</span>
@@ -142,15 +142,15 @@ function DashboardVerifyPage() {
             </div>
             <div>
               <p className="font-semibold">Tiempo</p>
-              <p className="text-gray-700">El certificado incluye un sello de tiempo legal (RFC 3161) emitido por un tercero independiente, que prueba cuándo existía el documento.</p>
+              <p className="text-gray-700">Si el certificado incluye un sello de tiempo, se muestra la fecha registrada y su evidencia asociada.</p>
             </div>
             <div>
               <p className="font-semibold">Existencia pública</p>
-              <p className="text-gray-700">Esa huella fue registrada en redes públicas (Polygon y/o Bitcoin), independientes de EcoSign y verificables externamente.</p>
+              <p className="text-gray-700">Si existen anclajes públicos confirmados, se muestran como evidencia adicional verificable externamente.</p>
             </div>
             <div>
               <p className="font-semibold">Certificación</p>
-              <p className="text-gray-700">EcoSign firma el certificado para confirmar que este proceso ocurrió correctamente, pero la validez no depende de EcoSign.</p>
+              <p className="text-gray-700">Las firmas registradas en el certificado se reflejan tal como están declaradas.</p>
             </div>
             <p className="text-gray-800 font-medium">
               Incluso si EcoSign dejara de existir, este certificado seguiría siendo verificable.

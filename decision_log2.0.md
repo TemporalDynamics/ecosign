@@ -1381,3 +1381,46 @@ Usuario investiga → dale material real, no teatro.
 **Commits:** 8 (Service Worker, Storage, Trigger, PDF, Email templates, Reset password, Landing UX, Videos)
 
 ---
+
+## Iteración 2026-01-06 — Contratos Canónicos + Mapa de Impacto Tecnico
+
+### 🎯 Objetivo
+Formalizar la Verdad Canonica y sus proyecciones operativas para eliminar ambiguedades antes del refactor v2.
+
+### 🧠 Decisiones tomadas
+- Se definio la Verdad Canonica como constitucion y se congelaron invariantes clave (SourceTruth, VisualWitness, HashChain).
+- Se adopto `witness_current` + `witness_history` para evitar ambiguedad y asegurar trazabilidad.
+- El PDF testigo se define como traductor humano: metadatos XMP con `source_hash` + `eco_id`, y estampa visual de veracidad.
+- `transform_log` es append-only; conversiones y firmas siempre se registran.
+- `custody_mode` solo admite `hash_only` o `encrypted_custody` (se elimina upload sin cifrar).
+- `lifecycle_status` es probatorio; estados UX/operativos viven en jobs.
+- No hay `pdf_*` en la entidad central; storage se separa en source y witness.
+- Se declaran campos inmutables de Source Truth con enforcement en capa de datos (trigger BEFORE UPDATE).
+- Se define modelado DB para `witness_current` + `witness_history` con dos opciones (A ahora, B como deuda).
+- Se explicita `source.captured_at` como instante de verdad con columna dedicada en DB.
+- Se fija enforcement minimo append-only para `transform_log` a nivel DB.
+
+### 🛠️ Cambios realizados
+- Nuevo paquete de contratos en `docs/contratos/` con referencias cruzadas y orden canonico.
+- `WITNESS_PDF_CONTRACT.md` reforzado con XMP y estampa de veracidad.
+- `FLOW_MODES_CONTRACT.md` creado para mapear modos de flujo (hash_only, custody_optional, visual_witness_required, certified_signature_required).
+- `IMPACTO_TECNICO_MAPA.md` creado para mapear tablas, campos, funciones de hash y flujos.
+- Ajustes en contratos y mapa para reflejar modelado DB, captured_at y enforcement append-only.
+- `README.md` de contratos con navegacion canonica.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se cambiaron tablas ni migraciones aun; esto es contrato previo a refactor.
+- No se definio implementacion de SmartHash o anchors beyond minimal.
+- No se reescribio el legacy de `documents`; se documento el drift como riesgo.
+
+### ⚠️ Consideraciones / deuda futura
+- Alinear migraciones vs codigo actual antes del refactor v2 (drift detectado).
+- Implementar triggers de inmutabilidad y controles append-only en DB.
+- Traducir reglas de contratos a checklist de migraciones y tests.
+
+### 📍 Estado final
+- Set de contratos canonicos cerrado y navegable.
+- Mapa de impacto tecnico listo para guiar el refactor sin reinterpretaciones.
+
+### 💬 Nota del dev
+"Estos contratos no inventan verdad nueva; solo proyectan consecuencias tecnicas. Esto blinda discusiones futuras y reduce bugs de interpretacion."

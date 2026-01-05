@@ -29,7 +29,11 @@ interface LogEventParams {
   signerId: string
   eventType: EcoxEventType
   details?: Record<string, any>
+  /**
+   * @deprecated Use documentId in details when available.
+   */
   documentHashSnapshot?: string
+  documentId?: string
 }
 
 interface EcoxLogger {
@@ -57,7 +61,8 @@ export function useEcoxLogger(): EcoxLogger {
     signerId,
     eventType,
     details = {},
-    documentHashSnapshot
+    documentHashSnapshot,
+    documentId
   }: LogEventParams): Promise<boolean> => {
     const supabase = getSupabase();
     try {
@@ -77,7 +82,10 @@ export function useEcoxLogger(): EcoxLogger {
           event_type: eventType,
           timezone,
           user_agent: userAgent,
-          details,
+          details: {
+            ...details,
+            ...(documentId ? { document_entity_id: documentId } : {})
+          },
           document_hash_snapshot: documentHashSnapshot
         }
       })

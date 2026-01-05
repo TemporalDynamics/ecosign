@@ -64,6 +64,33 @@ type DownloadResult = {
   error: string | null;
 };
 
+type PersistSignedPdfResult = {
+  storagePath: string;
+};
+
+// Persists the final signed PDF payload (bytes must be final, already prepared).
+const persistSignedPdf = async (
+  pdfBytes: ArrayBuffer | Uint8Array,
+  userId: string
+): Promise<PersistSignedPdfResult> => {
+  const supabase = getSupabase();
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const storagePath = `signed/${userId}/${crypto.randomUUID()}.pdf`;
+
+  const { error } = await supabase.storage
+    .from('user-documents')
+    .upload(storagePath, blob, {
+      upsert: true,
+      contentType: 'application/pdf',
+    });
+
+  if (error) {
+    throw new Error(`Upload failed: ${error.message}`);
+  }
+
+  return { storagePath };
+};
+
 const toUint8Array = (input: ArrayBuffer | ArrayBufferView<ArrayBufferLike>): Uint8Array => {
   if (input instanceof ArrayBuffer) {
     return new Uint8Array(input);
@@ -78,6 +105,9 @@ const toUint8Array = (input: ArrayBuffer | ArrayBufferView<ArrayBufferLike>): Ui
  * @param options - Additional options
  * @returns The created document record
  */
+// NOTE: Canonical document identity, hashing and lifecycle
+// are handled upstream via DocumentEntityService.
+// This module is responsible only for persisting signed PDFs and ECO payloads.
 export async function saveUserDocument(pdfFile: File, ecoData: unknown, options: SaveUserDocumentOptions = {}): Promise<SaveUserDocumentResult> {
   const supabase = getSupabase();
   const {
@@ -141,29 +171,15 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
   const { wrappedKey, wrapIv } = await wrapDocumentKey(documentKey, sessionUnwrapKey);
 
   // Upload ENCRYPTED PDF to Supabase Storage
-  let uploadData: { path: string } | null = null;
-  let uploadError = null;
   let storagePath = null;
   let encryptedPath = null;
 
   if (storePdf) {
-    // Upload encrypted file con nombre sanitizado
-    const sanitizedName = sanitizeFileName(pdfFile.name);
-    const encryptedFileName = `${user.id}/${Date.now()}-${sanitizedName}.encrypted`;
-    const uploadResult = await supabase.storage
-      .from('user-documents')
-      .upload(encryptedFileName, encryptedBlob, {
-        contentType: 'application/octet-stream',
-        upsert: false
-      });
-    uploadData = uploadResult.data;
-    uploadError = uploadResult.error;
-
-    if (uploadError) {
-      console.error('Error uploading encrypted PDF:', uploadError);
-      throw new Error(`Error al subir el documento cifrado: ${uploadError.message}`);
-    }
-    encryptedPath = uploadData?.path || null;
+    const { storagePath: persistedPath } = await persistSignedPdf(
+      await encryptedBlob.arrayBuffer(),
+      user.id
+    );
+    encryptedPath = persistedPath;
     // Keep pdf_storage_path null (we don't store plaintext PDF)
     storagePath = null;
   }

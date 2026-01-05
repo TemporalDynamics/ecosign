@@ -43,6 +43,20 @@ type DocumentRecord = {
   signer_links?: any[];
 };
 
+type DocumentEntityRow = {
+  id: string;
+  source_name: string;
+  source_hash: string;
+  source_captured_at: string;
+  witness_current_hash?: string | null;
+  witness_current_storage_path?: string | null;
+  signed_hash?: string | null;
+  composite_hash?: string | null;
+  lifecycle_status?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 type PlanTier = "guest" | "free" | "pro" | "business" | "enterprise" | null | string;
 
 type VerificationResult = {
@@ -152,6 +166,24 @@ const computeHash = async (
   return await hashSigned(buffer);
 };
 
+const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord => {
+  const documentHash = entity.signed_hash || entity.witness_current_hash || entity.source_hash;
+  return {
+    id: entity.id,
+    document_name: entity.source_name,
+    document_hash: documentHash,
+    content_hash: entity.source_hash,
+    created_at: entity.created_at || entity.source_captured_at,
+    pdf_storage_path: entity.witness_current_storage_path ?? null,
+    status: entity.lifecycle_status ?? null,
+    has_legal_timestamp: false,
+    has_polygon_anchor: false,
+    has_bitcoin_anchor: false,
+    events: [],
+    signer_links: []
+  };
+};
+
 const GUEST_DEMO_DOCS: DocumentRecord[] = [
   {
     id: "guest-doc-1",
@@ -222,6 +254,7 @@ function DocumentsPage() {
   const [verifying, setVerifying] = useState(false);
   const [autoVerifyAttempted, setAutoVerifyAttempted] = useState(false);
   const [verificationMode, setVerificationMode] = useState<VerificationMode>("signed");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [shareDoc, setShareDoc] = useState<DocumentRecord | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -251,8 +284,41 @@ function DocumentsPage() {
         return;
       }
       disableGuestMode();
+      setCurrentUserId(user.id);
 
-      const query = supabase
+      const { data: entityData, error } = await supabase
+        .from("document_entities")
+        .select(
+          `
+          id,
+          source_name,
+          source_hash,
+          source_captured_at,
+          witness_current_hash,
+          witness_current_storage_path,
+          signed_hash,
+          composite_hash,
+          lifecycle_status,
+          created_at,
+          updated_at
+        `
+        )
+        .eq("owner_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading document_entities:", error);
+        throw error;
+      }
+
+      if (entityData && entityData.length > 0) {
+        const mapped = (entityData as DocumentEntityRow[]).map(mapDocumentEntityToRecord);
+        setDocuments(mapped);
+        return;
+      }
+
+      // TODO(legacy-cleanup): remove fallback once document_entities is fully populated.
+      const { data: legacyData, error: legacyError } = await supabase
         .from("user_documents")
         .select(
           `
@@ -266,14 +332,12 @@ function DocumentsPage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Error loading documents:", error);
-        throw error;
+      if (legacyError) {
+        console.error("Error loading user_documents:", legacyError);
+        throw legacyError;
       }
 
-      setDocuments((data as DocumentRecord[] | null) || []);
+      setDocuments((legacyData as DocumentRecord[] | null) || []);
     } catch (error) {
       console.error("Error in loadDocuments:", error);
       setDocuments([]);
@@ -970,6 +1034,7 @@ function DocumentsPage() {
             eco_storage_path: shareDoc.eco_storage_path,
             eco_file_data: shareDoc.eco_file_data,
           }}
+          userId={currentUserId || ""}
           onClose={() => setShareDoc(null)}
         />
       )}

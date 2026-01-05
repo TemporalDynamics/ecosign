@@ -36,6 +36,12 @@ export type EcoV2 = {
   signed?: {
     hash: string;
     signed_at?: string;
+    authority?: 'internal' | 'external';
+    authority_ref?: {
+      id?: string;
+      type?: string;
+      jurisdiction?: string;
+    };
   };
   hash_chain: HashChain;
   transform_log: TransformLogEntry[];

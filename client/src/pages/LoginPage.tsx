@@ -267,19 +267,20 @@ function LoginPage() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-            <p className="text-gray-700 mb-2">¿Querés probar sin registrarte?</p>
+            <p className="text-gray-700 mb-2">¿Querés explorar EcoSign sin registrarte?</p>
             <p className="text-sm text-gray-600 mb-4">
-              Entrá como invitado y explorá EcoSign sin crear una cuenta.
+              Entrá como invitado y probá el flujo completo con documentos educativos.
             </p>
             <div className="text-sm text-gray-700 mb-4">
               <p className="font-semibold mb-2">Como invitado podés:</p>
               <ul className="space-y-1">
-                <li>Subir un documento</li>
-                <li>Ver el flujo completo</li>
-                <li>Obtener un sello de tiempo</li>
+                <li>Proteger 3 documentos educativos sobre EcoSign</li>
+                <li>Ver cómo funciona el cifrado local</li>
+                <li>Generar evidencia verificable</li>
+                <li>Explorar el flujo completo sin crear cuenta</li>
               </ul>
               <p className="mt-3 text-xs text-gray-500">
-                Los documentos creados como invitado no tienen validez legal.
+                Los documentos de prueba son material educativo, no tienen validez legal.
               </p>
             </div>
             <Link
@@ -289,7 +290,7 @@ function LoginPage() {
               Entrar como invitado
             </Link>
             <p className="mt-3 text-xs text-gray-500">
-              No guardamos tus documentos ni accedemos a su contenido.
+              Los documentos de prueba explican cómo funciona EcoSign.
             </p>
           </div>
         </div>

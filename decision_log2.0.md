@@ -73,6 +73,41 @@ Qué se buscaba lograr con esta iteración (1–2 frases).
 
 # 📚 Historial de Iteraciones 2.0
 
+## Iteración 2026-01-06 — ECO v2 determinístico + UI que refleja evidencia
+
+### 🎯 Objetivo
+Cerrar el ciclo probatorio: ECO v2 determinístico (RFC 8785) y UI que solo refleja evidencia presente.
+
+### 🧠 Decisiones tomadas
+- RFC 8785 (JCS) es requisito previo a TSA/anchoring.
+- La UI no afirma ni promete; solo refleja lo que el .ECO declara.
+- La autoridad de firma se modela como `internal|external` (sin naming comercial).
+- ECO v2 se genera on-the-fly desde document_entities cuando no hay .eco persistido.
+
+### 🛠️ Cambios realizados
+- Implementación JCS (RFC 8785) para serialización canónica.
+- Generator/Verifier ECO v2 con tests contractuales mínimos.
+- Descarga .eco v2 desde Documentos cuando hay canon.
+- Copy adaptativo en verificadores (público, interno, dashboard) y DocumentsPage.
+- Persistencia de `signed_authority` en document_entities + proyección a ECO v2.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se activó TSA ni anchoring todavía.
+- No se cambiaron flujos UX ni copy marketing global.
+- No se forzó migración de edge functions.
+
+### ⚠️ Consideraciones / deuda futura
+- Implementar TSA append-only (RFC 3161) sobre ECO canonizado.
+- Migración edge por fases (dual-read → canon-first).
+- Hardening adicional de constraints y cleanup legacy final.
+
+### 📍 Estado final
+- ECO v2 es determinístico y verificable offline.
+- La UI ya no afirma nada fuera de la evidencia presente.
+
+### 💬 Nota del dev
+"Nunca se certifica ni ancla algo que no esté canónicamente definido."
+
 ## Iteración 2026-01-06 — Canon probatorio + ECO v2 + Verifier v2
 
 ### 🎯 Objetivo

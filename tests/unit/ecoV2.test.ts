@@ -74,6 +74,11 @@ describe('ECO v2 projection', () => {
     expect(a).toBe(b);
   });
 
+  test('normalizes -0 to 0 in canonical serialization', () => {
+    const json = canonicalStringify({ n: -0 });
+    expect(json).toBe('{"n":0}');
+  });
+
   test('prefers hash_chain when provided and consistent', () => {
     const row: DocumentEntityRow = {
       ...baseRow(),

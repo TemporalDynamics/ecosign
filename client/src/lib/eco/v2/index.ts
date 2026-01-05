@@ -1,4 +1,5 @@
 // Canonical ECO v2 utilities (projection + verification)
+import { jcsCanonicalize } from './jcs';
 
 export type HashChain = {
   source_hash: string;
@@ -99,33 +100,7 @@ export type DocumentEntityRow = {
   signed_at?: string | null;
 };
 
-// Provisional canonical serialization (pre-RFC 8785).
-const normalizeObject = (value: unknown): unknown => {
-  if (value === null || typeof value !== 'object') {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeObject(item));
-  }
-
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
-  const normalized: Record<string, unknown> = {};
-
-  for (const key of keys) {
-    const next = obj[key];
-    if (next === undefined) continue;
-    normalized[key] = normalizeObject(next);
-  }
-
-  return normalized;
-};
-
-export const canonicalStringify = (value: unknown): string => {
-  const normalized = normalizeObject(value);
-  return JSON.stringify(normalized);
-};
+export const canonicalStringify = (value: unknown): string => jcsCanonicalize(value);
 
 const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
   if (!value) return null;

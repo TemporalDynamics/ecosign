@@ -77,7 +77,13 @@ const PROBATIVE_STATES = {
     label: "Sin protección",
     color: "text-gray-600",
     bg: "bg-gray-100",
-    tooltip: "Aún no se generó un certificado para este documento."
+    tooltip: "No hay evidencia probatoria registrada."
+  },
+  base: {
+    label: "Integridad\nverificada",
+    color: "text-gray-800",
+    bg: "bg-gray-100",
+    tooltip: "La integridad criptográfica del documento está verificada."
   },
   active: {
     label: "Protección\ncertificada",
@@ -120,7 +126,7 @@ const deriveProbativeState = (doc: DocumentRecord, planTier: PlanTier): Probativ
   );
   const bitcoinStatus = doc.bitcoin_status;
   const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
-  let level: ProbativeLevel = "none";
+  let level: ProbativeLevel = (doc.content_hash || doc.eco_hash) ? "base" : "none";
 
   if (hasTsa) {
     level = "active";
@@ -1201,6 +1207,7 @@ function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
   const hasPolygon = !!doc.has_polygon_anchor;
   const bitcoinStatus = doc.bitcoin_status;
   const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
+  const hasIntegrity = !!(doc.content_hash || doc.eco_hash);
   const timelineItems = [];
 
   if (hasTsa) {
@@ -1231,8 +1238,10 @@ function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
 
   if (timelineItems.length === 0) {
     timelineItems.push({
-      label: "Sin eventos confirmados",
-      description: "Todavía no hay refuerzos confirmados para este documento.",
+      label: hasIntegrity ? "Integridad verificada" : "Sin evidencia registrada",
+      description: hasIntegrity
+        ? "La integridad criptográfica del documento está verificada."
+        : "No hay evidencia probatoria registrada para este documento.",
       status: "empty"
     });
   }

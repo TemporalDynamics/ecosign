@@ -8,6 +8,7 @@ type VerificationResult = {
   timestamp?: string;
   signature?: { algorithm?: string; valid?: boolean };
   signatureValid?: boolean;
+  signedAuthority?: 'internal' | 'external';
   anchors?: {
     polygon?: { status?: string } | null;
     bitcoin?: { status?: string } | null;
@@ -64,7 +65,13 @@ const buildEvidenceItems = (result: VerificationResult): string[] => {
   }
 
   if (result.signatureValid || result.signature?.valid) {
-    items.push('Existe una firma registrada en el certificado.');
+    if (result.signedAuthority === 'internal') {
+      items.push('Existe una firma registrada por una autoridad interna.');
+    } else if (result.signedAuthority === 'external') {
+      items.push('Existe una firma registrada por una autoridad externa.');
+    } else {
+      items.push('Existe una firma registrada en el certificado.');
+    }
   }
 
   if (result.timestamp) {

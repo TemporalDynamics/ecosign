@@ -40,6 +40,7 @@ type DocumentRecord = {
   eco_file_data?: string | null;
   ecox_file_data?: string | null;
   status?: string | null;
+  signed_authority?: 'internal' | 'external' | null;
   events?: any[];
   signer_links?: any[];
 };
@@ -52,6 +53,7 @@ type DocumentEntityRow = {
   witness_current_hash?: string | null;
   witness_current_storage_path?: string | null;
   signed_hash?: string | null;
+  signed_authority?: 'internal' | 'external' | null;
   composite_hash?: string | null;
   lifecycle_status?: string | null;
   created_at?: string | null;
@@ -188,6 +190,7 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     created_at: entity.created_at || entity.source_captured_at,
     pdf_storage_path: entity.witness_current_storage_path ?? null,
     status: entity.lifecycle_status ?? null,
+    signed_authority: entity.signed_authority ?? null,
     has_legal_timestamp: false,
     has_polygon_anchor: false,
     has_bitcoin_anchor: false,
@@ -309,6 +312,7 @@ function DocumentsPage() {
           witness_current_hash,
           witness_current_storage_path,
           signed_hash,
+          signed_authority,
           composite_hash,
           lifecycle_status,
           created_at,
@@ -1209,6 +1213,22 @@ function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
   const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
   const hasIntegrity = !!(doc.content_hash || doc.eco_hash);
   const timelineItems = [];
+
+  if (doc.signed_authority === "internal") {
+    timelineItems.push({
+      label: "Firma interna registrada",
+      description: "La firma fue registrada por la autoridad emisora.",
+      status: "ok"
+    });
+  }
+
+  if (doc.signed_authority === "external") {
+    timelineItems.push({
+      label: "Firma externa registrada",
+      description: "La firma fue registrada por una autoridad externa.",
+      status: "ok"
+    });
+  }
 
   if (hasTsa) {
     timelineItems.push({

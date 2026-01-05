@@ -14,6 +14,7 @@ import {
   bytesToBase64,
   bytesToHex
 } from '../lib/e2e';
+import { hashSigned } from '../lib/canonicalHashing';
 
 /**
  * Sanitiza un nombre de archivo para usarlo como key en Supabase Storage
@@ -121,9 +122,7 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
 
   // Generate document hash (of original file, before encryption)
   const arrayBuffer = await pdfFile.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const documentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const documentHash = await hashSigned(arrayBuffer);
 
   // ======================================
   // E2E ENCRYPTION

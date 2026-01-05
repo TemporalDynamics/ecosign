@@ -13,7 +13,7 @@ const loadPdfLib = async () => {
   return { PDFDocument, rgb };
 };
 
-import { calculateDocumentHash } from './hashDocument'
+import { hashSigned } from '@/lib/canonicalHashing'
 
 export interface SignatureData {
   dataUrl: string // Base64 PNG of signature
@@ -115,8 +115,7 @@ export async function applySignatureToPDF(
     const signedPdfBlob = new Blob([new Uint8Array(signedPdfBytes)], { type: 'application/pdf' })
 
     // Calculate hash of signed PDF
-    const signedPdfFile = new File([signedPdfBlob], 'signed.pdf', { type: 'application/pdf' })
-    const signedPdfHash = await calculateDocumentHash(signedPdfFile)
+    const signedPdfHash = await hashSigned(signedPdfBytes)
 
     console.log('✅ Signature applied successfully')
     console.log('🔒 Signed PDF hash:', signedPdfHash.substring(0, 16) + '...')

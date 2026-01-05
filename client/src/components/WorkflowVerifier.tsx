@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { getSupabase } from '@/lib/supabaseClient'
-import { calculateDocumentHash, formatHashForDisplay } from '@/utils/hashDocument'
+import { formatHashForDisplay } from '@/utils/hashDocument'
+import { hashSigned } from '@/lib/canonicalHashing'
 import { Shield, FileText, XCircle, RefreshCw, CheckCircle } from 'lucide-react';
 
 interface WorkflowVerifierProps {
@@ -49,7 +50,7 @@ export default function WorkflowVerifier({ className }: WorkflowVerifierProps) {
     setFile(target)
     try {
       setLoading(true)
-      const calc = await calculateDocumentHash(target)
+      const calc = await hashSigned(await target.arrayBuffer())
       setHash(calc)
       await lookup(calc)
     } catch (err) {

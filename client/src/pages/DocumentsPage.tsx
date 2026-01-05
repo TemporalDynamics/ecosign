@@ -11,6 +11,7 @@ import { ProtectedBadge } from "../components/ProtectedBadge";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
 import { useLegalCenter } from "../contexts/LegalCenterContext";
 import { decryptFile, ensureCryptoSession, getSessionUnwrapKey, unwrapDocumentKey } from "../lib/e2e";
+import { hashSigned, hashSource, hashWitness } from "../lib/canonicalHashing";
 
 type DocumentRecord = {
   id: string;
@@ -53,6 +54,8 @@ type VerificationResult = {
   extended?: string | null;
   error?: string;
 };
+
+type VerificationMode = "source" | "witness" | "signed";
 
 const PROBATIVE_STATES = {
   none: {
@@ -135,10 +138,18 @@ const formatDate = (date: string | number | Date | null | undefined) => {
   });
 };
 
-const computeHash = async (fileOrBlob: Blob | File): Promise<string> => {
+const computeHash = async (
+  mode: VerificationMode,
+  fileOrBlob: Blob | File
+): Promise<string> => {
   const buffer = await fileOrBlob.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (mode === "source") {
+    return await hashSource(buffer);
+  }
+  if (mode === "witness") {
+    return await hashWitness(buffer);
+  }
+  return await hashSigned(buffer);
 };
 
 const GUEST_DEMO_DOCS: DocumentRecord[] = [
@@ -210,6 +221,7 @@ function DocumentsPage() {
   const [verifyResult, setVerifyResult] = useState<VerificationResult | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [autoVerifyAttempted, setAutoVerifyAttempted] = useState(false);
+  const [verificationMode, setVerificationMode] = useState<VerificationMode>("signed");
   const [search, setSearch] = useState("");
   const [shareDoc, setShareDoc] = useState<DocumentRecord | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -298,11 +310,16 @@ function DocumentsPage() {
 
   useEffect(() => {
     if (isGuestMode()) return;
-    if (showVerifyModal && verifyDoc?.pdf_storage_path && !autoVerifyAttempted) {
+    if (
+      showVerifyModal &&
+      verifyDoc?.pdf_storage_path &&
+      !autoVerifyAttempted &&
+      verificationMode !== "source"
+    ) {
       setAutoVerifyAttempted(true);
-      autoVerifyStoredPdf(verifyDoc);
+      autoVerifyStoredPdf(verifyDoc, verificationMode);
     }
-  }, [showVerifyModal, verifyDoc, autoVerifyAttempted]);
+  }, [showVerifyModal, verifyDoc, autoVerifyAttempted, verificationMode]);
 
   useEffect(() => {
     const handleDocumentCreated = () => {
@@ -495,6 +512,7 @@ function DocumentsPage() {
     setVerifyResult(null);
     setVerifying(false);
     setAutoVerifyAttempted(false);
+    setVerificationMode("signed");
     setShowVerifyModal(true);
   };
 
@@ -511,8 +529,8 @@ function DocumentsPage() {
     if (!doc || !file) return;
     setVerifying(true);
     try {
-      const hash = await computeHash(file);
-      const result = buildVerificationResult(hash, doc, "upload");
+      const hash = await computeHash(verificationMode, file);
+      const result = buildVerificationResult(hash, doc, "upload", verificationMode);
       setVerifyResult(result);
     } catch (err) {
       console.error("Error verificando PDF:", err);
@@ -525,7 +543,7 @@ function DocumentsPage() {
     }
   };
 
-  const autoVerifyStoredPdf = async (doc: DocumentRecord) => {
+  const autoVerifyStoredPdf = async (doc: DocumentRecord, mode: VerificationMode) => {
     if (!doc.pdf_storage_path && !doc.encrypted_path) return;
     try {
       const supabase = getSupabase();
@@ -545,8 +563,8 @@ function DocumentsPage() {
       } else {
         blob = await fetchEncryptedPdfBlob(doc);
       }
-      const hash = await computeHash(blob);
-      const result = buildVerificationResult(hash, doc, "stored");
+      const hash = await computeHash(mode, blob);
+      const result = buildVerificationResult(hash, doc, "stored", mode);
       setVerifyResult(result);
     } catch (err) {
       console.warn("Verificación automática falló, se pedirá el PDF al usuario:", err);
@@ -559,20 +577,27 @@ function DocumentsPage() {
     }
   };
 
-  const buildVerificationResult = (hash: string, doc: DocumentRecord, source: "upload" | "stored"): VerificationResult => {
+  const buildVerificationResult = (
+    hash: string,
+    doc: DocumentRecord,
+    source: "upload" | "stored",
+    mode: VerificationMode
+  ): VerificationResult => {
     const normalizedHash = hash.toLowerCase();
     const expectedDocumentHash = doc.document_hash || doc.eco_hash;
     const expectedContentHash = doc.content_hash;
 
-    const matchesDocument = expectedDocumentHash
-      ? normalizedHash === expectedDocumentHash.toLowerCase()
+    const matchesDocument = mode === "source"
+      ? null
+      : expectedDocumentHash
+        ? normalizedHash === expectedDocumentHash.toLowerCase()
+        : null;
+    const matchesContent = mode === "source"
+      ? expectedContentHash
+        ? normalizedHash === expectedContentHash.toLowerCase()
+        : null
       : null;
-    const matchesContent = expectedContentHash ? normalizedHash === expectedContentHash.toLowerCase() : null;
-
-    const matches = 
-      (matchesDocument === false || matchesContent === false)
-        ? false
-        : matchesDocument || matchesContent || null;
+    const matches = matchesDocument ?? matchesContent ?? null;
 
     return {
       matches,
@@ -957,7 +982,7 @@ function DocumentsPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Verificar documento</h3>
                 <p className="text-xs text-gray-600 mt-1">
-                  Validá que tu PDF coincide con el certificado almacenado.
+                  Validá que tu archivo coincide con el certificado almacenado.
                 </p>
               </div>
               <button
@@ -973,17 +998,35 @@ function DocumentsPage() {
             </div>
 
             {!verifyResult && (
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center mb-4">
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => e.target.files?.[0] && onVerifyFile(e.target.files[0], verifyDoc)}
-                  className="hidden"
-                  id="verify-upload"
-                />
-                <label htmlFor="verify-upload" className="cursor-pointer text-sm text-gray-700 hover:text-gray-900">
-                  {verifying ? "Verificando…" : "Arrastrá o hacé clic para subir el PDF firmado"}
-                </label>
+              <div className="mb-4 space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 uppercase">Tipo de archivo</label>
+                  <select
+                    value={verificationMode}
+                    onChange={(e) => {
+                      setVerificationMode(e.target.value as VerificationMode);
+                      setVerifyResult(null);
+                      setAutoVerifyAttempted(false);
+                    }}
+                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800"
+                  >
+                    <option value="source">Archivo original</option>
+                    <option value="witness">PDF testigo</option>
+                    <option value="signed">PDF firmado</option>
+                  </select>
+                </div>
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center">
+                  <input
+                    type="file"
+                    accept={verificationMode === "source" ? undefined : "application/pdf"}
+                    onChange={(e) => e.target.files?.[0] && onVerifyFile(e.target.files[0], verifyDoc)}
+                    className="hidden"
+                    id="verify-upload"
+                  />
+                  <label htmlFor="verify-upload" className="cursor-pointer text-sm text-gray-700 hover:text-gray-900">
+                    {verifying ? "Verificando…" : "Arrastrá o hacé clic para subir el archivo"}
+                  </label>
+                </div>
               </div>
             )}
 

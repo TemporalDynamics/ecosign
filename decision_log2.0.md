@@ -73,6 +73,45 @@ Qué se buscaba lograr con esta iteración (1–2 frases).
 
 # 📚 Historial de Iteraciones 2.0
 
+## Iteración 2026-01-06 — Canon probatorio + ECO v2 + Verifier v2
+
+### 🎯 Objetivo
+Cerrar el canon probatorio y definir el formato ECO v2 + verificador v2 sin romper UX ni flujos legacy.
+
+### 🧠 Decisiones tomadas
+- ECO v2 es el **único** formato público verificable; ECOX queda como formato interno (no UX, no contrato).
+- Verifier v2 es lectura pura del .eco v2, sin inferencias ni datos externos.
+- `document_entities` es el write-path canónico; la UI lee canon-first con fallback legacy.
+- Storage no decide verdad: helpers de persistencia pura para cifrado y PDF firmado.
+- Migración Edge por fases documentada (plan + TODOs), sin cambios de runtime aún.
+
+### 🛠️ Cambios realizados
+- Hashing canónico unificado (hashSource / hashWitness / hashSigned) y verificación explícita por modo.
+- DocumentEntityService como interfaz única de escritura canónica.
+- Purificación de storage: helpers de persistencia cifrada y signed.
+- UI cleanup: DocumentsPage canon-first + componentes prop-driven (DocumentList, ShareDocumentModal, CompletionScreen).
+- Helpers preparados para identidad canónica (useEcoxLogger, polygonAnchor).
+- Contratos: ECO v2 y Verifier v2 cerrados con reglas de determinismo.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se implementó aún el generator/verifier v2 en runtime.
+- No se aplicaron migraciones `document_entities` en producción.
+- No se activó encrypted_custody end-to-end.
+- No se removió legacy definitivamente (solo fallback y TODOs).
+
+### ⚠️ Consideraciones / deuda futura
+- Implementar ECO v2 generator + Verifier v2 con tests contractuales.
+- Integrar ECO v2 en export y verificación.
+- Migrar Edge functions según el plan (dual-read → canon-first).
+- Endurecer constraints DB (tightening de checks/immutability).
+
+### 📍 Estado final
+- Canon escrito y aplicado en flujos principales sin romper UX.
+- Formatos ECO v2 + Verifier v2 definidos y listos para implementación.
+
+### 💬 Nota del dev
+"ECO v2 es la única verdad pública. Todo lo demás es proyección interna o legado en transición."
+
 ## Iteración 2025-12-21 — Sistema oficial de emails y renderer unificado
 
 ### 🎯 Objetivo
@@ -1414,6 +1453,42 @@ Migrar la UI a un modelo canonico sin romper UX: los componentes dejan de consul
 
 ### 💬 Nota del dev
 "La UI ya no descubre datos: los recibe decididos. Esto habilita ECO v2 y Verifier v2 sin reescribir componentes."
+
+---
+
+## Iteración 2026-01-06 — Canon V2: ECO/Verifier + Edge roadmap
+
+### 🎯 Objetivo
+Cerrar el formato probatorio unico (ECO v2), definir el verificador v2 y dejar el plan de migracion edge sin tocar runtime.
+
+### 🧠 Decisiones tomadas
+- ECO v2 es el unico formato publico, completo y verificable.
+- ECOX queda como representacion interna del sistema (no publica).
+- Verifier v2 acepta solo `eco.v2` (con compatibilidad limitada para v1).
+- Edge functions se migran por fases segun plan canonico (dual-read -> canon-first -> legacy removal).
+
+### 🛠️ Cambios realizados
+- Se creo `docs/ECO_V2_CONTRACT.md` con esquema, coherencia y compatibilidad v1.
+- Se creo `docs/VERIFIER_V2_CONTRACT.md` con input unico, estados y reglas.
+- Se creo `docs/EDGE_CANON_MIGRATION_PLAN.md`.
+- Se agregaron TODOs canonicos en edge functions para soportar `document_entity_id`.
+- Se agregaron tipos canonicos `document_entities` y se marco `documents` como legacy.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se modificaron edge functions ni esquemas DB.
+- No se implemento ECO v2 ni Verifier v2 en runtime.
+- No se activo encrypted_custody real.
+
+### ⚠️ Consideraciones / deuda futura
+- Implementar ECO v2 como proyeccion canonica desde `document_entities`.
+- Implementar Verifier v2 con lectura pura de ECO v2.
+- Migrar edge functions segun `EDGE_CANON_MIGRATION_PLAN.md`.
+
+### 📍 Estado final
+- Contratos v2 definidos y hoja de ruta edge cerrada.
+
+### 💬 Nota del dev
+"ECO v2 es la unica verdad publica. El verificador v2 lee solo ECO v2. Edge queda preparado sin tocar runtime."
 
 ## Iteración 2026-01-06 — Contratos Canónicos + Mapa de Impacto Tecnico
 

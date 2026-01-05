@@ -197,6 +197,16 @@ function LoginPage() {
                 className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                 placeholder="••••••••"
               />
+              {isLogin && (
+                <div className="mt-2 text-right">
+                  <Link
+                    to="/recuperar-contrasena"
+                    className="text-sm text-gray-600 hover:text-black transition"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
+              )}
             </div>
 
             {!isLogin && (

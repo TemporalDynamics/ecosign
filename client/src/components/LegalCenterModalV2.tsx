@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import type { ToastOptions as HotToastOptions } from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
-import { saveUserDocument } from '../utils/documentStorage';
+import { persistSignedPdfToStorage, saveUserDocument } from '../utils/documentStorage';
 import { startSignatureWorkflow } from '../lib/signatureWorkflowService';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
 import { applySignatureToPDF, blobToFile, addSignatureSheet } from '../utils/pdfSignature';
@@ -13,7 +13,14 @@ import type { ForensicData } from '../utils/pdfSignature';
 import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
 import { getSupabase } from '../lib/supabaseClient';
-import { hashWitness } from '../lib/canonicalHashing';
+import { hashSource, hashSigned, hashWitness } from '../lib/canonicalHashing';
+import {
+  createSourceTruth,
+  ensureWitnessCurrent,
+  appendTransform,
+  advanceLifecycle,
+  ensureSigned
+} from '../lib/documentEntityService';
 import { isGuestMode } from '../utils/guestMode';
 import InhackeableTooltip from './InhackeableTooltip';
 import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
@@ -648,6 +655,27 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         return;
       }
       const supabase = getSupabase();
+      let canonicalDocumentId: string | null = null;
+      let canonicalSourceHash: string | null = null;
+
+      try {
+        const sourceHash = await hashSource(file);
+        canonicalSourceHash = sourceHash;
+        const created = await createSourceTruth({
+          name: file.name,
+          mime_type: file.type || 'application/pdf',
+          size_bytes: file.size,
+          hash: sourceHash,
+          custody_mode: 'hash_only',
+          storage_path: null
+        });
+        canonicalDocumentId = created.id as string;
+      } catch (err) {
+        console.warn('Canonical createSourceTruth skipped:', err);
+      }
+      if (canonicalDocumentId) {
+        console.debug('Canonical document_entities created:', canonicalDocumentId);
+      }
       // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
       if (workflowEnabled) {
         // Validar que haya al menos un email
@@ -697,6 +725,33 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           return;
         }
 
+        if (canonicalDocumentId) {
+          try {
+            await ensureWitnessCurrent(canonicalDocumentId, {
+              hash: documentHash,
+              mime_type: 'application/pdf',
+              storage_path: storagePath,
+              status: 'generated'
+            });
+
+            if (canonicalSourceHash && file.type !== 'application/pdf') {
+              await appendTransform(canonicalDocumentId, {
+                from_mime: file.type,
+                to_mime: 'application/pdf',
+                from_hash: canonicalSourceHash,
+                to_hash: documentHash,
+                method: 'client',
+                reason: 'visualization',
+                executed_at: new Date().toISOString()
+              });
+            }
+
+            await advanceLifecycle(canonicalDocumentId, 'witness_ready');
+          } catch (err) {
+            console.warn('Canonical witness/transform skipped:', err);
+          }
+        }
+
         // Iniciar workflow en backend (crea notificaciones y dispara send-pending-emails)
         try {
           const workflowResult = await startSignatureWorkflow({
@@ -744,6 +799,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       // Preparar archivo con Hoja de Auditoría (SOLO para Firma Legal)
       let fileToProcess = file;
+      let witnessHash: string | null = null;
 
       // Solo agregar Hoja de Auditoría si es Firma Legal (NO para Firma Certificada)
       if (signatureType === 'legal') {
@@ -772,6 +828,35 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         // Agregar Hoja de Auditoría al PDF
         const pdfWithSheet = await addSignatureSheet(file, signatureData, forensicData);
         fileToProcess = blobToFile(pdfWithSheet, file.name);
+      }
+
+      try {
+        const witnessBytes = await fileToProcess.arrayBuffer();
+        witnessHash = await hashWitness(witnessBytes);
+        if (canonicalDocumentId) {
+          await ensureWitnessCurrent(canonicalDocumentId, {
+            hash: witnessHash,
+            mime_type: 'application/pdf',
+            storage_path: '',
+            status: 'generated'
+          });
+
+          if (canonicalSourceHash && file.type !== 'application/pdf') {
+            await appendTransform(canonicalDocumentId, {
+              from_mime: file.type,
+              to_mime: 'application/pdf',
+              from_hash: canonicalSourceHash,
+              to_hash: witnessHash,
+              method: 'client',
+              reason: 'visualization',
+              executed_at: new Date().toISOString()
+            });
+          }
+
+          await advanceLifecycle(canonicalDocumentId, 'witness_ready');
+        }
+      } catch (err) {
+        console.warn('Canonical witness preparation skipped:', err);
       }
 
       // 1. Certificar con o sin SignNow según tipo de firma seleccionado
@@ -882,6 +967,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       const initialStatus = (signatureType === 'legal' || signatureType === 'certified') ? 'signed' : 'draft';
       const overallStatus = initialStatus === 'signed' ? 'certified' : initialStatus;
 
+      let signedStoragePath: string | null = null;
+      let signedHash: string | null = null;
+      try {
+        const signedFileForCanon = signedPdfFromSignNow || fileToProcess;
+        const signedBytes = await signedFileForCanon.arrayBuffer();
+        signedHash = await hashSigned(signedBytes);
+        const { storagePath } = await persistSignedPdfToStorage(signedBytes, user.id);
+        signedStoragePath = storagePath;
+      } catch (err) {
+        console.warn('Canonical signed persistence skipped:', err);
+      }
+
       // ✅ REFACTOR: Blockchain anchors no bloquean certificación
       // Los anchors se marcan como 'pending' y se resuelven async
       const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
@@ -900,6 +997,24 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         storePdf: true, // ✅ Guardar PDF cifrado para permitir compartir
         zeroKnowledgeOptOut: false // ✅ E2E encryption: guardar cifrado, no plaintext
       });
+
+      if (canonicalDocumentId && signedHash && witnessHash) {
+        try {
+          await appendTransform(canonicalDocumentId, {
+            from_mime: 'application/pdf',
+            to_mime: 'application/pdf',
+            from_hash: witnessHash,
+            to_hash: signedHash,
+            method: 'client',
+            reason: 'signature',
+            executed_at: new Date().toISOString()
+          });
+
+          await ensureSigned(canonicalDocumentId, signedHash);
+        } catch (err) {
+          console.warn('Canonical signed update skipped:', err);
+        }
+      }
 
       if (savedDoc) {
         window.dispatchEvent(new CustomEvent('ecosign:document-created', { detail: savedDoc }));

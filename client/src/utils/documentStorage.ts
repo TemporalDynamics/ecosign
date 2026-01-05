@@ -91,6 +91,13 @@ const persistSignedPdf = async (
   return { storagePath };
 };
 
+export const persistSignedPdfToStorage = async (
+  pdfBytes: ArrayBuffer | Uint8Array,
+  userId: string
+): Promise<PersistSignedPdfResult> => {
+  return await persistSignedPdf(pdfBytes, userId);
+};
+
 const toUint8Array = (input: ArrayBuffer | ArrayBufferView<ArrayBufferLike>): Uint8Array => {
   if (input instanceof ArrayBuffer) {
     return new Uint8Array(input);

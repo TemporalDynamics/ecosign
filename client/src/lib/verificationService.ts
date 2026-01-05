@@ -3,6 +3,7 @@
 // NO utiliza mocks ni datos simulados
 
 import { getSupabase } from './supabaseClient';
+import { verifyEcoV2, type VerificationResult } from './eco/v2';
 
 type VerificationBaseResult = {
   valid: boolean;
@@ -26,6 +27,49 @@ type VerificationBaseResult = {
   originalFileProvided?: boolean | null;
 };
 
+const parseEcoJson = async (file: File): Promise<unknown | null> => {
+  try {
+    const text = await file.text();
+    return JSON.parse(text);
+  } catch (error) {
+    console.warn('Unable to parse .eco JSON locally', error);
+    return null;
+  }
+};
+
+const mapEcoV2Result = (result: VerificationResult, fileName: string): VerificationBaseResult => {
+  const valid = result.status === 'valid' || result.status === 'incomplete';
+  const warnings =
+    result.status === 'incomplete'
+      ? ['Evidencia incompleta: faltan testigos o firmas.']
+      : [];
+  const errors =
+    result.status === 'tampered'
+      ? ['Archivo .ECO inconsistente.']
+      : result.status === 'unknown'
+      ? ['Formato .ECO inválido o versión no soportada.']
+      : [];
+
+  return {
+    valid,
+    fileName,
+    hash: result.source_hash,
+    timestamp: result.timestamps?.created_at,
+    timestampType: 'Local',
+    anchorChain: result.anchors ? 'local' : undefined,
+    signature: {
+      algorithm: 'hash-chain',
+      valid: !!result.signed_hash
+    },
+    documentIntegrity: valid,
+    signatureValid: !!result.signed_hash,
+    timestampValid: true,
+    legalTimestamp: { enabled: false },
+    errors,
+    warnings
+  };
+};
+
 /**
  * Verifica un archivo .ECO usando la Edge Function real
  * @param {File} file - Archivo .ECO a verificar
@@ -45,6 +89,12 @@ export async function verifyEcoFile(file: File): Promise<VerificationBaseResult>
   }
 
   try {
+    const parsed = await parseEcoJson(file);
+    if (parsed && typeof parsed === 'object' && (parsed as { version?: string }).version === 'eco.v2') {
+      const result = verifyEcoV2(parsed);
+      return mapEcoV2Result(result, file.name);
+    }
+
     // Crear FormData para enviar el archivo
     const formData = new FormData();
     formData.append('ecox', file);
@@ -122,6 +172,16 @@ export async function verifyEcoWithOriginal(ecoFile: File, originalFile?: File |
   }
 
   try {
+    const parsed = await parseEcoJson(ecoFile);
+    if (parsed && typeof parsed === 'object' && (parsed as { version?: string }).version === 'eco.v2') {
+      const result = verifyEcoV2(parsed);
+      return {
+        ...mapEcoV2Result(result, ecoFile.name),
+        originalFileProvided: !!originalFile,
+        originalFileName: originalFile?.name || null
+      };
+    }
+
     // Crear FormData con ambos archivos
     const formData = new FormData();
     formData.append('ecox', ecoFile);

@@ -6,6 +6,7 @@
  */
 
 import { getSupabase } from './supabaseClient';
+import { generateEcoV2, type DocumentEntityRow, type EcoV2 } from './eco/v2';
 
 export type CustodyMode = 'hash_only' | 'encrypted_custody';
 
@@ -147,7 +148,13 @@ export const createSourceTruth = async (input: SourceTruthInput) => {
   assertCustodyConsistency(input);
 
   const supabase = getSupabase();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData?.user) {
+    throw new Error(authError?.message || 'Usuario no autenticado');
+  }
+
   const payload = {
+    owner_id: authData.user.id,
     source_name: input.name,
     source_mime: input.mime_type,
     source_size: input.size_bytes,
@@ -167,8 +174,24 @@ export const createSourceTruth = async (input: SourceTruthInput) => {
     .select('*')
     .single();
 
-  if (error || !data) {
-    throw new Error(error?.message || 'Failed to create document_entities');
+  if (error) {
+    if (error.code === '23505') {
+      const { data: existing, error: existingError } = await supabase
+        .from('document_entities')
+        .select('*')
+        .eq('owner_id', authData.user.id)
+        .eq('source_hash', input.hash)
+        .single();
+
+      if (!existingError && existing) {
+        return existing;
+      }
+    }
+    throw new Error(error.message || 'Failed to create document_entities');
+  }
+
+  if (!data) {
+    throw new Error('Failed to create document_entities');
   }
 
   return data;
@@ -250,40 +273,9 @@ export const advanceLifecycle = async (
   }
 };
 
-export const emitEcoVNext = async (documentId: string): Promise<EcoPayloadV1> => {
+export const emitEcoVNext = async (
+  documentId: string
+): Promise<{ eco: EcoV2; json: string }> => {
   const doc = await getDocumentEntity(documentId);
-
-  const payload: EcoPayloadV1 = {
-    // TODO: upgrade to eco.v2 when verifier supports hash_chain
-    version: 'eco.v1',
-    document_id: doc.id,
-    source: {
-      hash: doc.source_hash,
-      mime: doc.source_mime,
-      name: doc.source_name,
-      captured_at: doc.source_captured_at,
-    },
-    transform_log: doc.transform_log ?? [],
-    timestamps: {
-      created_at: doc.created_at,
-    },
-    anchors: {},
-  };
-
-  if (doc.witness_current_hash) {
-    payload.witness = {
-      hash: doc.witness_current_hash,
-      mime: 'application/pdf',
-      generated_at: doc.witness_current_generated_at ?? doc.created_at,
-    };
-  }
-
-  if (doc.signed_hash) {
-    payload.signed = {
-      hash: doc.signed_hash,
-      signed_at: doc.updated_at,
-    };
-  }
-
-  return payload;
+  return generateEcoV2(doc as DocumentEntityRow);
 };

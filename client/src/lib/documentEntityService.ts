@@ -21,6 +21,12 @@ export type LifecycleStatus =
   | 'archived';
 
 export type WitnessStatus = 'generated' | 'signed';
+export type SignedAuthority = 'internal' | 'external';
+export type SignedAuthorityRef = {
+  id?: string;
+  type?: string;
+  jurisdiction?: string;
+};
 
 export type HashChain = {
   source_hash: string;
@@ -122,7 +128,9 @@ const getDocumentEntity = async (id: string) => {
 
 export const ensureSigned = async (
   documentId: string,
-  signedHash: string
+  signedHash: string,
+  authority?: SignedAuthority,
+  authorityRef?: SignedAuthorityRef | null
 ) => {
   const doc = await getDocumentEntity(documentId);
   const nextHashChain: HashChain = {
@@ -134,6 +142,8 @@ export const ensureSigned = async (
     .from('document_entities')
     .update({
       signed_hash: signedHash,
+      signed_authority: authority ?? null,
+      signed_authority_ref: authorityRef ?? null,
       hash_chain: nextHashChain,
       lifecycle_status: 'signed',
     })

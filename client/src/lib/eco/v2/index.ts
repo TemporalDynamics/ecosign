@@ -89,6 +89,8 @@ export type DocumentEntityRow = {
   witness_current_generated_at?: string | null;
   witness_hash?: string | null;
   signed_hash?: string | null;
+  signed_authority?: 'internal' | 'external' | null;
+  signed_authority_ref?: Record<string, unknown> | null;
   composite_hash?: string | null;
   hash_chain?: unknown;
   transform_log?: unknown;
@@ -200,6 +202,8 @@ export const projectEcoV2FromDocumentEntity = (row: DocumentEntityRow): EcoV2 =>
     eco.signed = {
       hash: row.signed_hash,
       signed_at: row.signed_at ?? undefined,
+      authority: row.signed_authority ?? undefined,
+      authority_ref: row.signed_authority_ref ?? undefined,
     };
   }
 

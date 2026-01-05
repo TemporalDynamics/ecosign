@@ -1024,6 +1024,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       if (canonicalDocumentId && signedHash && witnessHash) {
         try {
+          const signedAuthority = signNowResult ? 'external' : 'internal';
+          const signedAuthorityRef = signNowResult
+            ? { id: 'signnow', type: 'provider' }
+            : null;
+
           await appendTransform(canonicalDocumentId, {
             from_mime: 'application/pdf',
             to_mime: 'application/pdf',
@@ -1034,7 +1039,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             executed_at: new Date().toISOString()
           });
 
-          await ensureSigned(canonicalDocumentId, signedHash);
+          await ensureSigned(canonicalDocumentId, signedHash, signedAuthority, signedAuthorityRef);
         } catch (err) {
           console.warn('Canonical signed update skipped:', err);
         }

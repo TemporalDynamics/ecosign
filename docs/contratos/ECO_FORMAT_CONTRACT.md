@@ -103,3 +103,13 @@ pero MUST existir una referencia verificable.
 * No puede haber `witness.hash` sin `source.hash`.
 * No puede haber `signed.hash` sin `witness.hash`.
 * No puede haber transformaciones sin `from_hash` y `to_hash`.
+
+---
+
+## Referencias cruzadas
+
+* [VERDAD_CANONICA](verdad-canonica.md)
+* [DOCUMENT_ENTITY_CONTRACT](DOCUMENT_ENTITY_CONTRACT.md)
+* [WITNESS_PDF_CONTRACT](WITNESS_PDF_CONTRACT.md)
+* [HASH_CHAIN_RULES](HASH_CHAIN_RULES.md)
+* [FLOW_MODES_CONTRACT](FLOW_MODES_CONTRACT.md)

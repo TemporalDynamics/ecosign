@@ -64,3 +64,13 @@ HashChain {
 
 * No puede haber saltos en la cadena.
 * No puede haber reescritura de un hash existente.
+
+---
+
+## Referencias cruzadas
+
+* [VERDAD_CANONICA](verdad-canonica.md)
+* [DOCUMENT_ENTITY_CONTRACT](DOCUMENT_ENTITY_CONTRACT.md)
+* [WITNESS_PDF_CONTRACT](WITNESS_PDF_CONTRACT.md)
+* [ECO_FORMAT_CONTRACT](ECO_FORMAT_CONTRACT.md)
+* [FLOW_MODES_CONTRACT](FLOW_MODES_CONTRACT.md)

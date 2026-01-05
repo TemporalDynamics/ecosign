@@ -232,3 +232,13 @@ El verificador debe responder:
 ---
 
 **Este documento es la fuente de verdad maxima del sistema.**
+
+---
+
+## Referencias cruzadas
+
+* [DOCUMENT_ENTITY_CONTRACT](DOCUMENT_ENTITY_CONTRACT.md)
+* [WITNESS_PDF_CONTRACT](WITNESS_PDF_CONTRACT.md)
+* [HASH_CHAIN_RULES](HASH_CHAIN_RULES.md)
+* [ECO_FORMAT_CONTRACT](ECO_FORMAT_CONTRACT.md)
+* [FLOW_MODES_CONTRACT](FLOW_MODES_CONTRACT.md)

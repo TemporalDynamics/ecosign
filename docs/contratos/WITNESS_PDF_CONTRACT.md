@@ -63,3 +63,30 @@ VisualWitness {
 * MUST: el perfil usado debe registrarse en `transform_log`.
 * SHOULD: advertir que la apariencia puede variar levemente segun viewer, sin afectar hashes.
 * MUST: el hash del PDF se calcula sobre el archivo final serializado, no sobre representaciones intermedias.
+
+---
+
+## Referencias cruzadas
+
+* [VERDAD_CANONICA](verdad-canonica.md)
+* [DOCUMENT_ENTITY_CONTRACT](DOCUMENT_ENTITY_CONTRACT.md)
+* [HASH_CHAIN_RULES](HASH_CHAIN_RULES.md)
+* [ECO_FORMAT_CONTRACT](ECO_FORMAT_CONTRACT.md)
+* [FLOW_MODES_CONTRACT](FLOW_MODES_CONTRACT.md)
+
+---
+
+## 7. Metadatos incrustados (vinculo de sangre)
+
+* MUST: el PDF contiene metadatos XMP con `source_hash` y `eco_id`.
+* MUST: `source_hash` en XMP coincide con `SourceTruth.hash`.
+* MUST: `eco_id` en XMP refiere al identificador del archivo `.ECO`.
+* SHOULD: estos metadatos no son opcionales en ningun flujo que genere testigo.
+
+---
+
+## 8. Estampa de veracidad (sello visual)
+
+* SHOULD: el sello visual indica que el PDF es un testigo de la Verdad Canonica.
+* SHOULD: el sello incluye el identificador verificable (hash o eco_id) y un texto de verificacion.
+* MUST: el texto no contradice el rol del PDF (testigo, no verdad).

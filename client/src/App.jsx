@@ -14,6 +14,8 @@ import { trackPageView } from './lib/analytics';
 // Lazy load all page components for code-splitting
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RecuperarContrasenaPage = lazy(() => import('./pages/RecuperarContrasenaPage'));
+const RestablecerContrasenaPage = lazy(() => import('./pages/RestablecerContrasenaPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const DashboardStartPage = lazy(() => import('./pages/DashboardStartPage'));
 const DashboardVerifyPage = lazy(() => import('./pages/DashboardVerifyPage'));
@@ -91,6 +93,8 @@ function AppRoutes() {
             {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/recuperar-contrasena" element={<RecuperarContrasenaPage />} />
+            <Route path="/restablecer-contrasena" element={<RestablecerContrasenaPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/verify" element={<VerifyPage />} />
             <Route path="/nda" element={<NdaPage />} />

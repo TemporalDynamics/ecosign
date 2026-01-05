@@ -1382,6 +1382,39 @@ Usuario investiga → dale material real, no teatro.
 
 ---
 
+## Iteración 2026-01-06 — Cleanup UI prop-driven (document_entities first)
+
+### 🎯 Objetivo
+Migrar la UI a un modelo canonico sin romper UX: los componentes dejan de consultar DB y reciben datos decididos desde arriba.
+
+### 🧠 Decisiones tomadas
+- DocumentsPage lee primero de `document_entities` y cae a `user_documents` como fallback temporal.
+- DocumentList y ShareDocumentModal pasan a ser 100% prop-driven (sin DB/auth).
+- CompletionScreen deja de hacer polling a `user_documents`; acepta fase opcional por props y usa timeout neutral.
+
+### 🛠️ Cambios realizados
+- Adapter `mapDocumentEntityToRecord` en DocumentsPage para mantener el JSX intacto.
+- DocumentList removio efectos/queries y recibe `documents`, `loading`, `error`.
+- ShareDocumentModal recibe `userId` por props y elimina auth lookup.
+- CompletionScreen elimina Supabase, mantiene UX con fase controlada y timeout.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se tocaron anchors ni edge functions.
+- No se elimino `user_documents` ni `documents` legacy.
+- No se cambio ningun texto UX ni flujo de firma.
+
+### ⚠️ Consideraciones / deuda futura
+- Remover fallback legacy en DocumentsPage cuando `document_entities` este completo.
+- Migrar DashboardPage y helpers a `document_entities` con adapter canonico.
+- Ajustar paths de descarga (signed vs witness) cuando el schema lo soporte.
+
+### 📍 Estado final
+- UI principal consume canon primero y los componentes ya no consultan DB.
+- El cleanup reduce rutas de verdad sin friccion para el usuario.
+
+### 💬 Nota del dev
+"La UI ya no descubre datos: los recibe decididos. Esto habilita ECO v2 y Verifier v2 sin reescribir componentes."
+
 ## Iteración 2026-01-06 — Contratos Canónicos + Mapa de Impacto Tecnico
 
 ### 🎯 Objetivo

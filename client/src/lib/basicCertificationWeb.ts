@@ -8,9 +8,9 @@
  */
 
 import * as ed from '@noble/ed25519';
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
+import { hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { requestLegalTimestamp } from './tsaService.js';
+import { hashSource } from './canonicalHashing';
 
 const CERTIFICATE_SCHEMA_VERSION = '1.0';
 const POLICY_SNAPSHOT_ID = 'policy_2025_11';
@@ -96,11 +96,10 @@ export async function generateKeys() {
 /**
  * Calculates digital fingerprint (browser-compatible)
  * @param {Uint8Array} data - Data to fingerprint
- * @returns {string} Hex string
+ * @returns {Promise<string>} Hex string
  */
-function calculateSHA256(data: Uint8Array): string {
-  const hash = sha256(data);
-  return bytesToHex(hash);
+async function calculateSHA256(data: Uint8Array): Promise<string> {
+  return await hashSource(data);
 }
 
 /**
@@ -297,7 +296,7 @@ export async function certifyFile(file: File, options: CertificationOptions = {}
     console.log('✅ File read successfully');
 
     // Step 2: Calculate digital fingerprint
-    const hash = calculateSHA256(fileArray); // "hash" is kept as variable name for code compatibility
+    const hash = await calculateSHA256(fileArray); // "hash" is kept as variable name for code compatibility
     console.log('✅ Fingerprint calculated:', hash);
 
     // Step 3: Generate or use provided keys

@@ -7,7 +7,6 @@
 
 import { getSupabase } from '../supabaseClient';
 import {
-  sha256File,
   generateDocumentKey,
   encryptFile,
   decryptFile,
@@ -16,6 +15,7 @@ import {
   getSessionUnwrapKey,
   isSessionInitialized,
 } from '../e2e';
+import { hashSource } from '../canonicalHashing';
 
 export interface UploadEncryptedDocumentOptions {
   file: File;
@@ -51,7 +51,7 @@ export async function uploadEncryptedDocument(
   try {
     // 1. Calculate hash of original file (before encryption)
     console.log('📊 Calculating document hash...');
-    const originalHash = await sha256File(file);
+    const originalHash = await hashSource(file);
     console.log('✅ Hash calculated:', originalHash.substring(0, 16) + '...');
 
     let storagePath: string;

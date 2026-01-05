@@ -13,6 +13,7 @@ import type { ForensicData } from '../utils/pdfSignature';
 import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
 import { getSupabase } from '../lib/supabaseClient';
+import { hashWitness } from '../lib/canonicalHashing';
 import { isGuestMode } from '../utils/guestMode';
 import InhackeableTooltip from './InhackeableTooltip';
 import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
@@ -667,8 +668,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         // Subir el PDF a Storage y obtener URL firmable
         const arrayBuffer = await file.arrayBuffer();
-        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-        const documentHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        const documentHash = await hashWitness(arrayBuffer);
 
         const storagePath = `${user.id}/${Date.now()}-${file.name}`;
         const { error: uploadError } = await supabase.storage

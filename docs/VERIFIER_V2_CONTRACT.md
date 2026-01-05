@@ -44,6 +44,7 @@ VerificationStatus =
 * El verificador es lectura pura: no muta estado.
 * El verificador compara hashes y cadenas, no interpreta legalidad.
 * El verificador no decide identidad ni autorias fuera del .ECO.
+* El verificador no infiere validez legal de firmas; solo refleja autoridad declarada.
 
 ---
 

@@ -41,6 +41,12 @@ ECOv2 {
   signed?: {
     hash: SHA256
     signed_at: Timestamp
+    authority?: 'internal' | 'external'
+    authority_ref?: {
+      id?: string
+      type?: string
+      jurisdiction?: string
+    }
   }
 
   hash_chain: {

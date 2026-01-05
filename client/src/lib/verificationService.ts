@@ -65,6 +65,7 @@ const mapEcoV2Result = (result: VerificationResult, fileName: string): Verificat
     signatureValid: !!result.signed_hash,
     timestampValid: true,
     legalTimestamp: { enabled: false },
+    anchors: result.anchors,
     errors,
     warnings
   };

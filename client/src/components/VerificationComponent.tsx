@@ -6,10 +6,7 @@ import {
   AlertCircle,
   Clock,
   ShieldCheck,
-  FileCheck,
-  Loader2,
-  Anchor,
-  Shield
+  FileCheck
 } from 'lucide-react';
 import { verifyEcoWithOriginal } from '../lib/verificationService';
 
@@ -26,94 +23,47 @@ interface VerificationServiceResult {
     bitcoinConfirmed: boolean,
     fetchError: boolean,
   }
+  anchors?: {
+    polygon?: { status?: string } | null;
+    bitcoin?: { status?: string } | null;
+  } | null;
   errors?: string[];
   warnings?: string[];
   error?: string;
   [key: string]: any; // Permite otros campos
 }
 
-interface ProbativeStatus {
-  level: 'base' | 'pending' | 'medium' | 'strong' | 'error';
-  label: string;
-  description: string;
-  Icon: React.ElementType;
-}
+const buildEvidenceItems = (result: VerificationServiceResult): string[] => {
+  const items: string[] = [];
 
-// NUEVA FUNCIÓN RESOLVER (LÓGICA EN UI)
-function resolveProbativeStatus(signals: VerificationServiceResult['probativeSignals']): ProbativeStatus {
-  if (!signals || signals.fetchError) {
-    return {
-      level: 'error',
-      label: 'Anclaje No Consultado',
-      description: 'No se pudo obtener el estado del refuerzo externo. La integridad del .ECO sigue siendo válida.',
-      Icon: AlertCircle
-    }
+  if (result.valid) {
+    items.push('Integridad criptográfica verificada.');
   }
 
-  if (signals.bitcoinConfirmed) {
-    return {
-      level: 'strong',
-      label: 'Protección Reforzada',
-      description: 'Registro adicional confirmado en la blockchain de Bitcoin.',
-      Icon: Anchor
-    }
+  if (result.signatureValid) {
+    items.push('Existe una firma registrada en el certificado.');
   }
 
-  if (signals.polygonConfirmed) {
-    return {
-      level: 'medium',
-      label: 'Protección Activa',
-      description: 'Registro confirmado en la red pública de Polygon.',
-      Icon: CheckCircle
-    }
+  if (result.timestamp) {
+    items.push('Existe un sello de tiempo en el certificado.');
   }
 
-  if (signals.anchorRequested) {
-    return {
-      level: 'pending',
-      label: 'Protección en Proceso',
-      description: 'El registro en blockchain fue solicitado y está pendiente de confirmación.',
-      Icon: Loader2
-    }
+  const polygonConfirmed =
+    result.anchors?.polygon?.status === 'confirmed' ||
+    result.probativeSignals?.polygonConfirmed;
+  const bitcoinConfirmed =
+    result.anchors?.bitcoin?.status === 'confirmed' ||
+    result.probativeSignals?.bitcoinConfirmed;
+
+  if (polygonConfirmed) {
+    items.push('Existe un anclaje público confirmado (Polygon).');
   }
 
-  return {
-    level: 'base',
-    label: 'Documento Íntegro',
-    description: 'La integridad del certificado y su firma son válidas. No se solicitó refuerzo externo.',
-    Icon: Shield
-  }
-}
-
-// NUEVO COMPONENTE DE UI
-const ProbativeStatusDisplay = ({ status }: { status: ProbativeStatus }) => {
-  const colorClasses = {
-    base: 'bg-gray-100 text-gray-800 border-gray-200',
-    pending: 'bg-yellow-50 text-yellow-800 border-yellow-200',
-    medium: 'bg-blue-50 text-blue-800 border-blue-200',
-    strong: 'bg-green-50 text-green-800 border-green-200',
-    error: 'bg-red-50 text-red-800 border-red-200',
+  if (bitcoinConfirmed) {
+    items.push('Existe un anclaje público confirmado (Bitcoin).');
   }
 
-  const iconColorClasses = {
-    base: 'text-gray-600',
-    pending: 'text-yellow-600',
-    medium: 'text-blue-600',
-    strong: 'text-green-600',
-    error: 'text-red-600',
-  }
-
-  return (
-    <div className={`p-4 rounded-xl border ${colorClasses[status.level]}`}>
-      <div className="flex items-start gap-3">
-        <status.Icon className={`w-6 h-6 flex-shrink-0 mt-0.5 ${iconColorClasses[status.level]} ${status.level === 'pending' ? 'animate-spin' : ''}`} />
-        <div>
-          <p className="font-semibold">{status.label}</p>
-          <p className="text-sm">{status.description}</p>
-        </div>
-      </div>
-    </div>
-  );
+  return items;
 };
 
 
@@ -187,6 +137,8 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   }, []);
+
+  const evidenceItems = verificationResult ? buildEvidenceItems(verificationResult) : [];
 
   return (
     <div className="space-y-6">
@@ -337,7 +289,16 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
               <ShieldCheck className="w-5 h-5 text-[#0A66C2]" />
               Resumen Probatorio
             </h4>
-            <ProbativeStatusDisplay status={resolveProbativeStatus(verificationResult.probativeSignals)} />
+            <div className="space-y-2">
+              {(evidenceItems.length > 0
+                ? evidenceItems
+                : ['No hay evidencia verificable en este certificado.']
+              ).map((item) => (
+                <p key={item} className="text-sm text-gray-700">
+                  • {item}
+                </p>
+              ))}
+            </div>
 
             {/* Document Info */}
             <div>

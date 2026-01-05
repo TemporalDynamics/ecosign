@@ -19,7 +19,8 @@ import {
   ensureWitnessCurrent,
   appendTransform,
   advanceLifecycle,
-  ensureSigned
+  ensureSigned,
+  emitEcoVNext
 } from '../lib/documentEntityService';
 import { isGuestMode } from '../utils/guestMode';
 import InhackeableTooltip from './InhackeableTooltip';
@@ -973,24 +974,47 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         const signedFileForCanon = signedPdfFromSignNow || fileToProcess;
         const signedBytes = await signedFileForCanon.arrayBuffer();
         signedHash = await hashSigned(signedBytes);
-        const { storagePath } = await persistSignedPdfToStorage(signedBytes, user.id);
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        if (authError || !authUser) {
+          throw new Error(authError?.message || 'Usuario no autenticado');
+        }
+        const { storagePath } = await persistSignedPdfToStorage(signedBytes, authUser.id);
         signedStoragePath = storagePath;
       } catch (err) {
         console.warn('Canonical signed persistence skipped:', err);
       }
 
+      let ecoData = certResult.ecoData;
+      let ecoPayloadBuffer = certResult?.ecoxBuffer ?? null;
+      let ecoPayloadFileData = certResult?.ecoxBuffer ?? null;
+      let ecoPayloadFileName = certResult?.fileName
+        ? certResult.fileName.replace(/\.[^/.]+$/, '.eco')
+        : file.name.replace(/\.[^/.]+$/, '.eco');
+
+      if (canonicalDocumentId) {
+        try {
+          const { eco, json } = await emitEcoVNext(canonicalDocumentId);
+          const encoded = new TextEncoder().encode(json);
+          ecoData = eco;
+          ecoPayloadBuffer = encoded;
+          ecoPayloadFileData = encoded;
+        } catch (err) {
+          console.warn('Canonical ECO v2 generation skipped:', err);
+        }
+      }
+
       // ✅ REFACTOR: Blockchain anchors no bloquean certificación
       // Los anchors se marcan como 'pending' y se resuelven async
-      const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
+      const savedDoc = await saveUserDocument(fileToProcess, ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
         hasPolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
         hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
         initialStatus: initialStatus,
         overallStatus,
         downloadEnabled: true, // ✅ Siempre true - .eco disponible inmediatamente
-        ecoBuffer: certResult?.ecoxBuffer,
-        ecoFileData: certResult?.ecoxBuffer, // ✅ Guardar buffer ECO para deferred download
-        ecoFileName: certResult?.fileName ? certResult.fileName.replace(/\.[^/.]+$/, '.eco') : file.name.replace(/\.[^/.]+$/, '.eco'),
+        ecoBuffer: ecoPayloadBuffer,
+        ecoFileData: ecoPayloadFileData, // ✅ Guardar buffer ECO para deferred download
+        ecoFileName: ecoPayloadFileName,
         signNowDocumentId: signNowResult?.signnow_document_id || null,
         signNowStatus: signNowResult?.status || null,
         signedAt: signNowResult ? new Date().toISOString() : null,

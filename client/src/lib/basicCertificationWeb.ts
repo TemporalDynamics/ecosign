@@ -11,6 +11,7 @@ import * as ed from '@noble/ed25519';
 import { hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
 import { requestLegalTimestamp } from './tsaService.js';
 import { hashSource } from './canonicalHashing';
+import { bytesToHex } from './e2e';
 
 const CERTIFICATE_SCHEMA_VERSION = '1.0';
 const POLICY_SNAPSHOT_ID = 'policy_2025_11';

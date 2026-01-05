@@ -9,6 +9,42 @@ import { CRYPTO_CONFIG, CRYPTO_ERRORS } from './constants';
 import { randomBytes, bytesToBase64, base64ToBytes } from './cryptoUtils';
 
 /**
+ * Check if a PDF is password-protected/encrypted
+ * 
+ * @param file - PDF file to check
+ * @returns true if encrypted, false otherwise
+ */
+export async function isPDFEncrypted(file: File): Promise<boolean> {
+  try {
+    // Read first 10KB of the PDF (metadata is at the beginning)
+    const slice = file.slice(0, 10000);
+    const arrayBuffer = await slice.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    
+    // Convert to text for pattern matching
+    const text = new TextDecoder('latin1').decode(bytes);
+    
+    // PDFs with encryption contain "/Encrypt" in their dictionary
+    // This is a standard PDF structure element
+    if (text.includes('/Encrypt')) {
+      return true;
+    }
+    
+    // Additional check: look for encryption-related markers
+    if (text.includes('/O') && text.includes('/U') && text.includes('/P')) {
+      // /O = Owner password, /U = User password, /P = Permissions
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.warn('Error checking PDF encryption:', error);
+    // If we can't check, assume it's not encrypted (fail open)
+    return false;
+  }
+}
+
+/**
  * Generate a new document encryption key
  */
 export async function generateDocumentKey(): Promise<CryptoKey> {

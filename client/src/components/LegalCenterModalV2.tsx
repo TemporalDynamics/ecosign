@@ -18,6 +18,7 @@ import InhackeableTooltip from './InhackeableTooltip';
 import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
 import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 import { trackEvent } from '../lib/analytics';
+import { isPDFEncrypted } from '../lib/e2e/documentEncryption';
 
 type InitialAction = 'sign' | 'workflow' | 'nda' | 'certify';
 type SignatureType = 'legal' | 'certified' | null;
@@ -356,9 +357,31 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   if (!isOpen) return null;
 
-  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
+      // Detectar si es un PDF encriptado
+      if (selectedFile.type === 'application/pdf') {
+        const isEncrypted = await isPDFEncrypted(selectedFile);
+        if (isEncrypted) {
+          // Mostrar toast con el mensaje
+          toast.error(
+            'Documento bloqueado\n\nEste archivo tiene una contraseña.\n\nLos documentos protegidos no pueden usarse para generar evidencia digital verificable.\n\nSubí una versión sin contraseña para continuar.',
+            {
+              duration: 8000,
+              position: 'bottom-right',
+              style: {
+                whiteSpace: 'pre-line',
+                maxWidth: '500px'
+              }
+            }
+          );
+          // Reset file input
+          e.target.value = '';
+          return;
+        }
+      }
+      
       setFile(selectedFile);
       setDocumentLoaded(true); // CONSTITUCIÓN: Controlar visibilidad de acciones
       setPreviewError(false);

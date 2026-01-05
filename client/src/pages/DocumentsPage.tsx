@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
+import { emitEcoVNext } from "../lib/documentEntityService";
 import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
@@ -517,7 +518,7 @@ function DocumentsPage() {
     }
   };
 
-  const performEcoDownload = (doc: DocumentRecord | null) => {
+  const performEcoDownload = async (doc: DocumentRecord | null) => {
     if (!doc) return;
 
     if (doc.eco_storage_path) {
@@ -528,6 +529,20 @@ function DocumentsPage() {
     if (doc.eco_hash) {
       requestRegeneration(doc.id, "eco");
       return;
+    }
+    try {
+      const { json } = await emitEcoVNext(doc.id);
+      const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
+      const bytes = new TextEncoder().encode(json);
+      const blob = new Blob([bytes], { type: "application/octet-stream" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = ecoName;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      return;
+    } catch (err) {
+      console.warn("Canonical ECO v2 download skipped:", err);
     }
     window.alert("Todavía no hay certificado .ECO para este documento. Puede estar generándose; reintentá en unos minutos.");
   };

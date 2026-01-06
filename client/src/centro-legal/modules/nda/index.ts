@@ -2,12 +2,10 @@
  * MÓDULO NDA
  * 
  * Exports públicos del módulo
- * 
- * NOTA: Este módulo está en fase de placeholder.
- * Panel y Viewer serán implementados en FASE 3.
  */
 
 export { NdaToggle } from './NdaToggle';
+export { NdaPanel } from './NdaPanel';
 export { NDA_COPY } from './nda.copy';
 export {
   NDA_RULES,

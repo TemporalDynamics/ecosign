@@ -29,6 +29,7 @@ import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 import { trackEvent } from '../lib/analytics';
 import { isPDFEncrypted } from '../lib/e2e/documentEncryption';
 import { validatePDFStructure, checkPDFPermissions } from '../lib/pdfValidation';
+import { validateTSAConnectivity } from '../lib/tsaValidation';
 
 // PASO 3: Módulos refactorizados
 import { 
@@ -191,6 +192,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
   // Configuración de protección legal (activo por defecto con TSA + Polygon + Bitcoin)
   const [forensicEnabled, setForensicEnabled] = useState(true);
+  const [isValidatingTSA, setIsValidatingTSA] = useState(false); // P0.3: TSA connectivity check
   const [forensicConfig, setForensicConfig] = useState<ForensicConfig>({
     useLegalTimestamp: true,    // RFC 3161 TSA
     usePolygonAnchor: true,      // Polygon
@@ -2131,8 +2133,45 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   {/* BLOQUE 1: Toggle de Protección - Módulo refactorizado */}
                   <ProtectionToggle
                     enabled={forensicEnabled}
-                    onToggle={setForensicEnabled}
+                    onToggle={async (newState) => {
+                      // P0.3: If enabling, validate TSA connectivity first
+                      if (newState) {
+                        setIsValidatingTSA(true);
+                        const tsaAvailable = await validateTSAConnectivity();
+                        setIsValidatingTSA(false);
+
+                        if (!tsaAvailable) {
+                          toast.error(
+                            'El servicio de timestamping no está disponible en este momento.\n\nReintentá en unos minutos o contactá soporte.',
+                            {
+                              duration: 6000,
+                              position: 'bottom-right',
+                              style: {
+                                whiteSpace: 'pre-line',
+                                maxWidth: '500px'
+                              }
+                            }
+                          );
+                          return; // Don't enable
+                        }
+
+                        // TSA is available, enable protection
+                        setForensicEnabled(true);
+                        toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
+                          duration: 3000,
+                          position: 'top-right'
+                        });
+                      } else {
+                        // Disabling protection (no validation needed)
+                        setForensicEnabled(false);
+                        toast('Protección desactivada', {
+                          duration: 2000,
+                          position: 'top-right'
+                        });
+                      }
+                    }}
                     disabled={!file}
+                    isValidating={isValidatingTSA}
                   />
                   {/* PASO 3.2.1: Toggle Mi Firma - Módulo refactorizado */}
                   <MySignatureToggle

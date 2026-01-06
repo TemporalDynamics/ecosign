@@ -14,10 +14,10 @@ import { getLatestTsaEvent, formatTsaTimestamp } from '../lib/events/tsa';
 // INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
 interface VerificationServiceResult {
   valid: boolean
-  fileName: string
-  hash: string
-  timestamp: string
-  timestampType: string
+  fileName?: string
+  hash?: string
+  timestamp?: string
+  timestampType?: string
   probativeSignals?: {
     anchorRequested: boolean,
     polygonConfirmed: boolean,
@@ -27,8 +27,13 @@ interface VerificationServiceResult {
   anchors?: {
     polygon?: { status?: string } | null;
     bitcoin?: { status?: string } | null;
-  } | null;
+  } | unknown;
   signedAuthority?: 'internal' | 'external';
+  signedAuthorityRef?: Record<string, unknown> | null;
+  documentIntegrity?: boolean;
+  signatureValid?: boolean;
+  timestampValid?: boolean;
+  legalTimestamp?: Record<string, unknown> | { enabled?: boolean };
   errors?: string[];
   warnings?: string[];
   error?: string;
@@ -64,11 +69,13 @@ const buildEvidenceItems = (result: VerificationServiceResult): string[] => {
     }
   }
 
+  const anchors = result.anchors as { polygon?: { status?: string } | null; bitcoin?: { status?: string } | null } | undefined;
+  
   const polygonConfirmed =
-    result.anchors?.polygon?.status === 'confirmed' ||
+    anchors?.polygon?.status === 'confirmed' ||
     result.probativeSignals?.polygonConfirmed;
   const bitcoinConfirmed =
-    result.anchors?.bitcoin?.status === 'confirmed' ||
+    anchors?.bitcoin?.status === 'confirmed' ||
     result.probativeSignals?.bitcoinConfirmed;
 
   if (polygonConfirmed) {

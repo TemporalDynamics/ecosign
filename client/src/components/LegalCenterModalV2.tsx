@@ -36,6 +36,7 @@ import {
   ProtectionWarningModal
 } from '../centro-legal/modules/protection';
 import { MySignatureToggle, SignatureModal } from '../centro-legal/modules/signature';
+import { SignatureFlowToggle } from '../centro-legal/modules/flow';
 
 /**
  * Helper to persist TSA event to document_entities.events[] via Edge Function
@@ -2127,28 +2128,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     disabled={!file}
                     hasFile={!!file}
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newState = !workflowEnabled;
-                      setWorkflowEnabled(newState);
-                      
-                      // CONSTITUCIÓN: Toast al activar flujo
-                      if (newState) {
-                        toast('Agregá los correos de las personas que deben firmar o recibir el documento.', {
-                          position: 'top-right',
-                          duration: 3000
-                        });
-                      }
-                    }}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      workflowEnabled
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Flujo de Firmas
-                  </button>
+                  {/* PASO 3.2.2: Toggle Flujo - Módulo refactorizado */}
+                  <SignatureFlowToggle
+                    enabled={workflowEnabled}
+                    onToggle={setWorkflowEnabled}
+                    disabled={!file}
+                  />
                 </div>
               </div>
               )}

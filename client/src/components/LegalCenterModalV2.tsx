@@ -1280,6 +1280,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       showToast(`Error de certificación: ${errorMessage}`, { type: 'error' });
     } finally {
       setLoading(false);
+      // FASE 3.A: Reset progress modal
+      setCertifyProgress({ stage: null, message: '' });
     }
   };
 

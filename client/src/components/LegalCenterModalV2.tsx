@@ -35,6 +35,7 @@ import {
   ProtectionInfoModal,
   ProtectionWarningModal
 } from '../centro-legal/modules/protection';
+import { MySignatureToggle, SignatureModal } from '../centro-legal/modules/signature';
 
 /**
  * Helper to persist TSA event to document_entities.events[] via Edge Function
@@ -2114,30 +2115,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     onToggle={setForensicEnabled}
                     disabled={!file}
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newState = !mySignature;
+                  {/* PASO 3.2.1: Toggle Mi Firma - Módulo refactorizado */}
+                  <MySignatureToggle
+                    enabled={mySignature}
+                    onToggle={(newState) => {
                       setMySignature(newState);
-                      // CONSTITUCIÓN: Si se activa "Mi Firma", abrir modal + toast
                       if (newState && file) {
                         setShowSignatureOnPreview(true);
-                        
-                        toast('Vas a poder firmar directamente sobre el documento.', {
-                          icon: '✍️',
-                          position: 'top-right',
-                          duration: 3000
-                        });
                       }
                     }}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      mySignature
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Mi Firma
-                  </button>
+                    disabled={!file}
+                    hasFile={!!file}
+                  />
                   <button
                     type="button"
                     onClick={() => {

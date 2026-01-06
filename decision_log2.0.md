@@ -2123,3 +2123,248 @@ El patrón TSA sirve como template para Anchors:
 
 **Checkpoint crítico:** Este commit cierra la brecha "TSA existe pero no se ve". A partir de acá, toda evidencia temporal es auditable vía DB y verificable vía UI.
 
+---
+
+## 2026-01-06 | Anchors (Polygon + Bitcoin) → Canonical Events Integration
+
+**Contexto:** Sistema de anchoring existente (Polygon/Bitcoin) funcionaba pero usaba arquitectura legacy bifurcada:
+- Tablas separadas (`anchors`, `anchor_states`)
+- No usaba `document_entities.events[]`
+- Protection levels inferidos desde múltiples fuentes
+- No había single source of truth
+
+**Decisión:** Integración canónica (dual-write) NO rewrite completo
+
+### ✅ Lo que se hizo
+
+#### 1. Contratos Canónicos Definidos
+
+**`docs/contratos/ANCHOR_EVENT_RULES.md`**
+- Schema cerrado para eventos anchor
+- Network enum: `'polygon' | 'bitcoin'` (closed set)
+- Anchor sobre `witness_hash` (NOT source_hash)
+- Max 1 anchor por network (unicidad)
+- Idempotencia: same network + txid = silent success
+- Append-only: nunca edit/delete
+
+**Estructura de evento anchor:**
+```json
+{
+  "kind": "anchor",
+  "at": "2026-01-06T03:15:23.456Z",
+  "anchor": {
+    "network": "polygon" | "bitcoin",
+    "witness_hash": "hex-string",
+    "txid": "string",
+    "block_height": 123456,
+    "confirmed_at": "2026-01-06T03:14:58.000Z"
+  }
+}
+```
+
+**`docs/contratos/PROTECTION_LEVEL_RULES.md`**
+- Pure function derivation (NOT stored state)
+- Enum: `'NONE' | 'ACTIVE' | 'REINFORCED' | 'TOTAL'`
+- Monotonic: level can only increase, never decrease
+- Algoritmo canónico:
+  ```typescript
+  if (hasBitcoin && hasPolygon && hasTsa) return 'TOTAL';
+  if (hasPolygon && hasTsa) return 'REINFORCED';
+  if (hasTsa) return 'ACTIVE';
+  return 'NONE';
+  ```
+
+#### 2. Server-Side Helper (`anchorHelper.ts`)
+
+**`supabase/functions/_shared/anchorHelper.ts`**
+- `appendAnchorEventFromEdge()`: Append anchor events con validación
+- Validaciones críticas:
+  - Network enum (`'polygon' | 'bitcoin'`)
+  - `witness_hash` consistency (must match DB)
+  - Uniqueness: max 1 anchor per network
+  - Idempotence: same txid = no duplicate
+- `deriveProtectionLevel()`: Reference implementation
+- `hasAnchorEvent()`, `getAnchorEvent()`: Utility functions
+
+#### 3. Integración en Workers Legacy
+
+**Polygon Worker (`process-polygon-anchors/index.ts`)** (commit 90bb0c4)
+- ✅ Agregado `resolveDocumentEntity()` helper
+- ✅ Dual-write después de atomic transaction:
+  1. Legacy: `anchor_polygon_atomic_tx` (updates `anchors`, `user_documents`, `anchor_states`)
+  2. Canonical: `appendAnchorEventFromEdge()` (appends to `events[]`)
+- ✅ Non-blocking error handling (legacy ya actualizado)
+- ✅ Logging completo para monitoring
+
+**Bitcoin Worker (`process-bitcoin-anchors/index.ts`)** (commit 6e096da)
+- ✅ Agregado `resolveDocumentEntity()` helper
+- ✅ Dual-write en **AMBOS** puntos de atomic transaction:
+  1. Con `blockData.confirmedAt` desde mempool (línea ~658)
+  2. Sin blockData (línea ~853)
+- ✅ Mismo patrón que Polygon: legacy + canonical
+- ✅ Network: `'bitcoin'`, validation completa
+
+#### 4. Documentación y Contratos
+
+**`docs/ANCHORING_SYSTEM_AUDIT.md`**
+- Audit completo del sistema existente
+- Triggers, workers, migrations, RLS policies
+- Recomendación: Integration (5-7 días) vs Rewrite (2-3 semanas)
+- Decision validated by user
+
+**`supabase/functions/_shared/anchorHelper.example.ts`**
+- Ejemplos de integración para ambos networks
+- Casos edge documentados
+- Migration strategy (Phase 1: Dual-write, Phase 2: Canonical-only)
+
+### 🎯 Arquitectura Resultante
+
+#### Dual-Write Pattern (Phase 1)
+
+```
+Anchor Confirmation
+       ↓
+   Atomic TX (legacy)
+   ├─ anchors table
+   ├─ user_documents
+   └─ anchor_states
+       ↓
+   appendAnchorEventFromEdge()
+   └─ document_entities.events[]
+       ↓
+   Trigger (future)
+   └─ derive protection_level
+```
+
+#### Validaciones en Capas
+
+1. **Worker level**: Verifica tx confirmado en blockchain
+2. **Helper level**: Valida schema, witness_hash, uniqueness
+3. **Contract level**: Garantiza monotonía, append-only, idempotencia
+
+### 🔒 Garantías del Sistema
+
+#### Integridad
+- ✅ `witness_hash` consistency: anchor hash DEBE coincidir con DB
+- ✅ Unicidad: max 1 anchor per network per document
+- ✅ Idempotencia: retries seguros (same txid = no duplicate)
+- ✅ Monotonía: protection level solo sube, nunca baja
+
+#### Auditabilidad
+- ✅ Todos los anchors en `events[]` (append-only ledger)
+- ✅ Timestamp en cada evento (`at` field)
+- ✅ Full metadata: txid, block_height, confirmed_at
+- ✅ Logs estructurados en workers
+
+#### Backward Compatibility
+- ✅ Legacy tables siguen funcionando (dual-write)
+- ✅ UI puede leer de ambas fuentes durante migración
+- ✅ Rollback seguro (solo dejar de escribir canonical)
+
+### 🚫 Qué NO se hizo (a propósito)
+
+#### 1. NO se eliminaron tablas legacy
+**Por qué:** Estrategia de migración gradual (Phase 1). Legacy tables siguen siendo source of truth para UI mientras no se actualice.
+
+#### 2. NO se crearon nuevas Edge Functions para anchors
+**Por qué:** Workers existentes (`process-polygon-anchors`, `process-bitcoin-anchors`) ya manejan confirmación. Solo se agregó dual-write.
+
+#### 3. NO se actualizó UI todavía
+**Por qué:** Orden deliberado: Backend primero, UI después. Garantiza que `events[]` esté poblado antes de que UI dependa de él.
+
+#### 4. NO se modificaron triggers de anchoring
+**Por qué:** Eso es el siguiente paso. Primero dual-write, luego trigger updates, luego UI.
+
+### ✅ Validación
+
+#### Integración Points Confirmed
+- ✅ Polygon worker: `appendAnchorEventFromEdge()` after atomic tx
+- ✅ Bitcoin worker: `appendAnchorEventFromEdge()` after atomic tx (x2 points)
+- ✅ Both workers: `resolveDocumentEntity()` helper para obtener `witness_hash`
+- ✅ Non-blocking: si canonical append falla, legacy sigue funcionando
+
+#### Contract Compliance
+- ✅ Solo se ancla sobre `witness_hash` (canonical truth)
+- ✅ Network es enum cerrado (`'polygon' | 'bitcoin'`)
+- ✅ Max 1 anchor per network (validated by helper)
+- ✅ Idempotencia garantizada (same txid check)
+
+#### Error Handling
+- ✅ Si `document_entity_id` no existe → warning logged, continue
+- ✅ Si `witness_hash` no existe → warning logged, continue
+- ✅ Si append falla → warning logged, legacy tables ya updated
+
+### 📊 Estado de Protection Levels
+
+#### Derivación Canónica
+```typescript
+NONE        → No TSA
+ACTIVE      → TSA confirmed
+REINFORCED  → TSA + Polygon confirmed
+TOTAL       → TSA + Polygon + Bitcoin confirmed
+```
+
+#### Monotonía Garantizada
+- Anchors fallidos NO degradan nivel
+- Reintentos NO afectan UI
+- Solo eventos confirmados elevan nivel
+- `events[]` es single source of truth
+
+### ⚠️ Pendiente (Sprint Siguiente)
+
+#### 3. Update Trigger (PRÓXIMO PASO)
+- [ ] Trigger debe leer `document_entities.witness_hash`
+- [ ] Validar consistency antes de anchor
+- [ ] Derivar protection_level desde `events[]` (no legacy)
+
+#### 4. UI Integration
+- [ ] `deriveProtectionLevel()` en cliente
+- [ ] Leer desde `events[]` con fallback a legacy
+- [ ] Badges de protection level en DocumentsPage
+- [ ] Timeline de anchors en VerificationComponent
+
+#### 5. DB Schema Audit
+- [ ] Validar constraints en `events[]` JSONB
+- [ ] Indexes si necesario (performance)
+- [ ] Migration script para backfill legacy anchors → events[]
+
+### 📍 Estado Final
+
+#### Anchors Integrados Formalmente
+- ✅ Polygon: Dual-write a legacy + canonical ✅
+- ✅ Bitcoin: Dual-write a legacy + canonical ✅
+- ✅ Contratos: ANCHOR_EVENT_RULES + PROTECTION_LEVEL_RULES
+- ✅ Server-side validation: anchorHelper.ts
+- ✅ Idempotencia: Retry-safe
+- ✅ Monotonía: Level never decreases
+
+#### Pattern TSA → Anchors Replicado
+Mismo flujo exacto que TSA:
+1. Worker confirma evento externo (blockchain tx)
+2. Atomic update de legacy tables
+3. Append a `events[]` con validación server-side
+4. Trigger (futuro) deriva proyecciones
+5. UI (futuro) lee desde canonical source
+
+#### Arquitectura Decision Validated
+- ✅ Integration NOT rewrite (5-7 días vs 2-3 semanas)
+- ✅ Dual-write durante Phase 1 (backward compatible)
+- ✅ Canonical-first en Phase 2 (UI migration)
+- ✅ Deprecation en Phase 3 (legacy write-only)
+
+### 💬 Nota del dev
+
+"Anchors ahora siguen el mismo patrón fundacional que TSA: eventos append-only, validación server-side, proyecciones derivadas. La diferencia es que Anchors usan workers legacy existentes (no nueva Edge Function) porque ya manejan polling de blockchains. El dual-write es no invasivo: si falla canonical append, legacy sigue funcionando. Esto nos da confianza para deployar sin romper producción.
+
+Protection levels ahora son pure functions (NO stored state). El nivel se deriva desde `events[]` on-the-fly. Esto garantiza reproducibilidad: mismo `events[]` = mismo level, hoy y en 20 años. La monotonía está garantizada por contrato: solo se appendean eventos que elevan nivel, nunca que lo bajen.
+
+El próximo paso crítico es actualizar triggers para que usen `document_entities.witness_hash` en lugar de inferir desde múltiples fuentes. Una vez hecho eso, UI puede migrar a leer desde `events[]` con confianza total."
+
+**Quote canon:**
+> "TSA validó el patrón. Anchors lo replicó.
+> Events[] no es metadata, es el ledger probatorio.
+> Protection level no es estado, es derivación pura.
+> Monotonía no es feature, es garantía matemática."
+
+**Checkpoint crítico:** Commits 90bb0c4 (Polygon) y 6e096da (Bitcoin) cierran la integración backend. Anchors ahora escriben a canonical source. Próximo paso: triggers + UI para completar migración.
+

@@ -1,6 +1,8 @@
 # 🔐 ANÁLISIS: Identity Assurance Levels en EcoSign
 
-**Fecha:** 2026-01-06  
+**⚠️ ESTADO:** DEPRECATED — Análisis cerrado en contrato canónico  
+**Ver:** `docs/contratos/IDENTITY_ASSURANCE_RULES.md` (v2.0)  
+**Fecha análisis:** 2026-01-06  
 **Sistema:** EcoSign v1.0  
 **Alcance:** Certificación de identidad en firmas digitales
 

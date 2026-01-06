@@ -28,6 +28,7 @@ import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
 import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 import { trackEvent } from '../lib/analytics';
 import { isPDFEncrypted } from '../lib/e2e/documentEncryption';
+import { validatePDFStructure, checkPDFPermissions } from '../lib/pdfValidation';
 
 // PASO 3: Módulos refactorizados
 import { 
@@ -37,7 +38,7 @@ import {
 } from '../centro-legal/modules/protection';
 import { MySignatureToggle, SignatureModal } from '../centro-legal/modules/signature';
 import { SignatureFlowToggle } from '../centro-legal/modules/flow';
-import { NdaToggle } from '../centro-legal/modules/nda';
+import { NdaToggle, NdaPanel } from '../centro-legal/modules/nda';
 
 /**
  * Helper to persist TSA event to document_entities.events[] via Edge Function
@@ -445,6 +446,44 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           // Reset file input
           e.target.value = '';
           return;
+        }
+
+        // P0.1: Validar estructura PDF (antes de continuar)
+        const isPDFValid = await validatePDFStructure(selectedFile);
+        if (!isPDFValid) {
+          toast.error(
+            'Este PDF está dañado o tiene una estructura inválida.\n\nProbá abrirlo en un lector de PDF (Adobe Reader, Foxit) y volvé a guardarlo.',
+            {
+              duration: 8000,
+              position: 'bottom-right',
+              style: {
+                whiteSpace: 'pre-line',
+                maxWidth: '500px'
+              }
+            }
+          );
+          // Reset file input
+          e.target.value = '';
+          return;
+        }
+
+        // P0.2: Advertir sobre permisos PDF (warning, no bloqueante)
+        const permissions = await checkPDFPermissions(selectedFile);
+        if (permissions.restricted) {
+          toast(
+            'Este PDF tiene restricciones de edición.\n\nSi tenés problemas al certificar, pedí al creador que quite las restricciones.',
+            {
+              icon: '⚠️',
+              duration: 8000,
+              position: 'bottom-right',
+              style: {
+                whiteSpace: 'pre-line',
+                maxWidth: '500px',
+                background: '#FEF3C7',
+                color: '#92400E'
+              }
+            }
+          );
         }
       }
       
@@ -1670,37 +1709,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           className="relative overflow-x-hidden overflow-y-auto grid flex-1"
           style={{ gridTemplateColumns, transition: 'grid-template-columns 300ms ease-in-out' }}
         >
-          {/* Left Panel (NDA) */}
-          {documentLoaded && (
-          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
-            <div className="h-full flex flex-col">
-              {/* Header colapsable del panel */}
-              <div className="px-4 py-3 border-b border-gray-200 bg-white">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-900">NDA</h3>
-                  <button
-                    onClick={() => setNdaEnabled(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                    title="Cerrar panel NDA"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              {/* Contenido del panel */}
-              <div className="px-4 py-4 overflow-y-auto flex-1">
-                <p className="text-xs text-gray-600 mb-3">
-                  Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
-                </p>
-                <textarea
-                  value={ndaText}
-                  onChange={(e) => setNdaText(e.target.value)}
-                  className="w-full h-[500px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
-                  placeholder="Escribí aquí el texto del NDA..."
-                />
-              </div>
+          {/* Left Panel (NDA) - PASO 4.1: NdaPanel modular */}
+          {documentLoaded && ndaEnabled && (
+            <div className={`left-panel h-full transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
+              <NdaPanel
+                isOpen={ndaEnabled}
+                documentId={undefined}
+                onClose={() => setNdaEnabled(false)}
+                onSave={(ndaData) => {
+                  setNdaText(ndaData.content);
+                  // TODO: Persistir en DB cuando corresponda
+                  console.log('NDA saved:', ndaData);
+                }}
+              />
             </div>
-          </div>
           )}
         
           {/* Center Panel (Main Content) */}

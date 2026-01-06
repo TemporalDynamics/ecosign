@@ -66,7 +66,7 @@ const PrivateNavDesktop = ({ onLogout, openLegalCenter }: { onLogout: () => void
   );
 };
 
-const PublicNavMobile = ({ setMobileMenuOpen }) => (
+const PublicNavMobile = ({ setMobileMenuOpen }: { setMobileMenuOpen: (value: boolean) => void }) => (
     <div className="px-4 pt-2 pb-4 space-y-2">
         <Link onClick={() => setMobileMenuOpen(false)} to="/how-it-works" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Cómo funciona</Link>
         <Link onClick={() => setMobileMenuOpen(false)} to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificador</Link>
@@ -81,7 +81,7 @@ const PublicNavMobile = ({ setMobileMenuOpen }) => (
     </div>
 );
 
-const PrivateNavMobile = ({ onLogout, openLegalCenter, setMobileMenuOpen }) => {
+const PrivateNavMobile = ({ onLogout, openLegalCenter, setMobileMenuOpen }: { onLogout: () => void; openLegalCenter: () => void; setMobileMenuOpen: (value: boolean) => void }) => {
     const location = useLocation();
     const navItems = [
         { label: 'Inicio', to: '/inicio' },

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
+import { appendTsaEventFromEdge } from '../_shared/tsaHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -206,7 +207,6 @@ serve(async (req) => {
       policy_snapshot_id: 'policy_2025_11',
       event_lineage: eventLineage
     }
-    }
 
     // Certificación forensic: TSA (RFC 3161), Polygon, y Bitcoin (OpenTimestamps)
     // El sistema genera certificados .ECO/.ECOX reales con todas las garantías criptográficas
@@ -215,17 +215,26 @@ serve(async (req) => {
     let polygonTxHash = null
     let bitcoinAnchorId = null
 
-    // RFC 3161 Timestamp
+    // RFC 3161 Timestamp (always over witness hash)
     if (forensicConfig.rfc3161) {
       try {
         const { data: tsaData, error: tsaError } = await supabase.functions.invoke('legal-timestamp', {
-          body: { hash_hex: signatureHash }
+          body: { hash_hex: currentVersion.document_hash }
         })
         if (!tsaError && tsaData?.success) {
           rfc3161Token = tsaData.token
           timeAssurance = {
             source: 'RFC3161',
             confidence: 'high'
+          }
+          if (workflow.document_entity_id) {
+            const tsaAppend = await appendTsaEventFromEdge(supabase, workflow.document_entity_id, {
+              token_b64: tsaData.token,
+              witness_hash: currentVersion.document_hash
+            })
+            if (!tsaAppend.success) {
+              console.warn('TSA event append failed:', tsaAppend.error)
+            }
           }
         } else {
           timeAssurance = {

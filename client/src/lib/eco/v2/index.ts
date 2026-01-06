@@ -18,6 +18,23 @@ export type TransformLogEntry = {
   executed_at: string;
 };
 
+export type TsaEvent = {
+  kind: 'tsa';
+  at: string;
+  witness_hash: string;
+  tsa: {
+    token_b64: string;
+    gen_time?: string;
+    policy_oid?: string;
+    serial?: string;
+    digest_algo?: string;
+    tsa_cert_fingerprint?: string;
+    token_hash?: string;
+  };
+};
+
+export type EventEntry = TsaEvent; // Future: | AnchorEvent | ExternalSignatureEvent
+
 export type EcoV2 = {
   version: 'eco.v2';
   document_entity_id: string;
@@ -46,6 +63,7 @@ export type EcoV2 = {
   };
   hash_chain: HashChain;
   transform_log: TransformLogEntry[];
+  events: EventEntry[];
   timestamps: {
     created_at: string;
     tca?: string;
@@ -95,6 +113,8 @@ export type DocumentEntityRow = {
   composite_hash?: string | null;
   hash_chain?: unknown;
   transform_log?: unknown;
+  events?: unknown;
+  tsa_latest?: unknown;
   created_at?: string | null;
   updated_at?: string | null;
   signed_at?: string | null;
@@ -158,6 +178,7 @@ export const projectEcoV2FromDocumentEntity = (row: DocumentEntityRow): EcoV2 =>
     },
     hash_chain: hashChain,
     transform_log: parseJsonArray(row.transform_log) as TransformLogEntry[],
+    events: parseJsonArray(row.events) as EventEntry[],
     timestamps: {
       created_at: row.created_at ?? row.source_captured_at,
     },
@@ -201,6 +222,12 @@ export type VerificationResult = {
   signed_hash?: string;
   timestamps?: EcoV2['timestamps'];
   anchors?: EcoV2['anchors'];
+  tsa?: {
+    present: boolean;
+    valid?: boolean;
+    witness_hash?: string;
+    gen_time?: string;
+  };
 };
 
 const transformLogIsConsistent = (
@@ -227,6 +254,47 @@ const isIncomplete = (eco: EcoV2): boolean => {
   if (!eco.witness || !eco.hash_chain.witness_hash) return true;
   if (!eco.signed || !eco.hash_chain.signed_hash) return true;
   return false;
+};
+
+const verifyTsaEvents = (
+  events: EventEntry[],
+  witnessHash: string | undefined
+): { present: boolean; valid?: boolean; witness_hash?: string; gen_time?: string } => {
+  const tsaEvents = events.filter((e): e is TsaEvent => e.kind === 'tsa');
+  
+  if (tsaEvents.length === 0) {
+    return { present: false };
+  }
+
+  const lastTsa = tsaEvents[tsaEvents.length - 1];
+
+  // MUST: TSA witness_hash must match canonical witness_hash
+  if (witnessHash && lastTsa.witness_hash !== witnessHash) {
+    return {
+      present: true,
+      valid: false,
+      witness_hash: lastTsa.witness_hash,
+      gen_time: lastTsa.tsa.gen_time,
+    };
+  }
+
+  // MUST: token_b64 must be present
+  if (!lastTsa.tsa.token_b64) {
+    return {
+      present: true,
+      valid: false,
+      witness_hash: lastTsa.witness_hash,
+      gen_time: lastTsa.tsa.gen_time,
+    };
+  }
+
+  // TSA present and consistent (full validation requires RFC3161 parsing)
+  return {
+    present: true,
+    valid: true,
+    witness_hash: lastTsa.witness_hash,
+    gen_time: lastTsa.tsa.gen_time,
+  };
 };
 
 export const verifyEcoV2 = (eco: unknown): VerificationResult => {
@@ -266,6 +334,17 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
     return { status: 'tampered' };
   }
 
+  // Verify TSA events consistency
+  const tsaVerification = verifyTsaEvents(
+    candidate.events ?? [],
+    candidate.hash_chain.witness_hash
+  );
+
+  // If TSA present but invalid → tampered
+  if (tsaVerification.present && tsaVerification.valid === false) {
+    return { status: 'tampered', tsa: tsaVerification };
+  }
+
   if (isIncomplete(candidate)) {
     return {
       status: 'incomplete',
@@ -274,6 +353,7 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
       signed_hash: candidate.hash_chain.signed_hash,
       timestamps: candidate.timestamps,
       anchors: candidate.anchors,
+      tsa: tsaVerification,
     };
   }
 
@@ -284,5 +364,6 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
     signed_hash: candidate.hash_chain.signed_hash,
     timestamps: candidate.timestamps,
     anchors: candidate.anchors,
+    tsa: tsaVerification,
   };
 };

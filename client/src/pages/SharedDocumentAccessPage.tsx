@@ -25,6 +25,7 @@ export default function SharedDocumentAccessPage() {
   const [ndaEnabled, setNdaEnabled] = useState(false);
   const [ndaText, setNdaText] = useState('');
   const [documentName, setDocumentName] = useState('Documento');
+  const [recipientEmail, setRecipientEmail] = useState('');
   
   // Flow state
   const [ndaAccepted, setNdaAccepted] = useState(false);
@@ -37,7 +38,7 @@ export default function SharedDocumentAccessPage() {
         const supabase = getSupabase();
         const { data, error } = await supabase
           .from('document_shares')
-          .select('nda_enabled, nda_text, user_documents!inner(document_name)')
+          .select('nda_enabled, nda_text, recipient_email, user_documents!inner(document_name)')
           .eq('id', shareId)
           .eq('status', 'pending')
           .single();
@@ -49,6 +50,7 @@ export default function SharedDocumentAccessPage() {
 
         setNdaEnabled(data.nda_enabled || false);
         setNdaText(data.nda_text || '');
+        setRecipientEmail(data.recipient_email || '');
         setDocumentName(data.user_documents?.document_name || 'Documento');
       } catch (err) {
         console.error('Error fetching share:', err);
@@ -106,6 +108,10 @@ export default function SharedDocumentAccessPage() {
       <NDAAcceptanceScreen
         ndaText={ndaText}
         documentName={documentName}
+        context="share-link"
+        signerEmail={recipientEmail}
+        signerName={recipientEmail.split('@')[0]} // Usamos parte del email como nombre
+        linkId={shareId}
         onAccept={() => setNdaAccepted(true)}
         onReject={() => window.location.href = '/'}
       />

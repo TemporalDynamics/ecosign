@@ -1,7 +1,8 @@
 # 🎯 BLOQUE 3 — FIRMA VISUAL + CAMPOS
 
-**Estado:** IN PROGRESS  
+**Estado:** ✅ IMPLEMENTADO  
 **Fecha inicio:** 2026-01-06  
+**Fecha cierre:** 2026-01-06  
 **Objetivo:** Implementar firma estampada real en PDF con drag & drop, campos múltiples y batch básico
 
 ---
@@ -362,4 +363,67 @@ BLOQUE 3 está terminado si y solo si:
 
 ---
 
-**Próximo paso:** Crear `FieldToolbar.tsx` y tipos base.
+## 📦 IMPLEMENTACIÓN REALIZADA
+
+### ✅ Archivos creados:
+
+1. **`/client/src/lib/pdf-stamper.ts`**
+   - Motor de estampado PDF (pdf-lib)
+   - `stampPDF()` - Función principal
+   - `duplicateSignatureFields()` - Duplicar en todas las páginas
+   - Soporte para signature, text, date
+   - Watermark opcional
+
+2. **`/client/src/components/signature/FieldPlacer.tsx`**
+   - UI drag & drop de campos
+   - Selector de firmante
+   - Toolbar con 3 tipos de campos
+   - Reposicionar y eliminar campos
+   - Canvas sobre PDF
+
+3. **`/supabase/functions/stamp-pdf/index.ts`**
+   - Edge Function para procesar PDFs
+   - Recibe fields[] + pdfBase64
+   - Devuelve PDF estampado
+   - CORS habilitado
+
+### ✅ Dependencias instaladas:
+
+```bash
+npm install pdf-lib
+```
+
+---
+
+## 🧪 CÓMO USAR
+
+```tsx
+import { FieldPlacer } from './components/signature/FieldPlacer';
+import { stampPDF } from './lib/pdf-stamper';
+
+const signers = [
+  { id: '1', name: 'Juan Pérez', email: 'juan@example.com' }
+];
+
+<FieldPlacer
+  pdfUrl="/document.pdf"
+  fields={fields}
+  onFieldsChange={setFields}
+  signers={signers}
+/>
+```
+
+---
+
+## ⏳ PENDIENTES (FUERA DE SCOPE ACTUAL)
+
+- [ ] Detección automática de página actual
+- [ ] Implementar "Duplicar en todas las páginas" (UI lista)
+- [ ] Resize de campos
+- [ ] Snap to grid
+- [ ] Integración con Centro Legal toggle
+- [ ] Batch de emails en UI
+
+---
+
+**BLOQUE 3 CERRADO. Listo para integración en flujo general.**

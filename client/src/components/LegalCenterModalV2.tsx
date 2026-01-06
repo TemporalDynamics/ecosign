@@ -29,6 +29,13 @@ import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 import { trackEvent } from '../lib/analytics';
 import { isPDFEncrypted } from '../lib/e2e/documentEncryption';
 
+// PASO 3: Módulos refactorizados
+import { 
+  ProtectionToggle,
+  ProtectionInfoModal,
+  ProtectionWarningModal
+} from '../centro-legal/modules/protection';
+
 /**
  * Helper to persist TSA event to document_entities.events[] via Edge Function
  * This is the canonical way to append TSA events - uses server-side validation
@@ -176,6 +183,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   // Estados de paneles colapsables
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
   const [showProtectionModal, setShowProtectionModal] = useState(false);
+  const [showUnprotectedWarning, setShowUnprotectedWarning] = useState(false);
 
   // Configuración de protección legal (activo por defecto con TSA + Polygon + Bitcoin)
   const [forensicEnabled, setForensicEnabled] = useState(true);
@@ -442,6 +450,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       setPreviewError(false);
       console.log('Archivo seleccionado:', selectedFile.name);
 
+      // BLOQUE 1: Toast inicial si protección está activa
+      if (forensicEnabled) {
+        toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
+          duration: 3000,
+          position: 'top-right'
+        });
+      }
+
       // Track analytics
       trackEvent('uploaded_doc', {
         fileType: selectedFile.type,
@@ -658,6 +674,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     }
 
     return validSigners;
+  };
+
+  // BLOQUE 1: Helper para interceptar acciones cuando protección está desactivada
+  const handleActionWithProtectionCheck = (action: () => void) => {
+    if (!forensicEnabled) {
+      setShowUnprotectedWarning(true);
+    } else {
+      action();
+    }
   };
 
   const handleCertify = async () => {
@@ -1215,6 +1240,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   };
 
   const resetAndClose = () => {
+    // BLOQUE 1: Verificar protección antes de cerrar
+    if (!forensicEnabled && documentLoaded) {
+      setShowUnprotectedWarning(true);
+      return;
+    }
+
     console.log('🔒 Cerrando Centro Legal...');
     setStep(1);
     setFile(null);
@@ -2065,7 +2096,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               {/* CONSTITUCIÓN: Acciones solo visibles si documentLoaded */}
               {documentLoaded && (
               <div className="space-y-2">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <button
                     type="button"
                     onClick={() => setNdaEnabled(!ndaEnabled)}
@@ -2077,6 +2108,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   >
                     NDA
                   </button>
+                  {/* BLOQUE 1: Toggle de Protección - Módulo refactorizado */}
+                  <ProtectionToggle
+                    enabled={forensicEnabled}
+                    onToggle={setForensicEnabled}
+                    disabled={!file}
+                  />
                   <button
                     type="button"
                     onClick={() => {
@@ -2532,93 +2569,28 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         </div>
       )}
 
-      {/* Modal secundario: Protección Legal */}
-      {showProtectionModal && (
-        <div className="fixed inset-0 bg-white md:bg-black md:bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn p-0 md:p-6">
-          <div className="bg-white rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-md p-6 shadow-2xl animate-fadeScaleIn overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Protección Legal
-              </h3>
-              <button
-                onClick={() => setShowProtectionModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* PASO 3: Modal de Protección - Componente refactorizado */}
+      <ProtectionInfoModal
+        isOpen={showProtectionModal}
+        onClose={() => setShowProtectionModal(false)}
+      />
 
-            <p className="text-sm text-gray-600 mb-4">
-              {forensicEnabled
-                ? 'Triple protección internacional'
-                : 'Activá la protección legal que necesitás'}
-            </p>
+      {/* PASO 3: Modal de Warning - Componente refactorizado */}
+      <ProtectionWarningModal
+        isOpen={showUnprotectedWarning}
+        onClose={() => setShowUnprotectedWarning(false)}
+        onActivateProtection={() => setForensicEnabled(true)}
+        onExitWithoutProtection={() => {
+          setShowUnprotectedWarning(false);
+          // Forzar el cierre sin volver a checkear
+          setForensicEnabled(true); // Temporal para evitar loop
+          setTimeout(() => {
+            setForensicEnabled(false); // Restaurar estado real
+            resetAndClose();
+          }, 50);
+        }}
+      />
 
-            {/* Lista de protecciones */}
-            <div className="space-y-3 mb-6">
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Sello de Tiempo (TSA)</p>
-                  <p className="text-xs text-gray-600">Certificación RFC 3161 de fecha y hora exacta</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Registro Inmutable Digital</p>
-                  <p className="text-xs text-gray-600">Anclaje en la red Polygon</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Registro Permanente Digital</p>
-                  <p className="text-xs text-gray-600">Anclaje en la red Bitcoin</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Toggle de protección */}
-            <div className="border-t border-gray-200 pt-4">
-              <button
-                onClick={() => {
-                  const newState = !forensicEnabled;
-                  setForensicEnabled(newState);
-                  setShowProtectionModal(false);
-
-                  if (newState) {
-                    toast('Activaste la protección legal que necesitás', {
-                      duration: 6000,
-                      position: 'bottom-right',
-                      icon: '🛡️',
-                      style: {
-                        background: '#f3f4f6',
-                        color: '#374151',
-                      }
-                    });
-                  } else {
-                    toast('Protección legal desactivada. Podés volver a activarla en cualquier momento.', {
-                      duration: 6000,
-                      position: 'bottom-right',
-                      style: {
-                        background: '#f3f4f6',
-                        color: '#374151',
-                      }
-                    });
-                  }
-                }}
-                className="w-full py-2 px-4 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-              >
-                {forensicEnabled ? 'Desactivar protección legal' : 'Activar protección legal'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
         </div>
       </div>
 

@@ -164,12 +164,12 @@ serve(async (req) => {
         witness_hash: documentEntity.witness_hash
       };
     } else if (network === 'bitcoin') {
+      // Bitcoin data is stored across anchors table and user_documents table
       const { data: anchors, error: anchorError } = await supabaseAdmin
         .from('anchors')
-        .select('id, metadata, bitcoin_confirmed_at')
+        .select('id, metadata, user_document_id')
         .eq('anchor_type', 'bitcoin')
         .eq('anchor_status', 'confirmed')
-        .not('bitcoin_confirmed_at', 'is', null)
         .limit(1);
 
       if (anchorError || !anchors || anchors.length === 0) {
@@ -182,11 +182,28 @@ serve(async (req) => {
 
       const anchor = anchors[0];
       const metadata = anchor.metadata as Record<string, any> || {};
+
+      // Get confirmation timestamp from user_documents (where it's actually stored)
+      const { data: userDoc, error: userDocError } = await supabaseAdmin
+        .from('user_documents')
+        .select('bitcoin_confirmed_at')
+        .eq('id', anchor.user_document_id)
+        .single();
+
+      if (userDocError || !userDoc || !userDoc.bitcoin_confirmed_at) {
+        return jsonResponse({
+          error: 'No bitcoin confirmation timestamp found',
+          document_entity_id: documentEntityId,
+          anchor_id: anchor.id,
+          details: userDocError?.message
+        }, 404);
+      }
+
       anchorData = {
         anchor_id: anchor.id,
         txid: metadata.bitcoin_tx || 'unknown',
         block_number: metadata.block || null,
-        confirmed_at: anchor.bitcoin_confirmed_at,
+        confirmed_at: userDoc.bitcoin_confirmed_at,
         witness_hash: documentEntity.witness_hash
       };
     }

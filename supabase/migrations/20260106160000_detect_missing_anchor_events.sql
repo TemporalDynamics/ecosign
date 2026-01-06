@@ -11,6 +11,8 @@
 --
 -- Solution: Create reproducible VIEW to expose inconsistencies
 -- Repair: Manual via Edge Function repair-missing-anchor-events (admin-only)
+--
+-- Dependency: Requires user_documents.document_entity_id (added in 20260106155000)
 
 -- ============================================================================
 -- 1. VIEW: Missing Polygon Anchor Events
@@ -64,7 +66,7 @@ SELECT
   a.id AS anchor_id,
   (a.metadata->>'bitcoin_tx')::text AS txid,
   (a.metadata->>'block')::int AS block_number,
-  a.bitcoin_confirmed_at AS confirmed_at,
+  ud.bitcoin_confirmed_at AS confirmed_at,
   a.updated_at AS anchor_updated_at,
   jsonb_array_length(de.events) AS events_count,
   -- Debug: show existing anchor events
@@ -78,7 +80,7 @@ JOIN user_documents ud ON ud.document_entity_id = de.id
 JOIN anchors a ON a.user_document_id = ud.id
 WHERE a.anchor_type = 'bitcoin'
   AND a.anchor_status = 'confirmed'
-  AND a.bitcoin_confirmed_at IS NOT NULL
+  AND ud.bitcoin_confirmed_at IS NOT NULL
   -- Critical check: no bitcoin anchor event in events[]
   AND NOT EXISTS (
     SELECT 1
@@ -109,7 +111,12 @@ AS $$
   SELECT
     'polygon'::text AS network,
     COUNT(*) AS inconsistent_count,
-    ARRAY_AGG(document_entity_id::text ORDER BY anchor_updated_at DESC LIMIT 5) AS sample_document_ids
+    ARRAY(
+      SELECT document_entity_id::text
+      FROM missing_polygon_anchor_events
+      ORDER BY anchor_updated_at DESC
+      LIMIT 5
+    ) AS sample_document_ids
   FROM missing_polygon_anchor_events
 
   UNION ALL
@@ -118,7 +125,12 @@ AS $$
   SELECT
     'bitcoin'::text AS network,
     COUNT(*) AS inconsistent_count,
-    ARRAY_AGG(document_entity_id::text ORDER BY anchor_updated_at DESC LIMIT 5) AS sample_document_ids
+    ARRAY(
+      SELECT document_entity_id::text
+      FROM missing_bitcoin_anchor_events
+      ORDER BY anchor_updated_at DESC
+      LIMIT 5
+    ) AS sample_document_ids
   FROM missing_bitcoin_anchor_events;
 $$;
 

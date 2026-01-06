@@ -2368,3 +2368,123 @@ El próximo paso crítico es actualizar triggers para que usen `document_entitie
 
 **Checkpoint crítico:** Commits 90bb0c4 (Polygon) y 6e096da (Bitcoin) cierran la integración backend. Anchors ahora escriben a canonical source. Próximo paso: triggers + UI para completar migración.
 
+---
+
+## Iteración 2026-01-07 — Identidad como Contrato: L0–L5 cerrado
+
+### 🎯 Objetivo
+Cerrar identidad AHORA como contrato y evento, postergar implementación profunda, y NO mezclar identidad con protección.
+
+### 🧠 Decisiones tomadas (CRÍTICAS)
+
+**Decisión central (la más importante):**
+- Identidad es contrato canónico cerrado, NO feature en evolución
+- Se posterga implementación de L4/L5 (KYC/PSC) sin prometer fechas
+- Identidad (L0-L5) y Protección (BASIC/STANDARD/MAXIMUM) son dimensiones separadas
+- Nunca se mezclan en UI ni discurso legal
+
+**4 Reglas canónicas (INMUTABLES):**
+1. **Identidad = continuo** (L0–L5, no binario "verificado/no verificado")
+2. **Nunca bloquea por default** (solo si creador del flujo lo exige)
+3. **Siempre evento append-only** (no se actualiza, se agrega)
+4. **Identidad ≠ Protección** (peso probatorio ≠ integridad técnica)
+
+### 🛠️ Cambios realizados
+
+**Documentación:**
+- `IDENTITY_ASSURANCE_RULES.md` v2.0 — CONTRATO CERRADO
+- `IDENTITY_LEVELS_SUMMARY.md` — Referencia rápida 1 minuto
+- `IDENTITY_ASSURANCE_ANALYSIS.md` marcado DEPRECATED
+
+**Modelo cerrado:**
+- L0: Acknowledgement (click consciente)
+- L1: Magic Link email (✅ implementado)
+- L2: OTP SMS (🔄 próximo Q1)
+- L3: Passkey WebAuthn (🔄 próximo Q1)
+- L4: KYC biométrico (🔮 futuro Q3+)
+- L5: QES/PSC certificado (🔮 futuro Q4+)
+
+**Schema de eventos:**
+```json
+{
+  "kind": "identity",
+  "at": "2026-01-07T...",
+  "level": "L0|L1|L2|L3|L4|L5",
+  "method": "email_magic_link|sms_otp|passkey|biometric|certificate",
+  "signals": ["email_verified", "device_trusted", ...]
+}
+```
+
+### 🚫 Qué NO se hizo (a propósito)
+
+❌ **NO implementar todavía:**
+- KYC real (Onfido/Veriff/Incode)
+- IAL-2/IAL-3 completos
+- Upgrade automático de certificados viejos
+- Integración con PSC/QES por default
+
+**Por qué NO:**
+- No hay jurisprudencia que lo exija hoy
+- Introduce costo + fricción innecesaria
+- NO suma a diferencial core (ledger probatorio)
+- Nuestro valor: probar hechos, no identificar personas mejor que bancos
+
+❌ **NO promover como "firma certificada":**
+- Sin PSC/QES (L5), es firma SES/AdES estándar
+- Peso probatorio depende del nivel elegido
+- Comparativa honesta vs DocuSign/Adobe: mejor integridad, igual identidad
+
+### ⚠️ Consideraciones / deuda futura
+
+**Backend (próximo sprint):**
+- Modificar `process-signature/index.ts` para determinar nivel dinámicamente
+- Poblar `signals` array correctamente (hoy vacío)
+- Registrar `method` real (hoy `null`)
+- NO cambiar schema DB todavía (usar JSONB existente)
+
+**UI/UX (Q1):**
+- Copy adaptativo por nivel:
+  - L0: "Consentimiento registrado"
+  - L1: "Verificado por email"
+  - L2: "Verificado por SMS"
+  - L3: "Dispositivo seguro"
+- NUNCA decir "firma certificada" sin L5
+- NUNCA mezclar "protección" e "identidad"
+
+**Legal/Compliance:**
+- Documento para ventas con casos de uso por nivel
+- FAQs honestas sobre validez legal por jurisdicción
+- Disclaimer claro: presunción legal solo con L5
+
+### 📍 Estado final
+
+**Qué quedó cerrado:**
+- ✅ Modelo conceptual L0-L5 es INMUTABLE
+- ✅ Eventos append-only definidos
+- ✅ Separación identidad/protección clara
+- ✅ Discurso legal honesto sin promesas falsas
+- ✅ Roadmap transparente (L0/L1 live, resto escalonado)
+
+**Qué sigue pendiente:**
+- 🔄 Determinación dinámica de niveles (backend)
+- 🔄 L2/L3 implementación (OTP/Passkey)
+- 🔄 UI de selección de nivel por flujo
+- 🔮 L4/L5 integraciones externas (futuro)
+
+### 💬 Nota del dev
+
+"Esta decisión cierra el discurso legal indefinidamente. No importa qué integraciones añadamos después (KYC, PSC, DIDs), el modelo L0-L5 NO cambia. Solo se implementan métodos nuevos que mapean a niveles ya definidos.
+
+**Principio clave:** La identidad no se 'actualiza' en el pasado. Si alguien firmó con L1 en 2026, siempre fue L1. Si después hace KYC y firma con L4, esa nueva firma es L4, pero la anterior NO se degrada ni se mejora.
+
+**Para integraciones futuras:** Cualquier proveedor (Onfido, Mifiel, DIDs) debe mapear a uno de los 6 niveles. Si no encaja, rechazar la integración o extender el modelo con consenso del equipo.
+
+**Para PM/Sales:** Este contrato cierra la narrativa. No prometer L4/L5 sin fecha. Vender L1 honestamente: 'Mejor trazabilidad que DocuSign SES, mismo nivel de identidad'. Eso es suficiente para 90% del mercado."
+
+**Quote canon:**
+> "La identidad no es un feature. Es una narrativa probatoria.  
+> EcoSign no vende identidad mágica. Vende verdad verificable.  
+> Y eso, en un juicio, vale más que una promesa de marketing."
+
+**Checkpoint crítico:** `IDENTITY_ASSURANCE_RULES.md` v2.0 es EL contrato. Análisis técnico deprecated. Summary ejecutivo para referencia rápida. Backend pendiente de modificación minimal (1-2 días). NO bloquea otros sprints.
+

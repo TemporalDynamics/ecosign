@@ -28,7 +28,8 @@ beforeAll(async () => {
   });
 
   if (userError) throw userError;
-  testUserId = userData.user!.id;
+  if (!userData.user) throw new Error('User creation failed');
+  testUserId = userData.user.id;
 
   // Create test document entity
   const { data: docData, error: docError } = await supabase
@@ -56,6 +57,7 @@ beforeAll(async () => {
     .single();
 
   if (docError) throw docError;
+  if (!docData) throw new Error('Document creation failed (RLS policy may be blocking)');
   testDocId = docData.id;
 });
 
@@ -81,11 +83,18 @@ describe('TSA Events DB Integration', () => {
       },
     };
 
+    // Fetch current events and append
+    const { data: currentDoc } = await supabase
+      .from('document_entities')
+      .select('events')
+      .eq('id', testDocId)
+      .single();
+
+    const updatedEvents = [...(currentDoc?.events || []), tsaEvent];
+
     const { error } = await supabase
       .from('document_entities')
-      .update({
-        events: supabase.sql`events || ${JSON.stringify(tsaEvent)}::jsonb`,
-      })
+      .update({ events: updatedEvents })
       .eq('id', testDocId);
 
     expect(error).toBeNull();
@@ -117,11 +126,17 @@ describe('TSA Events DB Integration', () => {
       },
     };
 
+    const { data: currentDoc } = await supabase
+      .from('document_entities')
+      .select('events')
+      .eq('id', testDocId)
+      .single();
+
+    const updatedEvents = [...(currentDoc?.events || []), tsaEvent2];
+
     const { error } = await supabase
       .from('document_entities')
-      .update({
-        events: supabase.sql`events || ${JSON.stringify(tsaEvent2)}::jsonb`,
-      })
+      .update({ events: updatedEvents })
       .eq('id', testDocId);
 
     expect(error).toBeNull();
@@ -150,11 +165,17 @@ describe('TSA Events DB Integration', () => {
       },
     };
 
+    const { data: currentDoc } = await supabase
+      .from('document_entities')
+      .select('events')
+      .eq('id', testDocId)
+      .single();
+
+    const updatedEvents = [...(currentDoc?.events || []), invalidTsaEvent];
+
     const { error } = await supabase
       .from('document_entities')
-      .update({
-        events: supabase.sql`events || ${JSON.stringify(invalidTsaEvent)}::jsonb`,
-      })
+      .update({ events: updatedEvents })
       .eq('id', testDocId);
 
     expect(error).toBeTruthy();
@@ -173,11 +194,17 @@ describe('TSA Events DB Integration', () => {
       },
     };
 
+    const { data: currentDoc } = await supabase
+      .from('document_entities')
+      .select('events')
+      .eq('id', testDocId)
+      .single();
+
+    const updatedEvents = [...(currentDoc?.events || []), invalidTsaEvent];
+
     const { error } = await supabase
       .from('document_entities')
-      .update({
-        events: supabase.sql`events || ${JSON.stringify(invalidTsaEvent)}::jsonb`,
-      })
+      .update({ events: updatedEvents })
       .eq('id', testDocId);
 
     expect(error).toBeTruthy();
@@ -209,11 +236,17 @@ describe('TSA Events DB Integration', () => {
       },
     };
 
+    const { data: currentDoc } = await supabase
+      .from('document_entities')
+      .select('events')
+      .eq('id', testDocId)
+      .single();
+
+    const updatedEvents = [...(currentDoc?.events || []), tsaEvent3];
+
     const { error } = await supabase
       .from('document_entities')
-      .update({
-        events: supabase.sql`events || ${JSON.stringify(tsaEvent3)}::jsonb`,
-      })
+      .update({ events: updatedEvents })
       .eq('id', testDocId);
 
     expect(error).toBeNull();

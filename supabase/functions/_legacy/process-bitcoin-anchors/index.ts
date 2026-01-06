@@ -69,6 +69,41 @@ async function resolveProjectId(anchor: any): Promise<string | null> {
 }
 
 /**
+ * Resolve document_entity_id from user_document_id (legacy mapping)
+ * Returns: { documentEntityId, witnessHash } or null
+ */
+async function resolveDocumentEntity(userDocumentId: string): Promise<{ documentEntityId: string; witnessHash: string } | null> {
+  if (!supabaseAdmin) return null
+
+  const { data, error } = await supabaseAdmin
+    .from('user_documents')
+    .select('document_entity_id')
+    .eq('id', userDocumentId)
+    .maybeSingle()
+
+  if (error || !data?.document_entity_id) {
+    logger.warn('document_entity_not_found', { userDocumentId, error: error?.message })
+    return null
+  }
+
+  const { data: entity, error: entityError } = await supabaseAdmin
+    .from('document_entities')
+    .select('id, witness_hash')
+    .eq('id', data.document_entity_id)
+    .maybeSingle()
+
+  if (entityError || !entity || !entity.witness_hash) {
+    logger.warn('witness_hash_not_found', { documentEntityId: data.document_entity_id, error: entityError?.message })
+    return null
+  }
+
+  return {
+    documentEntityId: entity.id,
+    witnessHash: entity.witness_hash
+  }
+}
+
+/**
  * Submit hash to OpenTimestamps calendar servers
  */
 async function submitToOpenTimestamps(hash: string): Promise<{
@@ -620,6 +655,46 @@ serve(async (req) => {
                 continue;
               }
 
+              // ✅ CANONICAL INTEGRATION: Append anchor event to document_entities.events[]
+              // This dual-writes to both legacy tables (above) and canonical events[] (below)
+              if (anchor.user_document_id) {
+                const docEntity = await resolveDocumentEntity(anchor.user_document_id);
+                if (docEntity) {
+                  const appendResult = await appendAnchorEventFromEdge(
+                    supabaseAdmin,
+                    docEntity.documentEntityId,
+                    {
+                      network: 'bitcoin',
+                      witness_hash: docEntity.witnessHash,
+                      txid: txid || 'unknown',
+                      block_height: blockHeight ?? undefined,
+                      confirmed_at: blockData.confirmedAt
+                    }
+                  );
+
+                  if (appendResult.success) {
+                    logger.info('anchor_event_appended', {
+                      anchorId: anchor.id,
+                      documentEntityId: docEntity.documentEntityId,
+                      network: 'bitcoin',
+                      txid
+                    });
+                  } else {
+                    // Non-critical: legacy tables are already updated
+                    logger.warn('anchor_event_append_failed', {
+                      anchorId: anchor.id,
+                      documentEntityId: docEntity.documentEntityId,
+                      error: appendResult.error
+                    });
+                  }
+                } else {
+                  logger.warn('document_entity_not_resolved', {
+                    anchorId: anchor.id,
+                    userDocumentId: anchor.user_document_id
+                  });
+                }
+              }
+
               const projectId = await resolveProjectId(anchor);
               if (projectId) {
                 const anchorRequestedAt = anchor.created_at || new Date().toISOString();
@@ -773,6 +848,46 @@ serve(async (req) => {
             failed++;
             processed++;
             continue;
+          }
+
+          // ✅ CANONICAL INTEGRATION: Append anchor event to document_entities.events[]
+          // This dual-writes to both legacy tables (above) and canonical events[] (below)
+          if (anchor.user_document_id) {
+            const docEntity = await resolveDocumentEntity(anchor.user_document_id);
+            if (docEntity) {
+              const appendResult = await appendAnchorEventFromEdge(
+                supabaseAdmin,
+                docEntity.documentEntityId,
+                {
+                  network: 'bitcoin',
+                  witness_hash: docEntity.witnessHash,
+                  txid: txid || 'unknown',
+                  block_height: blockHeight ?? undefined,
+                  confirmed_at: confirmedAt
+                }
+              );
+
+              if (appendResult.success) {
+                logger.info('anchor_event_appended', {
+                  anchorId: anchor.id,
+                  documentEntityId: docEntity.documentEntityId,
+                  network: 'bitcoin',
+                  txid
+                });
+              } else {
+                // Non-critical: legacy tables are already updated
+                logger.warn('anchor_event_append_failed', {
+                  anchorId: anchor.id,
+                  documentEntityId: docEntity.documentEntityId,
+                  error: appendResult.error
+                });
+              }
+            } else {
+              logger.warn('document_entity_not_resolved', {
+                anchorId: anchor.id,
+                userDocumentId: anchor.user_document_id
+              });
+            }
           }
 
           const projectId = await resolveProjectId(anchor);

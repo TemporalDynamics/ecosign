@@ -1,0 +1,208 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                         TSA ARCHITECTURE (EcoSign)                            ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                              1. DATA FLOW                                     │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+   User Uploads     Witness PDF      Request TSA       Persist TSA
+   Document    →    Generated   →    Token (RFC 3161) → to events[]
+       │                │                   │                 │
+       ▼                ▼                   ▼                 ▼
+  source_hash    witness_hash      token_b64 +         events[] ||=
+  (canonical)    (canonical)       gen_time +          { kind:"tsa",
+                                   policy_oid           at: "...",
+                                                        witness_hash,
+                                                        tsa: {...} }
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         2. DATABASE SCHEMA                                    │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  document_entities
+  ├─ id (UUID, PK)
+  ├─ owner_id (FK → auth.users)
+  │
+  ├─ source_hash (canonical)
+  ├─ witness_hash (canonical)
+  ├─ signed_hash (canonical, optional)
+  │
+  ├─ hash_chain (JSONB object) ──────┐ RESULT (immutable index)
+  │   ├─ source_hash                 │
+  │   ├─ witness_hash                │
+  │   ├─ signed_hash                 │
+  │   └─ composite_hash              │
+  │                                   │
+  ├─ events[] (JSONB array) ─────────┤ HISTORY (append-only ledger)
+  │   ├─ { kind:"tsa", ... }         │
+  │   ├─ { kind:"anchor", ... }      │ (future)
+  │   └─ { kind:"external_sig", ... }│ (future)
+  │                                   │
+  └─ tsa_latest (JSONB) ─────────────┘ CACHE (derived from events[])
+      └─ = last(events where kind = "tsa")
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         3. TSA EVENT STRUCTURE                                │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  {
+    kind: "tsa",                    ← Event type (immutable)
+    at: "2026-01-06T15:30:00Z",     ← Timestamp of append (not TSA time)
+    witness_hash: "abc123...",      ← MUST match document_entities.witness_hash
+    tsa: {
+      token_b64: "MII...",          ← RFC 3161 TimeStampToken (DER, base64)
+      gen_time: "2026-01-06T15:30:00Z",  ← TSA timestamp (from token)
+      policy_oid: "1.2.3.4.5",      ← TSA policy
+      serial: "123456",             ← Token serial number
+      digest_algo: "sha256",        ← Hash algorithm
+      tsa_cert_fingerprint: "...",  ← (optional) TSA cert fingerprint
+      token_hash: "xyz789..."       ← (optional) hash(token_b64)
+    }
+  }
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         4. DB TRIGGERS (ENFORCEMENT)                          │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │  enforce_events_append_only()                                │
+  │  ─────────────────────────────────────────────────────────── │
+  │  • Prevents shrinking events[]                               │
+  │  • Validates TSA events on append:                           │
+  │    - MUST have kind:"tsa"                                    │
+  │    - MUST have at (ISO 8601)                                 │
+  │    - MUST have witness_hash                                  │
+  │    - MUST have tsa.token_b64                                 │
+  │    - MUST match document_entities.witness_hash               │
+  │  • RAISES EXCEPTION if invalid                               │
+  └──────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │  update_tsa_latest()                                         │
+  │  ─────────────────────────────────────────────────────────── │
+  │  • Auto-updates tsa_latest on events[] change                │
+  │  • Finds last TSA event (by "at" timestamp)                  │
+  │  • Always derivable (no manual writes)                       │
+  └──────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         5. SERVICE LAYER (API)                                │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │  appendTsaEvent(documentId, payload)                         │
+  │  ─────────────────────────────────────────────────────────── │
+  │  • Validates witness_hash consistency                        │
+  │  • Builds TSA event                                          │
+  │  • Appends to events[] (DB trigger validates)                │
+  │  • Server-side only (prevents client manipulation)           │
+  └──────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │  requestAndPersistTsa(documentId, witnessHash)               │
+  │  ─────────────────────────────────────────────────────────── │
+  │  • Requests RFC 3161 token from TSA (FreeTSA)                │
+  │  • Verifies token locally                                    │
+  │  • Calls appendTsaEvent() to persist                         │
+  │  • One-shot: request + verify + persist                      │
+  └──────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         6. ECO v2 PROJECTION                                  │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  ECO v2 File Structure:
+  ┌──────────────────────────────────────────────────────────────┐
+  │  {                                                           │
+  │    version: "eco.v2",                                        │
+  │    document_entity_id: "...",                                │
+  │    source: { hash, mime, ... },                              │
+  │    witness: { hash, mime, ... },                             │
+  │    signed: { hash, ... },                                    │
+  │    hash_chain: { source_hash, witness_hash, signed_hash },   │
+  │    transform_log: [...],                                     │
+  │    events: [                                                 │
+  │      {                                                       │
+  │        kind: "tsa",                                          │
+  │        at: "2026-01-06T15:30:00Z",                           │
+  │        witness_hash: "abc...",                               │
+  │        tsa: {                                                │
+  │          token_b64: "MII...",                                │
+  │          gen_time: "2026-01-06T15:30:00Z",                   │
+  │          ...                                                 │
+  │        }                                                     │
+  │      }                                                       │
+  │    ],                                                        │
+  │    timestamps: { created_at, tca },                          │
+  │    anchors: { polygon, bitcoin }                             │
+  │  }                                                           │
+  └──────────────────────────────────────────────────────────────┘
+
+  Projection Rules:
+  • events[] = document_entities.events (copy)
+  • Deterministic (RFC 8785 JCS)
+  • Offline-verifiable (no backend)
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         7. VERIFIER v2 (OFFLINE)                              │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  verifyEcoV2(eco) => {
+    status: 'valid' | 'tampered' | 'incomplete' | 'unknown',
+    tsa?: {
+      present: boolean,
+      valid?: boolean,
+      witness_hash?: string,
+      gen_time?: string
+    }
+  }
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │  TSA Verification Logic:                                     │
+  │  ─────────────────────────────────────────────────────────── │
+  │  1. Find last TSA event in events[]                          │
+  │  2. Check witness_hash == eco.hash_chain.witness_hash        │
+  │  3. Check tsa.token_b64 exists                               │
+  │  4. (Optional) Parse RFC 3161 token                          │
+  │                                                              │
+  │  States:                                                     │
+  │  • present: false → No TSA (not error)                       │
+  │  • present: true, valid: true → TSA OK                       │
+  │  • present: true, valid: false → TSA tampered                │
+  └──────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         8. INVARIANTS (ENFORCED)                              │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  ✓ events[] is append-only (cannot shrink, cannot mutate index i)
+  ✓ TSA event MUST have kind:"tsa", at, witness_hash, tsa.token_b64
+  ✓ witness_hash MUST match document_entities.witness_hash
+  ✓ tsa_latest is always derivable from events[]
+  ✓ hash_chain is immutable index (not history)
+  ✓ events[] is immutable ledger (not state)
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         9. FUTURE EXTENSIONS                                  │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+  events[] will contain:
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │  { kind: "tsa", ... }            ← ✅ DONE                   │
+  │  { kind: "anchor", ... }         ← ⚠️ PENDING (Polygon/BTC) │
+  │  { kind: "external_signature" }  ← ⚠️ PENDING (SignNow)     │
+  └──────────────────────────────────────────────────────────────┘
+
+  Same pattern: append-only, validated, projected to ECO v2.
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                            KEY INSIGHTS                                       ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║  1. hash_chain = RESULT (what is the canonical hash now?)                    ║
+║  2. events[]   = HISTORY (what evidence occurred when?)                      ║
+║  3. tsa_latest = CACHE (what was the last TSA?)                              ║
+║  4. TSA is evidence, not state                                               ║
+║  5. UI reflects evidence, never promises                                     ║
+╚═══════════════════════════════════════════════════════════════════════════════╝

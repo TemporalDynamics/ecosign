@@ -24,6 +24,7 @@ interface StartWorkflowRequest {
   documentUrl: string       // URL del documento en Storage
   documentHash: string      // SHA-256 del documento
   originalFilename: string
+  documentEntityId?: string // Optional canonical document_entities.id
   signers: Signer[]
   forensicConfig: {
     rfc3161: boolean
@@ -102,6 +103,7 @@ serve(withRateLimit('workflow', async (req) => {
       documentUrl,
       documentHash,
       originalFilename,
+      documentEntityId,
       signers,
       forensicConfig
     } = body
@@ -135,15 +137,18 @@ serve(withRateLimit('workflow', async (req) => {
 
     // 1. Crear workflow
     console.log('📝 Step 1: Creating workflow...')
+    const workflowPayload = {
+      owner_id: user.id,
+      original_filename: originalFilename,
+      original_file_url: documentUrl,
+      status: 'active',
+      forensic_config: forensicConfig,
+      ...(documentEntityId ? { document_entity_id: documentEntityId } : {})
+    }
+
     const { data: workflow, error: workflowError } = await supabase
       .from('signature_workflows')
-      .insert({
-        owner_id: user.id,
-        original_filename: originalFilename,
-        original_file_url: documentUrl,
-        status: 'active',
-        forensic_config: forensicConfig
-      })
+      .insert(workflowPayload)
       .select()
       .single()
 

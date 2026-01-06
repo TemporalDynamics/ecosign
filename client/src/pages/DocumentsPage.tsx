@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
 import { emitEcoVNext } from "../lib/documentEntityService";
 import { getLatestTsaEvent, formatTsaTimestamp } from "../lib/events/tsa";
+import { deriveProtectionLevel, getAnchorEvent } from "../lib/protectionLevel";
 import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
@@ -119,19 +120,31 @@ type ProbativeStateResult = {
 };
 
 const deriveProbativeState = (doc: DocumentRecord, planTier: PlanTier): ProbativeStateResult => {
-  // Read TSA from events[] (canonical)
-  const tsa = getLatestTsaEvent(doc.events);
+  // ✅ CANONICAL DERIVATION: Read from events[] with fallback to legacy
+  const events = doc.events || [];
+
+  // TSA: already canonical (reads from events[])
+  const tsa = getLatestTsaEvent(events);
   const hasTsa = tsa.present;
-  
-  const hasPolygon = !!doc.has_polygon_anchor;
+
+  // Polygon: canonical from events[] with legacy fallback
+  const polygonAnchor = getAnchorEvent(events, 'polygon');
+  const hasPolygon = polygonAnchor !== null || !!doc.has_polygon_anchor;
+
+  // Bitcoin: canonical from events[] with legacy fallback
+  const bitcoinAnchor = getAnchorEvent(events, 'bitcoin');
+  const bitcoinConfirmed = bitcoinAnchor !== null ||
+                          doc.bitcoin_status === "confirmed" ||
+                          !!doc.has_bitcoin_anchor;
+
   const ecoAvailable = !!(
     doc.eco_storage_path ||
     doc.eco_file_data ||
     doc.eco_hash ||
     doc.content_hash
   );
-  const bitcoinStatus = doc.bitcoin_status;
-  const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
+
+  // Derive level using canonical algorithm (matches PROTECTION_LEVEL_RULES.md)
   let level: ProbativeLevel = (doc.content_hash || doc.eco_hash) ? "base" : "none";
 
   if (hasTsa) {

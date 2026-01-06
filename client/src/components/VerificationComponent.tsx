@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { verifyEcoWithOriginal } from '../lib/verificationService';
 import { getLatestTsaEvent, formatTsaTimestamp } from '../lib/events/tsa';
+import { getAnchorEvent } from '../lib/protectionLevel';
 
 // INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
 interface VerificationServiceResult {
@@ -62,19 +63,28 @@ const buildEvidenceItems = (result: VerificationServiceResult): string[] => {
     const tsa = getLatestTsaEvent(result.eco.events);
     if (tsa.present) {
       const formattedTime = formatTsaTimestamp(tsa);
-      items.push(formattedTime 
+      items.push(formattedTime
         ? `Evidencia temporal presente: ${formattedTime}`
         : 'Evidencia temporal presente en el certificado.'
       );
     }
   }
 
+  // ✅ CANONICAL: Read anchors from events[] with legacy fallback
+  const events = result.eco?.events || [];
   const anchors = result.anchors as { polygon?: { status?: string } | null; bitcoin?: { status?: string } | null } | undefined;
-  
+
+  // Polygon: canonical from events[] with legacy fallback
+  const polygonAnchor = getAnchorEvent(events, 'polygon');
   const polygonConfirmed =
+    polygonAnchor !== null ||
     anchors?.polygon?.status === 'confirmed' ||
     result.probativeSignals?.polygonConfirmed;
+
+  // Bitcoin: canonical from events[] with legacy fallback
+  const bitcoinAnchor = getAnchorEvent(events, 'bitcoin');
   const bitcoinConfirmed =
+    bitcoinAnchor !== null ||
     anchors?.bitcoin?.status === 'confirmed' ||
     result.probativeSignals?.bitcoinConfirmed;
 

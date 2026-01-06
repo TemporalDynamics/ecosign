@@ -122,7 +122,7 @@ export default function VideosPage() {
                     {video.ctas && (
                       <div className="flex flex-wrap gap-3">
                         {video.ctas.map((cta) => (
-                          cta.external ? (
+                          cta.external === true ? (
                             <a
                               key={cta.label}
                               href={cta.href}

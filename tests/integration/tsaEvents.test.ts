@@ -1,6 +1,14 @@
 /**
  * Integration test for TSA events in document_entities
  * Tests DB triggers, append-only enforcement, and tsa_latest cache
+ * 
+ * REQUIREMENTS:
+ * - Supabase local dev running (supabase start)
+ * - SUPABASE_URL and SUPABASE_ANON_KEY in env
+ * - RLS policies must allow authenticated inserts on document_entities
+ * 
+ * NOTE: If this test fails with "Document creation failed (RLS policy may be blocking)",
+ * ensure your local Supabase has the correct RLS policies enabled for authenticated users.
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';

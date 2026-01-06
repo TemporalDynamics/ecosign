@@ -29,6 +29,52 @@ import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 import { trackEvent } from '../lib/analytics';
 import { isPDFEncrypted } from '../lib/e2e/documentEncryption';
 
+/**
+ * Helper to persist TSA event to document_entities.events[] via Edge Function
+ * This is the canonical way to append TSA events - uses server-side validation
+ */
+async function persistTsaToEvents(
+  documentEntityId: string,
+  certResult: any,
+  witnessHash: string
+): Promise<void> {
+  try {
+    // Extract TSA token from certResult
+    const tsaToken = certResult?.ecoData?.signatures?.[0]?.legalTimestamp?.token;
+
+    if (!tsaToken) {
+      console.warn('⚠️ No TSA token in certResult, skipping persistence');
+      return;
+    }
+
+    const supabase = getSupabase();
+
+    console.log('📝 Persisting TSA event to document_entities.events[]...');
+    const { data, error } = await supabase.functions.invoke('append-tsa-event', {
+      body: {
+        document_entity_id: documentEntityId,
+        token_b64: tsaToken,
+        gen_time: certResult?.timestamp,
+        tsa_url: certResult?.legalTimestamp?.tsa || 'https://freetsa.org/tsr',
+        digest_algo: 'sha256'
+      }
+    });
+
+    if (error) {
+      console.error('❌ Failed to persist TSA event:', error);
+      return;
+    }
+
+    if (data?.success) {
+      console.log('✅ TSA event persisted to events[]:', data);
+    } else {
+      console.error('❌ TSA persistence failed:', data?.error);
+    }
+  } catch (err) {
+    console.error('❌ Error persisting TSA event:', err);
+  }
+}
+
 type InitialAction = 'sign' | 'workflow' | 'nda' | 'certify';
 type SignatureType = 'legal' | 'certified' | null;
 type SignatureMode = 'none' | 'canvas' | 'signnow';
@@ -759,6 +805,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             documentUrl: signedUrlData.signedUrl,
             documentHash,
             originalFilename: file.name,
+            documentEntityId: canonicalDocumentId || undefined,
             signers: validSigners,
             forensicConfig: {
               rfc3161: forensicEnabled && forensicConfig.useLegalTimestamp,
@@ -961,6 +1008,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
           signatureData: signatureData
         });
+      }
+
+      // ✅ CANONICAL TSA: Persist TSA event to document_entities.events[]
+      // This happens AFTER certifyFile but BEFORE saving to user_documents
+      // The Edge Function will read witness_hash from DB and append the TSA event
+      if (
+        canonicalDocumentId &&
+        witnessHash &&
+        certResult?.legalTimestamp &&
+        typeof certResult.legalTimestamp === 'object' &&
+        'enabled' in certResult.legalTimestamp &&
+        certResult.legalTimestamp.enabled
+      ) {
+        await persistTsaToEvents(canonicalDocumentId, certResult, witnessHash);
       }
 
       // 2. Guardar en Supabase (guardar el PDF procesado, no el original)

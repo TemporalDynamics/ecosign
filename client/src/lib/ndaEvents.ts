@@ -11,7 +11,7 @@
  * - Cada aceptación genera un evento único e inmutable
  */
 
-import { supabase } from './supabaseClient';
+import { getSupabase } from './supabaseClient';
 
 /**
  * Contexto donde se acepta el NDA
@@ -71,6 +71,7 @@ export async function acceptShareLinkNda(
 ): Promise<NdaAcceptanceResult> {
   // Determinar qué Edge Function usar según si hay recipientId o linkId
   const useNewShareFlow = metadata.linkId && !metadata.recipientId;
+  const supabase = getSupabase();
 
   try {
     if (useNewShareFlow) {
@@ -147,6 +148,8 @@ export async function acceptSignatureFlowNda(
   if (!metadata.signerId) {
     return { success: false, error: 'signerId es requerido para signature-flow' };
   }
+
+  const supabase = getSupabase();
 
   try {
     // Llamar a la Edge Function existente

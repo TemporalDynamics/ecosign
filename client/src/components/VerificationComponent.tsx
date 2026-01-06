@@ -9,6 +9,7 @@ import {
   FileCheck
 } from 'lucide-react';
 import { verifyEcoWithOriginal } from '../lib/verificationService';
+import { getLatestTsaEvent, formatTsaTimestamp } from '../lib/events/tsa';
 
 // INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
 interface VerificationServiceResult {
@@ -51,8 +52,16 @@ const buildEvidenceItems = (result: VerificationServiceResult): string[] => {
     }
   }
 
-  if (result.timestamp) {
-    items.push('Existe un sello de tiempo en el certificado.');
+  // TSA: read from events[] if eco data exists
+  if (result.eco?.events) {
+    const tsa = getLatestTsaEvent(result.eco.events);
+    if (tsa.present) {
+      const formattedTime = formatTsaTimestamp(tsa);
+      items.push(formattedTime 
+        ? `Evidencia temporal presente: ${formattedTime}`
+        : 'Evidencia temporal presente en el certificado.'
+      );
+    }
   }
 
   const polygonConfirmed =

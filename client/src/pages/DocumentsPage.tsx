@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
 import { emitEcoVNext } from "../lib/documentEntityService";
+import { getLatestTsaEvent, formatTsaTimestamp } from "../lib/events/tsa";
 import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
@@ -118,7 +119,10 @@ type ProbativeStateResult = {
 };
 
 const deriveProbativeState = (doc: DocumentRecord, planTier: PlanTier): ProbativeStateResult => {
-  const hasTsa = !!doc.has_legal_timestamp;
+  // Read TSA from events[] (canonical)
+  const tsa = getLatestTsaEvent(doc.events);
+  const hasTsa = tsa.present;
+  
   const hasPolygon = !!doc.has_polygon_anchor;
   const ecoAvailable = !!(
     doc.eco_storage_path ||
@@ -1207,7 +1211,10 @@ function PreviewBadges({ doc, planTier }: { doc: DocumentRecord; planTier: PlanT
 }
 
 function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
-  const hasTsa = !!doc.has_legal_timestamp;
+  // Read TSA from events[] (canonical)
+  const tsa = getLatestTsaEvent(doc.events);
+  const hasTsa = tsa.present;
+  
   const hasPolygon = !!doc.has_polygon_anchor;
   const bitcoinStatus = doc.bitcoin_status;
   const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
@@ -1231,9 +1238,10 @@ function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
   }
 
   if (hasTsa) {
+    const formattedTime = formatTsaTimestamp(tsa);
     timelineItems.push({
-      label: "Sello de tiempo verificado",
-      description: "Fecha y hora firmadas por autoridad independiente.",
+      label: "Evidencia temporal presente",
+      description: formattedTime ? `Timestamp: ${formattedTime}` : "Timestamp registrado",
       status: "ok"
     });
   }

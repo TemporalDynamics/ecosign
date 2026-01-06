@@ -48,7 +48,7 @@ export function OTPAccessModal({
     setLoading(true);
     setProgress(0);
 
-    let progressInterval: NodeJS.Timeout | undefined;
+    let progressInterval: ReturnType<typeof setInterval> | undefined;
 
     try {
       // Simulate progress for UX

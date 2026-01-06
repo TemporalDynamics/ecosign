@@ -41,6 +41,10 @@ import { MySignatureToggle, SignatureModal } from '../centro-legal/modules/signa
 import { SignatureFlowToggle } from '../centro-legal/modules/flow';
 import { NdaToggle, NdaPanel } from '../centro-legal/modules/nda';
 
+// PASO 3.3: Layout y scenes
+import { LegalCenterShell } from './centro-legal/layout/LegalCenterShell';
+import { resolveGridColumns } from './centro-legal/orchestration/resolveGridLayout';
+
 /**
  * Helper to persist TSA event to document_entities.events[] via Edge Function
  * This is the canonical way to append TSA events - uses server-side validation
@@ -1673,50 +1677,25 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   }, [isMobile, previewMode]);
 
   // ===== GRID LAYOUT =====
-  
-  const leftColWidth = ndaEnabled ? '320px' : '0px';
-  const rightColWidth = workflowEnabled ? '320px' : '0px';
-  const centerColWidth = 'minmax(640px, 1fr)';
-  
-  // En mobile, usar grid de 1 columna
-  const gridTemplateColumns = isMobile
-    ? '1fr'
-    : `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
+  // PASO 3.3: Usar helper de orquestación
+  const gridTemplateColumns = resolveGridColumns({
+    ndaEnabled,
+    rightPanelOpen: workflowEnabled,
+    isMobile
+  });
   const isPreviewFullscreen = isMobile && previewMode === 'fullscreen';
 
   return (
     <>
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-0 py-0 md:px-4 md:py-6">
-        <div className="modal-container bg-white rounded-none md:rounded-2xl w-full max-w-7xl max-h-full md:max-h-[94vh] h-[100svh] md:h-auto shadow-xl flex flex-col overflow-hidden">
-        {/* Header fijo sobre todo el grid */}
-        <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Centro Legal
-            </h2>
-            {modeConfirmation && (
-              <span className="text-sm text-gray-500 animate-fadeIn">
-                {modeConfirmation}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={resetAndClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Content - Grid fijo de 3 zonas con colapso suave */}
-        <div
-          className="relative overflow-x-hidden overflow-y-auto grid flex-1"
-          style={{ gridTemplateColumns, transition: 'grid-template-columns 300ms ease-in-out' }}
-        >
-          {/* Left Panel (NDA) - PASO 4.1: NdaPanel modular */}
-          {documentLoaded && ndaEnabled && (
-            <div className={`left-panel h-full transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
-              <NdaPanel
+    <LegalCenterShell
+      modeConfirmation={modeConfirmation}
+      onClose={resetAndClose}
+      gridTemplateColumns={gridTemplateColumns}
+    >
+      {/* Left Panel (NDA) - PASO 4.1: NdaPanel modular */}
+      {documentLoaded && ndaEnabled && (
+        <div className={`left-panel h-full transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
+          <NdaPanel
                 isOpen={ndaEnabled}
                 documentId={undefined}
                 onClose={() => setNdaEnabled(false)}
@@ -2512,7 +2491,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
           </div>
         </div>
-      </div>
+      </LegalCenterShell>
 
       {/* Modal secundario: Selector de tipo de firma certificada */}
       {showCertifiedModal && (
@@ -2623,9 +2602,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           }, 50);
         }}
       />
-
-        </div>
-      </div>
 
       {/* Modal de Bienvenida */}
       <LegalCenterWelcomeModal

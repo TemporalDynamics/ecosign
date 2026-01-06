@@ -37,6 +37,7 @@ import {
 } from '../centro-legal/modules/protection';
 import { MySignatureToggle, SignatureModal } from '../centro-legal/modules/signature';
 import { SignatureFlowToggle } from '../centro-legal/modules/flow';
+import { NdaToggle } from '../centro-legal/modules/nda';
 
 /**
  * Helper to persist TSA event to document_entities.events[] via Edge Function
@@ -2099,17 +2100,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               {documentLoaded && (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNdaEnabled(!ndaEnabled)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      ndaEnabled
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    NDA
-                  </button>
+                  {/* PASO 3.2.3: Toggle NDA - Módulo refactorizado (placeholder) */}
+                  <NdaToggle
+                    enabled={ndaEnabled}
+                    onToggle={setNdaEnabled}
+                    disabled={!file}
+                  />
                   {/* BLOQUE 1: Toggle de Protección - Módulo refactorizado */}
                   <ProtectionToggle
                     enabled={forensicEnabled}

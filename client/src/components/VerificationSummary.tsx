@@ -1,97 +1,21 @@
-import React, { useMemo, useState } from 'react';
-import {
-  CheckCircle2,
-  AlertTriangle,
-  Info,
-  Fingerprint,
-  ShieldCheck,
-  Clock3,
-  Stamp,
-  Layers,
-  FileText
-} from 'lucide-react';
-
-type LayerKey = 'hash' | 'signature' | 'timestamp' | 'legalTimestamp' | 'format' | 'manifest';
-
-type LayerConfig = {
-  key: LayerKey;
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  optional?: boolean;
-};
-
-type LayerTone = {
-  border: string;
-  bg: string;
-  text: string;
-  tag: string;
-};
-
-type VerificationLayerState = {
-  passed?: boolean;
-  message?: string;
-  optional?: boolean;
-};
-
-type VerificationResultData = {
-  fileName?: string;
-  algorithm?: string;
-  legalTimestampReport?: Record<string, unknown> | null;
-  originalFileHash?: string;
-  legalValidity?: boolean;
-};
-
-type VerificationChecks = Partial<Record<LayerKey | string, VerificationLayerState | undefined>> & {
-  timestamp?: VerificationLayerState;
-  signature?: VerificationLayerState;
-};
+import React, { useMemo } from 'react';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 type VerificationResult = {
   valid: boolean;
-  data?: VerificationResultData;
-  checks?: VerificationChecks;
+  fileName?: string;
+  hash?: string;
+  timestamp?: string;
+  signature?: { algorithm?: string; valid?: boolean };
+  signatureValid?: boolean;
+  signedAuthority?: 'internal' | 'external';
+  anchors?: {
+    polygon?: { status?: string } | null;
+    bitcoin?: { status?: string } | null;
+  } | null;
+  errors?: string[];
+  warnings?: string[];
 };
-
-const layersConfig: LayerConfig[] = [
-  {
-    key: 'hash',
-    title: 'Huella del documento',
-    description: 'Comprueba que el archivo original coincida byte a byte con lo declarado en el certificado.',
-    icon: Fingerprint
-  },
-  {
-    key: 'signature',
-    title: 'Firma Ed25519',
-    description: 'Valida que la firma provenga de EcoSign y no haya sido alterada.',
-    icon: ShieldCheck
-  },
-  {
-    key: 'timestamp',
-    title: 'Sello de tiempo',
-    description: 'Corrobora la fecha exacta registrada en el certificado.',
-    icon: Clock3
-  },
-  {
-    key: 'legalTimestamp',
-    title: 'Sello legal',
-    description: 'Opcional. Certificación emitida por autoridad de fechas.',
-    icon: Stamp,
-    optional: true
-  },
-  {
-    key: 'format',
-    title: 'Formato .ECO',
-    description: 'Valida que el contenedor respete la especificación.',
-    icon: Layers
-  },
-  {
-    key: 'manifest',
-    title: 'Manifiesto',
-    description: 'Comprueba que los assets y metadatos estén completos.',
-    icon: FileText
-  }
-];
 
 const statusStyles: Record<
   'valid' | 'invalid',
@@ -110,8 +34,8 @@ const statusStyles: Record<
     bg: 'bg-emerald-50',
     text: 'text-emerald-900',
     icon: <CheckCircle2 className="w-6 h-6 text-emerald-600" />,
-    title: 'Documento Auténtico',
-    subtitle: 'La firma digital y la integridad del documento son válidas.',
+    title: 'Certificado consistente',
+    subtitle: 'La evidencia criptográfica es consistente.',
     detail: 'El certificado no ha sido alterado.'
   },
   invalid: {
@@ -119,9 +43,9 @@ const statusStyles: Record<
     bg: 'bg-red-50',
     text: 'text-red-900',
     icon: <AlertTriangle className="w-6 h-6 text-red-600" />,
-    title: 'Documento no válido',
-    subtitle: 'El certificado o la firma no son válidos.',
-    detail: 'Posibles causas: edición del archivo, certificado corrupto o falsificado.'
+    title: 'Certificado inconsistente',
+    subtitle: 'La evidencia criptográfica no es consistente.',
+    detail: 'El certificado o el archivo no coinciden.'
   }
 };
 
@@ -133,44 +57,37 @@ function determineStatus(result: VerificationResult | null, originalProvided: bo
   return statusStyles.valid;
 }
 
-function layerTone(layerKey: LayerKey, layerState: VerificationLayerState | undefined, result: VerificationResult | null): LayerTone {
-  if (!result) return { border: 'border-gray-200', bg: 'bg-white', text: 'text-gray-700', tag: 'Sin datos' };
+const buildEvidenceItems = (result: VerificationResult): string[] => {
+  const items: string[] = [];
 
-  // Si el certificado es válido, el hash está verificado automáticamente
-  if (layerKey === 'hash') {
-    if (result.valid) {
-      return {
-        border: 'border-emerald-200',
-        bg: 'bg-emerald-50',
-        text: 'text-emerald-800',
-        tag: result.data?.originalFileHash
-          ? 'Verificado con archivo original'
-          : 'Hash certificado verificado'
-      };
+  if (result.valid) {
+    items.push('Integridad criptográfica verificada.');
+  }
+
+  if (result.signatureValid || result.signature?.valid) {
+    if (result.signedAuthority === 'internal') {
+      items.push('Existe una firma registrada por una autoridad interna.');
+    } else if (result.signedAuthority === 'external') {
+      items.push('Existe una firma registrada por una autoridad externa.');
     } else {
-      return {
-        border: 'border-red-200',
-        bg: 'bg-red-50',
-        text: 'text-red-800',
-        tag: 'Hash no coincide o certificado inválido'
-      };
+      items.push('Existe una firma registrada en el certificado.');
     }
   }
 
-  if (!layerState) {
-    return { border: 'border-gray-200', bg: 'bg-white', text: 'text-gray-700', tag: 'Sin datos' };
+  if (result.timestamp) {
+    items.push('Existe un sello de tiempo en el certificado.');
   }
 
-  if (layerState.passed) {
-    return { border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-800', tag: layerState.message ?? 'Verificado' };
+  if (result.anchors?.polygon?.status === 'confirmed') {
+    items.push('Existe un anclaje público confirmado (Polygon).');
   }
 
-  if (layerState.optional && !layerState.passed && !result.data?.legalValidity) {
-    return { border: 'border-gray-200', bg: 'bg-white', text: 'text-gray-600', tag: 'No incluido en este certificado' };
+  if (result.anchors?.bitcoin?.status === 'confirmed') {
+    items.push('Existe un anclaje público confirmado (Bitcoin).');
   }
 
-  return { border: 'border-red-200', bg: 'bg-red-50', text: 'text-red-800', tag: layerState.message ?? 'No verificado' };
-}
+  return items;
+};
 
 interface VerificationSummaryProps {
   result: VerificationResult | null;
@@ -178,23 +95,18 @@ interface VerificationSummaryProps {
 }
 
 function VerificationSummary({ result, originalProvided = false }: VerificationSummaryProps) {
-  const [showLegalDetails, setShowLegalDetails] = useState(false);
   const status = determineStatus(result, originalProvided);
 
   const summaryFields = useMemo(() => {
     if (!result) return [];
     return [
-      { label: 'Documento', value: result.data?.fileName || 'Sin nombre' },
-      { label: 'Timestamp', value: result.checks?.timestamp?.message || 'No disponible' },
-      { label: 'Firma', value: result.checks?.signature?.message || 'Sin datos' },
-      { label: 'Algoritmo', value: result.data?.algorithm || '—' }
+      { label: 'Documento', value: result.fileName || 'Sin nombre' },
+      { label: 'Hash', value: result.hash || 'No disponible' },
+      { label: 'Timestamp', value: result.timestamp ? new Date(result.timestamp).toLocaleString() : 'No disponible' },
+      { label: 'Firma', value: (result.signatureValid || result.signature?.valid) ? 'Registrada' : 'No disponible' }
     ];
   }, [result]);
-
-  const layers = layersConfig.map((layer) => ({
-    ...layer,
-    tone: layerTone(layer.key, result?.checks?.[layer.key], result)
-  }));
+  const evidenceItems = result ? buildEvidenceItems(result) : [];
 
   if (!result) return null;
 
@@ -219,43 +131,22 @@ function VerificationSummary({ result, originalProvided = false }: VerificationS
           {summaryFields.map((field) => (
             <div key={field.label} className="p-4 rounded-xl border border-gray-100 bg-gray-50">
               <p className="text-xs uppercase tracking-widest text-gray-500 mb-1">{field.label}</p>
-              <p className="text-sm text-gray-900">{field.value}</p>
+              <p className="text-sm text-gray-900 break-words">{field.value}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Capas de verificación</h3>
-          <p className="text-xs text-gray-500">Ordenadas de más crítica a estructural</p>
-        </div>
-        <div className="grid md:grid-cols-2 gap-4">
-          {layers.map(({ key, title, description, icon: IconComp, tone }) => (
-            <div key={key} className={`p-5 rounded-2xl border ${tone.border} ${tone.bg} ${tone.text}`}>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-9 h-9 rounded-xl bg-white/80 flex items-center justify-center">
-                  <IconComp className="w-5 h-5 text-black" />
-                </div>
-                <p className="font-semibold text-gray-900">{title}</p>
-              </div>
-              <p className="text-sm text-gray-600 mb-2">{description}</p>
-              <p className="text-sm font-medium">{tone.tag}</p>
-              {key === 'legalTimestamp' && result.data?.legalTimestampReport && (
-                <button
-                  type="button"
-                  onClick={() => setShowLegalDetails((prev) => !prev)}
-                  className="mt-3 text-xs font-semibold text-black"
-                >
-                  {showLegalDetails ? 'Ocultar detalle TSA' : 'Ver detalle TSA'}
-                </button>
-              )}
-              {key === 'legalTimestamp' && showLegalDetails && result.data?.legalTimestampReport && (
-                <pre className="mt-3 text-xs bg-white/80 rounded-lg p-3 border border-black100 text-gray-700 overflow-x-auto">
-                  {String(JSON.stringify(result.data.legalTimestampReport, null, 2) ?? '')}
-                </pre>
-              )}
-            </div>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Evidencia verificada</h3>
+        <div className="space-y-2">
+          {(evidenceItems.length > 0
+            ? evidenceItems
+            : ['No hay evidencia verificable en este certificado.']
+          ).map((item) => (
+            <p key={item} className="text-sm text-gray-700">
+              • {item}
+            </p>
           ))}
         </div>
       </div>

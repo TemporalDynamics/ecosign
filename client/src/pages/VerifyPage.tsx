@@ -8,10 +8,7 @@ import {
   Upload,
   FileText,
   Lock,
-  Anchor,
   ArrowLeft,
-  Loader2,
-  AlertTriangle
 } from 'lucide-react';
 import { verifyEcoxFile } from '../lib/verificationService';
 import LegalProtectionOptions from '../components/LegalProtectionOptions';
@@ -40,91 +37,6 @@ interface VerificationServiceResult {
   };
   [key: string]: any; // Permite otros campos
 }
-
-interface ProbativeStatus {
-  level: 'base' | 'pending' | 'medium' | 'strong' | 'error';
-  label: string;
-  description: string;
-  Icon: React.ElementType;
-}
-
-// NUEVA FUNCIÓN RESOLVER (LÓGICA EN UI)
-function resolveProbativeStatus(signals: VerificationServiceResult['probativeSignals']): ProbativeStatus {
-  if (!signals || signals.fetchError) {
-    return {
-      level: 'error',
-      label: 'Anclaje No Consultado',
-      description: 'No se pudo obtener el estado del refuerzo externo. La integridad del .ECO sigue siendo válida.',
-      Icon: AlertTriangle
-    }
-  }
-
-  if (signals.bitcoinConfirmed) {
-    return {
-      level: 'strong',
-      label: 'Protección Reforzada',
-      description: 'Registro adicional confirmado en la blockchain de Bitcoin.',
-      Icon: Anchor
-    }
-  }
-
-  if (signals.polygonConfirmed) {
-    return {
-      level: 'medium',
-      label: 'Protección Activa',
-      description: 'Registro confirmado en la red pública de Polygon.',
-      Icon: CheckCircle
-    }
-  }
-
-  if (signals.anchorRequested) {
-    return {
-      level: 'pending',
-      label: 'Protección en Proceso',
-      description: 'El registro en blockchain fue solicitado y está pendiente de confirmación.',
-      Icon: Loader2
-    }
-  }
-
-  return {
-    level: 'base',
-    label: 'Documento Íntegro',
-    description: 'La integridad del certificado y su firma son válidas. No se solicitó refuerzo externo.',
-    Icon: Shield
-  }
-}
-
-// NUEVO COMPONENTE DE UI
-const ProbativeStatusDisplay = ({ status }: { status: ProbativeStatus }) => {
-  const colorClasses = {
-    base: 'bg-gray-100 text-gray-800 border-gray-200',
-    pending: 'bg-yellow-50 text-yellow-800 border-yellow-200',
-    medium: 'bg-blue-50 text-blue-800 border-blue-200',
-    strong: 'bg-green-50 text-green-800 border-green-200',
-    error: 'bg-red-50 text-red-800 border-red-200',
-  }
-
-  const iconColorClasses = {
-    base: 'text-gray-600',
-    pending: 'text-yellow-600',
-    medium: 'text-blue-600',
-    strong: 'text-green-600',
-    error: 'text-red-600',
-  }
-
-  return (
-    <div className={`p-4 rounded-xl border ${colorClasses[status.level]}`}>
-      <div className="flex items-start gap-3">
-        <status.Icon className={`w-6 h-6 flex-shrink-0 mt-0.5 ${iconColorClasses[status.level]} ${status.level === 'pending' ? 'animate-spin' : ''}`} />
-        <div>
-          <p className="font-semibold">{status.label}</p>
-          <p className="text-sm">{status.description}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 
 // Configuración de validación
 const ALLOWED_EXTENSIONS = ['.eco', '.pdf', '.zip'];
@@ -275,8 +187,6 @@ function VerifyPage() {
           <>
             <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
               <h3 className="text-xl font-semibold text-gray-900 mb-1">Resultado de la Verificación</h3>
-              
-              <ProbativeStatusDisplay status={resolveProbativeStatus(result.probativeSignals)} />
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">

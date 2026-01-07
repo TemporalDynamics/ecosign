@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
+import { emitEcoVNext } from "../lib/documentEntityService";
 import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
@@ -11,6 +12,7 @@ import { ProtectedBadge } from "../components/ProtectedBadge";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
 import { useLegalCenter } from "../contexts/LegalCenterContext";
 import { decryptFile, ensureCryptoSession, getSessionUnwrapKey, unwrapDocumentKey } from "../lib/e2e";
+import { hashSigned, hashSource, hashWitness } from "../lib/canonicalHashing";
 
 type DocumentRecord = {
   id: string;
@@ -38,8 +40,24 @@ type DocumentRecord = {
   eco_file_data?: string | null;
   ecox_file_data?: string | null;
   status?: string | null;
+  signed_authority?: 'internal' | 'external' | null;
   events?: any[];
   signer_links?: any[];
+};
+
+type DocumentEntityRow = {
+  id: string;
+  source_name: string;
+  source_hash: string;
+  source_captured_at: string;
+  witness_current_hash?: string | null;
+  witness_current_storage_path?: string | null;
+  signed_hash?: string | null;
+  signed_authority?: 'internal' | 'external' | null;
+  composite_hash?: string | null;
+  lifecycle_status?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 type PlanTier = "guest" | "free" | "pro" | "business" | "enterprise" | null | string;
@@ -54,12 +72,20 @@ type VerificationResult = {
   error?: string;
 };
 
+type VerificationMode = "source" | "witness" | "signed";
+
 const PROBATIVE_STATES = {
   none: {
     label: "Sin protección",
     color: "text-gray-600",
     bg: "bg-gray-100",
-    tooltip: "Aún no se generó un certificado para este documento."
+    tooltip: "No hay evidencia probatoria registrada."
+  },
+  base: {
+    label: "Integridad\nverificada",
+    color: "text-gray-800",
+    bg: "bg-gray-100",
+    tooltip: "La integridad criptográfica del documento está verificada."
   },
   active: {
     label: "Protección\ncertificada",
@@ -94,10 +120,15 @@ type ProbativeStateResult = {
 const deriveProbativeState = (doc: DocumentRecord, planTier: PlanTier): ProbativeStateResult => {
   const hasTsa = !!doc.has_legal_timestamp;
   const hasPolygon = !!doc.has_polygon_anchor;
-  const ecoAvailable = !!(doc.eco_storage_path || doc.eco_file_data || doc.eco_hash);
+  const ecoAvailable = !!(
+    doc.eco_storage_path ||
+    doc.eco_file_data ||
+    doc.eco_hash ||
+    doc.content_hash
+  );
   const bitcoinStatus = doc.bitcoin_status;
   const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
-  let level: ProbativeLevel = "none";
+  let level: ProbativeLevel = (doc.content_hash || doc.eco_hash) ? "base" : "none";
 
   if (hasTsa) {
     level = "active";
@@ -135,10 +166,37 @@ const formatDate = (date: string | number | Date | null | undefined) => {
   });
 };
 
-const computeHash = async (fileOrBlob: Blob | File): Promise<string> => {
+const computeHash = async (
+  mode: VerificationMode,
+  fileOrBlob: Blob | File
+): Promise<string> => {
   const buffer = await fileOrBlob.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (mode === "source") {
+    return await hashSource(buffer);
+  }
+  if (mode === "witness") {
+    return await hashWitness(buffer);
+  }
+  return await hashSigned(buffer);
+};
+
+const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord => {
+  const documentHash = entity.signed_hash || entity.witness_current_hash || entity.source_hash;
+  return {
+    id: entity.id,
+    document_name: entity.source_name,
+    document_hash: documentHash,
+    content_hash: entity.source_hash,
+    created_at: entity.created_at || entity.source_captured_at,
+    pdf_storage_path: entity.witness_current_storage_path ?? null,
+    status: entity.lifecycle_status ?? null,
+    signed_authority: entity.signed_authority ?? null,
+    has_legal_timestamp: false,
+    has_polygon_anchor: false,
+    has_bitcoin_anchor: false,
+    events: [],
+    signer_links: []
+  };
 };
 
 const GUEST_DEMO_DOCS: DocumentRecord[] = [
@@ -210,6 +268,8 @@ function DocumentsPage() {
   const [verifyResult, setVerifyResult] = useState<VerificationResult | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [autoVerifyAttempted, setAutoVerifyAttempted] = useState(false);
+  const [verificationMode, setVerificationMode] = useState<VerificationMode>("signed");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [shareDoc, setShareDoc] = useState<DocumentRecord | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -239,8 +299,42 @@ function DocumentsPage() {
         return;
       }
       disableGuestMode();
+      setCurrentUserId(user.id);
 
-      const query = supabase
+      const { data: entityData, error } = await supabase
+        .from("document_entities")
+        .select(
+          `
+          id,
+          source_name,
+          source_hash,
+          source_captured_at,
+          witness_current_hash,
+          witness_current_storage_path,
+          signed_hash,
+          signed_authority,
+          composite_hash,
+          lifecycle_status,
+          created_at,
+          updated_at
+        `
+        )
+        .eq("owner_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading document_entities:", error);
+        throw error;
+      }
+
+      if (entityData && entityData.length > 0) {
+        const mapped = (entityData as DocumentEntityRow[]).map(mapDocumentEntityToRecord);
+        setDocuments(mapped);
+        return;
+      }
+
+      // TODO(legacy-cleanup): remove fallback once document_entities is fully populated.
+      const { data: legacyData, error: legacyError } = await supabase
         .from("user_documents")
         .select(
           `
@@ -254,14 +348,12 @@ function DocumentsPage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Error loading documents:", error);
-        throw error;
+      if (legacyError) {
+        console.error("Error loading user_documents:", legacyError);
+        throw legacyError;
       }
 
-      setDocuments((data as DocumentRecord[] | null) || []);
+      setDocuments((legacyData as DocumentRecord[] | null) || []);
     } catch (error) {
       console.error("Error in loadDocuments:", error);
       setDocuments([]);
@@ -298,11 +390,16 @@ function DocumentsPage() {
 
   useEffect(() => {
     if (isGuestMode()) return;
-    if (showVerifyModal && verifyDoc?.pdf_storage_path && !autoVerifyAttempted) {
+    if (
+      showVerifyModal &&
+      verifyDoc?.pdf_storage_path &&
+      !autoVerifyAttempted &&
+      verificationMode !== "source"
+    ) {
       setAutoVerifyAttempted(true);
-      autoVerifyStoredPdf(verifyDoc);
+      autoVerifyStoredPdf(verifyDoc, verificationMode);
     }
-  }, [showVerifyModal, verifyDoc, autoVerifyAttempted]);
+  }, [showVerifyModal, verifyDoc, autoVerifyAttempted, verificationMode]);
 
   useEffect(() => {
     const handleDocumentCreated = () => {
@@ -436,7 +533,7 @@ function DocumentsPage() {
     }
   };
 
-  const performEcoDownload = (doc: DocumentRecord | null) => {
+  const performEcoDownload = async (doc: DocumentRecord | null) => {
     if (!doc) return;
 
     if (doc.eco_storage_path) {
@@ -447,6 +544,20 @@ function DocumentsPage() {
     if (doc.eco_hash) {
       requestRegeneration(doc.id, "eco");
       return;
+    }
+    try {
+      const { json } = await emitEcoVNext(doc.id);
+      const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
+      const bytes = new TextEncoder().encode(json);
+      const blob = new Blob([bytes], { type: "application/octet-stream" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = ecoName;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      return;
+    } catch (err) {
+      console.warn("Canonical ECO v2 download skipped:", err);
     }
     window.alert("Todavía no hay certificado .ECO para este documento. Puede estar generándose; reintentá en unos minutos.");
   };
@@ -495,6 +606,7 @@ function DocumentsPage() {
     setVerifyResult(null);
     setVerifying(false);
     setAutoVerifyAttempted(false);
+    setVerificationMode("signed");
     setShowVerifyModal(true);
   };
 
@@ -511,8 +623,8 @@ function DocumentsPage() {
     if (!doc || !file) return;
     setVerifying(true);
     try {
-      const hash = await computeHash(file);
-      const result = buildVerificationResult(hash, doc, "upload");
+      const hash = await computeHash(verificationMode, file);
+      const result = buildVerificationResult(hash, doc, "upload", verificationMode);
       setVerifyResult(result);
     } catch (err) {
       console.error("Error verificando PDF:", err);
@@ -525,7 +637,7 @@ function DocumentsPage() {
     }
   };
 
-  const autoVerifyStoredPdf = async (doc: DocumentRecord) => {
+  const autoVerifyStoredPdf = async (doc: DocumentRecord, mode: VerificationMode) => {
     if (!doc.pdf_storage_path && !doc.encrypted_path) return;
     try {
       const supabase = getSupabase();
@@ -545,8 +657,8 @@ function DocumentsPage() {
       } else {
         blob = await fetchEncryptedPdfBlob(doc);
       }
-      const hash = await computeHash(blob);
-      const result = buildVerificationResult(hash, doc, "stored");
+      const hash = await computeHash(mode, blob);
+      const result = buildVerificationResult(hash, doc, "stored", mode);
       setVerifyResult(result);
     } catch (err) {
       console.warn("Verificación automática falló, se pedirá el PDF al usuario:", err);
@@ -559,20 +671,27 @@ function DocumentsPage() {
     }
   };
 
-  const buildVerificationResult = (hash: string, doc: DocumentRecord, source: "upload" | "stored"): VerificationResult => {
+  const buildVerificationResult = (
+    hash: string,
+    doc: DocumentRecord,
+    source: "upload" | "stored",
+    mode: VerificationMode
+  ): VerificationResult => {
     const normalizedHash = hash.toLowerCase();
     const expectedDocumentHash = doc.document_hash || doc.eco_hash;
     const expectedContentHash = doc.content_hash;
 
-    const matchesDocument = expectedDocumentHash
-      ? normalizedHash === expectedDocumentHash.toLowerCase()
+    const matchesDocument = mode === "source"
+      ? null
+      : expectedDocumentHash
+        ? normalizedHash === expectedDocumentHash.toLowerCase()
+        : null;
+    const matchesContent = mode === "source"
+      ? expectedContentHash
+        ? normalizedHash === expectedContentHash.toLowerCase()
+        : null
       : null;
-    const matchesContent = expectedContentHash ? normalizedHash === expectedContentHash.toLowerCase() : null;
-
-    const matches = 
-      (matchesDocument === false || matchesContent === false)
-        ? false
-        : matchesDocument || matchesContent || null;
+    const matches = matchesDocument ?? matchesContent ?? null;
 
     return {
       matches,
@@ -945,6 +1064,7 @@ function DocumentsPage() {
             eco_storage_path: shareDoc.eco_storage_path,
             eco_file_data: shareDoc.eco_file_data,
           }}
+          userId={currentUserId || ""}
           onClose={() => setShareDoc(null)}
         />
       )}
@@ -957,7 +1077,7 @@ function DocumentsPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Verificar documento</h3>
                 <p className="text-xs text-gray-600 mt-1">
-                  Validá que tu PDF coincide con el certificado almacenado.
+                  Validá que tu archivo coincide con el certificado almacenado.
                 </p>
               </div>
               <button
@@ -973,17 +1093,35 @@ function DocumentsPage() {
             </div>
 
             {!verifyResult && (
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center mb-4">
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => e.target.files?.[0] && onVerifyFile(e.target.files[0], verifyDoc)}
-                  className="hidden"
-                  id="verify-upload"
-                />
-                <label htmlFor="verify-upload" className="cursor-pointer text-sm text-gray-700 hover:text-gray-900">
-                  {verifying ? "Verificando…" : "Arrastrá o hacé clic para subir el PDF firmado"}
-                </label>
+              <div className="mb-4 space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 uppercase">Tipo de archivo</label>
+                  <select
+                    value={verificationMode}
+                    onChange={(e) => {
+                      setVerificationMode(e.target.value as VerificationMode);
+                      setVerifyResult(null);
+                      setAutoVerifyAttempted(false);
+                    }}
+                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800"
+                  >
+                    <option value="source">Archivo original</option>
+                    <option value="witness">PDF testigo</option>
+                    <option value="signed">PDF firmado</option>
+                  </select>
+                </div>
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center">
+                  <input
+                    type="file"
+                    accept={verificationMode === "source" ? undefined : "application/pdf"}
+                    onChange={(e) => e.target.files?.[0] && onVerifyFile(e.target.files[0], verifyDoc)}
+                    className="hidden"
+                    id="verify-upload"
+                  />
+                  <label htmlFor="verify-upload" className="cursor-pointer text-sm text-gray-700 hover:text-gray-900">
+                    {verifying ? "Verificando…" : "Arrastrá o hacé clic para subir el archivo"}
+                  </label>
+                </div>
               </div>
             )}
 
@@ -1073,7 +1211,24 @@ function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
   const hasPolygon = !!doc.has_polygon_anchor;
   const bitcoinStatus = doc.bitcoin_status;
   const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
+  const hasIntegrity = !!(doc.content_hash || doc.eco_hash);
   const timelineItems = [];
+
+  if (doc.signed_authority === "internal") {
+    timelineItems.push({
+      label: "Firma interna registrada",
+      description: "La firma fue registrada por la autoridad emisora.",
+      status: "ok"
+    });
+  }
+
+  if (doc.signed_authority === "external") {
+    timelineItems.push({
+      label: "Firma externa registrada",
+      description: "La firma fue registrada por una autoridad externa.",
+      status: "ok"
+    });
+  }
 
   if (hasTsa) {
     timelineItems.push({
@@ -1103,8 +1258,10 @@ function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
 
   if (timelineItems.length === 0) {
     timelineItems.push({
-      label: "Sin eventos confirmados",
-      description: "Todavía no hay refuerzos confirmados para este documento.",
+      label: hasIntegrity ? "Integridad verificada" : "Sin evidencia registrada",
+      description: hasIntegrity
+        ? "La integridad criptográfica del documento está verificada."
+        : "No hay evidencia probatoria registrada para este documento.",
       status: "empty"
     });
   }

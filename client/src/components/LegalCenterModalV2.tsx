@@ -32,7 +32,7 @@ import { validatePDFStructure, checkPDFPermissions } from '../lib/pdfValidation'
 import { validateTSAConnectivity } from '../lib/tsaValidation';
 import { CertifyProgress } from './CertifyProgress';
 import type { CertifyStage } from '../lib/errorRecovery';
-import { determineIfWorkSaved } from '../lib/errorRecovery';
+import { determineIfWorkSaved, canRetryFromStage } from '../lib/errorRecovery';
 import { translateError } from '../lib/errorTranslation';
 
 // PASO 3: Módulos refactorizados
@@ -777,6 +777,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
     setLoading(true);
 
+    // FASE 3.C: Timeout tracking (P0.6)
+    let timeoutWarning: NodeJS.Timeout | null = null;
+
     // FASE 3.A: Show progress (P0.5)
     setCertifyProgress({
       stage: 'preparing',
@@ -1029,6 +1032,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         message: 'Generando timestamp legal...'
       });
 
+      // FASE 3.C: Timeout detection (P0.6)
+      timeoutWarning = setTimeout(() => {
+        setCertifyProgress(prev => ({
+          ...prev,
+          message: 'Generando timestamp legal... (puede tardar más de lo habitual)'
+        }));
+      }, 5000); // Show warning after 5 seconds
+
       if (signatureType === 'certified') {
         // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
         console.log('🔐 Usando SignNow API para firma legalizada');
@@ -1112,6 +1123,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           signatureData: signatureData
         });
       }
+
+      // FASE 3.C: Clear timeout warning (P0.6)
+      clearTimeout(timeoutWarning);
 
       // ✅ CANONICAL TSA: Persist TSA event to document_entities.events[]
       // This happens AFTER certifyFile but BEFORE saving to user_documents
@@ -1317,6 +1331,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     } catch (error) {
       console.error('Error al certificar:', error);
 
+      // FASE 3.C: Clear timeout on error (P0.6)
+      if (timeoutWarning) {
+        clearTimeout(timeoutWarning);
+      }
+
       // FASE 3.B: Human-friendly error handling (P0.4, P0.7)
       const humanError = translateError(error);
       const workSaved = certifyProgress.stage ? determineIfWorkSaved(certifyProgress.stage) : false;
@@ -1330,8 +1349,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       });
 
       // Note: Error display now handled by CertifyProgress component
-      // which will show error, work saved status, and close button
-      // Retry button NOT included yet (FASE 3.C)
+      // which will show error, work saved status, and retry button (FASE 3.C)
     } finally {
       setLoading(false);
       // Note: Don't reset certifyProgress here if there's an error
@@ -2707,14 +2725,26 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         </div>
       )}
 
-      {/* FASE 3.A/3.B: Progress modal during certification (P0.5, P0.4, P0.7) */}
+      {/* FASE 3.A/3.B/3.C: Progress modal during certification (P0.5, P0.4, P0.7, P0.8) */}
       {certifyProgress.stage && (
         <CertifyProgress
           stage={certifyProgress.stage}
           message={certifyProgress.message}
           error={certifyProgress.error}
           workSaved={certifyProgress.workSaved}
-          canRetry={false} // FASE 3.C will enable retry
+          canRetry={certifyProgress.error ? canRetryFromStage(certifyProgress.stage) : false}
+          onRetry={() => {
+            // FASE 3.C: Retry certification (P0.8)
+            // Reset error state and retry handleCertify
+            setCertifyProgress({
+              stage: null,
+              message: '',
+              error: undefined,
+              workSaved: undefined
+            });
+            // Call handleCertify again (it will restart from 'preparing')
+            handleCertify();
+          }}
           onClose={() => {
             // Reset progress state when user closes error modal
             setCertifyProgress({

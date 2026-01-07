@@ -5,6 +5,7 @@
 
 import { getSupabase } from './supabaseClient';
 import { verifyTSRToken } from './tsrVerifier';
+import { appendTsaEvent, type TsaEventPayload } from './documentEntityService';
 
 const DEFAULT_TSA_URL = 'https://freetsa.org/tsr';
 
@@ -87,5 +88,46 @@ export function getAvailableTSAs() {
       }
     ],
     premium: []
+  };
+}
+
+/**
+ * Request TSA timestamp and persist it to document_entities.events[]
+ * 
+ * This is the canonical way to timestamp a document.
+ * - Requests RFC 3161 token from TSA
+ * - Verifies token locally
+ * - Persists to events[] via appendTsaEvent
+ * 
+ * @param documentId - document_entities.id
+ * @param witnessHash - canonical witness_hash (must match DB)
+ * @param options - TSA URL override
+ */
+export async function requestAndPersistTsa(
+  documentId: string,
+  witnessHash: string,
+  options: TimestampOptions = {}
+) {
+  // Step 1: Request TSA token
+  const tsaResponse = await requestLegalTimestamp(witnessHash, options);
+
+  // Step 2: Build TSA event payload
+  const payload: TsaEventPayload = {
+    token_b64: tsaResponse.token,
+    witness_hash: witnessHash,
+    gen_time: tsaResponse.timestamp,
+    policy_oid: tsaResponse.policy || undefined,
+    serial: tsaResponse.serialNumber || undefined,
+    digest_algo: tsaResponse.algorithm || 'SHA-256',
+  };
+
+  // Step 3: Persist to events[] (triggers DB validation)
+  await appendTsaEvent(documentId, payload);
+
+  return {
+    success: true,
+    timestamp: tsaResponse.timestamp,
+    tsa_url: tsaResponse.tsaUrl,
+    verified: tsaResponse.verified,
   };
 }

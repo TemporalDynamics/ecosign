@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
+import { getLatestTsaEvent } from '../lib/events/tsa';
 
 type VerificationResult = {
   valid: boolean;
   fileName?: string;
   hash?: string;
   timestamp?: string;
+  eco?: { events?: any[] };
   signature?: { algorithm?: string; valid?: boolean };
   signatureValid?: boolean;
   signedAuthority?: 'internal' | 'external';
@@ -74,8 +76,12 @@ const buildEvidenceItems = (result: VerificationResult): string[] => {
     }
   }
 
-  if (result.timestamp) {
-    items.push('Existe un sello de tiempo en el certificado.');
+  // TSA: read from events[] (canonical)
+  if (result.eco?.events) {
+    const tsa = getLatestTsaEvent(result.eco.events);
+    if (tsa.present) {
+      items.push('Evidencia temporal presente.');
+    }
   }
 
   if (result.anchors?.polygon?.status === 'confirmed') {

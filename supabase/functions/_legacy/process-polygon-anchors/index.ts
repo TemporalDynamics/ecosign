@@ -3,8 +3,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
 import { ethers } from 'npm:ethers@6.9.0'
 import { createLogger, withTiming } from '../_shared/logger.ts'
 import { shouldRetry, RETRY_CONFIGS, getNextRetryTime } from '../_shared/retry.ts'
+import { appendAnchorEventFromEdge } from '../_shared/anchorHelper.ts'
 
-// TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
+// TODO(canon): Migrate from user_document_id to document_entity_id
+// Current: Uses user_document_id (legacy), dual-writes to events[]
+// Future: Use document_entity_id as primary key
 
 const logger = createLogger('process-polygon-anchors')
 
@@ -48,6 +51,41 @@ async function resolveProjectId(anchor: any): Promise<string | null> {
   const manifest = ecoData?.['manifest'] as Record<string, unknown> | undefined
   const projectId = manifest?.['projectId']
   return typeof projectId === 'string' ? projectId : null
+}
+
+/**
+ * Resolve document_entity_id from user_document_id (legacy mapping)
+ * Returns: { documentEntityId, witnessHash } or null
+ */
+async function resolveDocumentEntity(userDocumentId: string): Promise<{ documentEntityId: string; witnessHash: string } | null> {
+  if (!supabaseAdmin) return null
+
+  const { data, error } = await supabaseAdmin
+    .from('user_documents')
+    .select('document_entity_id')
+    .eq('id', userDocumentId)
+    .maybeSingle()
+
+  if (error || !data?.document_entity_id) {
+    logger.warn('document_entity_not_found', { userDocumentId, error: error?.message })
+    return null
+  }
+
+  const { data: entity, error: entityError } = await supabaseAdmin
+    .from('document_entities')
+    .select('id, witness_hash')
+    .eq('id', data.document_entity_id)
+    .maybeSingle()
+
+  if (entityError || !entity || !entity.witness_hash) {
+    logger.warn('witness_hash_not_found', { documentEntityId: data.document_entity_id, error: entityError?.message })
+    return null
+  }
+
+  return {
+    documentEntityId: entity.id,
+    witnessHash: entity.witness_hash
+  }
 }
 
 async function markFailed(anchorId: string, message: string, attempts: number) {
@@ -268,6 +306,46 @@ serve(async (req) => {
           continue
         }
 
+        // ✅ CANONICAL INTEGRATION: Append anchor event to document_entities.events[]
+        // This dual-writes to both legacy tables (above) and canonical events[] (below)
+        if (anchor.user_document_id) {
+          const docEntity = await resolveDocumentEntity(anchor.user_document_id)
+          if (docEntity) {
+            const appendResult = await appendAnchorEventFromEdge(
+              supabaseAdmin,
+              docEntity.documentEntityId,
+              {
+                network: 'polygon',
+                witness_hash: docEntity.witnessHash,
+                txid: txHash,
+                block_height: receipt.blockNumber ?? undefined,
+                confirmed_at: confirmedAt
+              }
+            )
+
+            if (appendResult.success) {
+              logger.info('anchor_event_appended', {
+                anchorId: anchor.id,
+                documentEntityId: docEntity.documentEntityId,
+                network: 'polygon',
+                txHash
+              })
+            } else {
+              // Non-critical: legacy tables are already updated
+              logger.warn('anchor_event_append_failed', {
+                anchorId: anchor.id,
+                documentEntityId: docEntity.documentEntityId,
+                error: appendResult.error
+              })
+            }
+          } else {
+            logger.warn('document_entity_not_resolved', {
+              anchorId: anchor.id,
+              userDocumentId: anchor.user_document_id
+            })
+          }
+        }
+
         const projectId = await resolveProjectId(anchor)
         if (projectId) {
           const anchorRequestedAt = anchor.created_at || new Date().toISOString()
@@ -297,24 +375,12 @@ serve(async (req) => {
           documentId: anchor.user_document_id
         })
 
-        // ✅ UPGRADE PROTECTION LEVEL (monotonic increase)
-        if (anchor.user_document_id) {
-          try {
-            await supabaseAdmin.rpc('upgrade_protection_level', {
-              doc_id: anchor.user_document_id
-            })
-            logger.info('protection_level_upgraded', {
-              documentId: anchor.user_document_id,
-              anchorId: anchor.id
-            })
-          } catch (upgradeError) {
-            logger.error('upgrade_protection_level_failed', {
-              documentId: anchor.user_document_id,
-              anchorId: anchor.id
-            }, upgradeError instanceof Error ? upgradeError : new Error(String(upgradeError)))
-            // Don't fail the whole process if upgrade fails
-          }
-        }
+        // ❌ DEPRECATED: upgrade_protection_level removed (P0.2)
+        // Reason: Protection level is DERIVED from events[], not stored state
+        // UI already derives correctly via deriveProtectionLevel(events)
+        // Persisting levels violates canonical contract: "level is pure function"
+        // Contract: docs/contratos/PROTECTION_LEVEL_RULES.md
+        // Migration: 20260106150000_deprecate_upgrade_protection_level.sql
 
         await insertNotification(anchor, txHash, receipt.blockNumber, receipt.blockHash, confirmedAt)
 

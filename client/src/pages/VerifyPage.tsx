@@ -20,16 +20,26 @@ import InhackeableTooltip from '../components/InhackeableTooltip';
 // INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
 interface VerificationServiceResult {
   valid: boolean
-  fileName: string
-  hash: string
-  timestamp: string
-  timestampType: string
+  fileName?: string
+  hash?: string
+  timestamp?: string
+  timestampType?: string
   probativeSignals?: {
     anchorRequested: boolean,
     polygonConfirmed: boolean,
     bitcoinConfirmed: boolean,
     fetchError: boolean,
   }
+  signedAuthority?: 'internal' | 'external';
+  signedAuthorityRef?: Record<string, unknown> | null;
+  documentIntegrity?: boolean;
+  signatureValid?: boolean;
+  timestampValid?: boolean;
+  legalTimestamp?: Record<string, unknown> | { enabled?: boolean };
+  anchors?: unknown;
+  errors?: string[];
+  warnings?: string[];
+  error?: string;
   // ... otros campos que el backend pueda devolver
   manifest?: {
     projectId: string

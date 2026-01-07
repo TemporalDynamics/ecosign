@@ -29,6 +29,7 @@ type StartWorkflowParams = {
   documentUrl: string;
   documentHash: string;
   originalFilename: string;
+  documentEntityId?: string;
   signers: WorkflowSigner[];
   forensicConfig?: ForensicConfig;
 };
@@ -38,6 +39,7 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
     documentUrl,
     documentHash,
     originalFilename,
+    documentEntityId,
     signers,
     forensicConfig = {
       rfc3161: true,
@@ -80,6 +82,7 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
         documentUrl,
         documentHash,
         originalFilename,
+        documentEntityId,
         signers,
         forensicConfig
       }

@@ -30,6 +30,8 @@ import { trackEvent } from '../lib/analytics';
 import { isPDFEncrypted } from '../lib/e2e/documentEncryption';
 import { validatePDFStructure, checkPDFPermissions } from '../lib/pdfValidation';
 import { validateTSAConnectivity } from '../lib/tsaValidation';
+import { CertifyProgress } from './CertifyProgress';
+import type { CertifyStage } from '../lib/errorRecovery';
 
 // PASO 3: Módulos refactorizados
 import { 
@@ -188,6 +190,15 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [documentLoaded, setDocumentLoaded] = useState(false); // CONSTITUCIÓN: Control de visibilidad de acciones
   const [loading, setLoading] = useState(false);
   const [certificateData, setCertificateData] = useState<CertificateData | null>(null);
+
+  // FASE 3.A: Certify progress state (P0.5 - visible progress)
+  const [certifyProgress, setCertifyProgress] = useState<{
+    stage: CertifyStage | null;
+    message: string;
+  }>({
+    stage: null,
+    message: ''
+  });
 
   // Estados de paneles colapsables
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
@@ -759,6 +770,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     }
 
     setLoading(true);
+
+    // FASE 3.A: Show progress (P0.5)
+    setCertifyProgress({
+      stage: 'preparing',
+      message: 'Preparando documento...'
+    });
+
     try {
       if (isGuestMode()) {
         showToast('Demo: certificado generado (no se guarda ni se descarga en modo invitado).', { type: 'success' });
@@ -999,6 +1017,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       let signedPdfFromSignNow: File | null = null;
       let signNowResult: SignNowResult | null = null;
 
+      // FASE 3.A: Update progress to timestamping (P0.5)
+      setCertifyProgress({
+        stage: 'timestamping',
+        message: 'Generando timestamp legal...'
+      });
+
       if (signatureType === 'certified') {
         // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
         console.log('🔐 Usando SignNow API para firma legalizada');
@@ -1117,6 +1141,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       } catch (err) {
         console.warn('Canonical signed persistence skipped:', err);
       }
+
+      // FASE 3.A: Update progress to generating certificate (P0.5)
+      setCertifyProgress({
+        stage: 'generating',
+        message: 'Generando certificado .ECO...'
+      });
 
       let ecoData = certResult.ecoData;
       let ecoPayloadBuffer = certResult?.ecoxBuffer ?? null;
@@ -2647,6 +2677,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
           </div>
         </div>
+      )}
+
+      {/* FASE 3.A: Progress modal during certification (P0.5) */}
+      {certifyProgress.stage && (
+        <CertifyProgress
+          stage={certifyProgress.stage}
+          message={certifyProgress.message}
+        />
       )}
     </>
   );

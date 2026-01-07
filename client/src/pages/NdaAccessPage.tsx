@@ -175,7 +175,6 @@ function NdaAccessPage() {
       // Track analytics
       trackEvent('nda_accepted', {
         recipientId: linkData.recipient.id,
-        documentId: linkData.document?.id,
         documentTitle: linkData.document?.title,
         acceptanceId: data.acceptance_id,
         ndaHash: data.nda_hash

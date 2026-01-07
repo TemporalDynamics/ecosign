@@ -9,14 +9,16 @@ import {
   FileCheck
 } from 'lucide-react';
 import { verifyEcoWithOriginal } from '../lib/verificationService';
+import { getLatestTsaEvent, formatTsaTimestamp } from '../lib/events/tsa';
+import { getAnchorEvent } from '../lib/protectionLevel';
 
 // INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
 interface VerificationServiceResult {
   valid: boolean
-  fileName: string
-  hash: string
-  timestamp: string
-  timestampType: string
+  fileName?: string
+  hash?: string
+  timestamp?: string
+  timestampType?: string
   probativeSignals?: {
     anchorRequested: boolean,
     polygonConfirmed: boolean,
@@ -26,8 +28,13 @@ interface VerificationServiceResult {
   anchors?: {
     polygon?: { status?: string } | null;
     bitcoin?: { status?: string } | null;
-  } | null;
+  } | unknown;
   signedAuthority?: 'internal' | 'external';
+  signedAuthorityRef?: Record<string, unknown> | null;
+  documentIntegrity?: boolean;
+  signatureValid?: boolean;
+  timestampValid?: boolean;
+  legalTimestamp?: Record<string, unknown> | { enabled?: boolean };
   errors?: string[];
   warnings?: string[];
   error?: string;
@@ -51,15 +58,34 @@ const buildEvidenceItems = (result: VerificationServiceResult): string[] => {
     }
   }
 
-  if (result.timestamp) {
-    items.push('Existe un sello de tiempo en el certificado.');
+  // TSA: read from events[] if eco data exists
+  if (result.eco?.events) {
+    const tsa = getLatestTsaEvent(result.eco.events);
+    if (tsa.present) {
+      const formattedTime = formatTsaTimestamp(tsa);
+      items.push(formattedTime
+        ? `Evidencia temporal presente: ${formattedTime}`
+        : 'Evidencia temporal presente en el certificado.'
+      );
+    }
   }
 
+  // ✅ CANONICAL: Read anchors from events[] with legacy fallback
+  const events = result.eco?.events || [];
+  const anchors = result.anchors as { polygon?: { status?: string } | null; bitcoin?: { status?: string } | null } | undefined;
+
+  // Polygon: canonical from events[] with legacy fallback
+  const polygonAnchor = getAnchorEvent(events, 'polygon');
   const polygonConfirmed =
-    result.anchors?.polygon?.status === 'confirmed' ||
+    polygonAnchor !== null ||
+    anchors?.polygon?.status === 'confirmed' ||
     result.probativeSignals?.polygonConfirmed;
+
+  // Bitcoin: canonical from events[] with legacy fallback
+  const bitcoinAnchor = getAnchorEvent(events, 'bitcoin');
   const bitcoinConfirmed =
-    result.anchors?.bitcoin?.status === 'confirmed' ||
+    bitcoinAnchor !== null ||
+    anchors?.bitcoin?.status === 'confirmed' ||
     result.probativeSignals?.bitcoinConfirmed;
 
   if (polygonConfirmed) {

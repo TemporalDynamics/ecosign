@@ -28,6 +28,78 @@ import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
 import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 import { trackEvent } from '../lib/analytics';
 import { isPDFEncrypted } from '../lib/e2e/documentEncryption';
+import { validatePDFStructure, checkPDFPermissions } from '../lib/pdfValidation';
+import { validateTSAConnectivity } from '../lib/tsaValidation';
+import { CertifyProgress } from './CertifyProgress';
+import type { CertifyStage } from '../lib/errorRecovery';
+import { determineIfWorkSaved, canRetryFromStage } from '../lib/errorRecovery';
+import { translateError } from '../lib/errorTranslation';
+
+// PASO 3: Módulos refactorizados
+import { 
+  ProtectionToggle,
+  ProtectionInfoModal,
+  ProtectionWarningModal
+} from '../centro-legal/modules/protection';
+import { MySignatureToggle, SignatureModal } from '../centro-legal/modules/signature';
+import { SignatureFlowToggle } from '../centro-legal/modules/flow';
+import { NdaToggle, NdaPanel } from '../centro-legal/modules/nda';
+
+// PASO 3.3: Layout y scenes
+import { LegalCenterShell } from './centro-legal/layout/LegalCenterShell';
+import { resolveGridColumns } from './centro-legal/orchestration/resolveGridLayout';
+import { SceneRenderer } from './centro-legal/layout/SceneRenderer';
+import { resolveActiveScene } from './centro-legal/orchestration/resolveActiveScene';
+import type { SignatureField } from '../types/signature-fields';
+
+// Feature flag: toggle SceneRenderer gradually (FASE 1)
+const USE_SCENE_RENDERER = true;
+
+/**
+ * Helper to persist TSA event to document_entities.events[] via Edge Function
+ * This is the canonical way to append TSA events - uses server-side validation
+ */
+async function persistTsaToEvents(
+  documentEntityId: string,
+  certResult: any,
+  witnessHash: string
+): Promise<void> {
+  try {
+    // Extract TSA token from certResult
+    const tsaToken = certResult?.ecoData?.signatures?.[0]?.legalTimestamp?.token;
+
+    if (!tsaToken) {
+      console.warn('⚠️ No TSA token in certResult, skipping persistence');
+      return;
+    }
+
+    const supabase = getSupabase();
+
+    console.log('📝 Persisting TSA event to document_entities.events[]...');
+    const { data, error } = await supabase.functions.invoke('append-tsa-event', {
+      body: {
+        document_entity_id: documentEntityId,
+        token_b64: tsaToken,
+        gen_time: certResult?.timestamp,
+        tsa_url: certResult?.legalTimestamp?.tsa || 'https://freetsa.org/tsr',
+        digest_algo: 'sha256'
+      }
+    });
+
+    if (error) {
+      console.error('❌ Failed to persist TSA event:', error);
+      return;
+    }
+
+    if (data?.success) {
+      console.log('✅ TSA event persisted to events[]:', data);
+    } else {
+      console.error('❌ TSA persistence failed:', data?.error);
+    }
+  } catch (err) {
+    console.error('❌ Error persisting TSA event:', err);
+  }
+}
 
 type InitialAction = 'sign' | 'workflow' | 'nda' | 'certify';
 type SignatureType = 'legal' | 'certified' | null;
@@ -127,12 +199,27 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [loading, setLoading] = useState(false);
   const [certificateData, setCertificateData] = useState<CertificateData | null>(null);
 
+  // FASE 3.A/3.B: Certify progress state (P0.5 - visible progress, P0.4/P0.7 - errors)
+  const [certifyProgress, setCertifyProgress] = useState<{
+    stage: CertifyStage | null;
+    message: string;
+    error?: string;
+    workSaved?: boolean;
+  }>({
+    stage: null,
+    message: '',
+    error: undefined,
+    workSaved: undefined
+  });
+
   // Estados de paneles colapsables
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
   const [showProtectionModal, setShowProtectionModal] = useState(false);
+  const [showUnprotectedWarning, setShowUnprotectedWarning] = useState(false);
 
   // Configuración de protección legal (activo por defecto con TSA + Polygon + Bitcoin)
   const [forensicEnabled, setForensicEnabled] = useState(true);
+  const [isValidatingTSA, setIsValidatingTSA] = useState(false); // P0.3: TSA connectivity check
   const [forensicConfig, setForensicConfig] = useState<ForensicConfig>({
     useLegalTimestamp: true,    // RFC 3161 TSA
     usePolygonAnchor: true,      // Polygon
@@ -173,6 +260,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [emailInputs, setEmailInputs] = useState<EmailInput[]>([
     { email: '', name: '', requireLogin: true, requireNda: true }
   ]); // 1 campo por defecto - usuarios agregan más según necesiten
+
+  // Placeholder para campos de firma visual (SceneRenderer los consumirá)
+  const [signatureFields, setSignatureFields] = useState<SignatureField[]>([]);
 
   // Firma digital
   const [signatureType, setSignatureType] = useState<SignatureType>(null); // 'legal' | 'certified' | null
@@ -389,12 +479,58 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           e.target.value = '';
           return;
         }
+
+        // P0.1: Validar estructura PDF (antes de continuar)
+        const isPDFValid = await validatePDFStructure(selectedFile);
+        if (!isPDFValid) {
+          toast.error(
+            'Este PDF está dañado o tiene una estructura inválida.\n\nProbá abrirlo en un lector de PDF (Adobe Reader, Foxit) y volvé a guardarlo.',
+            {
+              duration: 8000,
+              position: 'bottom-right',
+              style: {
+                whiteSpace: 'pre-line',
+                maxWidth: '500px'
+              }
+            }
+          );
+          // Reset file input
+          e.target.value = '';
+          return;
+        }
+
+        // P0.2: Advertir sobre permisos PDF (warning, no bloqueante)
+        const permissions = await checkPDFPermissions(selectedFile);
+        if (permissions.restricted) {
+          toast(
+            'Este PDF tiene restricciones de edición.\n\nSi tenés problemas al certificar, pedí al creador que quite las restricciones.',
+            {
+              icon: '⚠️',
+              duration: 8000,
+              position: 'bottom-right',
+              style: {
+                whiteSpace: 'pre-line',
+                maxWidth: '500px',
+                background: '#FEF3C7',
+                color: '#92400E'
+              }
+            }
+          );
+        }
       }
       
       setFile(selectedFile);
       setDocumentLoaded(true); // CONSTITUCIÓN: Controlar visibilidad de acciones
       setPreviewError(false);
       console.log('Archivo seleccionado:', selectedFile.name);
+
+      // BLOQUE 1: Toast inicial si protección está activa
+      if (forensicEnabled) {
+        toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
+          duration: 3000,
+          position: 'top-right'
+        });
+      }
 
       // Track analytics
       trackEvent('uploaded_doc', {
@@ -614,6 +750,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     return validSigners;
   };
 
+  // BLOQUE 1: Helper para interceptar acciones cuando protección está desactivada
+  const handleActionWithProtectionCheck = (action: () => void) => {
+    if (!forensicEnabled) {
+      setShowUnprotectedWarning(true);
+    } else {
+      action();
+    }
+  };
+
   const handleCertify = async () => {
     if (!file) return;
     if (!file.type?.toLowerCase().includes('pdf')) {
@@ -640,6 +785,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     }
 
     setLoading(true);
+
+    // FASE 3.C: Timeout tracking (P0.6)
+    let timeoutWarning: NodeJS.Timeout | null = null;
+
+    // FASE 3.A: Show progress (P0.5)
+    setCertifyProgress({
+      stage: 'preparing',
+      message: 'Preparando documento...'
+    });
+
     try {
       if (isGuestMode()) {
         showToast('Demo: certificado generado (no se guarda ni se descarga en modo invitado).', { type: 'success' });
@@ -759,6 +914,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             documentUrl: signedUrlData.signedUrl,
             documentHash,
             originalFilename: file.name,
+            documentEntityId: canonicalDocumentId || undefined,
             signers: validSigners,
             forensicConfig: {
               rfc3161: forensicEnabled && forensicConfig.useLegalTimestamp,
@@ -879,6 +1035,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       let signedPdfFromSignNow: File | null = null;
       let signNowResult: SignNowResult | null = null;
 
+      // FASE 3.A: Update progress to timestamping (P0.5)
+      setCertifyProgress({
+        stage: 'timestamping',
+        message: 'Generando timestamp legal...'
+      });
+
+      // FASE 3.C: Timeout detection (P0.6)
+      timeoutWarning = setTimeout(() => {
+        setCertifyProgress(prev => ({
+          ...prev,
+          message: 'Generando timestamp legal... (puede tardar más de lo habitual)'
+        }));
+      }, 5000); // Show warning after 5 seconds
+
       if (signatureType === 'certified') {
         // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
         console.log('🔐 Usando SignNow API para firma legalizada');
@@ -963,6 +1133,23 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         });
       }
 
+      // FASE 3.C: Clear timeout warning (P0.6)
+      clearTimeout(timeoutWarning);
+
+      // ✅ CANONICAL TSA: Persist TSA event to document_entities.events[]
+      // This happens AFTER certifyFile but BEFORE saving to user_documents
+      // The Edge Function will read witness_hash from DB and append the TSA event
+      if (
+        canonicalDocumentId &&
+        witnessHash &&
+        certResult?.legalTimestamp &&
+        typeof certResult.legalTimestamp === 'object' &&
+        'enabled' in certResult.legalTimestamp &&
+        certResult.legalTimestamp.enabled
+      ) {
+        await persistTsaToEvents(canonicalDocumentId, certResult, witnessHash);
+      }
+
       // 2. Guardar en Supabase (guardar el PDF procesado, no el original)
       // Status inicial: 'signed' si ya se firmó, 'draft' si no hay firmantes
       const initialStatus = (signatureType === 'legal' || signatureType === 'certified') ? 'signed' : 'draft';
@@ -983,6 +1170,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       } catch (err) {
         console.warn('Canonical signed persistence skipped:', err);
       }
+
+      // FASE 3.A: Update progress to generating certificate (P0.5)
+      setCertifyProgress({
+        stage: 'generating',
+        message: 'Generando certificado .ECO...'
+      });
 
       let ecoData = certResult.ecoData;
       let ecoPayloadBuffer = certResult?.ecoxBuffer ?? null;
@@ -1146,19 +1339,53 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       }, 100);
     } catch (error) {
       console.error('Error al certificar:', error);
-      const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Hubo un problema desconocido al certificar tu documento. Por favor intentá de nuevo.');
-      showToast(`Error de certificación: ${errorMessage}`, { type: 'error' });
+
+      // FASE 3.C: Clear timeout on error (P0.6)
+      if (timeoutWarning) {
+        clearTimeout(timeoutWarning);
+      }
+
+      // FASE 3.B: Human-friendly error handling (P0.4, P0.7)
+      const humanError = translateError(error);
+      const workSaved = certifyProgress.stage ? determineIfWorkSaved(certifyProgress.stage) : false;
+
+      // Show error in progress modal with translated message and work saved status
+      setCertifyProgress({
+        stage: certifyProgress.stage || 'preparing', // Preserve stage for context
+        message: '',
+        error: humanError,
+        workSaved: workSaved
+      });
+
+      // Note: Error display now handled by CertifyProgress component
+      // which will show error, work saved status, and retry button (FASE 3.C)
     } finally {
       setLoading(false);
+      // Note: Don't reset certifyProgress here if there's an error
+      // The modal needs to stay visible to show the error state
     }
   };
 
   const resetAndClose = () => {
+    // BLOQUE 1: Verificar protección antes de cerrar
+    if (!forensicEnabled && documentLoaded) {
+      setShowUnprotectedWarning(true);
+      return;
+    }
+
     console.log('🔒 Cerrando Centro Legal...');
     setStep(1);
     setFile(null);
     setPreviewError(false);
     setCertificateData(null);
+
+    // FASE 3.B: Reset certify progress state
+    setCertifyProgress({
+      stage: null,
+      message: '',
+      error: undefined,
+      workSaved: undefined
+    });
     setSignatureMode('none');
     setEmailInputs([
       { email: '', name: '', requireLogin: true, requireNda: true }
@@ -1535,77 +1762,74 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   }, [isMobile, previewMode]);
 
   // ===== GRID LAYOUT =====
-  
-  const leftColWidth = ndaEnabled ? '320px' : '0px';
-  const rightColWidth = workflowEnabled ? '320px' : '0px';
-  const centerColWidth = 'minmax(640px, 1fr)';
-  
-  // En mobile, usar grid de 1 columna
-  const gridTemplateColumns = isMobile
-    ? '1fr'
-    : `${leftColWidth} ${centerColWidth} ${rightColWidth}`;
+  // PASO 3.3: Usar helper de orquestación
+  // Calcular escena activa para SceneRenderer (FASE 1 - sin efectos colaterales)
+  const scene = resolveActiveScene({
+    hasFile: !!file,
+    ndaEnabled,
+    mySignatureEnabled: mySignature,
+    workflowEnabled,
+    isReviewStep: step !== 1
+  });
+
+  const gridTemplateColumns = resolveGridColumns({
+    ndaEnabled,
+    rightPanelOpen: workflowEnabled,
+    isMobile
+  });
   const isPreviewFullscreen = isMobile && previewMode === 'fullscreen';
+
+  // Instrumentation: track active scene views (minimal, non-invasive)
+  React.useEffect(() => {
+    try {
+      trackEvent('legal_center_scene_view', {
+        scene,
+        hasFile: !!file,
+        ndaEnabled,
+        workflowEnabled,
+        mySignatureEnabled: mySignature,
+        isMobile
+      });
+    } catch (e) {
+      // swallow to avoid breaking UI
+      console.warn('analytics.scene_view failed', e);
+    }
+  }, [scene, file, ndaEnabled, workflowEnabled, mySignature, isMobile]);
+
+  // Instrumentation: preview errors
+  React.useEffect(() => {
+    if (!previewError) return;
+    try {
+      trackEvent('legal_center_preview_error', {
+        fileType: file?.type || 'unknown',
+        browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'
+      });
+    } catch (e) {
+      console.warn('analytics.preview_error failed', e);
+    }
+  }, [previewError]);
 
   return (
     <>
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-0 py-0 md:px-4 md:py-6">
-        <div className="modal-container bg-white rounded-none md:rounded-2xl w-full max-w-7xl max-h-full md:max-h-[94vh] h-[100svh] md:h-auto shadow-xl flex flex-col overflow-hidden">
-        {/* Header fijo sobre todo el grid */}
-        <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Centro Legal
-            </h2>
-            {modeConfirmation && (
-              <span className="text-sm text-gray-500 animate-fadeIn">
-                {modeConfirmation}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={resetAndClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Content - Grid fijo de 3 zonas con colapso suave */}
-        <div
-          className="relative overflow-x-hidden overflow-y-auto grid flex-1"
-          style={{ gridTemplateColumns, transition: 'grid-template-columns 300ms ease-in-out' }}
-        >
-          {/* Left Panel (NDA) */}
-          {documentLoaded && (
-          <div className={`left-panel h-full border-r border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
-            <div className="h-full flex flex-col">
-              {/* Header colapsable del panel */}
-              <div className="px-4 py-3 border-b border-gray-200 bg-white">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-900">NDA</h3>
-                  <button
-                    onClick={() => setNdaEnabled(false)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                    title="Cerrar panel NDA"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              {/* Contenido del panel */}
-              <div className="px-4 py-4 overflow-y-auto flex-1">
-                <p className="text-xs text-gray-600 mb-3">
-                  Editá el texto del NDA que los firmantes deberán aceptar antes de acceder al documento.
-                </p>
-                <textarea
-                  value={ndaText}
-                  onChange={(e) => setNdaText(e.target.value)}
-                  className="w-full h-[500px] px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
-                  placeholder="Escribí aquí el texto del NDA..."
-                />
-              </div>
+    <LegalCenterShell
+      modeConfirmation={modeConfirmation}
+      onClose={resetAndClose}
+      gridTemplateColumns={gridTemplateColumns}
+    >
+      {/* Left Panel (NDA) - PASO 4.1: NdaPanel modular */}
+      {documentLoaded && ndaEnabled && (
+        <div className={`left-panel h-full transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
+          <NdaPanel
+                isOpen={ndaEnabled}
+                documentId={undefined}
+                onClose={() => setNdaEnabled(false)}
+                onSave={(ndaData) => {
+                  setNdaText(ndaData.content);
+                  // TODO: Persistir en DB cuando corresponda
+                  console.log('NDA saved:', ndaData);
+                }}
+              />
             </div>
-          </div>
           )}
         
           {/* Center Panel (Main Content) */}
@@ -2004,64 +2228,74 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               {/* CONSTITUCIÓN: Acciones solo visibles si documentLoaded */}
               {documentLoaded && (
               <div className="space-y-2">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNdaEnabled(!ndaEnabled)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      ndaEnabled
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    NDA
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newState = !mySignature;
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {/* PASO 3.2.3: Toggle NDA - Módulo refactorizado (placeholder) */}
+                  <NdaToggle
+                    enabled={ndaEnabled}
+                    onToggle={setNdaEnabled}
+                    disabled={!file}
+                  />
+                  {/* BLOQUE 1: Toggle de Protección - Módulo refactorizado */}
+                  <ProtectionToggle
+                    enabled={forensicEnabled}
+                    onToggle={async (newState) => {
+                      // P0.3: If enabling, validate TSA connectivity first
+                      if (newState) {
+                        setIsValidatingTSA(true);
+                        const tsaAvailable = await validateTSAConnectivity();
+                        setIsValidatingTSA(false);
+
+                        if (!tsaAvailable) {
+                          toast.error(
+                            'El servicio de timestamping no está disponible en este momento.\n\nReintentá en unos minutos o contactá soporte.',
+                            {
+                              duration: 6000,
+                              position: 'bottom-right',
+                              style: {
+                                whiteSpace: 'pre-line',
+                                maxWidth: '500px'
+                              }
+                            }
+                          );
+                          return; // Don't enable
+                        }
+
+                        // TSA is available, enable protection
+                        setForensicEnabled(true);
+                        toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
+                          duration: 3000,
+                          position: 'top-right'
+                        });
+                      } else {
+                        // Disabling protection (no validation needed)
+                        setForensicEnabled(false);
+                        toast('Protección desactivada', {
+                          duration: 2000,
+                          position: 'top-right'
+                        });
+                      }
+                    }}
+                    disabled={!file}
+                    isValidating={isValidatingTSA}
+                  />
+                  {/* PASO 3.2.1: Toggle Mi Firma - Módulo refactorizado */}
+                  <MySignatureToggle
+                    enabled={mySignature}
+                    onToggle={(newState) => {
                       setMySignature(newState);
-                      // CONSTITUCIÓN: Si se activa "Mi Firma", abrir modal + toast
                       if (newState && file) {
                         setShowSignatureOnPreview(true);
-                        
-                        toast('Vas a poder firmar directamente sobre el documento.', {
-                          icon: '✍️',
-                          position: 'top-right',
-                          duration: 3000
-                        });
                       }
                     }}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      mySignature
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Mi Firma
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newState = !workflowEnabled;
-                      setWorkflowEnabled(newState);
-                      
-                      // CONSTITUCIÓN: Toast al activar flujo
-                      if (newState) {
-                        toast('Agregá los correos de las personas que deben firmar o recibir el documento.', {
-                          position: 'top-right',
-                          duration: 3000
-                        });
-                      }
-                    }}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                      workflowEnabled
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Flujo de Firmas
-                  </button>
+                    disabled={!file}
+                    hasFile={!!file}
+                  />
+                  {/* PASO 3.2.2: Toggle Flujo - Módulo refactorizado */}
+                  <SignatureFlowToggle
+                    enabled={workflowEnabled}
+                    onToggle={setWorkflowEnabled}
+                    disabled={!file}
+                  />
                 </div>
               </div>
               )}
@@ -2381,7 +2615,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
           </div>
         </div>
-      </div>
+      </LegalCenterShell>
 
       {/* Modal secundario: Selector de tipo de firma certificada */}
       {showCertifiedModal && (
@@ -2471,95 +2705,27 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         </div>
       )}
 
-      {/* Modal secundario: Protección Legal */}
-      {showProtectionModal && (
-        <div className="fixed inset-0 bg-white md:bg-black md:bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn p-0 md:p-6">
-          <div className="bg-white rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-md p-6 shadow-2xl animate-fadeScaleIn overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Protección Legal
-              </h3>
-              <button
-                onClick={() => setShowProtectionModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* PASO 3: Modal de Protección - Componente refactorizado */}
+      <ProtectionInfoModal
+        isOpen={showProtectionModal}
+        onClose={() => setShowProtectionModal(false)}
+      />
 
-            <p className="text-sm text-gray-600 mb-4">
-              {forensicEnabled
-                ? 'Triple protección internacional'
-                : 'Activá la protección legal que necesitás'}
-            </p>
-
-            {/* Lista de protecciones */}
-            <div className="space-y-3 mb-6">
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Sello de Tiempo (TSA)</p>
-                  <p className="text-xs text-gray-600">Certificación RFC 3161 de fecha y hora exacta</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Registro Inmutable Digital</p>
-                  <p className="text-xs text-gray-600">Anclaje en la red Polygon</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                <CheckCircle2 className={`w-5 h-5 flex-shrink-0 mt-0.5 ${forensicEnabled ? 'text-green-600' : 'text-gray-400'}`} />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Registro Permanente Digital</p>
-                  <p className="text-xs text-gray-600">Anclaje en la red Bitcoin</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Toggle de protección */}
-            <div className="border-t border-gray-200 pt-4">
-              <button
-                onClick={() => {
-                  const newState = !forensicEnabled;
-                  setForensicEnabled(newState);
-                  setShowProtectionModal(false);
-
-                  if (newState) {
-                    toast('Activaste la protección legal que necesitás', {
-                      duration: 6000,
-                      position: 'bottom-right',
-                      icon: '🛡️',
-                      style: {
-                        background: '#f3f4f6',
-                        color: '#374151',
-                      }
-                    });
-                  } else {
-                    toast('Protección legal desactivada. Podés volver a activarla en cualquier momento.', {
-                      duration: 6000,
-                      position: 'bottom-right',
-                      style: {
-                        background: '#f3f4f6',
-                        color: '#374151',
-                      }
-                    });
-                  }
-                }}
-                className="w-full py-2 px-4 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-              >
-                {forensicEnabled ? 'Desactivar protección legal' : 'Activar protección legal'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-        </div>
-      </div>
+      {/* PASO 3: Modal de Warning - Componente refactorizado */}
+      <ProtectionWarningModal
+        isOpen={showUnprotectedWarning}
+        onClose={() => setShowUnprotectedWarning(false)}
+        onActivateProtection={() => setForensicEnabled(true)}
+        onExitWithoutProtection={() => {
+          setShowUnprotectedWarning(false);
+          // Forzar el cierre sin volver a checkear
+          setForensicEnabled(true); // Temporal para evitar loop
+          setTimeout(() => {
+            setForensicEnabled(false); // Restaurar estado real
+            resetAndClose();
+          }, 50);
+        }}
+      />
 
       {/* Modal de Bienvenida */}
       <LegalCenterWelcomeModal
@@ -2605,6 +2771,38 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
           </div>
         </div>
+      )}
+
+      {/* FASE 3.A/3.B/3.C: Progress modal during certification (P0.5, P0.4, P0.7, P0.8) */}
+      {certifyProgress.stage && (
+        <CertifyProgress
+          stage={certifyProgress.stage}
+          message={certifyProgress.message}
+          error={certifyProgress.error}
+          workSaved={certifyProgress.workSaved}
+          canRetry={certifyProgress.error ? canRetryFromStage(certifyProgress.stage) : false}
+          onRetry={() => {
+            // FASE 3.C: Retry certification (P0.8)
+            // Reset error state and retry handleCertify
+            setCertifyProgress({
+              stage: null,
+              message: '',
+              error: undefined,
+              workSaved: undefined
+            });
+            // Call handleCertify again (it will restart from 'preparing')
+            handleCertify();
+          }}
+          onClose={() => {
+            // Reset progress state when user closes error modal
+            setCertifyProgress({
+              stage: null,
+              message: '',
+              error: undefined,
+              workSaved: undefined
+            });
+          }}
+        />
       )}
     </>
   );

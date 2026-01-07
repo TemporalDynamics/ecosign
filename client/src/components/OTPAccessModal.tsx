@@ -48,12 +48,14 @@ export function OTPAccessModal({
     setLoading(true);
     setProgress(0);
 
+    let progressInterval: ReturnType<typeof setInterval> | undefined;
+
     try {
       // Simulate progress for UX
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 90) {
-            clearInterval(progressInterval);
+            if (progressInterval) clearInterval(progressInterval);
             return 90;
           }
           return prev + 10;
@@ -66,7 +68,7 @@ export function OTPAccessModal({
         recipientEmail: `access-${Date.now()}@ecosign.local`, // Placeholder
       });
 
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       setProgress(100);
 
       const url = URL.createObjectURL(result.blob);
@@ -74,7 +76,7 @@ export function OTPAccessModal({
       setDownloadName(result.filename);
       setLoading(false);
     } catch (err) {
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       
       // Mensajes de error humanos (no técnicos)
       let errorMessage = 'No pudimos abrir el documento todavía';

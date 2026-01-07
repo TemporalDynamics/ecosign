@@ -45,6 +45,32 @@ export type TransformLogEntry = {
   executed_at: string;
 };
 
+export type TsaEventPayload = {
+  token_b64: string;
+  witness_hash: string;
+  gen_time?: string;
+  policy_oid?: string;
+  serial?: string;
+  digest_algo?: string;
+  tsa_cert_fingerprint?: string;
+  token_hash?: string;
+};
+
+export type TsaEvent = {
+  kind: 'tsa';
+  at: string;
+  witness_hash: string;
+  tsa: {
+    token_b64: string;
+    gen_time?: string;
+    policy_oid?: string;
+    serial?: string;
+    digest_algo?: string;
+    tsa_cert_fingerprint?: string;
+    token_hash?: string;
+  };
+};
+
 export type SourceTruthInput = {
   name: string;
   mime_type: string;
@@ -288,4 +314,60 @@ export const emitEcoVNext = async (
 ): Promise<{ eco: EcoV2; json: string }> => {
   const doc = await getDocumentEntity(documentId);
   return generateEcoV2(doc as DocumentEntityRow);
+};
+
+/**
+ * Append TSA event to document_entities.events[]
+ * 
+ * MUST: witness_hash must match document_entities.witness_hash
+ * MUST: token_b64 must be valid base64 RFC 3161 token
+ * 
+ * This function enforces canonical rules per TSA_EVENT_RULES.md
+ */
+export const appendTsaEvent = async (
+  documentId: string,
+  payload: TsaEventPayload
+) => {
+  const doc = await getDocumentEntity(documentId);
+
+  // MUST: witness_hash consistency check
+  if (payload.witness_hash !== doc.witness_hash) {
+    throw new Error(
+      `TSA witness_hash mismatch: expected ${doc.witness_hash}, got ${payload.witness_hash}`
+    );
+  }
+
+  // MUST: witness_hash must exist (document must have witness)
+  if (!doc.witness_hash) {
+    throw new Error('Cannot append TSA event: document has no witness_hash');
+  }
+
+  // Build TSA event
+  const event: TsaEvent = {
+    kind: 'tsa',
+    at: new Date().toISOString(),
+    witness_hash: payload.witness_hash,
+    tsa: {
+      token_b64: payload.token_b64,
+      gen_time: payload.gen_time,
+      policy_oid: payload.policy_oid,
+      serial: payload.serial,
+      digest_algo: payload.digest_algo || 'sha256',
+      tsa_cert_fingerprint: payload.tsa_cert_fingerprint,
+      token_hash: payload.token_hash,
+    },
+  };
+
+  // Append to events[] (DB trigger will validate)
+  const currentEvents = Array.isArray(doc.events) ? doc.events : [];
+  const { error } = await getSupabase()
+    .from('document_entities')
+    .update({
+      events: [...currentEvents, event],
+    })
+    .eq('id', documentId);
+
+  if (error) {
+    throw new Error(`Failed to append TSA event: ${error.message}`);
+  }
 };

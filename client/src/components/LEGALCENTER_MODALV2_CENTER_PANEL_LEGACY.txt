@@ -1,0 +1,99 @@
+<div className={`center-panel relative z-20 ${isMobile ? 'col-span-full px-4 py-3' : 'col-start-2 col-end-3 px-6 py-3'}`}>
+  {/* PASO 1: ELEGIR ARCHIVO */}
+  {step === 1 && (
+    <div className={`space-y-3 ${isMobile ? 'pb-24' : ''}`}>
+    <div>
+      {/* Zona de drop / Preview del documento */}
+      {!file ? (
+        <label className="block border-2 border-dashed border-gray-300 rounded-xl py-10 md:py-20 min-h-[240px] md:min-h-[480px] text-center hover:border-gray-900 transition-colors cursor-pointer">
+          <input
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept=".pdf"
+          />
+          {/* Título principal */}
+          <p className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
+            Arrastrá tu documento o hacé clic para elegirlo
+          </p>
+          {/* Ícono del dropzone */}
+          <FileText className="w-12 h-12 text-gray-900 mx-auto mb-4" />
+          {/* Texto de formatos */}
+          <p className="text-xs text-gray-500 mt-2">
+            Formato PDF (máx 50MB)
+          </p>
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            {/* Texto de privacidad */}
+            <p className="text-sm text-gray-700 font-medium flex items-center justify-center gap-2">
+              <Shield className="w-4 h-4 text-gray-700" />
+              Tu documento está protegido por defecto
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              No lo vemos ni podemos acceder a su contenido.
+            </p>
+          </div>
+        </label>
+      ) : (<div className={`border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 ${isPreviewFullscreen ? 'fixed inset-0 z-50 rounded-none border-0 bg-white flex flex-col' : ''}`}>
+        {/* ...legacy content truncated for brevity... */}
+      </div>)}
+    </div>
+
+    {/* CONSTITUCIÓN: Acciones solo visibles si documentLoaded */}
+    {documentLoaded && (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {/* PASO 3.2.3: Toggle NDA - Módulo refactorizado (placeholder) */}
+        <NdaToggle
+          enabled={ndaEnabled}
+          onToggle={setNdaEnabled}
+          disabled={!file}
+        />
+        {/* ...legacy content truncated for brevity... */}
+      </div>
+    </div>
+    )}
+
+    {/* Tipo de Firma - Solo si hay firma aplicada o workflow SIN mi firma */}
+    {documentLoaded && ((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && (
+    <div className="space-y-2 animate-fadeScaleIn">
+      {/* ...legacy content truncated for brevity... */}
+    </div>
+    )}
+
+    {/* Botón principal */}
+    <div className="hidden md:block">
+      <button
+        ref={finalizeButtonRef}
+        onClick={handleCertify}
+        disabled={!file || loading || !isCTAEnabled()}
+        className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Protegiendo tu documento…
+          </>
+        ) : (
+          // CONSTITUCIÓN: Usar getCTAText() para consistencia
+          getCTAText()
+        )}
+      </button>
+    </div>
+    <div className="md:hidden sticky bottom-0 bg-white pt-2 pb-3 border-t border-gray-200">
+      <button
+        onClick={handleCertify}
+        disabled={!file || loading || !isCTAEnabled()}
+        className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Protegiendo tu documento…
+          </>
+        ) : (
+          getCTAText()
+        )}
+      </button>
+    </div>
+  </div>
+</div>

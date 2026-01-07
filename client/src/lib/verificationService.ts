@@ -22,6 +22,7 @@ type VerificationBaseResult = {
   timestampValid?: boolean;
   originalFileMatches?: boolean | null;
   legalTimestamp?: Record<string, unknown> | { enabled?: boolean };
+  anchors?: unknown; // Derived from eco.v2 events
   manifest?: unknown;
   errors?: string[];
   warnings?: string[];

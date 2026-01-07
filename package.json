@@ -31,15 +31,14 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.81.0",
     "@vercel/analytics": "^1.5.0",
-    "jsdom": "^27.2.0"
+    "jsdom": "^27.2.0",
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
     "@types/jsdom": "^27.0.0",
     "@vitest/coverage-v8": "^4.0.9",
     "@vitest/ui": "^4.0.9",
-    "dompurify": "^3.0.11",
     "dotenv": "^17.2.3",
-    "glob": "^13.0.0",
     "knip": "^5.73.4",
     "supabase": "^2.58.5",
     "typescript": "^5.9.3",

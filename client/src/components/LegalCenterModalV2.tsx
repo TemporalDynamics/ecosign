@@ -1779,6 +1779,36 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   });
   const isPreviewFullscreen = isMobile && previewMode === 'fullscreen';
 
+  // Instrumentation: track active scene views (minimal, non-invasive)
+  React.useEffect(() => {
+    try {
+      trackEvent('legal_center_scene_view', {
+        scene,
+        hasFile: !!file,
+        ndaEnabled,
+        workflowEnabled,
+        mySignatureEnabled: mySignature,
+        isMobile
+      });
+    } catch (e) {
+      // swallow to avoid breaking UI
+      console.warn('analytics.scene_view failed', e);
+    }
+  }, [scene, file, ndaEnabled, workflowEnabled, mySignature, isMobile]);
+
+  // Instrumentation: preview errors
+  React.useEffect(() => {
+    if (!previewError) return;
+    try {
+      trackEvent('legal_center_preview_error', {
+        fileType: file?.type || 'unknown',
+        browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'
+      });
+    } catch (e) {
+      console.warn('analytics.preview_error failed', e);
+    }
+  }, [previewError]);
+
   return (
     <>
     <LegalCenterShell

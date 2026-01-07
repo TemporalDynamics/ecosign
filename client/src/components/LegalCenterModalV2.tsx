@@ -32,6 +32,8 @@ import { validatePDFStructure, checkPDFPermissions } from '../lib/pdfValidation'
 import { validateTSAConnectivity } from '../lib/tsaValidation';
 import { CertifyProgress } from './CertifyProgress';
 import type { CertifyStage } from '../lib/errorRecovery';
+import { determineIfWorkSaved } from '../lib/errorRecovery';
+import { translateError } from '../lib/errorTranslation';
 
 // PASO 3: Módulos refactorizados
 import { 
@@ -191,13 +193,17 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [loading, setLoading] = useState(false);
   const [certificateData, setCertificateData] = useState<CertificateData | null>(null);
 
-  // FASE 3.A: Certify progress state (P0.5 - visible progress)
+  // FASE 3.A/3.B: Certify progress state (P0.5 - visible progress, P0.4/P0.7 - errors)
   const [certifyProgress, setCertifyProgress] = useState<{
     stage: CertifyStage | null;
     message: string;
+    error?: string;
+    workSaved?: boolean;
   }>({
     stage: null,
-    message: ''
+    message: '',
+    error: undefined,
+    workSaved: undefined
   });
 
   // Estados de paneles colapsables
@@ -1310,12 +1316,26 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       }, 100);
     } catch (error) {
       console.error('Error al certificar:', error);
-      const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Hubo un problema desconocido al certificar tu documento. Por favor intentá de nuevo.');
-      showToast(`Error de certificación: ${errorMessage}`, { type: 'error' });
+
+      // FASE 3.B: Human-friendly error handling (P0.4, P0.7)
+      const humanError = translateError(error);
+      const workSaved = certifyProgress.stage ? determineIfWorkSaved(certifyProgress.stage) : false;
+
+      // Show error in progress modal with translated message and work saved status
+      setCertifyProgress({
+        stage: certifyProgress.stage || 'preparing', // Preserve stage for context
+        message: '',
+        error: humanError,
+        workSaved: workSaved
+      });
+
+      // Note: Error display now handled by CertifyProgress component
+      // which will show error, work saved status, and close button
+      // Retry button NOT included yet (FASE 3.C)
     } finally {
       setLoading(false);
-      // FASE 3.A: Reset progress modal
-      setCertifyProgress({ stage: null, message: '' });
+      // Note: Don't reset certifyProgress here if there's an error
+      // The modal needs to stay visible to show the error state
     }
   };
 
@@ -1331,6 +1351,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setFile(null);
     setPreviewError(false);
     setCertificateData(null);
+
+    // FASE 3.B: Reset certify progress state
+    setCertifyProgress({
+      stage: null,
+      message: '',
+      error: undefined,
+      workSaved: undefined
+    });
     setSignatureMode('none');
     setEmailInputs([
       { email: '', name: '', requireLogin: true, requireNda: true }
@@ -2679,11 +2707,23 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         </div>
       )}
 
-      {/* FASE 3.A: Progress modal during certification (P0.5) */}
+      {/* FASE 3.A/3.B: Progress modal during certification (P0.5, P0.4, P0.7) */}
       {certifyProgress.stage && (
         <CertifyProgress
           stage={certifyProgress.stage}
           message={certifyProgress.message}
+          error={certifyProgress.error}
+          workSaved={certifyProgress.workSaved}
+          canRetry={false} // FASE 3.C will enable retry
+          onClose={() => {
+            // Reset progress state when user closes error modal
+            setCertifyProgress({
+              stage: null,
+              message: '',
+              error: undefined,
+              workSaved: undefined
+            });
+          }}
         />
       )}
     </>

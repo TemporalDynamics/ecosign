@@ -13,6 +13,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
+import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,7 +68,7 @@ serve(withRateLimit('accept', async (req) => {
     // Get share data
     const { data: share, error: shareError } = await supabase
       .from('document_shares')
-      .select('id, recipient_email, nda_text, nda_enabled, nda_accepted_at')
+      .select('id, document_id, recipient_email, nda_text, nda_enabled, nda_accepted_at')
       .eq('id', share_id)
       .single()
 
@@ -115,6 +116,10 @@ serve(withRateLimit('accept', async (req) => {
                       req.headers.get('x-real-ip') ||
                       null
     const userAgent = req.headers.get('user-agent') || null
+    const country = req.headers.get('cf-ipcountry') || // Cloudflare
+                    req.headers.get('x-vercel-ip-country') || // Vercel
+                    null
+    const sessionId = crypto.randomUUID()
     const timestamp = new Date().toISOString()
 
     // Generate NDA hash (R4: evidencia probatoria de QUÉ se aceptó)
@@ -158,6 +163,43 @@ serve(withRateLimit('accept', async (req) => {
     }
 
     console.log(`NDA accepted for share ${share_id} by ${signer_email}`)
+
+    // === PROBATORY EVENT: nda_accepted ===
+    // Register NDA acceptance in canonical events ledger
+    const documentEntityId = await getDocumentEntityId(supabase, share.document_id);
+    if (documentEntityId) {
+      const ipHash = ipAddress ? await hashIP(ipAddress) : null;
+      const browserFamily = getBrowserFamily(userAgent);
+
+      const eventResult = await appendEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'nda_accepted',
+          at: timestamp,
+          nda: {
+            share_id: share_id,
+            recipient_email: signer_email,
+            nda_hash: ndaHash,
+            acceptance_method: 'checkbox'
+          },
+          context: {
+            ip_hash: ipHash,
+            geo: country,
+            browser: browserFamily,
+            session_id: sessionId
+          }
+        },
+        'accept-share-nda'
+      );
+
+      if (!eventResult.success) {
+        console.error('Failed to append nda_accepted event:', eventResult.error);
+        // Don't fail the request, NDA was accepted successfully
+      }
+    } else {
+      console.warn(`Could not get document_entity_id for document ${share.document_id}, nda_accepted event not recorded`);
+    }
 
     return new Response(
       JSON.stringify({

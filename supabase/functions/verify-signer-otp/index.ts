@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
+import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,6 +35,15 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Extract metadata from request
+    const metadata = {
+      ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                  req.headers.get('x-real-ip') || null,
+      user_agent: req.headers.get('user-agent') || null,
+      country: req.headers.get('cf-ipcountry') || req.headers.get('x-vercel-ip-country') || null,
+      session_id: crypto.randomUUID()
+    }
 
     const { signerId, otp } = (await req.json()) as RequestPayload
     if (!signerId || !otp) return json({ error: 'signerId and otp are required' }, 400)
@@ -72,6 +82,57 @@ serve(async (req) => {
 
     if (!isValid) {
       return json({ error: 'OTP inválido' }, 400)
+    }
+
+    // === PROBATORY EVENT: otp_verified ===
+    // Get signer email and workflow info for event
+    try {
+      const { data: signer } = await supabase
+        .from('workflow_signers')
+        .select('email, name')
+        .eq('id', signerId)
+        .single()
+
+      const { data: workflow } = await supabase
+        .from('signature_workflows')
+        .select('id, document_entity_id')
+        .eq('id', record.workflow_id)
+        .single()
+
+      if (workflow?.document_entity_id && signer) {
+        const ipHash = metadata.ip_address ? await hashIP(metadata.ip_address) : null
+        const browserFamily = getBrowserFamily(metadata.user_agent)
+
+        const eventResult = await appendEvent(
+          supabase,
+          workflow.document_entity_id,
+          {
+            kind: 'otp_verified',
+            at: new Date().toISOString(),
+            otp: {
+              signer_email: signer.email,
+              workflow_id: record.workflow_id,
+              verification_method: 'email_otp',
+              attempts: record.attempts + 1 // Include the current successful attempt
+            },
+            context: {
+              ip_hash: ipHash,
+              geo: metadata.country,
+              browser: browserFamily,
+              session_id: metadata.session_id
+            }
+          },
+          'verify-signer-otp'
+        )
+
+        if (!eventResult.success) {
+          console.error('Failed to append otp_verified event:', eventResult.error)
+          // Don't fail the request, OTP was verified successfully
+        }
+      }
+    } catch (err) {
+      console.warn('verify-signer-otp event recording failed', err)
+      // Don't fail the request
     }
 
     // Log ECOX

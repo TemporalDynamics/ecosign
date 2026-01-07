@@ -1250,6 +1250,29 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           fileSize: file.size,
           fileType: file.type
         });
+
+        // === PROBATORY EVENT: protection_enabled ===
+        // Record that protection was enabled for this document (canonical events ledger)
+        supabase.functions.invoke('record-protection-event', {
+          body: {
+            document_id: savedDoc.id,
+            protection_details: {
+              signature_type: signatureType || 'none',
+              forensic_enabled: forensicEnabled,
+              tsa_requested: forensicEnabled && forensicConfig.useLegalTimestamp,
+              polygon_requested: forensicEnabled && forensicConfig.usePolygonAnchor,
+              bitcoin_requested: forensicEnabled && forensicConfig.useBitcoinAnchor
+            }
+          }
+        }).then(({ data, error }) => {
+          if (error) {
+            console.warn('⚠️ Error recording protection event (non-critical):', error);
+          } else {
+            console.log('✅ protection_enabled event recorded:', data);
+          }
+        }).catch(err => {
+          console.warn('⚠️ Failed to record protection event:', err);
+        });
       }
 
       // 3. Registrar evento 'created' (ChainLog)

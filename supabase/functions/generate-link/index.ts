@@ -6,6 +6,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { sendEmail, buildSignerInvitationEmail } from '../_shared/email.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
+import { appendEvent, getDocumentEntityId } from '../_shared/eventHelper.ts'
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
@@ -179,6 +180,35 @@ serve(withRateLimit('generate', async (req) => {
 
     // Log the link creation event
     console.log(`Link created: ${link.id} for document ${document_id} to ${recipient_email}`)
+
+    // === PROBATORY EVENT: share_created ===
+    // Register that this document was shared (goes to .eco)
+    const documentEntityId = await getDocumentEntityId(supabase, document_id);
+    if (documentEntityId) {
+      const eventResult = await appendEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'share_created',
+          at: new Date().toISOString(),
+          share: {
+            link_id: link.id,
+            recipient_email: recipient_email,
+            method: 'link',
+            otp_required: require_nda,
+            expires_at: expiresAt,
+          }
+        },
+        'generate-link'
+      );
+
+      if (!eventResult.success) {
+        console.error('Failed to append share_created event:', eventResult.error);
+        // Don't fail the request, but log it
+      }
+    } else {
+      console.warn(`Could not get document_entity_id for document ${document_id}, share_created event not recorded`);
+    }
 
     // --- Send Email Invitation ---
     let emailSent = false;

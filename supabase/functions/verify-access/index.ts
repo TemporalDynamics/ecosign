@@ -5,6 +5,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
+import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
@@ -191,7 +192,7 @@ serve(withRateLimit('verify', async (req) => {
       session_id: crypto.randomUUID()
     }
 
-    // Log the access event
+    // Log the access event (legacy table)
     const { error: eventError } = await supabase
       .from('access_events')
       .insert({
@@ -208,6 +209,43 @@ serve(withRateLimit('verify', async (req) => {
       // Don't fail the request if logging fails
     } else {
       console.log(`Access logged: ${event_type} for document ${document.id}`)
+    }
+
+    // === PROBATORY EVENT: share_opened ===
+    // Register that someone opened this share link (goes to .eco)
+    const documentEntityId = await getDocumentEntityId(supabase, link.document_id);
+    if (documentEntityId) {
+      const ipHash = metadata.ip_address ? await hashIP(metadata.ip_address) : null;
+      const browserFamily = getBrowserFamily(metadata.user_agent);
+
+      const eventResult = await appendEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'share_opened',
+          at: new Date().toISOString(),
+          share: {
+            link_id: link.id,
+            recipient_email: recipient.email,
+            via: 'link',
+            event_type: event_type, // view, download, forward
+          },
+          context: {
+            ip_hash: ipHash,
+            geo: metadata.country || null,
+            browser: browserFamily,
+            session_id: metadata.session_id,
+          }
+        },
+        'verify-access'
+      );
+
+      if (!eventResult.success) {
+        console.error('Failed to append share_opened event:', eventResult.error);
+        // Don't fail the request, but log it
+      }
+    } else {
+      console.warn(`Could not get document_entity_id for document ${link.document_id}, share_opened event not recorded`);
     }
 
     // Check if NDA was already accepted

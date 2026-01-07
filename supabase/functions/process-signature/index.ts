@@ -317,6 +317,46 @@ serve(async (req) => {
       return jsonResponse({ error: 'Failed to save signature' }, 500)
     }
 
+    // === PROBATORY EVENT: signature ===
+    // Register that this document was signed (goes to .eco)
+    if (workflow.document_entity_id) {
+      const eventResult = await appendEvent(
+        supabase,
+        workflow.document_entity_id,
+        {
+          kind: 'signature',
+          at: signedAt,
+          signer: {
+            email: signer.email,
+            name: signer.name,
+            order: signer.signing_order,
+          },
+          identity_assurance: identityAssurance,
+          signature: {
+            hash: signatureHash,
+            coordinates: signatureData.coordinates,
+          },
+          workflow: {
+            id: workflow.id,
+            version: currentVersion.version_number,
+          },
+          forensic: {
+            tsa: !!rfc3161Token,
+            polygon: !!polygonTxHash,
+            bitcoin: !!bitcoinAnchorId,
+          }
+        },
+        'process-signature'
+      );
+
+      if (!eventResult.success) {
+        console.error('Failed to append signature event:', eventResult.error);
+        // Don't fail the request, but log it
+      }
+    } else {
+      console.warn(`workflow.document_entity_id not found, signature event not recorded`);
+    }
+
     // 7. Actualizar estado del signer
     await supabase
       .from('workflow_signers')

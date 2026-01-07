@@ -7,24 +7,16 @@
 // 2. Document verification (check if hash exists)
 // ============================================
 
+import { hashSource } from '@/lib/canonicalHashing'
+
 /**
- * Calculate SHA-256 hash of a file
- * @param file - File object (PDF)
+ * Calculate SHA-256 hash of a file (canonical source hash)
+ * @param file - File object (original bytes)
  * @returns Hex string of the hash
  */
 export async function calculateDocumentHash(file: File): Promise<string> {
   try {
-    // Read file as ArrayBuffer
-    const buffer = await file.arrayBuffer()
-
-    // Calculate SHA-256 hash
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
-
-    // Convert to hex string
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-
-    return hashHex
+    return await hashSource(file)
   } catch (error) {
     console.error('Error calculating document hash:', error)
     throw new Error('Failed to calculate document hash')
@@ -39,11 +31,7 @@ export async function calculateDocumentHash(file: File): Promise<string> {
  */
 export async function calculateBufferHash(buffer: ArrayBuffer): Promise<string> {
   try {
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-
-    return hashHex
+    return await hashSource(buffer)
   } catch (error) {
     console.error('Error calculating buffer hash:', error)
     throw new Error('Failed to calculate buffer hash')

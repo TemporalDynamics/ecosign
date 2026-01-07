@@ -13,7 +13,7 @@
 // ============================================
 
 import { useState, useRef } from 'react'
-import { calculateDocumentHash } from '@/utils/hashDocument'
+import { hashSource } from '@/lib/canonicalHashing'
 import { generateEncryptionKey, encryptFile } from '@/utils/encryption'
 import { getSupabase } from '@/lib/supabaseClient'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
@@ -63,7 +63,7 @@ export default function DocumentUploader({
 
       // Step 2: Calculate hash (CRITICAL: This happens in browser)
       setProcessingStep('Calculando hash del contenido...')
-      const contentHash = await calculateDocumentHash(file)
+      const contentHash = await hashSource(file)
       console.log('🔒 Content hash calculated locally:', contentHash.substring(0, 16) + '...')
 
       // Step 3: Convert to PDF if needed (happens in browser)

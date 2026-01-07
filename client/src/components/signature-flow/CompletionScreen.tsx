@@ -8,13 +8,13 @@
 
 import { useState, useEffect } from 'react'
 import { CheckCircle, Download, Home, Clock, Shield, Loader2 } from 'lucide-react'
-import { getSupabase } from '@/lib/supabaseClient'
 
 type UiCertificationPhase = 'showing_progress' | 'ready'
 
 interface CompletionScreenProps {
   workflowTitle?: string | null
   userDocumentId?: string | null
+  certificationPhase?: UiCertificationPhase
   onDownloadECO: () => void
   onClose: () => void
 }
@@ -22,6 +22,7 @@ interface CompletionScreenProps {
 export default function CompletionScreen({
   workflowTitle,
   userDocumentId,
+  certificationPhase,
   onDownloadECO,
   onClose
 }: CompletionScreenProps) {
@@ -29,40 +30,22 @@ export default function CompletionScreen({
   const [showProgressCard, setShowProgressCard] = useState(true)
 
   useEffect(() => {
+    if (certificationPhase) {
+      setUiPhase(certificationPhase)
+      return
+    }
+
     if (!userDocumentId) {
       setUiPhase('ready')
       return
     }
 
-    let pollCount = 0
-    const maxPolls = 40 // Max 2 minutos (40 * 3s)
-    
-    const pollInterval = setInterval(async () => {
-      pollCount++
-      
-      try {
-        const supabase = getSupabase()
-        const { data, error } = await supabase
-          .from('user_documents')
-          .select('overall_status, has_polygon_anchor')
-          .eq('id', userDocumentId)
-          .single()
+    const timeout = setTimeout(() => {
+      setUiPhase('ready')
+    }, 120000)
 
-        if (!error && data?.overall_status === 'certified') {
-          setUiPhase('ready')
-          clearInterval(pollInterval)
-        } else if (pollCount >= maxPolls) {
-          // Timeout: asumimos ready y dejamos que el usuario continúe
-          setUiPhase('ready')
-          clearInterval(pollInterval)
-        }
-      } catch (err) {
-        console.warn('Polling error:', err)
-      }
-    }, 3000)
-
-    return () => clearInterval(pollInterval)
-  }, [userDocumentId])
+    return () => clearTimeout(timeout)
+  }, [certificationPhase, userDocumentId])
 
   // Auto-hide progress card after 5s when ready
   useEffect(() => {

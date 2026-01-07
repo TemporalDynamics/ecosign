@@ -41,6 +41,9 @@ export const getSupabase = (): SupabaseClient => {
 export type Database = {
   public: {
     Tables: {
+      /**
+       * @deprecated Legacy table (pre-canonical).
+       */
       documents: {
         Row: {
           id: string;
@@ -72,6 +75,110 @@ export type Database = {
           eco_hash?: string;
           ecox_hash?: string | null;
           status?: 'active' | 'revoked' | 'archived';
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      /**
+       * Canonical document entity (v2).
+       */
+      document_entities: {
+        Row: {
+          id: string;
+          owner_id: string;
+          source_name: string;
+          source_mime: string;
+          source_size: number;
+          source_hash: string;
+          source_captured_at: string;
+          source_storage_path: string | null;
+          custody_mode: 'hash_only' | 'encrypted_custody';
+          lifecycle_status:
+            | 'protected'
+            | 'needs_witness'
+            | 'witness_ready'
+            | 'in_signature_flow'
+            | 'signed'
+            | 'anchored'
+            | 'revoked'
+            | 'archived';
+          witness_current_hash: string | null;
+          witness_current_mime: 'application/pdf' | null;
+          witness_current_status: 'generated' | 'signed' | null;
+          witness_current_storage_path: string | null;
+          witness_current_generated_at: string | null;
+          witness_history: unknown;
+          witness_hash: string | null;
+          signed_hash: string | null;
+          composite_hash: string | null;
+          hash_chain: unknown;
+          transform_log: unknown;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          source_name: string;
+          source_mime: string;
+          source_size: number;
+          source_hash: string;
+          source_captured_at?: string;
+          source_storage_path?: string | null;
+          custody_mode: 'hash_only' | 'encrypted_custody';
+          lifecycle_status?:
+            | 'protected'
+            | 'needs_witness'
+            | 'witness_ready'
+            | 'in_signature_flow'
+            | 'signed'
+            | 'anchored'
+            | 'revoked'
+            | 'archived';
+          witness_current_hash?: string | null;
+          witness_current_mime?: 'application/pdf' | null;
+          witness_current_status?: 'generated' | 'signed' | null;
+          witness_current_storage_path?: string | null;
+          witness_current_generated_at?: string | null;
+          witness_history?: unknown;
+          witness_hash?: string | null;
+          signed_hash?: string | null;
+          composite_hash?: string | null;
+          hash_chain?: unknown;
+          transform_log?: unknown;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          source_name?: string;
+          source_mime?: string;
+          source_size?: number;
+          source_hash?: string;
+          source_captured_at?: string;
+          source_storage_path?: string | null;
+          custody_mode?: 'hash_only' | 'encrypted_custody';
+          lifecycle_status?:
+            | 'protected'
+            | 'needs_witness'
+            | 'witness_ready'
+            | 'in_signature_flow'
+            | 'signed'
+            | 'anchored'
+            | 'revoked'
+            | 'archived';
+          witness_current_hash?: string | null;
+          witness_current_mime?: 'application/pdf' | null;
+          witness_current_status?: 'generated' | 'signed' | null;
+          witness_current_storage_path?: string | null;
+          witness_current_generated_at?: string | null;
+          witness_history?: unknown;
+          witness_hash?: string | null;
+          signed_hash?: string | null;
+          composite_hash?: string | null;
+          hash_chain?: unknown;
+          transform_log?: unknown;
           created_at?: string;
           updated_at?: string;
         };

@@ -73,6 +73,80 @@ Qué se buscaba lograr con esta iteración (1–2 frases).
 
 # 📚 Historial de Iteraciones 2.0
 
+## Iteración 2026-01-06 — ECO v2 determinístico + UI que refleja evidencia
+
+### 🎯 Objetivo
+Cerrar el ciclo probatorio: ECO v2 determinístico (RFC 8785) y UI que solo refleja evidencia presente.
+
+### 🧠 Decisiones tomadas
+- RFC 8785 (JCS) es requisito previo a TSA/anchoring.
+- La UI no afirma ni promete; solo refleja lo que el .ECO declara.
+- La autoridad de firma se modela como `internal|external` (sin naming comercial).
+- ECO v2 se genera on-the-fly desde document_entities cuando no hay .eco persistido.
+
+### 🛠️ Cambios realizados
+- Implementación JCS (RFC 8785) para serialización canónica.
+- Generator/Verifier ECO v2 con tests contractuales mínimos.
+- Descarga .eco v2 desde Documentos cuando hay canon.
+- Copy adaptativo en verificadores (público, interno, dashboard) y DocumentsPage.
+- Persistencia de `signed_authority` en document_entities + proyección a ECO v2.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se activó TSA ni anchoring todavía.
+- No se cambiaron flujos UX ni copy marketing global.
+- No se forzó migración de edge functions.
+
+### ⚠️ Consideraciones / deuda futura
+- Implementar TSA append-only (RFC 3161) sobre ECO canonizado.
+- Migración edge por fases (dual-read → canon-first).
+- Hardening adicional de constraints y cleanup legacy final.
+
+### 📍 Estado final
+- ECO v2 es determinístico y verificable offline.
+- La UI ya no afirma nada fuera de la evidencia presente.
+
+### 💬 Nota del dev
+"Nunca se certifica ni ancla algo que no esté canónicamente definido."
+
+## Iteración 2026-01-06 — Canon probatorio + ECO v2 + Verifier v2
+
+### 🎯 Objetivo
+Cerrar el canon probatorio y definir el formato ECO v2 + verificador v2 sin romper UX ni flujos legacy.
+
+### 🧠 Decisiones tomadas
+- ECO v2 es el **único** formato público verificable; ECOX queda como formato interno (no UX, no contrato).
+- Verifier v2 es lectura pura del .eco v2, sin inferencias ni datos externos.
+- `document_entities` es el write-path canónico; la UI lee canon-first con fallback legacy.
+- Storage no decide verdad: helpers de persistencia pura para cifrado y PDF firmado.
+- Migración Edge por fases documentada (plan + TODOs), sin cambios de runtime aún.
+
+### 🛠️ Cambios realizados
+- Hashing canónico unificado (hashSource / hashWitness / hashSigned) y verificación explícita por modo.
+- DocumentEntityService como interfaz única de escritura canónica.
+- Purificación de storage: helpers de persistencia cifrada y signed.
+- UI cleanup: DocumentsPage canon-first + componentes prop-driven (DocumentList, ShareDocumentModal, CompletionScreen).
+- Helpers preparados para identidad canónica (useEcoxLogger, polygonAnchor).
+- Contratos: ECO v2 y Verifier v2 cerrados con reglas de determinismo.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se implementó aún el generator/verifier v2 en runtime.
+- No se aplicaron migraciones `document_entities` en producción.
+- No se activó encrypted_custody end-to-end.
+- No se removió legacy definitivamente (solo fallback y TODOs).
+
+### ⚠️ Consideraciones / deuda futura
+- Implementar ECO v2 generator + Verifier v2 con tests contractuales.
+- Integrar ECO v2 en export y verificación.
+- Migrar Edge functions según el plan (dual-read → canon-first).
+- Endurecer constraints DB (tightening de checks/immutability).
+
+### 📍 Estado final
+- Canon escrito y aplicado en flujos principales sin romper UX.
+- Formatos ECO v2 + Verifier v2 definidos y listos para implementación.
+
+### 💬 Nota del dev
+"ECO v2 es la única verdad pública. Todo lo demás es proyección interna o legado en transición."
+
 ## Iteración 2025-12-21 — Sistema oficial de emails y renderer unificado
 
 ### 🎯 Objetivo
@@ -1381,6 +1455,75 @@ Usuario investiga → dale material real, no teatro.
 **Commits:** 8 (Service Worker, Storage, Trigger, PDF, Email templates, Reset password, Landing UX, Videos)
 
 ---
+
+## Iteración 2026-01-06 — Cleanup UI prop-driven (document_entities first)
+
+### 🎯 Objetivo
+Migrar la UI a un modelo canonico sin romper UX: los componentes dejan de consultar DB y reciben datos decididos desde arriba.
+
+### 🧠 Decisiones tomadas
+- DocumentsPage lee primero de `document_entities` y cae a `user_documents` como fallback temporal.
+- DocumentList y ShareDocumentModal pasan a ser 100% prop-driven (sin DB/auth).
+- CompletionScreen deja de hacer polling a `user_documents`; acepta fase opcional por props y usa timeout neutral.
+
+### 🛠️ Cambios realizados
+- Adapter `mapDocumentEntityToRecord` en DocumentsPage para mantener el JSX intacto.
+- DocumentList removio efectos/queries y recibe `documents`, `loading`, `error`.
+- ShareDocumentModal recibe `userId` por props y elimina auth lookup.
+- CompletionScreen elimina Supabase, mantiene UX con fase controlada y timeout.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se tocaron anchors ni edge functions.
+- No se elimino `user_documents` ni `documents` legacy.
+- No se cambio ningun texto UX ni flujo de firma.
+
+### ⚠️ Consideraciones / deuda futura
+- Remover fallback legacy en DocumentsPage cuando `document_entities` este completo.
+- Migrar DashboardPage y helpers a `document_entities` con adapter canonico.
+- Ajustar paths de descarga (signed vs witness) cuando el schema lo soporte.
+
+### 📍 Estado final
+- UI principal consume canon primero y los componentes ya no consultan DB.
+- El cleanup reduce rutas de verdad sin friccion para el usuario.
+
+### 💬 Nota del dev
+"La UI ya no descubre datos: los recibe decididos. Esto habilita ECO v2 y Verifier v2 sin reescribir componentes."
+
+---
+
+## Iteración 2026-01-06 — Canon V2: ECO/Verifier + Edge roadmap
+
+### 🎯 Objetivo
+Cerrar el formato probatorio unico (ECO v2), definir el verificador v2 y dejar el plan de migracion edge sin tocar runtime.
+
+### 🧠 Decisiones tomadas
+- ECO v2 es el unico formato publico, completo y verificable.
+- ECOX queda como representacion interna del sistema (no publica).
+- Verifier v2 acepta solo `eco.v2` (con compatibilidad limitada para v1).
+- Edge functions se migran por fases segun plan canonico (dual-read -> canon-first -> legacy removal).
+
+### 🛠️ Cambios realizados
+- Se creo `docs/ECO_V2_CONTRACT.md` con esquema, coherencia y compatibilidad v1.
+- Se creo `docs/VERIFIER_V2_CONTRACT.md` con input unico, estados y reglas.
+- Se creo `docs/EDGE_CANON_MIGRATION_PLAN.md`.
+- Se agregaron TODOs canonicos en edge functions para soportar `document_entity_id`.
+- Se agregaron tipos canonicos `document_entities` y se marco `documents` como legacy.
+
+### 🚫 Qué NO se hizo (a propósito)
+- No se modificaron edge functions ni esquemas DB.
+- No se implemento ECO v2 ni Verifier v2 en runtime.
+- No se activo encrypted_custody real.
+
+### ⚠️ Consideraciones / deuda futura
+- Implementar ECO v2 como proyeccion canonica desde `document_entities`.
+- Implementar Verifier v2 con lectura pura de ECO v2.
+- Migrar edge functions segun `EDGE_CANON_MIGRATION_PLAN.md`.
+
+### 📍 Estado final
+- Contratos v2 definidos y hoja de ruta edge cerrada.
+
+### 💬 Nota del dev
+"ECO v2 es la unica verdad publica. El verificador v2 lee solo ECO v2. Edge queda preparado sin tocar runtime."
 
 ## Iteración 2026-01-06 — Contratos Canónicos + Mapa de Impacto Tecnico
 

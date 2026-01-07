@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import type { ToastOptions as HotToastOptions } from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
 import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
-import { saveUserDocument } from '../utils/documentStorage';
+import { persistSignedPdfToStorage, saveUserDocument } from '../utils/documentStorage';
 import { startSignatureWorkflow } from '../lib/signatureWorkflowService';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
 import { applySignatureToPDF, blobToFile, addSignatureSheet } from '../utils/pdfSignature';
@@ -13,6 +13,15 @@ import type { ForensicData } from '../utils/pdfSignature';
 import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
 import { getSupabase } from '../lib/supabaseClient';
+import { hashSource, hashSigned, hashWitness } from '../lib/canonicalHashing';
+import {
+  createSourceTruth,
+  ensureWitnessCurrent,
+  appendTransform,
+  advanceLifecycle,
+  ensureSigned,
+  emitEcoVNext
+} from '../lib/documentEntityService';
 import { isGuestMode } from '../utils/guestMode';
 import InhackeableTooltip from './InhackeableTooltip';
 import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
@@ -647,6 +656,27 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         return;
       }
       const supabase = getSupabase();
+      let canonicalDocumentId: string | null = null;
+      let canonicalSourceHash: string | null = null;
+
+      try {
+        const sourceHash = await hashSource(file);
+        canonicalSourceHash = sourceHash;
+        const created = await createSourceTruth({
+          name: file.name,
+          mime_type: file.type || 'application/pdf',
+          size_bytes: file.size,
+          hash: sourceHash,
+          custody_mode: 'hash_only',
+          storage_path: null
+        });
+        canonicalDocumentId = created.id as string;
+      } catch (err) {
+        console.warn('Canonical createSourceTruth skipped:', err);
+      }
+      if (canonicalDocumentId) {
+        console.debug('Canonical document_entities created:', canonicalDocumentId);
+      }
       // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
       if (workflowEnabled) {
         // Validar que haya al menos un email
@@ -667,8 +697,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         // Subir el PDF a Storage y obtener URL firmable
         const arrayBuffer = await file.arrayBuffer();
-        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-        const documentHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        const documentHash = await hashWitness(arrayBuffer);
 
         const storagePath = `${user.id}/${Date.now()}-${file.name}`;
         const { error: uploadError } = await supabase.storage
@@ -695,6 +724,33 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           showToast('No se pudo generar el enlace del documento', { type: 'error' });
           setLoading(false);
           return;
+        }
+
+        if (canonicalDocumentId) {
+          try {
+            await ensureWitnessCurrent(canonicalDocumentId, {
+              hash: documentHash,
+              mime_type: 'application/pdf',
+              storage_path: storagePath,
+              status: 'generated'
+            });
+
+            if (canonicalSourceHash && file.type !== 'application/pdf') {
+              await appendTransform(canonicalDocumentId, {
+                from_mime: file.type,
+                to_mime: 'application/pdf',
+                from_hash: canonicalSourceHash,
+                to_hash: documentHash,
+                method: 'client',
+                reason: 'visualization',
+                executed_at: new Date().toISOString()
+              });
+            }
+
+            await advanceLifecycle(canonicalDocumentId, 'witness_ready');
+          } catch (err) {
+            console.warn('Canonical witness/transform skipped:', err);
+          }
         }
 
         // Iniciar workflow en backend (crea notificaciones y dispara send-pending-emails)
@@ -744,6 +800,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       // Preparar archivo con Hoja de Auditoría (SOLO para Firma Legal)
       let fileToProcess = file;
+      let witnessHash: string | null = null;
 
       // Solo agregar Hoja de Auditoría si es Firma Legal (NO para Firma Certificada)
       if (signatureType === 'legal') {
@@ -772,6 +829,35 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         // Agregar Hoja de Auditoría al PDF
         const pdfWithSheet = await addSignatureSheet(file, signatureData, forensicData);
         fileToProcess = blobToFile(pdfWithSheet, file.name);
+      }
+
+      try {
+        const witnessBytes = await fileToProcess.arrayBuffer();
+        witnessHash = await hashWitness(witnessBytes);
+        if (canonicalDocumentId) {
+          await ensureWitnessCurrent(canonicalDocumentId, {
+            hash: witnessHash,
+            mime_type: 'application/pdf',
+            storage_path: '',
+            status: 'generated'
+          });
+
+          if (canonicalSourceHash && file.type !== 'application/pdf') {
+            await appendTransform(canonicalDocumentId, {
+              from_mime: file.type,
+              to_mime: 'application/pdf',
+              from_hash: canonicalSourceHash,
+              to_hash: witnessHash,
+              method: 'client',
+              reason: 'visualization',
+              executed_at: new Date().toISOString()
+            });
+          }
+
+          await advanceLifecycle(canonicalDocumentId, 'witness_ready');
+        }
+      } catch (err) {
+        console.warn('Canonical witness preparation skipped:', err);
       }
 
       // 1. Certificar con o sin SignNow según tipo de firma seleccionado
@@ -882,24 +968,82 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       const initialStatus = (signatureType === 'legal' || signatureType === 'certified') ? 'signed' : 'draft';
       const overallStatus = initialStatus === 'signed' ? 'certified' : initialStatus;
 
+      let signedStoragePath: string | null = null;
+      let signedHash: string | null = null;
+      try {
+        const signedFileForCanon = signedPdfFromSignNow || fileToProcess;
+        const signedBytes = await signedFileForCanon.arrayBuffer();
+        signedHash = await hashSigned(signedBytes);
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        if (authError || !authUser) {
+          throw new Error(authError?.message || 'Usuario no autenticado');
+        }
+        const { storagePath } = await persistSignedPdfToStorage(signedBytes, authUser.id);
+        signedStoragePath = storagePath;
+      } catch (err) {
+        console.warn('Canonical signed persistence skipped:', err);
+      }
+
+      let ecoData = certResult.ecoData;
+      let ecoPayloadBuffer = certResult?.ecoxBuffer ?? null;
+      let ecoPayloadFileData = certResult?.ecoxBuffer ?? null;
+      let ecoPayloadFileName = certResult?.fileName
+        ? certResult.fileName.replace(/\.[^/.]+$/, '.eco')
+        : file.name.replace(/\.[^/.]+$/, '.eco');
+
+      if (canonicalDocumentId) {
+        try {
+          const { eco, json } = await emitEcoVNext(canonicalDocumentId);
+          const encoded = new TextEncoder().encode(json);
+          ecoData = eco;
+          ecoPayloadBuffer = encoded;
+          ecoPayloadFileData = encoded;
+        } catch (err) {
+          console.warn('Canonical ECO v2 generation skipped:', err);
+        }
+      }
+
       // ✅ REFACTOR: Blockchain anchors no bloquean certificación
       // Los anchors se marcan como 'pending' y se resuelven async
-      const savedDoc = await saveUserDocument(fileToProcess, certResult.ecoData, {
+      const savedDoc = await saveUserDocument(fileToProcess, ecoData, {
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
         hasPolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
         hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
         initialStatus: initialStatus,
         overallStatus,
         downloadEnabled: true, // ✅ Siempre true - .eco disponible inmediatamente
-        ecoBuffer: certResult?.ecoxBuffer,
-        ecoFileData: certResult?.ecoxBuffer, // ✅ Guardar buffer ECO para deferred download
-        ecoFileName: certResult?.fileName ? certResult.fileName.replace(/\.[^/.]+$/, '.eco') : file.name.replace(/\.[^/.]+$/, '.eco'),
+        ecoBuffer: ecoPayloadBuffer,
+        ecoFileData: ecoPayloadFileData, // ✅ Guardar buffer ECO para deferred download
+        ecoFileName: ecoPayloadFileName,
         signNowDocumentId: signNowResult?.signnow_document_id || null,
         signNowStatus: signNowResult?.status || null,
         signedAt: signNowResult ? new Date().toISOString() : null,
         storePdf: true, // ✅ Guardar PDF cifrado para permitir compartir
         zeroKnowledgeOptOut: false // ✅ E2E encryption: guardar cifrado, no plaintext
       });
+
+      if (canonicalDocumentId && signedHash && witnessHash) {
+        try {
+          const signedAuthority = signNowResult ? 'external' : 'internal';
+          const signedAuthorityRef = signNowResult
+            ? { id: 'signnow', type: 'provider' }
+            : null;
+
+          await appendTransform(canonicalDocumentId, {
+            from_mime: 'application/pdf',
+            to_mime: 'application/pdf',
+            from_hash: witnessHash,
+            to_hash: signedHash,
+            method: 'client',
+            reason: 'signature',
+            executed_at: new Date().toISOString()
+          });
+
+          await ensureSigned(canonicalDocumentId, signedHash, signedAuthority, signedAuthorityRef);
+        } catch (err) {
+          console.warn('Canonical signed update skipped:', err);
+        }
+      }
 
       if (savedDoc) {
         window.dispatchEvent(new CustomEvent('ecosign:document-created', { detail: savedDoc }));

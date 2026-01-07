@@ -19,7 +19,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Link2, FileText, Shield, Clock, Copy, Check, X, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { shareDocument, listDocumentShares, revokeShare } from '../lib/storage/documentSharing';
-import { getSupabase } from '../lib/supabaseClient';
 import { ensureCryptoSession } from '../lib/e2e';
 
 interface ShareDocumentModalProps {
@@ -31,6 +30,7 @@ interface ShareDocumentModalProps {
     eco_storage_path?: string | null;
     eco_file_data?: string | null;
   };
+  userId: string;
   onClose: () => void;
 }
 
@@ -44,7 +44,7 @@ Al continuar, aceptás mantener su contenido confidencial y no divulgarlo a terc
 
 Este acceso quedará registrado con fines de auditoría.`;
 
-export default function ShareDocumentModal({ document, onClose }: ShareDocumentModalProps) {
+export default function ShareDocumentModal({ document, userId, onClose }: ShareDocumentModalProps) {
   // Estado del panel fijo (inmutable)
   const [selectedFormats, setSelectedFormats] = useState<Set<'pdf' | 'eco'>>(new Set(['pdf']));
   const [expiresInDays, setExpiresInDays] = useState(7);
@@ -143,16 +143,13 @@ export default function ShareDocumentModal({ document, onClose }: ShareDocumentM
       setGenerating(true);
       setError(null);
 
-      const supabase = getSupabase();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
+      if (!userId) {
         throw new Error('Necesitás iniciar sesión para compartir documentos.');
       }
 
       // CRITICAL: Ensure crypto session is ready before sharing
       console.log('🔐 Ensuring crypto session before sharing...');
-      const sessionReady = await ensureCryptoSession(user.id);
+      const sessionReady = await ensureCryptoSession(userId);
       
       if (!sessionReady) {
         throw new Error('No se pudo inicializar el cifrado. Por favor, recargá la página.');

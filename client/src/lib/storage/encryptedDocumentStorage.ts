@@ -7,7 +7,6 @@
 
 import { getSupabase } from '../supabaseClient';
 import {
-  sha256File,
   generateDocumentKey,
   encryptFile,
   decryptFile,
@@ -16,6 +15,7 @@ import {
   getSessionUnwrapKey,
   isSessionInitialized,
 } from '../e2e';
+import { hashSource } from '../canonicalHashing';
 
 export interface UploadEncryptedDocumentOptions {
   file: File;
@@ -36,6 +36,33 @@ export interface UploadEncryptedDocumentResult {
   wrapIv?: string;
 }
 
+type PersistEncryptedFileResult = {
+  storagePath: string;
+};
+
+const persistEncryptedFile = async (
+  file: File,
+  userId: string,
+  documentKey: CryptoKey
+): Promise<PersistEncryptedFileResult> => {
+  const supabase = getSupabase();
+  const encryptedBlob = await encryptFile(file, documentKey);
+  const storagePath = `encrypted/${userId}/${crypto.randomUUID()}.enc`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('user-documents')
+    .upload(storagePath, encryptedBlob, {
+      upsert: true,
+      contentType: 'application/octet-stream',
+    });
+
+  if (uploadError) {
+    throw new Error(`Upload failed: ${uploadError.message}`);
+  }
+
+  return { storagePath };
+};
+
 /**
  * Upload a document with optional E2E encryption
  * 
@@ -50,11 +77,14 @@ export async function uploadEncryptedDocument(
 
   try {
     // 1. Calculate hash of original file (before encryption)
+    // NOTE: Canonical document identity and hashing are handled upstream.
+    // This hash is used only for storage path stability in the current flow.
     console.log('📊 Calculating document hash...');
-    const originalHash = await sha256File(file);
+    const originalHash = await hashSource(file);
     console.log('✅ Hash calculated:', originalHash.substring(0, 16) + '...');
 
     let storagePath: string;
+    let alreadyUploaded = false;
     let wrappedKey: string | undefined;
     let wrapIv: string | undefined;
     let uploadBlob: Blob = file;
@@ -72,18 +102,16 @@ export async function uploadEncryptedDocument(
       // Generate unique document key
       const documentKey = await generateDocumentKey();
       
-      // Encrypt file
-      const encryptedBlob = await encryptFile(file, documentKey);
-      
       // Wrap document key with session unwrap key
       const sessionUnwrapKey = getSessionUnwrapKey();
       const wrapped = await wrapDocumentKey(documentKey, sessionUnwrapKey);
       
       wrappedKey = wrapped.wrappedKey;
       wrapIv = wrapped.wrapIv;
-      uploadBlob = encryptedBlob;
-      
-      storagePath = `encrypted/${userId}/${originalHash}.enc`;
+
+      const persisted = await persistEncryptedFile(file, userId, documentKey);
+      storagePath = persisted.storagePath;
+      alreadyUploaded = true;
       console.log('✅ Document encrypted');
     } else {
       // Standard upload (not encrypted)
@@ -92,15 +120,17 @@ export async function uploadEncryptedDocument(
     }
 
     // 3. Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('user-documents')
-      .upload(storagePath, uploadBlob, {
-        upsert: true,
-        contentType: encrypt ? 'application/octet-stream' : file.type,
-      });
+    if (!alreadyUploaded) {
+      const { error: uploadError } = await supabase.storage
+        .from('user-documents')
+        .upload(storagePath, uploadBlob, {
+          upsert: true,
+          contentType: encrypt ? 'application/octet-stream' : file.type,
+        });
 
-    if (uploadError) {
-      throw new Error(`Upload failed: ${uploadError.message}`);
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
     }
 
     console.log('✅ File uploaded to storage');

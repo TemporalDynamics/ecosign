@@ -1,7 +1,6 @@
-import React, { useState, useEffect, SetStateAction } from 'react';
+import React, { useState } from 'react';
 import { CheckCircle, Clock, Download, Eye, FileText, Link as LinkIcon, XCircle } from 'lucide-react';
 import LinkGenerator from './LinkGenerator';
-import { getSupabase } from '../lib/supabaseClient';
 
 // Define the shape of a document for type safety
 interface Document {
@@ -15,95 +14,15 @@ interface Document {
   lastAccess: Date | null;
 }
 
-const DocumentList = () => {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
+interface DocumentListProps {
+  documents: Document[];
+  loading?: boolean;
+  error?: string | null;
+}
+
+const DocumentList = ({ documents, loading = false, error = null }: DocumentListProps) => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [showLinkGenerator, setShowLinkGenerator] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Cargar documentos reales desde Supabase
-  useEffect(() => {
-    const fetchDocuments = async () => {
-      try {
-        const supabase = getSupabase();
-        setError(null);
-
-        // Obtener usuario actual
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-          setLoading(false);
-          setError('Debe iniciar sesión para ver sus documentos');
-          return;
-        }
-
-        // Obtener documentos del usuario
-        const { data: docs, error: docsError } = await supabase
-          .from('user_documents')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (docsError) {
-          throw docsError;
-        }
-
-        // Transformar datos para la UI
-        const transformedDocs: Document[] = (docs || []).map((doc: any) => ({
-          id: doc.id,
-          title: doc.document_name || doc.title || 'Sin título',
-          fileName: doc.document_name || doc.title || 'Sin título',
-          createdAt: new Date(doc.created_at),
-          ecoHash: doc.document_hash ? doc.document_hash.substring(0, 12) + '...' : 'N/A',
-          status: doc.status || 'verified',
-          accessCount: 0, // TODO: Get from relationships when available
-          lastAccess: null
-        }));
-
-        setDocuments(transformedDocs);
-        setLoading(false);
-      } catch (err: unknown) {
-        console.error('Error fetching documents:', err);
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError('Error al cargar documentos');
-        }
-        setLoading(false);
-      }
-    };
-
-    fetchDocuments();
-
-    // Para mejorar el rendimiento en mobile y evitar problemas de back/forward cache,
-    // no suscribirse a cambios en tiempo real en mobile (evita WebSocket)
-    const isMobile = () => {
-      if (typeof window !== 'undefined') {
-        return window.innerWidth <= 768;
-      }
-      // Por defecto asumir mobile en SSR
-      return true;
-    };
-
-    if (!isMobile()) {
-      const supabase = getSupabase();
-      const subscription = supabase
-        .channel('documents_changes')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'user_documents' },
-          () => {
-            // Recargar documentos cuando hay cambios
-            fetchDocuments();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -139,6 +58,14 @@ const DocumentList = () => {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="w-8 h-8 border-4 border-black600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        {error}
       </div>
     );
   }

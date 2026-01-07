@@ -48,6 +48,12 @@ import { NdaToggle, NdaPanel } from '../centro-legal/modules/nda';
 // PASO 3.3: Layout y scenes
 import { LegalCenterShell } from './centro-legal/layout/LegalCenterShell';
 import { resolveGridColumns } from './centro-legal/orchestration/resolveGridLayout';
+import { SceneRenderer } from './centro-legal/layout/SceneRenderer';
+import { resolveActiveScene } from './centro-legal/orchestration/resolveActiveScene';
+import type { SignatureField } from '../types/signature-fields';
+
+// Feature flag: toggle SceneRenderer gradually (FASE 1)
+const USE_SCENE_RENDERER = true;
 
 /**
  * Helper to persist TSA event to document_entities.events[] via Edge Function
@@ -254,6 +260,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [emailInputs, setEmailInputs] = useState<EmailInput[]>([
     { email: '', name: '', requireLogin: true, requireNda: true }
   ]); // 1 campo por defecto - usuarios agregan más según necesiten
+
+  // Placeholder para campos de firma visual (SceneRenderer los consumirá)
+  const [signatureFields, setSignatureFields] = useState<SignatureField[]>([]);
 
   // Firma digital
   const [signatureType, setSignatureType] = useState<SignatureType>(null); // 'legal' | 'certified' | null
@@ -1754,6 +1763,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // ===== GRID LAYOUT =====
   // PASO 3.3: Usar helper de orquestación
+  // Calcular escena activa para SceneRenderer (FASE 1 - sin efectos colaterales)
+  const scene = resolveActiveScene({
+    hasFile: !!file,
+    ndaEnabled,
+    mySignatureEnabled: mySignature,
+    workflowEnabled,
+    isReviewStep: step !== 1
+  });
+
   const gridTemplateColumns = resolveGridColumns({
     ndaEnabled,
     rightPanelOpen: workflowEnabled,

@@ -1,11 +1,13 @@
 import React from 'react';
-import { X } from 'lucide-react';
 
 interface LegalCenterShellProps {
   children: React.ReactNode;
   modeConfirmation?: string;
   onClose: () => void;
   gridTemplateColumns: string;
+  useGrid?: boolean; // false cuando se usa Stage (absolute positioning)
+  ndaOpen?: boolean; // Panel NDA abierto
+  flowOpen?: boolean; // Panel Flujo abierto
 }
 
 /**
@@ -17,39 +19,40 @@ export function LegalCenterShell({
   children,
   modeConfirmation,
   onClose,
-  gridTemplateColumns
+  gridTemplateColumns,
+  useGrid = true, // Por defecto usa grid (legacy)
+  ndaOpen = false,
+  flowOpen = false
 }: LegalCenterShellProps) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-0 py-0 md:px-4 md:py-6">
-      <div className="modal-container bg-white rounded-none md:rounded-2xl w-full max-w-7xl max-h-full md:max-h-[94vh] h-[100svh] md:h-auto shadow-xl flex flex-col overflow-hidden">
-        
-        {/* Header fijo */}
-        <div className="sticky top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Centro Legal
-            </h2>
-            {modeConfirmation && (
-              <span className="text-sm text-gray-500 animate-fadeIn">
-                {modeConfirmation}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Cerrar"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
 
-        {/* Content - Grid fijo de 3 zonas */}
+  // 🎯 MODAL ELÁSTICO: Se ajusta al contenido del Stage
+  // Stage usa width: fit-content → Modal se adapta automáticamente
+  // - Estado cerrado: ~900px (solo Canvas)
+  // - NDA abierto: ~1400px (NDA + Canvas)
+  // - Ambos abiertos: ~1750px (NDA + Canvas + Firmas)
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 px-0 pt-16 md:pt-20 md:px-4 md:py-6">
+      <div 
+        className="modal-container bg-white rounded-none md:rounded-2xl w-auto h-[calc(100svh-4rem)] md:h-[85vh] max-h-[90vh] shadow-xl flex flex-col"
+        style={{ 
+          maxWidth: 'calc(100vw - 80px)', // Margen mínimo lateral
+          overflow: 'visible' // CRÍTICO: Permite que panels se extiendan
+        }}
+      >
+        
+        {/* Header removido temporalmente - Modal debe mantener posición */}
+
+        {/* Content - Grid (legacy) o Stage (absolute) */}
         <div
-          className="relative overflow-x-hidden overflow-y-auto grid flex-1"
-          style={{ 
-            gridTemplateColumns, 
-            transition: 'grid-template-columns 300ms ease-in-out' 
+          className={`relative ${useGrid ? 'grid overflow-y-auto' : 'h-full'}`}
+          style={useGrid ? {
+            gridTemplateColumns,
+            transition: 'grid-template-columns 300ms ease-in-out'
+          } : {
+            /* STAGE: Ocupa toda la altura disponible */
+            height: '100%',
+            overflow: 'visible' // PERMITE que panels se extiendan fuera
           }}
         >
           {children}

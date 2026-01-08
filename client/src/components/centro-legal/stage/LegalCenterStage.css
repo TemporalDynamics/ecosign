@@ -1,0 +1,200 @@
+/**
+ * Legal Center Stage - Modelo de Capas
+ *
+ * CONTRATO VISUAL:
+ * 1. Canvas central NUNCA cambia de ancho (invariante)
+ * 2. Overlays usan transform (no width)
+ * 3. Animaciones suaves (400ms cubic-bezier)
+ * 4. Sin reflow horizontal
+ *
+ * INVARIANTE:
+ * Si el canvas se mueve → FALLÓ
+ */
+
+/* ========================================
+   STAGE CONTAINER (INVARIANTE 1)
+   ======================================== */
+
+.legal-center-stage {
+  /* 🎯 POSICIONAMIENTO: Relativo al contenedor padre (Shell) */
+  position: relative;
+  
+  /* Límites de seguridad para evitar salir del viewport */
+  max-width: calc(100vw - 40px); /* 20px margen a cada lado */
+  
+  /* MODAL ELÁSTICO: fit-content detecta el Canvas (relative) */
+  /* Canvas: 900px → Modal base: 900px */
+  /* Canvas + NDA: 900px + 500px → Modal: 1400px */
+  /* Canvas + Firmas: 900px + 350px → Modal: 1250px */
+  /* Todos: 900px + 500px + 350px → Modal: 1750px */
+  width: fit-content;
+  
+  height: 100%;
+  
+  /* CRÍTICO: overflow visible para expansión de panels */
+  overflow: visible;
+
+  /* Fondo gris claro unificado */
+  background: var(--gray-50, #f9fafb);
+
+  z-index: 5;
+  
+  /* Block para que fit-content funcione */
+  display: block;
+}
+
+/* ========================================
+   CANVAS CENTRAL (INVARIANTE 2 - EL SOL)
+   ======================================== */
+
+.legal-center-stage__canvas {
+  /* 🔒 INVARIANTE CRÍTICO: position: relative */
+  /* Es el ÚNICO hijo que el padre (fit-content) puede "ver" */
+  /* Esto evita que el modal colapse a width: 0 */
+  position: relative;
+  
+  /* 🔒 INVARIANTE CRÍTICO: width: 900px FIJO */
+  /* Dicta el ancho base del modal */
+  /* NO PUEDE cambiar según estado de panels */
+  width: 900px;
+  
+  /* Altura completa del Stage */
+  height: 100%;
+  
+  /* INVARIANTE 3: Padding interno para CTAs */
+  /* Evita que botones choquen con bordes de panels */
+  padding: 40px;
+
+  /* Layout interno del contenido */
+  display: flex;
+  flex-direction: column;
+
+  /* 🔒 INVARIANTE CRÍTICO: z-index: 20 */
+  /* Canvas SIEMPRE arriba, panels SIEMPRE abajo (z-10) */
+  /* Esto crea el "efecto cortina" (panels emergen desde atrás) */
+  z-index: 20;
+  
+  /* Fondo blanco */
+  background: white;
+  border-radius: 8px;
+
+  /* Elevación visual */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  
+  /* SIN transiciones - Canvas inmóvil */
+  transition: none;
+}
+
+/* ========================================
+   ANCLAJE FIJO UNIVERSAL
+   Las clases de anclaje dinámico YA NO SE USAN
+   Canvas siempre en left: 500px
+   ======================================== */
+
+/* ========================================
+   LEFT OVERLAY (NDA) - ABSOLUTE
+   Canvas debe ser 900px fijo en todas las pantallas */
+
+/* ========================================
+   LEFT OVERLAY (NDA) - ABSOLUTE
+   ======================================== */
+
+.legal-center-stage__left-overlay {
+  /* 🔒 INVARIANTE 4: Anclaje relativo al Canvas */
+  /* right: 100% = "pegado al borde izquierdo del Canvas" */
+  position: absolute;
+  right: 100%; 
+  top: 0;
+  bottom: 0;
+  
+  /* 🔒 ESTADO CERRADO: width: 0 (colapso físico) */
+  /* Sin ancho = sin espacio reservado = modal compacto */
+  width: 0;
+  opacity: 0;
+  
+  /* Transform inicial: deslizado hacia la derecha (oculto detrás del Canvas) */
+  transform: translateX(100%);
+
+  /* Animación suave - CRÍTICA para transición elegante */
+  transition: width 0.5s ease, 
+              opacity 0.3s ease, 
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* 🔒 INVARIANTE CRÍTICO: z-index: 10 (DEBAJO del Canvas z-20) */
+  /* Efecto cortina: se desliza desde ATRÁS */
+  z-index: 10;
+
+  /* Estilo visual */
+  background: var(--gray-50, #f9fafb);
+  border-right: 1px solid var(--gray-200, #e5e7eb);
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+
+  /* Scroll interno */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.legal-center-stage__left-overlay.open {
+  /* 🔒 ESTADO ABIERTO: width: 500px (expansión física) */
+  /* Modal crece de 900px → 1400px (fit-content lo detecta) */
+  width: 500px !important; /* !important para forzar expansión */
+  opacity: 1;
+  transform: translateX(0); /* Desliza hacia fuera (visible) */
+}
+
+/* ========================================
+   RIGHT OVERLAY (FLUJO) - ABSOLUTE
+   ======================================== */
+
+.legal-center-stage__right-overlay {
+  /* 🔒 INVARIANTE 4: Anclaje relativo al Canvas */
+  /* left: 100% = "pegado al borde derecho del Canvas" */
+  position: absolute;
+  left: 100%;
+  top: 0;
+  bottom: 0;
+  
+  /* 🔒 ESTADO CERRADO: width: 0 (colapso físico) */
+  width: 0;
+  opacity: 0;
+  
+  /* Transform inicial: deslizado hacia la izquierda (oculto detrás del Canvas) */
+  transform: translateX(-100%);
+
+  /* Animación suave */
+  transition: width 0.5s ease, 
+              opacity 0.3s ease, 
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* 🔒 INVARIANTE CRÍTICO: z-index: 10 (DEBAJO del Canvas z-20) */
+  z-index: 10;
+
+  /* Estilo visual */
+  background: var(--gray-50, #f9fafb);
+  border-left: 1px solid var(--gray-200, #e5e7eb);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
+
+  /* Scroll interno */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.legal-center-stage__right-overlay.open {
+  /* 🔒 ESTADO ABIERTO: width: 350px (expansión física) */
+  /* Modal crece de 900px → 1250px o 1400px → 1750px */
+  width: 350px !important; /* !important para forzar expansión */
+  opacity: 1;
+  transform: translateX(0); /* Desliza hacia fuera (visible) */
+}
+
+/* ========================================
+   ACCESSIBILITY
+   ======================================== */
+
+/* Reducir animaciones si usuario lo prefiere */
+@media (prefers-reduced-motion: reduce) {
+  .legal-center-stage__left-overlay,
+  .legal-center-stage__right-overlay {
+    transition: none;
+  }
+}

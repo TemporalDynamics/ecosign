@@ -137,7 +137,7 @@ const assertCustodyConsistency = (input: SourceTruthInput) => {
   }
 };
 
-const getDocumentEntity = async (id: string) => {
+export const getDocumentEntity = async (id: string) => {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('document_entities')
@@ -150,6 +150,25 @@ const getDocumentEntity = async (id: string) => {
   }
 
   return data;
+};
+
+export const mapEntityToDocumentRecord = (entity: any) => {
+  const documentHash = entity.signed_hash || entity.witness_current_hash || entity.source_hash;
+  return {
+    id: entity.id,
+    document_name: entity.source_name,
+    document_hash: documentHash,
+    content_hash: entity.source_hash,
+    created_at: entity.created_at || entity.source_captured_at,
+    pdf_storage_path: entity.witness_current_storage_path ?? null,
+    status: entity.lifecycle_status ?? null,
+    signed_authority: entity.signed_authority ?? null,
+    has_legal_timestamp: false,
+    has_polygon_anchor: false,
+    has_bitcoin_anchor: false,
+    events: entity.events || [],
+    signer_links: [],
+  };
 };
 
 export const ensureSigned = async (
@@ -324,6 +343,64 @@ export const emitEcoVNext = async (
  * 
  * This function enforces canonical rules per TSA_EVENT_RULES.md
  */
+export const appendOperationEvent = async (
+  documentId: string,
+  eventPayload: {
+    kind: 'operation.document_added' | 'operation.document_removed';
+    actor: { id: string; type: 'user' | 'service' };
+    operation_id: string;
+    reason?: string | null;
+    metadata?: Record<string, unknown>;
+  }
+) => {
+  // Validate kind
+  if (!['operation.document_added', 'operation.document_removed'].includes(eventPayload.kind)) {
+    throw new Error(`Invalid operation event kind: ${eventPayload.kind}`);
+  }
+
+  // Ensure document exists
+  const doc = await getDocumentEntity(documentId);
+
+  // Ensure operation exists
+  const supabase = getSupabase();
+  const { data: opData, error: opError } = await supabase
+    .from('operations')
+    .select('id')
+    .eq('id', eventPayload.operation_id)
+    .maybeSingle();
+
+  if (opError) {
+    console.error('Error validating operation_id:', opError);
+    throw opError;
+  }
+
+  if (!opData) {
+    throw new Error(`Invalid operation_id: ${eventPayload.operation_id}`);
+  }
+
+  // Build canonical event
+  const event = {
+    kind: eventPayload.kind,
+    at: new Date().toISOString(),
+    actor: eventPayload.actor,
+    operation_id: eventPayload.operation_id,
+    document_entity_id: documentId,
+    reason: eventPayload.reason ?? null,
+    metadata: eventPayload.metadata ?? {},
+  };
+
+  // Append to document.events[] (append-only)
+  const currentEvents = Array.isArray(doc.events) ? doc.events : [];
+  const { error } = await getSupabase()
+    .from('document_entities')
+    .update({ events: [...currentEvents, event] })
+    .eq('id', documentId);
+
+  if (error) {
+    throw new Error(`Failed to append operation event: ${error.message}`);
+  }
+};
+
 export const appendTsaEvent = async (
   documentId: string,
   payload: TsaEventPayload

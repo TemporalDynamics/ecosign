@@ -139,12 +139,22 @@ END;
 $$;
 
 -- Create cron job (every 5 minutes)
--- NOTE: Requires pg_cron extension
-SELECT cron.schedule(
-  'recover-orphan-anchors',
-  '*/5 * * * *',  -- Every 5 minutes
-  $$SELECT detect_and_recover_orphan_anchors();$$
-);
+-- NOTE: Requires pg_cron extension (only available in Supabase Cloud)
+-- Skip in local development
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
+    PERFORM cron.schedule(
+      'recover-orphan-anchors',
+      '*/5 * * * *',  -- Every 5 minutes
+      $cmd$SELECT detect_and_recover_orphan_anchors();$cmd$
+    );
+    RAISE NOTICE 'Cron job created successfully';
+  ELSE
+    RAISE NOTICE 'Skipping cron job creation (pg_cron not available in local development)';
+  END IF;
+END
+$$;
 
 -- Grant execute permission
 GRANT EXECUTE ON FUNCTION detect_and_recover_orphan_anchors() TO service_role;

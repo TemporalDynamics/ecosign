@@ -29,6 +29,12 @@
 10. **`FLOW_MODES_CONTRACT.md`** — Modos de firma
 11. **`IMPACTO_TECNICO_MAPA.md`** — Mapa de impacto técnico
 
+### Nivel 5: Organización y Contexto
+12. **`OPERACIONES_CONTRACT.md`** ⭐ — Carpetas lógicas y operaciones
+13. **`DRAFT_OPERATION_RULES.md`** ⭐ — Borradores operativos (sin validez legal)
+14. **`LEGAL_CENTER_LAYOUT_CONTRACT.md`** — Layout del Centro Legal
+15. **`LEGAL_CENTER_STAGE_CONTRACT.md`** — Etapas del Centro Legal
+
 ---
 
 ## 📋 Resúmenes Ejecutivos
@@ -52,6 +58,10 @@
 - `IDENTITY_LEVELS_SUMMARY.md` — Copy de identidad
 - `FLOW_MODES_CONTRACT.md` — UX de firma
 - `WITNESS_PDF_CONTRACT.md` — Generación PDFs
+- `OPERACIONES_CONTRACT.md` — UX de operaciones
+- `DRAFT_OPERATION_RULES.md` — Borradores operativos
+- `LEGAL_CENTER_LAYOUT_CONTRACT.md` — Layout Centro Legal
+- `LEGAL_CENTER_STAGE_CONTRACT.md` — Stages Centro Legal
 
 ### Para Legal/Compliance
 - `verdad-canonica.md` — Posición legal base
@@ -65,9 +75,23 @@
 
 ---
 
-## ⭐ Cambios Recientes (2026-01-07)
+## ⭐ Cambios Recientes (2026-01-09)
 
-### NUEVO: Identity Assurance L0-L5
+### NUEVO: Draft Operations (Borradores Operativos)
+- **`DRAFT_OPERATION_RULES.md` v1.0** — CONTRATO CERRADO
+- **Decisión:** Drafts son operativos, NO probatorios
+- **Regla:** El draft no es evidencia débil, es intención no consumada
+- **Separación:** Plano operativo vs plano probatorio
+- **Estados:** Persistencia crash-safe sin validez legal
+
+### NUEVO: Operaciones (Carpetas Lógicas)
+- **`OPERACIONES_CONTRACT.md` v1.0** — CONTRATO CERRADO
+- **Decisión:** Operaciones como carpetas, no workflows
+- **Regla:** Nada se borra, solo se organiza
+- **Separación:** Documents (qué existe) vs Operaciones (qué pasó)
+- **Estados:** draft / active / closed / archived
+
+### PREVIO: Identity Assurance L0-L5 (2026-01-07)
 - **`IDENTITY_ASSURANCE_RULES.md` v2.0** — CONTRATO CERRADO
 - **`IDENTITY_LEVELS_SUMMARY.md`** — Referencia rápida
 - **Decisión:** Identidad como continuo (L0-L5), no binario
@@ -94,6 +118,6 @@
 
 ---
 
-**Última actualización:** 2026-01-07  
-**Contratos cerrados:** 11 de 11  
-**Próxima revisión:** Post-implementación Identity Levels (Q1)
+**Última actualización:** 2026-01-09
+**Contratos cerrados:** 15 de 15
+**Próxima revisión:** Post-implementación Operaciones + Drafts P0 (Q1 2026)

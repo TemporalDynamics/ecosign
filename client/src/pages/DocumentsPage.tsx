@@ -4,13 +4,21 @@ import { getSupabase } from "../lib/supabaseClient";
 import { emitEcoVNext } from "../lib/documentEntityService";
 import { getLatestTsaEvent, formatTsaTimestamp } from "../lib/events/tsa";
 import { deriveProtectionLevel, getAnchorEvent } from "../lib/protectionLevel";
-import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
 import FooterInternal from "../components/FooterInternal";
 import InhackeableTooltip from "../components/InhackeableTooltip";
 import ShareDocumentModal from "../components/ShareDocumentModal";
+import CreateOperationModal from "../components/CreateOperationModal";
+import MoveToOperationModal from "../components/MoveToOperationModal";
+import SectionToggle from "../components/SectionToggle";
+import OperationRow from "../components/OperationRow";
+import DocumentRow from "../components/DocumentRow";
 import { ProtectedBadge } from "../components/ProtectedBadge";
+import { getOperations, countDocumentsInOperation, updateOperation, getOperationWithDocuments, protectAndSendOperation } from "../lib/operationsService";
+import { getDocumentEntity } from "../lib/documentEntityService";
+import type { Operation } from "../types/operations";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
 import { useLegalCenter } from "../contexts/LegalCenterContext";
 import { decryptFile, ensureCryptoSession, getSessionUnwrapKey, unwrapDocumentKey } from "../lib/e2e";
@@ -290,6 +298,12 @@ function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [shareDoc, setShareDoc] = useState<DocumentRecord | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showCreateOperationModal, setShowCreateOperationModal] = useState(false);
+  const [operations, setOperations] = useState<Operation[]>([]);
+  const [operationsLoading, setOperationsLoading] = useState(false);
+  const [operationDocCounts, setOperationDocCounts] = useState<Record<string, number>>({});
+  const [moveDoc, setMoveDoc] = useState<DocumentRecord | null>(null);
+  const [isCreatingOperationForMove, setIsCreatingOperationForMove] = useState(false);
   const isSearchActive = search.trim().length > 0;
   const hasDocuments = documents.length > 0;
 
@@ -441,6 +455,36 @@ function DocumentsPage() {
       window.removeEventListener("ecosign:document-updated", handleDocumentUpdated);
     };
   }, [loadDocuments]);
+
+  // Cargar operaciones
+  const loadOperations = useCallback(async () => {
+    if (!currentUserId) return;
+
+    try {
+      setOperationsLoading(true);
+      const ops = await getOperations(currentUserId);
+      setOperations(ops);
+
+      // Contar documentos por operación
+      const counts: Record<string, number> = {};
+      for (const op of ops) {
+        const count = await countDocumentsInOperation(op.id);
+        counts[op.id] = count;
+      }
+      setOperationDocCounts(counts);
+    } catch (error) {
+      console.error('Error loading operations:', error);
+    } finally {
+      setOperationsLoading(false);
+    }
+  }, [currentUserId]);
+
+  // Cargar operaciones al montar y cuando cambie el usuario
+  useEffect(() => {
+    if (currentUserId) {
+      loadOperations();
+    }
+  }, [currentUserId, loadOperations]);
 
   const triggerDownload = (blob: Blob, fileName: string) => {
     const downloadUrl = URL.createObjectURL(blob);
@@ -736,7 +780,7 @@ function DocumentsPage() {
             <h1 className="mt-0 text-3xl md:text-4xl font-semibold tracking-tight">Mis documentos</h1>
           </header>
 
-          <section className="mb-6 flex flex-col md:flex-row md:items-center md:justify-end gap-4">
+          <section className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="relative w-full md:w-72">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
@@ -747,6 +791,20 @@ function DocumentsPage() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
               />
             </div>
+
+            <button
+              onClick={() => {
+                if (isGuestMode()) {
+                  toast("Modo invitado: operaciones disponibles solo con cuenta.", { position: "top-right" });
+                  return;
+                }
+                setShowCreateOperationModal(true);
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition text-sm font-semibold whitespace-nowrap"
+            >
+              <FolderPlus className="w-4 h-4" />
+              Nueva operación
+            </button>
           </section>
 
           {loading ? (
@@ -794,229 +852,133 @@ function DocumentsPage() {
             </div>
           ) : (
             <>
-              <div className="md:hidden space-y-4">
-                {filteredDocuments.map((doc) => {
-                  const {
-                    config,
-                    ecoAvailable
-                  } = deriveProbativeState(doc, planTier);
-                  const pdfAvailable = !!(doc.pdf_storage_path || doc.encrypted_path);
-                  const ecoEnabled = ecoAvailable || doc.eco_hash;
-                  const menuOpen = openMenuId === doc.id;
-                  return (
-                    <div key={doc.id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          {/* Escudo sin tooltip */}
-                          <Shield className="h-5 w-5 text-gray-700 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            {/* Nombre sin extensión ni badge */}
-                            <span className="text-sm font-semibold text-gray-900 truncate block">
-                              {doc.document_name.replace(/\.(pdf|eco|ecox)$/i, '')}
-                            </span>
-                            <div className="mt-2 flex items-center gap-2 flex-wrap">
-                              {/* Estado probatorio con color */}
-                              <span className={`text-xs font-semibold ${config.color}`}>
-                                {config.label}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {formatDate(doc.created_at)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => setOpenMenuId(menuOpen ? null : doc.id)}
-                          className="text-xs font-semibold text-gray-700 border border-gray-200 rounded-md px-2 py-1 flex-shrink-0"
-                        >
-                          {menuOpen ? "Cerrar" : "Más"}
-                        </button>
-                      </div>
+              {/* Shared header (desktop) — global under search/new operation */}
+              <div className="hidden md:grid grid-cols-[minmax(320px,1fr)_160px_180px_140px] gap-4 px-6 py-3 bg-gray-50 text-xs text-gray-600 font-medium mb-2">
+                <div>Nombre</div>
+                <div>Estado probatorio</div>
+                <div>Fecha de creación</div>
+                <div>Acciones</div>
+              </div>
 
-                      <div className="mt-4 flex items-center gap-3">
-                        <button
-                          className="flex items-center gap-2 text-sm font-semibold text-gray-900"
+              {/* Sección de Operaciones */}
+              {operations.length > 0 && (
+                <SectionToggle
+                  title="Operaciones"
+                  count={operations.length}
+                  icon={<Folder className="w-4 h-4" />}
+                  defaultOpen={true}
+                >
+                  <div className="space-y-3 mt-2">
+                      {operations.map((operation) => (
+                        <OperationRow
+                          key={operation.id}
+                          operation={operation}
+                          documentCount={operationDocCounts[operation.id] || 0}
+                          tableLayout={true}
                           onClick={() => {
-                            setPreviewDoc(doc);
-                            setOpenMenuId(null);
+                            // TODO: Navegar a detalle de operación
+                            console.log('Ver operación:', operation);
+                            toast('Detalle de operación próximamente', { position: 'top-right' });
                           }}
-                        >
-                          <Eye className="h-4 w-4" />
-                          Ver detalle
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleShareDoc(doc);
-                            setOpenMenuId(null);
+                          onEdit={() => {
+                            // TODO: Abrir modal de edición
+                            console.log('Editar operación:', operation);
+                            toast('Edición próximamente', { position: 'top-right' });
                           }}
-                          className="flex items-center gap-2 text-sm font-semibold text-gray-900"
-                          title="Compartir enlace seguro"
-                        >
-                          <Share2 className="h-4 w-4" />
-                          Compartir
-                        </button>
-                      </div>
-
-                      {menuOpen && (
-                        <div className="mt-4 border-t border-gray-200 pt-3 grid gap-2">
-                          <button
-                            onClick={() => {
-                              handleEcoDownload(doc);
-                              setOpenMenuId(null);
-                            }}
-                            className={`text-left text-sm font-medium ${ecoEnabled ? "text-gray-700" : "text-gray-300"}`}
-                            disabled={!ecoEnabled}
-                          >
-                            Descargar certificado .ECO
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (pdfAvailable) {
-                                handlePdfDownload(doc);
+                          onChangeStatus={async (newStatus) => {
+                            try {
+                              await updateOperation(operation.id, { status: newStatus });
+                              toast.success(`Operación ${newStatus === 'closed' ? 'cerrada' : 'archivada'}`, { position: 'top-right' });
+                              loadOperations();
+                            } catch (error) {
+                              console.error('Error updating operation:', error);
+                              toast.error('No se pudo actualizar la operación', { position: 'top-right' });
+                            }
+                          }}
+                          onProtectAndSend={async () => {
+                            try {
+                              // Validar que tenga documentos
+                              const docCount = operationDocCounts[operation.id] || 0;
+                              if (docCount === 0) {
+                                toast.error('No se puede proteger una operación sin documentos', { position: 'top-right' });
+                                return;
                               }
-                              setOpenMenuId(null);
-                            }}
-                            className={`text-left text-sm font-medium ${pdfAvailable ? "text-gray-700" : "text-gray-300"}`}
-                            disabled={!pdfAvailable}
-                          >
-                            Descargar PDF
-                          </button>
-                          <button
-                            onClick={() => {
-                              handleVerifyDoc(doc);
-                              setOpenMenuId(null);
-                            }}
-                            className="text-left text-sm font-medium text-gray-700"
-                          >
-                            Verificar documento
-                          </button>
-                        </div>
-                      )}
+
+                              await protectAndSendOperation(operation.id);
+                              toast.success(
+                                '🚀 Operación protegida. Los documentos ahora tienen validez legal.',
+                                { position: 'top-right', duration: 4000 }
+                              );
+                              loadOperations();
+                            } catch (error: any) {
+                              console.error('Error protecting operation:', error);
+                              toast.error(error.message || 'No se pudo proteger la operación', { position: 'top-right' });
+                            }
+                          }}
+                          onOpenDocument={async (docId: string) => {
+                            try {
+                              const found = documents.find((d) => d.id === docId);
+                              if (found) {
+                                setPreviewDoc(found);
+                                return;
+                              }
+                              const docEntity = await getDocumentEntity(docId);
+                              const mapped = mapDocumentEntityToRecord(docEntity as any);
+                              setPreviewDoc(mapped);
+                            } catch (err) {
+                              console.error('Error opening document:', err);
+                              toast.error('No se pudo abrir el documento', { position: 'top-right' });
+                            }
+                          }}
+                        />
+                      ))}
                     </div>
-                  );
-                })}
+                </SectionToggle>
+              )}
+
+              {/* Sección de Documentos */}
+              <SectionToggle
+                title="Documentos"
+                count={filteredDocuments.length}
+                icon={<FileText className="w-4 h-4" />}
+                defaultOpen={true}
+              >
+                <div className="md:hidden space-y-4">
+                {filteredDocuments.map((doc) => (
+                  <DocumentRow
+                    key={doc.id}
+                    document={doc}
+                    context="documents"
+                    onOpen={(d) => setPreviewDoc(d)}
+                    onShare={(d) => handleShareDoc(d)}
+                    onDownloadEco={(d) => handleEcoDownload(d)}
+                    onDownloadPdf={(d) => handlePdfDownload(d)}
+                    onVerify={(d) => handleVerifyDoc(d)}
+                    onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
+                  />
+                ))}
               </div>
 
               <div className="hidden md:block bg-white border border-gray-200 rounded-lg">
-                <div className="overflow-x-auto overflow-y-visible">
-                  <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Documento
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estado probatorio
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha de creación
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredDocuments.map((doc) => {
-                    const {
-                      config,
-                      ecoAvailable
-                    } = deriveProbativeState(doc, planTier);
-                    const pdfAvailable = !!(doc.pdf_storage_path || doc.encrypted_path);
-                    const ecoEnabled = ecoAvailable || doc.eco_hash;
-                    return (
-                      <tr key={doc.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {/* Escudo sin tooltip */}
-                            <Shield className="h-5 w-5 text-gray-700 flex-shrink-0" />
-                            {/* Nombre sin extensión ni badge */}
-                            <span className="text-sm font-medium text-gray-900 truncate max-w-[320px]">
-                              {doc.document_name.replace(/\.(pdf|eco|ecox)$/i, '')}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {/* Estado probatorio con color */}
-                          <span
-                            className={`text-xs font-semibold ${config.color} whitespace-pre-line cursor-help`}
-                            title={config.tooltip}
-                          >
-                            {config.label}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(doc.created_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center gap-3">
-                            <button
-                              className="text-black hover:text-gray-600"
-                              title="Ver detalle"
-                              onClick={() => setPreviewDoc(doc)}
-                            >
-                              <Eye className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleShareDoc(doc)}
-                              className="text-black hover:text-gray-600"
-                              title="Compartir enlace seguro"
-                            >
-                              <Share2 className="h-5 w-5" />
-                            </button>
-                            <div className="relative">
-                              <button
-                                onClick={() => setOpenMenuId(openMenuId === doc.id ? null : doc.id)}
-                                className="text-gray-500 hover:text-gray-700"
-                                title="Mas acciones"
-                              >
-                                <MoreVertical className="h-5 w-5" />
-                              </button>
-                              {openMenuId === doc.id && (
-                                <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg z-10 flex flex-col items-stretch">
-                                  <button
-                                    onClick={() => {
-                                      handleEcoDownload(doc);
-                                      setOpenMenuId(null);
-                                    }}
-                                    className={`w-full text-left px-4 py-2 text-sm ${ecoEnabled ? "text-gray-700 hover:bg-gray-50" : "text-gray-300 cursor-not-allowed"}`}
-                                    disabled={!ecoEnabled}
-                                  >
-                                    Descargar certificado .ECO
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (pdfAvailable) {
-                                        handlePdfDownload(doc);
-                                      }
-                                      setOpenMenuId(null);
-                                    }}
-                                    className={`w-full text-left px-4 py-2 text-sm ${pdfAvailable ? "text-gray-700 hover:bg-gray-50" : "text-gray-300 cursor-not-allowed"}`}
-                                    disabled={!pdfAvailable}
-                                  >
-                                    Descargar PDF
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      handleVerifyDoc(doc);
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                  >
-                                    Verificar documento
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                <div className="p-4 space-y-2">
+                  {filteredDocuments.map((doc) => (
+                    <div key={doc.id} className="grid grid-cols-[minmax(320px,1fr)_160px_180px_140px] items-center px-6 py-2 hover:bg-gray-50 rounded">
+                      <DocumentRow
+                        document={doc}
+                        asRow
+                        context="documents"
+                        onOpen={(d) => setPreviewDoc(d)}
+                        onShare={(d) => handleShareDoc(d)}
+                        onDownloadEco={(d) => handleEcoDownload(d)}
+                        onDownloadPdf={(d) => handlePdfDownload(d)}
+                        onVerify={(d) => handleVerifyDoc(d)}
+                        onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
+              </SectionToggle>
             </>
           )}
         </main>
@@ -1204,6 +1166,57 @@ function DocumentsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Modal Crear Operación */}
+      {showCreateOperationModal && currentUserId && (
+        <CreateOperationModal
+          userId={currentUserId}
+          onClose={() => setShowCreateOperationModal(false)}
+          onSuccess={async (operation) => {
+            if (isCreatingOperationForMove && moveDoc) {
+              try {
+                await addDocumentToOperation(operation.id, moveDoc.document_entity_id ?? moveDoc.id, currentUserId);
+                toast.success(
+                  `Documento agregado a "${operation.name}". La evidencia no ha cambiado.`,
+                  { position: 'top-right', duration: 4000 }
+                );
+                setMoveDoc(null); // Close MoveToOperationModal
+                setIsCreatingOperationForMove(false);
+              } catch (error: any) {
+                if (error.code === '23505') {
+                  toast.error(`El documento "${moveDoc.document_name}" ya pertenece a la operación "${operation.name}".`, { position: 'top-right' });
+                } else {
+                  console.error('Error adding document to new operation:', error);
+                  toast.error('No se pudo agregar el documento a la nueva operación', { position: 'top-right' });
+                }
+              }
+            } else {
+              toast.success(`Operación "${operation.name}" creada`, { position: 'top-right' });
+            }
+            loadOperations(); // Always reload operations
+            loadDocuments(); // Always reload documents (needed if document moved)
+            setShowCreateOperationModal(false); // Close CreateOperationModal
+          }}
+        />
+      )}
+
+      {/* Modal Mover a Operación */}
+      {moveDoc && currentUserId && (
+        <MoveToOperationModal
+          documentId={moveDoc.document_entity_id ?? moveDoc.id}
+          documentName={moveDoc.document_name}
+          userId={currentUserId}
+          onClose={() => setMoveDoc(null)}
+          onSuccess={() => {
+            loadOperations(); // Recargar conteos
+            loadDocuments(); // Recargar documentos
+          }}
+          onCreateNew={() => {
+            setIsCreatingOperationForMove(true);
+            setShowCreateOperationModal(true);
+          }}
+        />
       )}
     </div>
   );

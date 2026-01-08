@@ -22,7 +22,7 @@ CREATE INDEX IF NOT EXISTS idx_rate_limit_blocks_until ON rate_limit_blocks(bloc
 
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'cron.schedule') THEN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
     PERFORM cron.schedule(
       'cleanup-rate-limits',
       '*/15 * * * *',
@@ -31,6 +31,9 @@ BEGIN
         DELETE FROM rate_limit_blocks WHERE blocked_until < NOW();
       $cleanup$
     );
+    RAISE NOTICE 'Rate limit cleanup cron job created';
+  ELSE
+    RAISE NOTICE 'Skipping cron job (pg_cron not available in local)';
   END IF;
 END
 $$;

@@ -52,8 +52,12 @@ import { SceneRenderer } from './centro-legal/layout/SceneRenderer';
 import { resolveActiveScene } from './centro-legal/orchestration/resolveActiveScene';
 import type { SignatureField } from '../types/signature-fields';
 
-// Feature flag: toggle SceneRenderer gradually (FASE 1)
-const USE_SCENE_RENDERER = true;
+// FASE 2: Stage con canvas invariante (modelo de capas)
+import { LegalCenterStage } from './centro-legal/stage';
+
+// Feature flags
+const USE_SCENE_RENDERER = true; // FASE 1: SceneRenderer
+const USE_NEW_STAGE = true;      // FASE 2: Stage (canvas invariante - modelo de capas)
 
 /**
  * Helper to persist TSA event to document_entities.events[] via Edge Function
@@ -1795,11 +1799,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     isReviewStep: step !== 1
   });
 
-  const gridTemplateColumns = resolveGridColumns({
-    ndaEnabled,
-    rightPanelOpen: workflowEnabled,
-    isMobile
-  });
+  // DESACTIVADO: Este es el "cerebro" del modelo de compresión
+  // Cuando USE_NEW_STAGE=true, el layout NO reacciona a los paneles
+  const gridTemplateColumns = USE_NEW_STAGE
+    ? '1fr' // Dummy value (grid desactivado)
+    : resolveGridColumns({
+        ndaEnabled,
+        rightPanelOpen: workflowEnabled,
+        isMobile
+      });
   const isPreviewFullscreen = isMobile && previewMode === 'fullscreen';
 
   // Instrumentation: track active scene views (minimal, non-invasive)
@@ -1838,25 +1846,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       modeConfirmation={modeConfirmation}
       onClose={resetAndClose}
       gridTemplateColumns={gridTemplateColumns}
+      useGrid={!USE_NEW_STAGE} // Stage no necesita grid
+      ndaOpen={ndaEnabled} // Panel NDA
+      flowOpen={workflowEnabled} // Panel Flujo
     >
-      {/* Left Panel (NDA) - PASO 4.1: NdaPanel modular */}
-      {documentLoaded && ndaEnabled && (
-        <div className={`left-panel h-full transition-all duration-300 ease-in-out hidden md:block ${ndaEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:-translate-x-3 md:pointer-events-none md:hidden'}`}>
-          <NdaPanel
-                isOpen={ndaEnabled}
-                documentId={undefined}
-                onClose={() => setNdaEnabled(false)}
-                onSave={(ndaData) => {
-                  setNdaText(ndaData.content);
-                  // TODO: Persistir en DB cuando corresponda
-                  console.log('NDA saved:', ndaData);
-                }}
-              />
-            </div>
-          )}
-        
-          {/* Center Panel (Main Content) */}
-          <div className={`center-panel relative z-20 ${isMobile ? 'col-span-full px-4 py-3' : 'col-start-2 col-end-3 px-6 py-3'}`}>
+      {USE_NEW_STAGE ? (
+        /* MODELO DE CAPAS: Stage con canvas invariante */
+        <LegalCenterStage
+          canvas={
+            /* Center Panel (Main Content) - SIN CLASES GRID */
+            <div className="h-full w-full px-6 py-3">
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
               <div className={`space-y-3 ${isMobile ? 'pb-24' : ''}`}>
@@ -2548,12 +2547,25 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           )}
 
           {/* PASO 2: Eliminado - ya no es necesario porque los documentos se encriptan */}
-          </div>
-
-          {/* Right Panel (Workflow) */}
-          <div className={`right-panel col-start-3 col-end-4 h-full border-l border-gray-200 bg-gray-50 transition-all duration-300 ease-in-out hidden md:block ${workflowEnabled ? 'md:opacity-100 md:translate-x-0 md:pointer-events-auto md:block' : 'md:opacity-0 md:translate-x-3 md:pointer-events-none md:hidden'}`}>
-          <div className="h-full flex flex-col">
-            {/* Header colapsable del panel */}
+        </div>
+      }
+      leftOverlay={
+            documentLoaded && ndaEnabled ? (
+              <NdaPanel
+                isOpen={ndaEnabled}
+                documentId={undefined}
+                onClose={() => setNdaEnabled(false)}
+                onSave={(ndaData) => {
+                  setNdaText(ndaData.content);
+                  console.log('NDA saved:', ndaData);
+                }}
+              />
+            ) : undefined
+          }
+          rightOverlay={
+            documentLoaded && workflowEnabled ? (
+              <div className="h-full flex flex-col">
+                {/* Header colapsable del panel */}
             <div className="px-4 py-3 border-b border-gray-200 bg-white">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
@@ -2634,14 +2646,49 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </p>
                   </div>
                 </div>
+                </div>
               </div>
+              </div>
+            ) : undefined
+          }
+          leftOpen={ndaEnabled && documentLoaded}
+          rightOpen={workflowEnabled && documentLoaded}
+        />
+      ) : (
+        /* MODELO LEGACY: Grid con compresión (fallback) */
+        <>
+          {/* Left Panel (NDA) */}
+          {documentLoaded && ndaEnabled && (
+            <div className="left-panel h-full transition-all duration-300 ease-in-out hidden md:block">
+              <NdaPanel
+                isOpen={ndaEnabled}
+                documentId={undefined}
+                onClose={() => setNdaEnabled(false)}
+                onSave={(ndaData) => {
+                  setNdaText(ndaData.content);
+                  console.log('NDA saved:', ndaData);
+                }}
+              />
             </div>
-          </div>
-        </div>
-      </LegalCenterShell>
+          )}
 
-      {/* Modal secundario: Selector de tipo de firma certificada */}
-      {showCertifiedModal && (
+          {/* Center Panel - LEGACY con grid */}
+          <div className="center-panel relative z-20 col-start-2 col-end-3 px-6 py-3">
+            <p className="text-gray-500">Legacy Grid Mode (USE_NEW_STAGE = false)</p>
+          </div>
+
+          {/* Right Panel - LEGACY */}
+          {documentLoaded && workflowEnabled && (
+            <div className="right-panel col-start-3 col-end-4 h-full">
+              <p className="text-gray-500 p-4">Legacy Workflow Panel</p>
+            </div>
+          )}
+        </>
+      )}
+    </LegalCenterShell>
+
+    {/* Modal secundario: Selector de tipo de firma certificada */}
+    {showCertifiedModal && (
         <div className="fixed inset-0 bg-white md:bg-black md:bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn p-0 md:p-6">
           <div className="bg-white rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-md p-6 shadow-2xl animate-fadeScaleIn overflow-y-auto">
             <div className="flex items-center justify-between mb-4">

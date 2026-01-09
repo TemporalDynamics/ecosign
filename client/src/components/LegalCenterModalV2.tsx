@@ -1839,17 +1839,22 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const duplicateField = (id: string) => {
     const field = signatureFields.find((item) => item.id === id);
     if (!field) return;
-    const copy = { ...field, id: createFieldId(), x: field.x + 16, y: field.y + 16 };
+    const gap = 12;
+    const copy = { ...field, id: createFieldId(), x: field.x, y: field.y + field.height + gap };
     setSignatureFields((prev) => [...prev, copy]);
   };
 
   const duplicateBatch = () => {
     if (signatureFields.length === 0) return;
+    const gap = 16;
+    const minY = Math.min(...signatureFields.map((field) => field.y));
+    const maxY = Math.max(...signatureFields.map((field) => field.y + field.height));
+    const offsetY = maxY - minY + gap;
     const batch = signatureFields.map((field) => ({
       ...field,
       id: createFieldId(),
-      x: field.x + 24,
-      y: field.y + 24
+      x: field.x,
+      y: field.y + offsetY
     }));
     setSignatureFields((prev) => [...prev, ...batch]);
   };
@@ -2170,41 +2175,41 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               {signatureFields.map((field) => (
                                 <div
                                   key={field.id}
-                                  className="absolute pointer-events-auto border border-blue-300 bg-blue-50/80 rounded-md px-2 py-1 shadow-sm group"
+                                  className="absolute pointer-events-auto border border-blue-300 bg-blue-50/80 rounded-md px-2 py-2 shadow-sm group"
                                   style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
-                                  onMouseDown={(event) => startFieldDrag(event, field.id)}
                                 >
-                                  <div className="flex items-center justify-between text-[11px] text-blue-900 font-semibold">
-                                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                      {field.type === 'signature' ? '✍️ Firma' : field.type === 'date' ? '📅 Fecha' : '📝 Texto'}
-                                    </span>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <button
-                                        type="button"
-                                        onMouseDown={(event) => event.stopPropagation()}
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          duplicateField(field.id);
-                                        }}
-                                        className="text-blue-600 hover:text-blue-900"
-                                        title="Duplicar campo"
-                                      >
-                                        ⧉
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onMouseDown={(event) => event.stopPropagation()}
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          removeField(field.id);
-                                        }}
-                                        className="text-blue-600 hover:text-blue-900"
-                                        title="Eliminar campo"
-                                      >
-                                        ×
-                                      </button>
-                                    </div>
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      duplicateField(field.id);
+                                    }}
+                                    className="absolute -top-6 -left-6 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Duplicar campo"
+                                  >
+                                    ⧉
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(event) => startFieldDrag(event, field.id)}
+                                    className="absolute -top-6 left-1/2 -translate-x-1/2 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-move"
+                                    title="Mover campo"
+                                  >
+                                    ⠿
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      removeField(field.id);
+                                    }}
+                                    className="absolute -top-6 -right-6 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Eliminar campo"
+                                  >
+                                    ×
+                                  </button>
                                   <input
                                     value={field.metadata?.label ?? ''}
                                     onChange={(event) => {
@@ -2219,7 +2224,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                     }}
                                     onMouseDown={(event) => event.stopPropagation()}
                                     placeholder=""
-                                    className="w-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-600"
+                                    className="w-full h-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-600"
                                   />
                                 </div>
                               ))}

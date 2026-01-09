@@ -118,12 +118,40 @@ serve(async (req) => {
     const workflow = signer.workflow as any
     const forensicConfig = workflow.forensic_config || {}
     const signedAt = new Date().toISOString()
+
+    // === Identity Level Determination (IDENTITY_ASSURANCE_RULES.md) ===
+    function determineIdentityLevel(signer: any, context: any): string {
+      // L1: Email magic link (workflow_signers requiere email válido)
+      if (signer.email) return 'L1'
+
+      // L0: Acknowledgement sin verificación
+      return 'L0'
+
+      // TODO (Q2):
+      // - L2: OTP SMS (cuando se implemente)
+      // - L3: Passkey WebAuthn (cuando se implemente)
+      // - L4: Biometric + KYC (futuro)
+      // - L5: QES/PSC certificate (futuro)
+    }
+
+    function buildIdentitySignals(signer: any, context: any): string[] {
+      const signals: string[] = []
+
+      if (signer.email) signals.push('email_provided')
+      if (signer.email) signals.push('email_verified') // workflow_signers implica verificación
+      if (context.ndaAccepted) signals.push('nda_accepted')
+      if (context.ipAddress || context.userAgent) signals.push('device_fingerprint_recorded')
+
+      return signals
+    }
+
+    const identityLevel = determineIdentityLevel(signer, { ndaAccepted, ipAddress, userAgent })
     const identityAssurance = {
-      level: 'IAL-1',
+      level: identityLevel,
       provider: 'ecosign',
-      method: null,
+      method: identityLevel === 'L1' ? 'email_magic_link' : null,
       timestamp: signedAt,
-      signals: []
+      signals: buildIdentitySignals(signer, { ndaAccepted, ipAddress, userAgent })
     }
     let timeAssurance = {
       source: forensicConfig.rfc3161 ? 'RFC3161' : 'server_clock',

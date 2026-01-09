@@ -81,7 +81,7 @@ export default function OperationRow({
   if (tableLayout) {
     return (
       <div>
-        <div className="grid grid-cols-[minmax(320px,1fr)_160px_180px_140px] items-center px-6 py-4 bg-sky-50 rounded-lg">
+        <div className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-3 bg-sky-50 rounded-lg">
           <div className="flex items-center gap-3">
             <button onClick={() => setOpen(!open)} className="flex items-center gap-3 text-left" type="button">
               <Folder className="w-5 h-5 text-sky-700 flex-shrink-0" />
@@ -163,7 +163,7 @@ export default function OperationRow({
         </div>
 
         {open && (
-          <div className="pl-8">
+          <div>
             {loadingDocs ? (
               <div className="text-sm text-gray-500 px-6 py-3">Cargando documentos…</div>
             ) : docs.length === 0 ? (
@@ -174,7 +174,7 @@ export default function OperationRow({
                   const entity = d.document_entities ?? d;
                   const mapped = mapEntityToDocumentRecord(entity);
                   return (
-                    <div key={mapped.id} className="grid grid-cols-[minmax(320px,1fr)_160px_180px_140px] items-center px-6 py-2">
+                    <div key={mapped.id} className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-1.5">
                       <DocumentRow
                         document={mapped}
                         asRow
@@ -341,5 +341,3 @@ export default function OperationRow({
     </div>
   );
 }
-
-

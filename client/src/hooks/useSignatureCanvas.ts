@@ -9,33 +9,33 @@ export const useSignatureCanvas = () => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
 
-  useEffect(() => {
+  const prepareCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Configurar canvas con dimensiones correctas considerando devicePixelRatio
-    // Esto evita el offset del cursor en pantallas retina y con zoom
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    
-    // Escalar el contexto para compensar el aumento de resolución
-    ctx.scale(dpr, dpr);
 
-    // Estilo de la línea
-    ctx.strokeStyle = '#1f2937'; // gray-800
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.strokeStyle = '#1f2937';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Limpiar canvas
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, rect.width, rect.height);
+  };
+
+  useEffect(() => {
+    prepareCanvas();
+    const handleResize = () => prepareCanvas();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const getEventCoordinates = (e: MouseEvent | TouchEvent) => {
@@ -51,6 +51,7 @@ export const useSignatureCanvas = () => {
   };
 
   const startDrawing = (e: MouseEvent | TouchEvent) => {
+    prepareCanvas();
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -92,8 +93,9 @@ export const useSignatureCanvas = () => {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, rect.width, rect.height);
     setHasSignature(false);
   };
 

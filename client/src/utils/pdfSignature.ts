@@ -17,6 +17,46 @@ interface SignatureOptions {
   y?: number;
 }
 
+export type OverlayKind = 'signature' | 'field_signature' | 'field_text' | 'field_date';
+
+export type OverlaySpecItem = {
+  kind: OverlayKind;
+  page: number; // 1-indexed
+  x: number; // 0-1 normalized
+  y: number; // 0-1 normalized (top-left origin)
+  w: number; // 0-1 normalized
+  h: number; // 0-1 normalized
+  value?: string;
+  imageDataUrl?: string;
+  label?: string;
+};
+
+const normalizedToPdf = (
+  pageWidth: number,
+  pageHeight: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) => {
+  const width = w * pageWidth;
+  const height = h * pageHeight;
+  const left = x * pageWidth;
+  const bottom = pageHeight - (y * pageHeight) - height;
+  return { left, bottom, width, height };
+};
+
+const embedDataUrlImage = async (
+  pdfDoc: any,
+  dataUrl: string
+) => {
+  const bytes = await fetch(dataUrl).then(res => res.arrayBuffer());
+  if (dataUrl.startsWith('data:image/jpeg') || dataUrl.startsWith('data:image/jpg')) {
+    return pdfDoc.embedJpg(bytes);
+  }
+  return pdfDoc.embedPng(bytes);
+};
+
 export interface ForensicData {
   signerName?: string;
   signerEmail?: string;
@@ -92,6 +132,89 @@ export async function applySignatureToPDF(
       throw new Error("An unknown error occurred while applying signature to PDF.");
     }
   }
+}
+
+/**
+ * Aplica overlays determinísticos (firma + campos) sobre un PDF witness.
+ */
+export async function applyOverlaySpecToPdf(
+  pdfFile: File,
+  overlays: OverlaySpecItem[]
+): Promise<Blob> {
+  if (!overlays.length) {
+    return new Blob([await pdfFile.arrayBuffer()], { type: 'application/pdf' });
+  }
+
+  const { PDFDocument, rgb, StandardFonts } = await loadPdfLib();
+  const pdfBytes = await pdfFile.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const pages = pdfDoc.getPages();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  for (const overlay of overlays) {
+    const pageIndex = Math.min(Math.max(overlay.page - 1, 0), pages.length - 1);
+    const page = pages[pageIndex];
+    const { width, height } = page.getSize();
+    const { left, bottom, width: boxWidth, height: boxHeight } = normalizedToPdf(
+      width,
+      height,
+      overlay.x,
+      overlay.y,
+      overlay.w,
+      overlay.h
+    );
+
+    if (overlay.kind === 'signature' && overlay.imageDataUrl) {
+      const image = await embedDataUrlImage(pdfDoc, overlay.imageDataUrl);
+      page.drawImage(image, {
+        x: left,
+        y: bottom,
+        width: boxWidth,
+        height: boxHeight,
+      });
+      continue;
+    }
+
+    const label = overlay.label || (overlay.kind === 'field_signature' ? 'Firma' : 'Campo');
+    const labelSize = 8;
+    const valueSize = 12;
+    const padding = 6;
+
+    page.drawRectangle({
+      x: left,
+      y: bottom,
+      width: boxWidth,
+      height: boxHeight,
+      borderColor: rgb(0.35, 0.45, 0.75),
+      borderWidth: 1,
+      color: rgb(0.93, 0.95, 0.99),
+    });
+
+    page.drawText(label, {
+      x: left + padding,
+      y: bottom + boxHeight - labelSize - padding,
+      size: labelSize,
+      font: fontBold,
+      color: rgb(0.2, 0.25, 0.45),
+      maxWidth: Math.max(0, boxWidth - padding * 2),
+    });
+
+    const value = overlay.value?.trim() || '';
+    if (value) {
+      page.drawText(value, {
+        x: left + padding,
+        y: bottom + Math.max(padding, (boxHeight - valueSize) / 2),
+        size: valueSize,
+        font: font,
+        color: rgb(0.15, 0.15, 0.15),
+        maxWidth: Math.max(0, boxWidth - padding * 2),
+      });
+    }
+  }
+
+  const modifiedPdfBytes = await pdfDoc.save();
+  return new Blob([new Uint8Array(modifiedPdfBytes)], { type: 'application/pdf' });
 }
 
 /**

@@ -20,9 +20,11 @@ import { getOperations, countDocumentsInOperation, updateOperation, getOperation
 import { getDocumentEntity } from "../lib/documentEntityService";
 import type { Operation } from "../types/operations";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
+import { loadDraftOperations } from "../lib/draftOperationsService";
 import { useLegalCenter } from "../contexts/LegalCenterContext";
 import { decryptFile, ensureCryptoSession, getSessionUnwrapKey, unwrapDocumentKey } from "../lib/e2e";
 import { hashSigned, hashSource, hashWitness } from "../lib/canonicalHashing";
+import { listDrafts, removeDraft, type DraftMeta } from "../utils/draftStorage";
 
 type DocumentRecord = {
   id: string;
@@ -304,6 +306,7 @@ function DocumentsPage() {
   const [operationDocCounts, setOperationDocCounts] = useState<Record<string, number>>({});
   const [moveDoc, setMoveDoc] = useState<DocumentRecord | null>(null);
   const [isCreatingOperationForMove, setIsCreatingOperationForMove] = useState(false);
+  const [drafts, setDrafts] = useState<DraftMeta[]>([]);
   const isSearchActive = search.trim().length > 0;
   const hasDocuments = documents.length > 0;
 
@@ -347,7 +350,9 @@ function DocumentsPage() {
           composite_hash,
           lifecycle_status,
           created_at,
-          updated_at
+          updated_at,
+          events,
+          tsa_latest
         `
         )
         .eq("owner_id", user.id)
@@ -393,6 +398,33 @@ function DocumentsPage() {
     }
   }, []);
 
+  const loadDrafts = useCallback(async () => {
+    try {
+      // Intentar cargar desde server primero
+      const serverDrafts = await loadDraftOperations();
+
+      // Convertir DraftOperation[] a DraftMeta[] para compatibilidad con UI
+      const draftsMeta: DraftMeta[] = serverDrafts.flatMap(op =>
+        op.documents.map(doc => ({
+          id: doc.draft_file_ref.startsWith('local:')
+            ? doc.draft_file_ref.replace('local:', '')
+            : doc.id,
+          name: doc.filename,
+          createdAt: op.created_at,
+          size: doc.size,
+          type: doc.metadata?.type || 'application/pdf'
+        }))
+      );
+
+      setDrafts(draftsMeta);
+    } catch (err) {
+      console.error('Error loading server drafts:', err);
+
+      // Fallback a local
+      setDrafts(listDrafts());
+    }
+  }, []);
+
   const loadPlan = useCallback(async () => {
     try {
       const supabase = getSupabase();
@@ -418,6 +450,43 @@ function DocumentsPage() {
     loadDocuments();
     loadPlan();
   }, [loadDocuments, loadPlan]);
+
+  useEffect(() => {
+    loadDrafts();
+    const handler = () => loadDrafts();
+    window.addEventListener('ecosign:draft-saved', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener('ecosign:draft-saved', handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, [loadDrafts]);
+
+  // Auto-recovery: mostrar notificación si hay drafts tras posible crash
+  useEffect(() => {
+    const checkAutoRecovery = async () => {
+      try {
+        const serverDrafts = await loadDraftOperations();
+        const hasDrafts = serverDrafts.length > 0;
+
+        if (hasDrafts && !sessionStorage.getItem('draft-recovery-shown')) {
+          sessionStorage.setItem('draft-recovery-shown', 'true');
+          toast.success(
+            `${serverDrafts.length} borrador(es) recuperado(s) automáticamente`,
+            {
+              position: 'top-right',
+              duration: 5000
+            }
+          );
+        }
+      } catch (err) {
+        console.warn('Auto-recovery check failed:', err);
+      }
+    };
+
+    // Solo ejecutar una vez al montar
+    checkAutoRecovery();
+  }, []);
 
   useEffect(() => {
     if (isGuestMode()) return;
@@ -680,6 +749,22 @@ function DocumentsPage() {
     setShareDoc(doc);
   };
 
+  const handleResumeDraft = (draftId: string) => {
+    localStorage.setItem('ecosign_draft_to_open', draftId);
+    openLegalCenter('certify');
+  };
+
+  const handleDeleteDraft = async (draftId: string) => {
+    try {
+      await removeDraft(draftId);
+      loadDrafts();
+      toast.success('Borrador eliminado', { position: 'top-right' });
+    } catch (err) {
+      console.error('Error removing draft:', err);
+      toast.error('No se pudo eliminar el borrador', { position: 'top-right' });
+    }
+  };
+
   const onVerifyFile = async (file: File, doc: DocumentRecord | null) => {
     if (!doc || !file) return;
     setVerifying(true);
@@ -800,7 +885,7 @@ function DocumentsPage() {
                 }
                 setShowCreateOperationModal(true);
               }}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition text-sm font-semibold whitespace-nowrap"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#0E4B8B] text-white rounded-lg hover:bg-[#0A3D73] transition text-sm font-semibold whitespace-nowrap"
             >
               <FolderPlus className="w-4 h-4" />
               Nueva operación
@@ -853,12 +938,56 @@ function DocumentsPage() {
           ) : (
             <>
               {/* Shared header (desktop) — global under search/new operation */}
-              <div className="hidden md:grid grid-cols-[minmax(320px,1fr)_160px_180px_140px] gap-4 px-6 py-3 bg-gray-50 text-xs text-gray-600 font-medium mb-2">
+              <div className="hidden md:grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 px-6 py-3 bg-gray-50 text-xs text-gray-600 font-medium mb-2">
                 <div>Nombre</div>
                 <div>Estado probatorio</div>
                 <div>Fecha de creación</div>
-                <div>Acciones</div>
+                <div className="justify-self-end" style={{ transform: 'translateX(-110px)' }}>Acciones</div>
               </div>
+
+              {drafts.length > 0 && (
+                <SectionToggle
+                  title="Borradores"
+                  count={drafts.length}
+                  icon={<FileText className="w-4 h-4" />}
+                  defaultOpen={true}
+                >
+                  <div className="space-y-2 mt-2">
+                    {drafts.map((draft) => (
+                      <div
+                        key={draft.id}
+                        className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-2 bg-white border border-gray-200 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate" title={draft.name}>
+                              {draft.name}
+                            </div>
+                            <div className="text-xs text-amber-700">Borrador</div>
+                          </div>
+                        </div>
+                        <div />
+                        <div className="text-sm text-gray-500">{formatDate(draft.createdAt)}</div>
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => handleResumeDraft(draft.id)}
+                            className="text-sm font-semibold text-[#0E4B8B] hover:text-[#0A3D73]"
+                          >
+                            Reanudar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDraft(draft.id)}
+                            className="text-xs text-gray-500 hover:text-gray-700"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </SectionToggle>
+              )}
 
               {/* Sección de Operaciones */}
               {operations.length > 0 && (
@@ -887,7 +1016,7 @@ function DocumentsPage() {
                           }}
                           onChangeStatus={async (newStatus) => {
                             try {
-                              await updateOperation(operation.id, { status: newStatus });
+                              await updateOperation(operation.id, { status: newStatus }, currentUserId || undefined);
                               toast.success(`Operación ${newStatus === 'closed' ? 'cerrada' : 'archivada'}`, { position: 'top-right' });
                               loadOperations();
                             } catch (error) {
@@ -962,7 +1091,7 @@ function DocumentsPage() {
               <div className="hidden md:block bg-white border border-gray-200 rounded-lg">
                 <div className="p-4 space-y-2">
                   {filteredDocuments.map((doc) => (
-                    <div key={doc.id} className="grid grid-cols-[minmax(320px,1fr)_160px_180px_140px] items-center px-6 py-2 hover:bg-gray-50 rounded">
+                    <div key={doc.id} className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-1.5 hover:bg-gray-50 rounded">
                       <DocumentRow
                         document={doc}
                         asRow

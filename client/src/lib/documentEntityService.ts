@@ -401,6 +401,24 @@ export const appendOperationEvent = async (
   }
 };
 
+export const appendDocumentEvent = async (
+  documentId: string,
+  event: Record<string, unknown>
+) => {
+  const doc = await getDocumentEntity(documentId);
+  const currentEvents = Array.isArray(doc.events) ? doc.events : [];
+  const { error } = await getSupabase()
+    .from('document_entities')
+    .update({
+      events: [...currentEvents, event],
+    })
+    .eq('id', documentId);
+
+  if (error) {
+    throw new Error(`Failed to append document event: ${error.message}`);
+  }
+};
+
 export const appendTsaEvent = async (
   documentId: string,
   payload: TsaEventPayload

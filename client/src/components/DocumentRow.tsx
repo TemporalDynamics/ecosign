@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Shield, Eye, Share2, Download, MoreVertical } from 'lucide-react';
+import { Shield, Eye, Share2, Download, MoreVertical, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { deriveProtectionLevel, getProtectionLevelLabel, getProtectionLevelColor } from '../lib/protectionLevel';
 
 export default function DocumentRow({
   document,
@@ -40,6 +41,32 @@ export default function DocumentRow({
   const created = document.created_at ? new Date(document.created_at).toLocaleString() : '—';
   const hasProtection = Array.isArray(document.events) ? document.events.length > 0 : (!!document.eco_hash || !!document.document_hash || !!document.content_hash);
 
+  // TSA Detection (from tsa_latest or events[])
+  const tsaData = document.tsa_latest || (Array.isArray(document.events)
+    ? document.events.find((e: any) => e.kind === 'tsa')?.tsa
+    : null);
+  const hasTsa = !!tsaData;
+  const tsaDate = tsaData?.gen_time ? new Date(tsaData.gen_time).toLocaleDateString('es-AR', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }) : null;
+
+  // Protection Level (canonical derivation from events[])
+  const protectionLevel = Array.isArray(document.events)
+    ? deriveProtectionLevel(document.events)
+    : 'NONE';
+  const protectionLabel = getProtectionLevelLabel(protectionLevel);
+  const protectionColor = getProtectionLevelColor(protectionLevel);
+
+  // Protection Level badge classes (Tailwind)
+  const protectionBadgeClasses = {
+    gray: 'text-gray-700 bg-gray-100',
+    green: 'text-green-700 bg-green-100',
+    blue: 'text-blue-700 bg-blue-100',
+    purple: 'text-purple-700 bg-purple-100',
+  }[protectionColor] || 'text-gray-700 bg-gray-100';
+
   // Grid row mode: render cells so they align with header grid
   if (asRow) {
     return (
@@ -51,13 +78,32 @@ export default function DocumentRow({
           </div>
         </div>
 
-        <div className="flex items-center text-xs text-gray-500">
+        <div className="flex items-center gap-2 text-xs text-gray-500">
           {context === 'operation' ? (
             <span />
-          ) : hasProtection ? (
-            <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-1 rounded">Protegido</span>
           ) : (
-            <span />
+            <>
+              {hasProtection && (
+                <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-1 rounded">Protegido</span>
+              )}
+              {protectionLevel !== 'NONE' && (
+                <span
+                  className={`text-xs px-2 py-1 rounded ${protectionBadgeClasses}`}
+                  title={protectionLabel}
+                >
+                  {protectionLabel}
+                </span>
+              )}
+              {hasTsa && tsaDate && (
+                <span
+                  className="text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded flex items-center gap-1"
+                  title={`Certificado con sello de tiempo: ${tsaDate}`}
+                >
+                  <Clock className="h-3 w-3" />
+                  TSA {tsaDate}
+                </span>
+              )}
+            </>
           )}
         </div>
 
@@ -105,6 +151,23 @@ export default function DocumentRow({
       <div className="flex items-center gap-2">
         {hasProtection && (
           <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-1 rounded">Protegido</span>
+        )}
+        {protectionLevel !== 'NONE' && (
+          <span
+            className={`text-xs px-2 py-1 rounded ${protectionBadgeClasses}`}
+            title={protectionLabel}
+          >
+            {protectionLabel}
+          </span>
+        )}
+        {hasTsa && tsaDate && (
+          <span
+            className="text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded flex items-center gap-1"
+            title={`Certificado con sello de tiempo: ${tsaDate}`}
+          >
+            <Clock className="h-3 w-3" />
+            TSA
+          </span>
         )}
 
         <button

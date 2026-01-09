@@ -1,245 +1,117 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Search,
-  Shield,
-  CheckCircle,
-  XCircle,
-  Upload,
-  FileText,
-  Lock,
-  ArrowLeft,
-} from 'lucide-react';
-import { verifyEcoxFile } from '../lib/verificationService';
-import LegalProtectionOptions from '../components/LegalProtectionOptions';
-import VerificationSummary from '../components/VerificationSummary';
+import { ArrowLeft, Info } from 'lucide-react';
+import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
-import WorkflowVerifier from '../components/WorkflowVerifier';
-import InhackeableTooltip from '../components/InhackeableTooltip';
-
-// INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
-interface VerificationServiceResult {
-  valid: boolean
-  fileName?: string
-  hash?: string
-  timestamp?: string
-  timestampType?: string
-  probativeSignals?: {
-    anchorRequested: boolean,
-    polygonConfirmed: boolean,
-    bitcoinConfirmed: boolean,
-    fetchError: boolean,
-  }
-  signedAuthority?: 'internal' | 'external';
-  signedAuthorityRef?: Record<string, unknown> | null;
-  documentIntegrity?: boolean;
-  signatureValid?: boolean;
-  timestampValid?: boolean;
-  legalTimestamp?: Record<string, unknown> | { enabled?: boolean };
-  anchors?: unknown;
-  errors?: string[];
-  warnings?: string[];
-  error?: string;
-  // ... otros campos que el backend pueda devolver
-  manifest?: {
-    projectId: string
-    [key: string]: any
-  };
-  [key: string]: any; // Permite otros campos
-}
-
-// Configuración de validación
-const ALLOWED_EXTENSIONS = ['.eco', '.pdf', '.zip'];
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const ALLOWED_MIME_TYPES = [
-  'application/octet-stream', // .eco
-  'application/pdf',
-  'application/zip',
-  'application/x-zip-compressed',
-  '' // Algunos navegadores no establecen MIME para archivos desconocidos
-];
+import VerificationComponent from '../components/VerificationComponent';
 
 function VerifyPage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [originalFile, setOriginalFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [result, setResult] = useState<VerificationServiceResult | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'eco' | 'hash'>('eco');
-
-  const validateFile = (file: File | null): { valid: boolean; error?: string } => {
-    if (!file) {
-      return { valid: false, error: 'Elegí un archivo para verificar.' };
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      return { valid: false, error: `El archivo excede el límite de 50MB.` };
-    }
-    if (file.size === 0) {
-      return { valid: false, error: 'El archivo está vacío.' };
-    }
-    const fileName = file.name.toLowerCase();
-    const ext = fileName.substring(fileName.lastIndexOf('.'));
-    if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      return { valid: false, error: `Extensión no permitida. Solo: ${ALLOWED_EXTENSIONS.join(', ')}` };
-    }
-    if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
-      return { valid: false, error: `Tipo de archivo no permitido (${file.type})` };
-    }
-    return { valid: true };
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0] || null;
-    if (selectedFile) {
-      const validation = validateFile(selectedFile);
-      if (!validation.valid) {
-        setValidationError(validation.error ?? null);
-        setFile(null);
-        setResult(null);
-        setOriginalFile(null);
-        return;
-      }
-      setFile(selectedFile);
-      setValidationError(null);
-      setResult(null);
-      setOriginalFile(null);
-    }
-  };
-
-  const handleOriginalFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0] || null;
-    if (selectedFile) {
-      setOriginalFile(selectedFile);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      const validation = validateFile(droppedFile);
-      if (!validation.valid) {
-        setValidationError(validation.error ?? null);
-        setFile(null);
-        setResult(null);
-        return;
-      }
-      setFile(droppedFile);
-      setValidationError(null);
-      setResult(null);
-    }
-  };
-
-  const verifyFile = async () => {
-    if (!file) return;
-    setVerifying(true);
-    try {
-      console.log('🔍 Starting verification with VerificationService...');
-      const verificationResult = await verifyEcoxFile(file, originalFile);
-      console.log('✅ Verification complete:', verificationResult);
-      setResult(verificationResult);
-    } catch (error) {
-      console.error('❌ Verification error:', error);
-      const message = error instanceof Error ? error.message : 'Error desconocido';
-      setResult({
-        valid: false,
-        error: `Error al procesar el archivo: ${message}`,
-        fileName: file?.name || "Unknown",
-        hash: "",
-        timestamp: "",
-        timestampType: "",
-        errors: [message],
-        warnings: [],
-        signature: { algorithm: "", valid: false }
-      });
-    }
-    setVerifying(false);
-  };
-
   return (
-    <div className="min-h-screen bg-white">
-      <nav className="bg-white fixed w-full top-0 z-50">
-        {/* ... Nav content ... */}
-      </nav>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-cyan-50">
+      <Header variant="public" />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-full mb-6">
-            <Search className="w-8 h-8 text-white" strokeWidth={2.5} />
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-4xl font-bold text-gray-900">Verificador</h1>
+            <Link
+              to="/"
+              className="flex items-center gap-2 text-gray-600 hover:text-black font-medium"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Volver
+            </Link>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Verificador</h1>
-          <p className="text-xl text-gray-700 max-w-2xl mx-auto">
-            Comprobá en segundos si tu certificado es auténtico.
+          <p className="text-lg text-gray-700 mb-2">
+            Comprobá la autenticidad de tu documento y asegurate de que no fue alterado.
+          </p>
+          <p className="text-gray-600">
+            Toda la verificación ocurre en tu ordenador: tus archivos nunca se suben ni se almacenan.
           </p>
         </div>
 
-        {/* ... Tab buttons ... */}
-
-        {activeTab === 'eco' ? (
-          <>
-        <div className="bg-white rounded-xl p-8 border-2 border-gray-200 mb-12">
-          {/* ... File upload UI ... */}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <Info className="w-6 h-6 text-gray-900" strokeWidth={2.5} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">Verificación Independiente</h2>
+              <p className="text-gray-700 mb-4">
+                Esta herramienta analiza tu documento y su certificado asociado para confirmar su integridad y la evidencia disponible en el .ECO.
+                La verificación se realiza de forma local, sin exponer tus archivos.
+              </p>
+              <p className="text-sm text-gray-900 font-semibold">
+                EcoSign nunca ve tu documento. Nunca se sube. Todo ocurre en tu navegador.
+              </p>
+            </div>
+          </div>
         </div>
 
-        {result && (
-          <>
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-1">Resultado de la Verificación</h3>
+        <VerificationComponent />
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                  <p className="text-xs uppercase tracking-widest text-gray-500 mb-1">Integridad del Certificado</p>
-                  <p className={`text-sm font-semibold ${result.valid ? 'text-green-700' : 'text-red-700'}`}>
-                    {result.valid ? '✔️ Válido' : '❌ Inválido'}
-                  </p>
-                </div>
-                <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                  <p className="text-xs uppercase tracking-widest text-gray-500 mb-1">Coincidencia con Original</p>
-                  <p className="text-sm font-semibold">
-                    {originalFile
-                      ? (result as any).originalFileMatches
-                        ? '✔️ El PDF coincide con el certificado.'
-                        : '❌ El PDF no coincide con el certificado.'
-                      : 'ℹ️ No se cargó un archivo original para comparar.'}
-                  </p>
-                </div>
-              </div>
+        <div className="mt-12 bg-white border border-gray-200 rounded-xl p-8">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">¿Qué valida esta herramienta?</h3>
+          <ul className="space-y-2 text-gray-700">
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Que el documento no haya sido modificado</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Que la evidencia coincida con el contenido del archivo</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Firmas registradas en el certificado, si existen</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Huella digital del documento</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Sellos de tiempo y anclajes, si existen</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Estructura del certificado .ECO</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
+              <span>Correspondencia entre PDF y certificado</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="mt-10 bg-white border border-gray-200 rounded-xl p-8">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">¿Cómo se verifica este certificado?</h3>
+          <div className="space-y-3 text-sm text-gray-800">
+            <div>
+              <p className="font-semibold">Identidad del documento</p>
+              <p className="text-gray-700">El certificado contiene la huella digital única del documento. Cualquier modificación genera una huella diferente.</p>
             </div>
-
-            <VerificationSummary result={result} originalProvided={!!originalFile} />
-            
-            {/* ... Other result details ... */}
-
-            <div className="mt-8 text-center">
-              <button
-                onClick={() => {
-                  setFile(null);
-                  setOriginalFile(null);
-                  setResult(null);
-                }}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-8 py-3 rounded-lg transition duration-300 font-medium"
-              >
-                Verificar otro documento
-              </button>
+            <div>
+              <p className="font-semibold">Integridad</p>
+              <p className="text-gray-700">La huella del documento coincide con la registrada en el certificado, lo que prueba que el contenido no fue alterado.</p>
             </div>
-          </>
-        )}
-          </>
-        ) : (
-          <WorkflowVerifier className="mt-6" />
-        )}
+            <div>
+              <p className="font-semibold">Tiempo</p>
+              <p className="text-gray-700">Si el certificado incluye un sello de tiempo, se muestra la fecha registrada y su evidencia asociada.</p>
+            </div>
+            <div>
+              <p className="font-semibold">Existencia pública</p>
+              <p className="text-gray-700">Si existen anclajes públicos confirmados, se muestran como evidencia adicional verificable externamente.</p>
+            </div>
+            <div>
+              <p className="font-semibold">Certificación</p>
+              <p className="text-gray-700">Las firmas registradas en el certificado se reflejan tal como están declaradas.</p>
+            </div>
+            <p className="text-gray-800 font-medium">
+              Incluso si EcoSign dejara de existir, este certificado seguiría siendo verificable.
+            </p>
+          </div>
+        </div>
       </main>
 
       <FooterPublic />

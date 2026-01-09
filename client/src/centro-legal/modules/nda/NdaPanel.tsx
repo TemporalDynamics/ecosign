@@ -18,18 +18,19 @@
  * - dirty | saved (persistencia UX)
  */
 
-import React, { useState } from 'react';
-import { FileText, Upload, Edit3, Maximize2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { FileText, Upload } from 'lucide-react';
 import { NDA_COPY } from './nda.copy';
 
 type NdaSource = 'template' | 'pasted' | 'uploaded';
-type NdaPanelState = 'collapsed' | 'expanded';
 
 interface NdaPanelProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   documentId?: string;
-  onClose: () => void;
-  onSave: (ndaData: {
+  content?: string;
+  onContentChange?: (content: string) => void;
+  onClose?: () => void;
+  onSave?: (ndaData: {
     content: string;
     source: NdaSource;
     fileName?: string;
@@ -37,21 +38,32 @@ interface NdaPanelProps {
 }
 
 export const NdaPanel: React.FC<NdaPanelProps> = ({
-  isOpen,
+  isOpen = true,
   documentId,
+  content: controlledContent,
+  onContentChange,
   onClose,
   onSave,
 }) => {
-  const [content, setContent] = useState(NDA_COPY.DEFAULT_TEMPLATE);
+  const [content, setContent] = useState(controlledContent ?? NDA_COPY.DEFAULT_TEMPLATE);
   const [source, setSource] = useState<NdaSource>('template');
   const [fileName, setFileName] = useState<string | undefined>();
-  const [panelState, setPanelState] = useState<NdaPanelState>('collapsed');
   const [isDirty, setIsDirty] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleContentChange = (newContent: string) => {
-    setContent(newContent);
+  useEffect(() => {
+    if (controlledContent !== undefined) {
+      setContent(controlledContent);
+    }
+  }, [controlledContent]);
+
+  const applyContentChange = (newContent: string) => {
+    if (onContentChange) {
+      onContentChange(newContent);
+    } else {
+      setContent(newContent);
+    }
     setIsDirty(true);
   };
 
@@ -70,10 +82,9 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      setContent(text);
+      applyContentChange(text);
       setSource('uploaded');
       setFileName(file.name);
-      setIsDirty(true);
     };
     
     if (file.type === 'text/plain') {
@@ -87,20 +98,13 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
     }
   };
 
-  const handlePaste = () => {
-    // Limpiar contenido para permitir paste
-    setContent('');
-    setSource('pasted');
-    setIsDirty(true);
-  };
-
   const handleSave = () => {
     if (!content.trim()) {
       alert('El NDA no puede estar vacío');
       return;
     }
 
-    onSave({
+    onSave?.({
       content,
       source,
       fileName,
@@ -108,160 +112,88 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
     setIsDirty(false);
   };
 
-  const handleExpand = () => {
-    setPanelState('expanded');
-  };
-
-  const handleCollapse = () => {
-    setPanelState('collapsed');
-  };
-
   return (
     <>
-      {/* Panel izquierdo */}
-      <div className="w-full md:w-96 bg-white border-r border-gray-200 flex flex-col h-full">
-        {/* Header */}
-        <div className="p-2 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-gray-700" />
-            <h3 className="font-semibold text-gray-900">
+      {/* Panel izquierdo - width controlado por Stage CSS */}
+      <div className="w-full bg-white border-r border-gray-200 flex flex-col h-full">
+        {/* Header - COMPACTO */}
+        <div className="px-2 py-1.5 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <FileText className="w-4 h-4 text-gray-700" />
+            <h3 className="font-semibold text-sm text-gray-900">
               {NDA_COPY.PANEL_TITLE}
             </h3>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition"
-          >
-            ✕
-          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition text-sm"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        <div className="flex-1 overflow-hidden p-2 flex flex-col gap-2">
           {/* Descripción */}
-          <p className="text-sm text-gray-600">
+          <p className="text-xs text-gray-600">
             {NDA_COPY.PANEL_DESCRIPTION}
           </p>
 
-          {/* Botones de acción */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => {
-                setContent(NDA_COPY.DEFAULT_TEMPLATE);
-                setSource('template');
-                setIsDirty(true);
-              }}
-              className="flex items-center justify-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-            >
-              <FileText className="w-4 h-4" />
-              Template
-            </button>
-
-            <label className="flex items-center justify-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition cursor-pointer">
-              <Upload className="w-4 h-4" />
-              Subir
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.txt"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
-
-            <button
-              onClick={handlePaste}
-              className="flex items-center justify-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-            >
-              <Edit3 className="w-4 h-4" />
-              Pegar
-            </button>
-
-            <button
-              onClick={handleExpand}
-              className="flex items-center justify-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-            >
-              <Maximize2 className="w-4 h-4" />
-              Ampliar
-            </button>
-          </div>
-
-          {/* Visor de contenido */}
-          <div className="border border-gray-200 rounded-lg">
-            <div className="p-2 bg-gray-50 border-b border-gray-200 text-xs text-gray-600 flex justify-between items-center">
+          {/* Visor de contenido - MÁS COMPACTO */}
+          <div className="border border-gray-200 rounded flex flex-col flex-1 min-h-0">
+            <div className="px-2 py-1 bg-gray-50 border-b border-gray-200 text-xs text-gray-600 flex items-center justify-between">
               <span>Vista previa</span>
-              {fileName && (
-                <span className="text-gray-500">📎 {fileName}</span>
-              )}
+              <div className="flex items-center gap-2">
+                {fileName && (
+                  <span className="text-gray-500 text-xs">📎 {fileName}</span>
+                )}
+                <button
+                  onClick={() => {
+                    applyContentChange(NDA_COPY.DEFAULT_TEMPLATE);
+                    setSource('template');
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                  title="Usar template"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                </button>
+                <label className="text-gray-500 hover:text-gray-700 cursor-pointer" title="Subir NDA">
+                  <Upload className="w-3.5 h-3.5" />
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
             <textarea
               value={content}
-              onChange={(e) => handleContentChange(e.target.value)}
-              className="w-full h-64 p-3 text-sm text-gray-700 resize-none focus:outline-none"
+              onChange={(e) => applyContentChange(e.target.value)}
+              className="w-full flex-1 min-h-0 p-2 text-xs text-gray-700 resize-none focus:outline-none"
               placeholder="Escribe o pega el contenido del NDA aquí..."
             />
           </div>
-
-          {/* Info sobre el orden */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-            📌 {NDA_COPY.ORDER_INFO}
+        </div>
+        {onSave && (
+          <div className="px-2 py-2 border-t border-gray-200 mb-2">
+            <button
+              onClick={handleSave}
+              disabled={!isDirty || !content.trim()}
+              className={`w-full py-2 px-3 rounded text-xs font-medium transition ${
+                !isDirty || !content.trim()
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-900 text-white hover:bg-gray-800'
+              }`}
+            >
+              {NDA_COPY.SAVE_BUTTON}
+            </button>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-2 border-t border-gray-200 flex gap-2">
-          <button
-            onClick={handleSave}
-            disabled={!isDirty || !content.trim()}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
-              !isDirty || !content.trim()
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-900 text-white hover:bg-gray-800'
-            }`}
-          >
-            {NDA_COPY.SAVE_BUTTON}
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition"
-          >
-            Cancelar
-          </button>
-        </div>
+        )}
       </div>
-
-      {/* Viewer expandido (overlay) */}
-      {panelState === 'expanded' && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">
-                NDA — Vista completa
-              </h3>
-              <button
-                onClick={handleCollapse}
-                className="text-gray-400 hover:text-gray-600 transition"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="prose prose-sm max-w-none">
-                <pre className="whitespace-pre-wrap font-sans text-gray-700">
-                  {content}
-                </pre>
-              </div>
-            </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={handleCollapse}
-                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

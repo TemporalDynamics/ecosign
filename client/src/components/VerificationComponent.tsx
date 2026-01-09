@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Upload,
   FileText,
@@ -11,6 +11,12 @@ import {
 import { verifyEcoWithOriginal } from '../lib/verificationService';
 import { getLatestTsaEvent, formatTsaTimestamp } from '../lib/events/tsa';
 import { getAnchorEvent } from '../lib/protectionLevel';
+import { getSupabase } from '../lib/supabaseClient';
+import type { EcoV2 } from '../lib/eco/v2';
+import VerifierTimeline from './VerifierTimeline';
+import { buildTimeline } from '../lib/verifier/buildTimeline';
+import { extractOperationIds } from '../lib/verifier/normalizeEvents';
+import type { OperationEventRow, TimelineEvent } from '../lib/verifier/types';
 
 // INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
 interface VerificationServiceResult {
@@ -110,6 +116,11 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
   const [verificationResult, setVerificationResult] = useState<VerificationServiceResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [ecoData, setEcoData] = useState<EcoV2 | null>(null);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [showTimeline, setShowTimeline] = useState(false);
 
   const handleEcoFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -117,6 +128,10 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
       setEcoFile(selectedFile);
       setVerificationResult(null);
       setError(null);
+      setEcoData(null);
+      setTimelineEvents([]);
+      setTimelineError(null);
+      setShowTimeline(false);
     }
   }, []);
 
@@ -126,6 +141,9 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
       setPdfFile(selectedFile);
       setVerificationResult(null);
       setError(null);
+      setTimelineEvents([]);
+      setTimelineError(null);
+      setShowTimeline(false);
     }
   }, []);
 
@@ -144,12 +162,72 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
       if (!result.valid) {
         setError(result.error || result.errors?.join(', ') || 'La verificación falló');
       }
+      try {
+        const parsed = JSON.parse(await ecoFile.text());
+        if (parsed && typeof parsed === 'object' && (parsed as { version?: string }).version === 'eco.v2') {
+          setEcoData(parsed as EcoV2);
+        } else {
+          setEcoData(null);
+        }
+      } catch {
+        setEcoData(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al verificar el archivo');
     } finally {
       setIsVerifying(false);
     }
   }, [ecoFile, pdfFile]);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadTimeline = async () => {
+      if (!ecoData) {
+        setTimelineEvents([]);
+        setTimelineError(null);
+        setTimelineLoading(false);
+        return;
+      }
+
+      setTimelineLoading(true);
+      setTimelineError(null);
+
+      const docEvents = Array.isArray(ecoData.events) ? ecoData.events : [];
+      const operationIds = extractOperationIds(docEvents);
+      let operationEvents: OperationEventRow[] = [];
+
+      if (operationIds.length > 0) {
+        try {
+          const supabase = getSupabase();
+          const { data, error } = await supabase
+            .from('operations_events')
+            .select('id, operation_id, document_entity_id, kind, at, actor, reason, metadata')
+            .in('operation_id', operationIds);
+
+          if (error) throw error;
+          operationEvents = (data || []) as OperationEventRow[];
+        } catch (err) {
+          console.warn('Unable to load operations_events:', err);
+          setTimelineError(null);
+        }
+      }
+
+      if (!isActive) return;
+
+      const timeline = buildTimeline({
+        documentEvents: docEvents,
+        operationEvents,
+        createdAt: ecoData.timestamps?.created_at ?? ecoData.source?.captured_at,
+      });
+      setTimelineEvents(timeline);
+      setTimelineLoading(false);
+    };
+
+    loadTimeline();
+    return () => {
+      isActive = false;
+    };
+  }, [ecoData]);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>, type: 'eco' | 'pdf') => {
     e.preventDefault();
@@ -159,10 +237,17 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
         setEcoFile(droppedFile);
         setVerificationResult(null);
         setError(null);
+        setEcoData(null);
+        setTimelineEvents([]);
+        setTimelineError(null);
+        setShowTimeline(false);
       } else if (type === 'pdf' && droppedFile.type === 'application/pdf') {
         setPdfFile(droppedFile);
         setVerificationResult(null);
         setError(null);
+        setTimelineEvents([]);
+        setTimelineError(null);
+        setShowTimeline(false);
       }
     }
   }, []);
@@ -332,6 +417,27 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
                 </p>
               ))}
             </div>
+            {verificationResult.valid && (
+              <div className="pt-2">
+                <button
+                  onClick={() => setShowTimeline((prev) => !prev)}
+                  className="text-sm font-semibold text-[#0E4B8B] hover:text-[#0A3D73] transition"
+                  type="button"
+                >
+                  {showTimeline ? 'Ocultar historia del documento' : 'Ver historia del documento'}
+                </button>
+                {showTimeline && (
+                  <div className="mt-4">
+                    <VerifierTimeline
+                      events={timelineEvents}
+                      loading={timelineLoading}
+                      error={timelineError}
+                      note="Cronología basada en el certificado (.eco). No requiere cuenta ni servidor."
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Document Info */}
             <div>

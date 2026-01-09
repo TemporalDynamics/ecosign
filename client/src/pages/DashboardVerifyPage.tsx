@@ -94,40 +94,6 @@ function DashboardVerifyPage() {
           </ul>
         </div>
 
-        {/* Advanced Features Notice */}
-        <div className="mt-8 bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-3">
-            Funciones avanzadas (solo planes Business/Enterprise)
-          </h3>
-          <p className="text-gray-700 mb-4">
-            Los planes superiores incluyen capacidades forenses avanzadas:
-          </p>
-          <ul className="space-y-2 text-gray-700 mb-6">
-            <li className="flex items-start">
-              <span className="mr-2">-</span>
-              <span>Reconstrucción de la cadena de custodia</span>
-            </li>
-            <li className="flex items-start">
-              <span className="mr-2">-</span>
-              <span>Análisis de eventos de riesgo</span>
-            </li>
-            <li className="flex items-start">
-              <span className="mr-2">-</span>
-              <span>Validación extendida de sellos y anclajes cuando existan</span>
-            </li>
-            <li className="flex items-start">
-              <span className="mr-2">-</span>
-              <span>Reportes listos para auditoría o litigio (PDF/JSON/XML)</span>
-            </li>
-          </ul>
-          <Link
-            to="/dashboard/pricing"
-            className="inline-block bg-gray-900 hover:bg-gray-800 text-white font-semibold px-6 py-3 rounded-lg transition"
-          >
-            Actualizar plan
-          </Link>
-        </div>
-
         {/* Cómo se verifica este certificado */}
         <div className="mt-10 bg-white border border-gray-200 rounded-xl p-8">
           <h3 className="text-xl font-bold text-gray-900 mb-4">¿Cómo se verifica este certificado?</h3>

@@ -52,18 +52,26 @@
   /* Es el ÚNICO hijo que el padre (fit-content) puede "ver" */
   /* Esto evita que el modal colapse a width: 0 */
   position: relative;
-  
-  /* 🔒 INVARIANTE CRÍTICO: width: 900px FIJO */
-  /* Dicta el ancho base del modal */
-  /* NO PUEDE cambiar según estado de panels */
-  width: 900px;
-  
-  /* Altura completa del Stage */
+
+  /* 🎯 CONTRATO HORIZONTAL: width elástico con clamp() */
+  /* Posición FIJA (ancla), tamaño ELÁSTICO (responde al viewport) */
+  /* ⚠️ REGLA: Canvas CEDE espacio primero, NO domina */
+  /* Paneles laterales tienen PRIORIDAD sobre canvas */
+  /* min: 380px (legibilidad mínima) */
+  /* ideal: 40vw (40% del viewport - BAJA PROPORCIÓN) */
+  /* max: 680px (NO inflar en pantallas grandes) */
+  width: clamp(380px, 40vw, 680px);
+
+  /* 🎯 CONTRATO VERTICAL: Canvas es el ÚNICO scroll owner */
+  /* Toma el 100% de la altura del modal */
+  /* Cuando el contenido excede → scrollea AQUÍ (no en modal) */
   height: 100%;
-  
+  overflow-y: auto;
+  overflow-x: hidden;
+
   /* INVARIANTE 3: Padding interno para CTAs */
   /* Evita que botones choquen con bordes de panels */
-  padding: 40px;
+  padding: 6px; /* Reducido de 40px → 16px → 8px → 6px (compresión extrema) */
 
   /* Layout interno del contenido */
   display: flex;
@@ -73,15 +81,16 @@
   /* Canvas SIEMPRE arriba, panels SIEMPRE abajo (z-10) */
   /* Esto crea el "efecto cortina" (panels emergen desde atrás) */
   z-index: 20;
-  
+
   /* Fondo blanco */
   background: white;
   border-radius: 8px;
 
   /* Elevación visual */
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  
-  /* SIN transiciones - Canvas inmóvil */
+
+  /* SIN transiciones en resize - Canvas NO anima width/height */
+  /* Solo los overlays animan en open/close */
   transition: none;
 }
 
@@ -103,21 +112,21 @@
   /* 🔒 INVARIANTE 4: Anclaje relativo al Canvas */
   /* right: 100% = "pegado al borde izquierdo del Canvas" */
   position: absolute;
-  right: 100%; 
+  right: 100%;
   top: 0;
   bottom: 0;
-  
+
   /* 🔒 ESTADO CERRADO: width: 0 (colapso físico) */
   /* Sin ancho = sin espacio reservado = modal compacto */
   width: 0;
   opacity: 0;
-  
+
   /* Transform inicial: deslizado hacia la derecha (oculto detrás del Canvas) */
   transform: translateX(100%);
 
   /* Animación suave - CRÍTICA para transición elegante */
-  transition: width 0.5s ease, 
-              opacity 0.3s ease, 
+  transition: width 0.5s ease,
+              opacity 0.3s ease,
               transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 
   /* 🔒 INVARIANTE CRÍTICO: z-index: 10 (DEBAJO del Canvas z-20) */
@@ -135,9 +144,12 @@
 }
 
 .legal-center-stage__left-overlay.open {
-  /* 🔒 ESTADO ABIERTO: width: 500px (expansión física) */
-  /* Modal crece de 900px → 1400px (fit-content lo detecta) */
-  width: 500px !important; /* !important para forzar expansión */
+  /* 🎯 ESTADO ABIERTO: width elástico con clamp() */
+  /* PRIORIDAD: NDA tiene MÁS espacio que canvas */
+  /* min: 280px (legibilidad cómoda) */
+  /* ideal: 24vw (24% del viewport - PRIORIDAD SOBRE CANVAS) */
+  /* max: 420px (espacio suficiente, crece vertical si hace falta) */
+  width: clamp(280px, 24vw, 420px) !important;
   opacity: 1;
   transform: translateX(0); /* Desliza hacia fuera (visible) */
 }
@@ -153,17 +165,17 @@
   left: 100%;
   top: 0;
   bottom: 0;
-  
+
   /* 🔒 ESTADO CERRADO: width: 0 (colapso físico) */
   width: 0;
   opacity: 0;
-  
+
   /* Transform inicial: deslizado hacia la izquierda (oculto detrás del Canvas) */
   transform: translateX(-100%);
 
   /* Animación suave */
-  transition: width 0.5s ease, 
-              opacity 0.3s ease, 
+  transition: width 0.5s ease,
+              opacity 0.3s ease,
               transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 
   /* 🔒 INVARIANTE CRÍTICO: z-index: 10 (DEBAJO del Canvas z-20) */
@@ -180,9 +192,12 @@
 }
 
 .legal-center-stage__right-overlay.open {
-  /* 🔒 ESTADO ABIERTO: width: 350px (expansión física) */
-  /* Modal crece de 900px → 1250px o 1400px → 1750px */
-  width: 350px !important; /* !important para forzar expansión */
+  /* 🎯 ESTADO ABIERTO: width elástico con clamp() */
+  /* PRIORIDAD: Flow tiene espacio cómodo */
+  /* min: 300px (legibilidad cómoda para emails) */
+  /* ideal: 22vw (22% del viewport - PRIORIDAD) */
+  /* max: 380px (espacio suficiente) */
+  width: clamp(300px, 22vw, 380px) !important;
   opacity: 1;
   transform: translateX(0); /* Desliza hacia fuera (visible) */
 }

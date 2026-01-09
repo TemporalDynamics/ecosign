@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
-import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Pen, Shield, Type, Upload, Users, RefreshCw } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, PlusSquare, Shield, Type, Upload, Users, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ToastOptions as HotToastOptions } from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
@@ -393,6 +393,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('compact'); // 'compact' | 'expanded' | 'fullscreen'
   const [showSignatureOnPreview, setShowSignatureOnPreview] = useState(false);
   const [focusView, setFocusView] = useState<'document' | 'nda' | null>(null);
+  const [isFieldDragging, setIsFieldDragging] = useState(false);
+  const fieldDragRef = useRef<{ id: string; startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement | null>(null);
   // TODO: FEATURE PARCIAL - UI de anotaciones existe pero no hay lógica de escritura sobre el PDF
   const [annotationMode, setAnnotationMode] = useState<AnnotationKind | null>(null); // 'signature', 'highlight', 'text'
   const [annotations, setAnnotations] = useState<Annotation[]>([]); // Lista de anotaciones (highlights y textos)
@@ -1813,6 +1816,63 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const isFocusMode = focusView !== null;
   const isDocumentFocus = focusView === 'document';
 
+  const createFieldId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `field-${Date.now()}`);
+
+  const addTextField = () => {
+    const rect = previewContainerRef.current?.getBoundingClientRect();
+    const x = rect ? Math.max(16, rect.width * 0.5 - 90) : 80;
+    const y = rect ? Math.max(16, rect.height * 0.2) : 120;
+    const newField: SignatureField = {
+      id: createFieldId(),
+      type: 'text',
+      page: 1,
+      x,
+      y,
+      width: 180,
+      height: 36,
+      required: true,
+      metadata: {}
+    };
+    setSignatureFields((prev) => [...prev, newField]);
+  };
+
+  const duplicateField = (id: string) => {
+    const field = signatureFields.find((item) => item.id === id);
+    if (!field) return;
+    const copy = { ...field, id: createFieldId(), x: field.x + 16, y: field.y + 16 };
+    setSignatureFields((prev) => [...prev, copy]);
+  };
+
+  const duplicateBatch = () => {
+    if (signatureFields.length === 0) return;
+    const batch = signatureFields.map((field) => ({
+      ...field,
+      id: createFieldId(),
+      x: field.x + 24,
+      y: field.y + 24
+    }));
+    setSignatureFields((prev) => [...prev, ...batch]);
+  };
+
+  const removeField = (id: string) => {
+    setSignatureFields((prev) => prev.filter((field) => field.id !== id));
+  };
+
+  const startFieldDrag = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const field = signatureFields.find((item) => item.id === id);
+    if (!field) return;
+    fieldDragRef.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: field.x,
+      originY: field.y
+    };
+    setIsFieldDragging(true);
+  };
+
   // Instrumentation: track active scene views (minimal, non-invasive)
   React.useEffect(() => {
     try {
@@ -1842,6 +1902,35 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       console.warn('analytics.preview_error failed', e);
     }
   }, [previewError]);
+
+  React.useEffect(() => {
+    if (!isFieldDragging) return;
+
+    const handleMove = (event: MouseEvent) => {
+      if (!fieldDragRef.current) return;
+      const { id, startX, startY, originX, originY } = fieldDragRef.current;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      setSignatureFields((prev) =>
+        prev.map((field) =>
+          field.id === id ? { ...field, x: originX + dx, y: originY + dy } : field
+        )
+      );
+    };
+
+    const handleUp = () => {
+      fieldDragRef.current = null;
+      setIsFieldDragging(false);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isFieldDragging]);
 
   return (
     <>
@@ -1940,6 +2029,26 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       <div className="flex items-center gap-2">
                         {documentPreview && (
                           <button
+                            type="button"
+                            onClick={addTextField}
+                            className="hidden md:inline-flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Agregar campo de texto"
+                          >
+                            <PlusSquare className="w-4 h-4" />
+                          </button>
+                        )}
+                        {documentPreview && signatureFields.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={duplicateBatch}
+                            className="hidden md:inline-flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Duplicar todos los campos"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        )}
+                        {documentPreview && (
+                          <button
                             onClick={() => {
                               setFocusView((prev) => (prev === 'document' ? null : 'document'));
                             }}
@@ -1972,31 +2081,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </div>
 
                     {/* Preview del contenido - altura fija según modo */}
-                    <div className={`relative ${
-                      isPreviewFullscreen || isDocumentFocus ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
-                    } bg-gray-100`}>
-                          {/* Placeholders de campos de firma (workflow) */}
-                          {workflowEnabled && emailInputs.filter(input => input.email.trim()).length > 0 && (
-                            <div className="absolute bottom-4 right-4 z-10 space-y-2">
-                              {emailInputs.filter(input => input.email.trim()).map((input, idx) => (
-                                <div
-                                  key={idx}
-                                  className="bg-blue-50 border-2 border-blue-400 border-dashed rounded-lg px-3 py-2 shadow-sm"
-                                  style={{ width: '180px' }}
-                                >
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Pen className="w-3 h-3 text-blue-600" />
-                                    <p className="text-xs font-semibold text-blue-900">
-                                      Campo de firma {idx + 1}
-                                    </p>
-                                  </div>
-                                  <p className="text-xs text-blue-700 truncate">
-                                    {input.name || input.email.split('@')[0]}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                    <div
+                      ref={previewContainerRef}
+                      className={`relative ${
+                        isPreviewFullscreen || isDocumentFocus ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
+                      } bg-gray-100`}
+                    >
                           {documentPreview && file.type.startsWith('image/') && (
                             <img
                               src={documentPreview}
@@ -2072,6 +2162,67 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                 <p className="text-sm">Vista previa no disponible</p>
                                 <p className="text-xs">El archivo se procesará al certificar</p>
                               </div>
+                            </div>
+                          )}
+
+                          {documentPreview && signatureFields.length > 0 && (
+                            <div className="absolute inset-0 z-20 pointer-events-none">
+                              {signatureFields.map((field) => (
+                                <div
+                                  key={field.id}
+                                  className="absolute pointer-events-auto border border-blue-300 bg-blue-50/80 rounded-md px-2 py-1 shadow-sm group"
+                                  style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
+                                  onMouseDown={(event) => startFieldDrag(event, field.id)}
+                                >
+                                  <div className="flex items-center justify-between text-[11px] text-blue-900 font-semibold">
+                                    <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                      {field.type === 'signature' ? '✍️ Firma' : field.type === 'date' ? '📅 Fecha' : '📝 Texto'}
+                                    </span>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        type="button"
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          duplicateField(field.id);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-900"
+                                        title="Duplicar campo"
+                                      >
+                                        ⧉
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          removeField(field.id);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-900"
+                                        title="Eliminar campo"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <input
+                                    value={field.metadata?.label ?? ''}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
+                                      setSignatureFields((prev) =>
+                                        prev.map((item) =>
+                                          item.id === field.id
+                                            ? { ...item, metadata: { ...item.metadata, label: value } }
+                                            : item
+                                        )
+                                      );
+                                    }}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    placeholder=""
+                                    className="w-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-600"
+                                  />
+                                </div>
+                              ))}
                             </div>
                           )}
 

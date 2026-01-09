@@ -31,8 +31,9 @@ export function NdaScene({
       {/* Panel Izquierdo: NDA */}
       <div className="space-y-3">
         <NdaPanel
-          ndaContent={ndaContent}
-          onNdaContentChange={onNdaContentChange}
+          isOpen={ndaEnabled}
+          content={ndaContent}
+          onContentChange={onNdaContentChange}
         />
       </div>
 

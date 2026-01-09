@@ -19,7 +19,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { FileText, Upload } from 'lucide-react';
+import { FileText, Maximize2, Upload } from 'lucide-react';
 import { NDA_COPY } from './nda.copy';
 
 type NdaSource = 'template' | 'pasted' | 'uploaded';
@@ -30,6 +30,7 @@ interface NdaPanelProps {
   content?: string;
   onContentChange?: (content: string) => void;
   onClose?: () => void;
+  onFocus?: () => void;
   onSave?: (ndaData: {
     content: string;
     source: NdaSource;
@@ -43,6 +44,7 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
   content: controlledContent,
   onContentChange,
   onClose,
+  onFocus,
   onSave,
 }) => {
   const [content, setContent] = useState(controlledContent ?? NDA_COPY.DEFAULT_TEMPLATE);
@@ -145,7 +147,7 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
           <div className="border border-gray-200 rounded flex flex-col flex-1 min-h-0">
             <div className="px-2 py-1 bg-gray-50 border-b border-gray-200 text-xs text-gray-600 flex items-center justify-between">
               <span>Vista previa</span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {fileName && (
                   <span className="text-gray-500 text-xs">📎 {fileName}</span>
                 )}
@@ -154,13 +156,15 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
                     applyContentChange(NDA_COPY.DEFAULT_TEMPLATE);
                     setSource('template');
                   }}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
                   title="Usar template"
                 >
                   <FileText className="w-3.5 h-3.5" />
                 </button>
                 <label className="text-gray-500 hover:text-gray-700 cursor-pointer" title="Subir NDA">
-                  <Upload className="w-3.5 h-3.5" />
+                  <span className="h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-gray-100">
+                    <Upload className="w-3.5 h-3.5" />
+                  </span>
                   <input
                     type="file"
                     accept=".pdf,.doc,.docx,.txt"
@@ -168,6 +172,16 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
                     className="hidden"
                   />
                 </label>
+                {onFocus && (
+                  <button
+                    type="button"
+                    onClick={onFocus}
+                    className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
+                    title="Ver en grande"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
             <textarea

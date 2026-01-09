@@ -392,6 +392,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [previewError, setPreviewError] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('compact'); // 'compact' | 'expanded' | 'fullscreen'
   const [showSignatureOnPreview, setShowSignatureOnPreview] = useState(false);
+  const [focusView, setFocusView] = useState<'document' | 'nda' | null>(null);
   // TODO: FEATURE PARCIAL - UI de anotaciones existe pero no hay lógica de escritura sobre el PDF
   const [annotationMode, setAnnotationMode] = useState<AnnotationKind | null>(null); // 'signature', 'highlight', 'text'
   const [annotations, setAnnotations] = useState<Annotation[]>([]); // Lista de anotaciones (highlights y textos)
@@ -1809,6 +1810,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         isMobile
       });
   const isPreviewFullscreen = isMobile && previewMode === 'fullscreen';
+  const isFocusMode = focusView !== null;
+  const isDocumentFocus = focusView === 'document';
 
   // Instrumentation: track active scene views (minimal, non-invasive)
   React.useEffect(() => {
@@ -1890,10 +1893,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                         </p>
                                       </div>
                                     </label>
-                                  ) : (                  <div className={`border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 ${isPreviewFullscreen ? 'fixed inset-0 z-50 rounded-none border-0 bg-white flex flex-col' : ''}`}>
+                                  ) : (                  <div className={`border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 ${isPreviewFullscreen || isDocumentFocus ? 'fixed inset-0 z-50 rounded-none border-0 bg-white flex flex-col' : ''}`}>
                     {/* Header del preview */}
                     <div className={`bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between ${isPreviewFullscreen ? 'sticky top-0 z-10' : ''}`}>
                       <div className="flex items-center gap-3">
+                        {isDocumentFocus && (
+                          <button
+                            onClick={() => setFocusView(null)}
+                            className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+                            title="Volver al Centro Legal"
+                          >
+                            <ArrowLeft className="w-4 h-4" />
+                            <span className="hidden sm:inline">Volver</span>
+                          </button>
+                        )}
                         {/* Escudo de Protección Legal */}
                         <button
                           onClick={() => setShowProtectionModal(true)}
@@ -1928,27 +1941,22 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         {documentPreview && (
                           <button
                             onClick={() => {
-                              if (isMobile) {
-                                setPreviewMode((prev) => prev === 'fullscreen' ? 'compact' : 'fullscreen');
-                                return;
-                              }
-                              // Ciclo simple: compact -> expanded -> compact
-                              setPreviewMode((prev) => prev === 'compact' ? 'expanded' : 'compact');
+                              setFocusView((prev) => (prev === 'document' ? null : 'document'));
                             }}
                             className="hidden md:inline-flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                            title={previewMode === 'compact' ? 'Ver documento completo' : 'Volver al Centro Legal'}
+                            title={isDocumentFocus ? 'Volver al Centro Legal' : 'Ver en grande'}
                           >
-                            {previewMode === 'expanded' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                            {isDocumentFocus ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                           </button>
                         )}
                         {documentPreview && (
                           <button
                             onClick={() => {
-                              setPreviewMode((prev) => prev === 'fullscreen' ? 'compact' : 'fullscreen');
+                              setFocusView((prev) => (prev === 'document' ? null : 'document'));
                             }}
                             className="md:hidden text-xs font-semibold text-gray-900 px-2 py-1 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
                           >
-                            {isPreviewFullscreen ? 'Volver al Centro Legal' : 'Ver documento completo'}
+                            {isDocumentFocus ? 'Volver al Centro Legal' : 'Ver documento completo'}
                           </button>
                         )}
                         <label className="h-8 w-8 inline-flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Cambiar documento">
@@ -1965,7 +1973,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                     {/* Preview del contenido - altura fija según modo */}
                     <div className={`relative ${
-                      isPreviewFullscreen ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
+                      isPreviewFullscreen || isDocumentFocus ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
                     } bg-gray-100`}>
                           {/* Placeholders de campos de firma (workflow) */}
                           {workflowEnabled && emailInputs.filter(input => input.email.trim()).length > 0 && (
@@ -2247,8 +2255,36 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     )}
                   </div>
 
+              {focusView === 'nda' && (
+                <div className="fixed inset-0 z-50 bg-white">
+                  <div className="h-full w-full max-w-5xl mx-auto flex flex-col">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                        <FileText className="w-4 h-4 text-gray-700" />
+                        Acuerdo de confidencialidad
+                      </div>
+                      <button
+                        onClick={() => setFocusView(null)}
+                        className="text-sm text-gray-600 hover:text-gray-900"
+                        title="Volver al Centro Legal"
+                      >
+                        Volver
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6">
+                      <textarea
+                        value={ndaText}
+                        onChange={(e) => setNdaText(e.target.value)}
+                        className="w-full h-full min-h-[60vh] p-4 text-sm text-gray-800 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-gray-900"
+                        placeholder="Escribí aquí el texto del NDA..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* CONSTITUCIÓN: Acciones solo visibles si documentLoaded */}
-              {documentLoaded && (
+              {documentLoaded && !isFocusMode && (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {/* PASO 3.2.3: Toggle NDA - Módulo refactorizado (placeholder) */}
@@ -2322,7 +2358,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </div>
               )}
 
-              {documentLoaded && isMobile && (ndaEnabled || workflowEnabled) && (
+              {documentLoaded && isMobile && (ndaEnabled || workflowEnabled) && !isFocusMode && (
                 <div className="space-y-3">
                   {ndaEnabled && (
                     <div className="border border-gray-200 rounded-xl bg-white">
@@ -2442,7 +2478,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               )}
 
               {/* Tipo de Firma - Solo si hay firma aplicada o workflow SIN mi firma */}
-              {documentLoaded && ((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && (
+              {documentLoaded && ((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && !isFocusMode && (
               <div className="space-y-2 animate-fadeScaleIn">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Firma Legal */}
@@ -2509,6 +2545,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               )}
 
               {/* Botón principal */}
+              {!isFocusMode && (
               <div className="hidden md:block">
                 <button
                   ref={finalizeButtonRef}
@@ -2527,6 +2564,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   )}
                 </button>
               </div>
+              )}
+              {!isFocusMode && (
               <div className="md:hidden sticky bottom-0 bg-white pt-2 pb-3 border-t border-gray-200">
                 <button
                   onClick={handleCertify}
@@ -2543,6 +2582,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   )}
                 </button>
               </div>
+              )}
             </div>
           )}
 
@@ -2550,10 +2590,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         </div>
       }
       leftOverlay={
-            !isMobile && documentLoaded && ndaEnabled ? (
+            !isMobile && documentLoaded && ndaEnabled && !isFocusMode ? (
               <NdaPanel
                 isOpen={ndaEnabled}
                 documentId={undefined}
+                onFocus={() => setFocusView('nda')}
                 onClose={() => setNdaEnabled(false)}
                 onSave={(ndaData) => {
                   setNdaText(ndaData.content);
@@ -2563,7 +2604,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             ) : undefined
           }
           rightOverlay={
-            !isMobile && documentLoaded && workflowEnabled ? (
+            !isMobile && documentLoaded && workflowEnabled && !isFocusMode ? (
               <div className="h-full flex flex-col">
                 {/* Header colapsable del panel */}
             <div className="px-2 py-2 border-b border-gray-200 bg-white">
@@ -2651,8 +2692,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </div>
             ) : undefined
           }
-          leftOpen={!isMobile && ndaEnabled && documentLoaded}
-          rightOpen={!isMobile && workflowEnabled && documentLoaded}
+          leftOpen={!isMobile && ndaEnabled && documentLoaded && !isFocusMode}
+          rightOpen={!isMobile && workflowEnabled && documentLoaded && !isFocusMode}
         />
       ) : (
         /* MODELO LEGACY: Grid con compresión (fallback) */

@@ -11,6 +11,11 @@ Este archivo es un índice navegable de la carpeta `docs/`. Cada entrada incluye
 - docs/architecture/ARQUITECTURA_CANONICA.md — Representación canónica del modelo de arquitectura y decisiones clave.
 - docs/architecture/ECOSIGN_FLOW_SUMMARY.md — Resumen del flujo de Ecosign (alto nivel) y puntos de integración.
 
+## Contratos canónicos
+- docs/contratos/README.md — Índice y guía de lectura para los contratos canónicos; leer `docs/contratos/verdad-canonica.md` primero.
+- docs/contratos/ECO_V2_CONTRACT.md — Especificación del formato `.eco v2` y checklist de verificación.
+- docs/contratos/VERIFIER_V2_CONTRACT.md — Especificación del verificador v2 (entrada, estados y pseudocódigo).
+
 ## Anchoring
 - docs/anchoring/ANCHORING_FLOW.md — Flujo de anchoring (cómo se anclan eventos en blockchains).
 - docs/anchoring/ANCHORING_SYSTEM_AUDIT.md — Auditoría técnica del sistema de anchoring.

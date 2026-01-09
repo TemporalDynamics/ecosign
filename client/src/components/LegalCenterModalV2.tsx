@@ -1935,7 +1935,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               // Ciclo simple: compact -> expanded -> compact
                               setPreviewMode((prev) => prev === 'compact' ? 'expanded' : 'compact');
                             }}
-                            className="hidden md:inline-flex p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="hidden md:inline-flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                             title={previewMode === 'compact' ? 'Ver documento completo' : 'Volver al Centro Legal'}
                           >
                             {previewMode === 'expanded' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -1951,7 +1951,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             {isPreviewFullscreen ? 'Volver al Centro Legal' : 'Ver documento completo'}
                           </button>
                         )}
-                        <label className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer flex items-center" title="Cambiar documento">
+                        <label className="h-8 w-8 inline-flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Cambiar documento">
                           <input
                             type="file"
                             className="hidden"

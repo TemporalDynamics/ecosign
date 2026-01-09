@@ -14,6 +14,47 @@ import type {
   OperationsSummary,
 } from '../types/operations';
 
+type OperationEventKind =
+  | 'operation.created'
+  | 'operation.renamed'
+  | 'operation.archived'
+  | 'operation.closed'
+  | 'operation.document_added'
+  | 'operation.document_removed';
+
+const resolveActorId = async (userId?: string): Promise<string | null> => {
+  if (userId) return userId;
+  const supabase = getSupabase();
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+};
+
+const appendOperationsEvent = async (payload: {
+  operation_id: string;
+  kind: OperationEventKind;
+  actor_id: string;
+  document_entity_id?: string | null;
+  reason?: string | null;
+  metadata?: Record<string, unknown>;
+}) => {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('operations_events')
+    .insert({
+      operation_id: payload.operation_id,
+      document_entity_id: payload.document_entity_id ?? null,
+      kind: payload.kind,
+      at: new Date().toISOString(),
+      actor: { id: payload.actor_id, type: 'user' },
+      reason: payload.reason ?? null,
+      metadata: payload.metadata ?? {},
+    });
+
+  if (error) {
+    throw error;
+  }
+};
+
 /**
  * Obtener todas las operaciones del usuario
  */
@@ -121,6 +162,21 @@ export async function createOperation(
     throw error;
   }
 
+  try {
+    await appendOperationsEvent({
+      operation_id: data.id,
+      kind: 'operation.created',
+      actor_id: userId,
+      metadata: {
+        name: payload.name.trim(),
+        description: payload.description?.trim() || null,
+        status: payload.status || 'active',
+      },
+    });
+  } catch (evtErr) {
+    console.error('Failed to append operation.created event:', evtErr);
+  }
+
   return data;
 }
 
@@ -129,7 +185,8 @@ export async function createOperation(
  */
 export async function updateOperation(
   operationId: string,
-  payload: UpdateOperationPayload
+  payload: UpdateOperationPayload,
+  userId?: string
 ): Promise<Operation> {
   const supabase = getSupabase();
 
@@ -157,6 +214,53 @@ export async function updateOperation(
   if (error) {
     console.error('Error updating operation:', error);
     throw error;
+  }
+
+  const actorId = await resolveActorId(userId);
+  if (actorId) {
+    const eventTasks: Promise<void>[] = [];
+    if (payload.name !== undefined) {
+      eventTasks.push(
+        appendOperationsEvent({
+          operation_id: operationId,
+          kind: 'operation.renamed',
+          actor_id: actorId,
+          metadata: { name: updateData.name },
+        })
+      );
+    }
+
+    if (payload.status === 'archived') {
+      eventTasks.push(
+        appendOperationsEvent({
+          operation_id: operationId,
+          kind: 'operation.archived',
+          actor_id: actorId,
+          metadata: { status: payload.status },
+        })
+      );
+    }
+
+    if (payload.status === 'closed') {
+      eventTasks.push(
+        appendOperationsEvent({
+          operation_id: operationId,
+          kind: 'operation.closed',
+          actor_id: actorId,
+          metadata: { status: payload.status },
+        })
+      );
+    }
+
+    if (eventTasks.length > 0) {
+      try {
+        await Promise.all(eventTasks);
+      } catch (evtErr) {
+        console.error('Failed to append operation events:', evtErr);
+      }
+    }
+  } else if (payload.name !== undefined || payload.status !== undefined) {
+    console.warn('Skipping operation event append: missing actor id.');
   }
 
   return data;
@@ -209,6 +313,14 @@ export async function addDocumentToOperation(
       reason: null,
       metadata: {},
     });
+
+    await appendOperationsEvent({
+      operation_id: operationId,
+      kind: 'operation.document_added',
+      actor_id: userId,
+      document_entity_id: documentEntityId,
+      metadata: {},
+    });
   } catch (evtErr) {
     // Log but do not rethrow to avoid breaking the successful insert
     console.error('Failed to append operation event:', evtErr);
@@ -220,7 +332,8 @@ export async function addDocumentToOperation(
  */
 export async function removeDocumentFromOperation(
   operationId: string,
-  documentEntityId: string
+  documentEntityId: string,
+  userId?: string
 ): Promise<void> {
   const supabase = getSupabase();
 
@@ -233,6 +346,32 @@ export async function removeDocumentFromOperation(
   if (error) {
     console.error('Error removing document from operation:', error);
     throw error;
+  }
+
+  const actorId = await resolveActorId(userId);
+  if (!actorId) {
+    console.warn('Skipping operation.document_removed event: missing actor id.');
+    return;
+  }
+
+  try {
+    await appendOperationEvent(documentEntityId, {
+      kind: 'operation.document_removed',
+      actor: { id: actorId, type: 'user' },
+      operation_id: operationId,
+      reason: null,
+      metadata: {},
+    });
+
+    await appendOperationsEvent({
+      operation_id: operationId,
+      kind: 'operation.document_removed',
+      actor_id: actorId,
+      document_entity_id: documentEntityId,
+      metadata: {},
+    });
+  } catch (evtErr) {
+    console.error('Failed to append operation.document_removed event:', evtErr);
   }
 }
 

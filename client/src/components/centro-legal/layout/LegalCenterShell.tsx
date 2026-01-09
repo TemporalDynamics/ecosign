@@ -25,22 +25,38 @@ export function LegalCenterShell({
   flowOpen = false
 }: LegalCenterShellProps) {
 
-  // 🎯 MODAL ELÁSTICO: Se ajusta al contenido del Stage
+  // 🎯 CONTRATO HORIZONTAL: Modal elástico con clamp()
   // Stage usa width: fit-content → Modal se adapta automáticamente
-  // - Estado cerrado: ~900px (solo Canvas)
-  // - NDA abierto: ~1400px (NDA + Canvas)
-  // - Ambos abiertos: ~1750px (NDA + Canvas + Firmas)
+  // - Canvas: clamp(420px, 55vw, 900px) - elástico
+  // - NDA: clamp(300px, 25vw, 500px) - elástico
+  // - Flow: clamp(280px, 20vw, 350px) - elástico
+
+  // 🎯 CONTRATO VERTICAL: Altura máxima explícita
+  // - Modal NO crece infinitamente con viewport
+  // - max-height = viewport - header - margins
+  // - Canvas es el ÚNICO scroll owner
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 px-0 pt-16 md:pt-20 md:px-4 md:py-6">
-      <div 
-        className="modal-container bg-white rounded-none md:rounded-2xl w-auto h-[calc(100svh-4rem)] md:h-[85vh] max-h-[90vh] shadow-xl flex flex-col"
-        style={{ 
+      <div
+        className="modal-container bg-white rounded-none md:rounded-2xl w-auto shadow-xl flex flex-col"
+        style={{
+          // CONTRATO HORIZONTAL
           maxWidth: 'calc(100vw - 80px)', // Margen mínimo lateral
-          overflow: 'visible' // CRÍTICO: Permite que panels se extiendan
+
+          // CONTRATO VERTICAL (CRÍTICO)
+          // Mobile: viewport - 4rem header
+          height: 'calc(100svh - 4rem)',
+          // Desktop: viewport - 80px header - 48px margins
+          maxHeight: 'calc(100vh - 128px)',
+
+          // IMPORTANTE: overflow visible permite que panels absolute
+          // se extiendan lateralmente fuera del modal sin clipearlos.
+          // El control vertical está en el Canvas (scroll owner).
+          overflow: 'visible',
         }}
       >
-        
+
         {/* Header removido temporalmente - Modal debe mantener posición */}
 
         {/* Content - Grid (legacy) o Stage (absolute) */}
@@ -50,9 +66,10 @@ export function LegalCenterShell({
             gridTemplateColumns,
             transition: 'grid-template-columns 300ms ease-in-out'
           } : {
-            /* STAGE: Ocupa toda la altura disponible */
+            /* STAGE: Ocupa toda la altura disponible del modal */
             height: '100%',
-            overflow: 'visible' // PERMITE que panels se extiendan fuera
+            /* CRÍTICO: overflow visible permite que panels se extiendan lateralmente */
+            overflow: 'visible'
           }}
         >
           {children}

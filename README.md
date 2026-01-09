@@ -19,6 +19,7 @@ El repositorio está organizado de la siguiente manera:
 - **`/eco-packer`**: Una librería compartida que encapsula la lógica de negocio principal y la gestión de formatos de Ecosign.
 - **`/contracts`**: Contratos inteligentes (Solidity) para el registro en la blockchain de Polygon.
 - **`/docs`**: Documentación técnica, diagramas y decisiones de arquitectura.
+- **`/docs/contratos`**: Contratos canónicos y especificaciones (ver `docs/contratos/README.md`).
 - **`/scripts`**: Scripts de utilidad para tareas de mantenimiento, despliegue o pruebas.
 
 ## 🚀 Empezar a Desarrollar

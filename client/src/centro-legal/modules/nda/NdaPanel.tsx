@@ -121,7 +121,7 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
       {/* Panel izquierdo */}
       <div className="w-full md:w-96 bg-white border-r border-gray-200 flex flex-col h-full">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="p-2 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-gray-700" />
             <h3 className="font-semibold text-gray-900">
@@ -137,7 +137,7 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-2 space-y-2">
           {/* Descripción */}
           <p className="text-sm text-gray-600">
             {NDA_COPY.PANEL_DESCRIPTION}
@@ -208,7 +208,7 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 flex gap-2">
+        <div className="p-2 border-t border-gray-200 flex gap-2">
           <button
             onClick={handleSave}
             disabled={!isDirty || !content.trim()}

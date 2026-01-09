@@ -800,7 +800,7 @@ function DocumentsPage() {
                 }
                 setShowCreateOperationModal(true);
               }}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition text-sm font-semibold whitespace-nowrap"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#0E4B8B] text-white rounded-lg hover:bg-[#0A3D73] transition text-sm font-semibold whitespace-nowrap"
             >
               <FolderPlus className="w-4 h-4" />
               Nueva operación
@@ -853,11 +853,11 @@ function DocumentsPage() {
           ) : (
             <>
               {/* Shared header (desktop) — global under search/new operation */}
-              <div className="hidden md:grid grid-cols-[minmax(320px,1fr)_160px_180px_140px] gap-4 px-6 py-3 bg-gray-50 text-xs text-gray-600 font-medium mb-2">
+              <div className="hidden md:grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 px-6 py-3 bg-gray-50 text-xs text-gray-600 font-medium mb-2">
                 <div>Nombre</div>
                 <div>Estado probatorio</div>
                 <div>Fecha de creación</div>
-                <div>Acciones</div>
+                <div className="justify-self-end" style={{ transform: 'translateX(-110px)' }}>Acciones</div>
               </div>
 
               {/* Sección de Operaciones */}
@@ -962,7 +962,7 @@ function DocumentsPage() {
               <div className="hidden md:block bg-white border border-gray-200 rounded-lg">
                 <div className="p-4 space-y-2">
                   {filteredDocuments.map((doc) => (
-                    <div key={doc.id} className="grid grid-cols-[minmax(320px,1fr)_160px_180px_140px] items-center px-6 py-2 hover:bg-gray-50 rounded">
+                    <div key={doc.id} className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-1.5 hover:bg-gray-50 rounded">
                       <DocumentRow
                         document={doc}
                         asRow

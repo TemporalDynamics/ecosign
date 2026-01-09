@@ -2550,7 +2550,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         </div>
       }
       leftOverlay={
-            documentLoaded && ndaEnabled ? (
+            !isMobile && documentLoaded && ndaEnabled ? (
               <NdaPanel
                 isOpen={ndaEnabled}
                 documentId={undefined}
@@ -2563,7 +2563,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             ) : undefined
           }
           rightOverlay={
-            documentLoaded && workflowEnabled ? (
+            !isMobile && documentLoaded && workflowEnabled ? (
               <div className="h-full flex flex-col">
                 {/* Header colapsable del panel */}
             <div className="px-2 py-2 border-b border-gray-200 bg-white">
@@ -2651,8 +2651,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </div>
             ) : undefined
           }
-          leftOpen={ndaEnabled && documentLoaded}
-          rightOpen={workflowEnabled && documentLoaded}
+          leftOpen={!isMobile && ndaEnabled && documentLoaded}
+          rightOpen={!isMobile && workflowEnabled && documentLoaded}
         />
       ) : (
         /* MODELO LEGACY: Grid con compresión (fallback) */

@@ -1,0 +1,20 @@
+[33m33f42bb[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/centro-legal-nda-panel-layout[m[33m, [m[1;31morigin/feature/centro-legal-nda-panel-layout[m[33m)[m ui(legal-center): alinear iconos del header del canvas
+[33m2769610[m feat(tech-debt): Sprint 2 + 3 - Identity Levels, TSA UI, Drafts Server-Side
+[33m2b17b25[m[33m ([m[1;33mtag: [m[1;33mv0.1.0-pre-elastic-layout[m[33m)[m perf(centro-legal): reduce spatial bloat in Canvas, NDA, and Flow panels
+[33m1823759[m Refine documents layout hierarchy
+[33mb045155[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m feat(operations): implementar Operaciones y Draft Operations (P0)
+[33maaa7836[m feat(centro-legal): Implementación completa del modelo de capas absolutas
+[33m3687ed5[m feat(probatory): implement remaining events (nda_accepted, otp_verified, protection_enabled)
+[33mea57f2c[m feat(probatory): implement P0 canonical events (share_created, share_opened, signature)
+[33mc5d12b8[m docs(audit): comprehensive probatory events audit
+[33mb8e9f8a[m docs(analysis): add ADDENDUM with Realtor features and Quick Wins roadmap
+[33m3698a60[m chore: recover work from backup/gemini-mistake-2026-01-07-0438
+[33mf4ccd4b[m[33m ([m[1;31morigin/feature/next-phase-2026-01-07T0531[m[33m, [m[1;32mfeature/next-phase-2026-01-07T0531[m[33m)[m chore: merge feature/canonical-contracts-refactor into main (exclude backup/gemini changes)
+[33m8545a2f[m[33m ([m[1;31morigin/feature/canonical-contracts-refactor[m[33m, [m[1;32mfeature/canonical-contracts-refactor[m[33m)[m fix(tests): add @ alias for vitest; document Gemini incident (2026-01-07T05:27:36.661Z)
+[33mf405afc[m[33m ([m[1;32mbackup/gemini-mistake-2026-01-07-0438[m[33m)[m chore(legal-center): add minimal scene + preview instrumentation
+[33m577eadf[m feat(legal-center): inject SceneRenderer (FASE 1) — safe progressive refactor
+[33m8a0041d[m feat(ux): integrate retry and timeout detection (FASE 3.C — P0.6, P0.8)
+[33m0257164[m feat(ux): integrate error translation and work saved status (FASE 3.B — P0.4, P0.7)
+[33m853b2a7[m feat(ux): integrate progress visibility in CTA (FASE 3.A — P0.5)
+[33m3ad269a[m 📖 README del sprint - Guía completa
+[33m954340b[m 🌳 Árbol final del sprint - Vista completa

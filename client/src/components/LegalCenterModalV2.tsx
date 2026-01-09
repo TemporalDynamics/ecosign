@@ -386,7 +386,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const finalizeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Preview del documento
-  const PREVIEW_BASE_HEIGHT = 'h-[480px]';
+  const PREVIEW_BASE_HEIGHT = 'h-[400px]';
   const previewBaseHeight = isMobile ? 'h-[40vh]' : PREVIEW_BASE_HEIGHT;
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
@@ -2131,7 +2131,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                   )}
 
                                   {signatureTab === 'type' && (
-                                    <div className="space-y-4">
+                                    <div className="space-y-2">
                                       <input
                                         type="text"
                                         value={typedSignature}
@@ -2150,7 +2150,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                   )}
 
                                   {signatureTab === 'upload' && (
-                                    <div className="space-y-4">
+                                    <div className="space-y-2">
                                       <label className="block">
                                         <div className="h-40 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer flex flex-col items-center justify-center">
                                           {uploadedSignature ? (
@@ -2376,9 +2376,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
                           </p>
 
-                          <div className="space-y-4 mb-4">
+                          <div className="space-y-2 mb-4">
                             {emailInputs.map((input, index) => (
-                              <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                              <div key={index} className="bg-white border border-gray-200 rounded-lg p-2 space-y-2">
                                 <div className="flex items-center gap-2">
                                   <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
                                     {index + 1}
@@ -2566,7 +2566,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             documentLoaded && workflowEnabled ? (
               <div className="h-full flex flex-col">
                 {/* Header colapsable del panel */}
-            <div className="px-4 py-3 border-b border-gray-200 bg-white">
+            <div className="px-2 py-2 border-b border-gray-200 bg-white">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
                 <button
@@ -2580,15 +2580,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
 
             {/* Contenido del panel */}
-            <div className="px-6 py-4 overflow-y-auto flex-1">
+            <div className="px-3 py-2 overflow-y-auto flex-1">
               <p className="text-xs text-gray-500 mb-4">
                 Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
               </p>
 
               {/* Campos de email con switches individuales */}
-              <div className="space-y-4 mb-4">
+              <div className="space-y-2 mb-4">
                 {emailInputs.map((input, index) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-2 space-y-2">
                     {/* Header con número, email y nombre opcional */}
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
@@ -2634,7 +2634,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </button>
 
               {/* Info de seguridad */}
-              <div className="p-3 bg-gray-100 border border-gray-200 rounded-lg">
+              <div className="p-2 bg-gray-100 border border-gray-200 rounded-lg">
                 <div className="flex gap-2">
                   <Shield className="w-4 h-4 text-gray-900 flex-shrink-0 mt-0.5" />
                   <div>

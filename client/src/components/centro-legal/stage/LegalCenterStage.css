@@ -63,7 +63,7 @@
   
   /* INVARIANTE 3: Padding interno para CTAs */
   /* Evita que botones choquen con bordes de panels */
-  padding: 40px;
+  padding: 16px; /* Reducido de 40px → Ganancia: ~48px laterales */
 
   /* Layout interno del contenido */
   display: flex;

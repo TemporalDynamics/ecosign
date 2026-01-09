@@ -1,62 +1,29 @@
-# Índice — Documentos deprecados
+# Índice — Documentos deprecados (consolidado)
 
-Generado: 2026-01-09T23:41:24.222Z
+Generado: 2026-01-09T23:45:23.047Z
 
-Este índice agrupa los documentos marcados como deprecados/archivados. Conserva contexto histórico; revisar antes de restaurar o reusar.
+Carpetas agrupadas por tipo para facilitar búsqueda histórica. Revisar antes de restaurar o reusar.
 
-Lista de documentos (ruta relativa dentro de docs/):
-
-- deprecate/ADDENDUM_DIFERENCIACION_2026-01-07.md — 🎯 ADDENDUM — ANÁLISIS DE DIFERENCIACIÓN Y GO-TO-MARKET
-- deprecate/ANALISIS_CODIGO_2025_12_19.md — 📊 ANÁLISIS COMPLETO DEL CÓDIGO - Estado Actual
-- deprecate/ANALISIS_ESTADO_2026-01-07.md — 📊 ANÁLISIS DE ESTADO ECOSIGN — POST RECUPERACIÓN
-- deprecate/ARQUITECTURA_ACTUAL_REPORTE.md — 📊 REPORTE TÉCNICO COMPLETO: ARQUITECTURA ACTUAL DE ECOSIGN
-- deprecate/ARQUITECTURA_RESUMEN_VISUAL.txt — ╔═══════════════════════════════════════════════════════════════════════════╗
-- deprecate/AUDITORIA_EVENTOS_PROBATORIOS.md — 🔍 AUDITORÍA DE EVENTOS PROBATORIOS
-- deprecate/AUDITORIA_VERIFICADOR_2026-01-07.md — 🔍 AUDITORÍA EPISTEMOLÓGICA — VERIFICADOR ECOSIGN
-- deprecate/AUDIT_REPORT.md — 📊 Audit Report — Día 1-2: Setup de Gates
-- deprecate/BLOCKCHAIN_ANCHORING_FIX.md — Análisis y Corrección: Certificaciones Bitcoin y Polygon
-- deprecate/BRAND.md — EcoSign Brand Assets
-- deprecate/BROKER_MEETING_PREP_2026-01-07.md — 🏢 PREPARACIÓN REUNIÓN BROKER RE/MAX — EcoSign
+## bugfixes
+- deprecate/bugfixes/BLOCKCHAIN_ANCHORING_FIX.md — Análisis y Corrección: Certificaciones Bitcoin y Polygon
 - deprecate/bugfixes/BUGFIX_LOGIN_EMAIL.md — 🐛 Corrección de Bugs - Login y Email de Contacto
+- deprecate/bugfixes/CRYPTO_LIFECYCLE_FIX.md — ✅ Crypto Lifecycle Fix - Applied 2025-12-24
 - deprecate/bugfixes/DEBUG_LOGIN.md — 🐛 Guía de Depuración - Problema de Login
+- deprecate/bugfixes/DEBUG_SHARE_MODAL.js — // Debugging ShareDocumentModal
+- deprecate/bugfixes/DEPLOYMENT_GUIDE_FIXED.md — 🚀 Deployment Guide - Blockchain Anchoring (FIXED)
+- deprecate/bugfixes/FIX_CANVAS_ANCHORING.md — 🎯 CORRECCIÓN APLICADA - CANVAS RELATIVE
+- deprecate/bugfixes/FIX_CANVAS_ANCHORING_OLD.md — 🎯 FIX DEFINITIVO - ANCLAJE RÍGIDO DEL CANVAS
+- deprecate/bugfixes/FIXED_CANVAS_TITLE.md — FIX: Título "Centro Legal" en Canvas
+- deprecate/bugfixes/FIXED_UNIVERSAL_ANCHORING.md — ✅ CENTRO LEGAL - REFACTOR LAYOUT COMPLETADO
+- deprecate/bugfixes/FIXED_UNIVERSAL_ANCHORING_OLD.md — ✅ IMPLEMENTACIÓN EXITOSA - MODELO DEFINITIVO DEL CENTRO LEGAL
+- deprecate/bugfixes/FIX_MODAL_HEIGHT.md — 🔧 FIX APLICADO - Colapso de Altura Resuelto
+- deprecate/bugfixes/FIX_SUPABASE_MIGRATIONS.sql — -- =================================================================
+- deprecate/bugfixes/FIX_USER_PROFILE.sql — -- ============================================
+- deprecate/bugfixes/LAYOUT_FIX_SUMMARY.md — ⚓ ANCLAJE FIJO UNIVERSAL - RESUMEN EJECUTIVO
+- deprecate/bugfixes/VERCEL_FIXES_2025_12_19.md — 🔧 FIXES APLICADOS - Vercel Deploy + Bundle Size
 - deprecate/bugfixes/VIDEO_FIX_SUMMARY.md — ✅ Resumen de Correcciones - Videos y Footer
-- deprecate/CAMBIOS_FLUJO_ESTADOS.md — 🎯 Cambios en Flujo de Estados - Resumen Ejecutivo
-- deprecate/CENTRO_LEGAL_DOCS.md — 📋 Centro Legal - Documentación Técnica Actualizada
-- deprecate/CENTRO_LEGAL_MODELO_DEFINITIVO.md — 🎯 CENTRO LEGAL - MODELO DEFINITIVO DE ANCLAJE UNIVERSAL
-- deprecate/CLEANUP_SUMMARY.md — 🧹 LIMPIEZA COMPLETADA - FASE 1 SEGURA
-- deprecate/CODE_DISTRIBUTION_REPORT.md — 📊 REPORTE DE DISTRIBUCIÓN DE CÓDIGO — SPRINT 2026-01-06
-- deprecate/COMO LO HACEMOS.md — CÓMO LO HACEMOS — Manifiesto técnico‑narrativo (EcoSign)
-- deprecate/COPY_CONFLICTS_REPORT.md — Reporte de Análisis de Copy - Conflictos Legales Detectados
-- deprecate/COPY_GOVERNANCE_APPLIED.md — Marco de Gobernanza de Copy - Aplicación Completada
-- deprecate/COPY_UPDATE_SUMMARY.md — Resumen de Actualización de Copy - EcoSign
-- deprecate/CRYPTO_LIFECYCLE_FIX.md — ✅ Crypto Lifecycle Fix - Applied 2025-12-24
-- deprecate/DEAD_CODE_REPORT.md — 🗑️ Dead Code Report — Día 3: Knip Audit
-- deprecate/DEBUG_SHARE_MODAL.js — // Debugging ShareDocumentModal
-- deprecate/decision_log2.0.md — 📋 Decision Log 2.0 — EcoSign
-- deprecate/DECISION_LOG_3.0.md — # Incidente: Cambios no solicitados por LLM (Gemini) — 2026-01-07T04:50:11Z
-- deprecate/decision_log.md — 📋 Decision Log — EcoSign
-- deprecate/DEPLOYMENT_CHECKLIST.md — ✅ Checklist: Verificación de Certificaciones Blockchain
-- deprecate/DEPLOYMENT_GUIDE_FIXED.md — 🚀 Deployment Guide - Blockchain Anchoring (FIXED)
-- deprecate/DEPLOYMENT_GUIDE.md — 🚀 Guía de Deployment - Blockchain Anchoring
-- deprecate/desicion_log2.0.md — Decicion Log 2.0
-- deprecate/E2E_ENCRYPTION_ANALYSIS.md — Análisis Exhaustivo del Flujo de Encriptación E2E
-- deprecate/ECO_CERTIFICATION_SETUP.md — Configuración del Sistema de Certificación ECO
-- deprecate/ECOSIGN_AUDIT_REPORT.md — 🔍 Auditoría Completa del Proyecto EcoSign
-- deprecate/ECOSIGN_HEALTH_REPORT_2026-01-06.md — 📊 REPORTE DE ANÁLISIS ECOSIGN
-- deprecate/EVENTOS_PENDIENTES_IMPLEMENTACION.md — Eventos Probatorios Pendientes - Guía de Implementación
-- deprecate/FASE1_CANVAS_PERFECTO.md — ✅ FASE 1 COMPLETA - Frame Perfecto del Canvas
-- deprecate/FASE2_NDA_OVERLAY.md — ✅ FASE 2 COMPLETA - Panel NDA con Overlay Inteligente
-- deprecate/FASE2_RIGHT_PANEL_COMPLETE.md — ✅ FASE 2 COMPLETADA - INTEGRACIÓN PANEL DERECHO
-- deprecate/FIX_CANVAS_ANCHORING.md — 🎯 CORRECCIÓN APLICADA - CANVAS RELATIVE
-- deprecate/FIX_CANVAS_ANCHORING_OLD.md — 🎯 FIX DEFINITIVO - ANCLAJE RÍGIDO DEL CANVAS
-- deprecate/FIXED_CANVAS_TITLE.md — FIX: Título "Centro Legal" en Canvas
-- deprecate/FIXED_UNIVERSAL_ANCHORING.md — ✅ CENTRO LEGAL - REFACTOR LAYOUT COMPLETADO
-- deprecate/FIXED_UNIVERSAL_ANCHORING_OLD.md — ✅ IMPLEMENTACIÓN EXITOSA - MODELO DEFINITIVO DEL CENTRO LEGAL
-- deprecate/FIX_MODAL_HEIGHT.md — 🔧 FIX APLICADO - Colapso de Altura Resuelto
-- deprecate/FIX_SUPABASE_MIGRATIONS.sql — -- =================================================================
-- deprecate/FIX_USER_PROFILE.sql — -- ============================================
-- deprecate/GRID_INTEGRATION_COMPLETE.md — ✅ INTEGRACIÓN COMPLETA — LegalCenterGrid Wrapper
-- deprecate/IDENTITY_CLOSURE_2026-01-07.md — 🔐 Identity Assurance — Cierre 2026-01-07
+
+## implementation-logs
 - deprecate/implementation-logs/ANCHORING_AUDIT_SUMMARY.md — 🔍 Auditoría Forense del Sistema de Anchoring - Resumen Ejecutivo
 - deprecate/implementation-logs/ANCHORING_HARDENING_PR.md — 🛡️ Anchoring System Hardening - PR Summary
 - deprecate/implementation-logs/AUDITORIA_MANDAMIENTOS.md — 🚨 AUDITORÍA: VIOLACIONES DE LOS 20 MANDAMIENTOS
@@ -72,74 +39,119 @@ Lista de documentos (ruta relativa dentro de docs/):
 - deprecate/implementation-logs/RESPUESTAS_INVESTIGADOR.md — Respuestas al Investigador - EcoSign MVP
 - deprecate/implementation-logs/RESUMEN_FINAL_CAMBIOS.md — 📋 Resumen Final - Todos los Cambios Implementados
 - deprecate/implementation-logs/RESUMEN_IMPLEMENTACION_COMPLETA.md — RESUMEN: Implementación Completa VerifySign
-- deprecate/LAYOUT_CORRECTION.md — ✅ CORRECCIÓN APLICADA - Vuelta a los Fundamentos
-- deprecate/LAYOUT_FIX_SUMMARY.md — ⚓ ANCLAJE FIJO UNIVERSAL - RESUMEN EJECUTIVO
-- deprecate/LEGAL_CENTER_CONSTITUTION.md — 📜 Centro Legal - Constitución
-- deprecate/LEGAL_CENTER_V2_PLAN.md — Plan de Implementación LegalCenterModalV2
-- deprecate/LEGAL_CENTER_V2_READY.md — ✅ Legal Center V2 - Listo para Testing
-- deprecate/MANUAL_DEPLOYMENT_STEPS.md — 🚨 Manual Deployment Steps - Server-Side Anchoring
-- deprecate/MIGRATION_PLAN.md — 🔄 Migración de Servicios Legacy → V2
-- deprecate/MIGRATION_STATUS.md — ✅ Estado de Migración Legacy → V2
-- deprecate/misc/architecture.md — a# VerifySign Architecture
-- deprecate/misc/COMO_LO_HACEMOS.md — ⚙️ Cómo lo hacemos (versión técnica para desarrolladores)
-- deprecate/misc/DEPLOY_GUIDE.md — 🚀 Guía de Deploy - EcoSign
-- deprecate/misc/deployment.md — VerifySign – Deployment Guide (Vercel + Supabase)
-- deprecate/misc/EMAIL_TEMPLATES.md — Email Templates y cron jobs (EcoSign)
-- deprecate/misc/paginas_que_tenias_en_el_tag.md — D	ANALISIS_MOCKS_VS_REAL.md
-- deprecate/misc/test_notes.md — ok
-- deprecate/MULTI_USER_SHARING_INVESTIGATION.md — Investigación Técnica — Compartir Cifrado Multi-Usuario
-- deprecate/MVP_CHECKLIST.md — 🎯 EcoSign MVP Privado - Checklist Completo
-- deprecate/OTP_SECURITY_ANALYSIS.md — Análisis de Seguridad del Sistema OTP — EcoSign
-- deprecate/PHASE2_COMPLETE_REPORT.md — ✅ FASE 2 COMPLETADA - FIXES TÉCNICOS
-- deprecate/PHASE2_PROGRESS_REPORT.md — 🔧 FASE 2 - FIXES TÉCNICOS (PROGRESO)
-- deprecate/PHASE3_ROADMAP.md — 🎯 FASE 3 - Centro Legal Signing UI / Documentos Funcional
-- deprecate/PHASE3_SUMMARY.md — 🎯 FASE 3 - Resumen Ejecutivo
-- deprecate/PLAN_INTEGRACION_GRID.md — 🎯 PLAN DE INTEGRACIÓN — LegalCenterGrid
-- deprecate/POST_MVP_PRIVATE_MANIFESTO.md — POST-MVP PRIVATE MANIFESTO (NO GIT)
-- deprecate/POST_SPRINT2_PLAN.md — 📋 Plan Post-Sprint 2
-- deprecate/PRE_MVP_ANALYSIS.md — 📊 Análisis Pre-MVP — EcoSign
-- deprecate/PRE_MVP_AUDIT.md — 📊 Auditoría Pre-MVP Privado — EcoSign
-- deprecate/QUALITY_GATES.md — 🛡️ Quality Gates — EcoSign
-- deprecate/QUICKWINS_ROADMAP.md — 🚀 Quick Wins Roadmap — EcoSign Pre-MVP
-- deprecate/README.md — 🗄️ Deprecated Documentation
-- deprecate/REORGANIZATION_PLAN.md — 📁 Documentation Reorganization Plan
-- deprecate/REPORTE_CENTRO_LEGAL_2026-01-07.md — 🔍 REPORTE DE DIAGNÓSTICO — CENTRO LEGAL
-- deprecate/RLS_TEST_ANALYSIS.md — RLS Test Analysis Report
-- deprecate/roadmap divertido — roadmap divertido
-- deprecate/roadmap divertido solo — ¿Quieres que ahora armemos un nuevo roadmap como mencionaste ("el roadmap
-- deprecate/ROAD_MAP_3_ESTADOS.md — 🗺️ ROAD MAP IMPLEMENTADO - Sistema de 3 Estados
+- deprecate/implementation-logs/SERVER_SIDE_ANCHORING_IMPLEMENTATION.md — 🎯 Implementación Server-Side: Blockchain Anchoring
+
+## roadmaps
 - deprecate/roadmaps/DECISIONES_PRODUCTO_WORKFLOW.md — DECISIONES DE PRODUCTO: Sistema de Firma Multi-Parte
 - deprecate/roadmaps/MVP_CHECKLIST_FINAL.md — Checklist Final para MVP - EcoSign
+- deprecate/roadmaps/MVP_CHECKLIST.md — 🎯 EcoSign MVP Privado - Checklist Completo
 - deprecate/roadmaps/MVP_IMPLEMENTATION_GUIDE.md — 🚀 GUÍA DE IMPLEMENTACIÓN MVP - VerifySign
+- deprecate/roadmaps/PHASE2_COMPLETE_REPORT.md — ✅ FASE 2 COMPLETADA - FIXES TÉCNICOS
+- deprecate/roadmaps/PHASE2_PROGRESS_REPORT.md — 🔧 FASE 2 - FIXES TÉCNICOS (PROGRESO)
+- deprecate/roadmaps/PHASE3_ROADMAP.md — 🎯 FASE 3 - Centro Legal Signing UI / Documentos Funcional
+- deprecate/roadmaps/PHASE3_SUMMARY.md — 🎯 FASE 3 - Resumen Ejecutivo
+- deprecate/roadmaps/POST_MVP_PRIVATE_MANIFESTO.md — POST-MVP PRIVATE MANIFESTO (NO GIT)
+- deprecate/roadmaps/POST_SPRINT2_PLAN.md — 📋 Plan Post-Sprint 2
+- deprecate/roadmaps/PRE_MVP_ANALYSIS.md — 📊 Análisis Pre-MVP — EcoSign
+- deprecate/roadmaps/PRE_MVP_AUDIT.md — 📊 Auditoría Pre-MVP Privado — EcoSign
+- deprecate/roadmaps/QUICKWINS_ROADMAP.md — 🚀 Quick Wins Roadmap — EcoSign Pre-MVP
+- deprecate/roadmaps/REORGANIZATION_PLAN.md — 📁 Documentation Reorganization Plan
+- deprecate/roadmaps/roadmap divertido — roadmap divertido
+- deprecate/roadmaps/roadmap divertido solo — ¿Quieres que ahora armemos un nuevo roadmap como mencionaste ("el roadmap
 - deprecate/roadmaps/roadmap-infalibilidad-COMPLETADO.md — ✅ Roadmap de Infalibilidad - EcoSign MVP
 - deprecate/roadmaps/ROADMAP.md — 📊 ANÁLISIS CRÍTICO DE VERIFYSIGN - ESTADO ACTUAL
 - deprecate/roadmaps/ROADMAP_MVP.md — VerifySign MVP Roadmap
-- deprecate/robots.txt — robots.txt for VerifySign
-- deprecate/RUTA_TEST_AGREGADA.md — ✅ RUTA DE TEST AGREGADA
-- deprecate/SECURITY.md — 🔒 Security Policy — EcoSign
-- deprecate/SERVER_SIDE_ANCHORING_IMPLEMENTATION.md — 🎯 Implementación Server-Side: Blockchain Anchoring
-- deprecate/SHARE_MODAL_REFACTOR.md — Refactor Modal de Compartir - Completado
-- deprecate/SPRINT_CLOSURE.md — 🎯 SPRINT CLOSURE: Canonical Contracts Refactor
-- deprecate/SPRINT_TREE.txt — 🎯 SPRINT 2026-01-06 — ARQUITECTURA MODULAR + NDA + FIRMA VISUAL
-- deprecate/STAGE_PASO1_COMPLETE.md — ✅ PASO 1 COMPLETADO — Archivos Base Creados
+
+## status-reports
 - deprecate/status-reports/ANCHORING_STATUS_REPORT.md — Estado Completo de Anchoring - EcoSign MVP
+- deprecate/status-reports/ARQUITECTURA_ACTUAL_REPORTE.md — 📊 REPORTE TÉCNICO COMPLETO: ARQUITECTURA ACTUAL DE ECOSIGN
+- deprecate/status-reports/AUDITORIA_EVENTOS_PROBATORIOS.md — 🔍 AUDITORÍA DE EVENTOS PROBATORIOS
+- deprecate/status-reports/AUDITORIA_VERIFICADOR_2026-01-07.md — 🔍 AUDITORÍA EPISTEMOLÓGICA — VERIFICADOR ECOSIGN
+- deprecate/status-reports/AUDIT_REPORT.md — 📊 Audit Report — Día 1-2: Setup de Gates
+- deprecate/status-reports/CLEANUP_SUMMARY.md — 🧹 LIMPIEZA COMPLETADA - FASE 1 SEGURA
 - deprecate/status-reports/code_analysis_summary.md — Comprehensive Code Analysis: VerifySign Platform
+- deprecate/status-reports/CODE_DISTRIBUTION_REPORT.md — 📊 REPORTE DE DISTRIBUCIÓN DE CÓDIGO — SPRINT 2026-01-06
+- deprecate/status-reports/COPY_CONFLICTS_REPORT.md — Reporte de Análisis de Copy - Conflictos Legales Detectados
+- deprecate/status-reports/COPY_UPDATE_SUMMARY.md — Resumen de Actualización de Copy - EcoSign
+- deprecate/status-reports/DEAD_CODE_REPORT.md — 🗑️ Dead Code Report — Día 3: Knip Audit
+- deprecate/status-reports/DEPLOYMENT_CHECKLIST.md — ✅ Checklist: Verificación de Certificaciones Blockchain
+- deprecate/status-reports/E2E_ENCRYPTION_ANALYSIS.md — Análisis Exhaustivo del Flujo de Encriptación E2E
+- deprecate/status-reports/ECOSIGN_AUDIT_REPORT.md — 🔍 Auditoría Completa del Proyecto EcoSign
+- deprecate/status-reports/ECOSIGN_HEALTH_REPORT_2026-01-06.md — 📊 REPORTE DE ANÁLISIS ECOSIGN
 - deprecate/status-reports/IMPLEMENTATION_STATUS.md — 📊 Estado de Implementación EcoSign MVP
+- deprecate/status-reports/MIGRATION_STATUS.md — ✅ Estado de Migración Legacy → V2
 - deprecate/status-reports/MVP_STATUS_AND_NEXT_STEPS.md — VerifySign MVP - Estado Actual y Próximos Pasos
+- deprecate/status-reports/OTP_SECURITY_ANALYSIS.md — Análisis de Seguridad del Sistema OTP — EcoSign
 - deprecate/status-reports/POLYGON_TEST_RESULTS.md — Resultado de Prueba: Polygon Anchoring ✅
 - deprecate/status-reports/QUICK_WINS_AUDIT.md — 🎯 Quick Wins - Correcciones Finales
+- deprecate/status-reports/REPORTE_CENTRO_LEGAL_2026-01-07.md — 🔍 REPORTE DE DIAGNÓSTICO — CENTRO LEGAL
+- deprecate/status-reports/RLS_TEST_ANALYSIS.md — RLS Test Analysis Report
 - deprecate/status-reports/SIGNNOW_EMBED_AUDIT.md — 🎥 Guía de Verificación y Corrección - Videos en Supabase
+- deprecate/status-reports/SYSTEM_AUDIT_REPORT.md — 🔍 AUDITORÍA COMPLETA DEL SISTEMA ECOSIGN
+- deprecate/status-reports/TEST_ANALYSIS.md — 🧪 Análisis de Tests - Quick Wins Sprint 1
 - deprecate/status-reports/TESTING_ATOMIC_TRANSACTIONS.md — Testing Atomic Transactions - Guía Completa
-- deprecate/SUPABASE_LOCAL_SETUP.md — 🔧 Setup Supabase Local para Tests
-- deprecate/SYSTEM_AUDIT_REPORT.md — 🔍 AUDITORÍA COMPLETA DEL SISTEMA ECOSIGN
-- deprecate/test2.txt — ok
-- deprecate/TEST_ANALYSIS.md — 🧪 Análisis de Tests - Quick Wins Sprint 1
-- deprecate/TEST_RLS_PROFILES.sql — -- ============================================
-- deprecate/test.txt — test
-- deprecate/TSA_SUMMARY.md — TSA Implementation - Summary for Manu
-- deprecate/UX_UI_DEBT_NOTES.md — UI / UX State & Debt Notes (EcoSign)
-- deprecate/VERCEL_FIXES_2025_12_19.md — 🔧 FIXES APLICADOS - Vercel Deploy + Bundle Size
-- deprecate/WELCOME_EMAIL_TROUBLESHOOTING.md — Welcome Email System - Troubleshooting Log (2025-12-19)
-- deprecate/WHATSAPP_TEMPLATE.md — Template WhatsApp para Compartir Documentos con NDA
-- deprecate/witch main — [33m33f42bb[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/centro-legal-nda-panel-layout[m[33m, [m[1;31morigin/feature/centro-legal-nda-panel-layout[m[33m)[m ui(legal-center): alinear iconos del header del canvas
-- deprecate/WORKER_SYSTEM_DESIGN.md — Worker System Design - Blockchain Anchors
+- deprecate/status-reports/TSA_SUMMARY.md — TSA Implementation - Summary for Manu
+
+## tests
+- deprecate/tests/ARQUITECTURA_RESUMEN_VISUAL.txt — ╔═══════════════════════════════════════════════════════════════════════════╗
+- deprecate/tests/robots.txt — robots.txt for VerifySign
+- deprecate/tests/RUTA_TEST_AGREGADA.md — ✅ RUTA DE TEST AGREGADA
+- deprecate/tests/SPRINT_TREE.txt — 🎯 SPRINT 2026-01-06 — ARQUITECTURA MODULAR + NDA + FIRMA VISUAL
+- deprecate/tests/test2.txt — ok
+- deprecate/tests/TEST_RLS_PROFILES.sql — -- ============================================
+- deprecate/tests/test.txt — test
+
+## misc
+- deprecate/misc/architecture.md — a# VerifySign Architecture
+- deprecate/misc/COMO LO HACEMOS.md — CÓMO LO HACEMOS — Manifiesto técnico‑narrativo (EcoSign)
+- deprecate/misc/COMO_LO_HACEMOS.md — ⚙️ Cómo lo hacemos (versión técnica para desarrolladores)
+- deprecate/misc/DEPLOY_GUIDE.md — 🚀 Guía de Deploy - EcoSign
+- deprecate/misc/DEPLOYMENT_GUIDE.md — 🚀 Guía de Deployment - Blockchain Anchoring
+- deprecate/misc/deployment.md — VerifySign – Deployment Guide (Vercel + Supabase)
+- deprecate/misc/EMAIL_TEMPLATES.md — Email Templates y cron jobs (EcoSign)
+- deprecate/misc/MANUAL_DEPLOYMENT_STEPS.md — 🚨 Manual Deployment Steps - Server-Side Anchoring
+- deprecate/misc/paginas_que_tenias_en_el_tag.md — D	ANALISIS_MOCKS_VS_REAL.md
+- deprecate/misc/README.md — 🗄️ Deprecated Documentation
+- deprecate/misc/test_notes.md — ok
+- deprecate/misc/WELCOME_EMAIL_TROUBLESHOOTING.md — Welcome Email System - Troubleshooting Log (2025-12-19)
+- deprecate/misc/WHATSAPP_TEMPLATE.md — Template WhatsApp para Compartir Documentos con NDA
+
+## archive
+- deprecate/archive/ADDENDUM_DIFERENCIACION_2026-01-07.md — 🎯 ADDENDUM — ANÁLISIS DE DIFERENCIACIÓN Y GO-TO-MARKET
+- deprecate/archive/ANALISIS_CODIGO_2025_12_19.md — 📊 ANÁLISIS COMPLETO DEL CÓDIGO - Estado Actual
+- deprecate/archive/ANALISIS_ESTADO_2026-01-07.md — 📊 ANÁLISIS DE ESTADO ECOSIGN — POST RECUPERACIÓN
+- deprecate/archive/BRAND.md — EcoSign Brand Assets
+- deprecate/archive/BROKER_MEETING_PREP_2026-01-07.md — 🏢 PREPARACIÓN REUNIÓN BROKER RE/MAX — EcoSign
+- deprecate/archive/CAMBIOS_FLUJO_ESTADOS.md — 🎯 Cambios en Flujo de Estados - Resumen Ejecutivo
+- deprecate/archive/CENTRO_LEGAL_DOCS.md — 📋 Centro Legal - Documentación Técnica Actualizada
+- deprecate/archive/CENTRO_LEGAL_MODELO_DEFINITIVO.md — 🎯 CENTRO LEGAL - MODELO DEFINITIVO DE ANCLAJE UNIVERSAL
+- deprecate/archive/COPY_GOVERNANCE_APPLIED.md — Marco de Gobernanza de Copy - Aplicación Completada
+- deprecate/archive/desicion_log2.0.md — Decicion Log 2.0
+- deprecate/archive/ECO_CERTIFICATION_SETUP.md — Configuración del Sistema de Certificación ECO
+- deprecate/archive/EVENTOS_PENDIENTES_IMPLEMENTACION.md — Eventos Probatorios Pendientes - Guía de Implementación
+- deprecate/archive/FASE1_CANVAS_PERFECTO.md — ✅ FASE 1 COMPLETA - Frame Perfecto del Canvas
+- deprecate/archive/FASE2_NDA_OVERLAY.md — ✅ FASE 2 COMPLETA - Panel NDA con Overlay Inteligente
+- deprecate/archive/FASE2_RIGHT_PANEL_COMPLETE.md — ✅ FASE 2 COMPLETADA - INTEGRACIÓN PANEL DERECHO
+- deprecate/archive/GRID_INTEGRATION_COMPLETE.md — ✅ INTEGRACIÓN COMPLETA — LegalCenterGrid Wrapper
+- deprecate/archive/IDENTITY_CLOSURE_2026-01-07.md — 🔐 Identity Assurance — Cierre 2026-01-07
+- deprecate/archive/INDEX.md — Índice — Documentos deprecados
+- deprecate/archive/LAYOUT_CORRECTION.md — ✅ CORRECCIÓN APLICADA - Vuelta a los Fundamentos
+- deprecate/archive/LEGAL_CENTER_CONSTITUTION.md — 📜 Centro Legal - Constitución
+- deprecate/archive/LEGAL_CENTER_V2_PLAN.md — Plan de Implementación LegalCenterModalV2
+- deprecate/archive/LEGAL_CENTER_V2_READY.md — ✅ Legal Center V2 - Listo para Testing
+- deprecate/archive/MIGRATION_PLAN.md — 🔄 Migración de Servicios Legacy → V2
+- deprecate/archive/MULTI_USER_SHARING_INVESTIGATION.md — Investigación Técnica — Compartir Cifrado Multi-Usuario
+- deprecate/archive/PLAN_INTEGRACION_GRID.md — 🎯 PLAN DE INTEGRACIÓN — LegalCenterGrid
+- deprecate/archive/QUALITY_GATES.md — 🛡️ Quality Gates — EcoSign
+- deprecate/archive/ROAD_MAP_3_ESTADOS.md — 🗺️ ROAD MAP IMPLEMENTADO - Sistema de 3 Estados
+- deprecate/archive/SECURITY.md — 🔒 Security Policy — EcoSign
+- deprecate/archive/SHARE_MODAL_REFACTOR.md — Refactor Modal de Compartir - Completado
+- deprecate/archive/SPRINT_CLOSURE.md — 🎯 SPRINT CLOSURE: Canonical Contracts Refactor
+- deprecate/archive/STAGE_PASO1_COMPLETE.md — ✅ PASO 1 COMPLETADO — Archivos Base Creados
+- deprecate/archive/SUPABASE_LOCAL_SETUP.md — 🔧 Setup Supabase Local para Tests
+- deprecate/archive/UX_UI_DEBT_NOTES.md — UI / UX State & Debt Notes (EcoSign)
+- deprecate/archive/witch main — [33m33f42bb[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/centro-legal-nda-panel-layout[m[33m, [m[1;31morigin/feature/centro-legal-nda-panel-layout[m[33m)[m ui(legal-center): alinear iconos del header del canvas
+- deprecate/archive/WORKER_SYSTEM_DESIGN.md — Worker System Design - Blockchain Anchors
+
+## assets
+

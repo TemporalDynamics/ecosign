@@ -44,17 +44,20 @@ export default function DocumentRow({
   if (asRow) {
     return (
       <div className="contents">
-        <div className={`flex items-center gap-3 min-w-0 ${context === 'operation' ? 'pl-6' : ''}`}>
+        <div className="flex items-center gap-3 min-w-0">
           <Shield className="h-5 w-5 text-gray-700 flex-shrink-0" />
           <div className="min-w-0">
-            <div className="text-sm font-medium text-gray-900 truncate" title={name}>{name}</div>
+            <div className="text-sm font-medium text-gray-900 truncate max-w-full" title={name}>{name}</div>
           </div>
         </div>
 
-        <div className="text-xs text-gray-500">
-          {/* probative cell: hide badge in operation context per UX decision */}
-          {context !== 'operation' && hasProtection && (
+        <div className="flex items-center text-xs text-gray-500">
+          {context === 'operation' ? (
+            <span />
+          ) : hasProtection ? (
             <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-1 rounded">Protegido</span>
+          ) : (
+            <span />
           )}
         </div>
 

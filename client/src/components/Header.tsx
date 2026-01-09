@@ -58,7 +58,7 @@ const PrivateNavDesktop = ({ onLogout, openLegalCenter }: { onLogout: () => void
       </button>
       <button
         onClick={onLogout}
-        className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-lg transition duration-200 font-medium"
+        className="border border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white px-4 py-2 rounded-lg transition duration-200 font-semibold"
       >
         Cerrar Sesión
       </button>

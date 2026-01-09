@@ -34,6 +34,9 @@ import { CertifyProgress } from './CertifyProgress';
 import type { CertifyStage } from '../lib/errorRecovery';
 import { determineIfWorkSaved, canRetryFromStage } from '../lib/errorRecovery';
 import { translateError } from '../lib/errorTranslation';
+import { CustodyConfirmationModal } from './CustodyConfirmationModal';
+import { storeEncryptedCustody } from '../lib/custodyStorageService';
+import type { CustodyMode } from '../lib/documentEntityService';
 
 // PASO 3: Módulos refactorizados
 import { 
@@ -221,6 +224,10 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [showProtectionModal, setShowProtectionModal] = useState(false);
   const [showUnprotectedWarning, setShowUnprotectedWarning] = useState(false);
 
+  // Sprint 4: Custody mode
+  const [showCustodyModal, setShowCustodyModal] = useState(false);
+  const [custodyModeChoice, setCustodyModeChoice] = useState<CustodyMode>('hash_only');
+
   // Configuración de protección legal (activo por defecto con TSA + Polygon + Bitcoin)
   const [forensicEnabled, setForensicEnabled] = useState(true);
   const [isValidatingTSA, setIsValidatingTSA] = useState(false); // P0.3: TSA connectivity check
@@ -267,6 +274,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   // Placeholder para campos de firma visual (SceneRenderer los consumirá)
   const [signatureFields, setSignatureFields] = useState<SignatureField[]>([]);
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
 
   // Firma digital
   const [signatureType, setSignatureType] = useState<SignatureType>(null); // 'legal' | 'certified' | null
@@ -767,6 +776,19 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     }
   };
 
+  // Sprint 4: Wrapper para mostrar custody modal antes de proteger
+  const handleProtectClick = () => {
+    if (!file) return;
+    // Mostrar modal de custody para que usuario elija el modo
+    setShowCustodyModal(true);
+  };
+
+  const handleCustodyConfirmed = (custodyMode: CustodyMode) => {
+    setCustodyModeChoice(custodyMode);
+    // Proceder con la protección
+    handleCertify();
+  };
+
   const handleCertify = async () => {
     if (!file) return;
     if (!file.type?.toLowerCase().includes('pdf')) {
@@ -825,15 +847,70 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       try {
         const sourceHash = await hashSource(file);
         canonicalSourceHash = sourceHash;
-        const created = await createSourceTruth({
-          name: file.name,
-          mime_type: file.type || 'application/pdf',
-          size_bytes: file.size,
-          hash: sourceHash,
-          custody_mode: 'hash_only',
-          storage_path: null
-        });
-        canonicalDocumentId = created.id as string;
+
+        // Sprint 4: Custody mode - cifrar y almacenar original si es necesario
+        let storagePath: string | null = null;
+        if (custodyModeChoice === 'encrypted_custody') {
+          try {
+            // Primero crear document_entity con hash_only temporal
+            const tempCreated = await createSourceTruth({
+              name: file.name,
+              mime_type: file.type || 'application/pdf',
+              size_bytes: file.size,
+              hash: sourceHash,
+              custody_mode: 'hash_only',
+              storage_path: null
+            });
+            canonicalDocumentId = tempCreated.id as string;
+
+            // Cifrar y subir archivo original
+            setCertifyProgress({
+              stage: 'preparing',
+              message: 'Cifrando archivo original...'
+            });
+            storagePath = await storeEncryptedCustody(file, canonicalDocumentId);
+
+            // Actualizar document_entity con custody mode y storage path
+            const { error: updateError } = await supabase
+              .from('document_entities')
+              .update({
+                custody_mode: 'encrypted_custody',
+                source_storage_path: storagePath
+              })
+              .eq('id', canonicalDocumentId);
+
+            if (updateError) {
+              console.warn('Failed to update custody_mode:', updateError);
+            } else {
+              console.log('✅ Encrypted custody stored:', storagePath);
+            }
+          } catch (custodyErr) {
+            console.warn('Encrypted custody failed, falling back to hash_only:', custodyErr);
+            // Continuar con hash_only si falla el cifrado
+            if (!canonicalDocumentId) {
+              const created = await createSourceTruth({
+                name: file.name,
+                mime_type: file.type || 'application/pdf',
+                size_bytes: file.size,
+                hash: sourceHash,
+                custody_mode: 'hash_only',
+                storage_path: null
+              });
+              canonicalDocumentId = created.id as string;
+            }
+          }
+        } else {
+          // hash_only mode (default)
+          const created = await createSourceTruth({
+            name: file.name,
+            mime_type: file.type || 'application/pdf',
+            size_bytes: file.size,
+            hash: sourceHash,
+            custody_mode: 'hash_only',
+            storage_path: null
+          });
+          canonicalDocumentId = created.id as string;
+        }
       } catch (err) {
         console.warn('Canonical createSourceTruth skipped:', err);
       }
@@ -1822,8 +1899,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     const rect = previewContainerRef.current?.getBoundingClientRect();
     const x = rect ? Math.max(16, rect.width * 0.5 - 90) : 80;
     const y = rect ? Math.max(16, rect.height * 0.2) : 120;
+    const batchId = activeBatchId ?? createFieldId();
     const newField: SignatureField = {
       id: createFieldId(),
+      batchId,
       type: 'text',
       page: 1,
       x,
@@ -1833,6 +1912,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       required: true,
       metadata: {}
     };
+    if (!activeBatchId) {
+      setActiveBatchId(batchId);
+    }
     setSignatureFields((prev) => [...prev, newField]);
   };
 
@@ -1846,17 +1928,38 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   const duplicateBatch = () => {
     if (signatureFields.length === 0) return;
+    const sourceBatchId = activeBatchId ?? signatureFields.find((field) => field.batchId)?.batchId ?? null;
+    const sourceFields = sourceBatchId
+      ? signatureFields.filter((field) => field.batchId === sourceBatchId)
+      : signatureFields;
+    if (sourceFields.length === 0) return;
+    const newBatchId = createFieldId();
     const gap = 16;
-    const minY = Math.min(...signatureFields.map((field) => field.y));
-    const maxY = Math.max(...signatureFields.map((field) => field.y + field.height));
-    const offsetY = maxY - minY + gap;
-    const batch = signatureFields.map((field) => ({
+    const rect = previewContainerRef.current?.getBoundingClientRect();
+    const containerWidth = rect?.width ?? null;
+    const minY = Math.min(...sourceFields.map((field) => field.y));
+    const maxY = Math.max(...sourceFields.map((field) => field.y + field.height));
+    const minX = Math.min(...sourceFields.map((field) => field.x));
+    const maxX = Math.max(...sourceFields.map((field) => field.x + field.width));
+    const batchWidth = maxX - minX;
+    const offsetX = batchWidth + gap;
+    const spaceLeft = containerWidth !== null ? minX : 0;
+    const spaceRight = containerWidth !== null ? containerWidth - maxX : 0;
+    const canFitLeft = spaceLeft >= offsetX;
+    const canFitRight = spaceRight >= offsetX;
+    const moveLeft = canFitLeft && (!canFitRight || spaceLeft >= spaceRight);
+    const moveRight = canFitRight && (!canFitLeft || spaceRight >= spaceLeft);
+    const fallbackToLeft = !canFitLeft && !canFitRight && spaceLeft >= spaceRight;
+    const shiftX = moveRight ? offsetX : moveLeft ? -offsetX : fallbackToLeft ? -Math.min(offsetX, minX) : Math.min(offsetX, containerWidth ? containerWidth - maxX : offsetX);
+    const batch = sourceFields.map((field) => ({
       ...field,
       id: createFieldId(),
-      x: field.x,
-      y: field.y + offsetY
+      batchId: newBatchId,
+      x: field.x + shiftX,
+      y: field.y
     }));
     setSignatureFields((prev) => [...prev, ...batch]);
+    setActiveBatchId(newBatchId);
   };
 
   const removeField = (id: string) => {
@@ -1916,9 +2019,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       const { id, startX, startY, originX, originY } = fieldDragRef.current;
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
+      const rect = previewContainerRef.current?.getBoundingClientRect();
       setSignatureFields((prev) =>
         prev.map((field) =>
-          field.id === id ? { ...field, x: originX + dx, y: originY + dy } : field
+          field.id === id
+            ? {
+                ...field,
+                x: rect ? Math.min(Math.max(0, originX + dx), rect.width - field.width) : originX + dx,
+                y: rect ? Math.min(Math.max(0, originY + dy), rect.height - field.height) : originY + dy
+              }
+            : field
         )
       );
     };
@@ -2177,6 +2287,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                   key={field.id}
                                   className="absolute pointer-events-auto border border-blue-300 bg-blue-50/80 rounded-md px-2 py-2 shadow-sm group"
                                   style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
+                                  onClick={() => setEditingFieldId(field.id)}
                                 >
                                   <button
                                     type="button"
@@ -2210,22 +2321,35 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                   >
                                     ×
                                   </button>
-                                  <input
-                                    value={field.metadata?.label ?? ''}
-                                    onChange={(event) => {
-                                      const value = event.target.value;
-                                      setSignatureFields((prev) =>
-                                        prev.map((item) =>
-                                          item.id === field.id
-                                            ? { ...item, metadata: { ...item.metadata, label: value } }
-                                            : item
-                                        )
-                                      );
-                                    }}
-                                    onMouseDown={(event) => event.stopPropagation()}
-                                    placeholder=""
-                                    className="w-full h-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-600"
-                                  />
+                                  {editingFieldId === field.id ? (
+                                    <input
+                                      autoFocus
+                                      value={field.metadata?.label ?? ''}
+                                      onChange={(event) => {
+                                        const value = event.target.value;
+                                        setSignatureFields((prev) =>
+                                          prev.map((item) =>
+                                            item.id === field.id
+                                              ? { ...item, metadata: { ...item.metadata, label: value } }
+                                              : item
+                                          )
+                                        );
+                                      }}
+                                      onBlur={() => setEditingFieldId(null)}
+                                      onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === 'Escape') {
+                                          event.currentTarget.blur();
+                                        }
+                                      }}
+                                      onMouseDown={(event) => event.stopPropagation()}
+                                      placeholder="Texto"
+                                      className="w-full h-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-500"
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-blue-900/80 select-none">
+                                      {field.metadata?.label ?? ''}
+                                    </span>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -2705,7 +2829,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               <div className="hidden md:block">
                 <button
                   ref={finalizeButtonRef}
-                  onClick={handleCertify}
+                  onClick={handleProtectClick}
                   disabled={!file || loading || !isCTAEnabled()}
                   className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
                 >
@@ -3071,6 +3195,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           }}
         />
       )}
+
+      {/* Sprint 4: Custody mode confirmation modal */}
+      <CustodyConfirmationModal
+        isOpen={showCustodyModal}
+        onClose={() => setShowCustodyModal(false)}
+        onConfirm={handleCustodyConfirmed}
+        documentName={file?.name || 'documento.pdf'}
+      />
     </>
   );
 };

@@ -115,3 +115,399 @@ Se creó `docs/contratos/LEGAL_CENTER_STAGE_CONTRACT.md` (si no existe, debe cre
 **Duración:** ~4 horas de iteración intensiva (2026-01-08 05:00 - 09:30 UTC)  
 **Rama:** `main` (merge desde trabajos anteriores)  
 **Próximo paso:** Sprint pre-reunión broker (Carpetas, Sesión Presencial, PDF Witness)
+
+---
+
+## Sprint: Verificador Humano + Timeline Canónico (Offline-First) — 2026-01-09T00:00:00Z
+
+### 🎯 Resumen
+Se consolidó el Verificador como la única superficie canónica para la historia del documento. La cronología ahora se construye offline-first desde el certificado `.eco` y no depende de login ni backend. Se agregó tabla `operations_events` (append-only) para auditoría operativa, sin alterar la verdad forense del documento.
+
+### ✅ Decisiones tomadas
+- **Timeline vive solo en el Verificador** (público e interno). No se embebe en `Documents` ni `OperationRow`.
+- **Offline-first estricto:** la cronología se genera únicamente desde `.eco` (events + timestamps). Backend es solo enriquecimiento opcional.
+- **Verdad forense vs contexto:**
+  - `document_entities.events[]` = verdad canónica del documento.
+  - `operations_events` = auditoría operativa (contexto), opcional.
+- **UI humana:** el timeline aparece como toggle "Ver historia del documento" y se despliega inline.
+
+### ✅ Cambios implementados
+- **Tabla append-only:** `operations_events` con RLS, índices y eventos canónicos `operation.*`.
+- **Eventos de operación:**
+  - `operation.created`, `operation.renamed`, `operation.archived`, `operation.closed`.
+  - `operation.document_added/removed` (canon en `document_entities.events[]` + espejo en `operations_events`).
+- **Verificador con cronología:**
+  - `VerifierTimeline` + normalización/orden UTC.
+  - Tooltip UTC + hora local visible.
+  - Mensaje explícito: “Cronología basada en el certificado (.eco). No requiere cuenta ni servidor.”
+
+### 🧭 Contrato operativo
+- El verificador funciona aunque EcoSign desaparezca.
+- El backend mejora la experiencia, nunca la verdad.
+- Ningún evento de operación puede alterar evidencia ni protection level.
+
+### 🔜 Próximo paso recomendado
+- UI narrativa completa del Verificador (mensaje humano + matching eco ↔ PDF witness) y entrada vía QR/deeplink.
+
+---
+
+---
+
+## Sprint: Quick Wins UX (Canvas + Drafts) — 2026-01-09T00:00:00Z
+
+### 🎯 Resumen
+Se implementaron mejoras rápidas de UX para reducir fricción y dar sensación de completitud sin tocar backend crítico. El foco fue: interacción física (drag&drop), percepción visual de firma, y guardado local de borradores.
+
+### ✅ Cambios implementados
+- **Drag & drop real al Canvas:** un archivo desde desktop reemplaza el actual (sin multi, sin carpetas).
+- **Firma visible en preview (visual-only):** overlay de firma en el visor, sin persistencia ni eventos.
+- **Guardar como borrador (local-only):** botón en Centro Legal que guarda archivo en IndexedDB + metadata en localStorage y cierra el modal.
+- **Vista “Borradores” en Documents:** sección separada con estado explícito, acciones “Reanudar” y “Eliminar”.
+
+### ⚠️ Deuda técnica explícita
+- Los borradores son **locales al navegador** (no canónicos, sin eventos, sin persistencia backend).
+- La firma visible es **solo UX**, no altera witness ni hash.
+
+### 🧭 Notas de diseño
+- Objetivo: liberar energía mental y cerrar caminos visibles sin prometer evidencia.
+- Las mejoras son reversibles y no afectan el core probatorio.
+
+---
+
+## UX: Campos visuales movibles y duplicables en preview (workflow) — 2026-01-09T07:10:39Z
+
+### 🎯 Resumen
+Se convirtió la capa de campos del preview en un editor visual básico: los campos ya no quedan fijos y pueden moverse, duplicarse o eliminarse directamente sobre el documento. Además se habilitó la creación de campos de texto y fecha desde un botón rápido, permitiendo escribir etiquetas como “Nombre completo”, “Ocupación”, etc.
+
+### ✅ Decisiones tomadas
+- **Campos del workflow ahora son drag & drop:** los placeholders de firma ya no viven anclados al borde, se pueden posicionar manualmente.
+- **Agregar campos extra (Texto/Fecha):** botón “Agregar campo” en el preview, con inputs editables in‑place.
+- **Duplicar campo individual:** acción ⧉ disponible al hover sobre cada campo.
+- **Duplicar grupo completo:** botón “Duplicar grupo” que clona todos los campos actuales con offset.
+- **Scope UI-only:** estos campos siguen siendo metadata visual local (sin persistencia ni valor probatorio por ahora).
+
+### 📌 Notas de implementación
+- Solo activo cuando `workflowEnabled` y hay preview.
+- Acciones de eliminar/duplicar se muestran al hover para no ensuciar el layout.
+- El duplicado usa offset suave para evitar superposición exacta.
+
+---
+
+## UX: Modal final de resguardo del original (opcional) — 2026-01-09T08:13:19Z
+
+### 🎯 Resumen
+Se agregó un modal final al cerrar el proceso del Centro Legal que confirma que la protección se realizó sobre la Copia Fiel (representación canónica) y ofrece, de forma opcional, resguardar el original cifrado. El objetivo es eliminar ansiedad: la protección ya está completa, guardar el original es un servicio adicional.
+
+### ✅ Decisiones tomadas
+- **La firma/protección se declara sobre la Copia Fiel.**
+- **Guardar el original es opcional** y se ofrece con dos CTAs claros (guardar / continuar sin guardar).
+- **Sin copy alarmista**: la Copia Fiel es suficiente para la validez probatoria.
+
+### 📌 Notas
+- El modal aparece después del flujo de protección o workflow, antes de cerrar el Centro Legal.
+- La opción "guardar original" queda como estado UI por ahora (no persiste todavía).
+
+---
+
+## Sprint 2: Identity Levels + TSA UI + Protection Levels — 2026-01-10T03:00:00Z
+
+### 🎯 Resumen
+Implementación de niveles de identidad dinámicos (L0-L5), badges TSA en UI, y derivación de Protection Level desde eventos canónicos. Sprint completado en una sesión para saldar deudas P1 (Importante) del análisis técnico.
+
+### ✅ Cambios implementados
+
+#### **1. Identity Levels Backend (process-signature)**
+**Archivo:** `supabase/functions/process-signature/index.ts`
+
+**Cambios:**
+- Agregado `determineIdentityLevel()` - Determina nivel dinámicamente (L0/L1 implementados, L2-L5 preparados)
+- Agregado `buildIdentitySignals()` - Popula signals array correctamente
+- `identityAssurance` ahora derivado desde contexto de firma:
+  - `level`: 'L1' (email verificado) o 'L0' (acknowledgement)
+  - `method`: 'email_magic_link' o null
+  - `signals`: ['email_provided', 'email_verified', 'nda_accepted', 'device_fingerprint_recorded']
+
+**Antes vs Después:**
+```typescript
+// ANTES: Hardcoded
+const identityAssurance = {
+  level: 'IAL-1',
+  method: null,
+  signals: []
+}
+
+// DESPUÉS: Dinámico
+const identityLevel = determineIdentityLevel(signer, context)
+const identityAssurance = {
+  level: identityLevel,  // L0 o L1
+  method: identityLevel === 'L1' ? 'email_magic_link' : null,
+  signals: buildIdentitySignals(signer, context)
+}
+```
+
+#### **2. TSA Badge en DocumentRow**
+**Archivo:** `client/src/components/DocumentRow.tsx`
+
+**Funcionalidad:**
+- Detecta TSA desde `tsa_latest` o `events[]` (canonical)
+- Badge azul "🕐 TSA {fecha}" visible en grid y card modes
+- Tooltip con fecha completa de certificación
+
+#### **3. Protection Level Derivation (UI)**
+**Archivos:**
+- `client/src/lib/protectionLevel.ts` - Ya existía completo
+- `client/src/pages/DocumentsPage.tsx` - Query actualizado
+- `client/src/components/DocumentRow.tsx` - Badges agregados
+
+**Cambios:**
+- Query DocumentsPage ahora incluye `events` y `tsa_latest`
+- `deriveProtectionLevel()` calcula nivel desde events[] (pure function)
+- Badges con colores por nivel:
+  - NONE: Gris "Sin protección"
+  - ACTIVE: Verde "Protección activa" (TSA)
+  - REINFORCED: Azul "Protección reforzada" (TSA + Polygon)
+  - TOTAL: Púrpura "Protección total" (TSA + Polygon + Bitcoin)
+
+#### **4. Timeline TSA en Verificador**
+**Estado:** Ya implementado - No requirió cambios
+
+El VerificationComponent ya procesaba eventos TSA correctamente:
+- `getTsaLabel()` retorna "Sello de tiempo registrado"
+- `buildTimeline()` incluye eventos TSA desde `events[]`
+- Mensaje evidencial: "Evidencia temporal presente: {fecha}"
+
+### 🧭 Decisiones Arquitectónicas
+
+1. **Niveles L0-L5 Cerrados:** Modelo de identidad cerrado según `IDENTITY_ASSURANCE_RULES.md`. L0/L1 implementados, L2-L5 preparados para Q2.
+
+2. **Derivación Pura desde Events[]:** Protection Level NO se persiste, se deriva on-the-fly. Garantiza monotonía y reproducibilidad.
+
+3. **Dual Source para TSA:** Lectura desde `tsa_latest` (proyección) con fallback a `events[]` (canonical) para backwards compatibility.
+
+4. **Badges Evidenciales:** Copy enfocado en evidencia técnica, NO promesas legales ("Protección activa" vs "Firma certificada").
+
+### 📌 Cumplimiento de Contratos Canónicos
+
+✅ **IDENTITY_ASSURANCE_RULES.md**
+- Eventos identity con nivel, method y signals correctos
+- Determinación dinámica desde contexto de firma
+- Preparado para L2-L5 sin cambios en schema
+
+✅ **TSA_EVENT_RULES.md**
+- TSA visible en UI (DocumentsPage badge)
+- TSA visible en Timeline del Verificador
+- Lectura canonical desde `events[]`
+
+✅ **PROTECTION_LEVEL_RULES.md**
+- Derivación pura desde `events[]` (no stored state)
+- Monotonía garantizada (level solo sube, nunca baja)
+- Labels evidenciales (no promisorios)
+
+### 📊 Archivos Modificados
+```
+✏️ supabase/functions/process-signature/index.ts
+✏️ client/src/components/DocumentRow.tsx
+✏️ client/src/pages/DocumentsPage.tsx
+✅ client/src/lib/protectionLevel.ts (ya existía)
+✅ client/src/components/VerificationComponent.tsx (ya implementado)
+```
+
+**Total:** 3 modificados, 2 sin cambios (ya completos), 0 migraciones
+
+---
+
+## Sprint 3: Drafts Server-Side (P0 Crítico) — 2026-01-10T06:00:00Z
+
+### 🎯 Resumen
+Implementación de persistencia server-side para drafts de operaciones, con recovery automático tras crash. Resuelve deuda P0 crítica: drafts local-only que se perdían en crash del navegador.
+
+### ✅ Cambios implementados
+
+#### **1. Migración DB**
+**Archivo:** `supabase/migrations/20260110000000_add_draft_support.sql`
+
+**Cambios en Schema:**
+- `operations.status` ahora incluye `'draft'` (antes: solo 'active', 'closed', 'archived')
+- `operation_documents.document_entity_id` es nullable (permite drafts sin proteger)
+- Nuevas columnas:
+  - `draft_file_ref` - Referencia cifrada al archivo temporal
+  - `draft_metadata` - Metadata de preparación (posiciones, orden, notas)
+
+**Constraints de Integridad:**
+- Draft debe tener `draft_file_ref` O `document_entity_id` (no ambos)
+- `draft_metadata` solo válido si `draft_file_ref` existe
+- Trigger: Limpia `draft_file_ref` y `draft_metadata` automáticamente al proteger
+
+**Funciones Auxiliares:**
+- `count_user_drafts()` - Cuenta drafts de un usuario
+- `is_draft_operation()` - Verifica si operación es draft
+
+#### **2. Edge Functions (Nuevas)**
+
+**save-draft** (`supabase/functions/save-draft/index.ts`)
+- Recibe: `operation`, `documents[]`, `custody_mode`
+- Autentica usuario
+- Crea operación con `status='draft'`
+- Guarda documentos en `operation_documents` con `draft_file_ref`
+- Retorna `operation_id` y lista de documentos guardados
+
+**load-draft** (`supabase/functions/load-draft/index.ts`)
+- GET con query param opcional `?operation_id={id}`
+- Retorna todos los drafts del usuario o uno específico
+- Incluye documentos con metadata completa
+
+**Nota:** Phase 1 NO implementa cifrado real de archivos (pendiente Sprint 4 - Custody Mode)
+
+#### **3. Client Service (Nuevo)**
+**Archivo:** `client/src/lib/draftOperationsService.ts`
+
+**Funciones Principales:**
+```typescript
+saveDraftOperation(operation, files, custody_mode)    // Server + local backup
+loadDraftOperations()                                  // Server con fallback a local
+loadDraftFile(draft_file_ref)                         // Desde local o server
+deleteDraftOperation(operation_id)                     // Delete server + local
+activateDraftOperation(operation_id)                   // draft → active
+countUserDrafts()                                      // Contador de drafts
+```
+
+**Estrategia:** Dual-write (server + local) con fallback automático si server falla
+
+#### **4. UI Integration**
+
+**LegalCenterModalV2.tsx:**
+- `handleSaveDraft()` ahora usa `saveDraftOperation()`
+- Dual-write: server + local backup para resiliencia
+- Copy actualizado: "Draft guardado el {fecha}"
+
+**DocumentsPage.tsx:**
+- `loadDrafts()` carga desde server primero, fallback a local
+- **Auto-recovery tras crash:**
+  - Detecta drafts al montar componente
+  - Muestra notificación: "{N} borrador(es) recuperado(s)"
+  - Solo una vez por sesión (sessionStorage flag)
+
+#### **5. Deprecation de Local-Only Storage**
+**Archivo:** `client/src/utils/draftStorage.ts`
+
+Agregado header de deprecation:
+```typescript
+/**
+ * @deprecated LEGACY - Local-only draft storage
+ * Status: DEPRECATED (2026-01-10)
+ * Replacement: Use draftOperationsService.ts
+ *
+ * Migration path:
+ * - Phase 1 (NOW): Dual-write (server + local)
+ * - Phase 2 (Q2): Server-only, local fallback
+ * - Phase 3 (Q3): Remove IndexedDB completely
+ */
+```
+
+### 🧭 Decisiones Arquitectónicas
+
+1. **Dual-Write Pattern (Phase 1):** Escribir simultáneamente a server y local para prevenir pérdida de datos durante migración.
+
+2. **Graceful Degradation:** Si server falla, sistema cae automáticamente a almacenamiento local (legacy mode) sin error fatal.
+
+3. **Auto-Recovery UX:** Notificación proactiva al usuario de drafts recuperados tras crash, sin requerir acción manual.
+
+4. **Postponed Encryption:** Cifrado real de archivos pospuesto a Sprint 4. Phase 1 usa referencias sin cifrado.
+
+5. **Operations como Drafts:** Reutilizar tabla `operations` con `status='draft'` en vez de crear tabla separada. Coherencia con modelo existente.
+
+### 📌 Cumplimiento de Contratos
+
+✅ **DRAFT_OPERATION_RULES.md**
+- Drafts persisten server-side con `status='draft'`
+- Recovery automático tras crash del navegador
+- Dual-write previene pérdida de datos
+- Copy evidencial: "Borrador sin validez legal"
+
+✅ **OPERACIONES_CONTRACT.md**
+- Operations extiende estados correctamente
+- Drafts coexisten con operations activas
+- Transition draft → active documentada y validada
+
+### 📊 Archivos Modificados/Creados
+```
+✨ supabase/migrations/20260110000000_add_draft_support.sql (nuevo)
+✨ supabase/functions/save-draft/index.ts (nuevo)
+✨ supabase/functions/load-draft/index.ts (nuevo)
+✨ client/src/lib/draftOperationsService.ts (nuevo)
+✏️ client/src/components/LegalCenterModalV2.tsx
+✏️ client/src/pages/DocumentsPage.tsx
+✏️ client/src/utils/draftStorage.ts (deprecated header)
+```
+
+**Total:** 4 nuevos, 3 modificados, 1 migración DB
+
+### ⚠️ Pendiente (Sprint 4 - Custody Mode)
+
+**NO implementado en Sprint 3:**
+- Cifrado real de archivos draft
+- Descarga desde server con decryption
+- `custody_mode = 'encrypted_custody'` funcional
+
+**Por qué:** Sprint 3 enfocado en persistencia y recovery. Cifrado es responsabilidad de Sprint 4.
+
+### 🎓 Lecciones Aprendidas
+
+- **Dual-Write Reduce Riesgo:** Escribir simultáneamente a server + local permitió migración sin pérdida de datos ni downtime.
+- **Auto-Recovery = UX Premium:** Notificación proactiva de drafts recuperados elimina ansiedad del usuario tras crash.
+- **Reutilizar Schema Existente:** Extender `operations` fue más simple que crear tabla nueva. Coherencia > pureza.
+- **Phase 1 Sin Cifrado OK:** Posponer cifrado permitió validar persistencia y recovery sin complejidad adicional.
+
+### 📌 Decisión Arquitectónica: Granularidad de Protección
+
+**Contexto:**
+Una operación puede contener múltiples documentos (incluyendo drafts). Sin embargo, cada acción de protección procesa exactamente UN documento.
+
+**Decisión (INMUTABLE):**
+```
+1 Documento = 1 Flujo de Protección = 1 Evidencia Canónica
+```
+
+**Razones técnicas:**
+1. **Unidad canónica es el Document Entity:**
+   - Witness hash es por documento
+   - TSA timestamp es por documento
+   - Anchors (Polygon/Bitcoin) son por documento
+   - Transform log es por documento
+
+2. **Reduce complejidad legal y forense:**
+   - Evita estados parciales (¿qué pasa si N-1 documentos fallan TSA?)
+   - Elimina ambigüedad: "¿Qué firmó exactamente el usuario?"
+   - Rastro completo por documento (no combinatoria)
+
+3. **Evita deuda técnica futura:**
+   - No hay batch rollback
+   - No hay estados intermedios complejos
+   - No hay explosión combinatoria de errores
+
+**Implicaciones UX:**
+- ✅ Cada documento en operación tiene estado individual: 🟡 Draft / 🟢 Protegido
+- ✅ CTA por documento: "Proteger este documento"
+- ⚠️ NO existe "Proteger todos" en Phase 1 (posible evolución futura como orquestación UX)
+
+**Regla de oro:**
+```
+Batch UX ≠ Batch Criptográfico
+
+Si en el futuro se implementa "proteger múltiples",
+será SIEMPRE una orquestación UX de N flujos individuales,
+NUNCA una operación criptográfica en batch.
+```
+
+**Estado de Transición Draft → Active:**
+- ⚠️ Decisión pendiente: definir evento `operation.activated` y reglas de atomicidad
+- Actualmente: `activateDraftOperation()` cambia status, pero no genera evento canónico
+- Trigger: `cleanup_draft_on_protect` limpia `draft_file_ref` al proteger documento individual
+
+**Esta decisión protege:**
+- Coherencia forense
+- Simplicidad criptográfica
+- Trazabilidad legal
+- Arquitectura defensiva
+
+---

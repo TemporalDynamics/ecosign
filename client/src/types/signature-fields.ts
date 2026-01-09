@@ -12,6 +12,9 @@ export type FieldType = 'signature' | 'text' | 'date';
 export interface SignatureField {
   /** ID único del campo (UUID v4) */
   id: string;
+
+  /** Grupo lógico para duplicación por batch */
+  batchId?: string;
   
   /** Tipo de campo */
   type: FieldType;

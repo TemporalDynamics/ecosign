@@ -29,6 +29,9 @@ export interface DraftDocument {
     order?: number
     notes?: string
     custody_mode?: 'hash_only' | 'encrypted_custody'
+    overlay_spec?: unknown[] // Sprint 5: Coordenadas normalizadas para stamping
+    signature_preview?: string // Sprint 5: Base64 de la firma (si aplica)
+    nda_applied?: boolean
   }
   added_at?: string
 }
@@ -39,12 +42,18 @@ export interface DraftDocument {
  * @param operation - Metadata de operación
  * @param files - Archivos a guardar
  * @param custody_mode - Modo de custodia
+ * @param overlay_spec - Sprint 5: Coordenadas normalizadas para stamping (opcional)
+ * @param signature_preview - Sprint 5: Base64 de la firma (opcional)
+ * @param nda_applied - Si se aplicó NDA (opcional)
  * @returns operation_id y documentos guardados
  */
 export async function saveDraftOperation(
   operation: { name: string; description?: string },
   files: File[],
-  custody_mode: 'hash_only' | 'encrypted_custody' = 'hash_only'
+  custody_mode: 'hash_only' | 'encrypted_custody' = 'hash_only',
+  overlay_spec?: unknown[],
+  signature_preview?: string,
+  nda_applied?: boolean
 ): Promise<{ operation_id: string; documents: { id: string; filename: string }[] }> {
   try {
     const supabase = getSupabase()
@@ -72,7 +81,11 @@ export async function saveDraftOperation(
           file_data: base64,
           metadata: {
             type: file.type,
-            lastModified: file.lastModified
+            lastModified: file.lastModified,
+            // Sprint 5: Incluir overlay_spec, signature_preview, nda_applied
+            ...(overlay_spec && overlay_spec.length > 0 ? { overlay_spec } : {}),
+            ...(signature_preview ? { signature_preview } : {}),
+            ...(nda_applied !== undefined ? { nda_applied } : {}),
           }
         }
       })

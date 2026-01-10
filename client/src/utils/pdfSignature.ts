@@ -165,15 +165,29 @@ export async function applyOverlaySpecToPdf(
       overlay.h
     );
 
-    if (overlay.kind === 'signature' && overlay.imageDataUrl) {
-      const image = await embedDataUrlImage(pdfDoc, overlay.imageDataUrl);
-      page.drawImage(image, {
-        x: left,
-        y: bottom,
-        width: boxWidth,
-        height: boxHeight,
-      });
-      continue;
+    if (overlay.kind === 'signature') {
+      if (overlay.imageDataUrl) {
+        const image = await embedDataUrlImage(pdfDoc, overlay.imageDataUrl);
+        page.drawImage(image, {
+          x: left,
+          y: bottom,
+          width: boxWidth,
+          height: boxHeight,
+        });
+        continue;
+      }
+
+      if (overlay.value) {
+        page.drawText(overlay.value, {
+          x: left + padding,
+          y: bottom + Math.max(padding, (boxHeight - valueSize) / 2),
+          size: Math.max(12, Math.min(24, boxHeight - padding * 2)),
+          font: fontBold,
+          color: rgb(0.15, 0.15, 0.15),
+          maxWidth: Math.max(0, boxWidth - padding * 2),
+        });
+        continue;
+      }
     }
 
     const label = overlay.label || (overlay.kind === 'field_signature' ? 'Firma' : 'Campo');

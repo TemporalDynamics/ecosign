@@ -8,7 +8,7 @@ import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { persistSignedPdfToStorage, saveUserDocument } from '../utils/documentStorage';
 import { startSignatureWorkflow } from '../lib/signatureWorkflowService';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
-import { applySignatureToPDF, blobToFile, addSignatureSheet } from '../utils/pdfSignature';
+import { applySignatureToPDF, blobToFile, addSignatureSheet, applyOverlaySpecToPdf } from '../utils/pdfSignature';
 import type { ForensicData } from '../utils/pdfSignature';
 import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
@@ -38,6 +38,7 @@ import { CustodyConfirmationModal } from './CustodyConfirmationModal';
 import { PdfEditViewer, type PdfPageMetrics } from './pdf/PdfEditViewer';
 import { storeEncryptedCustody } from '../lib/custodyStorageService';
 import type { CustodyMode } from '../lib/documentEntityService';
+import { convertToOverlaySpec } from '../utils/overlaySpecConverter';
 
 // PASO 3: Módulos refactorizados
 import { 
@@ -982,15 +983,43 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           return;
         }
 
+        // SPRINT 5: Si hay campos configurados, estamparlos en el PDF antes de enviar
+        let fileToSend = file;
+        if (signatureFields.length > 0) {
+          try {
+            console.log('📋 Estampando campos preparados para firmantes...');
+
+            const overlaySpec = convertToOverlaySpec(
+              signatureFields,
+              null, // No incluir firma del owner en workflow
+              VIRTUAL_PAGE_WIDTH,
+              VIRTUAL_PAGE_HEIGHT,
+              'owner'
+            );
+
+            if (overlaySpec.length > 0) {
+              const { validateOverlaySpec } = await import('../utils/overlaySpecConverter');
+              if (validateOverlaySpec(overlaySpec)) {
+                const stampedBlob = await applyOverlaySpecToPdf(file, overlaySpec);
+                fileToSend = new File([stampedBlob], file.name, { type: 'application/pdf' });
+                console.log('✅ Campos estampados en PDF para workflow');
+              }
+            }
+          } catch (err) {
+            console.warn('⚠️ Error estampando campos para workflow, enviando PDF sin campos:', err);
+            // Continuar sin campos estampados
+          }
+        }
+
         // Subir el PDF a Storage y obtener URL firmable
-        const arrayBuffer = await file.arrayBuffer();
+        const arrayBuffer = await fileToSend.arrayBuffer();
         const documentHash = await hashWitness(arrayBuffer);
 
         const storagePath = `${user.id}/${Date.now()}-${file.name}`;
         const { error: uploadError } = await supabase.storage
           .from('user-documents')
-          .upload(storagePath, file, {
-            contentType: file.type || 'application/pdf',
+          .upload(storagePath, fileToSend, {
+            contentType: fileToSend.type || 'application/pdf',
             upsert: false
           });
 
@@ -1086,8 +1115,88 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       // Obtener datos de firma si está en modo canvas (ya aplicada al PDF)
       const signatureData: string | null = signatureMode === 'canvas' ? getSignatureData() : null;
 
-      // Preparar archivo con Hoja de Auditoría (SOLO para Firma Legal)
+      // ========================================
+      // SPRINT 5: STAMPING DE OVERLAY_SPEC
+      // ========================================
+      // PASO 1: Convertir signatureFields + signaturePreview a overlay_spec
       let fileToProcess = file;
+
+      const signatureOverlay =
+        signaturePreview
+          ? {
+              x: signaturePlacement.x,
+              y: signaturePlacement.y,
+              width: signaturePlacement.width,
+              height: signaturePlacement.height,
+              page: 1,
+              imageUrl: signaturePreview.type === 'image' ? signaturePreview.value : undefined,
+              text: signaturePreview.type === 'text' ? signaturePreview.value : undefined
+            }
+          : null;
+
+      const overlaySpec = convertToOverlaySpec(
+        signatureFields,
+        signatureOverlay,
+        VIRTUAL_PAGE_WIDTH,
+        VIRTUAL_PAGE_HEIGHT
+      );
+
+      if (overlaySpec.length > 0) {
+        try {
+          // SPRINT 5: Validar overlay_spec antes de aplicar
+          const { validateOverlaySpec } = await import('../utils/overlaySpecConverter');
+          if (!validateOverlaySpec(overlaySpec)) {
+            console.error('❌ Overlay spec inválido:', overlaySpec);
+            toast.error('Error en posicionamiento de firma/campos. Por favor reintentá.');
+            setLoading(false);
+            return;
+          }
+
+          console.log('✅ Overlay spec válido:', overlaySpec);
+
+          setCertifyProgress({
+            stage: 'preparing',
+            message: 'Estampando firma y campos en PDF...'
+          });
+
+          const stampedBlob = await applyOverlaySpecToPdf(fileToProcess, overlaySpec);
+          fileToProcess = new File([stampedBlob], file.name, { type: 'application/pdf' });
+
+          console.log('✅ Stamping aplicado al PDF');
+
+          // SPRINT 5: Agregar evento signature.applied al transform log
+          if (canonicalDocumentId) {
+            const stampedHash = await hashWitness(await fileToProcess.arrayBuffer());
+
+            await appendTransform(canonicalDocumentId, {
+              from_mime: 'application/pdf',
+              to_mime: 'application/pdf',
+              from_hash: canonicalSourceHash || stampedHash,
+              to_hash: stampedHash,
+              method: 'client',
+              reason: 'signature_applied',
+              executed_at: new Date().toISOString(),
+              metadata: {
+                overlay_spec: overlaySpec,
+                actor: 'owner',
+                signature_type: signatureType
+              }
+            });
+
+            console.log('✅ Transform log: signature.applied registrado');
+          }
+        } catch (stampError) {
+          console.error('❌ Error aplicando stamping:', stampError);
+          toast.error('Error al estampar firma/campos en el PDF. Continuando sin stamping.', {
+            position: 'bottom-right'
+          });
+          // Continuar sin stamping (fallback graceful)
+          fileToProcess = file;
+        }
+      }
+      // ========================================
+
+      // Preparar archivo con Hoja de Auditoría (SOLO para Firma Legal)
       let witnessHash: string | null = null;
 
       // Solo agregar Hoja de Auditoría si es Firma Legal (NO para Firma Certificada)
@@ -1115,7 +1224,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         };
 
         // Agregar Hoja de Auditoría al PDF
-        const pdfWithSheet = await addSignatureSheet(file, signatureData, forensicData);
+        const pdfWithSheet = await addSignatureSheet(fileToProcess, signatureData, forensicData);
         fileToProcess = blobToFile(pdfWithSheet, file.name);
       }
 

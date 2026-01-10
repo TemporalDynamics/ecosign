@@ -756,3 +756,227 @@ Si puede, el cifrado falló.
 ```
 
 ---
+## Sprint 5: Signature → Witness Binding (INICIADO) — 2026-01-10
+
+### 🎯 Resumen
+Inicio de Sprint 5 para implementar el binding real de firma/campos del preview al PDF Witness con eventos canónicos. Completada la infraestructura de conversión de coordenadas y extensión de draft_metadata. Pendiente integración completa en flujo de certificación.
+
+**Contrato:** `docs/contratos/SPRINT5_BACKEND_CONTRACT.md`
+
+### ✅ Trabajo Completado
+
+#### 1. Análisis de Código Existente ✓
+**Hallazgos clave:**
+- `applyOverlaySpecToPdf()` ya existe en `pdfSignature.ts` - stamping infrastructure completa
+- `SignatureField` type con soporte para coordenadas normalizadas en `metadata.normalized`
+- Edge Function `save-draft` ya soporta metadata extendida via spread operator
+- State management de campos y firma ya funcional en `LegalCenterModalV2.tsx`
+
+#### 2. Conversion de Coordenadas ✓
+**Archivo creado:** `client/src/utils/overlaySpecConverter.ts`
+
+**Funciones implementadas:**
+```typescript
+normalizeCoordinates()      // Píxeles → normalized (0-1)
+fieldToOverlaySpec()        // SignatureField → OverlaySpecItem
+signatureToOverlaySpec()    // Firma → OverlaySpecItem
+convertToOverlaySpec()      // Conversión completa frontend → backend
+validateOverlaySpec()       // Validación de coordenadas (0-1)
+serializeOverlaySpec()      // Serialización para persistencia
+```
+
+**Decisión arquitectónica:** Coordenadas normalizadas (0-1) calculadas client-side usando dimensiones A4 estándar (595×842 pts) para simplificar implementación. Opción de leer dimensiones reales del PDF queda para Phase 2.
+
+#### 3. Extensión de Draft Metadata ✓
+**Archivo modificado:** `client/src/lib/draftOperationsService.ts`
+
+**Cambios:**
+```typescript
+export interface DraftDocument {
+  metadata?: {
+    overlay_spec?: unknown[]        // ← NUEVO (Sprint 5)
+    signature_preview?: string      // ← NUEVO (Sprint 5)
+    nda_applied?: boolean           // ← NUEVO (Sprint 5)
+    custody_mode?: 'hash_only' | 'encrypted_custody'
+    // ...
+  }
+}
+
+export async function saveDraftOperation(
+  operation,
+  files,
+  custody_mode = 'hash_only',
+  overlay_spec?,                    // ← NUEVO
+  signature_preview?,               // ← NUEVO
+  nda_applied?                      // ← NUEVO
+)
+```
+
+**Ventaja:** Edge Function `save-draft` ya soporta esto sin cambios (línea 157: `...doc.metadata`).
+
+#### 4. Placeholder de Stamping ✓
+**Archivo modificado:** `client/src/components/LegalCenterModalV2.tsx`
+
+**Ubicación:** Línea 1089-1127
+
+**Implementación:** Código comentado con TODO completo que muestra integración de:
+- Conversión de `signatureFields[]` + `signaturePreview` a `overlay_spec`
+- Llamada a `applyOverlaySpecToPdf()`
+- Evento `signature.applied` en transform log
+- Recálculo de `witness_hash` DESPUÉS de stamping
+
+#### 5. Guía de Implementación ✓
+**Archivo creado:** `docs/sprints/SPRINT5_IMPLEMENTATION_GUIDE.md`
+
+**Contenido:**
+- Análisis completo de código existente
+- Pasos detallados para completar integración
+- Casos de prueba para stamping
+- Checklist de validación según contrato
+- Notas técnicas sobre coordenadas y hash chain timing
+
+### ❌ Pendiente (Próxima Sesión)
+
+#### PASO 1: Descomentar y Completar Stamping
+**Archivo:** `client/src/components/LegalCenterModalV2.tsx:1095`
+
+**Acciones:**
+1. Descomentar bloque de stamping
+2. Importar `convertToOverlaySpec` y `applyOverlaySpecToPdf`
+3. Definir dimensiones PDF (Opción A: A4 fijo 595×842, Opción B: leer del PDF)
+4. Construir overlay_spec desde state actual
+5. Aplicar stamping ANTES de `addSignatureSheet()`
+6. Agregar evento `signature.applied` a transform log
+7. Recalcular `witness_hash` con PDF estampado
+
+#### PASO 2: Testing End-to-End
+**Casos de prueba:**
+- Solo firma (sin campos)
+- Solo campos (sin firma)
+- Firma + campos
+- Múltiples páginas
+- Validación de transform log
+- Validación de hash chain (hash DESPUÉS de stamping)
+
+#### PASO 3: Integración con Drafts (Opcional)
+- Guardar overlay_spec cuando usuario guarda draft
+- Restaurar signatureFields desde overlay_spec al cargar draft
+
+### 🧭 Decisiones Arquitectónicas
+
+#### 1. Coordenadas Normalizadas Client-Side ✓
+**Decisión:** Calcular coordenadas normalizadas (0-1) en el cliente usando dimensiones A4 estándar.
+
+**Razón:**
+- Simplifica implementación (no depende de leer PDF real)
+- 95%+ de documentos son A4/Letter (similar aspect ratio)
+- Suficiente para MVP, mejorable en Phase 2
+
+**Trade-off:** PDFs no-estándar pueden tener desalineamiento leve. Aceptable para Phase 1.
+
+#### 2. Stamping ANTES de Certification ✓
+**Decisión:** Aplicar `applyOverlaySpecToPdf()` ANTES de `certifyFile()`.
+
+**Razón (Crítica):**
+- `witness_hash` DEBE incluir contenido estampado
+- Transform log requiere hash pre-stamping → hash post-stamping
+- Orden correcto: source → stamp → hash → certify
+
+**Prohibición:** NUNCA hashear antes del stamping.
+
+#### 3. Transform Log Event: `signature.applied` ✓
+**Decisión:** Crear evento canónico `signature.applied` con metadata completa.
+
+**Formato:**
+```json
+{
+  "from_mime": "application/pdf",
+  "to_mime": "application/pdf",
+  "from_hash": "sha256:pre_stamp",
+  "to_hash": "sha256:post_stamp",
+  "method": "client",
+  "reason": "signature_applied",
+  "executed_at": "2026-01-10T...",
+  "metadata": {
+    "overlay_spec": [...],
+    "actor": "owner",
+    "signature_type": "legal"
+  }
+}
+```
+
+**Importancia:** Este evento es MÁS importante que el PDF mismo (evidencia jurídica).
+
+#### 4. Dual-Write para Drafts ✓
+**Decisión:** `saveDraftOperation()` acepta overlay_spec como parámetro opcional.
+
+**Razón:**
+- Permite guardar estado parcial antes de proteger
+- Usuario puede recuperar firma/campos en sesión futura
+- No bloquea flujo si usuario no guarda draft
+
+### 📊 Archivos Creados/Modificados
+
+```
+✨ client/src/utils/overlaySpecConverter.ts (nuevo)
+✨ docs/sprints/SPRINT5_IMPLEMENTATION_GUIDE.md (nuevo)
+✏️ client/src/lib/draftOperationsService.ts (extendido)
+✏️ client/src/components/LegalCenterModalV2.tsx (placeholder agregado)
+```
+
+**Total:** 2 nuevos, 2 modificados
+
+### 📌 Invariantes Críticos (Contrato)
+
+**MUST (Obligatorios):**
+- Coordenadas normalizadas (0-1) por página
+- Stamping ANTES de hasheo
+- Evento `signature.applied` en transform log
+- `witness_hash` calculado DESPUÉS de stamping
+- Hash incluye firma estampada
+
+**MUST NOT (Prohibiciones):**
+- NO hashear antes del stamping
+- NO usar coordenadas del preview (usar normalized)
+- NO saltarse evento signature.applied
+- NO modificar witness_hash después de sellar
+
+### 🎓 Lecciones Aprendidas
+
+- **Infraestructura Ya Existe:** `applyOverlaySpecToPdf()` ya implementado completamente, solo falta integrarlo al flujo principal
+- **Metadata Flexible es Clave:** Edge Function con `...doc.metadata` permite extensibilidad sin cambios backend
+- **Normalized Coords = Portabilidad:** Coordenadas (0-1) funcionan en cualquier tamaño de PDF sin recalcular
+- **Hash Chain Timing es Crítico:** Orden source → stamp → hash → certify es INMUTABLE para evidencia legal
+
+### 🔜 Próximos Pasos (Próxima Sesión)
+
+1. **Descomentar código de stamping** en `handleCertify` (línea 1095)
+2. **Testing básico:** Solo firma → verificar stamping visible en PDF descargado
+3. **Testing completo:** Firma + campos en múltiples páginas
+4. **Validar hash chain:** Confirmar que witness_hash incluye stamping
+5. **Validar transform log:** Confirmar evento signature.applied registrado
+6. **Documentar resultados** en DECISION_LOG
+
+### ⏱️ Estimación de Tiempo Restante
+
+**Trabajo completado:** ~40% (infraestructura)
+**Trabajo pendiente:** ~60% (integración + testing)
+
+**Estimación:** 2-3 horas para completar Sprint 5
+- Descomentar/completar código: 30min
+- Testing cases: 1h
+- Ajustes/fixes: 30-60min
+
+### 🔗 Referencias
+
+- Contrato backend: `docs/contratos/SPRINT5_BACKEND_CONTRACT.md`
+- Guía implementación: `docs/sprints/SPRINT5_IMPLEMENTATION_GUIDE.md`
+- Conversion utils: `client/src/utils/overlaySpecConverter.ts`
+- Stamping function: `client/src/utils/pdfSignature.ts:94`
+
+---
+Firma: Sprint 5 iniciado — infraestructura lista, pendiente integración final
+Timestamp: 2026-01-10T[current]
+
+---
+

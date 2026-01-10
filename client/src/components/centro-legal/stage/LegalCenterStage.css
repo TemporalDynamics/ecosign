@@ -84,7 +84,7 @@
 
   /* Fondo blanco */
   background: white;
-  border-radius: 8px;
+  border-radius: 16px;
 
   /* Elevación visual */
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
@@ -92,6 +92,16 @@
   /* SIN transiciones en resize - Canvas NO anima width/height */
   /* Solo los overlays animan en open/close */
   transition: none;
+}
+
+.legal-center-stage.has-left .legal-center-stage__canvas {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.legal-center-stage.has-right .legal-center-stage__canvas {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /* ========================================
@@ -136,6 +146,7 @@
   /* Estilo visual */
   background: var(--gray-50, #f9fafb);
   border-right: 1px solid var(--gray-200, #e5e7eb);
+  border-radius: 16px 0 0 16px;
   box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
 
   /* Scroll interno */
@@ -184,6 +195,7 @@
   /* Estilo visual */
   background: var(--gray-50, #f9fafb);
   border-left: 1px solid var(--gray-200, #e5e7eb);
+  border-radius: 0 16px 16px 0;
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
 
   /* Scroll interno */

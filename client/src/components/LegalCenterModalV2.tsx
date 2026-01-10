@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
-import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, PlusSquare, Shield, Type, Upload, Users, RefreshCw } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Lock, Maximize2, Minimize2, PlusSquare, Shield, Type, Unlock, Upload, Users, RefreshCw, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ToastOptions as HotToastOptions } from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
@@ -35,6 +35,7 @@ import type { CertifyStage } from '../lib/errorRecovery';
 import { determineIfWorkSaved, canRetryFromStage } from '../lib/errorRecovery';
 import { translateError } from '../lib/errorTranslation';
 import { CustodyConfirmationModal } from './CustodyConfirmationModal';
+import { PdfEditViewer, type PdfPageMetrics } from './pdf/PdfEditViewer';
 import { storeEncryptedCustody } from '../lib/custodyStorageService';
 import type { CustodyMode } from '../lib/documentEntityService';
 
@@ -276,6 +277,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [signatureFields, setSignatureFields] = useState<SignatureField[]>([]);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
+  const [isCanvasLocked, setIsCanvasLocked] = useState(false);
+  const [signaturePreview, setSignaturePreview] = useState<{ type: 'image' | 'text'; value: string } | null>(null);
+  const [signaturePlacement, setSignaturePlacement] = useState({ x: 120, y: 180, width: 220, height: 80 });
+  const [signaturePlacementPct, setSignaturePlacementPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [isSignatureDragging, setIsSignatureDragging] = useState(false);
+  const [pdfEditError, setPdfEditError] = useState(false);
+  const [virtualScale, setVirtualScale] = useState(1);
 
   // Firma digital
   const [signatureType, setSignatureType] = useState<SignatureType>(null); // 'legal' | 'certified' | null
@@ -306,6 +314,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [isMobile, setIsMobile] = useState(false);
   const [ndaAccordionOpen, setNdaAccordionOpen] = useState(false);
   const [workflowAccordionOpen, setWorkflowAccordionOpen] = useState(false);
+  const [ndaPanelOpen, setNdaPanelOpen] = useState(false);
+  const [flowPanelOpen, setFlowPanelOpen] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const workflowAutoCollapsed = useRef(false);
 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
@@ -403,7 +414,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [showSignatureOnPreview, setShowSignatureOnPreview] = useState(false);
   const [focusView, setFocusView] = useState<'document' | 'nda' | null>(null);
   const [isFieldDragging, setIsFieldDragging] = useState(false);
-  const fieldDragRef = useRef<{ id: string; startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const fieldDragRef = useRef<{ id: string; page: number; startX: number; startY: number; originX: number; originY: number; width: number; height: number } | null>(null);
+  const [isFieldResizing, setIsFieldResizing] = useState(false);
+  const fieldResizeRef = useRef<{ id: string; startX: number; startY: number; originWidth: number; originHeight: number } | null>(null);
+  const signatureDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const pdfScrollRef = useRef<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   // TODO: FEATURE PARCIAL - UI de anotaciones existe pero no hay lógica de escritura sobre el PDF
   const [annotationMode, setAnnotationMode] = useState<AnnotationKind | null>(null); // 'signature', 'highlight', 'text'
@@ -584,6 +599,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       // CONSTITUCIÓN: Abrir modal de firma automáticamente si corresponde
       if (initialAction === 'sign' || mySignature) {
+        setIsCanvasLocked(false);
         setShowSignatureOnPreview(true);
 
         showToast('Vas a poder firmar directamente sobre el documento.', {
@@ -602,6 +618,37 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       }
     };
   }, [documentPreview]);
+
+  useEffect(() => {
+    if (!previewContainerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect?.width) {
+          const availableWidth = Math.max(0, entry.contentRect.width - 32);
+          const breathing = 0.9;
+          const fitScale = availableWidth / VIRTUAL_PAGE_WIDTH;
+          const scale = Math.min(1, fitScale) * breathing;
+          setVirtualScale(Math.max(0.5, scale));
+        }
+      }
+    });
+    observer.observe(previewContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (documentPreview) {
+      setPdfEditError(false);
+    }
+  }, [documentPreview]);
+
+  useEffect(() => {
+    setNdaPanelOpen(ndaEnabled);
+  }, [ndaEnabled]);
+
+  useEffect(() => {
+    setFlowPanelOpen(workflowEnabled);
+  }, [workflowEnabled]);
 
   // ✅ Realtime subscription: Update protection_level badge when workers complete
   // Listens to user_documents table changes and updates certificateData
@@ -1892,13 +1939,223 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const isPreviewFullscreen = isMobile && previewMode === 'fullscreen';
   const isFocusMode = focusView !== null;
   const isDocumentFocus = focusView === 'document';
+  const isViewerLocked = isCanvasLocked && !isDocumentFocus;
+  const isPdfPreview =
+    !!documentPreview &&
+    (file?.type?.toLowerCase().includes('pdf') ||
+      (file?.name?.toLowerCase().endsWith('.pdf') ?? false) ||
+      documentPreview.startsWith('blob:') ||
+      documentPreview.toLowerCase().includes('.pdf'));
+  const usePdfEditMode = isPdfPreview && !pdfEditError;
 
   const createFieldId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `field-${Date.now()}`);
+  const VIRTUAL_PAGE_WIDTH = 1000;
+  const VIRTUAL_PAGE_HEIGHT = 1414;
+
+  const getPageScale = () => ({ scaleX: virtualScale, scaleY: virtualScale });
+
+  const resolveFieldRect = (field: SignatureField) => {
+    const { scaleX, scaleY } = getPageScale();
+    return {
+      left: field.x * scaleX,
+      top: field.y * scaleY,
+      width: field.width * scaleX,
+      height: field.height * scaleY
+    };
+  };
+
+  const maybeAutoScroll = (clientY: number) => {
+    const container = pdfScrollRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const threshold = 40;
+    const speed = 16;
+    if (clientY < rect.top + threshold) {
+      container.scrollTop = Math.max(0, container.scrollTop - speed);
+    } else if (clientY > rect.bottom - threshold) {
+      container.scrollTop = Math.min(container.scrollHeight, container.scrollTop + speed);
+    }
+  };
+
+  const updateFieldDragPosition = (clientX: number, clientY: number) => {
+    if (!fieldDragRef.current) return;
+    const { id, startX, startY, originX, originY, page, width, height } = fieldDragRef.current;
+    const scrollContainer = pdfScrollRef.current;
+    const container = scrollContainer?.getBoundingClientRect();
+    if (!container) return;
+    const currentX = clientX - container.left + (scrollContainer?.scrollLeft ?? 0);
+    const currentY = clientY - container.top + (scrollContainer?.scrollTop ?? 0);
+    const startLocalX = startX - container.left + (scrollContainer?.scrollLeft ?? 0);
+    const startLocalY = startY - container.top + (scrollContainer?.scrollTop ?? 0);
+    const dxPx = currentX - startLocalX;
+    const dyPx = currentY - startLocalY;
+    const { scaleX, scaleY } = getPageScale();
+    const dx = dxPx / scaleX;
+    const dy = dyPx / scaleY;
+    maybeAutoScroll(clientY);
+    setSignatureFields((prev) =>
+      prev.map((field) =>
+        field.id === id
+          ? {
+              ...field,
+              x: Math.min(Math.max(0, originX + dx), VIRTUAL_PAGE_WIDTH - width),
+              y: Math.min(Math.max(0, originY + dy), VIRTUAL_PAGE_HEIGHT - height),
+              width,
+              height
+            }
+          : field
+      )
+    );
+  };
+
+  const updateFieldResize = (clientX: number, clientY: number) => {
+    if (!fieldResizeRef.current) return;
+    const { id, startX, startY, originWidth, originHeight } = fieldResizeRef.current;
+    const container = previewContainerRef.current?.getBoundingClientRect();
+    if (!container) return;
+    const dxPx = clientX - startX;
+    const dyPx = clientY - startY;
+    const { scaleX, scaleY } = getPageScale();
+    const dx = dxPx / scaleX;
+    const dy = dyPx / scaleY;
+    const minWidth = 80;
+    const minHeight = 28;
+    setSignatureFields((prev) =>
+      prev.map((field) =>
+        field.id === id
+          ? {
+              ...field,
+              width: Math.max(minWidth, originWidth + dx),
+              height: Math.max(minHeight, originHeight + dy)
+            }
+          : field
+      )
+    );
+  };
+
+  const stopFieldDrag = () => {
+    const current = fieldDragRef.current;
+    if (current) {
+      setSignatureFields((prev) =>
+        prev.map((field) =>
+          field.id === current.id
+            ? {
+                ...field,
+                metadata: {
+                  ...field.metadata,
+                  normalized: {
+                    x: field.x / VIRTUAL_PAGE_WIDTH,
+                    y: field.y / VIRTUAL_PAGE_HEIGHT,
+                    width: field.width / VIRTUAL_PAGE_WIDTH,
+                    height: field.height / VIRTUAL_PAGE_HEIGHT
+                  }
+                }
+              }
+            : field
+        )
+      );
+    }
+    fieldDragRef.current = null;
+    setIsFieldDragging(false);
+  };
+
+  const startGlobalDragListeners = () => {
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+  };
+
+  const stopGlobalDragListeners = () => {
+    window.removeEventListener('mousemove', handleGlobalMouseMove);
+    window.removeEventListener('mouseup', handleGlobalMouseUp);
+  };
+
+  const handleGlobalMouseMove = (event: MouseEvent) => {
+    if (fieldResizeRef.current) {
+      updateFieldResize(event.clientX, event.clientY);
+      return;
+    }
+    if (fieldDragRef.current) {
+      updateFieldDragPosition(event.clientX, event.clientY);
+    }
+    if (signatureDragRef.current) {
+      updateSignatureDragPosition(event.clientX, event.clientY);
+    }
+  };
+
+  const handleGlobalMouseUp = () => {
+    if (fieldResizeRef.current) {
+      const resizeId = fieldResizeRef.current.id;
+      setSignatureFields((prev) =>
+        prev.map((field) =>
+          field.id === resizeId
+            ? {
+                ...field,
+                metadata: {
+                  ...field.metadata,
+                  normalized: {
+                    x: field.x / VIRTUAL_PAGE_WIDTH,
+                    y: field.y / VIRTUAL_PAGE_HEIGHT,
+                    width: field.width / VIRTUAL_PAGE_WIDTH,
+                    height: field.height / VIRTUAL_PAGE_HEIGHT
+                  }
+                }
+              }
+            : field
+        )
+      );
+      fieldResizeRef.current = null;
+      setIsFieldResizing(false);
+    }
+    if (fieldDragRef.current) stopFieldDrag();
+    if (signatureDragRef.current) stopSignatureDrag();
+    stopGlobalDragListeners();
+  };
+
+  const updateSignatureDragPosition = (clientX: number, clientY: number) => {
+    if (!signatureDragRef.current) return;
+    const scrollContainer = pdfScrollRef.current;
+    const container = scrollContainer?.getBoundingClientRect();
+    if (!container) return;
+    const { startX, startY, originX, originY } = signatureDragRef.current;
+    const currentX = clientX - container.left + (scrollContainer?.scrollLeft ?? 0);
+    const currentY = clientY - container.top + (scrollContainer?.scrollTop ?? 0);
+    const startLocalX = startX - container.left + (scrollContainer?.scrollLeft ?? 0);
+    const startLocalY = startY - container.top + (scrollContainer?.scrollTop ?? 0);
+    const dxPx = currentX - startLocalX;
+    const dyPx = currentY - startLocalY;
+    const { scaleX, scaleY } = getPageScale();
+    const dx = dxPx / scaleX;
+    const dy = dyPx / scaleY;
+    maybeAutoScroll(clientY);
+    setSignaturePlacement((prev) => {
+      const nextX = Math.min(Math.max(0, originX + dx), VIRTUAL_PAGE_WIDTH - prev.width);
+      const nextY = Math.min(Math.max(0, originY + dy), VIRTUAL_PAGE_HEIGHT - prev.height);
+      return { ...prev, x: nextX, y: nextY };
+    });
+  };
+
+  const stopSignatureDrag = () => {
+    setSignaturePlacementPct({
+      x: signaturePlacement.x / VIRTUAL_PAGE_WIDTH,
+      y: signaturePlacement.y / VIRTUAL_PAGE_HEIGHT,
+      width: signaturePlacement.width / VIRTUAL_PAGE_WIDTH,
+      height: signaturePlacement.height / VIRTUAL_PAGE_HEIGHT
+    });
+    signatureDragRef.current = null;
+    setIsSignatureDragging(false);
+  };
+
+  const resolveSignatureRect = () => ({
+    left: signaturePlacement.x * getPageScale().scaleX,
+    top: signaturePlacement.y * getPageScale().scaleY,
+    width: signaturePlacement.width * getPageScale().scaleX,
+    height: signaturePlacement.height * getPageScale().scaleY
+  });
 
   const addTextField = () => {
-    const rect = previewContainerRef.current?.getBoundingClientRect();
-    const x = rect ? Math.max(16, rect.width * 0.5 - 90) : 80;
-    const y = rect ? Math.max(16, rect.height * 0.2) : 120;
+    if (isCanvasLocked) return;
+    const x = Math.max(16, VIRTUAL_PAGE_WIDTH * 0.5 - 90);
+    const y = Math.max(16, VIRTUAL_PAGE_HEIGHT * 0.2);
     const batchId = activeBatchId ?? createFieldId();
     const newField: SignatureField = {
       id: createFieldId(),
@@ -1919,14 +2176,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   };
 
   const duplicateField = (id: string) => {
+    if (isCanvasLocked) return;
     const field = signatureFields.find((item) => item.id === id);
     if (!field) return;
     const gap = 12;
-    const copy = { ...field, id: createFieldId(), x: field.x, y: field.y + field.height + gap };
+    const nextY = field.y + field.height + gap;
+    const copy = { ...field, id: createFieldId(), x: field.x, y: nextY, width: field.width, height: field.height };
     setSignatureFields((prev) => [...prev, copy]);
   };
 
   const duplicateBatch = () => {
+    if (isCanvasLocked) return;
     if (signatureFields.length === 0) return;
     const sourceBatchId = activeBatchId ?? signatureFields.find((field) => field.batchId)?.batchId ?? null;
     const sourceFields = sourceBatchId
@@ -1935,8 +2195,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     if (sourceFields.length === 0) return;
     const newBatchId = createFieldId();
     const gap = 16;
-    const rect = previewContainerRef.current?.getBoundingClientRect();
-    const containerWidth = rect?.width ?? null;
+    const containerWidth = VIRTUAL_PAGE_WIDTH;
     const minY = Math.min(...sourceFields.map((field) => field.y));
     const maxY = Math.max(...sourceFields.map((field) => field.y + field.height));
     const minX = Math.min(...sourceFields.map((field) => field.x));
@@ -1956,29 +2215,69 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       id: createFieldId(),
       batchId: newBatchId,
       x: field.x + shiftX,
-      y: field.y
+      y: field.y,
+      width: field.width,
+      height: field.height
     }));
     setSignatureFields((prev) => [...prev, ...batch]);
     setActiveBatchId(newBatchId);
   };
 
   const removeField = (id: string) => {
+    if (isCanvasLocked) return;
     setSignatureFields((prev) => prev.filter((field) => field.id !== id));
   };
 
+  const startFieldResize = (e: React.MouseEvent, id: string) => {
+    if (isCanvasLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const field = signatureFields.find((item) => item.id === id);
+    if (!field) return;
+    fieldResizeRef.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      originWidth: field.width,
+      originHeight: field.height
+    };
+    setIsFieldResizing(true);
+    startGlobalDragListeners();
+  };
+
   const startFieldDrag = (e: React.MouseEvent, id: string) => {
+    if (isCanvasLocked) return;
     e.preventDefault();
     e.stopPropagation();
     const field = signatureFields.find((item) => item.id === id);
     if (!field) return;
     fieldDragRef.current = {
       id,
+      page: field.page,
       startX: e.clientX,
       startY: e.clientY,
       originX: field.x,
-      originY: field.y
+      originY: field.y,
+      width: field.width,
+      height: field.height
     };
     setIsFieldDragging(true);
+    startGlobalDragListeners();
+  };
+
+  const startSignatureDrag = (e: React.MouseEvent) => {
+    if (isCanvasLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = signaturePlacement;
+    signatureDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: rect.x,
+      originY: rect.y
+    };
+    setIsSignatureDragging(true);
+    startGlobalDragListeners();
   };
 
   // Instrumentation: track active scene views (minimal, non-invasive)
@@ -2012,40 +2311,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   }, [previewError]);
 
   React.useEffect(() => {
-    if (!isFieldDragging) return;
-
-    const handleMove = (event: MouseEvent) => {
-      if (!fieldDragRef.current) return;
-      const { id, startX, startY, originX, originY } = fieldDragRef.current;
-      const dx = event.clientX - startX;
-      const dy = event.clientY - startY;
-      const rect = previewContainerRef.current?.getBoundingClientRect();
-      setSignatureFields((prev) =>
-        prev.map((field) =>
-          field.id === id
-            ? {
-                ...field,
-                x: rect ? Math.min(Math.max(0, originX + dx), rect.width - field.width) : originX + dx,
-                y: rect ? Math.min(Math.max(0, originY + dy), rect.height - field.height) : originY + dy
-              }
-            : field
-        )
-      );
-    };
-
-    const handleUp = () => {
-      fieldDragRef.current = null;
-      setIsFieldDragging(false);
-    };
-
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-
     return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
+      stopGlobalDragListeners();
     };
-  }, [isFieldDragging]);
+  }, []);
+
 
   return (
     <>
@@ -2062,10 +2332,50 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         <LegalCenterStage
           canvas={
             /* Center Panel (Main Content) - SIN CLASES GRID */
-            <div className="h-full w-full px-6 py-3">
+            <div className="h-full w-full flex flex-col">
+              {!isFocusMode && (
+                <div className="-mx-1.5 -mt-1.5 px-2 py-1.5 border-b border-gray-200 flex items-center justify-between bg-white">
+                  <div className="text-sm font-semibold text-gray-900">Centro Legal</div>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setHeaderMenuOpen((prev) => !prev)}
+                      className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-md hover:bg-gray-100 transition-colors"
+                      title="Opciones"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    {headerMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeaderMenuOpen(false);
+                            showToast('Borrador guardado.', { type: 'success', duration: 2000 });
+                          }}
+                          className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                        >
+                          Guardar borrador
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeaderMenuOpen(false);
+                            resetAndClose();
+                          }}
+                          className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+                        >
+                          Cerrar sin guardar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="h-full w-full px-6 py-3">
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
-              <div className={`space-y-3 ${isMobile ? 'pb-24' : ''}`}>
+              <div className={`space-y-2 ${isMobile ? 'pb-24' : ''}`}>
               <div>
                 {/* Zona de drop / Preview del documento */}
                                   {!file ? (
@@ -2074,7 +2384,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                         type="file"
                                         className="hidden"
                                         onChange={handleFileSelect}
-                                        accept=".pdf"
+                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt"
                                       />
                                       {/* Título principal */}
                                       <p className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
@@ -2083,9 +2393,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                       {/* Ícono del dropzone */}
                                       <FileText className="w-12 h-12 text-gray-900 mx-auto mb-4" />
                                       {/* Texto de formatos */}
-                                      <p className="text-xs text-gray-500 mt-2">
-                                        Formato PDF (máx 50MB)
-                                      </p>
+      <p className="text-xs text-gray-500 mt-2">
+        PDF, Word, Excel, imágenes (máx 50MB)
+      </p>
                                       <div className="mt-6 pt-4 border-t border-gray-200">
                                         {/* Texto de privacidad */}
                                         <p className="text-sm text-gray-700 font-medium flex items-center justify-center gap-2">
@@ -2099,8 +2409,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                     </label>
                                   ) : (                  <div className={`border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 ${isPreviewFullscreen || isDocumentFocus ? 'fixed inset-0 z-50 rounded-none border-0 bg-white flex flex-col' : ''}`}>
                     {/* Header del preview */}
-                    <div className={`bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between ${isPreviewFullscreen ? 'sticky top-0 z-10' : ''}`}>
-                      <div className="flex items-center gap-3">
+                    <div className={`bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between ${isPreviewFullscreen ? 'sticky top-0 z-10' : ''}`}>
+                        <div className="flex items-center gap-2">
                         {isDocumentFocus && (
                           <button
                             onClick={() => setFocusView(null)}
@@ -2141,12 +2451,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         </div>
                       </div>
                       {/* Iconos alineados en la misma línea */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         {documentPreview && (
                           <button
                             type="button"
                             onClick={addTextField}
-                            className="hidden md:inline-flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className={`hidden md:inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+                              isViewerLocked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
+                            }`}
                             title="Agregar campo de texto"
                           >
                             <PlusSquare className="w-4 h-4" />
@@ -2156,7 +2468,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                           <button
                             type="button"
                             onClick={duplicateBatch}
-                            className="hidden md:inline-flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className={`hidden md:inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+                              isViewerLocked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
+                            }`}
                             title="Duplicar todos los campos"
                           >
                             <Copy className="w-4 h-4" />
@@ -2164,10 +2478,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         )}
                         {documentPreview && (
                           <button
+                            type="button"
+                            onClick={() => setIsCanvasLocked((prev) => !prev)}
+                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                            title={isCanvasLocked ? 'Desbloquear posiciones' : 'Fijar posiciones'}
+                          >
+                            {isCanvasLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                          </button>
+                        )}
+                        {documentPreview && (
+                          <button
                             onClick={() => {
                               setFocusView((prev) => (prev === 'document' ? null : 'document'));
                             }}
-                            className="hidden md:inline-flex h-8 w-8 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
                             title={isDocumentFocus ? 'Volver al Centro Legal' : 'Ver en grande'}
                           >
                             {isDocumentFocus ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -2183,7 +2507,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             {isDocumentFocus ? 'Volver al Centro Legal' : 'Ver documento completo'}
                           </button>
                         )}
-                        <label className="h-8 w-8 inline-flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Cambiar documento">
+                        <label className="h-7 w-7 inline-flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-md transition-colors cursor-pointer" title="Cambiar documento">
                           <input
                             type="file"
                             className="hidden"
@@ -2198,10 +2522,30 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     {/* Preview del contenido - altura fija según modo */}
                     <div
                       ref={previewContainerRef}
-                      className={`relative ${
+                      className={`relative group ${
                         isPreviewFullscreen || isDocumentFocus ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
-                      } bg-gray-100`}
+                      } bg-gray-100 overflow-hidden`}
                     >
+                      {documentLoaded && ndaEnabled && !ndaPanelOpen && !isFocusMode && (
+                        <button
+                          type="button"
+                          onClick={() => setNdaPanelOpen(true)}
+                          className="absolute left-0 top-16 h-7 w-7 -translate-x-1/2 rounded-md bg-white border border-gray-200 text-gray-500 hover:text-gray-900 shadow-sm opacity-0 group-hover:opacity-100 transition"
+                          title="Mostrar panel de NDA"
+                        >
+                          <ChevronRight className="w-4 h-4 mx-auto" />
+                        </button>
+                      )}
+                      {documentLoaded && workflowEnabled && !flowPanelOpen && !isFocusMode && (
+                        <button
+                          type="button"
+                          onClick={() => setFlowPanelOpen(true)}
+                          className="absolute right-0 top-16 h-7 w-7 translate-x-1/2 rounded-md bg-white border border-gray-200 text-gray-500 hover:text-gray-900 shadow-sm opacity-0 group-hover:opacity-100 transition"
+                          title="Mostrar panel de flujo"
+                        >
+                          <ChevronLeft className="w-4 h-4 mx-auto" />
+                        </button>
+                      )}
                           {documentPreview && file.type.startsWith('image/') && (
                             <img
                               src={documentPreview}
@@ -2210,62 +2554,166 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             />
                           )}
                           
-                          {documentPreview && file.type === 'application/pdf' && (
+                          {documentPreview && isPdfPreview && (
                             <>
-                              {isMobile ? (
-                                <div className="w-full h-full bg-white">
-                                  <iframe
-                                    title="Vista previa PDF"
-                                    src={documentPreview}
-                                    className="w-full h-full"
-                                  />
-                                </div>
-                              ) : (
-                                <>
-                                  {!previewError && (
-                                    <object
-                                      data={documentPreview}
-                                      type="application/pdf"
-                                      className="w-full h-full bg-white"
-                                      onLoad={() => setPreviewError(false)}
-                                      onError={() => setPreviewError(true)}
-                                    >
-                                      <p className="text-sm text-gray-500 p-4">
-                                        No se pudo mostrar el PDF en el navegador. Descargalo para verlo.
-                                      </p>
-                                    </object>
-                                  )}
-                                  {previewError && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-white px-6 text-center">
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-semibold text-gray-900">
-                                          Vista previa desactivada para este PDF.
-                                        </p>
-                                        <p className="text-xs text-gray-600">
-                                          Abrilo en otra pestaña o descargalo para conservar la integridad del archivo.
-                                        </p>
-                                        <div className="flex items-center justify-center gap-2">
-                                          <a
-                                            href={documentPreview}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-sm text-gray-900 font-semibold hover:underline"
+                              {(
+                                <PdfEditViewer
+                                  src={documentPreview}
+                                  locked={isViewerLocked}
+                                  virtualWidth={VIRTUAL_PAGE_WIDTH}
+                                  scale={virtualScale}
+                                  scrollRef={pdfScrollRef}
+                                  onError={() => setPdfEditError(true)}
+                                  onMetrics={() => {
+                                    setPdfEditError(false);
+                                  }}
+                                  renderPageOverlay={(pageNumber: number, metrics: PdfPageMetrics) => {
+                                    const locked = isViewerLocked;
+                                    return (
+                                      <div className="absolute inset-0 pointer-events-auto">
+                                        {pageNumber === 1 && mySignature && signaturePreview && (
+                                          <div
+                                            className="absolute pointer-events-auto group"
+                                            style={resolveSignatureRect()}
+                                            onMouseDown={startSignatureDrag}
                                           >
-                                            Abrir en nueva pestaña
-                                          </a>
-                                          <span className="text-gray-300">•</span>
-                                          <a
-                                            href={documentPreview}
-                                            download={file?.name || 'documento.pdf'}
-                                            className="text-sm text-gray-900 font-semibold hover:underline"
-                                          >
-                                            Descargar PDF
-                                          </a>
-                                        </div>
+                                            {signaturePreview.type === 'image' ? (
+                                              <img
+                                                src={signaturePreview.value}
+                                                alt="Firma"
+                                                className="w-full h-full object-contain select-none pointer-events-none"
+                                              />
+                                            ) : (
+                                              <span
+                                                className="block w-full h-full text-4xl text-gray-900/90 select-none pointer-events-none"
+                                                style={{ fontFamily: "'Dancing Script', cursive" }}
+                                              >
+                                                {signaturePreview.value}
+                                              </span>
+                                            )}
+                                            {!locked && (
+                                            <button
+                                              type="button"
+                                              onMouseDown={(event) => event.stopPropagation()}
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                setSignaturePreview(null);
+                                                setUserHasSignature(false);
+                                                setSignatureMode('none');
+                                              }}
+                                              className="absolute -top-6 -right-6 h-5 w-5 text-gray-700 text-[12px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                              title="Eliminar firma"
+                                            >
+                                              ×
+                                            </button>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {signatureFields
+                                          .filter((field) => field.page === pageNumber)
+                                          .map((field) => {
+                                            const rect = resolveFieldRect(field);
+                                            return (
+                                              <div
+                                                key={field.id}
+                                                className="absolute pointer-events-auto border border-blue-300 bg-blue-50/80 rounded-md px-2 py-2 shadow-sm group"
+                                                style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
+                                                onMouseDown={(event) => {
+                                                  if (locked) return;
+                                                  const target = event.target as HTMLElement;
+                                                  if (target.tagName === 'INPUT') return;
+                                                  startFieldDrag(event, field.id);
+                                                }}
+                                                onClick={() => setEditingFieldId(field.id)}
+                                              >
+                                                {!locked && (
+                                                <button
+                                                  type="button"
+                                                  onMouseDown={(event) => event.stopPropagation()}
+                                                  onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    duplicateField(field.id);
+                                                  }}
+                                                  className="absolute -top-6 -left-6 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                  title="Duplicar campo"
+                                                >
+                                                  ⧉
+                                                </button>
+                                                )}
+                                                {!locked && (
+                                                <button
+                                                  type="button"
+                                                  onMouseDown={(event) => startFieldDrag(event, field.id)}
+                                                  className="absolute -top-6 left-1/2 -translate-x-1/2 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-move"
+                                                  title="Mover campo"
+                                                >
+                                                  ⠿
+                                                </button>
+                                                )}
+                                                {!locked && (
+                                                <button
+                                                  type="button"
+                                                  onMouseDown={(event) => event.stopPropagation()}
+                                                  onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    removeField(field.id);
+                                                  }}
+                                                  className="absolute -top-6 -right-6 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                  title="Eliminar campo"
+                                                >
+                                                  ×
+                                                </button>
+                                                )}
+                                                {!locked && (
+                                                <button
+                                                  type="button"
+                                                  onMouseDown={(event) => startFieldResize(event, field.id)}
+                                                  className="absolute -bottom-3 -right-3 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-se-resize"
+                                                  title="Cambiar tamaño"
+                                                >
+                                                  ↘
+                                                </button>
+                                                )}
+                                                {editingFieldId === field.id ? (
+                                                  <input
+                                                    autoFocus
+                                                    value={field.metadata?.label ?? ''}
+                                                    onChange={(event) => {
+                                                      const value = event.target.value;
+                                                      setSignatureFields((prev) =>
+                                                        prev.map((item) =>
+                                                          item.id === field.id
+                                                            ? {
+                                                                ...item,
+                                                                metadata: { ...item.metadata, label: value }
+                                                              }
+                                                            : item
+                                                        )
+                                                      );
+                                                    }}
+                                                    onBlur={() => setEditingFieldId(null)}
+                                                    onKeyDown={(event) => {
+                                                      if (event.key === 'Enter' || event.key === 'Escape') {
+                                                        event.currentTarget.blur();
+                                                      }
+                                                    }}
+                                                    onMouseDown={(event) => event.stopPropagation()}
+                                                    placeholder="Texto"
+                                                    className="w-full h-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-500"
+                                                  />
+                                                ) : (
+                                                  <span className="text-xs text-blue-900/80 select-none">
+                                                    {field.metadata?.label ?? ''}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
                                       </div>
-                                    </div>
-                                  )}
-                                </>
+                                    );
+                                  }}
+                                />
                               )}
                             </>
                           )}
@@ -2280,13 +2728,58 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             </div>
                           )}
 
-                          {documentPreview && signatureFields.length > 0 && (
-                            <div className="absolute inset-0 z-20 pointer-events-none">
+                          {documentPreview && !usePdfEditMode && isPdfPreview && (signatureFields.length > 0 || (mySignature && signaturePreview)) && (
+                            <div
+                              className={`absolute inset-0 ${showSignatureOnPreview || isCanvasLocked ? 'z-0 pointer-events-none' : 'z-20 pointer-events-none'}`}
+                            >
+                              {mySignature && signaturePreview && (
+                                <div
+                                  className="absolute pointer-events-auto group"
+                                  style={resolveSignatureRect()}
+                                  onMouseDown={startSignatureDrag}
+                                >
+                                  {signaturePreview.type === 'image' ? (
+                                    <img
+                                      src={signaturePreview.value}
+                                      alt="Firma"
+                                      className="w-full h-full object-contain select-none pointer-events-none"
+                                    />
+                                  ) : (
+                                    <span
+                                      className="block w-full h-full text-4xl text-gray-900/90 select-none pointer-events-none"
+                                      style={{ fontFamily: "'Dancing Script', cursive" }}
+                                    >
+                                      {signaturePreview.value}
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setSignaturePreview(null);
+                                      setUserHasSignature(false);
+                                      setSignatureMode('none');
+                                    }}
+                                    className="absolute -top-6 -right-6 h-5 w-5 text-gray-700 text-[12px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Eliminar firma"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              )}
+
                               {signatureFields.map((field) => (
                                 <div
                                   key={field.id}
                                   className="absolute pointer-events-auto border border-blue-300 bg-blue-50/80 rounded-md px-2 py-2 shadow-sm group"
-                                  style={{ left: field.x, top: field.y, width: field.width, height: field.height }}
+                                  style={resolveFieldRect(field)}
+                                  onMouseDown={(event) => {
+                                    if (isCanvasLocked) return;
+                                    const target = event.target as HTMLElement;
+                                    if (target.tagName === 'INPUT') return;
+                                    startFieldDrag(event, field.id);
+                                  }}
                                   onClick={() => setEditingFieldId(field.id)}
                                 >
                                   <button
@@ -2495,12 +2988,41 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                   </button>
                                   <button
                                     onClick={async () => {
-                                      if (!file) return;
-
-                                      // Validar que el archivo sea un PDF
-                                      if (file.type !== 'application/pdf') {
+                                      // Validar que el archivo sea un PDF (según preview)
+                                      if (!isPdfPreview) {
                                         toast.error('Solo se puede aplicar firma a archivos PDF. Por favor, seleccioná un archivo PDF.');
                                         return;
+                                      }
+
+                                      let preview: { type: 'image' | 'text'; value: string } | null = null;
+                                      if (signatureTab === 'draw') {
+                                        const dataUrl = getSignatureData();
+                                        if (dataUrl) preview = { type: 'image', value: dataUrl };
+                                      } else if (signatureTab === 'type') {
+                                        preview = { type: 'text', value: typedSignature.trim() };
+                                      } else if (signatureTab === 'upload') {
+                                        if (uploadedSignature) preview = { type: 'image', value: uploadedSignature };
+                                      }
+
+                                      if (preview) {
+                                        setSignaturePreview(preview);
+                                        const nextWidth = preview.type === 'image' ? 220 : Math.max(160, preview.value.length * 12);
+                                        const nextHeight = preview.type === 'image' ? 80 : 48;
+                                        setSignaturePlacement((prev) => ({
+                                          ...prev,
+                                          width: nextWidth,
+                                          height: nextHeight
+                                        }));
+                                        setSignaturePlacementPct((prev) => {
+                                          const baseX = prev?.x ?? signaturePlacement.x;
+                                          const baseY = prev?.y ?? signaturePlacement.y;
+                                          return {
+                                            x: baseX / VIRTUAL_PAGE_WIDTH,
+                                            y: baseY / VIRTUAL_PAGE_HEIGHT,
+                                            width: nextWidth / VIRTUAL_PAGE_WIDTH,
+                                            height: nextHeight / VIRTUAL_PAGE_HEIGHT
+                                          };
+                                        });
                                       }
 
                                       // Marcar que el usuario ya tiene firma
@@ -2565,12 +3087,19 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
               {/* CONSTITUCIÓN: Acciones solo visibles si documentLoaded */}
               {documentLoaded && !isFocusMode && (
-              <div className="space-y-2">
+              <div className="space-y-2 pt-0.5">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {/* PASO 3.2.3: Toggle NDA - Módulo refactorizado (placeholder) */}
                   <NdaToggle
                     enabled={ndaEnabled}
-                    onToggle={setNdaEnabled}
+                    onToggle={(next) => {
+                      setNdaEnabled(next);
+                      if (next) {
+                        setNdaPanelOpen(true);
+                      } else {
+                        setNdaPanelOpen(false);
+                      }
+                    }}
                     disabled={!file}
                   />
                   {/* BLOQUE 1: Toggle de Protección - Módulo refactorizado */}
@@ -2622,6 +3151,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     onToggle={(newState) => {
                       setMySignature(newState);
                       if (newState && file) {
+                        setIsCanvasLocked(false);
                         setShowSignatureOnPreview(true);
                       }
                     }}
@@ -2631,7 +3161,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   {/* PASO 3.2.2: Toggle Flujo - Módulo refactorizado */}
                   <SignatureFlowToggle
                     enabled={workflowEnabled}
-                    onToggle={setWorkflowEnabled}
+                    onToggle={(next) => {
+                      setWorkflowEnabled(next);
+                      if (next) {
+                        setFlowPanelOpen(true);
+                      } else {
+                        setFlowPanelOpen(false);
+                      }
+                    }}
                     disabled={!file}
                   />
                 </div>
@@ -2768,14 +3305,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       setSignatureType('legal');
                       showToast('Firma legal seleccionada', { type: 'success', duration: 2000 });
                     }}
-                    className={`p-4 rounded-lg border-2 transition text-left ${
+                    className={`px-4 py-2 rounded-lg border text-left transition ${
                       signatureType === 'legal'
-                        ? 'border-gray-900 bg-gray-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-blue-900 text-blue-900 bg-transparent'
+                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-semibold text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">
                         Firma Legal
                       </p>
                       <div className="group relative">
@@ -2785,7 +3322,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 mt-1">
                       {!isEnterprisePlan && `${ecosignUsed}/${ecosignTotal} usadas`}
                       {isEnterprisePlan && 'Ilimitadas'}
                     </p>
@@ -2799,14 +3336,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       setShowCertifiedModal(true);
                       showToast('Firma certificada seleccionada', { type: 'success', duration: 2000 });
                     }}
-                    className={`p-4 rounded-lg border-2 transition text-left ${
+                    className={`px-4 py-2 rounded-lg border text-left transition ${
                       signatureType === 'certified'
-                        ? 'border-gray-900 bg-gray-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-blue-900 text-blue-900 bg-transparent'
+                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-semibold text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">
                         Firma Certificada
                       </p>
                       <div className="group relative">
@@ -2816,7 +3353,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 mt-1">
                       {certifiedSubType ? `Tipo: ${certifiedSubType}` : 'Seleccionar tipo'}
                     </p>
                   </button>
@@ -2867,15 +3404,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           )}
 
           {/* PASO 2: Eliminado - ya no es necesario porque los documentos se encriptan */}
-        </div>
-      }
+            </div>
+            </div>
+          }
       leftOverlay={
             !isMobile && documentLoaded && ndaEnabled && !isFocusMode ? (
               <NdaPanel
-                isOpen={ndaEnabled}
+                isOpen={ndaPanelOpen}
                 documentId={undefined}
                 onFocus={() => setFocusView('nda')}
-                onClose={() => setNdaEnabled(false)}
+                onClose={() => setNdaPanelOpen(false)}
                 onSave={(ndaData) => {
                   setNdaText(ndaData.content);
                   console.log('NDA saved:', ndaData);
@@ -2885,17 +3423,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           }
           rightOverlay={
             !isMobile && documentLoaded && workflowEnabled && !isFocusMode ? (
-              <div className="h-full flex flex-col">
+              <div className="h-full flex flex-col bg-white">
                 {/* Header colapsable del panel */}
-            <div className="px-2 py-2 border-b border-gray-200 bg-white">
+            <div className="px-2 py-1.5 border-b border-gray-200 bg-white">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
                 <button
-                  onClick={() => setWorkflowEnabled(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Cerrar panel de firmantes"
+                  onClick={() => setFlowPanelOpen(false)}
+                  className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                  title="Ocultar panel"
                 >
-                  <ChevronUp className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -2972,8 +3510,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               </div>
             ) : undefined
           }
-          leftOpen={!isMobile && ndaEnabled && documentLoaded && !isFocusMode}
-          rightOpen={!isMobile && workflowEnabled && documentLoaded && !isFocusMode}
+          leftOpen={!isMobile && ndaEnabled && ndaPanelOpen && documentLoaded && !isFocusMode}
+          rightOpen={!isMobile && workflowEnabled && flowPanelOpen && documentLoaded && !isFocusMode}
         />
       ) : (
         /* MODELO LEGACY: Grid con compresión (fallback) */

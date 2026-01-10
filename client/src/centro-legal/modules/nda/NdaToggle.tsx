@@ -34,10 +34,10 @@ export const NdaToggle: React.FC<NdaToggleProps> = ({
       type="button"
       onClick={handleClick}
       disabled={disabled}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+      className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
         enabled
-          ? 'bg-gray-900 text-white'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          ? 'border-blue-900 text-blue-900 bg-transparent'
+          : 'border-gray-200 text-gray-600 bg-white hover:border-gray-300'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       {NDA_COPY.toggleLabel}

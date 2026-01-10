@@ -12,7 +12,7 @@
 
 export const PROTECTION_COPY = {
   // Toggle
-  toggleLabel: 'Protección',
+  toggleLabel: 'Protejer',
   
   // Toast al activar
   toastActivated: '🛡️ Protección activada',

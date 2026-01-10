@@ -48,7 +48,9 @@ export default function LegalCenterStage({
   // Los panels se ocultan/muestran con transform, no afectan al canvas
 
   return (
-    <div className="legal-center-stage">
+    <div
+      className={`legal-center-stage${leftOpen ? ' has-left' : ''}${rightOpen ? ' has-right' : ''}`}
+    >
       {/* Canvas Central (FIJO - left: 500px SIEMPRE) */}
       <main
         className="legal-center-stage__canvas"

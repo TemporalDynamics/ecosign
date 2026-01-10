@@ -19,7 +19,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { FileText, Maximize2, Upload } from 'lucide-react';
+import { ChevronLeft, FileText, Maximize2, Upload } from 'lucide-react';
 import { NDA_COPY } from './nda.copy';
 
 type NdaSource = 'template' | 'pasted' | 'uploaded';
@@ -51,8 +51,6 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
   const [source, setSource] = useState<NdaSource>('template');
   const [fileName, setFileName] = useState<string | undefined>();
   const [isDirty, setIsDirty] = useState(false);
-
-  if (!isOpen) return null;
 
   useEffect(() => {
     if (controlledContent !== undefined) {
@@ -114,38 +112,34 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
     setIsDirty(false);
   };
 
+  if (!isOpen) return null;
+
   return (
     <>
       {/* Panel izquierdo - width controlado por Stage CSS */}
-      <div className="w-full bg-white border-r border-gray-200 flex flex-col h-full">
+      <div className="w-full bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
         {/* Header - COMPACTO */}
         <div className="px-2 py-1.5 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <FileText className="w-4 h-4 text-gray-700" />
-            <h3 className="font-semibold text-sm text-gray-900">
-              {NDA_COPY.PANEL_TITLE}
-            </h3>
-          </div>
+          <h3 className="font-semibold text-sm text-gray-900">
+            {NDA_COPY.PANEL_TITLE}
+          </h3>
           {onClose && (
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition text-sm"
+              className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition"
+              title="Ocultar panel"
             >
-              ✕
+              <ChevronLeft className="w-4 h-4" />
             </button>
           )}
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-hidden p-2 flex flex-col gap-2">
-          {/* Descripción */}
-          <p className="text-xs text-gray-600">
-            {NDA_COPY.PANEL_DESCRIPTION}
-          </p>
 
           {/* Visor de contenido - MÁS COMPACTO */}
-          <div className="border border-gray-200 rounded flex flex-col flex-1 min-h-0">
-            <div className="px-2 py-1 bg-gray-50 border-b border-gray-200 text-xs text-gray-600 flex items-center justify-between">
+          <div className="border border-gray-200 rounded-lg flex flex-col flex-1 min-h-0 mt-1">
+            <div className="px-2 py-1 bg-white border-b border-gray-200 text-xs text-gray-600 flex items-center justify-between">
               <span>Vista previa</span>
               <div className="flex items-center gap-1.5">
                 {fileName && (
@@ -193,7 +187,10 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
           </div>
         </div>
         {onSave && (
-          <div className="px-2 py-2 border-t border-gray-200 mb-2">
+          <div className="px-2 py-2 border-t border-gray-200 mb-2 space-y-2">
+            <p className="text-xs text-gray-600">
+              {NDA_COPY.PANEL_DESCRIPTION}
+            </p>
             <button
               onClick={handleSave}
               disabled={!isDirty || !content.trim()}

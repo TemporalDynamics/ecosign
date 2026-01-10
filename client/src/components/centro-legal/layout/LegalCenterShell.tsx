@@ -37,7 +37,7 @@ export function LegalCenterShell({
   // - Canvas es el ÚNICO scroll owner
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 px-0 pt-16 md:pt-20 md:px-4 md:py-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 px-0 pt-12 md:pt-16 md:px-4 md:py-4">
       <div
         className="modal-container bg-white rounded-none md:rounded-2xl w-auto shadow-xl flex flex-col"
         style={{
@@ -46,9 +46,9 @@ export function LegalCenterShell({
 
           // CONTRATO VERTICAL (CRÍTICO)
           // Mobile: viewport - 4rem header
-          height: 'calc(100svh - 4rem)',
+          height: 'calc(100svh - 3rem)',
           // Desktop: viewport - 80px header - 48px margins
-          maxHeight: 'calc(100vh - 128px)',
+          maxHeight: 'calc(100vh - 96px)',
 
           // IMPORTANTE: overflow visible permite que panels absolute
           // se extiendan lateralmente fuera del modal sin clipearlos.

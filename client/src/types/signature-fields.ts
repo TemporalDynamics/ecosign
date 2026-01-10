@@ -51,6 +51,12 @@ export interface SignatureField {
     label?: string;
     placeholder?: string;
     format?: string; // Para date: 'DD/MM/YYYY', 'MM-DD-YYYY', etc.
+    normalized?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
   };
 }
 

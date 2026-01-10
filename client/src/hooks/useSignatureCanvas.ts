@@ -51,7 +51,7 @@ export const useSignatureCanvas = () => {
   };
 
   const startDrawing = (e: MouseEvent | TouchEvent) => {
-    prepareCanvas();
+    e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
 

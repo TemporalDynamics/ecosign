@@ -39,6 +39,7 @@ import { PdfEditViewer, type PdfPageMetrics } from './pdf/PdfEditViewer';
 import { storeEncryptedCustody } from '../lib/custodyStorageService';
 import type { CustodyMode } from '../lib/documentEntityService';
 import { convertToOverlaySpec } from '../utils/overlaySpecConverter';
+import { saveWorkflowFields, loadWorkflowFields } from '../lib/workflowFieldsService';
 
 // PASO 3: Módulos refactorizados
 import { 
@@ -1066,6 +1067,23 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             await advanceLifecycle(canonicalDocumentId, 'witness_ready');
           } catch (err) {
             console.warn('Canonical witness/transform skipped:', err);
+          }
+        }
+
+        // SPRINT 6: Guardar campos de workflow en DB antes de enviar
+        if (canonicalDocumentId && signatureFields.length > 0) {
+          try {
+            console.log('📋 Guardando campos de workflow en DB...');
+            const savedFields = await saveWorkflowFields(
+              signatureFields,
+              canonicalDocumentId,
+              VIRTUAL_PAGE_WIDTH,
+              VIRTUAL_PAGE_HEIGHT
+            );
+            console.log(`✅ ${savedFields.length} campos guardados en workflow_fields`);
+          } catch (fieldsError) {
+            console.warn('⚠️ Error guardando workflow fields, continuando sin persistencia:', fieldsError);
+            // No bloquear el workflow si falla el guardado de campos
           }
         }
 

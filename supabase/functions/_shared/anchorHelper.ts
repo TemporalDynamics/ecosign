@@ -217,3 +217,101 @@ export function deriveProtectionLevel(events: any[]): string {
   if (hasTsa) return 'ACTIVE';
   return 'NONE';
 }
+
+/**
+ * WORKSTREAM 3: Observable Anchoring Events
+ *
+ * These helpers log observability events to the `events` table (legacy).
+ * Unlike canonical anchor events (in document_entities.events[]),
+ * these are for operational visibility:
+ * - anchor.attempt: When anchoring process starts
+ * - anchor.failed: When anchoring fails terminally
+ *
+ * Philosophy: "UI refleja, no afirma"
+ * - NO optimistic UI
+ * - Every attempt is logged
+ * - Every failure is logged
+ * - Only confirmed anchors go to canonical events[]
+ */
+
+/**
+ * Log anchor attempt (observability event)
+ *
+ * Called at START of anchoring process, before sending tx.
+ * Creates audit trail of all attempts (including retries).
+ *
+ * @param supabase - Supabase client
+ * @param userDocumentId - user_documents.id (legacy)
+ * @param network - 'polygon' | 'bitcoin'
+ * @param witnessHash - Hash being anchored
+ * @param metadata - Additional context (txHash if available, etc)
+ */
+export async function logAnchorAttempt(
+  supabase: SupabaseClient,
+  userDocumentId: string,
+  network: AnchorNetwork,
+  witnessHash: string,
+  metadata: Record<string, unknown> = {}
+): Promise<void> {
+  try {
+    await supabase.from('events').insert({
+      event_type: 'anchor.attempt',
+      document_id: userDocumentId,
+      metadata: {
+        network,
+        witness_hash: witnessHash,
+        status: 'pending',
+        attempted_at: new Date().toISOString(),
+        ...metadata
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    // Non-critical: don't block anchoring process if logging fails
+    console.warn('Failed to log anchor.attempt:', err);
+  }
+}
+
+/**
+ * Log anchor failure (observability event)
+ *
+ * Called when anchoring fails terminally (max retries, tx reverted, etc).
+ * Creates audit trail of what went wrong.
+ *
+ * @param supabase - Supabase client
+ * @param userDocumentId - user_documents.id (legacy)
+ * @param network - 'polygon' | 'bitcoin'
+ * @param witnessHash - Hash that failed to anchor
+ * @param errorMessage - Why it failed
+ * @param attempts - Number of attempts made
+ * @param metadata - Additional context
+ */
+export async function logAnchorFailed(
+  supabase: SupabaseClient,
+  userDocumentId: string,
+  network: AnchorNetwork,
+  witnessHash: string,
+  errorMessage: string,
+  attempts: number,
+  metadata: Record<string, unknown> = {}
+): Promise<void> {
+  try {
+    await supabase.from('events').insert({
+      event_type: 'anchor.failed',
+      document_id: userDocumentId,
+      metadata: {
+        network,
+        witness_hash: witnessHash,
+        status: 'failed',
+        error_message: errorMessage,
+        attempts,
+        failed_at: new Date().toISOString(),
+        ...metadata
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    // Non-critical: don't block process if logging fails
+    console.warn('Failed to log anchor.failed:', err);
+  }
+}

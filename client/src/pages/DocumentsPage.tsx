@@ -15,6 +15,7 @@ import MoveToOperationModal from "../components/MoveToOperationModal";
 import SectionToggle from "../components/SectionToggle";
 import OperationRow from "../components/OperationRow";
 import DocumentRow from "../components/DocumentRow";
+import { GRID_TOKENS } from "../config/gridTokens";
 import { ProtectedBadge } from "../components/ProtectedBadge";
 import { getOperations, countDocumentsInOperation, updateOperation, getOperationWithDocuments, protectAndSendOperation } from "../lib/operationsService";
 import { getDocumentEntity } from "../lib/documentEntityService";
@@ -938,7 +939,7 @@ function DocumentsPage() {
           ) : (
             <>
               {/* Shared header (desktop) — global under search/new operation */}
-              <div className="hidden md:grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 px-6 py-3 bg-gray-50 text-xs text-gray-600 font-medium mb-2">
+              <div className={`hidden md:grid ${GRID_TOKENS.documents.columns} ${GRID_TOKENS.documents.gapX} px-6 py-3 bg-gray-50 text-xs text-gray-600 font-medium mb-2`}>
                 <div>Nombre</div>
                 <div>Estado probatorio</div>
                 <div>Fecha de creación</div>
@@ -956,7 +957,7 @@ function DocumentsPage() {
                     {drafts.map((draft) => (
                       <div
                         key={draft.id}
-                        className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-2 bg-white border border-gray-200 rounded-lg"
+                        className={`grid ${GRID_TOKENS.documents.columns} ${GRID_TOKENS.documents.gapX} items-center px-6 py-2 bg-white border border-gray-200 rounded-lg`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
@@ -1091,7 +1092,7 @@ function DocumentsPage() {
               <div className="hidden md:block bg-white border border-gray-200 rounded-lg">
                 <div className="p-4 space-y-2">
                   {filteredDocuments.map((doc) => (
-                    <div key={doc.id} className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-1.5 hover:bg-gray-50 rounded">
+                    <div key={doc.id} className={`grid ${GRID_TOKENS.documents.columns} ${GRID_TOKENS.documents.gapX} items-center px-6 py-1.5 hover:bg-gray-50 rounded`}>
                       <DocumentRow
                         document={doc}
                         asRow

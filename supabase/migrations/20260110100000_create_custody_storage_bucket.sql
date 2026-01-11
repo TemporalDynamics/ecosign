@@ -28,7 +28,7 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
-COMMENT ON TABLE storage.buckets IS 'custody bucket: encrypted originals (custody_mode=encrypted_custody)';
+-- COMMENT ON TABLE storage.buckets IS 'custody bucket: encrypted originals (custody_mode=encrypted_custody)';
 
 -- ========================================
 -- 2. RLS POLICIES (STRICT)

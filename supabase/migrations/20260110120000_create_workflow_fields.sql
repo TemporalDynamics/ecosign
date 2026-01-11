@@ -164,12 +164,10 @@ CREATE POLICY "workflow_fields_signer_update_value"
 -- ========================================
 
 COMMENT ON TABLE workflow_fields IS
-  'Sprint 6: Campos configurables para workflow multi-firmante. ' ||
-  'Owner configura campos que los signers completarán durante el flujo.';
+  'Sprint 6: Campos configurables para workflow multi-firmante. Owner configura campos que los signers completarán durante el flujo.';
 
 COMMENT ON COLUMN workflow_fields.position IS
-  'Posición normalizada (0-1) en formato {page, x, y, width, height}. ' ||
-  'Coordenadas relativas al tamaño de página PDF real.';
+  'Posición normalizada (0-1) en formato {page, x, y, width, height}. Coordenadas relativas al tamaño de página PDF real.';
 
 COMMENT ON COLUMN workflow_fields.assigned_to IS
   'Email del signer asignado. NULL = no asignado aún.';

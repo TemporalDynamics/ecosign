@@ -18,6 +18,7 @@ import SectionToggle from "../components/SectionToggle";
 import OperationRow from "../components/OperationRow";
 import DocumentRow from "../components/DocumentRow";
 import { GRID_TOKENS } from "../config/gridTokens";
+import { deriveFlowStatus, FLOW_STATUS } from "../lib/flowStatus";
 import { ProtectedBadge } from "../components/ProtectedBadge";
 import { getOperations, countDocumentsInOperation, updateOperation, getOperationWithDocuments, protectAndSendOperation } from "../lib/operationsService";
 import { getDocumentEntity } from "../lib/documentEntityService";
@@ -55,6 +56,8 @@ type DocumentRecord = {
   eco_file_data?: string | null;
   ecox_file_data?: string | null;
   status?: string | null;
+  overall_status?: string | null;
+  lifecycle_status?: string | null;
   signed_authority?: 'internal' | 'external' | null;
   events?: any[];
   signer_links?: any[];
@@ -1394,8 +1397,17 @@ function DocumentsPage() {
 
 function PreviewBadges({ doc, planTier }: { doc: DocumentRecord; planTier: PlanTier }) {
   const { config } = deriveProbativeState(doc, planTier);
+  const flowStatus = deriveFlowStatus(doc);
+  const flowConfig = FLOW_STATUS[flowStatus.key];
   return (
     <div className="flex flex-wrap items-center gap-2">
+      <span
+        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${flowConfig.bg} ${flowConfig.color}`}
+        title="Estado del flujo"
+      >
+        {flowConfig.label}
+        {flowStatus.detail ? ` — ${flowStatus.detail}` : ""}
+      </span>
       <span
         className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${config.bg} ${config.color} whitespace-pre-line text-center cursor-help`}
         title={config.tooltip}

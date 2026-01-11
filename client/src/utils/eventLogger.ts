@@ -15,6 +15,9 @@ export const EVENT_TYPES = {
   SIGNED: 'signed',
   ANCHORED_POLYGON: 'anchored_polygon',
   ANCHORED_BITCOIN: 'anchored_bitcoin',
+  ANCHOR_ATTEMPT: 'anchor.attempt',      // ← NUEVO: Intento de anchoring
+  ANCHOR_CONFIRMED: 'anchor.confirmed',  // ← NUEVO: Confirmación de anchor
+  ANCHOR_FAILED: 'anchor.failed',        // ← NUEVO: Fallo de anchoring
   VERIFIED: 'verified',
   DOWNLOADED: 'downloaded',
   EXPIRED: 'expired'
@@ -210,6 +213,66 @@ export const EventHelpers = {
         ...metadata
       }
     }),
+
+  // ========================================================================
+  // WORKSTREAM 3: Observable Anchoring Events
+  // ========================================================================
+
+  logAnchorAttempt: (
+    documentId: string,
+    network: 'polygon' | 'bitcoin',
+    witnessHash: string,
+    metadata: Record<string, unknown> = {}
+  ) =>
+    logEvent(EVENT_TYPES.ANCHOR_ATTEMPT, documentId, {
+      metadata: {
+        network,
+        witness_hash: witnessHash,
+        status: 'pending',
+        attempted_at: new Date().toISOString(),
+        ...metadata
+      }
+    }),
+
+  logAnchorConfirmed: (
+    documentId: string,
+    network: 'polygon' | 'bitcoin',
+    txHash: string,
+    blockHeight: number | null,
+    witnessHash: string,
+    metadata: Record<string, unknown> = {}
+  ) =>
+    logEvent(EVENT_TYPES.ANCHOR_CONFIRMED, documentId, {
+      metadata: {
+        network,
+        witness_hash: witnessHash,
+        txid: txHash,
+        block_height: blockHeight,
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+        ...metadata
+      }
+    }),
+
+  logAnchorFailed: (
+    documentId: string,
+    network: 'polygon' | 'bitcoin',
+    error: string,
+    witnessHash: string,
+    metadata: Record<string, unknown> = {}
+  ) =>
+    logEvent(EVENT_TYPES.ANCHOR_FAILED, documentId, {
+      metadata: {
+        network,
+        witness_hash: witnessHash,
+        status: 'failed',
+        error_message: error,
+        failed_at: new Date().toISOString(),
+        ...metadata
+      }
+    }),
+
+  // ========================================================================
 
   logEcoDownloaded: (documentId: string, userId: string, userEmail: string) =>
     logEvent(EVENT_TYPES.DOWNLOADED, documentId, {

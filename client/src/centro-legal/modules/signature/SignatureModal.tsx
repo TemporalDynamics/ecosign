@@ -14,8 +14,9 @@
  * - Escribir (text input)
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Pencil, X } from 'lucide-react';
+import { useSignatureCanvas } from '@/hooks/useSignatureCanvas';
 import { SIGNATURE_COPY } from './signature.copy';
 import type { SignatureMode, SignatureData } from './signature.rules';
 
@@ -35,8 +36,10 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
   const [activeTab, setActiveTab] = useState<SignatureMode>('canvas');
   const [typedSignature, setTypedSignature] = useState('');
   const [uploadedSignature, setUploadedSignature] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const { canvasRef, hasSignature, clearCanvas, getSignatureData, handlers } = useSignatureCanvas({
+    lineWidth: 2.4,
+    strokeStyle: '#111827',
+  });
 
   useEffect(() => {
     if (isOpen && existingSignature) {
@@ -45,63 +48,11 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
     }
   }, [isOpen, existingSignature]);
 
-  // Canvas drawing handlers
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      setIsDrawing(true);
-    }
-  };
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    }
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  };
-
   const handleSave = () => {
     let imageUrl = '';
 
-    if (activeTab === 'canvas' && canvasRef.current) {
-      imageUrl = canvasRef.current.toDataURL();
+    if (activeTab === 'canvas') {
+      imageUrl = getSignatureData() ?? '';
     } else if (activeTab === 'upload' && uploadedSignature) {
       imageUrl = uploadedSignature;
     } else if (activeTab === 'type' && typedSignature) {
@@ -192,16 +143,18 @@ export const SignatureModal: React.FC<SignatureModalProps> = ({
         <div className="mb-6">
           {activeTab === 'canvas' && (
             <div className="space-y-4">
-              <canvas
-                ref={canvasRef}
-                width={600}
-                height={200}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                className="border-2 border-gray-300 rounded-lg w-full cursor-crosshair"
-              />
+              <div className="relative">
+                <canvas
+                  ref={canvasRef}
+                  {...handlers}
+                  className="border-2 border-gray-300 rounded-lg w-full cursor-pointer"
+                />
+                {!hasSignature && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-gray-300">
+                    <Pencil className="h-8 w-8" />
+                  </div>
+                )}
+              </div>
               <button
                 onClick={clearCanvas}
                 className="text-sm text-gray-600 hover:text-gray-900"

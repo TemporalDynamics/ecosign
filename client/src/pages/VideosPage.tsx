@@ -4,7 +4,7 @@ import FooterPublic from "../components/FooterPublic";
 import VideoPlayer from "../components/VideoPlayer";
 import { videoLibrary } from "../contexts/VideoPlayerContext";
 
-const githubDocsUrl = "https://github.com/TemporalDynamics/ecosign/blob/main/docs/pages/COMO%20LO%20HACEMOS.md";
+const githubDocsUrl = "https://github.com/TemporalDynamics/ecosign/blob/main/COMO%20LO%20HACEMOS.md";
 
 const videos = [
   {

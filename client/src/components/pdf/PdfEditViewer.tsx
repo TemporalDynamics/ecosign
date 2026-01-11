@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/build/pdf.min.mjs';
-import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from 'pdfjs-dist/build/pdf.min.mjs';
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/build/pdf';
 
 GlobalWorkerOptions.workerSrc =
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs';
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
 export type PdfPageMetrics = {
   pageNumber: number;

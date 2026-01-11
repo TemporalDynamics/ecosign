@@ -80,7 +80,7 @@ V. Transparencia Técnica
 Si querés profundizar en los detalles del proceso, podés copiar este texto y analizarlo con tu IA de confianza.
 
 Para desarrolladores y usuarios técnicos:
-https://github.com/TemporalDynamics/ecosign/blob/main/docs/pages/docs/pages/COMO_LO_HACEMOS.md
+https://github.com/TemporalDynamics/ecosign/blob/main/docs/pages/COMO%20LO%20HACEMOS.md
 
 EcoSign - Protección legal para documentos digitales
 ecosign.app
@@ -445,7 +445,7 @@ function HowItWorksPage() {
               </p>
               <div className="text-center">
                 <a
-                  href="https://github.com/TemporalDynamics/ecosign/blob/main/docs/pages/docs/pages/COMO_LO_HACEMOS.md"
+                  href="https://github.com/TemporalDynamics/ecosign/blob/main/docs/pages/COMO%20LO%20HACEMOS.md"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 bg-gray-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-200 transition font-medium text-base"

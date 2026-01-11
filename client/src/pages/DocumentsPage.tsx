@@ -7,6 +7,8 @@ import { deriveProtectionLevel, getAnchorEvent } from "../lib/protectionLevel";
 import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
+import VerifierTimeline from "../components/VerifierTimeline";
+import { buildTimeline } from "../lib/verifier/buildTimeline";
 import FooterInternal from "../components/FooterInternal";
 import InhackeableTooltip from "../components/InhackeableTooltip";
 import ShareDocumentModal from "../components/ShareDocumentModal";
@@ -741,6 +743,11 @@ function DocumentsPage() {
     setShowVerifyModal(true);
   };
 
+  // Timeline state for verifier modal
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+
   const handleShareDoc = (doc: DocumentRecord | null) => {
     if (!doc) return;
     if (isGuestMode()) {
@@ -1292,6 +1299,39 @@ function DocumentsPage() {
                     Verificar otro PDF
                   </button>
                 </div>
+
+                {/* Timeline toggle */}
+                {verifyResult && verifyResult.matches && (
+                  <div className="pt-2">
+                    <button
+                      onClick={() => {
+                        const next = !showTimeline;
+                        setShowTimeline(next);
+                        if (next) {
+                          setTimelineLoading(true);
+                          const docEvents = Array.isArray(verifyDoc?.events) ? verifyDoc!.events : [];
+                          const timeline = buildTimeline({ documentEvents: docEvents, createdAt: verifyDoc?.created_at ?? undefined });
+                          setTimelineEvents(timeline);
+                          setTimelineLoading(false);
+                        }
+                      }}
+                      className="text-sm font-semibold text-[#0E4B8B] hover:text-[#0A3D73] transition"
+                      type="button"
+                    >
+                      {showTimeline ? 'Ocultar historia del documento' : 'Ver historia del documento'}
+                    </button>
+                    {showTimeline && (
+                      <div className="mt-4">
+                        <VerifierTimeline
+                          events={timelineEvents}
+                          loading={timelineLoading}
+                          note="Cronología basada en el certificado (.ECO). No requiere cuenta ni servidor."
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
               </div>
             )}
           </div>

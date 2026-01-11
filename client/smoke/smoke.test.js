@@ -5,7 +5,33 @@ import { Buffer } from 'node:buffer';
 import fs from 'node:fs';
 
 import parser from '../node_modules/@babel/parser/lib/index.js';
-import { verifyTSRToken } from '../src/lib/tsrVerifier.js';
+import { buildSync, transformSync } from 'esbuild';
+import path from 'node:path';
+import os from 'node:os';
+import { createRequire } from 'node:module';
+
+const loadTsrVerifier = async () => {
+  const fileUrl = new URL('../src/lib/tsrVerifier.ts', import.meta.url);
+  const source = fs.readFileSync(fileUrl, 'utf8');
+  const { outputFiles } = buildSync({
+    stdin: {
+      contents: source,
+      resolveDir: path.dirname(fileUrl.pathname),
+      sourcefile: 'tsrVerifier.ts',
+      loader: 'ts',
+    },
+    bundle: true,
+    format: 'cjs',
+    platform: 'node',
+    write: false,
+  });
+  const bundled =
+    outputFiles?.[0]?.text ?? transformSync(source, { loader: 'ts', format: 'cjs' }).code;
+  const tmpPath = path.join(os.tmpdir(), `tsrVerifier.bundle.${process.pid}.cjs`);
+  fs.writeFileSync(tmpPath, bundled, 'utf8');
+  const require = createRequire(import.meta.url);
+  return require(tmpPath);
+};
 
 // Helper similar al usado en DocumentsPage (hash binario → hex)
 async function computeHashHex(buffer) {
@@ -50,6 +76,7 @@ test('worker policy saltea documentos cancelados', () => {
 });
 
 test('tsrVerifier rechaza tokens no DER', async () => {
+  const { verifyTSRToken } = await loadTsrVerifier();
   await assert.rejects(
     () => verifyTSRToken(Buffer.from('abc').toString('base64'), 'deadbeef'),
     /No se pudo parsear el token TSR|La respuesta TSA no trae token|SignedData/
@@ -57,8 +84,8 @@ test('tsrVerifier rechaza tokens no DER', async () => {
 });
 
 test('LegalCenterModal parsea sin errores de sintaxis', () => {
-  const code = fs.readFileSync(new URL('../src/components/LegalCenterModal.jsx', import.meta.url), 'utf8');
+  const code = fs.readFileSync(new URL('../src/components/LegalCenterModalV2.tsx', import.meta.url), 'utf8');
   assert.doesNotThrow(() => {
-    parser.parse(code, { sourceType: 'module', plugins: ['jsx'] });
+    parser.parse(code, { sourceType: 'module', plugins: ['jsx', 'typescript'] });
   });
 });

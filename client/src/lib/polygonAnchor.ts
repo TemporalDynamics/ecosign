@@ -10,6 +10,7 @@ import { getSupabase } from './supabaseClient';
  * @param {string} documentHash - Hash SHA-256 (hex string de 64 caracteres)
  * @param {Object} options - Opciones adicionales
  * @param {string} options.documentId - ID del documento en Supabase
+ * @param {string} options.userDocumentId - ID del user_document (requerido para eventos observables)
  * @param {string} options.userId - ID del usuario
  * @param {string} options.userEmail - Email para notificación
  * @param {Object} options.metadata - Metadata adicional
@@ -21,6 +22,7 @@ type AnchorRequestOptions = {
    * @deprecated Use documentId when available.
    */
   documentHash?: string | null;
+  userDocumentId?: string | null;
   userId?: string | null;
   userEmail?: string | null;
   metadata?: Record<string, unknown>;
@@ -58,6 +60,7 @@ export async function anchorToPolygon(documentHash: string, options: AnchorReque
       body: {
         documentHash: documentHash.toLowerCase(),
         documentId: options.documentId || null,
+        userDocumentId: options.userDocumentId || null,
         userId: options.userId || null,
         userEmail: options.userEmail || null,
         metadata: {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
+import Tooltip from './Tooltip';
 import type { TimelineEvent } from '../lib/verifier/types';
 
 type VerifierTimelineProps = {
@@ -135,6 +136,12 @@ export default function VerifierTimeline({ events, loading = false, error = null
       <div className="flex items-center gap-2 text-gray-700 mb-2">
         <Clock className="w-4 h-4" />
         <span className="text-sm font-semibold">Cronología verificada</span>
+        <div className="ml-2">
+          <Tooltip
+            term={<span className="text-xs text-gray-600">¿Qué es?</span>}
+            definition={<div><p className="font-semibold">¿Qué es la historia del documento?</p><p>Es un resumen cronológico de lo que ocurrió con este documento. Muestra los eventos registrados en el certificado (.ECO), ordenados en el tiempo.</p></div>}
+          />
+        </div>
       </div>
       {note && <p className="text-xs text-gray-500 mb-2">{note}</p>}
 

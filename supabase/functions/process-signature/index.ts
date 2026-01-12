@@ -4,7 +4,7 @@ import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendTsaEventFromEdge } from '../_shared/tsaHelper.ts'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
@@ -220,7 +220,7 @@ serve(async (req) => {
         coordinates: signatureData.coordinates
       },
       workflow: {
-        id: workflow.id,
+        document_entity_id: workflow.document_entity_id || null,
         signingOrder: signer.signing_order
       },
       identity_assurance: identityAssurance,
@@ -365,7 +365,7 @@ serve(async (req) => {
             coordinates: signatureData.coordinates,
           },
           workflow: {
-            id: workflow.id,
+            document_entity_id: workflow.document_entity_id || null,
             version: currentVersion.version_number,
           },
           forensic: {
@@ -482,9 +482,10 @@ serve(async (req) => {
         .eq('id', nextSigner.id)
         .single()
 
-      // Generar URL de firma (necesitamos el token plaintext - esto requiere almacenarlo temporalmente)
-      // Por ahora, asumimos que tenemos una forma de recuperar el token
-      const nextSignerUrl = `${appUrl}/sign/[TOKEN]` // TODO: Resolver esto
+      // Generar URL de firma usando access_token_hash almacenado (usamos el hash como token público)
+      const nextSignerUrl = nextSignerFull?.access_token_hash
+        ? `${appUrl}/sign/${nextSignerFull.access_token_hash}`
+        : `${appUrl}/sign/${nextSigner.id}`
 
       await supabase
         .from('workflow_notifications')
@@ -535,7 +536,6 @@ serve(async (req) => {
 
     return jsonResponse({
       success: true,
-      signatureId: signatureRecord.id,
       workflowStatus: nextSigner ? 'in_progress' : 'completed',
       nextSigner: nextSigner ? {
         email: nextSigner.email,

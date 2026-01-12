@@ -23,3 +23,16 @@ Procesos operativos
 Contacto
 --------
 Mantener un responsable por cada contrato para coordinar producto/seguridad/legal: /OWNERS
+
+Source of Truth
+---------------
+This document and the diagrams it references are the canonical source of truth for workflow, signer, field, delivery and forensic behavior in EcoSign.
+Any implementation that diverges from these rules must introduce a new contract version and document the exception.
+
+Irreversibility and Evidence
+----------------------------
+Once a workflow enters ACTIVE state and evidence is generated, no state transition may invalidate or overwrite existing evidence. Any correction requires creating a new workflow for the same document_entity; historical evidence remains immutable.
+
+Enterprise / HR note
+--------------------
+These contracts are designed to support HR, payroll and enterprise integrations where signers may not have email addresses and delivery may be link-based. The protocol and data model accommodate signers without email and permit different delivery modes while preserving evidence and auditability.

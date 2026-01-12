@@ -15,7 +15,7 @@ import { acceptNda, type NdaContext } from '../lib/ndaEvents';
 interface NDAAcceptanceScreenProps {
   ndaText: string;
   documentName: string;
-  recipientId?: string;        // Para share-link
+  token?: string;              // Para share-link legacy
   signerId?: string;            // Para signature-flow
   context: NdaContext;
   signerName?: string;
@@ -28,7 +28,7 @@ interface NDAAcceptanceScreenProps {
 export function NDAAcceptanceScreen({
   ndaText,
   documentName,
-  recipientId,
+  token,
   signerId,
   context,
   signerName = '',
@@ -51,7 +51,7 @@ export function NDAAcceptanceScreen({
     try {
       // FASE 2.1: Generar evento probatorio de aceptación
       const result = await acceptNda({
-        recipientId,
+        token,
         signerId,
         context,
         ndaText,

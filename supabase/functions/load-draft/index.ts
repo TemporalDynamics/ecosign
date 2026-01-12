@@ -15,7 +15,6 @@
  *     description?: string,
  *     created_at: string,
  *     documents: [{
- *       id: string,
  *       filename: string,
  *       size: number,
  *       draft_file_ref: string,
@@ -35,7 +34,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'GET, OPTIONS'
 }
@@ -116,7 +115,6 @@ serve(async (req) => {
       const { data: documents, error: documentsError } = await supabase
         .from('operation_documents')
         .select(`
-          id,
           draft_file_ref,
           draft_metadata,
           added_at
@@ -136,7 +134,6 @@ serve(async (req) => {
         created_at: operation.created_at,
         updated_at: operation.updated_at,
         documents: (documents || []).map((doc: any) => ({
-          id: doc.id,
           filename: doc.draft_metadata?.filename || 'unknown',
           size: doc.draft_metadata?.size || 0,
           draft_file_ref: doc.draft_file_ref,

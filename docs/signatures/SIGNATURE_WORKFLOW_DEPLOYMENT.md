@@ -159,7 +159,6 @@ curl -X POST "https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/process-sign
 # Resultado esperado:
 # {
 #   "success": true,
-#   "signatureId": "uuid...",
 #   "workflowStatus": "in_progress",
 #   "nextSigner": {
 #     "email": "signer2@test.com",

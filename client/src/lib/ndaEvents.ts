@@ -22,7 +22,7 @@ export type NdaContext = 'share-link' | 'signature-flow' | 'internal-review';
  * Metadata de la aceptación del NDA
  */
 export interface NdaAcceptanceMetadata {
-  recipientId?: string;        // Para share-link
+  token?: string;              // Para share-link legacy
   signerId?: string;            // Para signature-flow
   context: NdaContext;
   ndaText: string;
@@ -30,7 +30,7 @@ export interface NdaAcceptanceMetadata {
   signerName: string;
   signerEmail: string;
   browserFingerprint?: string;
-  linkId?: string;              // Para asociar a un link específico
+  linkId?: string;              // Para asociar a un link específico (document_shares)
 }
 
 /**
@@ -69,8 +69,8 @@ async function generateNdaHash(content: string): Promise<string> {
 export async function acceptShareLinkNda(
   metadata: NdaAcceptanceMetadata
 ): Promise<NdaAcceptanceResult> {
-  // Determinar qué Edge Function usar según si hay recipientId o linkId
-  const useNewShareFlow = metadata.linkId && !metadata.recipientId;
+  // Determinar qué Edge Function usar según si hay linkId (document_shares)
+  const useNewShareFlow = Boolean(metadata.linkId);
   const supabase = getSupabase();
 
   try {
@@ -98,15 +98,14 @@ export async function acceptShareLinkNda(
         alreadyAccepted: data.already_accepted || false,
       };
     } else {
-      // Flujo antiguo: recipients + links
-      if (!metadata.recipientId) {
-        return { success: false, error: 'recipientId es requerido para flujo antiguo' };
+      // Flujo legacy: links + recipients via token
+      if (!metadata.token) {
+        return { success: false, error: 'token es requerido para flujo legacy' };
       }
 
       const { data, error } = await supabase.functions.invoke('accept-nda', {
         body: {
-          recipient_id: metadata.recipientId,
-          link_id: metadata.linkId,
+          token: metadata.token,
           signer_name: metadata.signerName,
           signer_email: metadata.signerEmail,
           nda_version: metadata.ndaVersion || '1.0',
@@ -206,7 +205,7 @@ export async function acceptNda(
  * Valida si un receptor/firmante ya aceptó el NDA
  * 
  * @param context - Contexto de la validación
- * @param id - recipientId o signerId según contexto
+ * @param id - recipient_id interno o signerId según contexto
  * @returns true si ya aceptó, false si no
  */
 export async function hasAcceptedNda(

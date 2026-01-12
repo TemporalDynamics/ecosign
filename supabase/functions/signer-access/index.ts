@@ -4,7 +4,7 @@ import { encode as base64Encode } from 'https://deno.land/std@0.182.0/encoding/b
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
@@ -338,13 +338,12 @@ serve(async (req) => {
 
     return json({
       success: true,
-      id: signer.id,
+      signer_id: signer.id,
       workflow_id: signer.workflow_id,
       email: signer.email,
       name: signer.name,
       signing_order: signer.signing_order,
       status: signer.status,
-      access_token_hash: signer.access_token_hash,
       require_nda: signer.require_nda,
       require_login: signer.require_login,
       quick_access: signer.quick_access,
@@ -352,12 +351,10 @@ serve(async (req) => {
       nda_accepted_at: signer.nda_accepted_at,
       encrypted_pdf_url: encryptedPdfUrl,
       workflow: {
-        id: signer.workflow.id,
         title: signer.workflow.original_filename || signer.workflow.title || null,
         document_path: signer.workflow.document_path ?? version?.document_url ?? null,
         document_hash: signer.workflow.document_hash ?? version?.document_hash ?? null,
         encryption_key: signer.workflow.encryption_key ?? null,
-        owner_id: signer.workflow.owner_id,
         status: signer.workflow.status,
         require_sequential: signer.workflow.require_sequential ?? false,
         original_filename: signer.workflow.original_filename ?? null,

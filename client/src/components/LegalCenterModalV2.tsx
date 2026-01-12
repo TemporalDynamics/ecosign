@@ -39,6 +39,7 @@ import { PdfEditViewer, type PdfPageMetrics } from './pdf/PdfEditViewer';
 import { storeEncryptedCustody } from '../lib/custodyStorageService';
 import type { CustodyMode } from '../lib/documentEntityService';
 import { convertToOverlaySpec } from '../utils/overlaySpecConverter';
+import { saveDraftOperation } from '../lib/draftOperationsService';
 import { saveWorkflowFields, loadWorkflowFields } from '../lib/workflowFieldsService';
 
 // PASO 3: Módulos refactorizados
@@ -2079,6 +2080,37 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const VIRTUAL_PAGE_WIDTH = 1000;
   const VIRTUAL_PAGE_HEIGHT = 1414;
 
+  const handleSaveDraft = async () => {
+    setHeaderMenuOpen(false);
+    if (!file) {
+      showToast('Seleccioná un archivo antes de guardar el borrador.', { type: 'error' });
+      return;
+    }
+
+    try {
+      const overlaySpec = signatureFields.length > 0
+        ? convertToOverlaySpec(signatureFields, null, VIRTUAL_PAGE_WIDTH, VIRTUAL_PAGE_HEIGHT, 'owner')
+        : [];
+      const signaturePreviewValue = signaturePreview?.value;
+
+      await saveDraftOperation(
+        { name: file.name },
+        [file],
+        custodyModeChoice,
+        overlaySpec,
+        signaturePreviewValue,
+        ndaEnabled
+      );
+
+      showToast('Borrador guardado.', { type: 'success', duration: 2000 });
+      window.dispatchEvent(new Event('ecosign:draft-saved'));
+      resetAndClose();
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      showToast('No se pudo guardar el borrador.', { type: 'error' });
+    }
+  };
+
   const getPageScale = () => ({ scaleX: virtualScale, scaleY: virtualScale });
 
   const resolveFieldRect = (field: SignatureField) => {
@@ -2477,8 +2509,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         <button
                           type="button"
                           onClick={() => {
-                            setHeaderMenuOpen(false);
-                            showToast('Borrador guardado.', { type: 'success', duration: 2000 });
+                            handleSaveDraft();
                           }}
                           className="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
                         >

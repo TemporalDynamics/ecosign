@@ -74,7 +74,7 @@ export default function DocumentRow({
     return (
       <div className="contents">
         <div className="flex items-center gap-3 min-w-0">
-          <Shield className="h-5 w-5 text-gray-700 flex-shrink-0" />
+          <Shield className="h-4 w-4 text-gray-700 flex-shrink-0" />
           <div className="min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate max-w-full" title={name}>{name}</div>
             <div className="text-xs text-gray-500">{flowConfig.label}{flowStatus.detail ? ` — ${flowStatus.detail}` : ''}</div>
@@ -141,7 +141,7 @@ export default function DocumentRow({
   return (
     <div className="flex items-center justify-between bg-white rounded-lg p-2 border border-gray-100">
       <div className="flex items-center gap-3 min-w-0">
-        <Shield className="h-5 w-5 text-gray-700 flex-shrink-0" />
+        <Shield className="h-4 w-4 text-gray-700 flex-shrink-0" />
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
           <div className="text-xs text-gray-500">

@@ -18,7 +18,7 @@ jobs:
         run: |
           mkdir -p docs/audits
           # Run psql inside postgres docker image; output captured to file
-          docker run --rm -i -e DATABASE_URL="$DATABASE_URL" -v "${{ github.workspace }}:/work" -w /work postgres:15 sh -c 'psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction -f rls_audit.sql' > docs/audits/GATE0_RLS_STAGING.md
+          docker run --rm -i -e DATABASE_URL="$DATABASE_URL" -v "${{ github.workspace }}:/work" -w /work postgres:15 sh -c 'psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction -f docs/security/rls/rls_audit.sql' > docs/audits/GATE0_RLS_STAGING.md
 
       - name: Commit results
         run: |

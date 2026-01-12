@@ -45,7 +45,17 @@ export default function DocumentRow({
   }, [openMenu]);
 
   const name = document.document_name || document.source_name || document.id;
-  const created = document.created_at ? new Date(document.created_at).toLocaleString() : '—';
+  const formatDocDate = (value?: string | null) => {
+    if (!value) return '—';
+    return new Date(value).toLocaleDateString('es-AR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+  const created = formatDocDate(document.created_at);
   const flowStatus = deriveFlowStatus(document);
   const flowConfig = FLOW_STATUS[flowStatus.key];
 
@@ -142,7 +152,7 @@ export default function DocumentRow({
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onVerify(document)}>Verificar documento</button>
                 )}
                 {onMove && context !== 'operation' && (
-                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onMove(document)}>Mover a operación</button>
+                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onMove(document)}>Agregar a operación</button>
                 )}
               </div>
             )}

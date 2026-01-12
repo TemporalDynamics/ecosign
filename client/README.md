@@ -53,7 +53,7 @@ La aplicación estará disponible en `http://localhost:5173`. El servidor se rec
 ## 🌐 Backend y Despliegue
 
 - **Backend**: Toda la lógica de backend (autenticación, base de datos, almacenamiento y funciones serverless) es manejada por **Supabase**. Las funciones se encuentran en el directorio `/supabase/functions`.
-- **Despliegue**: El frontend se despliega automáticamente en **Vercel** al hacer push a la rama principal. La configuración de despliegue se puede encontrar en `vercel.json`.
+- **Despliegue**: El frontend se despliega automáticamente en **Vercel** al hacer push a la rama principal. La configuración de despliegue se puede encontrar en `docs/ops/vercel.json`.
 
 ---
 

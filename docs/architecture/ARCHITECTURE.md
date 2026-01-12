@@ -524,7 +524,7 @@ sequenceDiagram
 
 ### Security Headers
 
-Configured in `vercel.json`:
+Configured in `docs/ops/vercel.json`:
 
 ```json
 {

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 Disallow: /admin/
-Sitemap: https://www.ecosign.app/sitemap.xml
+Sitemap: https://www.ecosign.app/docs/ops/sitemap.xml

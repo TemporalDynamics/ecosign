@@ -260,7 +260,7 @@ Best,
 ## 💡 QUICK WINS ADICIONALES (Si hay tiempo)
 
 ### A. SEO Básico
-- Agregar `sitemap.xml`
+- Agregar `docs/ops/sitemap.xml`
 - Mejorar meta tags en todas las páginas
 - Crear `robots.txt`
 

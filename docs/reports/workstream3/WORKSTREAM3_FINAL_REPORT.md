@@ -199,8 +199,8 @@ body: {
 - ✅ `scripts/check-pending-anchors.js`
 - ✅ `scripts/rls_postgrest_test_fixed.js`
 - ✅ `docs/implementation/ANCHORING_EVENTS_NOTES.md`
-- ✅ `WORKSTREAM3_COMPLETE.md`
-- ✅ `WORKSTREAM3_FINAL_REPORT.md` (este archivo)
+- ✅ `docs/reports/workstream3/WORKSTREAM3_COMPLETE.md`
+- ✅ `docs/reports/workstream3/WORKSTREAM3_FINAL_REPORT.md` (este archivo)
 
 ---
 

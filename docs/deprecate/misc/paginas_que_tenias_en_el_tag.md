@@ -20,4 +20,4 @@ D	RESUMEN_FINAL.md
 D	RESUMEN_ISSUE_3.md
 D	SEO_META_TAGS.md
 D	SETUP_EMAIL_SYSTEM.md
-M	vercel.json
+M	docs/ops/vercel.json

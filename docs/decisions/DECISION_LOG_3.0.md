@@ -1430,7 +1430,7 @@ WHERE tablename = 'user_documents';
 - Migración RLS: `supabase/migrations/20260111065455_rls_authenticated_users.sql`
 - Test script: `scripts/rls_test_working.js`
 - Debug JWT: `scripts/debug_jwt.js`
-- Workstream 3 Report: `WORKSTREAM3_FINAL_REPORT.md`
+- Workstream 3 Report: `docs/reports/workstream3/WORKSTREAM3_FINAL_REPORT.md`
 
 ### ⏱️ Timeline
 
@@ -1496,7 +1496,7 @@ Se cerraron P0 de seguridad y coherencia de API: rate limiter fail-closed, CORS 
 - UUID-only aplicado en respuestas publicas: `accept-invite-nda`, `verify-invite-access`, `create-invite`, `create-signer-link`, `verify-access`, `save-draft`, `load-draft`, `signer-access`, `process-signature`.
 - `process-signature`: se elimina `signatureId` del response y `workflow.id` en payloads externos.
 - Smoke tests: `supabase/functions/tests/smoke-validation.test.ts`.
-- Checklist de deploy: `DEPLOY_CHECKLIST.md`.
+- Checklist de deploy: `docs/ops/DEPLOY_CHECKLIST.md`.
 
 ### 🔐 Regla Canonica (API)
 Si estas por exponer `{ id: ... }` en response publico:

@@ -26,8 +26,8 @@ interface OperationRowProps {
 
 const STATUS_CONFIG: Record<OperationStatus, { label: string; color: string }> = {
   draft: { label: 'Borrador', color: 'text-amber-700' },
-  active: { label: 'Activa', color: 'text-green-700' },
-  closed: { label: 'Cerrada', color: 'text-blue-700' },
+  active: { label: 'Iniciada', color: 'text-green-700' },
+  closed: { label: 'Completada', color: 'text-blue-700' },
   archived: { label: 'Archivada', color: 'text-gray-500' },
 };
 
@@ -54,6 +54,16 @@ export default function OperationRow({
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
   const menuRef = useRef<HTMLDivElement>(null);
   const statusConfig = STATUS_CONFIG[operation.status];
+  const formatOperationDate = (value?: string | null) => {
+    if (!value) return '—';
+    return new Date(value).toLocaleDateString('es-AR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   // Cerrar menú al hacer click fuera
   useEffect(() => {
@@ -135,7 +145,7 @@ export default function OperationRow({
 
           <div className="text-xs text-gray-500">{/* probative empty for operations */}</div>
 
-          <div className="text-sm text-gray-500">{(operation as any).created_at ? new Date((operation as any).created_at).toLocaleString() : '—'}</div>
+          <div className="text-sm text-gray-500">{formatOperationDate((operation as any).created_at)}</div>
 
           <div className="flex items-center justify-end gap-2">
             <button
@@ -223,7 +233,7 @@ export default function OperationRow({
                       className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
                     >
                       <CheckCircle className="w-4 h-4 text-blue-600" />
-                      Cerrar operación
+                      Marcar como completada
                     </button>
                   )}
 
@@ -425,7 +435,7 @@ export default function OperationRow({
                     className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4 text-blue-600" />
-                    Cerrar operación
+                    Marcar como completada
                   </button>
                 )}
 

@@ -315,6 +315,10 @@ function DocumentsPage() {
   const [expandedOperationId, setExpandedOperationId] = useState<string | null>(null);
   const [moveDoc, setMoveDoc] = useState<DocumentRecord | null>(null);
   const [isCreatingOperationForMove, setIsCreatingOperationForMove] = useState(false);
+  const [editingOperation, setEditingOperation] = useState<Operation | null>(null);
+  const [operationDraftName, setOperationDraftName] = useState("");
+  const [operationDraftDescription, setOperationDraftDescription] = useState("");
+  const [savingOperation, setSavingOperation] = useState(false);
   const [drafts, setDrafts] = useState<DraftMeta[]>([]);
   const [activeSelection, setActiveSelection] = useState<"operations" | "documents" | null>(null);
   const [selectedOperationIds, setSelectedOperationIds] = useState<Set<string>>(new Set());
@@ -324,6 +328,7 @@ function DocumentsPage() {
     documents: false,
     drafts: false
   });
+  const [operationFilter, setOperationFilter] = useState<"active" | "completed" | "archived" | "all">("active");
   const [openDraftMenuId, setOpenDraftMenuId] = useState<string | null>(null);
   const operationsSectionRef = useRef<HTMLDivElement>(null);
   const normalizedSearch = search.trim().toLowerCase();
@@ -438,6 +443,39 @@ function DocumentsPage() {
       return;
     }
     handleResumeDraft(drafts[0].id);
+  };
+
+  const handleEditOperation = (operation: Operation) => {
+    setEditingOperation(operation);
+  };
+
+  const handleSaveOperation = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingOperation) return;
+    const trimmedName = operationDraftName.trim();
+    if (!trimmedName) {
+      toast.error("El nombre es obligatorio", { position: "top-right" });
+      return;
+    }
+    try {
+      setSavingOperation(true);
+      await updateOperation(
+        editingOperation.id,
+        {
+          name: trimmedName,
+          description: operationDraftDescription.trim() || undefined
+        },
+        currentUserId || undefined
+      );
+      toast.success("Operación actualizada", { position: "top-right" });
+      setEditingOperation(null);
+      loadOperations();
+    } catch (error) {
+      console.error("Error updating operation:", error);
+      toast.error("No se pudo actualizar la operación", { position: "top-right" });
+    } finally {
+      setSavingOperation(false);
+    }
   };
 
   const loadDocuments = useCallback(async () => {
@@ -558,6 +596,12 @@ function DocumentsPage() {
   }, [loadDocuments, loadPlan]);
 
   useEffect(() => {
+    if (!editingOperation) return;
+    setOperationDraftName(editingOperation.name || "");
+    setOperationDraftDescription(editingOperation.description || "");
+  }, [editingOperation]);
+
+  useEffect(() => {
     setSectionPrefs(readSectionPrefs(currentUserId));
   }, [currentUserId]);
 
@@ -583,6 +627,13 @@ function DocumentsPage() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [openDraftMenuId]);
+
+  useEffect(() => {
+    setSelectedOperationIds(new Set());
+    if (activeSelection === "operations") {
+      setActiveSelection(null);
+    }
+  }, [operationFilter]);
 
   useEffect(() => {
     if (!directoryMenuOpen.operations && !directoryMenuOpen.documents && !directoryMenuOpen.drafts) return;
@@ -1018,6 +1069,19 @@ function DocumentsPage() {
     );
   }, [drafts, normalizedSearch]);
 
+  const visibleOperations = useMemo(() => {
+    if (operationFilter === "all") return operations;
+    if (operationFilter === "archived") {
+      return operations.filter((operation) => operation.status === "archived");
+    }
+    if (operationFilter === "completed") {
+      return operations.filter((operation) => operation.status === "closed");
+    }
+    return operations.filter((operation) =>
+      operation.status === "active" || operation.status === "draft"
+    );
+  }, [operationFilter, operations]);
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Header variant="private" onLogout={handleLogout} openLegalCenter={openLegalCenter} />
@@ -1225,7 +1289,7 @@ function DocumentsPage() {
                 <SectionToggle
                   key={`operations-${currentUserId ?? "guest"}`}
                   title="Operaciones"
-                  count={operations.length}
+                  count={visibleOperations.length}
                   icon={<Folder className="w-5 h-5 text-gray-600" />}
                   defaultOpen={sectionPrefs.operations}
                   onToggle={(isOpen) => updateSectionPref("operations", isOpen)}
@@ -1279,8 +1343,8 @@ function DocumentsPage() {
                             <button
                               type="button"
                               onClick={() => {
+                                setOperationFilter("active");
                                 setDirectoryMenuOpen((prev) => ({ ...prev, operations: false }));
-                                toast("Filtro de iniciadas próximamente", { position: "top-right" });
                               }}
                               className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
                             >
@@ -1289,8 +1353,8 @@ function DocumentsPage() {
                             <button
                               type="button"
                               onClick={() => {
+                                setOperationFilter("completed");
                                 setDirectoryMenuOpen((prev) => ({ ...prev, operations: false }));
-                                toast("Filtro de completadas próximamente", { position: "top-right" });
                               }}
                               className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
                             >
@@ -1299,12 +1363,22 @@ function DocumentsPage() {
                             <button
                               type="button"
                               onClick={() => {
+                                setOperationFilter("archived");
                                 setDirectoryMenuOpen((prev) => ({ ...prev, operations: false }));
-                                toast("Filtro de archivadas próximamente", { position: "top-right" });
                               }}
                               className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
                             >
                               Ver archivadas
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOperationFilter("all");
+                                setDirectoryMenuOpen((prev) => ({ ...prev, operations: false }));
+                              }}
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
+                            >
+                              Ver todas
                             </button>
                           </div>
                         )}
@@ -1312,13 +1386,13 @@ function DocumentsPage() {
                     </div>
                   }
                 >
-                  {operations.length === 0 ? (
+                  {visibleOperations.length === 0 ? (
                     <div className="text-sm text-gray-500 px-6 py-3">
-                      No tenés operaciones todavía.
+                      No hay operaciones en esta vista.
                     </div>
                   ) : (
                     <div className="space-y-3 mt-2">
-                      {operations.map((operation) => (
+                      {visibleOperations.map((operation) => (
                         <OperationRow
                           key={operation.id}
                           operation={operation}
@@ -1330,19 +1404,20 @@ function DocumentsPage() {
                           selected={selectedOperationIds.has(operation.id)}
                           onSelect={(checked) => toggleOperationSelection(operation.id, checked)}
                           onClick={() => {
-                            // TODO: Navegar a detalle de operación
-                            console.log('Ver operación:', operation);
-                            toast('Detalle de operación próximamente', { position: 'top-right' });
+                            setExpandedOperationId(operation.id);
+                            setOperationsOpenSignal((signal) => signal + 1);
+                            operationsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                           }}
                           onEdit={() => {
-                            // TODO: Abrir modal de edición
-                            console.log('Editar operación:', operation);
-                            toast('Edición próximamente', { position: 'top-right' });
+                            handleEditOperation(operation);
                           }}
                           onChangeStatus={async (newStatus) => {
                             try {
                               await updateOperation(operation.id, { status: newStatus }, currentUserId || undefined);
-                              toast.success(`Operación ${newStatus === 'closed' ? 'cerrada' : 'archivada'}`, { position: 'top-right' });
+                              toast.success(
+                                newStatus === 'closed' ? 'Operación completada' : 'Operación archivada',
+                                { position: 'top-right' }
+                              );
                               loadOperations();
                             } catch (error) {
                               console.error('Error updating operation:', error);
@@ -1903,6 +1978,78 @@ function DocumentsPage() {
             setShowCreateOperationModal(true);
           }}
         />
+      )}
+
+      {/* Modal Renombrar Operación */}
+      {editingOperation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Editar operación</h3>
+                <p className="text-xs text-gray-600">Actualizá el nombre o la descripción</p>
+              </div>
+              <button
+                onClick={() => setEditingOperation(null)}
+                className="text-gray-400 hover:text-gray-600 transition"
+                disabled={savingOperation}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOperation} className="p-6 space-y-4">
+              <div>
+                <label htmlFor="edit-operation-name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre *
+                </label>
+                <input
+                  id="edit-operation-name"
+                  type="text"
+                  value={operationDraftName}
+                  onChange={(e) => setOperationDraftName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                  disabled={savingOperation}
+                  maxLength={200}
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit-operation-description" className="block text-sm font-medium text-gray-700 mb-2">
+                  Descripción (opcional)
+                </label>
+                <textarea
+                  id="edit-operation-description"
+                  value={operationDraftDescription}
+                  onChange={(e) => setOperationDraftDescription(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm resize-none"
+                  disabled={savingOperation}
+                  maxLength={500}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingOperation(null)}
+                  className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                  disabled={savingOperation}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={savingOperation || !operationDraftName.trim()}
+                >
+                  {savingOperation ? "Guardando..." : "Guardar cambios"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

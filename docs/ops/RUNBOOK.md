@@ -110,7 +110,7 @@ git push origin main
 
 **Option C: Emergency maintenance mode**
 ```bash
-# Update vercel.json to show maintenance page
+# Update docs/ops/vercel.json to show maintenance page
 # (Requires deploy, so only if Vercel is working)
 ```
 

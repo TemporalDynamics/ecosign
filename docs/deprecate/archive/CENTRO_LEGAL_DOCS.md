@@ -383,7 +383,7 @@ if (signatureType === 'legal' && signatureMode === 'canvas' && !signerName.trim(
 
 ### **5. Videos del footer no cargaban (CSP)**
 - ❌ **Causa:** Supabase no estaba en whitelist de `media-src`
-- ✅ **Solución:** Agregado en `vercel.json`
+- ✅ **Solución:** Agregado en `docs/ops/vercel.json`
 
 ---
 

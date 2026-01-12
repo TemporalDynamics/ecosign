@@ -144,7 +144,7 @@ Sistema: eleva Assurance Identity Level y registra evento especial de cierre.
 
 9️⃣ Próximo paso (propuesta)
 ---------------------------
-- Convertir todo esto en un documento único: ECOSIGN_HAPPY_PATHS.md (este archivo).
+- Convertir todo esto en un documento único: docs/happy-paths/ECOSIGN_HAPPY_PATHS.md (este archivo).
 - Incluir: Secciones numeradas, Estados (LIVE / PENDING), Notas técnicas para dev, Sin UI, Sin marketing.
 
 Qué permite:

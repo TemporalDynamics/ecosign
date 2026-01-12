@@ -630,7 +630,7 @@ k6 run --vus 10 --duration 30s tests/performance/load-test.js
 
 **Vercel Headers:**
 ```javascript
-// vercel.json
+// docs/ops/vercel.json
 {
   "headers": [
     {

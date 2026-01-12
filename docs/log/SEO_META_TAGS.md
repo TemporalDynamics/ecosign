@@ -296,7 +296,7 @@ const MyPage = () => {
 
 ### Google Search Console
 1. Verificar propiedad del dominio `ecosign.app`
-2. Subir `sitemap.xml`
+2. Subir `docs/ops/sitemap.xml`
 3. Monitorear indexación y errores
 
 ### Schema.org (Structured Data)

@@ -11,7 +11,7 @@ verifysign/
 ├── supabase/        # Database schema, migrations, edge functions
 ├── docs/            # Canonical documentation (this file, deployment, API, security)
 ├── scripts/         # Local automation helpers
-└── vercel.json      # Hosting configuration
+└── docs/ops/vercel.json      # Hosting configuration
 ```
 
 Key principles:
@@ -61,6 +61,6 @@ Key principles:
 ## Deployment
 - Vercel builds the `client/` app using `npm run build` and serves `client/dist` as a static site.
 - Supabase hosts the database, auth, storage, and edge functions; deployments run via `supabase functions deploy <name>` and `supabase db push`.
-- `vercel.json` pins build commands and `supabase/config.toml` tracks project settings.
+- `docs/ops/vercel.json` pins build commands and `supabase/config.toml` tracks project settings.
 
 This architecture keeps the surface area small, ensures every component has a single home, and aligns the repo layout with the Supabase + Vercel JAMStack model described in the cleanup plan.

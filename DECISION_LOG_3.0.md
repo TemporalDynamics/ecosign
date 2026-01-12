@@ -1478,4 +1478,35 @@ Responsables: Claude Code (Sonnet 4.5) + Manu
 Test: `scripts/rls_test_working.js` (211 LOC, 100% passing)
 
 ---
+## P0 Hardening + UUID-Only En Fronteras Publicas — 2026-01-12T07:18:09Z
+
+### 🎯 Resumen
+Se cerraron P0 de seguridad y coherencia de API: rate limiter fail-closed, CORS restringido, validacion runtime con Zod, y regla canonica de UUID-only en respuestas publicas. Se agregaron smoke tests minimos y un checklist de deploy.
+
+### ✅ Decisiones Clave
+- **Rate limiter:** fail-closed con fallback en memoria si Redis falla.
+- **CORS:** prohibido `*` en Edge Functions; usar `ALLOWED_ORIGINS` (fallback a `SITE_URL`/`FRONTEND_URL`).
+- **Validacion runtime:** schemas Zod en endpoints criticos.
+- **UUID-only:** ningun id interno cruza frontera publica; solo UUID canonicos (`*_id` o `*_entity_id`).
+- **accept-nda:** se mueve a flujo por `token` (64 hex) para evitar exponer `recipient_id`.
+
+### ✅ Cambios Implementados
+- Helpers: `supabase/functions/_shared/cors.ts`, `supabase/functions/_shared/validation.ts`, `supabase/functions/_shared/schemas.ts`.
+- Endpoints con Zod + CORS: `verify-access`, `generate-link`, `create-signer-link`, `accept-nda`, `accept-invite-nda`, `accept-share-nda`, `accept-workflow-nda`.
+- UUID-only aplicado en respuestas publicas: `accept-invite-nda`, `verify-invite-access`, `create-invite`, `create-signer-link`, `verify-access`, `save-draft`, `load-draft`, `signer-access`, `process-signature`.
+- `process-signature`: se elimina `signatureId` del response y `workflow.id` en payloads externos.
+- Smoke tests: `supabase/functions/tests/smoke-validation.test.ts`.
+- Checklist de deploy: `DEPLOY_CHECKLIST.md`.
+
+### 🔐 Regla Canonica (API)
+Si estas por exponer `{ id: ... }` en response publico:
+1) Debe ser UUID canonico.  
+2) Si no es necesario, se elimina.  
+3) Nunca aceptar “ambos” (legacy + canonico).
+
+### 🔜 Seguimiento Recomendado
+- Configurar `ALLOWED_ORIGINS` en Supabase secrets y desplegar Edge Functions.
+- Mantener smoke tests como red minima (no expandir sin necesidad).
+
+---
 

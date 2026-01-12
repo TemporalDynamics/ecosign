@@ -14,11 +14,12 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getUserDocumentId } from '../_shared/eventHelper.ts';
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -38,7 +39,8 @@ const VALID_EVENT_TYPES = [
 
 interface LogEventRequest {
   eventType: string;
-  documentId: string;
+  documentId?: string;
+  documentEntityId?: string;
   userId?: string;
   signerLinkId?: string;
   actorEmail?: string;
@@ -82,7 +84,7 @@ serve(async (req) => {
 
     // Parse request body
     const body: LogEventRequest = await req.json();
-    const { eventType, documentId, userId, signerLinkId, actorEmail, actorName, metadata } = body;
+    const { eventType, documentId, documentEntityId, userId, signerLinkId, actorEmail, actorName, metadata } = body;
 
     // Validate event type
     if (!VALID_EVENT_TYPES.includes(eventType)) {
@@ -93,10 +95,20 @@ serve(async (req) => {
     }
 
     // Validate documentId
-    if (!documentId) {
+    if (!documentId && !documentEntityId) {
       return new Response(
-        JSON.stringify({ error: 'documentId is required' }),
+        JSON.stringify({ error: 'documentId or documentEntityId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const resolvedDocumentId = documentId
+      ?? (documentEntityId ? await getUserDocumentId(supabaseAdmin, documentEntityId) : null);
+
+    if (!resolvedDocumentId) {
+      return new Response(
+        JSON.stringify({ error: 'Document not found or access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -104,7 +116,7 @@ serve(async (req) => {
     const { data: document, error: docError } = await supabaseClient
       .from('user_documents')
       .select('id, user_id')
-      .eq('id', documentId)
+      .eq('id', resolvedDocumentId)
       .single();
 
     if (docError || !document) {
@@ -123,7 +135,7 @@ serve(async (req) => {
 
     // Prepare event data
     const eventData = {
-      document_id: documentId,
+      document_id: resolvedDocumentId,
       event_type: eventType,
       timestamp,
       ip_address: ipAddress,
@@ -132,10 +144,13 @@ serve(async (req) => {
       signer_link_id: signerLinkId || null,
       actor_email: actorEmail || user.email || null,
       actor_name: actorName || null,
-      metadata: metadata || {},
+      metadata: {
+        ...(metadata || {}),
+        ...(documentEntityId ? { document_entity_id: documentEntityId } : {})
+      },
     };
 
-    console.log(`📝 Logging event: ${eventType} for document ${documentId}`);
+    console.log(`📝 Logging event: ${eventType} for document ${resolvedDocumentId}`);
 
     // Insert event using SERVICE_ROLE_KEY (bypasses RLS)
     const { data, error } = await supabaseAdmin

@@ -41,13 +41,12 @@ type SignatureStep =
   | 'error'
 
 interface SignerData {
-  id: string
+  signer_id: string
   workflow_id: string
   email: string
   name: string | null
   signing_order: number
   status: string
-  access_token_hash: string
   require_login: boolean
   require_nda: boolean
   quick_access: boolean
@@ -57,12 +56,10 @@ interface SignerData {
   signnow_embed_url?: string | null
   encrypted_pdf_url?: string | null
   workflow: {
-    id: string
     title: string
     document_path: string | null
     document_hash: string | null
     encryption_key: string | null // For decryption
-    owner_id: string
     status: string
     require_sequential: boolean
     original_filename?: string | null
@@ -222,7 +219,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           // Log ECOX event for sequential violation
           await logEvent({
             workflowId: signer.workflow_id,
-            signerId: signer.id,
+            signerId: signer.signer_id,
             eventType: 'sequential_order_violated',
             details: {
               currentOrder: signer.signing_order,
@@ -243,7 +240,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       // Log ECOX event: access_link_opened
       await logEvent({
         workflowId: signer.workflow_id,
-        signerId: signer.id,
+        signerId: signer.signer_id,
         eventType: 'access_link_opened'
       })
 
@@ -281,12 +278,12 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           'apikey': anonKey,
           'Authorization': `Bearer ${anonKey}`
         },
-        body: JSON.stringify({ signer_id: signerData.id, signer_email: signerData.email })
+        body: JSON.stringify({ signer_id: signerData.signer_id, signer_email: signerData.email })
       })
 
       await logEvent({
         workflowId: signerData.workflow_id,
-        signerId: signerData.id,
+        signerId: signerData.signer_id,
         eventType: 'nda_accepted'
       })
 
@@ -312,7 +309,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     try {
       const { error } = await supabase.functions.invoke('record-signer-receipt', {
         body: {
-          signerId: signerData.id,
+          signerId: signerData.signer_id,
           workflowId: signerData.workflow_id,
           email: signerData.email,
           signerName: signerData.name,
@@ -341,7 +338,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     const supabase = getSupabase();
     setError(null)
     const { data, error } = await supabase.functions.invoke('send-signer-otp', {
-      body: { signerId: signerData.id }
+      body: { signerId: signerData.signer_id }
     })
     if (error) {
       setError(error.message)
@@ -357,7 +354,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     const supabase = getSupabase();
     setError(null)
     const { data, error } = await supabase.functions.invoke('verify-signer-otp', {
-      body: { signerId: signerData.id, otp: otpCode.trim() }
+      body: { signerId: signerData.signer_id, otp: otpCode.trim() }
     })
     if (error || !data?.success) {
       setError(error?.message || 'OTP inválido')
@@ -372,7 +369,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     // Log ECOX event
     await logEvent({
       workflowId: signerData.workflow_id,
-      signerId: signerData.id,
+      signerId: signerData.signer_id,
       eventType: 'document_viewed'
     })
 
@@ -388,7 +385,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       // Log ECOX event: signature_applied
       await logEvent({
         workflowId: signerData.workflow_id,
-        signerId: signerData.id,
+        signerId: signerData.signer_id,
         eventType: 'signature_applied',
         details: {
           signature_type: signatureData.type
@@ -483,7 +480,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           signature_data: signatureData.dataUrl,
           signed_at: new Date().toISOString()
         })
-        .eq('id', signerData.id)
+        .eq('id', signerData.signer_id)
 
       if (updateError) {
         throw updateError
@@ -492,7 +489,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       // Log ECOX event: signature_completed
       await logEvent({
         workflowId: signerData.workflow_id,
-        signerId: signerData.id,
+        signerId: signerData.signer_id,
         eventType: 'signature_completed',
         documentHashSnapshot: signedPdfHash
       })
@@ -508,7 +505,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       // Send final package to signer (PDF + ECO)
       try {
         await supabase.functions.invoke('send-signer-package', {
-          body: { signerId: signerData.id }
+          body: { signerId: signerData.signer_id }
         })
       } catch (err) {
         console.warn('No se pudo enviar el paquete final al firmante', err)
@@ -535,7 +532,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     // Log that user is bypassing SignNow
     await logEvent({
       workflowId: signerData.workflow_id,
-      signerId: signerData.id,
+      signerId: signerData.signer_id,
       eventType: 'signnow_bypassed' as any,
       details: { reason: 'embed_error' }
     })
@@ -559,7 +556,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     // Log ECOX event
     await logEvent({
       workflowId: signerData.workflow_id,
-      signerId: signerData.id,
+      signerId: signerData.signer_id,
       eventType: 'eco_downloaded'
     })
 
@@ -778,7 +775,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             documentPath={signerData.workflow.document_path}
             encryptionKey={signerData.workflow.encryption_key}
             workflowId={signerData.workflow_id}
-            signerId={signerData.id}
+            signerId={signerData.signer_id}
             signedUrl={accessMeta?.encrypted_pdf_url}
             onContinue={handleDocumentViewed}
             mode={mode}
@@ -844,7 +841,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             <SignaturePad
               signerName={signerData.name || signerData.email}
               workflowId={signerData.workflow_id}
-              signerId={signerData.id}
+              signerId={signerData.signer_id}
               onSign={handleSignatureApplied}
             />
           )

@@ -5,25 +5,19 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-interface AcceptNdaRequest {
-  recipient_id: string
-  link_id?: string  // NEW: specific link ID to ensure correct NDA text
-  signer_name: string
-  signer_email: string
-  nda_version?: string
-  browser_fingerprint?: string
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
+import { parseJsonBody } from '../_shared/validation.ts'
+import { AcceptNdaSchema } from '../_shared/schemas.ts'
 
 serve(withRateLimit('accept', async (req) => {
+  const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+  if (!isAllowed) {
+    return new Response('CORS not allowed', { status: 403, headers: corsHeaders })
   }
 
   try {
@@ -33,31 +27,44 @@ serve(withRateLimit('accept', async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // Parse request body
-    const body: AcceptNdaRequest = await req.json()
+    const parsed = await parseJsonBody(req, AcceptNdaSchema)
+    if (!parsed.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: parsed.error, details: parsed.details }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
     const {
-      recipient_id,
-      link_id,
+      token,
       signer_name,
       signer_email,
       nda_version = '1.0',
       browser_fingerprint
-    } = body
+    } = parsed.data
 
-    if (!recipient_id || !signer_name || !signer_email) {
-      throw new Error('Missing required fields: recipient_id, signer_name, signer_email')
-    }
+    // Hash token to lookup link
+    const tokenEncoder = new TextEncoder()
+    const tokenData = tokenEncoder.encode(token)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', tokenData)
+    const tokenHash = Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(signer_email)) {
-      throw new Error('Invalid email format')
+    const { data: link, error: linkError } = await supabase
+      .from('links')
+      .select('id, recipient_id, nda_text')
+      .eq('token_hash', tokenHash)
+      .single()
+
+    if (linkError || !link?.recipient_id) {
+      throw new Error('Invalid or expired link')
     }
 
     // Verify recipient exists
     const { data: recipient, error: recipientError } = await supabase
       .from('recipients')
       .select('id, email, document_id')
-      .eq('id', recipient_id)
+      .eq('id', link.recipient_id)
       .single()
 
     if (recipientError || !recipient) {
@@ -68,7 +75,7 @@ serve(withRateLimit('accept', async (req) => {
     const { data: existingNda } = await supabase
       .from('nda_acceptances')
       .select('id, accepted_at')
-      .eq('recipient_id', recipient_id)
+      .eq('recipient_id', recipient.id)
       .single()
 
     if (existingNda) {
@@ -95,35 +102,11 @@ serve(withRateLimit('accept', async (req) => {
     // Fetch NDA text for this link (specific link_id or fallback to latest)
     let ndaText: string | null = null
 
-    if (link_id) {
-      // NEW: Use specific link_id to ensure correct NDA text
-      const { data: linkData, error: linkError } = await supabase
-        .from('links')
-        .select('nda_text')
-        .eq('id', link_id)
-        .single()
-
-      if (!linkError && linkData?.nda_text) {
-        ndaText = linkData.nda_text
-      }
-    } else {
-      // FALLBACK: For backward compatibility, use latest link (old behavior)
-      const { data: linkData, error: linkError } = await supabase
-        .from('links')
-        .select('nda_text')
-        .eq('recipient_id', recipient_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      if (!linkError && linkData?.nda_text) {
-        ndaText = linkData.nda_text
-      }
-    }
+    ndaText = link.nda_text || null
 
     // Generate NDA hash (hash of the acceptance details + NDA text)
     const ndaContent = JSON.stringify({
-      recipient_id,
+      recipient_id: recipient.id,
       signer_name,
       signer_email,
       nda_version,
@@ -156,7 +139,7 @@ serve(withRateLimit('accept', async (req) => {
     const { data: ndaAcceptance, error: ndaError } = await supabase
       .from('nda_acceptances')
       .insert({
-        recipient_id,
+        recipient_id: recipient.id,
         eco_nda_hash: ndaHash,
         ip_address: ipAddress,
         user_agent: userAgent,
@@ -174,7 +157,7 @@ serve(withRateLimit('accept', async (req) => {
     await supabase
       .from('access_events')
       .insert({
-        recipient_id,
+        recipient_id: recipient.id,
         event_type: 'view', // NDA acceptance is treated as first view
         ip_address: ipAddress,
         user_agent: userAgent,

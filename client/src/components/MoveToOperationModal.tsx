@@ -15,7 +15,7 @@ interface MoveToOperationModalProps {
   documentName: string;
   userId: string;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (operationId: string) => void;
   onCreateNew?: () => void;
 }
 
@@ -66,7 +66,7 @@ export default function MoveToOperationModal({
         { position: 'top-right', duration: 4000 }
       );
 
-      onSuccess();
+      onSuccess(selectedOperationId);
       onClose();
     } catch (error: any) {
       console.log('Error caught in handleMove:', error); // Debugging line

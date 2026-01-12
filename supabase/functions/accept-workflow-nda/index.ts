@@ -1,15 +1,12 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { parseJsonBody } from '../_shared/validation.ts'
+import { AcceptWorkflowNdaSchema } from '../_shared/schemas.ts'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
-
-interface AcceptWorkflowNdaRequest {
-  signer_id: string
-  signer_email: string
 }
 
 const json = (data: unknown, status = 200) =>
@@ -28,11 +25,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { signer_id, signer_email } = (await req.json()) as AcceptWorkflowNdaRequest
-
-    if (!signer_id || !signer_email) {
-      return json({ error: 'signer_id and signer_email are required' }, 400)
+    const parsed = await parseJsonBody(req, AcceptWorkflowNdaSchema)
+    if (!parsed.ok) {
+      return json({ error: parsed.error, details: parsed.details }, 400)
     }
+    const { signer_id, signer_email } = parsed.data
 
     const { data: signer, error } = await supabase
       .from('workflow_signers')

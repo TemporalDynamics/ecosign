@@ -1,13 +1,10 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
-
-interface AcceptNDARequest {
-  token: string;
-  accepted: boolean;
-}
+import { parseJsonBody } from '../_shared/validation.ts';
+import { AcceptInviteNdaSchema } from '../_shared/schemas.ts';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400'
@@ -31,22 +28,14 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Parse request body
-    const body: AcceptNDARequest = await req.json();
-    const { token, accepted } = body;
-
-    if (!token) {
+    const parsed = await parseJsonBody(req, AcceptInviteNdaSchema);
+    if (!parsed.ok) {
       return new Response(
-        JSON.stringify({ error: 'Token is required' }),
+        JSON.stringify({ error: parsed.error, details: parsed.details }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    if (accepted !== true) {
-      return new Response(
-        JSON.stringify({ error: 'NDA must be accepted' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const { token } = parsed.data;
 
     // Find invite by token
     const { data: invite, error: inviteError } = await supabase
@@ -85,10 +74,8 @@ serve(async (req) => {
           success: true,
           message: 'NDA already accepted',
           invite: {
-            id: invite.id,
             email: invite.email,
             role: invite.role,
-            documentId: invite.document_id,
             ndaAcceptedAt: invite.nda_accepted_at
           }
         }),
@@ -128,10 +115,8 @@ serve(async (req) => {
         success: true,
         message: 'NDA accepted successfully',
         invite: {
-          id: updatedInvite.id,
           email: updatedInvite.email,
           role: updatedInvite.role,
-          documentId: updatedInvite.document_id,
           ndaAcceptedAt: updatedInvite.nda_accepted_at
         }
       }),

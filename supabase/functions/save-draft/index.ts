@@ -19,7 +19,7 @@
  * Returns: {
  *   success: boolean,
  *   operation_id: string,
- *   documents: [{ id: string, filename: string }]
+ *   documents: [{ filename: string }]
  * }
  *
  * ⚠️ SECURITY NOTE (Phase 1):
@@ -39,7 +39,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
@@ -135,7 +135,7 @@ serve(async (req) => {
     const operationId = operationData.id
 
     // 5. Guardar documentos draft
-    const savedDocuments: { id: string; filename: string }[] = []
+    const savedDocuments: { filename: string }[] = []
 
     for (const doc of documents) {
       // TODO (Sprint 4 - Custody Mode): Implement encryption service
@@ -157,7 +157,7 @@ serve(async (req) => {
         ...doc.metadata
       }
 
-      const { data: documentData, error: documentError } = await supabase
+      const { error: documentError } = await supabase
         .from('operation_documents')
         .insert({
           operation_id: operationId,
@@ -176,7 +176,6 @@ serve(async (req) => {
       }
 
       savedDocuments.push({
-        id: documentData.id,
         filename: doc.filename
       })
     }

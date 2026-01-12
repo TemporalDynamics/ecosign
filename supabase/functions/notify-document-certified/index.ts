@@ -1,11 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendEmail, buildDocumentCertifiedEmail } from '../_shared/email.ts';
+import { getUserDocumentId } from '../_shared/eventHelper.ts';
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -15,10 +16,10 @@ serve(async (req) => {
   }
 
   try {
-    const { documentId } = await req.json();
+    const { documentId, documentEntityId } = await req.json();
 
-    if (!documentId) {
-      throw new Error('documentId is required');
+    if (!documentId && !documentEntityId) {
+      throw new Error('documentId or documentEntityId is required');
     }
 
     // Create Supabase client
@@ -28,10 +29,17 @@ serve(async (req) => {
     );
 
     // Get document info
+    const resolvedDocumentId = documentId
+      ?? (documentEntityId ? await getUserDocumentId(supabase, documentEntityId) : null);
+
+    if (!resolvedDocumentId) {
+      throw new Error('Document not found');
+    }
+
     const { data: document, error: docError } = await supabase
       .from('user_documents')
       .select('id, document_name, user_id, created_at, eco_data')
-      .eq('id', documentId)
+      .eq('id', resolvedDocumentId)
       .single();
 
     if (docError || !document) {

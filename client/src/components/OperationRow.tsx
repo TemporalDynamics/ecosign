@@ -4,7 +4,8 @@
 // ========================================
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Folder, MoreVertical, FolderOpen, Edit, CheckCircle, Archive, Send } from 'lucide-react';
+import { Folder, MoreVertical, FolderOpen, Edit, CheckCircle, Archive, Send, Eye, Share2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import type { Operation, OperationStatus } from '../types/operations';
 import DocumentRow from './DocumentRow';
 import { mapEntityToDocumentRecord } from '../lib/documentEntityService';
@@ -16,6 +17,9 @@ interface OperationRowProps {
   onEdit?: () => void;
   onChangeStatus?: (status: OperationStatus) => void;
   onProtectAndSend?: () => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (checked: boolean) => void;
   openSignal?: number;
   autoOpen?: boolean;
 }
@@ -37,12 +41,17 @@ export default function OperationRow({
   onOpenDocument,
   openSignal,
   autoOpen,
+  selectable = false,
+  selected = false,
+  onSelect,
   tableLayout = false,
 }: OperationRowProps & { onOpenDocument?: (documentId: string) => void; tableLayout?: boolean }) {
   const [showMenu, setShowMenu] = useState(false);
   const [open, setOpen] = useState(false);
   const [docs, setDocs] = useState<any[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [docSelectMode, setDocSelectMode] = useState(false);
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
   const menuRef = useRef<HTMLDivElement>(null);
   const statusConfig = STATUS_CONFIG[operation.status];
 
@@ -88,12 +97,34 @@ export default function OperationRow({
     }
   }, [autoOpen, openSignal]);
 
+  const toggleDocSelection = (docId: string, checked: boolean) => {
+    setSelectedDocIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(docId);
+      } else {
+        next.delete(docId);
+      }
+      return next;
+    });
+  };
+
   if (tableLayout) {
     return (
       <div>
         <div className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-3 bg-sky-50 rounded-lg">
           <div className="flex items-center gap-3">
             <button onClick={() => setOpen(!open)} className="flex items-center gap-3 text-left" type="button">
+              {selectable && (
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 text-black border-gray-300 rounded"
+                  checked={selected}
+                  onChange={(e) => onSelect?.(e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Seleccionar operación"
+                />
+              )}
               <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
               <div className="min-w-0">
                 <div className="font-semibold text-gray-900 text-sm truncate">{operation.name}</div>
@@ -107,6 +138,28 @@ export default function OperationRow({
           <div className="text-sm text-gray-500">{(operation as any).created_at ? new Date((operation as any).created_at).toLocaleString() : '—'}</div>
 
           <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => onClick?.()}
+              className="text-black hover:text-gray-600"
+              title="Ver detalle"
+              type="button"
+            >
+              <Eye className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setDocSelectMode((prev) => {
+                const next = !prev;
+                if (!next) {
+                  setSelectedDocIds(new Set());
+                }
+                return next;
+              })}
+              className="text-black hover:text-gray-600"
+              title="Compartir"
+              type="button"
+            >
+              <Share2 className="h-5 w-5" />
+            </button>
             <div className="relative" ref={menuRef}>
               <button
                 onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
@@ -134,6 +187,23 @@ export default function OperationRow({
                     >
                       <Edit className="w-4 h-4 text-gray-600" />
                       Renombrar
+                    </button>
+                  )}
+
+                  {docSelectMode && (
+                    <button
+                      onClick={() => {
+                        setShowMenu(false);
+                        if (selectedDocIds.size === 0) {
+                          toast('Seleccioná documentos para compartir', { position: 'top-right' });
+                          return;
+                        }
+                        toast('Compartir por lote próximamente', { position: 'top-right' });
+                      }}
+                      className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <Share2 className="w-4 h-4 text-gray-600" />
+                      Compartir seleccionados
                     </button>
                   )}
 
@@ -190,6 +260,9 @@ export default function OperationRow({
                         asRow
                         context="operation"
                         onOpen={() => onOpenDocument?.(mapped.id)}
+                        selectable={docSelectMode}
+                        selected={selectedDocIds.has(mapped.id)}
+                        onSelect={(checked) => toggleDocSelection(mapped.id, checked)}
                       />
                     </div>
                   );
@@ -212,6 +285,16 @@ export default function OperationRow({
           type="button"
         >
           {/* Icono de carpeta */}
+          {selectable && (
+            <input
+              type="checkbox"
+              className="h-4 w-4 text-black border-gray-300 rounded"
+              checked={selected}
+              onChange={(e) => onSelect?.(e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Seleccionar operación"
+            />
+          )}
           <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
 
           {/* Info de la operación */}
@@ -239,87 +322,128 @@ export default function OperationRow({
           </div>
         </button>
 
-        {/* Derecha: Menú */}
-        <div className="relative flex-shrink-0 ml-2" ref={menuRef}>
+        {/* Derecha: Acciones */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMenu(!showMenu);
-            }}
-            className="p-2 hover:bg-sky-200 rounded-lg transition-colors"
+            onClick={() => onClick?.()}
+            className="text-black hover:text-gray-600"
+            title="Ver detalle"
             type="button"
-            aria-label="Opciones de operación"
           >
-            <MoreVertical className="w-4 h-4 text-gray-600" />
+            <Eye className="h-5 w-5" />
           </button>
+          <button
+            onClick={() => setDocSelectMode((prev) => {
+              const next = !prev;
+              if (!next) {
+                setSelectedDocIds(new Set());
+              }
+              return next;
+            })}
+            className="text-black hover:text-gray-600"
+            title="Compartir"
+            type="button"
+          >
+            <Share2 className="h-5 w-5" />
+          </button>
+          <div className="relative flex-shrink-0 ml-1" ref={menuRef}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu(!showMenu);
+              }}
+              className="p-2 hover:bg-sky-200 rounded-lg transition-colors"
+              type="button"
+              aria-label="Opciones de operación"
+            >
+              <MoreVertical className="w-4 h-4 text-gray-600" />
+            </button>
 
-          {/* Dropdown menu */}
-          {showMenu && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  onClick?.();
-                }}
-                className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
-              >
-                <FolderOpen className="w-4 h-4 text-gray-600" />
-                Ver operación
-              </button>
-
-              {onEdit && (
+            {/* Dropdown menu */}
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
                 <button
                   onClick={() => {
                     setShowMenu(false);
-                    onEdit();
+                    onClick?.();
                   }}
                   className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
                 >
-                  <Edit className="w-4 h-4 text-gray-600" />
-                  Renombrar
+                  <FolderOpen className="w-4 h-4 text-gray-600" />
+                  Ver operación
                 </button>
-              )}
 
-              {onProtectAndSend && operation.status === 'draft' && (
-                <button
-                  onClick={() => {
-                    setShowMenu(false);
-                    onProtectAndSend();
-                  }}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2 text-green-700 font-semibold"
-                >
-                  <Send className="w-4 h-4 text-green-600" />
-                  Proteger y enviar
-                </button>
-              )}
+                {onEdit && (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      onEdit();
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4 text-gray-600" />
+                    Renombrar
+                  </button>
+                )}
 
-              {onChangeStatus && operation.status === 'active' && (
-                <button
-                  onClick={() => {
-                    setShowMenu(false);
-                    onChangeStatus('closed');
-                  }}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <CheckCircle className="w-4 h-4 text-blue-600" />
-                  Cerrar operación
-                </button>
-              )}
+                {docSelectMode && (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      if (selectedDocIds.size === 0) {
+                        toast('Seleccioná documentos para compartir', { position: 'top-right' });
+                        return;
+                      }
+                      toast('Compartir por lote próximamente', { position: 'top-right' });
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Share2 className="w-4 h-4 text-gray-600" />
+                    Compartir seleccionados
+                  </button>
+                )}
 
-              {onChangeStatus && operation.status !== 'archived' && (
-                <button
-                  onClick={() => {
-                    setShowMenu(false);
-                    onChangeStatus('archived');
-                  }}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <Archive className="w-4 h-4 text-gray-600" />
-                  Archivar
-                </button>
-              )}
-            </div>
-          )}
+                {onProtectAndSend && operation.status === 'draft' && (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      onProtectAndSend();
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2 text-green-700 font-semibold"
+                  >
+                    <Send className="w-4 h-4 text-green-600" />
+                    Proteger y enviar
+                  </button>
+                )}
+
+                {onChangeStatus && operation.status === 'active' && (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      onChangeStatus('closed');
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                    Cerrar operación
+                  </button>
+                )}
+
+                {onChangeStatus && operation.status !== 'archived' && (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      onChangeStatus('archived');
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Archive className="w-4 h-4 text-gray-600" />
+                    Archivar
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -341,6 +465,9 @@ export default function OperationRow({
                     document={mapped}
                     context="operation"
                     onOpen={() => onOpenDocument?.(mapped.id)}
+                    selectable={docSelectMode}
+                    selected={selectedDocIds.has(mapped.id)}
+                    onSelect={(checked) => toggleDocSelection(mapped.id, checked)}
                   />
                 );
               })}

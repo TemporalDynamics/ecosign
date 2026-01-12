@@ -4,7 +4,7 @@ import { getSupabase } from "../lib/supabaseClient";
 import { emitEcoVNext } from "../lib/documentEntityService";
 import { getLatestTsaEvent, formatTsaTimestamp } from "../lib/events/tsa";
 import { deriveProtectionLevel, getAnchorEvent } from "../lib/protectionLevel";
-import { AlertCircle, CheckCircle, Copy, Download, Eye, FilePlus, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Copy, Download, Eye, FilePlus, FileText, Folder, FolderPlus, MoreVertical, Play, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
 import VerifierTimeline from "../components/VerifierTimeline";
@@ -316,6 +316,15 @@ function DocumentsPage() {
   const [moveDoc, setMoveDoc] = useState<DocumentRecord | null>(null);
   const [isCreatingOperationForMove, setIsCreatingOperationForMove] = useState(false);
   const [drafts, setDrafts] = useState<DraftMeta[]>([]);
+  const [activeSelection, setActiveSelection] = useState<"operations" | "documents" | null>(null);
+  const [selectedOperationIds, setSelectedOperationIds] = useState<Set<string>>(new Set());
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
+  const [directoryMenuOpen, setDirectoryMenuOpen] = useState({
+    operations: false,
+    documents: false,
+    drafts: false
+  });
+  const [openDraftMenuId, setOpenDraftMenuId] = useState<string | null>(null);
   const operationsSectionRef = useRef<HTMLDivElement>(null);
   const normalizedSearch = search.trim().toLowerCase();
   const isSearchActive = normalizedSearch.length > 0;
@@ -384,6 +393,51 @@ function DocumentsPage() {
       return;
     }
     setShowCreateOperationModal(true);
+  };
+
+  const toggleDirectorySelection = (section: "operations" | "documents") => {
+    setActiveSelection((prev) => {
+      const next = prev === section ? null : section;
+      if (next !== "operations") {
+        setSelectedOperationIds(new Set());
+      }
+      if (next !== "documents") {
+        setSelectedDocumentIds(new Set());
+      }
+      return next;
+    });
+  };
+
+  const toggleOperationSelection = (operationId: string, checked: boolean) => {
+    setSelectedOperationIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(operationId);
+      } else {
+        next.delete(operationId);
+      }
+      return next;
+    });
+  };
+
+  const toggleDocumentSelection = (docId: string, checked: boolean) => {
+    setSelectedDocumentIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(docId);
+      } else {
+        next.delete(docId);
+      }
+      return next;
+    });
+  };
+
+  const handleContinueLatestDraft = () => {
+    if (drafts.length === 0) {
+      toast("No hay borradores para continuar.", { position: "top-right" });
+      return;
+    }
+    handleResumeDraft(drafts[0].id);
   };
 
   const loadDocuments = useCallback(async () => {
@@ -517,6 +571,30 @@ function DocumentsPage() {
       window.removeEventListener('storage', handler);
     };
   }, [loadDrafts]);
+
+  useEffect(() => {
+    if (!openDraftMenuId) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest?.('[data-draft-menu]')) {
+        setOpenDraftMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [openDraftMenuId]);
+
+  useEffect(() => {
+    if (!directoryMenuOpen.operations && !directoryMenuOpen.documents && !directoryMenuOpen.drafts) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest?.('[data-directory-menu]')) {
+        setDirectoryMenuOpen({ operations: false, documents: false, drafts: false });
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [directoryMenuOpen]);
 
   // Auto-recovery: mostrar notificación si hay drafts tras posible crash
   useEffect(() => {
@@ -1153,14 +1231,85 @@ function DocumentsPage() {
                   onToggle={(isOpen) => updateSectionPref("operations", isOpen)}
                   openSignal={operationsOpenSignal}
                   action={
-                    <button
-                      type="button"
-                      onClick={handleCreateOperation}
-                      className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
-                      title="Nueva operación"
-                    >
-                      <FolderPlus className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2" data-directory-actions="operations">
+                      <button
+                        type="button"
+                        onClick={handleCreateOperation}
+                        className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
+                        title="Nueva operación"
+                      >
+                        <FolderPlus className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleDirectorySelection("operations")}
+                        className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
+                        title="Compartir operaciones"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                      <div className="relative" data-directory-menu>
+                        <button
+                          type="button"
+                          onClick={() => setDirectoryMenuOpen((prev) => ({
+                            operations: !prev.operations,
+                            documents: false,
+                            drafts: false
+                          }))}
+                          className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
+                          title="Opciones"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                        {directoryMenuOpen.operations && (
+                          <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
+                            {activeSelection === "operations" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveSelection(null);
+                                  setSelectedOperationIds(new Set());
+                                  setDirectoryMenuOpen((prev) => ({ ...prev, operations: false }));
+                                }}
+                                className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
+                              >
+                                Salir de selección
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDirectoryMenuOpen((prev) => ({ ...prev, operations: false }));
+                                toast("Filtro de iniciadas próximamente", { position: "top-right" });
+                              }}
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
+                            >
+                              Ver iniciadas
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDirectoryMenuOpen((prev) => ({ ...prev, operations: false }));
+                                toast("Filtro de completadas próximamente", { position: "top-right" });
+                              }}
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
+                            >
+                              Ver completadas
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDirectoryMenuOpen((prev) => ({ ...prev, operations: false }));
+                                toast("Filtro de archivadas próximamente", { position: "top-right" });
+                              }}
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
+                            >
+                              Ver archivadas
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   }
                 >
                   {operations.length === 0 ? (
@@ -1177,6 +1326,9 @@ function DocumentsPage() {
                           tableLayout={true}
                           autoOpen={operation.id === expandedOperationId}
                           openSignal={operationsOpenSignal}
+                          selectable={activeSelection === "operations"}
+                          selected={selectedOperationIds.has(operation.id)}
+                          onSelect={(checked) => toggleOperationSelection(operation.id, checked)}
                           onClick={() => {
                             // TODO: Navegar a detalle de operación
                             console.log('Ver operación:', operation);
@@ -1248,14 +1400,65 @@ function DocumentsPage() {
                 defaultOpen={sectionPrefs.documents}
                 onToggle={(isOpen) => updateSectionPref("documents", isOpen)}
                 action={
-                  <button
-                    type="button"
-                    onClick={handleCreateDocument}
-                    className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
-                    title="Nuevo documento"
-                  >
-                    <FilePlus className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2" data-directory-actions="documents">
+                    <button
+                      type="button"
+                      onClick={handleCreateDocument}
+                      className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
+                      title="Nuevo documento"
+                    >
+                      <FilePlus className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleDirectorySelection("documents")}
+                      className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
+                      title="Compartir documentos"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                    <div className="relative" data-directory-menu>
+                      <button
+                        type="button"
+                        onClick={() => setDirectoryMenuOpen((prev) => ({
+                          operations: false,
+                          documents: !prev.documents,
+                          drafts: false
+                        }))}
+                        className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
+                        title="Opciones"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {directoryMenuOpen.documents && (
+                        <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
+                          {activeSelection === "documents" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveSelection(null);
+                                setSelectedDocumentIds(new Set());
+                                setDirectoryMenuOpen((prev) => ({ ...prev, documents: false }));
+                              }}
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
+                            >
+                              Salir de selección
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDirectoryMenuOpen((prev) => ({ ...prev, documents: false }));
+                              toast("Opciones de documentos próximamente", { position: "top-right" });
+                            }}
+                            className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
+                          >
+                            Opciones de documentos
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 }
               >
                 <div className="md:hidden space-y-4">
@@ -1270,6 +1473,9 @@ function DocumentsPage() {
                     onDownloadPdf={(d) => handlePdfDownload(d)}
                     onVerify={(d) => handleVerifyDoc(d)}
                     onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
+                    selectable={activeSelection === "documents"}
+                    selected={selectedDocumentIds.has(doc.id)}
+                    onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
                   />
                 ))}
               </div>
@@ -1288,6 +1494,9 @@ function DocumentsPage() {
                         onDownloadPdf={(d) => handlePdfDownload(d)}
                         onVerify={(d) => handleVerifyDoc(d)}
                         onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
+                        selectable={activeSelection === "documents"}
+                        selected={selectedDocumentIds.has(doc.id)}
+                        onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
                       />
                     </div>
                   ))}
@@ -1304,14 +1513,52 @@ function DocumentsPage() {
                 defaultOpen={sectionPrefs.drafts}
                 onToggle={(isOpen) => updateSectionPref("drafts", isOpen)}
                 action={
-                  <button
-                    type="button"
-                    onClick={handleCreateDocument}
-                    className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
-                    title="Nuevo borrador"
-                  >
-                    <FilePlus className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2" data-directory-actions="drafts">
+                    <button
+                      type="button"
+                      onClick={handleCreateDocument}
+                      className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
+                      title="Nuevo borrador"
+                    >
+                      <FilePlus className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleContinueLatestDraft}
+                      className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
+                      title="Continuar borrador"
+                    >
+                      <Play className="w-4 h-4" />
+                    </button>
+                    <div className="relative" data-directory-menu>
+                      <button
+                        type="button"
+                        onClick={() => setDirectoryMenuOpen((prev) => ({
+                          operations: false,
+                          documents: false,
+                          drafts: !prev.drafts
+                        }))}
+                        className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
+                        title="Opciones"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {directoryMenuOpen.drafts && (
+                        <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDirectoryMenuOpen((prev) => ({ ...prev, drafts: false }));
+                              toast("Opciones de borradores próximamente", { position: "top-right" });
+                            }}
+                            className="w-full px-3 py-2 text-sm text-left hover:bg-gray-50"
+                          >
+                            Opciones de borradores
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 }
               >
                 {drafts.length === 0 ? (
@@ -1336,19 +1583,43 @@ function DocumentsPage() {
                         </div>
                         <div />
                         <div className="text-sm text-gray-500">{formatDate(draft.createdAt)}</div>
-                        <div className="flex items-center justify-end gap-3">
+                        <div className="flex items-center justify-end gap-2" data-draft-menu>
+                          <button
+                            onClick={() => toast("Detalle de borrador próximamente", { position: "top-right" })}
+                            className="text-black hover:text-gray-600"
+                            title="Ver detalle"
+                            type="button"
+                          >
+                            <Eye className="h-5 w-5" />
+                          </button>
                           <button
                             onClick={() => handleResumeDraft(draft.id)}
-                            className="text-sm font-semibold text-[#0E4B8B] hover:text-[#0A3D73]"
+                            className="text-black hover:text-gray-600"
+                            title="Continuar"
+                            type="button"
                           >
-                            Reanudar
+                            <Play className="h-5 w-5" />
                           </button>
-                          <button
-                            onClick={() => handleDeleteDraft(draft.id)}
-                            className="text-xs text-gray-500 hover:text-gray-700"
-                          >
-                            Eliminar
-                          </button>
+                          <div className="relative">
+                            <button
+                              onClick={() => setOpenDraftMenuId(openDraftMenuId === draft.id ? null : draft.id)}
+                              className="text-gray-500 hover:text-gray-700"
+                              title="Más acciones"
+                              type="button"
+                            >
+                              <MoreVertical className="h-5 w-5" />
+                            </button>
+                            {openDraftMenuId === draft.id && (
+                              <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
+                                <button
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                  onClick={() => handleDeleteDraft(draft.id)}
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}

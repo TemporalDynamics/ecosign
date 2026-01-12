@@ -14,6 +14,9 @@ export default function DocumentRow({
   onDownloadEco,
   onVerify,
   onMove,
+  selectable = false,
+  selected = false,
+  onSelect,
 }: {
   document: any;
   context?: 'documents' | 'operation';
@@ -24,6 +27,9 @@ export default function DocumentRow({
   onDownloadEco?: (doc: any) => void;
   onVerify?: (doc: any) => void;
   onMove?: (doc: any) => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (checked: boolean) => void;
 }) {
   const [openMenu, setOpenMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -74,6 +80,15 @@ export default function DocumentRow({
     return (
       <div className="contents">
         <div className="flex items-center gap-3 min-w-0">
+          {selectable && (
+            <input
+              type="checkbox"
+              className="h-4 w-4 text-black border-gray-300 rounded"
+              checked={selected}
+              onChange={(e) => onSelect?.(e.target.checked)}
+              aria-label="Seleccionar documento"
+            />
+          )}
           <Shield className="h-4 w-4 text-gray-700 flex-shrink-0" />
           <div className="min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate max-w-full" title={name}>{name}</div>
@@ -141,6 +156,15 @@ export default function DocumentRow({
   return (
     <div className="flex items-center justify-between bg-white rounded-lg p-2 border border-gray-100">
       <div className="flex items-center gap-3 min-w-0">
+        {selectable && (
+          <input
+            type="checkbox"
+            className="h-4 w-4 text-black border-gray-300 rounded"
+            checked={selected}
+            onChange={(e) => onSelect?.(e.target.checked)}
+            aria-label="Seleccionar documento"
+          />
+        )}
         <Shield className="h-4 w-4 text-gray-700 flex-shrink-0" />
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>

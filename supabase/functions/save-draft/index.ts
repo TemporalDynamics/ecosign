@@ -37,18 +37,13 @@
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
-
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...corsHeaders,
+      ...headers,
       'Content-Type': 'application/json'
     }
   })
@@ -74,12 +69,13 @@ interface SaveDraftRequest {
 }
 
 serve(async (req) => {
+  const { headers: corsHeaders } = getCorsHeaders(req.headers.get('Origin') ?? undefined)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405)
+    return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders)
   }
 
   try {
@@ -90,14 +86,14 @@ serve(async (req) => {
     // 1. Autenticar usuario
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization header' }, 401)
+      return jsonResponse({ error: 'Missing authorization header' }, 401, corsHeaders)
     }
 
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
-      return jsonResponse({ error: 'Unauthorized' }, 401)
+      return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders)
     }
 
     // 2. Parsear body
@@ -105,13 +101,13 @@ serve(async (req) => {
     const { operation, documents, custody_mode = 'hash_only' } = body
 
     if (!operation?.name || !Array.isArray(documents) || documents.length === 0) {
-      return jsonResponse({ error: 'Invalid request: operation.name and documents[] required' }, 400)
+      return jsonResponse({ error: 'Invalid request: operation.name and documents[] required' }, 400, corsHeaders)
     }
 
     // 3. Validar documentos
     for (const doc of documents) {
       if (!doc.filename || !doc.file_data || !doc.size) {
-        return jsonResponse({ error: 'Invalid document: filename, file_data, size required' }, 400)
+        return jsonResponse({ error: 'Invalid document: filename, file_data, size required' }, 400, corsHeaders)
       }
     }
 
@@ -129,7 +125,7 @@ serve(async (req) => {
 
     if (operationError) {
       console.error('Error creating draft operation:', operationError)
-      return jsonResponse({ error: 'Failed to create draft operation' }, 500)
+      return jsonResponse({ error: 'Failed to create draft operation' }, 500, corsHeaders)
     }
 
     const operationId = operationData.id
@@ -181,7 +177,7 @@ serve(async (req) => {
     }
 
     if (savedDocuments.length === 0) {
-      return jsonResponse({ error: 'Failed to save any documents' }, 500)
+      return jsonResponse({ error: 'Failed to save any documents' }, 500, corsHeaders)
     }
 
     // 6. Retornar resultado
@@ -190,12 +186,12 @@ serve(async (req) => {
       operation_id: operationId,
       documents: savedDocuments,
       message: `Draft operation "${operation.name}" created with ${savedDocuments.length} document(s)`
-    })
+    }, 200, corsHeaders)
 
   } catch (error) {
     console.error('Error in save-draft:', error)
     return jsonResponse({
       error: error instanceof Error ? error.message : 'Internal server error'
-    }, 500)
+    }, 500, corsHeaders)
   }
 })

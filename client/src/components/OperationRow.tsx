@@ -16,6 +16,8 @@ interface OperationRowProps {
   onEdit?: () => void;
   onChangeStatus?: (status: OperationStatus) => void;
   onProtectAndSend?: () => void;
+  openSignal?: number;
+  autoOpen?: boolean;
 }
 
 const STATUS_CONFIG: Record<OperationStatus, { label: string; color: string }> = {
@@ -33,6 +35,8 @@ export default function OperationRow({
   onChangeStatus,
   onProtectAndSend,
   onOpenDocument,
+  openSignal,
+  autoOpen,
   tableLayout = false,
 }: OperationRowProps & { onOpenDocument?: (documentId: string) => void; tableLayout?: boolean }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -78,13 +82,19 @@ export default function OperationRow({
     };
   }, [open, operation.id]);
 
+  useEffect(() => {
+    if (autoOpen && openSignal !== undefined) {
+      setOpen(true);
+    }
+  }, [autoOpen, openSignal]);
+
   if (tableLayout) {
     return (
       <div>
         <div className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-3 bg-sky-50 rounded-lg">
           <div className="flex items-center gap-3">
             <button onClick={() => setOpen(!open)} className="flex items-center gap-3 text-left" type="button">
-              <Folder className="w-5 h-5 text-sky-700 flex-shrink-0" />
+              <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
               <div className="min-w-0">
                 <div className="font-semibold text-gray-900 text-sm truncate">{operation.name}</div>
                 {operation.description && <div className="text-xs text-gray-500 truncate">{operation.description}</div>}
@@ -202,7 +212,7 @@ export default function OperationRow({
           type="button"
         >
           {/* Icono de carpeta */}
-          <Folder className="w-5 h-5 text-sky-700 flex-shrink-0" />
+          <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
 
           {/* Info de la operación */}
           <div className="flex-1 min-w-0">

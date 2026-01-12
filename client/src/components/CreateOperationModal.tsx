@@ -24,7 +24,6 @@ export default function CreateOperationModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
-  const [saveAsDraft, setSaveAsDraft] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,13 +46,10 @@ export default function CreateOperationModal({
       const newOperation = await createOperation(userId, {
         name: trimmedName,
         description: description.trim() || undefined,
-        status: saveAsDraft ? 'draft' : 'active',
+        status: 'active',
       });
 
-      toast.success(
-        saveAsDraft ? 'Borrador guardado' : 'Operación creada',
-        { position: 'top-right' }
-      );
+      toast.success('Operación creada', { position: 'top-right' });
       onSuccess(newOperation);
       onClose();
     } catch (error) {
@@ -127,30 +123,10 @@ export default function CreateOperationModal({
             />
           </div>
 
-          {/* Checkbox: Guardar como borrador */}
-          <div className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              id="save-as-draft"
-              checked={saveAsDraft}
-              onChange={(e) => setSaveAsDraft(e.target.checked)}
-              disabled={creating}
-              className="mt-1 h-4 w-4 text-black border-gray-300 rounded focus:ring-black"
-            />
-            <label htmlFor="save-as-draft" className="text-sm text-gray-700 cursor-pointer">
-              Guardar como borrador
-              <p className="text-xs text-gray-500 mt-1">
-                Los borradores no tienen validez legal. Úsalos para preparar documentos antes de protegerlos.
-              </p>
-            </label>
-          </div>
-
           {/* Info */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
             <p className="text-xs text-gray-600">
-              {saveAsDraft
-                ? '📝 Borrador: Podrás agregar documentos, editarlos y organizarlos sin generar evidencia. Cuando estés listo, usa "Proteger y enviar".'
-                : 'ℹ️ Puedes crear la operación vacía y agregar documentos después. Los documentos mantienen su evidencia al moverse entre operaciones.'}
+              ℹ️ Podés crear la operación vacía y agregar documentos después. Los documentos mantienen su evidencia al moverse entre operaciones.
             </p>
           </div>
 
@@ -169,9 +145,7 @@ export default function CreateOperationModal({
               className="px-4 py-2 bg-black text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
               disabled={creating || !name.trim()}
             >
-              {creating
-                ? saveAsDraft ? 'Guardando...' : 'Creando...'
-                : saveAsDraft ? 'Guardar borrador' : 'Crear operación'}
+              {creating ? 'Creando...' : 'Crear operación'}
             </button>
           </div>
         </form>

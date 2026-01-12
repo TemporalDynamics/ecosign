@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
 import { emitEcoVNext } from "../lib/documentEntityService";
 import { getLatestTsaEvent, formatTsaTimestamp } from "../lib/events/tsa";
 import { deriveProtectionLevel, getAnchorEvent } from "../lib/protectionLevel";
-import { AlertCircle, CheckCircle, Copy, Download, Eye, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
+import { AlertCircle, CheckCircle, Copy, Download, Eye, FilePlus, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
 import VerifierTimeline from "../components/VerifierTimeline";
@@ -20,7 +20,7 @@ import DocumentRow from "../components/DocumentRow";
 import { GRID_TOKENS } from "../config/gridTokens";
 import { deriveFlowStatus, FLOW_STATUS } from "../lib/flowStatus";
 import { ProtectedBadge } from "../components/ProtectedBadge";
-import { getOperations, countDocumentsInOperation, updateOperation, getOperationWithDocuments, protectAndSendOperation } from "../lib/operationsService";
+import { addDocumentToOperation, countDocumentsInOperation, getOperations, getOperationWithDocuments, protectAndSendOperation, updateOperation } from "../lib/operationsService";
 import { getDocumentEntity } from "../lib/documentEntityService";
 import type { Operation } from "../types/operations";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
@@ -32,6 +32,7 @@ import { listDrafts, removeDraft, type DraftMeta } from "../utils/draftStorage";
 
 type DocumentRecord = {
   id: string;
+  document_entity_id?: string | null;
   document_name: string;
   document_hash: string;
   eco_hash?: string | null;
@@ -79,7 +80,6 @@ type DocumentEntityRow = {
 };
 
 type PlanTier = "guest" | "free" | "pro" | "business" | "enterprise" | null | string;
-
 type VerificationResult = {
   matches: boolean | null;
   matchesDocument?: boolean | null;
@@ -217,6 +217,7 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
   const documentHash = entity.signed_hash || entity.witness_current_hash || entity.source_hash;
   return {
     id: entity.id,
+    document_entity_id: entity.id,
     document_name: entity.source_name,
     document_hash: documentHash,
     content_hash: entity.source_hash,
@@ -310,13 +311,80 @@ function DocumentsPage() {
   const [operations, setOperations] = useState<Operation[]>([]);
   const [operationsLoading, setOperationsLoading] = useState(false);
   const [operationDocCounts, setOperationDocCounts] = useState<Record<string, number>>({});
+  const [operationsOpenSignal, setOperationsOpenSignal] = useState(0);
+  const [expandedOperationId, setExpandedOperationId] = useState<string | null>(null);
   const [moveDoc, setMoveDoc] = useState<DocumentRecord | null>(null);
   const [isCreatingOperationForMove, setIsCreatingOperationForMove] = useState(false);
   const [drafts, setDrafts] = useState<DraftMeta[]>([]);
-  const isSearchActive = search.trim().length > 0;
+  const operationsSectionRef = useRef<HTMLDivElement>(null);
+  const normalizedSearch = search.trim().toLowerCase();
+  const isSearchActive = normalizedSearch.length > 0;
   const hasDocuments = documents.length > 0;
 
-  const handleLogout = () => navigate("/");
+  const getSectionPrefsKey = (userId: string | null) =>
+    `ecosign:documents:sections:${userId ?? "guest"}`;
+  const getDefaultSectionPrefs = () => ({
+    documents: false,
+    drafts: false,
+    operations: false
+  });
+  const readSectionPrefs = (userId: string | null) => {
+    try {
+      const key = getSectionPrefsKey(userId);
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return getDefaultSectionPrefs();
+      const parsed = JSON.parse(raw);
+      return { ...getDefaultSectionPrefs(), ...parsed };
+    } catch (error) {
+      console.warn("No se pudieron leer preferencias de secciones:", error);
+      return getDefaultSectionPrefs();
+    }
+  };
+
+  const [sectionPrefs, setSectionPrefs] = useState(() => readSectionPrefs(null));
+
+  const persistSectionPrefs = (nextPrefs: typeof sectionPrefs) => {
+    try {
+      const key = getSectionPrefsKey(currentUserId);
+      sessionStorage.setItem(key, JSON.stringify(nextPrefs));
+    } catch (error) {
+      console.warn("No se pudieron guardar preferencias de secciones:", error);
+    }
+  };
+
+  const updateSectionPref = (section: keyof typeof sectionPrefs, isOpen: boolean) => {
+    setSectionPrefs((prev) => {
+      const next = { ...prev, [section]: isOpen };
+      persistSectionPrefs(next);
+      return next;
+    });
+  };
+
+  const handleLogout = () => {
+    try {
+      const key = getSectionPrefsKey(currentUserId);
+      sessionStorage.removeItem(key);
+    } catch (error) {
+      console.warn("No se pudieron limpiar preferencias de secciones:", error);
+    }
+    navigate("/");
+  };
+
+  const handleCreateDocument = () => {
+    if (isGuestMode()) {
+      navigate("/login");
+      return;
+    }
+    openLegalCenter("certify");
+  };
+
+  const handleCreateOperation = () => {
+    if (isGuestMode()) {
+      toast("Modo invitado: operaciones disponibles solo con cuenta.", { position: "top-right" });
+      return;
+    }
+    setShowCreateOperationModal(true);
+  };
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -341,7 +409,7 @@ function DocumentsPage() {
       disableGuestMode();
       setCurrentUserId(user.id);
 
-      const { data: entityData, error } = await supabase
+      const entityQuery = supabase
         .from("document_entities")
         .select(
           `
@@ -364,38 +432,16 @@ function DocumentsPage() {
         .eq("owner_id", user.id)
         .order("created_at", { ascending: false });
 
+      const { data: entityData, error } = await entityQuery;
+
       if (error) {
         console.error("Error loading document_entities:", error);
         throw error;
       }
 
-      if (entityData && entityData.length > 0) {
-        const mapped = (entityData as DocumentEntityRow[]).map(mapDocumentEntityToRecord);
-        setDocuments(mapped);
-        return;
-      }
-
-      // TODO(legacy-cleanup): remove fallback once document_entities is fully populated.
-      const { data: legacyData, error: legacyError } = await supabase
-        .from("user_documents")
-        .select(
-          `
-          *,
-          document_hash,
-          events(id, event_type, timestamp, metadata),
-          signer_links(id, signer_email, status, signed_at),
-          anchors!user_document_id(id, anchor_status, bitcoin_tx_id, confirmed_at)
-        `
-        )
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (legacyError) {
-        console.error("Error loading user_documents:", legacyError);
-        throw legacyError;
-      }
-
-      setDocuments((legacyData as DocumentRecord[] | null) || []);
+      const mapped = (entityData as DocumentEntityRow[] | null)?.map(mapDocumentEntityToRecord) || [];
+      setDocuments(mapped);
+      return;
     } catch (error) {
       console.error("Error in loadDocuments:", error);
       setDocuments([]);
@@ -414,7 +460,7 @@ function DocumentsPage() {
         op.documents.map(doc => ({
           id: doc.draft_file_ref.startsWith('local:')
             ? doc.draft_file_ref.replace('local:', '')
-            : doc.id,
+            : doc.draft_file_ref,
           name: doc.filename,
           createdAt: op.created_at,
           size: doc.size,
@@ -456,6 +502,10 @@ function DocumentsPage() {
     loadDocuments();
     loadPlan();
   }, [loadDocuments, loadPlan]);
+
+  useEffect(() => {
+    setSectionPrefs(readSectionPrefs(currentUserId));
+  }, [currentUserId]);
 
   useEffect(() => {
     loadDrafts();
@@ -861,11 +911,34 @@ function DocumentsPage() {
   };
 
   const filteredDocuments = useMemo(() => {
-    if (!search) return documents;
-    return documents.filter((doc) =>
-      (doc.document_name || "").toLowerCase().includes(search.trim().toLowerCase())
+    const filtered = normalizedSearch
+      ? documents.filter((doc) =>
+          (doc.document_name || "").toLowerCase().includes(normalizedSearch)
+        )
+      : documents;
+
+    return [...filtered].sort((a, b) => {
+      const aTime = Date.parse(a.created_at || "") || 0;
+      const bTime = Date.parse(b.created_at || "") || 0;
+      return bTime - aTime;
+    });
+  }, [documents, normalizedSearch]);
+
+  const filteredOperations = useMemo(() => {
+    if (!normalizedSearch) return operations;
+    return operations.filter((operation) => {
+      const nameMatch = (operation.name || "").toLowerCase().includes(normalizedSearch);
+      const descMatch = (operation.description || "").toLowerCase().includes(normalizedSearch);
+      return nameMatch || descMatch;
+    });
+  }, [normalizedSearch, operations]);
+
+  const filteredDrafts = useMemo(() => {
+    if (!normalizedSearch) return drafts;
+    return drafts.filter((draft) =>
+      (draft.name || "").toLowerCase().includes(normalizedSearch)
     );
-  }, [documents, search]);
+  }, [drafts, normalizedSearch]);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -881,9 +954,14 @@ function DocumentsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Buscar documentos..."
+                placeholder="Buscar..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setSearch("");
+                  }
+                }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
               />
             </div>
@@ -907,6 +985,114 @@ function DocumentsPage() {
             <div className="flex justify-center items-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
             </div>
+          ) : isSearchActive ? (
+            <section className="space-y-6">
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h2 className="text-sm font-semibold text-gray-900 mb-3">Resultados</h2>
+                {filteredOperations.length === 0 && filteredDocuments.length === 0 && filteredDrafts.length === 0 ? (
+                  <p className="text-sm text-gray-500">No hay resultados para “{search.trim()}”.</p>
+                ) : (
+                  <div className="grid gap-3">
+                    {filteredOperations.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-gray-400">Operaciones</p>
+                        <div className="space-y-2">
+                          {filteredOperations.map((operation) => (
+                            <button
+                              key={operation.id}
+                              type="button"
+                              onClick={() => {
+                                setExpandedOperationId(operation.id);
+                                setOperationsOpenSignal((signal) => signal + 1);
+                                setSearch("");
+                                operationsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }}
+                              className="w-full text-left border border-gray-200 rounded-lg px-4 py-3 hover:border-black transition"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <Folder className="w-4 h-4 text-gray-700" />
+                                  <span className="text-sm font-semibold text-gray-900">{operation.name}</span>
+                                </div>
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-gray-600 bg-gray-50 border border-gray-200 rounded px-2 py-0.5">
+                                  <Folder className="w-3 h-3" />
+                                  Operación
+                                </span>
+                              </div>
+                              {operation.description && (
+                                <p className="text-xs text-gray-500 mt-1">{operation.description}</p>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {filteredDocuments.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-gray-400">Documentos</p>
+                        <div className="space-y-2">
+                          {filteredDocuments.map((doc) => (
+                            <button
+                              key={doc.id}
+                              type="button"
+                              onClick={() => {
+                                setPreviewDoc(doc);
+                                setSearch("");
+                              }}
+                              className="w-full text-left border border-gray-200 rounded-lg px-4 py-3 hover:border-black transition"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="w-4 h-4 text-gray-700" />
+                                  <span className="text-sm font-semibold text-gray-900">{doc.document_name}</span>
+                                </div>
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-gray-600 bg-gray-50 border border-gray-200 rounded px-2 py-0.5">
+                                  <FileText className="w-3 h-3" />
+                                  Documento
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">Creado: {formatDate(doc.created_at)}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {filteredDrafts.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-gray-400">Borradores</p>
+                        <div className="space-y-2">
+                          {filteredDrafts.map((draft) => (
+                            <button
+                              key={draft.id}
+                              type="button"
+                              onClick={() => {
+                                handleResumeDraft(draft.id);
+                                setSearch("");
+                              }}
+                              className="w-full text-left border border-gray-200 rounded-lg px-4 py-3 hover:border-black transition"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="w-4 h-4 text-gray-700" />
+                                  <span className="text-sm font-semibold text-gray-900">{draft.name}</span>
+                                </div>
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-gray-600 bg-gray-50 border border-gray-200 rounded px-2 py-0.5">
+                                  <FileClock className="w-3 h-3" />
+                                  Borrador
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">Creado: {formatDate(draft.createdAt)}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
           ) : filteredDocuments.length === 0 ? (
             <div className="text-center py-16">
               <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -956,65 +1142,41 @@ function DocumentsPage() {
                 <div className="justify-self-end" style={{ transform: 'translateX(-110px)' }}>Acciones</div>
               </div>
 
-              {drafts.length > 0 && (
-                <SectionToggle
-                  title="Borradores"
-                  count={drafts.length}
-                  icon={<FileText className="w-4 h-4" />}
-                  defaultOpen={true}
-                >
-                  <div className="space-y-2 mt-2">
-                    {drafts.map((draft) => (
-                      <div
-                        key={draft.id}
-                        className={`grid ${GRID_TOKENS.documents.columns} ${GRID_TOKENS.documents.gapX} items-center px-6 py-2 bg-white border border-gray-200 rounded-lg`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium text-gray-900 truncate" title={draft.name}>
-                              {draft.name}
-                            </div>
-                            <div className="text-xs text-amber-700">Borrador</div>
-                          </div>
-                        </div>
-                        <div />
-                        <div className="text-sm text-gray-500">{formatDate(draft.createdAt)}</div>
-                        <div className="flex items-center justify-end gap-3">
-                          <button
-                            onClick={() => handleResumeDraft(draft.id)}
-                            className="text-sm font-semibold text-[#0E4B8B] hover:text-[#0A3D73]"
-                          >
-                            Reanudar
-                          </button>
-                          <button
-                            onClick={() => handleDeleteDraft(draft.id)}
-                            className="text-xs text-gray-500 hover:text-gray-700"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </SectionToggle>
-              )}
-
               {/* Sección de Operaciones */}
-              {operations.length > 0 && (
+              <div ref={operationsSectionRef}>
                 <SectionToggle
+                  key={`operations-${currentUserId ?? "guest"}`}
                   title="Operaciones"
                   count={operations.length}
-                  icon={<Folder className="w-4 h-4" />}
-                  defaultOpen={true}
+                  icon={<Folder className="w-5 h-5 text-gray-600" />}
+                  defaultOpen={sectionPrefs.operations}
+                  onToggle={(isOpen) => updateSectionPref("operations", isOpen)}
+                  openSignal={operationsOpenSignal}
+                  action={
+                    <button
+                      type="button"
+                      onClick={handleCreateOperation}
+                      className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+                      title="Nueva operación"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                    </button>
+                  }
                 >
-                  <div className="space-y-3 mt-2">
+                  {operations.length === 0 ? (
+                    <div className="text-sm text-gray-500 px-6 py-3">
+                      No tenés operaciones todavía.
+                    </div>
+                  ) : (
+                    <div className="space-y-3 mt-2">
                       {operations.map((operation) => (
                         <OperationRow
                           key={operation.id}
                           operation={operation}
                           documentCount={operationDocCounts[operation.id] || 0}
                           tableLayout={true}
+                          autoOpen={operation.id === expandedOperationId}
+                          openSignal={operationsOpenSignal}
                           onClick={() => {
                             // TODO: Navegar a detalle de operación
                             console.log('Ver operación:', operation);
@@ -1073,15 +1235,28 @@ function DocumentsPage() {
                         />
                       ))}
                     </div>
+                  )}
                 </SectionToggle>
-              )}
+              </div>
 
               {/* Sección de Documentos */}
               <SectionToggle
+                key={`documents-${currentUserId ?? "guest"}`}
                 title="Documentos"
                 count={filteredDocuments.length}
-                icon={<FileText className="w-4 h-4" />}
-                defaultOpen={true}
+                icon={<Shield className="w-5 h-5 text-gray-600" />}
+                defaultOpen={sectionPrefs.documents}
+                onToggle={(isOpen) => updateSectionPref("documents", isOpen)}
+                action={
+                  <button
+                    type="button"
+                    onClick={handleCreateDocument}
+                    className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+                    title="Nuevo documento"
+                  >
+                    <FilePlus className="w-4 h-4" />
+                  </button>
+                }
               >
                 <div className="md:hidden space-y-4">
                 {filteredDocuments.map((doc) => (
@@ -1118,6 +1293,67 @@ function DocumentsPage() {
                   ))}
                 </div>
               </div>
+              </SectionToggle>
+
+              {/* Sección de Borradores */}
+              <SectionToggle
+                key={`drafts-${currentUserId ?? "guest"}`}
+                title="Borradores"
+                count={drafts.length}
+                icon={<FileText className="w-5 h-5 text-gray-600" />}
+                defaultOpen={sectionPrefs.drafts}
+                onToggle={(isOpen) => updateSectionPref("drafts", isOpen)}
+                action={
+                  <button
+                    type="button"
+                    onClick={handleCreateDocument}
+                    className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+                    title="Nuevo borrador"
+                  >
+                    <FilePlus className="w-4 h-4" />
+                  </button>
+                }
+              >
+                {drafts.length === 0 ? (
+                  <div className="text-sm text-gray-500 px-6 py-3">
+                    No tenés borradores todavía.
+                  </div>
+                ) : (
+                  <div className="space-y-2 mt-2">
+                    {drafts.map((draft) => (
+                      <div
+                        key={draft.id}
+                        className={`grid ${GRID_TOKENS.documents.columns} ${GRID_TOKENS.documents.gapX} items-center px-6 py-2 bg-white border border-gray-200 rounded-lg`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate" title={draft.name}>
+                              {draft.name}
+                            </div>
+                            <div className="text-xs text-amber-700">Borrador</div>
+                          </div>
+                        </div>
+                        <div />
+                        <div className="text-sm text-gray-500">{formatDate(draft.createdAt)}</div>
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => handleResumeDraft(draft.id)}
+                            className="text-sm font-semibold text-[#0E4B8B] hover:text-[#0A3D73]"
+                          >
+                            Reanudar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDraft(draft.id)}
+                            className="text-xs text-gray-500 hover:text-gray-700"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </SectionToggle>
             </>
           )}
@@ -1356,6 +1592,9 @@ function DocumentsPage() {
                 );
                 setMoveDoc(null); // Close MoveToOperationModal
                 setIsCreatingOperationForMove(false);
+                setExpandedOperationId(operation.id);
+                setOperationsOpenSignal((signal) => signal + 1);
+                operationsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               } catch (error: any) {
                 if (error.code === '23505') {
                   toast.error(`El documento "${moveDoc.document_name}" ya pertenece a la operación "${operation.name}".`, { position: 'top-right' });
@@ -1381,9 +1620,12 @@ function DocumentsPage() {
           documentName={moveDoc.document_name}
           userId={currentUserId}
           onClose={() => setMoveDoc(null)}
-          onSuccess={() => {
+          onSuccess={(operationId) => {
             loadOperations(); // Recargar conteos
             loadDocuments(); // Recargar documentos
+            setExpandedOperationId(operationId);
+            setOperationsOpenSignal((signal) => signal + 1);
+            operationsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
           onCreateNew={() => {
             setIsCreatingOperationForMove(true);

@@ -4,7 +4,7 @@
  * Permite drag & drop de campos sobre el PDF
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { SignatureField } from '../../lib/pdf-stamper';
 
 interface FieldPlacerProps {
@@ -138,6 +138,7 @@ export function FieldPlacer({
             field={field}
             onMove={handleFieldMove}
             onDelete={handleFieldDelete}
+            containerRef={containerRef}
           />
         ))}
       </div>
@@ -165,38 +166,66 @@ function DraggableField({
   field,
   onMove,
   onDelete,
+  containerRef,
 }: {
   field: SignatureField;
   onMove: (id: string, dx: number, dy: number) => void;
   onDelete: (id: string) => void;
+  containerRef?: React.RefObject<HTMLDivElement>;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const startPosRef = useRef({ x: 0, y: 0 });
+  const prevScrollRef = useRef(0);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     startPosRef.current = { x: e.clientX, y: e.clientY };
+    // initialize previous scroll position
+    prevScrollRef.current = containerRef?.current?.scrollTop ?? window.scrollY;
+    e.stopPropagation();
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  useEffect(() => {
     if (!isDragging) return;
 
-    const dx = e.clientX - startPosRef.current.x;
-    const dy = e.clientY - startPosRef.current.y;
-    
-    onMove(field.id, dx, dy);
-    startPosRef.current = { x: e.clientX, y: e.clientY };
-  };
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - startPosRef.current.x;
+      const dy = e.clientY - startPosRef.current.y;
+      onMove(field.id, dx, dy);
+      startPosRef.current = { x: e.clientX, y: e.clientY };
+    };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
 
-  // Event listeners
-  if (isDragging) {
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }
+
+    const container = containerRef?.current;
+    const handleScroll = () => {
+      const current = container ? container.scrollTop : window.scrollY;
+      const delta = current - prevScrollRef.current;
+      if (delta !== 0) {
+        // Adjust the field position so it stays under the cursor while scrolling
+        onMove(field.id, 0, delta);
+        prevScrollRef.current = current;
+      }
+    };
+
+    if (container) {
+      container.addEventListener('scroll', handleScroll, { passive: true });
+    } else {
+      window.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      if (container) container.removeEventListener('scroll', handleScroll);
+      else window.removeEventListener('scroll', handleScroll);
+    };
+  }, [isDragging, containerRef, field.id, onMove]);
 
   const getFieldIcon = () => {
     switch (field.type) {

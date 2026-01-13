@@ -60,7 +60,19 @@ serve(async (req) => {
     const signerId = ev.signer_id
     const workflowId = ev.workflow_id
 
-    // Idempotency: check if signature.applied already exists for this signer+workflow
+    // Idempotency: first check if there's already a signature.applied originating from this event (source_event_id)
+    const { data: dedupBySource } = await supabase
+      .from('workflow_events')
+      .select('id')
+      .eq('source_event_id', eventId)
+      .eq('event_type', 'signature.applied')
+      .limit(1)
+
+    if (dedupBySource && dedupBySource.length > 0) {
+      return json({ success: true, deduped: true, reason: 'already processed (source_event_id)' })
+    }
+
+    // Fallback idempotency: check if signature.applied already exists for this signer+workflow
     const { data: existing } = await supabase
       .from('workflow_events')
       .select('id')
@@ -70,7 +82,7 @@ serve(async (req) => {
       .limit(1)
 
     if (existing && existing.length > 0) {
-      return json({ success: true, skipped: true, reason: 'already processed' })
+      return json({ success: true, skipped: true, reason: 'already processed (signer+workflow)' })
     }
 
     // 2) fetch signer and workflow info (including signature_data)

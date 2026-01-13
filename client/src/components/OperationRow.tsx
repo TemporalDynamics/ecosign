@@ -17,6 +17,7 @@ interface OperationRowProps {
   onEdit?: () => void;
   onChangeStatus?: (status: OperationStatus) => void;
   onProtectAndSend?: () => void;
+  onInPerson?: () => void;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (checked: boolean) => void;
@@ -41,6 +42,7 @@ export default function OperationRow({
   onOpenDocument,
   openSignal,
   autoOpen,
+  onInPerson,
   selectable = false,
   selected = false,
   onSelect,
@@ -119,35 +121,86 @@ export default function OperationRow({
     });
   };
 
+  const isSelectionMode = !!(selectable && onSelect);
+  const handleShareClick = () => {
+    setOpen(true);
+    setDocSelectMode((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedDocIds(new Set());
+      }
+      return next;
+    });
+  };
+
+  const handleRowClick = (event: React.MouseEvent) => {
+    if (!isSelectionMode) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-row-actions]')) return;
+    if (target.closest('input[type="checkbox"]')) return;
+    onSelect?.(!selected);
+  };
+
+  const handleDocRowClick = (docId: string) => (event: React.MouseEvent) => {
+    if (!docSelectMode) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('[data-row-actions]')) return;
+    if (target.closest('input[type="checkbox"]')) return;
+    toggleDocSelection(docId, !selectedDocIds.has(docId));
+  };
+
   if (tableLayout) {
     return (
       <div>
-        <div className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-3 bg-sky-50 rounded-lg">
+        <div
+          className={`grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-3 bg-sky-50 rounded-lg ${isSelectionMode ? 'cursor-pointer' : ''}`}
+          onClick={handleRowClick}
+        >
           <div className="flex items-center gap-3">
-            <button onClick={() => setOpen(!open)} className="flex items-center gap-3 text-left" type="button">
-              {selectable && (
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 text-black border-gray-300 rounded"
-                  checked={selected}
-                  onChange={(e) => onSelect?.(e.target.checked)}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Seleccionar operación"
-                />
-              )}
-              <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
-              <div className="min-w-0">
-                <div className="font-semibold text-gray-900 text-sm truncate">{operation.name}</div>
-                {operation.description && <div className="text-xs text-gray-500 truncate">{operation.description}</div>}
+            {isSelectionMode ? (
+              <div className="flex items-center gap-3 text-left">
+                {selectable && (
+                  <input
+                    type="checkbox"
+                    className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
+                    checked={selected}
+                    onChange={(e) => onSelect?.(e.target.checked)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="Seleccionar operación"
+                  />
+                )}
+                <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 text-sm truncate">{operation.name}</div>
+                  {operation.description && <div className="text-xs text-gray-500 truncate">{operation.description}</div>}
+                </div>
               </div>
-            </button>
+            ) : (
+              <button onClick={() => setOpen(!open)} className="flex items-center gap-3 text-left" type="button">
+                {selectable && (
+                  <input
+                    type="checkbox"
+                    className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
+                    checked={selected}
+                    onChange={(e) => onSelect?.(e.target.checked)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="Seleccionar operación"
+                  />
+                )}
+                <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 text-sm truncate">{operation.name}</div>
+                  {operation.description && <div className="text-xs text-gray-500 truncate">{operation.description}</div>}
+                </div>
+              </button>
+            )}
           </div>
 
           <div className="text-xs text-gray-500">{/* probative empty for operations */}</div>
 
           <div className="text-sm text-gray-500">{formatOperationDate((operation as any).created_at)}</div>
 
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2" data-row-actions>
             <button
               onClick={() => onClick?.()}
               className="text-black hover:text-gray-600"
@@ -157,13 +210,7 @@ export default function OperationRow({
               <Eye className="h-5 w-5" />
             </button>
             <button
-              onClick={() => setDocSelectMode((prev) => {
-                const next = !prev;
-                if (!next) {
-                  setSelectedDocIds(new Set());
-                }
-                return next;
-              })}
+              onClick={handleShareClick}
               className="text-black hover:text-gray-600"
               title="Compartir"
               type="button"
@@ -197,6 +244,19 @@ export default function OperationRow({
                     >
                       <Edit className="w-4 h-4 text-gray-600" />
                       Renombrar
+                    </button>
+                  )}
+
+                  {onInPerson && (
+                    <button
+                      onClick={() => {
+                        setShowMenu(false);
+                        onInPerson();
+                      }}
+                      className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <FolderOpen className="w-4 h-4 text-gray-600" />
+                      Firma presencial
                     </button>
                   )}
 
@@ -260,16 +320,71 @@ export default function OperationRow({
               <div className="text-sm text-gray-500 px-6 py-3">No hay documentos en esta operación</div>
             ) : (
               <div className="space-y-2">
+                {docSelectMode && (
+                  <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
+                        checked={docs.length > 0 && selectedDocIds.size === docs.length}
+                        onChange={(event) => {
+                          if (event.target.checked) {
+                            const next = new Set(
+                              docs.map((doc) => mapEntityToDocumentRecord(doc.document_entities ?? doc).id)
+                            );
+                            setSelectedDocIds(next);
+                          } else {
+                            setSelectedDocIds(new Set());
+                          }
+                        }}
+                        aria-label="Seleccionar todos los documentos"
+                      />
+                      <span>{selectedDocIds.size} seleccionados</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedDocIds.size === 0) {
+                            toast('Seleccioná documentos para crear un batch', { position: 'top-right' });
+                            return;
+                          }
+                          toast('Batch desde operación próximamente', { position: 'top-right' });
+                        }}
+                        className="px-3 py-1 rounded bg-black text-white text-xs font-semibold hover:bg-gray-800"
+                      >
+                        Crear batch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDocSelectMode(false);
+                          setSelectedDocIds(new Set());
+                        }}
+                        className="px-3 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-700 hover:border-gray-500"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {docs.map((d) => {
                   const entity = d.document_entities ?? d;
                   const mapped = mapEntityToDocumentRecord(entity);
                   return (
-                    <div key={mapped.id} className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-1.5">
+                    <div
+                      key={mapped.id}
+                      className={`grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-1.5 ${docSelectMode ? 'cursor-pointer' : ''}`}
+                      onClick={handleDocRowClick(mapped.id)}
+                    >
                       <DocumentRow
                         document={mapped}
                         asRow
                         context="operation"
                         onOpen={() => onOpenDocument?.(mapped.id)}
+                        onInPerson={(doc) =>
+                          toast(`Firma presencial para "${doc.document_name}" próximamente`, { position: 'top-right' })
+                        }
                         selectable={docSelectMode}
                         selected={selectedDocIds.has(mapped.id)}
                         onSelect={(checked) => toggleDocSelection(mapped.id, checked)}
@@ -287,53 +402,97 @@ export default function OperationRow({
 
   return (
     <div className="bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition-colors group">
-      <div className="flex items-center justify-between px-4 py-3">
+      <div
+        className={`flex items-center justify-between px-4 py-3 ${isSelectionMode ? 'cursor-pointer' : ''}`}
+        onClick={handleRowClick}
+      >
         {/* Izquierda: Icono + Info */}
-        <button
-          onClick={() => setOpen(!open)}
-          className="flex items-center gap-3 flex-1 text-left"
-          type="button"
-        >
-          {/* Icono de carpeta */}
-          {selectable && (
-            <input
-              type="checkbox"
-              className="h-4 w-4 text-black border-gray-300 rounded"
-              checked={selected}
-              onChange={(e) => onSelect?.(e.target.checked)}
-              onClick={(e) => e.stopPropagation()}
-              aria-label="Seleccionar operación"
-            />
-          )}
-          <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
+        {isSelectionMode ? (
+          <div className="flex items-center gap-3 flex-1 text-left">
+            {/* Icono de carpeta */}
+            {selectable && (
+              <input
+                type="checkbox"
+                className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
+                checked={selected}
+                onChange={(e) => onSelect?.(e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Seleccionar operación"
+              />
+            )}
+            <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
 
-          {/* Info de la operación */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-gray-900 text-sm truncate">
-                {operation.name}
-              </h3>
-              <span className={`text-xs font-medium ${statusConfig.color}`}>
-                {statusConfig.label}
-              </span>
-            </div>
+            {/* Info de la operación */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-gray-900 text-sm truncate">
+                  {operation.name}
+                </h3>
+                <span className={`text-xs font-medium ${statusConfig.color}`}>
+                  {statusConfig.label}
+                </span>
+              </div>
 
-            <div className="flex items-center gap-2 text-xs text-gray-600">
-              <span>
-                {documentCount} {documentCount === 1 ? 'documento' : 'documentos'}
-              </span>
-              {operation.description && (
-                <>
-                  <span className="text-gray-400">·</span>
-                  <span className="truncate">{operation.description}</span>
-                </>
-              )}
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <span>
+                  {documentCount} {documentCount === 1 ? 'documento' : 'documentos'}
+                </span>
+                {operation.description && (
+                  <>
+                    <span className="text-gray-400">·</span>
+                    <span className="truncate">{operation.description}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </button>
+        ) : (
+          <button
+            onClick={() => setOpen(!open)}
+            className="flex items-center gap-3 flex-1 text-left"
+            type="button"
+          >
+            {/* Icono de carpeta */}
+            {selectable && (
+              <input
+                type="checkbox"
+                className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
+                checked={selected}
+                onChange={(e) => onSelect?.(e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Seleccionar operación"
+              />
+            )}
+            <Folder className="w-4 h-4 text-sky-700 flex-shrink-0" />
+
+            {/* Info de la operación */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-gray-900 text-sm truncate">
+                  {operation.name}
+                </h3>
+                <span className={`text-xs font-medium ${statusConfig.color}`}>
+                  {statusConfig.label}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <span>
+                  {documentCount} {documentCount === 1 ? 'documento' : 'documentos'}
+                </span>
+                {operation.description && (
+                  <>
+                    <span className="text-gray-400">·</span>
+                    <span className="truncate">{operation.description}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </button>
+        )}
 
         {/* Derecha: Acciones */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-row-actions>
           <button
             onClick={() => onClick?.()}
             className="text-black hover:text-gray-600"
@@ -343,13 +502,7 @@ export default function OperationRow({
             <Eye className="h-5 w-5" />
           </button>
           <button
-            onClick={() => setDocSelectMode((prev) => {
-              const next = !prev;
-              if (!next) {
-                setSelectedDocIds(new Set());
-              }
-              return next;
-            })}
+            onClick={handleShareClick}
             className="text-black hover:text-gray-600"
             title="Compartir"
             type="button"
@@ -393,6 +546,19 @@ export default function OperationRow({
                   >
                     <Edit className="w-4 h-4 text-gray-600" />
                     Renombrar
+                  </button>
+                )}
+
+                {onInPerson && (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      onInPerson();
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <FolderOpen className="w-4 h-4 text-gray-600" />
+                    Firma presencial
                   </button>
                 )}
 
@@ -466,6 +632,71 @@ export default function OperationRow({
             <div className="text-sm text-gray-500">No hay documentos en esta operación</div>
           ) : (
             <div className="space-y-2">
+              {docSelectMode && (
+                <div
+                  className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600 cursor-pointer"
+                  onClick={(event) => {
+                    const target = event.target as HTMLElement;
+                    if (target.closest("[data-select-actions]")) return;
+                    if (target.closest('input[type="checkbox"]')) return;
+                    if (docs.length === 0) return;
+                    const nextChecked = selectedDocIds.size !== docs.length;
+                    if (nextChecked) {
+                      const next = new Set(
+                        docs.map((doc) => mapEntityToDocumentRecord(doc.document_entities ?? doc).id)
+                      );
+                      setSelectedDocIds(next);
+                    } else {
+                      setSelectedDocIds(new Set());
+                    }
+                  }}
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
+                      checked={docs.length > 0 && selectedDocIds.size === docs.length}
+                      onChange={(event) => {
+                        if (event.target.checked) {
+                          const next = new Set(
+                            docs.map((doc) => mapEntityToDocumentRecord(doc.document_entities ?? doc).id)
+                          );
+                          setSelectedDocIds(next);
+                        } else {
+                          setSelectedDocIds(new Set());
+                        }
+                      }}
+                      aria-label="Seleccionar todos los documentos"
+                    />
+                    <span>{selectedDocIds.size} seleccionados</span>
+                  </label>
+                  <div className="flex items-center gap-2" data-select-actions>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedDocIds.size === 0) {
+                          toast('Seleccioná documentos para crear un batch', { position: 'top-right' });
+                          return;
+                        }
+                        toast('Batch desde operación próximamente', { position: 'top-right' });
+                      }}
+                      className="px-3 py-1 rounded bg-black text-white text-xs font-semibold hover:bg-gray-800"
+                    >
+                      Crear batch
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDocSelectMode(false);
+                        setSelectedDocIds(new Set());
+                      }}
+                      className="px-3 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-700 hover:border-gray-500"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
               {docs.map((d) => {
                 const entity = d.document_entities ?? d;
                 const mapped = mapEntityToDocumentRecord(entity);
@@ -475,6 +706,9 @@ export default function OperationRow({
                     document={mapped}
                     context="operation"
                     onOpen={() => onOpenDocument?.(mapped.id)}
+                    onInPerson={(doc) =>
+                      toast(`Firma presencial para "${doc.document_name}" próximamente`, { position: 'top-right' })
+                    }
                     selectable={docSelectMode}
                     selected={selectedDocIds.has(mapped.id)}
                     onSelect={(checked) => toggleDocSelection(mapped.id, checked)}

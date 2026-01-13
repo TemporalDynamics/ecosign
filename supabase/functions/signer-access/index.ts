@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { encode as base64Encode } from 'https://deno.land/std@0.182.0/encoding/base64.ts'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -235,6 +236,14 @@ serve(async (req) => {
       return json({ error: 'Invalid or expired token' }, 404)
     }
 
+    const { data: otpRecord } = await supabase
+      .from('signer_otps')
+      .select('verified_at')
+      .eq('signer_id', signer.id)
+      .single()
+
+    const otpVerified = !!otpRecord?.verified_at
+
     // Obtener versión activa del workflow para mostrar nombre/hash
     const { data: version } = await supabase
       .from('workflow_versions')
@@ -246,16 +255,31 @@ serve(async (req) => {
     // Generar URL firmada para el PDF (si hay path)
     let encryptedPdfUrl: string | null = null
     if (signer.workflow.document_path) {
-      const { data: signedUrlData } = await supabase.storage
-        .from('user-documents')
-        .createSignedUrl(signer.workflow.document_path, 3600)
-      encryptedPdfUrl = signedUrlData?.signedUrl ?? null
+      if (/^https?:\/\//i.test(signer.workflow.document_path)) {
+        encryptedPdfUrl = signer.workflow.document_path
+      } else {
+        const { data: signedUrlData } = await supabase.storage
+          .from('user-documents')
+          .createSignedUrl(signer.workflow.document_path, 3600)
+        encryptedPdfUrl = signedUrlData?.signedUrl ?? null
+      }
+    } else if (signer.workflow.original_file_url) {
+      // Fallback to existing signed URL if present
+      encryptedPdfUrl = signer.workflow.original_file_url
     }
 
     // Si es SIGNNOW y necesitamos embed_url (nueva o expirada), crearlo
     let signnowEmbedUrl = signer.signnow_embed_url || signer.workflow.signnow_embed_url || null
     let signnowDocumentId = signer.workflow.signnow_document_id || null
     const embedCreatedAt = signer.signnow_embed_created_at || null
+
+    let ownerEmail: string | null = null
+    let ownerName: string | null = null
+    if (signer.workflow?.owner_id) {
+      const { data: owner } = await supabase.auth.admin.getUserById(signer.workflow.owner_id)
+      ownerEmail = owner?.user?.email ?? null
+      ownerName = owner?.user?.user_metadata?.name ?? null
+    }
 
     if ((signer.workflow.signature_type || '').toUpperCase() === 'SIGNNOW' &&
         shouldRegenerateEmbedUrl(signnowEmbedUrl, embedCreatedAt)) {
@@ -316,11 +340,11 @@ serve(async (req) => {
         )
         signnowEmbedUrl = invite.embed_url || null
 
-        if (signnowEmbedUrl) {
-          console.log('✅ SignNow embed URL created successfully')
-          await supabase
-            .from('workflow_signers')
-            .update({
+    if (signnowEmbedUrl) {
+      console.log('✅ SignNow embed URL created successfully')
+      await supabase
+        .from('workflow_signers')
+        .update({
               signnow_embed_url: signnowEmbedUrl,
               signnow_embed_created_at: new Date().toISOString()
             })
@@ -336,6 +360,20 @@ serve(async (req) => {
       }
     }
 
+    await appendCanonicalEvent(
+      supabase,
+      {
+        event_type: 'signer.accessed',
+        workflow_id: signer.workflow_id,
+        signer_id: signer.id,
+        payload: {
+          email: signer.email,
+          signing_order: signer.signing_order
+        }
+      },
+      'signer-access'
+    )
+
     return json({
       success: true,
       signer_id: signer.id,
@@ -344,6 +382,7 @@ serve(async (req) => {
       name: signer.name,
       signing_order: signer.signing_order,
       status: signer.status,
+      otp_verified: otpVerified,
       require_nda: signer.require_nda,
       require_login: signer.require_login,
       quick_access: signer.quick_access,
@@ -354,13 +393,15 @@ serve(async (req) => {
         title: signer.workflow.original_filename || signer.workflow.title || null,
         document_path: signer.workflow.document_path ?? version?.document_url ?? null,
         document_hash: signer.workflow.document_hash ?? version?.document_hash ?? null,
-        encryption_key: signer.workflow.encryption_key ?? null,
+        encryption_key: otpVerified ? (signer.workflow.encryption_key ?? null) : null,
         status: signer.workflow.status,
         require_sequential: signer.workflow.require_sequential ?? false,
         original_filename: signer.workflow.original_filename ?? null,
         signature_type: signer.workflow.signature_type ?? 'ECOSIGN',
         signnow_embed_url: signnowEmbedUrl,
-        signnow_document_id: signnowDocumentId
+        signnow_document_id: signnowDocumentId,
+        owner_email: ownerEmail,
+        owner_name: ownerName
       }
     })
   } catch (error) {

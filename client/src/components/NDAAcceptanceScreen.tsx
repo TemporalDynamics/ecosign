@@ -155,7 +155,7 @@ export function NDAAcceptanceScreen({
               type="checkbox"
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
-              className="mt-1 w-5 h-5 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
+              className="eco-checkbox mt-1 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
             />
             <span className="text-sm text-gray-700">
               <strong>Acepto el acuerdo de confidencialidad</strong> y me comprometo a mantener 

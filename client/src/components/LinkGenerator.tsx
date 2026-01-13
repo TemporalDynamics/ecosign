@@ -120,7 +120,7 @@ const LinkGenerator: React.FC<LinkGeneratorProps> = ({ documentId, onLinkGenerat
               type="checkbox"
               checked={requireNDA}
               onChange={(e) => setRequireNDA(e.target.checked)}
-              className="w-4 h-4 text-black rounded focus:ring-black500"
+              className="eco-checkbox text-black rounded focus:ring-black500"
             />
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 text-gray-600" />

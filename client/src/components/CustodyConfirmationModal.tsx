@@ -56,7 +56,7 @@ export function CustodyConfirmationModal({
                 type="checkbox"
                 checked={saveCustody}
                 onChange={(e) => setSaveCustody(e.target.checked)}
-                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
             </div>
             <div className="flex-1">

@@ -349,7 +349,7 @@ function NdaAccessPage() {
                   id="accept-terms"
                   checked={termsAccepted}
                   onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                  className="eco-checkbox mt-1 rounded border-gray-300 text-black focus:ring-black"
                 />
                 <label htmlFor="accept-terms" className="text-xs text-gray-700">
                   Acepto los términos del Acuerdo de Confidencialidad. Mi aceptación quedará registrada con fines de auditoría.

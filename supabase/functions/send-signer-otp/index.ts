@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { sendEmail, buildSignerOtpEmail } from '../_shared/email.ts'
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -55,7 +56,24 @@ serve(async (req) => {
       .single()
 
     if (signerErr || !signer) {
-      return json({ error: 'Signer not found' }, 404)
+      return json(
+        { error: 'Signer not found', details: signerErr?.message || 'signer_missing' },
+        404
+      )
+    }
+
+    if (!signer.email) {
+      return json(
+        { error: 'Signer email missing', details: 'signer_email_empty' },
+        400
+      )
+    }
+
+    if (!signer.workflow?.id) {
+      return json(
+        { error: 'Workflow not found for signer', details: 'workflow_missing' },
+        500
+      )
     }
 
     const code = generateCode()
@@ -77,7 +95,13 @@ serve(async (req) => {
 
     if (upsertErr) {
       console.error('send-signer-otp upsert failed', upsertErr)
-      return json({ error: 'Could not generate OTP' }, 500)
+      return json(
+        {
+          error: 'Could not generate OTP',
+          details: upsertErr.message
+        },
+        500
+      )
     }
 
     // Send email
@@ -90,7 +114,16 @@ serve(async (req) => {
     })
     const emailRes = await sendEmail(emailPayload)
     if (!emailRes.success) {
-      console.error('send-signer-otp email failed', emailRes.error)
+      console.error('send-signer-otp email failed', emailRes)
+      return json(
+        {
+          error: 'No se pudo enviar el email con OTP',
+          details: emailRes.body || emailRes.error || 'email_send_failed',
+          statusCode: emailRes.statusCode,
+          signerEmail: signer.email
+        },
+        500
+      )
     }
 
     // Audit
@@ -107,9 +140,20 @@ serve(async (req) => {
       console.warn('send-signer-otp log-ecox-event failed', err)
     }
 
+    await appendCanonicalEvent(
+      supabase,
+      {
+        event_type: 'otp.sent',
+        workflow_id: signer.workflow.id,
+        signer_id: signer.id,
+        payload: { expires_at: expiresAt }
+      },
+      'send-signer-otp'
+    )
+
     return json({ success: true, expiresAt, emailSent: !!emailRes.success })
   } catch (error: any) {
     console.error('send-signer-otp error', error)
-    return json({ error: error?.message || 'Unexpected error' }, 500)
+    return json({ error: error?.message || 'Unexpected error', details: error?.stack }, 500)
   }
 })

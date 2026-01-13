@@ -26,68 +26,123 @@ serve(async (req: Request) => {
     }
 
     if (!rows || rows.length === 0) {
-      console.info('✅ No hay emails pendientes');
-      return new Response('No pending', { status: 200 });
+      console.info('✅ No hay emails pendientes en system_emails');
+    } else {
+      for (const r of rows) {
+        try {
+          const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@email.ecosign.app>';
+          const to = r.recipient_email;
+          let subject = r.subject || 'Notificación EcoSign';
+          let html = r.body_html || '<p>Notificación</p>';
+
+          // Special handling for welcome_founder emails - generate HTML dynamically
+          if (r.email_type === 'welcome_founder') {
+            const siteUrl = Deno.env.get('SITE_URL') || 'https://ecosign.app';
+            const meta = (r as any)?.metadata || {};
+            const userName = meta.user_name || to.split('@')[0];
+            const founderNumber = meta.founder_number ?? meta.founderNumber ?? null;
+
+            const welcomeEmail = await buildFounderWelcomeEmail({
+              userEmail: to,
+              userName,
+              founderNumber,
+              dashboardUrl: `${siteUrl}/dashboard`,
+              docsUrl: `${siteUrl}/docs`,
+              supportUrl: `${siteUrl}/support`
+            });
+
+            subject = welcomeEmail.subject;
+            html = welcomeEmail.html;
+          }
+
+          const result = await sendResendEmail({ from, to, subject, html });
+
+          if (result.ok) {
+            const upd = await supabase
+              .from('system_emails')
+              .update({
+                delivery_status: 'sent',
+                sent_at: new Date().toISOString(),
+                error_message: null,
+              })
+              .eq('id', r.id);
+
+            if (upd.error) console.error('Error actualizando a sent:', upd.error);
+            else console.info(`Email enviado fila ${r.id} resend_id ${result.id}`);
+          } else {
+            const retry = (r.attempts ?? 0) + 1;
+            const new_status = retry >= MAX_RETRIES ? 'failed' : 'pending';
+            const upd = await supabase
+              .from('system_emails')
+              .update({
+                delivery_status: new_status,
+                error_message: JSON.stringify(result.error ?? result.body ?? 'Unknown error'),
+                attempts: retry,
+              })
+              .eq('id', r.id);
+
+            console.error(`Error enviando email fila ${r.id}:`, result.error ?? result.body);
+            if (upd.error) console.error('Error actualizando fila error:', upd.error);
+          }
+        } catch (innerErr) {
+          console.error('Excepción procesando fila:', innerErr);
+        }
+      }
     }
 
-    for (const r of rows) {
-      try {
-        const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@email.ecosign.app>';
-        const to = r.recipient_email;
-        let subject = r.subject || 'Notificación EcoSign';
-        let html = r.body_html || '<p>Notificación</p>';
+    const { data: workflowRows, error: workflowError } = await supabase
+      .from('workflow_notifications')
+      .select('*')
+      .eq('delivery_status', 'pending')
+      .lt('retry_count', MAX_RETRIES)
+      .limit(50)
+      .order('created_at', { ascending: true });
 
-        // Special handling for welcome_founder emails - generate HTML dynamically
-        if (r.email_type === 'welcome_founder') {
-          const siteUrl = Deno.env.get('SITE_URL') || 'https://ecosign.app';
-          const meta = (r as any)?.metadata || {};
-          const userName = meta.user_name || to.split('@')[0];
-          const founderNumber = meta.founder_number ?? meta.founderNumber ?? null;
+    if (workflowError) {
+      console.error('Error seleccionando workflow_notifications pending:', workflowError);
+    } else if (!workflowRows || workflowRows.length === 0) {
+      console.info('✅ No hay emails pendientes en workflow_notifications');
+    } else {
+      for (const r of workflowRows) {
+        try {
+          const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@email.ecosign.app>';
+          const to = r.recipient_email;
+          const subject = r.subject || 'Notificación EcoSign';
+          const html = r.body_html || '<p>Notificación</p>';
 
-          const welcomeEmail = await buildFounderWelcomeEmail({
-            userEmail: to,
-            userName,
-            founderNumber,
-            dashboardUrl: `${siteUrl}/dashboard`,
-            docsUrl: `${siteUrl}/docs`,
-            supportUrl: `${siteUrl}/support`
-          });
+          const result = await sendResendEmail({ from, to, subject, html });
 
-          subject = welcomeEmail.subject;
-          html = welcomeEmail.html;
+          if (result.ok) {
+            const upd = await supabase
+              .from('workflow_notifications')
+              .update({
+                delivery_status: 'sent',
+                sent_at: new Date().toISOString(),
+                error_message: null,
+                resend_email_id: result.id ?? null
+              })
+              .eq('id', r.id);
+
+            if (upd.error) console.error('Error actualizando workflow_notifications a sent:', upd.error);
+            else console.info(`Workflow email enviado fila ${r.id} resend_id ${result.id}`);
+          } else {
+            const retry = (r.retry_count ?? 0) + 1;
+            const new_status = retry >= MAX_RETRIES ? 'failed' : 'pending';
+            const upd = await supabase
+              .from('workflow_notifications')
+              .update({
+                delivery_status: new_status,
+                error_message: JSON.stringify(result.error ?? result.body ?? 'Unknown error'),
+                retry_count: retry
+              })
+              .eq('id', r.id);
+
+            console.error(`Error enviando workflow email fila ${r.id}:`, result.error ?? result.body);
+            if (upd.error) console.error('Error actualizando workflow_notifications error:', upd.error);
+          }
+        } catch (innerErr) {
+          console.error('Excepción procesando workflow_notifications:', innerErr);
         }
-
-        const result = await sendResendEmail({ from, to, subject, html });
-
-        if (result.ok) {
-          const upd = await supabase
-            .from('system_emails')
-            .update({
-              delivery_status: 'sent',
-              sent_at: new Date().toISOString(),
-              error_message: null,
-            })
-            .eq('id', r.id);
-
-          if (upd.error) console.error('Error actualizando a sent:', upd.error);
-          else console.info(`Email enviado fila ${r.id} resend_id ${result.id}`);
-        } else {
-          const retry = (r.attempts ?? 0) + 1;
-          const new_status = retry >= MAX_RETRIES ? 'failed' : 'pending';
-          const upd = await supabase
-            .from('system_emails')
-            .update({
-              delivery_status: new_status,
-              error_message: JSON.stringify(result.error ?? result.body ?? 'Unknown error'),
-              attempts: retry,
-            })
-            .eq('id', r.id);
-
-          console.error(`Error enviando email fila ${r.id}:`, result.error ?? result.body);
-          if (upd.error) console.error('Error actualizando fila error:', upd.error);
-        }
-      } catch (innerErr) {
-        console.error('Excepción procesando fila:', innerErr);
       }
     }
 

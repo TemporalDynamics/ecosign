@@ -159,6 +159,48 @@ Se consolidó el Centro Legal con preview editable basado en canvas virtual (fit
 ### 🎯 Resumen
 Se consolidó el Verificador como la única superficie canónica para la historia del documento. La cronología ahora se construye offline-first desde el certificado `.eco` y no depende de login ni backend. Se agregó tabla `operations_events` (append-only) para auditoría operativa, sin alterar la verdad forense del documento.
 
+---
+
+## F0.1 — Estados Canónicos de Workflow y Firmantes — 2026-01-12
+
+### 🎯 Resumen
+Se alinearon los estados de `signature_workflows` y `workflow_signers` con los contratos canónicos. Se introdujeron checks de estado consistentes, migración de valores legacy y se ajustaron funciones/UX para usar `invited` y `ready_to_sign`.
+
+### ✅ Decisiones clave
+- Estados de workflow permitidos: `draft`, `ready`, `active`, `completed`, `cancelled`, `rejected`, `archived`.
+- Estados de firmante permitidos: `created`, `invited`, `accessed`, `verified`, `ready_to_sign`, `signed`, `cancelled`, `expired`.
+- Migración legacy: `pending -> invited`, `ready -> ready_to_sign`, `requested_changes -> verified`, `skipped -> cancelled`.
+- El flujo secuencial inicia con `ready_to_sign` para el primer firmante; el resto queda en `invited`.
+- El estado "bloqueado" es semantico; el workflow se mantiene en `active` durante solicitudes de cambio.
+
+### 🔧 Implementación
+- Migraciones: checks de estado + funciones helper (advance/get_next_signer) actualizadas.
+- Trigger `notify_signer_link` actualizado para disparar solo en `invited|ready_to_sign`.
+- UI: badges y conteos adaptados a estados canónicos.
+
+### 📌 Razón
+Unificar estados y transiciones evita inconsistencias de flujo, bloquea combinaciones invalidas y habilita observabilidad e idempotencia en P0.
+
+---
+
+## F0.1.5 — Eventos Canónicos (puente obligatorio) — 2026-01-12
+
+### 🎯 Resumen
+Se creó un canal único de eventos canónicos para workflow/firmantes. Los cambios de estado importantes ahora registran hechos en `workflow_events` mediante `appendEvent` y se prohíbe el registro “silencioso”.
+
+### ✅ Decisiones clave
+- Eventos mínimos P0: workflow.created/activated/completed/cancelled, signer.invited/accessed/ready_to_sign/signed/cancelled, document.change_requested/resolved.
+- Los estados viven en tablas; la verdad de “qué pasó” vive en eventos.
+- `appendEvent` es la única vía para insertar eventos canónicos.
+
+### 🔧 Implementación
+- Nueva tabla `workflow_events` con lista cerrada de `event_type`.
+- Helper `canonicalEventHelper.appendEvent` con validación de lista.
+- Edge functions actualizadas para emitir eventos (inicio de workflow, acceso, firma, cambios).
+
+### 📌 Razón
+Sin eventos canónicos no hay auditoría confiable ni pipelines observables. Esto habilita F0.2 sin deuda.
+
 ### ✅ Decisiones tomadas
 - **Timeline vive solo en el Verificador** (público e interno). No se embebe en `Documents` ni `OperationRow`.
 - **Offline-first estricto:** la cronología se genera únicamente desde `.eco` (events + timestamps). Backend es solo enriquecimiento opcional.
@@ -1509,4 +1551,3 @@ Si estas por exponer `{ id: ... }` en response publico:
 - Mantener smoke tests como red minima (no expandir sin necesidad).
 
 ---
-

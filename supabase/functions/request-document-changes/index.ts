@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 
 const corsHeaders = {
@@ -33,6 +34,14 @@ const jsonResponse = (data: unknown, status = 200) =>
       'Content-Type': 'application/json'
     }
   })
+
+async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
+  try {
+    await supabase.functions.invoke('send-pending-emails')
+  } catch (error) {
+    console.warn('send-pending-emails invoke failed', error)
+  }
+}
 
 async function hashToken(token: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -83,7 +92,7 @@ serve(async (req) => {
     }
 
     // 2. Validar que sea su turno
-    if (signer.status !== 'ready') {
+    if (signer.status !== 'ready_to_sign') {
       return jsonResponse({
         error: 'Not your turn to review the document',
         currentStatus: signer.status
@@ -96,7 +105,7 @@ serve(async (req) => {
     await supabase
       .from('workflow_signers')
       .update({
-        status: 'requested_changes',
+        status: 'accessed',
         change_request_data: {
           annotations,
           generalNotes,
@@ -108,14 +117,28 @@ serve(async (req) => {
       })
       .eq('id', signer.id)
 
-    // 4. Pausar workflow
+    // 4. Mantener workflow activo (estado semantico "bloqueado")
     await supabase
       .from('signature_workflows')
       .update({
-        status: 'paused',
+        status: 'active',
         updated_at: new Date().toISOString()
       })
       .eq('id', signer.workflow_id)
+
+    await appendCanonicalEvent(
+      supabase,
+      {
+        event_type: 'document.change_requested',
+        workflow_id: signer.workflow_id,
+        signer_id: signer.id,
+        payload: {
+          annotations_count: annotations.length,
+          has_general_notes: !!generalNotes
+        }
+      },
+      'request-document-changes'
+    )
 
     // 5. Obtener email del owner
     const { data: owner } = await supabase.auth.admin.getUserById(workflow.owner_id)
@@ -187,7 +210,7 @@ serve(async (req) => {
           </ul>
 
           <p>Recibirás una notificación cuando el propietario responda a tu solicitud.</p>
-          <p>El documento queda en pausa hasta que se resuelva tu solicitud.</p>
+          <p>El documento queda bloqueado hasta que se resuelva tu solicitud.</p>
         `,
         delivery_status: 'pending'
       })
@@ -222,12 +245,14 @@ serve(async (req) => {
       }
     }
 
+    await triggerEmailDelivery(supabase)
+
     return jsonResponse({
       success: true,
       workflowId: signer.workflow_id,
-      status: 'paused',
+      status: 'active',
       annotationsCount: annotations.length,
-      message: 'Change request submitted successfully. Workflow paused. Owner will be notified.'
+      message: 'Solicitud enviada. El flujo queda bloqueado hasta que el owner responda.'
     })
 
   } catch (error) {

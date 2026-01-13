@@ -26,18 +26,31 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     const body = await req.json()
-    const eventId = body?.event_id || body?.workflow_event_id
+    // Supabase DB Webhooks send a full payload with the inserted record under `record`.
+    // Accept either direct event_id (manual callers) or the webhook payload.
+    const eventId = body?.record?.id || body?.event_id || body?.workflow_event_id
+    const eventTypeFromPayload = body?.record?.event_type || body?.event_type
     if (!eventId) return json({ error: 'event_id required' }, 400)
 
-    // 1) load the event
-    const { data: ev, error: evErr } = await supabase
-      .from('workflow_events')
-      .select('*')
-      .eq('id', eventId)
-      .single()
+    // If webhook provided the record, use it directly to avoid an extra DB read.
+    let ev = body?.record || null
+    let evErr = null
+    if (!ev) {
+      // 1) load the event from DB when not present in payload
+      const res = await supabase
+        .from('workflow_events')
+        .select('*')
+        .eq('id', eventId)
+        .single()
+      ev = res.data
+      evErr = res.error
+    }
 
     if (evErr || !ev) return json({ error: 'event not found' }, 404)
-    if (ev.event_type !== 'signer.signed') return json({ error: 'event is not signer.signed' }, 400)
+    // Filter non-signer.signed events early and return success so webhooks don't error.
+    if ((eventTypeFromPayload && eventTypeFromPayload !== 'signer.signed') || ev.event_type !== 'signer.signed') {
+      return json({ ok: true, ignored: true })
+    }
 
     const signerId = ev.signer_id
     const workflowId = ev.workflow_id

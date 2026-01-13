@@ -418,7 +418,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           workflowId: signerData.workflow_id,
           witness_pdf_hash: signerData.workflow.document_hash,
           applied_at: new Date().toISOString(),
-          identity_level: signerData.otp_verified ? 'otp' : 'unknown'
+          identity_level: signerData.otp_verified ? 'otp' : 'unknown',
+          signatureData: signatureData
         }
       })
 

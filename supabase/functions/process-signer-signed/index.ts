@@ -27,9 +27,14 @@ serve(async (req) => {
 
     const body = await req.json()
     // Supabase DB Webhooks send a full payload with the inserted record under `record`.
+    // If the payload includes an event type and it's not signer.signed, ignore early to avoid extra DB reads.
+    const eventTypeFromPayload = body?.record?.event_type || body?.event_type
+    if (eventTypeFromPayload && eventTypeFromPayload !== 'signer.signed') {
+      return json({ ok: true, ignored: true })
+    }
+
     // Accept either direct event_id (manual callers) or the webhook payload.
     const eventId = body?.record?.id || body?.event_id || body?.workflow_event_id
-    const eventTypeFromPayload = body?.record?.event_type || body?.event_type
     if (!eventId) return json({ error: 'event_id required' }, 400)
 
     // If webhook provided the record, use it directly to avoid an extra DB read.

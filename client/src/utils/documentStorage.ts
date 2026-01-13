@@ -537,6 +537,14 @@ export async function deleteUserDocument(documentId: string): Promise<void> {
 export async function downloadDocument(storagePath: string): Promise<DownloadResult> {
   const supabase = getSupabase();
   try {
+    if (/^https?:\/\//i.test(storagePath)) {
+      const resp = await fetch(storagePath);
+      if (!resp.ok) {
+        return { success: false, data: null, error: 'No se pudo descargar el documento' };
+      }
+      const blob = await resp.blob();
+      return { success: true, data: blob, error: null };
+    }
     const { data, error } = await supabase.storage
       .from('user-documents')
       .download(storagePath);

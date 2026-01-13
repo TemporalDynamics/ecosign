@@ -2,6 +2,8 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendTsaEventFromEdge } from '../_shared/tsaHelper.ts'
+import { appendEvent } from '../_shared/eventHelper.ts'
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -37,6 +39,14 @@ const jsonResponse = (data: unknown, status = 200) =>
       'Content-Type': 'application/json'
     }
   })
+
+async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
+  try {
+    await supabase.functions.invoke('send-pending-emails')
+  } catch (error) {
+    console.warn('send-pending-emails invoke failed', error)
+  }
+}
 
 async function hashToken(token: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -88,7 +98,7 @@ serve(async (req) => {
     }
 
     // 2. Validar que sea su turno
-    if (signer.status !== 'ready') {
+    if (signer.status !== 'ready_to_sign') {
       return jsonResponse({
         error: 'Not your turn to sign yet',
         currentStatus: signer.status
@@ -397,6 +407,21 @@ serve(async (req) => {
       })
       .eq('id', signer.id)
 
+    await appendCanonicalEvent(
+      supabase,
+      {
+        event_type: 'signer.signed',
+        workflow_id: signer.workflow_id,
+        signer_id: signer.id,
+        payload: {
+          email: signer.email,
+          signing_order: signer.signing_order
+        },
+        actor_id: workflow.owner_id ?? null
+      },
+      'process-signature'
+    )
+
     // 8. Avanzar workflow (marcar siguiente firmante como 'ready')
     await supabase.rpc('advance_workflow', { p_workflow_id: signer.workflow_id })
 
@@ -405,8 +430,35 @@ serve(async (req) => {
       .from('workflow_signers')
       .select('*')
       .eq('workflow_id', signer.workflow_id)
-      .eq('status', 'ready')
+      .eq('status', 'ready_to_sign')
       .single()
+
+    if (nextSigner) {
+      await appendCanonicalEvent(
+        supabase,
+        {
+          event_type: 'signer.ready_to_sign',
+          workflow_id: signer.workflow_id,
+          signer_id: nextSigner.id,
+          payload: {
+            email: nextSigner.email,
+            signing_order: nextSigner.signing_order
+          }
+        },
+        'process-signature'
+      )
+    } else {
+      await appendCanonicalEvent(
+        supabase,
+        {
+          event_type: 'workflow.completed',
+          workflow_id: signer.workflow_id,
+          payload: { completed_at: new Date().toISOString() },
+          actor_id: workflow.owner_id ?? null
+        },
+        'process-signature'
+      )
+    }
 
     // 10. Crear notificaciones
     const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
@@ -533,6 +585,8 @@ serve(async (req) => {
         })
       }
     }
+
+    await triggerEmailDelivery(supabase)
 
     return jsonResponse({
       success: true,

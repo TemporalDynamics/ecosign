@@ -24,11 +24,11 @@ import { addDocumentToOperation, countDocumentsInOperation, getOperations, getOp
 import { getDocumentEntity } from "../lib/documentEntityService";
 import type { Operation } from "../types/operations";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
-import { loadDraftOperations } from "../lib/draftOperationsService";
+import { deleteDraftOperation, loadDraftFile, loadDraftOperations } from "../lib/draftOperationsService";
 import { useLegalCenter } from "../contexts/LegalCenterContext";
 import { decryptFile, ensureCryptoSession, getSessionUnwrapKey, unwrapDocumentKey } from "../lib/e2e";
 import { hashSigned, hashSource, hashWitness } from "../lib/canonicalHashing";
-import { listDrafts, removeDraft, type DraftMeta } from "../utils/draftStorage";
+import { listDrafts, type DraftMeta } from "../utils/draftStorage";
 
 type DocumentRecord = {
   id: string;
@@ -77,6 +77,12 @@ type DocumentEntityRow = {
   lifecycle_status?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+type DraftRow = DraftMeta & {
+  operationId?: string;
+  draftFileRef?: string;
+  source?: "server" | "local";
 };
 
 type PlanTier = "guest" | "free" | "pro" | "business" | "enterprise" | null | string;
@@ -297,6 +303,18 @@ function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [planTier, setPlanTier] = useState<PlanTier>(null); // free | pro | business | enterprise
   const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewText, setPreviewText] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewOperation, setPreviewOperation] = useState<Operation | null>(null);
+  const [previewOperationDocs, setPreviewOperationDocs] = useState<DocumentRecord[]>([]);
+  const [previewOperationLoading, setPreviewOperationLoading] = useState(false);
+  const [previewDraft, setPreviewDraft] = useState<DraftRow | null>(null);
+  const [previewDraftUrl, setPreviewDraftUrl] = useState<string | null>(null);
+  const [previewDraftText, setPreviewDraftText] = useState<string | null>(null);
+  const [previewDraftLoading, setPreviewDraftLoading] = useState(false);
+  const [previewDraftError, setPreviewDraftError] = useState<string | null>(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyDoc, setVerifyDoc] = useState<DocumentRecord | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerificationResult | null>(null);
@@ -319,7 +337,7 @@ function DocumentsPage() {
   const [operationDraftName, setOperationDraftName] = useState("");
   const [operationDraftDescription, setOperationDraftDescription] = useState("");
   const [savingOperation, setSavingOperation] = useState(false);
-  const [drafts, setDrafts] = useState<DraftMeta[]>([]);
+  const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [activeSelection, setActiveSelection] = useState<"operations" | "documents" | null>(null);
   const [selectedOperationIds, setSelectedOperationIds] = useState<Set<string>>(new Set());
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(new Set());
@@ -442,7 +460,7 @@ function DocumentsPage() {
       toast("No hay borradores para continuar.", { position: "top-right" });
       return;
     }
-    handleResumeDraft(drafts[0].id);
+    handleResumeDraft(drafts[0]);
   };
 
   const handleEditOperation = (operation: Operation) => {
@@ -548,7 +566,7 @@ function DocumentsPage() {
       const serverDrafts = await loadDraftOperations();
 
       // Convertir DraftOperation[] a DraftMeta[] para compatibilidad con UI
-      const draftsMeta: DraftMeta[] = serverDrafts.flatMap(op =>
+      const draftsMeta: DraftRow[] = serverDrafts.flatMap(op =>
         op.documents.map(doc => ({
           id: doc.draft_file_ref.startsWith('local:')
             ? doc.draft_file_ref.replace('local:', '')
@@ -556,7 +574,10 @@ function DocumentsPage() {
           name: doc.filename,
           createdAt: op.created_at,
           size: doc.size,
-          type: doc.metadata?.type || 'application/pdf'
+          type: doc.metadata?.type || 'application/pdf',
+          operationId: op.operation_id,
+          draftFileRef: doc.draft_file_ref,
+          source: doc.draft_file_ref.startsWith('local:') ? 'local' : 'server'
         }))
       );
 
@@ -565,7 +586,12 @@ function DocumentsPage() {
       console.error('Error loading server drafts:', err);
 
       // Fallback a local
-      setDrafts(listDrafts());
+      setDrafts(listDrafts().map((draft) => ({
+        ...draft,
+        operationId: `local-${draft.id}`,
+        draftFileRef: `local:${draft.id}`,
+        source: 'local'
+      })));
     }
   }, []);
 
@@ -786,6 +812,22 @@ function DocumentsPage() {
     }
   };
 
+  const fetchPreviewBlobFromPath = async (storagePath: string) => {
+    if (isGuestMode()) {
+      throw new Error("Iniciá sesión para previsualizar documentos.");
+    }
+    const supabase = getSupabase();
+    const { data, error } = await supabase.storage.from("user-documents").createSignedUrl(storagePath, 3600);
+    if (error || !data?.signedUrl) {
+      throw new Error("No pudimos preparar la previsualización.");
+    }
+    const response = await fetch(data.signedUrl);
+    if (!response.ok) {
+      throw new Error("No pudimos cargar la previsualización.");
+    }
+    return response.blob();
+  };
+
   const fetchEncryptedPdfBlob = async (doc: DocumentRecord) => {
     if (!doc.encrypted_path || !doc.wrapped_key || !doc.wrap_iv) {
       throw new Error("No tenemos la información de cifrado para este documento.");
@@ -824,6 +866,135 @@ function DocumentsPage() {
     const documentKey = await unwrapDocumentKey(doc.wrapped_key, doc.wrap_iv, sessionUnwrapKey);
     return decryptFile(encryptedBlob, documentKey);
   };
+
+  useEffect(() => {
+    if (!previewDoc) {
+      setPreviewUrl(null);
+      setPreviewText(null);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      return;
+    }
+
+    let active = true;
+    let objectUrl: string | null = null;
+    const fileName = previewDoc.document_name || "";
+    const extension = fileName.split(".").pop()?.toLowerCase() || "";
+    const isText = ["txt", "md", "csv"].includes(extension);
+    const isImage = ["png", "jpg", "jpeg", "gif", "webp"].includes(extension);
+    const isPreviewable = isText || isImage || extension === "pdf";
+
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewUrl(null);
+    setPreviewText(null);
+
+    const loadPreview = async () => {
+      try {
+        if (!isPreviewable) {
+          throw new Error("Este formato no tiene previsualización disponible.");
+        }
+        let blob: Blob | null = null;
+        if (previewDoc.pdf_storage_path) {
+          blob = await fetchPreviewBlobFromPath(previewDoc.pdf_storage_path);
+        } else if (previewDoc.encrypted_path) {
+          blob = await fetchEncryptedPdfBlob(previewDoc);
+        }
+
+        if (!blob) {
+          throw new Error("No encontramos el archivo para previsualizar.");
+        }
+
+        if (!active) return;
+
+        if (isText) {
+          const text = await blob.text();
+          if (!active) return;
+          setPreviewText(text);
+        } else {
+          objectUrl = URL.createObjectURL(blob);
+          setPreviewUrl(objectUrl);
+        }
+      } catch (err) {
+        if (!active) return;
+        const message = err instanceof Error ? err.message : "No pudimos cargar la previsualización.";
+        setPreviewError(message);
+      } finally {
+        if (active) setPreviewLoading(false);
+      }
+    };
+
+    loadPreview();
+
+    return () => {
+      active = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [previewDoc]);
+
+  useEffect(() => {
+    if (!previewDraft) {
+      setPreviewDraftUrl(null);
+      setPreviewDraftText(null);
+      setPreviewDraftError(null);
+      setPreviewDraftLoading(false);
+      return;
+    }
+
+    let active = true;
+    let objectUrl: string | null = null;
+    const fileName = previewDraft.name || "";
+    const extension = fileName.split(".").pop()?.toLowerCase() || "";
+    const isText = ["txt", "md", "csv"].includes(extension);
+    const isImage = ["png", "jpg", "jpeg", "gif", "webp"].includes(extension);
+    const isPreviewable = isText || isImage || extension === "pdf";
+
+    setPreviewDraftLoading(true);
+    setPreviewDraftError(null);
+    setPreviewDraftUrl(null);
+    setPreviewDraftText(null);
+
+    const loadPreview = async () => {
+      try {
+        if (!isPreviewable) {
+          throw new Error("Este formato no tiene previsualización disponible.");
+        }
+
+        const file = await loadDraftFile(previewDraft.draftFileRef ?? `local:${previewDraft.id}`);
+        if (!file) {
+          throw new Error("Vista previa no disponible para este borrador.");
+        }
+
+        if (!active) return;
+
+        if (isText) {
+          const text = await file.text();
+          if (!active) return;
+          setPreviewDraftText(text);
+        } else {
+          objectUrl = URL.createObjectURL(file);
+          setPreviewDraftUrl(objectUrl);
+        }
+      } catch (err) {
+        if (!active) return;
+        const message = err instanceof Error ? err.message : "No pudimos cargar la vista previa.";
+        setPreviewDraftError(message);
+      } finally {
+        if (active) setPreviewDraftLoading(false);
+      }
+    };
+
+    loadPreview();
+
+    return () => {
+      active = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [previewDraft]);
 
   const requestRegeneration = async (docId: string, type: string) => {
     if (isGuestMode()) {
@@ -915,6 +1086,20 @@ function DocumentsPage() {
     window.alert("Este documento no tiene copia guardada.");
   };
 
+  const handleOriginalDownload = (doc: DocumentRecord | null) => {
+    if (!doc) return;
+    if (!doc.encrypted_path) {
+      window.alert("Este documento no tiene archivo original cifrado.");
+      return;
+    }
+    fetchEncryptedPdfBlob(doc)
+      .then((blob) => triggerDownload(blob, doc.document_name))
+      .catch((err) => {
+        console.error("Error descargando original cifrado:", err);
+        window.alert(err instanceof Error ? err.message : "No pudimos descargar el original.");
+      });
+  };
+
   const handleVerifyDoc = (doc: DocumentRecord | null) => {
     if (!doc) return;
     setVerifyDoc(doc);
@@ -939,15 +1124,38 @@ function DocumentsPage() {
     setShareDoc(doc);
   };
 
-  const handleResumeDraft = (draftId: string) => {
-    localStorage.setItem('ecosign_draft_to_open', draftId);
+  const handleResumeDraft = (draft: DraftRow) => {
+    localStorage.setItem('ecosign_draft_to_open', draft.id);
     openLegalCenter('certify');
   };
 
-  const handleDeleteDraft = async (draftId: string) => {
+  const handleOpenOperationDetail = async (operation: Operation) => {
+    setPreviewOperation(operation);
+    setPreviewOperationDocs([]);
+    setPreviewOperationLoading(true);
     try {
-      await removeDraft(draftId);
+      const { documents } = await getOperationWithDocuments(operation.id);
+      const mapped = (documents || []).map((doc: any) =>
+        mapDocumentEntityToRecord(doc.document_entities ?? doc)
+      );
+      setPreviewOperationDocs(mapped);
+    } catch (err) {
+      console.error("Error loading operation detail:", err);
+      toast.error("No se pudo cargar la operación", { position: "top-right" });
+    } finally {
+      setPreviewOperationLoading(false);
+    }
+  };
+
+  const handleDeleteDraft = async (draft: DraftRow) => {
+    try {
+      if (draft.operationId) {
+        await deleteDraftOperation(draft.operationId);
+      } else {
+        await deleteDraftOperation(`local-${draft.id}`);
+      }
       loadDrafts();
+      setPreviewDraft(null);
       toast.success('Borrador eliminado', { position: 'top-right' });
     } catch (err) {
       console.error('Error removing draft:', err);
@@ -1210,7 +1418,7 @@ function DocumentsPage() {
                               key={draft.id}
                               type="button"
                               onClick={() => {
-                                handleResumeDraft(draft.id);
+                                handleResumeDraft(draft);
                                 setSearch("");
                               }}
                               className="w-full text-left border border-gray-200 rounded-lg px-4 py-3 hover:border-black transition"
@@ -1392,6 +1600,65 @@ function DocumentsPage() {
                     </div>
                   ) : (
                     <div className="space-y-3 mt-2">
+                      {activeSelection === "operations" && (
+                        <div
+                          className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600 cursor-pointer"
+                          onClick={(event) => {
+                            const target = event.target as HTMLElement;
+                            if (target.closest("[data-select-actions]")) return;
+                            if (target.closest('input[type="checkbox"]')) return;
+                            if (visibleOperations.length === 0) return;
+                            const nextChecked = selectedOperationIds.size !== visibleOperations.length;
+                            if (nextChecked) {
+                              setSelectedOperationIds(new Set(visibleOperations.map((operation) => operation.id)));
+                            } else {
+                              setSelectedOperationIds(new Set());
+                            }
+                          }}
+                        >
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
+                              checked={visibleOperations.length > 0 && selectedOperationIds.size === visibleOperations.length}
+                              onChange={(event) => {
+                                if (event.target.checked) {
+                                  setSelectedOperationIds(new Set(visibleOperations.map((operation) => operation.id)));
+                                } else {
+                                  setSelectedOperationIds(new Set());
+                                }
+                              }}
+                              aria-label="Seleccionar todas las operaciones"
+                            />
+                            <span>{selectedOperationIds.size} seleccionadas</span>
+                          </label>
+                          <div className="flex items-center gap-2" data-select-actions>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedOperationIds.size === 0) {
+                                  toast("Seleccioná operaciones para compartir", { position: "top-right" });
+                                  return;
+                                }
+                                toast("Compartir operaciones próximamente", { position: "top-right" });
+                              }}
+                              className="px-3 py-1 rounded bg-black text-white text-xs font-semibold hover:bg-gray-800"
+                            >
+                              Compartir
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveSelection(null);
+                                setSelectedOperationIds(new Set());
+                              }}
+                              className="px-3 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-700 hover:border-gray-500"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       {visibleOperations.map((operation) => (
                         <OperationRow
                           key={operation.id}
@@ -1404,9 +1671,7 @@ function DocumentsPage() {
                           selected={selectedOperationIds.has(operation.id)}
                           onSelect={(checked) => toggleOperationSelection(operation.id, checked)}
                           onClick={() => {
-                            setExpandedOperationId(operation.id);
-                            setOperationsOpenSignal((signal) => signal + 1);
-                            operationsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            handleOpenOperationDetail(operation);
                           }}
                           onEdit={() => {
                             handleEditOperation(operation);
@@ -1459,6 +1724,7 @@ function DocumentsPage() {
                               toast.error('No se pudo abrir el documento', { position: 'top-right' });
                             }
                           }}
+                          onInPerson={() => toast(`Firma presencial para "${operation.name}" próximamente`, { position: "top-right" })}
                         />
                       ))}
                     </div>
@@ -1536,29 +1802,110 @@ function DocumentsPage() {
                   </div>
                 }
               >
+                {activeSelection === "documents" && (
+                  <div
+                    className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-600 mb-2 cursor-pointer"
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement;
+                      if (target.closest("[data-select-actions]")) return;
+                      if (target.closest('input[type="checkbox"]')) return;
+                      if (filteredDocuments.length === 0) return;
+                      const nextChecked = selectedDocumentIds.size !== filteredDocuments.length;
+                      if (nextChecked) {
+                        setSelectedDocumentIds(new Set(filteredDocuments.map((doc) => doc.id)));
+                      } else {
+                        setSelectedDocumentIds(new Set());
+                      }
+                    }}
+                  >
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
+                        checked={filteredDocuments.length > 0 && selectedDocumentIds.size === filteredDocuments.length}
+                        onChange={(event) => {
+                          if (event.target.checked) {
+                            setSelectedDocumentIds(new Set(filteredDocuments.map((doc) => doc.id)));
+                          } else {
+                            setSelectedDocumentIds(new Set());
+                          }
+                        }}
+                        aria-label="Seleccionar todos los documentos"
+                      />
+                      <span>{selectedDocumentIds.size} seleccionados</span>
+                    </label>
+                    <div className="flex items-center gap-2" data-select-actions>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedDocumentIds.size === 0) {
+                            toast("Seleccioná documentos para crear un batch", { position: "top-right" });
+                            return;
+                          }
+                          toast("Batch desde documentos próximamente", { position: "top-right" });
+                        }}
+                        className="px-3 py-1 rounded bg-black text-white text-xs font-semibold hover:bg-gray-800"
+                      >
+                        Crear batch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveSelection(null);
+                          setSelectedDocumentIds(new Set());
+                        }}
+                        className="px-3 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-700 hover:border-gray-500"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="md:hidden space-y-4">
                 {filteredDocuments.map((doc) => (
-                  <DocumentRow
+                  <div
                     key={doc.id}
-                    document={doc}
-                    context="documents"
-                    onOpen={(d) => setPreviewDoc(d)}
-                    onShare={(d) => handleShareDoc(d)}
-                    onDownloadEco={(d) => handleEcoDownload(d)}
-                    onDownloadPdf={(d) => handlePdfDownload(d)}
-                    onVerify={(d) => handleVerifyDoc(d)}
-                    onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
-                    selectable={activeSelection === "documents"}
-                    selected={selectedDocumentIds.has(doc.id)}
-                    onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
-                  />
+                    className={activeSelection === "documents" ? "cursor-pointer" : ""}
+                    onClick={(event) => {
+                      if (activeSelection !== "documents") return;
+                      const target = event.target as HTMLElement;
+                      if (target.closest("[data-row-actions]")) return;
+                      if (target.closest('input[type="checkbox"]')) return;
+                      toggleDocumentSelection(doc.id, !selectedDocumentIds.has(doc.id));
+                    }}
+                  >
+                    <DocumentRow
+                      document={doc}
+                      context="documents"
+                      onOpen={(d) => setPreviewDoc(d)}
+                      onShare={(d) => handleShareDoc(d)}
+                      onDownloadEco={(d) => handleEcoDownload(d)}
+                      onDownloadPdf={(d) => handlePdfDownload(d)}
+                      onVerify={(d) => handleVerifyDoc(d)}
+                      onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
+                      onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
+                      selectable={activeSelection === "documents"}
+                      selected={selectedDocumentIds.has(doc.id)}
+                      onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
+                    />
+                  </div>
                 ))}
               </div>
 
               <div className="hidden md:block bg-white border border-gray-200 rounded-lg">
                 <div className="p-4 space-y-2">
                   {filteredDocuments.map((doc) => (
-                    <div key={doc.id} className={`grid ${GRID_TOKENS.documents.columns} ${GRID_TOKENS.documents.gapX} items-center px-6 py-1.5 hover:bg-gray-50 rounded`}>
+                    <div
+                      key={doc.id}
+                      className={`grid ${GRID_TOKENS.documents.columns} ${GRID_TOKENS.documents.gapX} items-center px-6 py-1.5 hover:bg-gray-50 rounded ${activeSelection === "documents" ? "cursor-pointer" : ""}`}
+                      onClick={(event) => {
+                        if (activeSelection !== "documents") return;
+                        const target = event.target as HTMLElement;
+                        if (target.closest("[data-row-actions]")) return;
+                        if (target.closest('input[type="checkbox"]')) return;
+                        toggleDocumentSelection(doc.id, !selectedDocumentIds.has(doc.id));
+                      }}
+                    >
                       <DocumentRow
                         document={doc}
                         asRow
@@ -1569,6 +1916,7 @@ function DocumentsPage() {
                         onDownloadPdf={(d) => handlePdfDownload(d)}
                         onVerify={(d) => handleVerifyDoc(d)}
                         onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
+                        onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
                         selectable={activeSelection === "documents"}
                         selected={selectedDocumentIds.has(doc.id)}
                         onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
@@ -1660,7 +2008,7 @@ function DocumentsPage() {
                         <div className="text-sm text-gray-500">{formatDate(draft.createdAt)}</div>
                         <div className="flex items-center justify-end gap-2" data-draft-menu>
                           <button
-                            onClick={() => toast("Detalle de borrador próximamente", { position: "top-right" })}
+                            onClick={() => setPreviewDraft(draft)}
                             className="text-black hover:text-gray-600"
                             title="Ver detalle"
                             type="button"
@@ -1668,7 +2016,7 @@ function DocumentsPage() {
                             <Eye className="h-5 w-5" />
                           </button>
                           <button
-                            onClick={() => handleResumeDraft(draft.id)}
+                            onClick={() => handleResumeDraft(draft)}
                             className="text-black hover:text-gray-600"
                             title="Continuar"
                             type="button"
@@ -1688,7 +2036,7 @@ function DocumentsPage() {
                               <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
                                 <button
                                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                                  onClick={() => handleDeleteDraft(draft.id)}
+                                  onClick={() => handleDeleteDraft(draft)}
                                 >
                                   Eliminar
                                 </button>
@@ -1710,8 +2058,8 @@ function DocumentsPage() {
       {/* Modal Preview */}
       {previewDoc && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl p-6">
-            <div className="flex items-start justify-between mb-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">{previewDoc.document_name}</h3>
                 <p className="text-sm text-gray-600 mt-1">
@@ -1720,35 +2068,338 @@ function DocumentsPage() {
                     <> · Última actualización: {formatDate(previewDoc.last_event_at)}</>
                   )}
                 </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Previsualización cifrada, procesada solo en tu dispositivo.
+                </p>
               </div>
               <button
                 onClick={() => setPreviewDoc(null)}
                 className="text-gray-400 hover:text-gray-600"
+                aria-label="Cerrar"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <PreviewBadges doc={previewDoc} planTier={planTier} />
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 min-h-[320px]">
+                {previewLoading && (
+                  <div className="h-full flex items-center justify-center text-sm text-gray-500">
+                    Cargando previsualización...
+                  </div>
+                )}
+                {!previewLoading && previewError && (
+                  <div className="h-full flex items-center justify-center text-sm text-gray-500 px-6 text-center">
+                    {previewError}
+                  </div>
+                )}
+                {!previewLoading && !previewError && previewText && (
+                  <pre className="p-4 text-xs text-gray-700 whitespace-pre-wrap">{previewText}</pre>
+                )}
+                {!previewLoading && !previewError && previewUrl && (
+                  <>
+                    {previewDoc.document_name.toLowerCase().endsWith(".pdf") ? (
+                      <object data={previewUrl} type="application/pdf" className="w-full h-[60vh]">
+                        <div className="p-4 text-sm text-gray-600">No pudimos mostrar el PDF.</div>
+                      </object>
+                    ) : (
+                      <img src={previewUrl} alt="Preview" className="w-full h-full object-contain p-4" />
+                    )}
+                  </>
+                )}
+              </div>
 
-            <div className="mt-6 space-y-4">
-              <ProbativeTimeline doc={previewDoc} />
-              {previewDoc.eco_hash && (
+              <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Hash SHA-256</label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <code className="flex-1 px-3 py-2 bg-gray-50 rounded text-xs font-mono text-gray-700 overflow-x-auto">
-                      {previewDoc.eco_hash}
-                    </code>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(previewDoc.eco_hash || "")}
-                      className="p-2 hover:bg-gray-100 rounded"
-                    >
-                      <Copy className="h-4 w-4 text-gray-600" />
-                    </button>
+                  <PreviewBadges doc={previewDoc} planTier={planTier} />
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                  <div className="font-semibold text-gray-800">Estado probatorio</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {deriveProbativeState(previewDoc, planTier).config.tooltip}
                   </div>
                 </div>
-              )}
+
+                <div className="grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleShareDoc(previewDoc)}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                  >
+                    Compartir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePdfDownload(previewDoc)}
+                    className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:bg-gray-800"
+                  >
+                    Descargar PDF witness
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOriginalDownload(previewDoc)}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!previewDoc.encrypted_path}
+                  >
+                    Descargar original
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEcoDownload(previewDoc)}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                  >
+                    Descargar ECO
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleVerifyDoc(previewDoc)}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                  >
+                    Verificar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMoveDoc({ ...previewDoc, document_entity_id: previewDoc.document_entity_id ?? previewDoc.id })}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                  >
+                    Agregar a operación
+                  </button>
+                </div>
+
+                <div className="pt-2">
+                  <ProbativeTimeline doc={previewDoc} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detalle de Operación */}
+      {previewOperation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">{previewOperation.name}</h3>
+                {previewOperation.description && (
+                  <p className="text-sm text-gray-600 mt-1">{previewOperation.description}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Creada: {formatDate(previewOperation.created_at)}
+                </p>
+              </div>
+              <button
+                onClick={() => setPreviewOperation(null)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-700">
+                {previewOperation.status === "active"
+                  ? "Iniciada"
+                  : previewOperation.status === "closed"
+                    ? "Completada"
+                    : previewOperation.status === "archived"
+                      ? "Archivada"
+                      : "Borrador"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+              <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                <div className="text-sm font-semibold text-gray-900 mb-3">Documentos</div>
+                {previewOperationLoading ? (
+                  <div className="text-sm text-gray-500">Cargando documentos…</div>
+                ) : previewOperationDocs.length === 0 ? (
+                  <div className="text-sm text-gray-500">No hay documentos en esta operación.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {previewOperationDocs.map((doc) => (
+                      <DocumentRow
+                        key={doc.id}
+                        document={doc}
+                        context="operation"
+                        onOpen={(d) => {
+                          setPreviewOperation(null);
+                          setPreviewDoc(d);
+                        }}
+                        onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                  <div className="font-semibold text-gray-800">Estado global</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {(() => {
+                      const total = previewOperationDocs.length;
+                      const completed = previewOperationDocs.filter((doc) => {
+                        const key = deriveFlowStatus(doc).key;
+                        return key === "signed" || key === "protected";
+                      }).length;
+                      const pending = total - completed;
+                      if (total === 0) return "Sin documentos cargados.";
+                      if (pending === 0) return "Todos los documentos están completos.";
+                      return `Faltan completar ${pending} documento${pending === 1 ? "" : "s"}.`;
+                    })()}
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toast("Compartir operación próximamente", { position: "top-right" })}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                  >
+                    Compartir operación
+                  </button>
+                  {previewOperation.status === "active" && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await updateOperation(previewOperation.id, { status: "closed" }, currentUserId || undefined);
+                          toast.success("Operación completada", { position: "top-right" });
+                          setPreviewOperation((prev) => prev ? { ...prev, status: "closed" } : prev);
+                          loadOperations();
+                        } catch (error) {
+                          console.error("Error updating operation:", error);
+                          toast.error("No se pudo completar la operación", { position: "top-right" });
+                        }
+                      }}
+                      className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:bg-gray-800"
+                    >
+                      Marcar como completada
+                    </button>
+                  )}
+                  {previewOperation.status !== "archived" && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await updateOperation(previewOperation.id, { status: "archived" }, currentUserId || undefined);
+                          toast.success("Operación archivada", { position: "top-right" });
+                          setPreviewOperation((prev) => prev ? { ...prev, status: "archived" } : prev);
+                          loadOperations();
+                        } catch (error) {
+                          console.error("Error archiving operation:", error);
+                          toast.error("No se pudo archivar la operación", { position: "top-right" });
+                        }
+                      }}
+                      className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                    >
+                      Archivar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => toast("Firma presencial próximamente", { position: "top-right" })}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                  >
+                    Firma presencial
+                  </button>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                  <div className="font-semibold text-gray-800">Timeline</div>
+                  <div className="text-xs text-gray-600 mt-2">
+                    Operación creada · {formatDate(previewOperation.created_at)}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Estado actual: {previewOperation.status === "active"
+                      ? "Iniciada"
+                      : previewOperation.status === "closed"
+                        ? "Completada"
+                        : previewOperation.status === "archived"
+                          ? "Archivada"
+                          : "Borrador"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detalle de Borrador */}
+      {previewDraft && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">{previewDraft.name}</h3>
+                <p className="text-sm text-amber-700 mt-1">Incompleto</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Última modificación: {formatDate(previewDraft.createdAt)}
+                </p>
+              </div>
+              <button
+                onClick={() => setPreviewDraft(null)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 min-h-[240px]">
+                {previewDraftLoading && (
+                  <div className="h-full flex items-center justify-center text-sm text-gray-500">
+                    Cargando vista previa...
+                  </div>
+                )}
+                {!previewDraftLoading && previewDraftError && (
+                  <div className="h-full flex items-center justify-center text-sm text-gray-500 px-6 text-center">
+                    {previewDraftError}
+                  </div>
+                )}
+                {!previewDraftLoading && !previewDraftError && previewDraftText && (
+                  <pre className="p-4 text-xs text-gray-700 whitespace-pre-wrap">{previewDraftText}</pre>
+                )}
+                {!previewDraftLoading && !previewDraftError && previewDraftUrl && (
+                  <>
+                    {previewDraft.name.toLowerCase().endsWith(".pdf") ? (
+                      <object data={previewDraftUrl} type="application/pdf" className="w-full h-[50vh]">
+                        <div className="p-4 text-sm text-gray-600">No pudimos mostrar el PDF.</div>
+                      </object>
+                    ) : (
+                      <img src={previewDraftUrl} alt="Preview" className="w-full h-full object-contain p-4" />
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                  Este borrador no es probatorio.
+                </div>
+                <div className="grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleResumeDraft(previewDraft)}
+                    className="px-4 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:bg-gray-800"
+                  >
+                    Continuar en Centro Legal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteDraft(previewDraft)}
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                  >
+                    Eliminar borrador
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

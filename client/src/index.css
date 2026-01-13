@@ -27,6 +27,21 @@ button, a, input[type="button"], input[type="submit"], input[type="reset"], inpu
   min-width: 48px;
 }
 
+/* Compact checkbox style (override tap size rule when explicitly used) */
+input[type="checkbox"][data-size="compact-checkbox"] {
+  min-height: auto;
+  min-width: auto;
+}
+
+input[type="checkbox"].eco-checkbox {
+  height: 12px;
+  width: 12px;
+  transform: scale(1.2);
+  transform-origin: left center;
+  min-height: auto;
+  min-width: auto;
+}
+
 /* Animations for landing page */
 @keyframes fade-in {
   from {

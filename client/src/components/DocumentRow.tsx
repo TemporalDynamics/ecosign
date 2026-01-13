@@ -14,6 +14,7 @@ export default function DocumentRow({
   onDownloadEco,
   onVerify,
   onMove,
+  onInPerson,
   selectable = false,
   selected = false,
   onSelect,
@@ -27,6 +28,7 @@ export default function DocumentRow({
   onDownloadEco?: (doc: any) => void;
   onVerify?: (doc: any) => void;
   onMove?: (doc: any) => void;
+  onInPerson?: (doc: any) => void;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (checked: boolean) => void;
@@ -93,7 +95,7 @@ export default function DocumentRow({
           {selectable && (
             <input
               type="checkbox"
-              className="h-4 w-4 text-black border-gray-300 rounded"
+              className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
               checked={selected}
               onChange={(e) => onSelect?.(e.target.checked)}
               aria-label="Seleccionar documento"
@@ -134,7 +136,7 @@ export default function DocumentRow({
 
         <div className="text-sm text-gray-500">{created}</div>
 
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-end gap-3" data-row-actions>
           <button onClick={() => onOpen && onOpen(document)} className="text-black hover:text-gray-600" title="Ver detalle"><Eye className="h-5 w-5" /></button>
           <button onClick={() => onShare ? onShare(document) : toast('No disponible')} className="text-black hover:text-gray-600" title="Compartir"><Share2 className="h-5 w-5" /></button>
 
@@ -154,6 +156,9 @@ export default function DocumentRow({
                 {onMove && context !== 'operation' && (
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onMove(document)}>Agregar a operación</button>
                 )}
+                {onInPerson && (
+                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onInPerson(document)}>Firma presencial</button>
+                )}
               </div>
             )}
           </div>
@@ -169,7 +174,7 @@ export default function DocumentRow({
         {selectable && (
           <input
             type="checkbox"
-            className="h-4 w-4 text-black border-gray-300 rounded"
+            className="eco-checkbox text-black border-gray-300 rounded focus:ring-2 focus:ring-black focus:ring-offset-0"
             checked={selected}
             onChange={(e) => onSelect?.(e.target.checked)}
             aria-label="Seleccionar documento"
@@ -186,7 +191,7 @@ export default function DocumentRow({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" data-row-actions>
         {protectionLevel !== 'NONE' && (
           <span
             className={`text-xs px-2 py-1 rounded ${protectionBadgeClasses}`}
@@ -265,7 +270,16 @@ export default function DocumentRow({
                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
                   onClick={() => onMove(document)}
                 >
-                  Mover a operación
+                  Agregar a operación
+                </button>
+              )}
+
+              {onInPerson && (
+                <button
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                  onClick={() => onInPerson(document)}
+                >
+                  Firma presencial
                 </button>
               )}
             </div>

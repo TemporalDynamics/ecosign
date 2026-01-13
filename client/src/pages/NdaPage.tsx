@@ -114,14 +114,14 @@ function NdaPage() {
 
             <div className="mb-8">
               <div className="flex items-start mb-6 bg-slate-700/50 p-4 rounded-lg">
-                <input type="checkbox" id="accept-terms" className="mt-1 mr-3 h-5 w-5 text-black rounded focus:ring-black500" />
+                <input type="checkbox" id="accept-terms" className="eco-checkbox mt-1 mr-3 text-black rounded focus:ring-black500" />
                 <label htmlFor="accept-terms" className="text-slate-300">
                   He leído y acepto los términos del acuerdo de confidencialidad. Entiendo que mi acceso será registrado y que este acuerdo tiene validez legal.
                 </label>
               </div>
 
               <div className="flex items-start mb-6">
-                <input type="checkbox" id="data-consent" className="mt-1 mr-3 h-5 w-5 text-black rounded focus:ring-black500" />
+                <input type="checkbox" id="data-consent" className="eco-checkbox mt-1 mr-3 text-black rounded focus:ring-black500" />
                 <label htmlFor="data-consent" className="text-slate-300">
                   Consentimiento para procesamiento de datos: Acepto que mis datos personales sean tratados conforme a la política de privacidad para fines de verificación y cumplimiento legal.
                 </label>

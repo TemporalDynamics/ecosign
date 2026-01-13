@@ -601,9 +601,9 @@ serve(async (req) => {
             .from('workflow_signers')
             .update({
               signature_type: 'SIGNNOW',
-              signnow_embed_url: signingUrl,
-              status: 'ready'
-            })
+            signnow_embed_url: signingUrl,
+            status: 'ready_to_sign'
+          })
             .in('email', signerEmails)
             .eq('workflow_id', workflowId);
         }

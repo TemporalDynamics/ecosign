@@ -1,6 +1,9 @@
 import { renderTemplateFromFile } from './template-renderer.ts';
 
-const DEFAULT_FROM = Deno.env.get('RESEND_FROM') || 'EcoSign <notificaciones@ecosign.app>';
+const DEFAULT_FROM =
+  Deno.env.get('DEFAULT_FROM') ||
+  Deno.env.get('RESEND_FROM') ||
+  'EcoSign <notificaciones@ecosign.app>';
 const DEFAULT_SITE_URL = Deno.env.get('SITE_URL') || 'https://ecosign.app';
 
 function normalizeSiteUrl(siteUrl?: string | null) {

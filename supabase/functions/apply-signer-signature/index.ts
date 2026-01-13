@@ -23,7 +23,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const body = await req.json()
-    const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level } = body
+    const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level, signatureData } = body
 
     if (!signerId && !accessToken) {
       return json({ error: 'Missing signerId or accessToken' }, 400)
@@ -84,10 +84,10 @@ serve(async (req) => {
       return json({ error: 'Could not insert event', details: insertErr.message }, 500)
     }
 
-    // Update signer status to signed
+    // Update signer status and persist signature data
     const { error: signerUpdErr } = await supabase
       .from('workflow_signers')
-      .update({ status: 'signed', signed_at: new Date().toISOString() })
+      .update({ status: 'signed', signed_at: new Date().toISOString(), signature_data: signatureData || null })
       .eq('id', signer.id)
 
     if (signerUpdErr) {

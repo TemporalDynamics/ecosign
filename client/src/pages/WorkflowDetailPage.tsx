@@ -138,6 +138,9 @@ export default function WorkflowDetailPage() {
   const [actionLoading, setActionLoading] = useState(false)
 
   const humanState = deriveHumanState(workflow, signers)
+  // Responsible agent display and closure timestamp
+  const responsibleName = (workflow as any)?.responsible_agent_name || (workflow as any)?.responsible?.display_name || (workflow as any)?.owner_name || null;
+  const lastSignedAt = signers.filter(s => s.signed_at).length ? signers.filter(s => s.signed_at).slice(-1)[0].signed_at : null;
 
   useEffect(() => {
     if (id) {
@@ -303,12 +306,24 @@ export default function WorkflowDetailPage() {
                   <Clock className="h-4 w-4" />
                   Creado: {new Date(workflow.created_at).toLocaleString()}
                 </span>
+                {responsibleName && (
+                  <span className="text-gray-600">Responsable: {responsibleName}</span>
+                )}
                 {workflow.document_hash && (
                   <span className="font-mono text-xs text-gray-600">
                     Hash: {formatHashForDisplay(workflow.document_hash)}
                   </span>
                 )}
               </div>
+
+              {/* Cierre explícito e inmutabilidad */}
+              {workflow.status === 'completed' && (
+                <div className="mt-4 rounded-md bg-gray-50 p-3 text-sm text-gray-700">
+                  <div className="font-medium">Todos los firmantes completaron el flujo</div>
+                  <div className="text-xs mt-1">Cerrado: {new Date(lastSignedAt || workflow.updated_at).toLocaleString()}</div>
+                  <div className="text-xs mt-2 text-gray-600">Este documento es inmutable desde la primera firma y ya no puede modificarse.</div>
+                </div>
+              )}
             </div>
             <div className="flex gap-3">
               <button
@@ -367,7 +382,7 @@ export default function WorkflowDetailPage() {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={cancelWorkflow}
-            disabled={actionLoading}
+            disabled={actionLoading || ['completed','archived','cancelled'].includes(workflow.status)}
             className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
           >
             <XCircle className="h-4 w-4" /> Cancelar workflow

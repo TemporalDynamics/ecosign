@@ -58,6 +58,8 @@ export default function OperationRow({
   const menuRef = useRef<HTMLDivElement>(null);
   const statusConfig = STATUS_CONFIG[operation.status];
   const humanStateOp = deriveHumanState({ status: operation.status }, []);
+  // Responsible display (if backend provides name or nested object). Falls back to owner_name if present.
+  const responsibleName = (operation as any).responsible_agent_name || (operation as any).responsible?.display_name || (operation as any).owner_name || null;
   const formatOperationDate = (value?: string | null) => {
     if (!value) return '—';
     return new Date(value).toLocaleDateString('es-AR', {
@@ -175,6 +177,7 @@ export default function OperationRow({
                 <div className="min-w-0">
                   <div className="font-semibold text-gray-900 text-sm truncate">{operation.name}</div>
                   {operation.description && <div className="text-xs text-gray-500 truncate">{operation.description}</div>}
+                  {responsibleName && <div className="text-xs text-gray-600 mt-1">Responsable: {responsibleName}</div>}
                 </div>
               </div>
             ) : (
@@ -491,6 +494,7 @@ export default function OperationRow({
                   </>
                 )}
               </div>
+              {responsibleName && <div className="text-xs text-gray-600 mt-1">Responsable: {responsibleName}</div>}
             </div>
           </button>
         )}

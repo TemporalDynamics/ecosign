@@ -84,12 +84,17 @@ export function deriveHumanState(workflow: Workflow | null, signers: Signer[] = 
  * Exported now to keep UI mapping centralized and deterministic.
  */
 export function getHumanStateColor(severity: HumanWorkflowState['severity']): string {
+  // Mapping tuned for calm/attention semantics (P1.2)
+  // action -> subtle green (active, requires attention but calm)
+  // info   -> blue (informative, strengthening)
+  // success-> gray (resolved, minimal attention)
+  // warning-> darker gray (terminal but not alarming)
   const map: Record<HumanWorkflowState['severity'], string> = {
-    info: 'text-gray-700 bg-gray-100',
-    action: 'text-yellow-700 bg-yellow-100',
-    success: 'text-green-700 bg-green-100',
-    warning: 'text-red-700 bg-red-100',
+    info: 'text-blue-700 bg-blue-50',
+    action: 'text-green-700 bg-green-50',
+    success: 'text-gray-600 bg-gray-50',
+    warning: 'text-gray-700 bg-gray-100',
   };
-  return map[severity] || 'text-gray-700 bg-gray-100';
+  return map[severity] || 'text-gray-600 bg-gray-50';
 }
 

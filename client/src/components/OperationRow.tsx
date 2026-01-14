@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import type { Operation, OperationStatus } from '../types/operations';
 import DocumentRow from './DocumentRow';
 import { mapEntityToDocumentRecord } from '../lib/documentEntityService';
-import { deriveHumanState } from '../lib/deriveHumanState';
+import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
 
 interface OperationRowProps {
   operation: Operation;
@@ -198,7 +198,7 @@ export default function OperationRow({
             )}
           </div>
 
-          <div className="text-xs text-gray-500">{humanStateOp.label}</div>
+          <div><span className={`text-xs px-2 py-1 rounded ${getHumanStateColor(humanStateOp.severity)}`}>{humanStateOp.label}</span></div>
 
           <div className="text-sm text-gray-500">{formatOperationDate((operation as any).created_at)}</div>
 

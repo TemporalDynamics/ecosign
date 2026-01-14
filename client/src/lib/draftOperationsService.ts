@@ -20,7 +20,7 @@ export interface DraftOperation {
 }
 
 export interface DraftDocument {
-  id: string
+  id?: string
   filename: string
   size: number
   draft_file_ref: string
@@ -54,7 +54,7 @@ export async function saveDraftOperation(
   overlay_spec?: unknown[],
   signature_preview?: string,
   nda_applied?: boolean
-): Promise<{ operation_id: string; documents: { id: string; filename: string }[] }> {
+): Promise<{ operation_id: string; documents: { filename: string }[] }> {
   try {
     const supabase = getSupabase()
 
@@ -131,7 +131,7 @@ export async function saveDraftOperation(
     const localDrafts = []
     for (const file of files) {
       const draft = await addDraftLocal(file)
-      localDrafts.push({ id: draft.id, filename: draft.name })
+      localDrafts.push({ filename: draft.name })
     }
 
     return {

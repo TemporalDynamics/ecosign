@@ -327,7 +327,7 @@ Documentación:
 Configuración:
 ├── client/src/App.jsx (rutas actualizadas)
 ├── client/src/pages/LandingPage.jsx (footer actualizado)
-└── sitemap.xml (URLs actualizadas)
+└── docs/ops/sitemap.xml (URLs actualizadas)
 ```
 
 ---

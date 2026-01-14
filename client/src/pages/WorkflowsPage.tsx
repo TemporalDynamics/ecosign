@@ -16,7 +16,7 @@ import { FileText, Clock, CheckCircle, Users } from 'lucide-react';
 interface Workflow {
   id: string
   title: string
-  status: 'draft' | 'active' | 'completed' | 'cancelled'
+  status: 'draft' | 'ready' | 'active' | 'completed' | 'cancelled' | 'rejected' | 'archived'
   created_at: string
   updated_at: string
   expires_at: string | null
@@ -25,7 +25,7 @@ interface Workflow {
 interface WorkflowSigner {
   id: string
   workflow_id: string
-  status: 'pending' | 'signed' | 'cancelled'
+  status: 'created' | 'invited' | 'accessed' | 'verified' | 'ready_to_sign' | 'signed' | 'cancelled' | 'expired'
 }
 
 export default function WorkflowsPage() {
@@ -88,7 +88,7 @@ export default function WorkflowsPage() {
   // Calculate stats
   const stats = useMemo(() => {
     const totalWorkflows = workflows.length
-    const activeWorkflows = workflows.filter(w => w.status === 'active').length
+    const activeWorkflows = workflows.filter(w => ['ready', 'active'].includes(w.status)).length
     const completedWorkflows = workflows.filter(w => w.status === 'completed').length
     const totalSigners = signers.length
     const signedCount = signers.filter(s => s.status === 'signed').length
@@ -130,7 +130,9 @@ export default function WorkflowsPage() {
     return workflows.map(workflow => {
       const workflowSigners = signers.filter(s => s.workflow_id === workflow.id)
       const signedCount = workflowSigners.filter(s => s.status === 'signed').length
-      const pendingCount = workflowSigners.filter(s => s.status === 'pending').length
+      const pendingCount = workflowSigners.filter(s =>
+        ['created', 'invited', 'accessed', 'verified', 'ready_to_sign'].includes(s.status)
+      ).length
 
       return {
         ...workflow,

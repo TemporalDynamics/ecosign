@@ -248,7 +248,7 @@ export default function InvitePage() {
                 type="checkbox"
                 checked={ndaCheckbox}
                 onChange={(e) => setNdaCheckbox(e.target.checked)}
-                className="mt-1 h-5 w-5 rounded border-gray-300 text-black focus:ring-black"
+                className="eco-checkbox mt-1 rounded border-gray-300 text-black focus:ring-black"
               />
               <span className="ml-3 text-sm text-gray-700">
                 He leído y acepto los términos del Acuerdo de No Divulgación. Entiendo que este acuerdo

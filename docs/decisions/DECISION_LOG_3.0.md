@@ -159,6 +159,48 @@ Se consolidó el Centro Legal con preview editable basado en canvas virtual (fit
 ### 🎯 Resumen
 Se consolidó el Verificador como la única superficie canónica para la historia del documento. La cronología ahora se construye offline-first desde el certificado `.eco` y no depende de login ni backend. Se agregó tabla `operations_events` (append-only) para auditoría operativa, sin alterar la verdad forense del documento.
 
+---
+
+## F0.1 — Estados Canónicos de Workflow y Firmantes — 2026-01-12
+
+### 🎯 Resumen
+Se alinearon los estados de `signature_workflows` y `workflow_signers` con los contratos canónicos. Se introdujeron checks de estado consistentes, migración de valores legacy y se ajustaron funciones/UX para usar `invited` y `ready_to_sign`.
+
+### ✅ Decisiones clave
+- Estados de workflow permitidos: `draft`, `ready`, `active`, `completed`, `cancelled`, `rejected`, `archived`.
+- Estados de firmante permitidos: `created`, `invited`, `accessed`, `verified`, `ready_to_sign`, `signed`, `cancelled`, `expired`.
+- Migración legacy: `pending -> invited`, `ready -> ready_to_sign`, `requested_changes -> verified`, `skipped -> cancelled`.
+- El flujo secuencial inicia con `ready_to_sign` para el primer firmante; el resto queda en `invited`.
+- El estado "bloqueado" es semantico; el workflow se mantiene en `active` durante solicitudes de cambio.
+
+### 🔧 Implementación
+- Migraciones: checks de estado + funciones helper (advance/get_next_signer) actualizadas.
+- Trigger `notify_signer_link` actualizado para disparar solo en `invited|ready_to_sign`.
+- UI: badges y conteos adaptados a estados canónicos.
+
+### 📌 Razón
+Unificar estados y transiciones evita inconsistencias de flujo, bloquea combinaciones invalidas y habilita observabilidad e idempotencia en P0.
+
+---
+
+## F0.1.5 — Eventos Canónicos (puente obligatorio) — 2026-01-12
+
+### 🎯 Resumen
+Se creó un canal único de eventos canónicos para workflow/firmantes. Los cambios de estado importantes ahora registran hechos en `workflow_events` mediante `appendEvent` y se prohíbe el registro “silencioso”.
+
+### ✅ Decisiones clave
+- Eventos mínimos P0: workflow.created/activated/completed/cancelled, signer.invited/accessed/ready_to_sign/signed/cancelled, document.change_requested/resolved.
+- Los estados viven en tablas; la verdad de “qué pasó” vive en eventos.
+- `appendEvent` es la única vía para insertar eventos canónicos.
+
+### 🔧 Implementación
+- Nueva tabla `workflow_events` con lista cerrada de `event_type`.
+- Helper `canonicalEventHelper.appendEvent` con validación de lista.
+- Edge functions actualizadas para emitir eventos (inicio de workflow, acceso, firma, cambios).
+
+### 📌 Razón
+Sin eventos canónicos no hay auditoría confiable ni pipelines observables. Esto habilita F0.2 sin deuda.
+
 ### ✅ Decisiones tomadas
 - **Timeline vive solo en el Verificador** (público e interno). No se embebe en `Documents` ni `OperationRow`.
 - **Offline-first estricto:** la cronología se genera únicamente desde `.eco` (events + timestamps). Backend es solo enriquecimiento opcional.
@@ -1222,3 +1264,290 @@ Timestamp: 2026-01-10T[current]
 
 ---
 
+## Workstream 3: RLS PostgREST Test - Validación de Seguridad Gate 0 — 2026-01-11T12:44:16Z
+
+### 🎯 Resumen
+Implementación y validación completa de Row Level Security (RLS) para tablas críticas del sistema. Se crearon políticas de autenticación para usuarios y se verificó el aislamiento de datos mediante test automatizado que simula ataques de acceso no autorizado.
+
+**Contexto:** Workstream 3 había completado toda la infraestructura de observabilidad (cron jobs, eventos, health checks) pero faltaba validar que las políticas RLS protegen correctamente los datos de usuarios autenticados.
+
+### ✅ Trabajo Completado
+
+#### 1. Migración RLS: Políticas para Usuarios Autenticados ✓
+**Archivo:** `supabase/migrations/20260111065455_rls_authenticated_users.sql`
+
+**Políticas Creadas:**
+```sql
+-- USER_DOCUMENTS
+CREATE POLICY "Users can view their own documents"
+  ON user_documents FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own documents"
+  ON user_documents FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+-- ANCHORS
+CREATE POLICY "Users can view their own anchors"
+  ON anchors FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+```
+
+**Features:**
+- ✅ Políticas con `DROP IF EXISTS` para idempotencia
+- ✅ Scope restringido a `authenticated` role
+- ✅ Validación con `auth.uid() = user_id` para ownership
+- ✅ Aplicada en producción local vía `supabase db reset`
+
+#### 2. Script de Testing RLS Funcional ✓
+**Archivo:** `scripts/rls_test_working.js`
+
+**Implementación:**
+- Test completamente funcional usando `@supabase/supabase-js` client
+- Crea usuarios autenticados via `auth.admin.createUser()`
+- Inserta datos de test (documents, anchors) via service role
+- Simula queries con JWTs de diferentes usuarios
+- Valida aislamiento de datos entre usuarios
+
+**Casos de Prueba:**
+1. **Owner Access** - Propietario puede ver sus documentos/anchors ✅
+2. **Attacker Blocked** - Atacante NO puede ver documentos ajenos ✅
+3. **Cleanup** - Limpia datos de test automáticamente ✅
+
+**Fix Crítico Aplicado:**
+Cambio de raw `fetch()` a Supabase client con JWT en headers para correcto funcionamiento del auth context:
+
+```javascript
+// ANTES (❌ no funcionaba)
+const response = await fetch(url, {
+  headers: { Authorization: `Bearer ${jwt}` }
+});
+
+// DESPUÉS (✅ funciona correctamente)
+const userClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  global: {
+    headers: { Authorization: `Bearer ${signJwt(userId)}` }
+  }
+});
+const { data, error } = await userClient.from(table).select();
+```
+
+#### 3. Scripts Auxiliares de Debug ✓
+**Archivo:** `scripts/debug_jwt.js`
+
+**Funcionalidad:**
+- Genera y decodifica JWTs para debugging
+- Verifica estructura de payload (sub, role, exp)
+- Permite validar formato de tokens usados en tests
+
+#### 4. Resolución de Errores de Schema ✓
+
+**Error 1: document_size Missing**
+```
+❌ null value in column "document_size" violates not-null constraint
+✅ Agregado document_size: 1024 a test data
+```
+
+**Error 2: Invalid overall_status**
+```
+❌ new row violates check constraint "check_overall_status"
+✅ Cambiado 'created' → 'draft' (enum válido)
+```
+
+**Error 3: RLS Policies Missing**
+```
+❌ Owner cannot access their own documents
+✅ Creada migración 20260111065455_rls_authenticated_users.sql
+```
+
+### 🧭 Decisiones Arquitectónicas
+
+#### 1. Supabase Client vs Raw Fetch ✓
+**Decisión:** Usar `@supabase/supabase-js` client para queries autenticadas, NO raw fetch.
+
+**Razón:**
+- ✅ Supabase client configura correctamente el auth context
+- ✅ `auth.uid()` funciona correctamente en RLS policies
+- ✅ Manejo automático de errores y respuestas
+- ❌ Raw fetch no propaga correctamente el JWT al auth context
+
+#### 2. Idempotencia de Migraciones ✓
+**Decisión:** Usar `DROP POLICY IF EXISTS` en todas las políticas.
+
+**Razón:**
+- ✅ Permite re-aplicar migraciones sin error
+- ✅ Facilita testing local con `supabase db reset`
+- ✅ Evita fallos en CI/CD por políticas duplicadas
+
+#### 3. Test IDs Fijos vs Aleatorios ✓
+**Decisión:** Usar UUIDs fijos y conocidos para testing.
+
+**Razón:**
+- ✅ Tests reproducibles
+- ✅ Fácil debug de failures
+- ✅ Cleanup determinístico
+- ✅ No requiere persistir IDs entre runs
+
+**IDs de Test:**
+```javascript
+const OWNER_ID = '11111111-1111-1111-1111-111111111111';
+const ATTACKER_ID = '22222222-2222-2222-2222-222222222222';
+const DOC_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+const ANCHOR_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+```
+
+#### 4. Graceful Test Cleanup ✓
+**Decisión:** Cleanup automático en orden correcto (foreign keys).
+
+**Orden de Eliminación:**
+1. Anchors (depende de documents)
+2. User Documents (depende de users)
+3. Auth Users (base)
+
+**Implementación:**
+```javascript
+await supabase.from('anchors').delete().eq('id', ANCHOR_ID);
+await supabase.from('user_documents').delete().eq('id', DOC_ID);
+await supabase.auth.admin.deleteUser(OWNER_ID);
+await supabase.auth.admin.deleteUser(ATTACKER_ID);
+```
+
+### 📌 Cumplimiento de Contratos
+
+✅ **Gate 0 Security Requirements**
+- RLS habilitado en tablas críticas: `user_documents`, `anchors`
+- Usuarios solo acceden a sus propios recursos
+- Atacantes bloqueados correctamente
+- Service role mantiene acceso total para workers
+
+✅ **Workstream 3 Observable Anchoring**
+- RLS no bloquea eventos observables
+- Cron jobs usan service_role_key (bypass RLS)
+- Health check accesible sin autenticación
+- Audit trail independiente de permisos RLS
+
+### 📊 Archivos Creados/Modificados
+
+```
+✨ supabase/migrations/20260111065455_rls_authenticated_users.sql (nuevo - migración crítica)
+✨ scripts/rls_test_working.js (nuevo - 211 líneas)
+✨ scripts/debug_jwt.js (nuevo - 33 líneas)
+```
+
+**Total:** 3 nuevos, 0 modificados, 1 migración DB aplicada
+
+### 🎓 Lecciones Aprendidas
+
+- **Raw Fetch ≠ Supabase Auth:** Raw fetch con JWT no activa `auth.uid()`. Siempre usar Supabase client para queries autenticadas.
+- **Test Primero, Schema Después:** Los tests revelaron campos faltantes (`document_size`) y constraints no documentados (`overall_status` enum).
+- **RLS Sin Policies = Bloqueo Total:** RLS habilitado sin policies bloquea TODO, incluso a owners legítimos.
+- **Idempotencia es Oro:** `DROP IF EXISTS` permite iterar rápido sin contaminar estado de DB.
+
+### 🔐 Security Validation Results
+
+**Test Output:**
+```
+✅ RLS POLICIES ARE WORKING CORRECTLY
+   ✓ Owner can access their documents
+   ✓ Attacker is blocked from accessing owner documents
+```
+
+**Verification:**
+- Owner finds: 2/2 resources (documents ✅, anchors ✅)
+- Attacker finds: 0/2 resources (documents ❌, anchors ❌)
+- **Isolation confirmed:** No data leakage between users
+
+**Policy Verification Query:**
+```sql
+SELECT policyname, roles, qual
+FROM pg_policies
+WHERE tablename = 'user_documents';
+
+-- Result:
+-- "Users can view their own documents" | {authenticated} | (auth.uid() = user_id)
+```
+
+### 🔗 Referencias
+
+- Migración RLS: `supabase/migrations/20260111065455_rls_authenticated_users.sql`
+- Test script: `scripts/rls_test_working.js`
+- Debug JWT: `scripts/debug_jwt.js`
+- Workstream 3 Report: `docs/reports/workstream3/WORKSTREAM3_FINAL_REPORT.md`
+
+### ⏱️ Timeline
+
+**Inicio:** Después de completar Workstream 3 core (2026-01-11 ~06:00 UTC)
+**Fin:** 2026-01-11 12:44:16 UTC
+**Duración:** ~6 horas de debugging y refinamiento
+**Iteraciones:**
+- 3 intentos de test script (fetch → fetch+fixes → supabase client)
+- 2 migraciones RLS (primera descartada, segunda exitosa)
+
+### 🚀 Deployment Status
+
+**Backend (Producción Local ✅)**
+- ✅ Migración RLS aplicada via `supabase db reset`
+- ✅ Políticas verificadas en `pg_policies`
+- ✅ Test passing con 100% success rate
+
+**Next Steps:**
+- Replicar test en staging/producción
+- Agregar RLS policies para `document_entities` y `operations`
+- Documentar políticas en `docs/contratos/RLS_SECURITY_CONTRACT.md`
+
+### 🎉 Resultado Final
+
+**Workstream 3 Status:** ✅ **100% COMPLETADO + VALIDADO**
+
+**Core + Validación:**
+1. ✅ Cron jobs arreglados y operacionales
+2. ✅ Eventos observables integrados en workers
+3. ✅ Health check disponible para diagnóstico
+4. ✅ UI honesta (componentes listos)
+5. ✅ Fix crítico: userDocumentId agregado
+6. ✅ **RLS policies validadas con test automatizado**
+
+**Filosofía Mantenida:**
+- "UI refleja, no afirma" ✅
+- "Sistema auditable sin SSH mental" ✅
+- **"Security by default, not by obscurity"** ✅
+
+---
+
+Firma: RLS testing completado — Gate 0 security validated
+Timestamp: 2026-01-11T12:44:16Z
+Responsables: Claude Code (Sonnet 4.5) + Manu
+Test: `scripts/rls_test_working.js` (211 LOC, 100% passing)
+
+---
+## P0 Hardening + UUID-Only En Fronteras Publicas — 2026-01-12T07:18:09Z
+
+### 🎯 Resumen
+Se cerraron P0 de seguridad y coherencia de API: rate limiter fail-closed, CORS restringido, validacion runtime con Zod, y regla canonica de UUID-only en respuestas publicas. Se agregaron smoke tests minimos y un checklist de deploy.
+
+### ✅ Decisiones Clave
+- **Rate limiter:** fail-closed con fallback en memoria si Redis falla.
+- **CORS:** prohibido `*` en Edge Functions; usar `ALLOWED_ORIGINS` (fallback a `SITE_URL`/`FRONTEND_URL`).
+- **Validacion runtime:** schemas Zod en endpoints criticos.
+- **UUID-only:** ningun id interno cruza frontera publica; solo UUID canonicos (`*_id` o `*_entity_id`).
+- **accept-nda:** se mueve a flujo por `token` (64 hex) para evitar exponer `recipient_id`.
+
+### ✅ Cambios Implementados
+- Helpers: `supabase/functions/_shared/cors.ts`, `supabase/functions/_shared/validation.ts`, `supabase/functions/_shared/schemas.ts`.
+- Endpoints con Zod + CORS: `verify-access`, `generate-link`, `create-signer-link`, `accept-nda`, `accept-invite-nda`, `accept-share-nda`, `accept-workflow-nda`.
+- UUID-only aplicado en respuestas publicas: `accept-invite-nda`, `verify-invite-access`, `create-invite`, `create-signer-link`, `verify-access`, `save-draft`, `load-draft`, `signer-access`, `process-signature`.
+- `process-signature`: se elimina `signatureId` del response y `workflow.id` en payloads externos.
+- Smoke tests: `supabase/functions/tests/smoke-validation.test.ts`.
+- Checklist de deploy: `docs/ops/DEPLOY_CHECKLIST.md`.
+
+### 🔐 Regla Canonica (API)
+Si estas por exponer `{ id: ... }` en response publico:
+1) Debe ser UUID canonico.  
+2) Si no es necesario, se elimina.  
+3) Nunca aceptar “ambos” (legacy + canonico).
+
+### 🔜 Seguimiento Recomendado
+- Configurar `ALLOWED_ORIGINS` en Supabase secrets y desplegar Edge Functions.
+- Mantener smoke tests como red minima (no expandir sin necesidad).
+
+---

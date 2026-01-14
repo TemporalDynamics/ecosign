@@ -2,9 +2,10 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
@@ -41,6 +42,14 @@ const jsonResponse = (data: unknown, status = 200) =>
       'Content-Type': 'application/json'
     }
   })
+
+async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
+  try {
+    await supabase.functions.invoke('send-pending-emails')
+  } catch (error) {
+    console.warn('send-pending-emails invoke failed', error)
+  }
+}
 
 async function generateAccessToken(): Promise<string> {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
@@ -212,7 +221,7 @@ serve(withRateLimit('workflow', async (req) => {
         require_login: requireLogin,
         require_nda: requireNda,
         quick_access: quickAccess,
-        status: signer.signingOrder === 1 ? 'ready' : 'pending',
+        status: signer.signingOrder === 1 ? 'ready_to_sign' : 'invited',
         access_token_hash: tokenHash
       }
 
@@ -223,10 +232,11 @@ serve(withRateLimit('workflow', async (req) => {
     console.log('📝 Step 3: Creating signers...')
     console.log('Signers to insert:', JSON.stringify(signersToInsert, null, 2))
 
-    // Insertar signers usando .insert() normalmente
-    const { error: signersError } = await supabase
+    // Insertar signers y recuperar ids para eventos canónicos
+    const { data: insertedSigners, error: signersError } = await supabase
       .from('workflow_signers')
       .insert(signersToInsert)
+      .select('id, email, status, signing_order')
 
     if (signersError) {
       console.error('❌ Error creating signers:', signersError)
@@ -238,6 +248,52 @@ serve(withRateLimit('workflow', async (req) => {
       }, 500)
     }
     console.log('✅ Signers created successfully')
+
+    // Eventos canónicos: workflow.created + workflow.activated
+    await appendCanonicalEvent(
+      supabase,
+      {
+        event_type: 'workflow.created',
+        workflow_id: workflow.id,
+        payload: { signers_count: signers.length },
+        actor_id: user.id
+      },
+      'start-signature-workflow'
+    )
+
+    await appendCanonicalEvent(
+      supabase,
+      {
+        event_type: 'workflow.activated',
+        workflow_id: workflow.id,
+        payload: { status: workflow.status },
+        actor_id: user.id
+      },
+      'start-signature-workflow'
+    )
+
+    // Eventos canónicos por firmante
+    for (const signerRow of insertedSigners || []) {
+      const eventType =
+        signerRow.status === 'ready_to_sign'
+          ? 'signer.ready_to_sign'
+          : 'signer.invited'
+
+      await appendCanonicalEvent(
+        supabase,
+        {
+          event_type: eventType,
+          workflow_id: workflow.id,
+          signer_id: signerRow.id,
+          payload: {
+            email: signerRow.email,
+            signing_order: signerRow.signing_order
+          },
+          actor_id: user.id
+        },
+        'start-signature-workflow'
+      )
+    }
 
     // 4. Crear notificación para Usuario A (workflow iniciado)
     const appUrl = Deno.env.get('APP_URL') || 'https://www.ecosign.app'
@@ -262,10 +318,12 @@ serve(withRateLimit('workflow', async (req) => {
         delivery_status: 'pending'
       })
 
+    await triggerEmailDelivery(supabase)
+
     console.log(`Workflow ${workflow.id} created successfully`)
 
     // Las notificaciones a los firmantes se crean automáticamente vía trigger notify_signer_link()
-    // cuando se insertan los signers con status 'ready' o 'pending'
+    // cuando se insertan los signers con status 'ready_to_sign' o 'invited'
     const firstSigner = signers.find(s => s.signingOrder === 1)
     const firstSignerHash = firstSigner ? accessTokens[firstSigner.email]?.tokenHash : null
     const signUrl = firstSignerHash ? `${appUrl}/sign/${firstSignerHash}` : null

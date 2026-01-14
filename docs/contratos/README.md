@@ -27,13 +27,23 @@
 
 ### Nivel 4: Flujos y Experiencia
 10. **`FLOW_MODES_CONTRACT.md`** — Modos de firma
-11. **`IMPACTO_TECNICO_MAPA.md`** — Mapa de impacto técnico
+11. **`IDENTITY_OTP_DECRYPTION_CONTRACT.md`** — Pre-acceso + OTP + decrypt
+12. **`IMPACTO_TECNICO_MAPA.md`** — Mapa de impacto técnico
 
 ### Nivel 5: Organización y Contexto
-12. **`OPERACIONES_CONTRACT.md`** ⭐ — Carpetas lógicas y operaciones
-13. **`DRAFT_OPERATION_RULES.md`** ⭐ — Borradores operativos (sin validez legal)
-14. **`LEGAL_CENTER_LAYOUT_CONTRACT.md`** — Layout del Centro Legal
-15. **`LEGAL_CENTER_STAGE_CONTRACT.md`** — Etapas del Centro Legal
+13. **`OPERACIONES_CONTRACT.md`** ⭐ — Carpetas lógicas y operaciones
+14. **`DRAFT_OPERATION_RULES.md`** ⭐ — Borradores operativos (sin validez legal)
+15. **`LEGAL_CENTER_LAYOUT_CONTRACT.md`** — Layout del Centro Legal
+16. **`LEGAL_CENTER_STAGE_CONTRACT.md`** — Etapas del Centro Legal
+17. **`WORKFLOW_STATUS_SEMANTICS.md`** — Estados semánticos (esperando acción)
+18. **`OPERATIONS_RESPONSIBILITY.md`** — Responsable por operación
+19. **`EVIDENCE_MOMENT_CONTRACT.md`** — Evidencia del momento (UI humana)
+20. **`POST_SIGNATURE_IMMUTABILITY.md`** — Inmutabilidad post-firma (UI)
+21. **`WORKFLOW_CLOSURE_UX.md`** — Señal de cierre
+22. **`NOTIFICATION_POLICY.md`** — Política anti-spam
+23. **`CANONICAL_EVENTS_LIST.md`** — Lista mínima de eventos
+24. **`EVENTS_VS_NOTIFICATIONS.md`** — Separación evento/notificación
+25. **`DOCUMENTS_OPERATIONS_SCOPE.md`** — Frontera Documents vs Centro Legal
 
 ---
 
@@ -57,16 +67,24 @@
 - `PROTECTION_LEVEL_RULES.md` — Copy de protección
 - `IDENTITY_LEVELS_SUMMARY.md` — Copy de identidad
 - `FLOW_MODES_CONTRACT.md` — UX de firma
+- `IDENTITY_OTP_DECRYPTION_CONTRACT.md` — Pre-acceso + OTP
 - `WITNESS_PDF_CONTRACT.md` — Generación PDFs
 - `OPERACIONES_CONTRACT.md` — UX de operaciones
 - `DRAFT_OPERATION_RULES.md` — Borradores operativos
 - `LEGAL_CENTER_LAYOUT_CONTRACT.md` — Layout Centro Legal
 - `LEGAL_CENTER_STAGE_CONTRACT.md` — Stages Centro Legal
+- `WORKFLOW_STATUS_SEMANTICS.md` — Estados semánticos
+- `WORKFLOW_CLOSURE_UX.md` — Cierre de flujos
+- `DOCUMENTS_OPERATIONS_SCOPE.md` — Frontera UX
 
 ### Para Legal/Compliance
 - `verdad-canonica.md` — Posición legal base
 - `IDENTITY_ASSURANCE_RULES.md` — Declaración de identidad
 - `ECO_FORMAT_CONTRACT.md` — Estructura de certificados
+- `EVIDENCE_MOMENT_CONTRACT.md` — Evidencia del momento
+- `POST_SIGNATURE_IMMUTABILITY.md` — Inmutabilidad post-firma
+- `CANONICAL_EVENTS_LIST.md` — Eventos mínimos
+- `IDENTITY_OTP_DECRYPTION_CONTRACT.md` — OTP + acceso consciente
 
 ### Para Producto/PM
 - `IDENTITY_LEVELS_SUMMARY.md` — Casos de uso
@@ -118,6 +136,6 @@
 
 ---
 
-**Última actualización:** 2026-01-09
-**Contratos cerrados:** 15 de 15
-**Próxima revisión:** Post-implementación Operaciones + Drafts P0 (Q1 2026)
+**Última actualización:** 2026-01-12
+**Contratos cerrados:** 25 de 25
+**Próxima revisión:** Post-implementación Centro Legal + Workflows P0 (Q1 2026)

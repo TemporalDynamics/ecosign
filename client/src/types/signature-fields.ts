@@ -80,7 +80,15 @@ export interface WorkflowSigner {
   requireLogin?: boolean;
   requireNda?: boolean;
   quickAccess?: boolean;
-  status?: 'pending' | 'ready' | 'signed' | 'requested_changes' | 'skipped';
+  status?:
+    | 'created'
+    | 'invited'
+    | 'accessed'
+    | 'verified'
+    | 'ready_to_sign'
+    | 'signed'
+    | 'cancelled'
+    | 'expired';
 }
 
 export interface FieldValidationError {

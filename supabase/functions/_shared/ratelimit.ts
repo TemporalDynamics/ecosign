@@ -26,6 +26,8 @@ export type RateLimitType = keyof typeof RATE_LIMITS;
  * Initialize Redis client (lazy initialization)
  */
 let redis: Redis | null = null;
+let redisWarningLogged = false;
+const memoryBuckets = new Map<string, { count: number; reset: number }>();
 
 function getRedis(): Redis {
   if (!redis) {
@@ -41,6 +43,26 @@ function getRedis(): Redis {
   return redis;
 }
 
+function checkMemoryRateLimit(key: string, limit: number) {
+  const now = Date.now();
+  const windowMs = 60_000;
+  const existing = memoryBuckets.get(key);
+  const bucket = existing && existing.reset > now
+    ? existing
+    : { count: 0, reset: now + windowMs };
+
+  bucket.count += 1;
+  memoryBuckets.set(key, bucket);
+
+  const remaining = Math.max(0, limit - bucket.count);
+  return {
+    success: bucket.count <= limit,
+    limit,
+    remaining,
+    reset: bucket.reset,
+  };
+}
+
 /**
  * Check if request is within rate limit
  * 
@@ -52,9 +74,16 @@ export async function checkRateLimit(
   req: Request,
   type: RateLimitType = 'default'
 ) {
+  const limit = RATE_LIMITS[type];
+
+  // Get identifier (IP address or fallback to anonymous)
+  const ip = req.headers.get('x-forwarded-for') ||
+             req.headers.get('x-real-ip') ||
+             'anonymous';
+  const key = `${type}:${ip}`;
+
   try {
     const redis = getRedis();
-    const limit = RATE_LIMITS[type];
 
     // Create rate limiter with sliding window
     const ratelimit = new Ratelimit({
@@ -62,11 +91,6 @@ export async function checkRateLimit(
       limiter: Ratelimit.slidingWindow(limit, '1 m'),
       analytics: true,
     });
-
-    // Get identifier (IP address or fallback to anonymous)
-    const ip = req.headers.get('x-forwarded-for') || 
-               req.headers.get('x-real-ip') || 
-               'anonymous';
 
     // Check rate limit
     const result = await ratelimit.limit(ip);
@@ -78,14 +102,12 @@ export async function checkRateLimit(
       reset: result.reset,
     };
   } catch (error) {
-    // If rate limiting fails, allow the request (fail open)
-    console.error('Rate limiting error:', error);
-    return {
-      success: true,
-      limit: RATE_LIMITS[type],
-      remaining: RATE_LIMITS[type],
-      reset: Date.now() + 60000,
-    };
+    // Fail closed using memory fallback if Redis is unavailable.
+    if (!redisWarningLogged) {
+      console.warn('Rate limiting fallback to memory:', error);
+      redisWarningLogged = true;
+    }
+    return checkMemoryRateLimit(key, limit);
   }
 }
 

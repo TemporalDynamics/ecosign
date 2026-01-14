@@ -125,7 +125,7 @@ vercel --prod
 3. **SEO**
    - Verifica meta tags en cada página
    - Agrega `robots.txt`
-   - Genera `sitemap.xml`
+   - Genera `docs/ops/sitemap.xml`
 
 ## 🐛 Troubleshooting
 
@@ -143,7 +143,7 @@ Agrega archivo `_redirects` en `/client/public/`:
 /*    /index.html   200
 ```
 
-Para Vercel, agrega `vercel.json`:
+Para Vercel, agrega `docs/ops/vercel.json`:
 ```json
 {
   "rewrites": [

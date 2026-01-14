@@ -14,7 +14,6 @@
  * {
  *   success: boolean
  *   signerLink?: {
- *     id: string
  *     token: string
  *     link: string
  *     expiresAt: string
@@ -26,18 +25,22 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendEmail, buildSignerInvitationEmail } from '../_shared/email.ts';
+import { getUserDocumentId } from '../_shared/eventHelper.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { parseJsonBody } from '../_shared/validation.ts';
+import { CreateSignerLinkSchema } from '../_shared/schemas.ts';
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 serve(async (req) => {
+  const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+  if (!isAllowed) {
+    return new Response('CORS not allowed', { status: 403, headers: corsHeaders });
   }
 
   try {
@@ -48,48 +51,50 @@ serve(async (req) => {
     );
 
     // Obtener datos del request
-    const { documentId, signerEmail, signerName } = await req.json();
+    const parsed = await parseJsonBody(req, CreateSignerLinkSchema);
+    if (!parsed.ok) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: parsed.error,
+          details: parsed.details
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    const { documentId, documentEntityId, signerEmail, signerName } = parsed.data;
 
     console.log('📧 [create-signer-link] Request:', {
       documentId,
+      documentEntityId,
       signerEmail,
       signerName: signerName || '(sin prellenar)'
     });
 
-    // Validar datos obligatorios
-    if (!documentId || !signerEmail) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'documentId y signerEmail son obligatorios'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(signerEmail)) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Formato de email inválido'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
     // Obtener información del documento
+    const resolvedDocumentId = documentId
+      ?? (documentEntityId ? await getUserDocumentId(supabase, documentEntityId) : null);
+
+    if (!resolvedDocumentId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Documento no encontrado'
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     const { data: document, error: docError } = await supabase
       .from('user_documents')
       .select('user_id, document_name')
-      .eq('id', documentId)
+      .eq('id', resolvedDocumentId)
       .single();
 
     if (docError || !document) {
@@ -113,7 +118,7 @@ serve(async (req) => {
     const { data: signerLink, error: linkError } = await supabase
       .from('signer_links')
       .insert({
-        document_id: documentId,
+        document_id: resolvedDocumentId,
         owner_id: document.user_id,
         signer_email: signerEmail,
         signer_name: signerName || null,
@@ -147,7 +152,7 @@ serve(async (req) => {
     const { error: eventError } = await supabase
       .from('events')
       .insert({
-        document_id: documentId,
+        document_id: resolvedDocumentId,
         event_type: 'sent',
         signer_link_id: signerLink.id,
         actor_email: signerEmail,
@@ -195,7 +200,6 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         signerLink: {
-          id: signerLink.id,
           token: token,
           link: signLink,
           expiresAt: signerLink.expires_at

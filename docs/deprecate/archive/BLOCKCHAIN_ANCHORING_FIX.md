@@ -190,7 +190,7 @@ https://polygonscan.com/tx/TX_HASH_AQUI
 - ✅ `scripts/diagnose-bitcoin-anchoring.sql` - Diagnóstico completo Bitcoin
 
 ### Documentación
-- ✅ `POLYGON_FIX_STEPS.md` - Guía detallada Polygon
+- ✅ `docs/anchoring/POLYGON_FIX_STEPS.md` - Guía detallada Polygon
 - ✅ `BITCOIN_QUICKCHECK.md` - Quick reference Bitcoin
 - ✅ `docs/ops/POLYGON_ANCHORING_DIAGNOSIS.md` - Investigación completa
 - ✅ `BLOCKCHAIN_ANCHORING_FIX.md` - Este archivo (resumen ejecutivo)

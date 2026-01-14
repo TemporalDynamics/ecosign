@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400'
@@ -61,7 +61,7 @@ serve(async (req) => {
       .select(`
         *,
         user_documents (
-          id,
+          document_entity_id,
           document_name,
           document_hash,
           pdf_storage_path,
@@ -152,7 +152,7 @@ serve(async (req) => {
           canView: true,
           canSign: invite.role === 'signer',
           document: {
-            id: invite.user_documents.id,
+            document_entity_id: invite.user_documents.document_entity_id,
             name: invite.user_documents.document_name,
             hash: invite.user_documents.document_hash,
             status: invite.user_documents.status,
@@ -161,7 +161,6 @@ serve(async (req) => {
             pdfUrl
           },
           invite: {
-            id: invite.id,
             expiresAt: invite.expires_at,
             acceptedAt: invite.accepted_at,
             ndaAcceptedAt: invite.nda_accepted_at

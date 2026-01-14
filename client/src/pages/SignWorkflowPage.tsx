@@ -18,6 +18,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { getSupabase } from '@/lib/supabaseClient'
 import { useEcoxLogger } from '@/hooks/useEcoxLogger'
 import { applySignatureToPDF } from '@/utils/pdfSigner'
+import { downloadDocument } from '@/utils/documentStorage'
 import { decryptFile } from '@/utils/encryption'
 import { encryptFile, generateEncryptionKey } from '@/utils/encryption'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
@@ -25,29 +26,28 @@ import { AlertTriangle } from 'lucide-react'
 
 // Step components
 import TokenValidator from '@/components/signature-flow/TokenValidator'
-import NDAAcceptance from '@/components/signature-flow/NDAAcceptance'
+import PreAccess from '@/components/signature-flow/PreAccess'
 import DocumentViewer from '@/components/signature-flow/DocumentViewer'
 import SignaturePad from '@/components/signature-flow/SignaturePad'
 import CompletionScreen from '@/components/signature-flow/CompletionScreen'
 
 type SignatureStep =
   | 'validating'
-  | 'nda'
-  | 'receipt'
+  | 'preaccess'
   | 'otp'
   | 'viewing'
   | 'signing'
   | 'completed'
+  | 'rejected'
   | 'error'
 
 interface SignerData {
-  id: string
+  signer_id: string
   workflow_id: string
   email: string
   name: string | null
   signing_order: number
   status: string
-  access_token_hash: string
   require_login: boolean
   require_nda: boolean
   quick_access: boolean
@@ -56,18 +56,19 @@ interface SignerData {
   signature_type?: 'ECOSIGN' | 'SIGNNOW'
   signnow_embed_url?: string | null
   encrypted_pdf_url?: string | null
+  otp_verified?: boolean
   workflow: {
-    id: string
     title: string
     document_path: string | null
     document_hash: string | null
     encryption_key: string | null // For decryption
-    owner_id: string
     status: string
     require_sequential: boolean
     original_filename?: string | null
     signature_type?: 'ECOSIGN' | 'SIGNNOW'
     signnow_embed_url?: string | null
+    owner_email?: string | null
+    owner_name?: string | null
   }
 }
 
@@ -100,13 +101,16 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [accessMeta, setAccessMeta] = useState<any>(null)
-  const [receiptData, setReceiptData] = useState({
-    docId: '',
-    docIdType: 'DNI',
-    phone: ''
-  })
   const [embedError, setEmbedError] = useState(false)
   const [embedTimeout, setEmbedTimeout] = useState<ReturnType<typeof setTimeout> | null>(null)
+  const [preAccessSubmitting, setPreAccessSubmitting] = useState(false)
+
+  const getInitialNameParts = (name?: string | null) => {
+    if (!name) return { firstName: '', lastName: '' }
+    const parts = name.trim().split(/\s+/)
+    if (parts.length === 1) return { firstName: parts[0], lastName: '' }
+    return { firstName: parts[0], lastName: parts.slice(1).join(' ') }
+  }
 
   // Initialize - validate token
   useEffect(() => {
@@ -151,7 +155,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     setUser(user)
   }
 
-  const validateToken = async (accessToken: string) => {
+  const fetchSignerData = async (accessToken: string) => {
     try {
       const supabase = getSupabase();
       setStep('validating')
@@ -171,11 +175,24 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       if (!response.ok) {
         setError('Link de firma inválido o no encontrado')
         setStep('error')
-        return
+        return null
       }
 
       const signer = await response.json()
       setAccessMeta(signer)
+      return signer
+    } catch (err) {
+      console.error('Error fetching signer data:', err)
+      setError('Error al cargar el documento')
+      setStep('error')
+      return null
+    }
+  }
+
+  const validateToken = async (accessToken: string) => {
+    try {
+      const signer = await fetchSignerData(accessToken)
+      if (!signer) return
 
       // Check signer status
       if (signer.status === 'signed') {
@@ -184,10 +201,19 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         return
       }
 
-      if (signer.status === 'cancelled') {
+      if (signer.status === 'cancelled' || signer.status === 'expired') {
         setError('Este flujo de firma ha sido cancelado')
         setStep('error')
         return
+      }
+
+      if (signer.workflow.require_sequential) {
+        const allowedStatuses = ['ready_to_sign', 'verified', 'accessed']
+        if (!allowedStatuses.includes(signer.status)) {
+          setError('Este documento requiere firma secuencial. Aún no es tu turno.')
+          setStep('error')
+          return
+        }
       }
 
       // Check if it's their turn (if sequential signing)
@@ -222,7 +248,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           // Log ECOX event for sequential violation
           await logEvent({
             workflowId: signer.workflow_id,
-            signerId: signer.id,
+            signerId: signer.signer_id,
             eventType: 'sequential_order_violated',
             details: {
               currentOrder: signer.signing_order,
@@ -239,23 +265,23 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       }
 
       setSignerData(signer as any)
+      setOtpSent(!!signer.otp_verified)
+      setOtpCode('')
 
-      // Log ECOX event: access_link_opened
-      await logEvent({
-        workflowId: signer.workflow_id,
-        signerId: signer.id,
-        eventType: 'access_link_opened'
-      })
-
-      // Determine next step based on requirements
-      if (signer.require_nda && !signer.nda_accepted) {
-        setStep('nda')
-        return
+      // Log ECOX event (non-blocking)
+      try {
+        await logEvent({
+          workflowId: signer.workflow_id,
+          signerId: signer.signer_id,
+          eventType: 'access_link_opened'
+        })
+      } catch (err) {
+        console.warn('log-ecox-event failed', err)
       }
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (signer.require_login && (!user || user.email?.toLowerCase() !== signer.email.toLowerCase())) {
-        setStep('receipt')
+      // Determine next step based on requirements
+      if (!signer.otp_verified) {
+        setStep('preaccess')
         return
       }
 
@@ -268,58 +294,26 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     }
   }
 
-  const handleNDAAccepted = async () => {
-    if (!signerData) return
-
-    try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-      await fetch(`${supabaseUrl}/functions/v1/accept-workflow-nda`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': anonKey,
-          'Authorization': `Bearer ${anonKey}`
-        },
-        body: JSON.stringify({ signer_id: signerData.id, signer_email: signerData.email })
-      })
-
-      await logEvent({
-        workflowId: signerData.workflow_id,
-        signerId: signerData.id,
-        eventType: 'nda_accepted'
-      })
-
-      setSignerData({ ...signerData, nda_accepted: true, nda_accepted_at: new Date().toISOString() } as any)
-
-      if (signerData.require_login) {
-        setStep('receipt')
-      } else {
-        setStep('viewing')
-      }
-    } catch (err) {
-      console.error('Error aceptando NDA', err)
-      setError('No pudimos registrar la NDA. Intenta de nuevo.')
-      setStep('error')
-    }
-  }
-
-  const handleReceiptSubmit = async () => {
+  const handlePreAccessConfirm = async (payload: {
+    firstName: string
+    lastName: string
+    confirmedRecipient: boolean
+    acceptedLogging: boolean
+  }) => {
     if (!signerData) return
     const supabase = getSupabase();
     setError(null)
+    setPreAccessSubmitting(true)
 
     try {
-      const { error } = await supabase.functions.invoke('record-signer-receipt', {
+      const { error } = await supabase.functions.invoke('confirm-signer-identity', {
         body: {
-          signerId: signerData.id,
-          workflowId: signerData.workflow_id,
+          signerId: signerData.signer_id,
+          firstName: payload.firstName,
+          lastName: payload.lastName,
           email: signerData.email,
-          signerName: signerData.name,
-          docId: receiptData.docId,
-          docIdType: receiptData.docIdType,
-          phone: receiptData.phone,
-          metadata: { quick_access: signerData.quick_access }
+          confirmedRecipient: payload.confirmedRecipient,
+          acceptedLogging: payload.acceptedLogging
         }
       })
 
@@ -328,11 +322,35 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         return
       }
 
-      await sendOtp()
+      setOtpSent(true)
       setStep('otp')
+      await sendOtp()
     } catch (err: any) {
-      console.error('Error registrando recepción', err)
-      setError(err?.message || 'No pudimos registrar la recepción')
+      console.error('Error confirmando identidad', err)
+      setError(err?.message || 'No pudimos confirmar tu identidad')
+    } finally {
+      setPreAccessSubmitting(false)
+    }
+  }
+
+  const handleRejectSignature = async () => {
+    if (!signerData) return
+    const supabase = getSupabase();
+    setError(null)
+    try {
+      const { error } = await supabase.functions.invoke('reject-signature', {
+        body: { signerId: signerData.signer_id }
+      })
+      if (error) {
+        setError(error.message || 'No pudimos registrar el rechazo')
+        setStep('error')
+        return
+      }
+      setError('Documento rechazado. Si necesitás ayuda, contactá al remitente.')
+      setStep('rejected')
+    } catch (err: any) {
+      setError(err?.message || 'No pudimos registrar el rechazo')
+      setStep('error')
     }
   }
 
@@ -341,7 +359,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     const supabase = getSupabase();
     setError(null)
     const { data, error } = await supabase.functions.invoke('send-signer-otp', {
-      body: { signerId: signerData.id }
+      body: { signerId: signerData.signer_id }
     })
     if (error) {
       setError(error.message)
@@ -357,11 +375,17 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     const supabase = getSupabase();
     setError(null)
     const { data, error } = await supabase.functions.invoke('verify-signer-otp', {
-      body: { signerId: signerData.id, otp: otpCode.trim() }
+      body: { signerId: signerData.signer_id, otp: otpCode.trim() }
     })
     if (error || !data?.success) {
       setError(error?.message || 'OTP inválido')
       return
+    }
+    if (token) {
+      const refreshed = await fetchSignerData(token)
+      if (refreshed) {
+        setSignerData(refreshed as any)
+      }
     }
     setStep('viewing')
   }
@@ -372,7 +396,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     // Log ECOX event
     await logEvent({
       workflowId: signerData.workflow_id,
-      signerId: signerData.id,
+      signerId: signerData.signer_id,
       eventType: 'document_viewed'
     })
 
@@ -385,135 +409,26 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
     try {
       const supabase = getSupabase();
-      // Log ECOX event: signature_applied
-      await logEvent({
-        workflowId: signerData.workflow_id,
-        signerId: signerData.id,
-        eventType: 'signature_applied',
-        details: {
-          signature_type: signatureData.type
+      setError(null)
+
+      // Minimal flow: call backend to record the signature event and mark signer as signed.
+      const { data, error } = await supabase.functions.invoke('apply-signer-signature', {
+        body: {
+          signerId: signerData.signer_id,
+          workflowId: signerData.workflow_id,
+          witness_pdf_hash: signerData.workflow.document_hash,
+          applied_at: new Date().toISOString(),
+          identity_level: signerData.otp_verified ? 'otp' : 'unknown',
+          signatureData: signatureData
         }
       })
 
-      // Step 1: Download the PDF from storage (may be encrypted or plain)
-      console.log('📄 Downloading PDF from storage...')
-      const documentPath = signerData.workflow.document_path
-      if (!documentPath) {
-        throw new Error('Ruta de documento no disponible')
-      }
-      const { data: downloadData, error: downloadError } = await supabase.storage
-        .from('user-documents')
-        .download(documentPath)
-
-      if (downloadError || !downloadData) {
-        throw new Error('No se pudo descargar el documento')
+      if (error || (data && data.error)) {
+        console.error('apply-signer-signature failed', error || data.error)
+        throw new Error(error?.message || data?.error || 'apply_failed')
       }
 
-      // Step 2: Decrypt the PDF if it's encrypted
-      let pdfBlob = downloadData
-
-      if (signerData.workflow.encryption_key) {
-        console.log('🔓 Decrypting PDF in browser...')
-        pdfBlob = await decryptFile(
-          downloadData,
-          signerData.workflow.encryption_key
-        )
-      } else {
-        console.log('📄 PDF is not encrypted, using as-is...')
-      }
-
-      // Step 3: Apply signature to PDF using pdf-lib (in browser)
-      console.log('✍️ Applying signature to PDF...')
-      const { signedPdfBlob, signedPdfHash } = await applySignatureToPDF(
-        pdfBlob,
-        {
-          dataUrl: signatureData.dataUrl,
-          type: signatureData.type,
-          signerName: signerData.name || signerData.email,
-          signedAt: new Date().toISOString()
-        }
-      )
-
-      // Step 4: Re-encrypt the signed PDF
-      console.log('🔒 Re-encrypting signed PDF...')
-      // Generate new encryption key for signed document
-      const newEncryptionKey = await generateEncryptionKey()
-      const encryptedSignedPdf = await encryptFile(
-        new File([signedPdfBlob], 'signed.pdf'),
-        newEncryptionKey
-      )
-
-      // Step 5: Upload signed PDF back to storage
-      console.log('☁️ Uploading signed PDF to storage...')
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('No autenticado')
-
-      const signedPath = `${user.id}/${signerData.workflow_id}/signed_${Date.now()}.pdf.enc`
-
-      const { error: uploadError } = await supabase.storage
-        .from('user-documents')
-        .upload(signedPath, encryptedSignedPdf, {
-          cacheControl: '3600',
-          upsert: false
-        })
-
-      if (uploadError) {
-        throw new Error('No se pudo subir el documento firmado')
-      }
-
-      // Step 6: Update workflow with signed document path and hash
-      const { error: workflowUpdateError } = await supabase
-        .from('signature_workflows')
-        .update({
-          document_path: signedPath,
-          document_hash: signedPdfHash,
-          encryption_key: newEncryptionKey
-        })
-        .eq('id', signerData.workflow_id)
-
-      if (workflowUpdateError) {
-        throw workflowUpdateError
-      }
-
-      // Step 7: Update signer status to 'signed'
-      const { error: updateError } = await supabase
-        .from('workflow_signers')
-        .update({
-          status: 'signed',
-          signature_data: signatureData.dataUrl,
-          signed_at: new Date().toISOString()
-        })
-        .eq('id', signerData.id)
-
-      if (updateError) {
-        throw updateError
-      }
-
-      // Log ECOX event: signature_completed
-      await logEvent({
-        workflowId: signerData.workflow_id,
-        signerId: signerData.id,
-        eventType: 'signature_completed',
-        documentHashSnapshot: signedPdfHash
-      })
-
-      console.log('✅ Signature process completed successfully')
-      console.log('🔒 Signed PDF hash:', signedPdfHash.substring(0, 16) + '...')
-
-      // Triggers will automatically:
-      // 1. Send email to owner (on_signature_completed)
-      // 2. Send email to signer (on_signature_completed)
-      // 3. Check if workflow is complete and send .ECO to all (on_workflow_completed)
-
-      // Send final package to signer (PDF + ECO)
-      try {
-        await supabase.functions.invoke('send-signer-package', {
-          body: { signerId: signerData.id }
-        })
-      } catch (err) {
-        console.warn('No se pudo enviar el paquete final al firmante', err)
-      }
-
+      // Success: mark completed in UI
       setStep('completed')
 
     } catch (err) {
@@ -535,7 +450,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     // Log that user is bypassing SignNow
     await logEvent({
       workflowId: signerData.workflow_id,
-      signerId: signerData.id,
+      signerId: signerData.signer_id,
       eventType: 'signnow_bypassed' as any,
       details: { reason: 'embed_error' }
     })
@@ -559,7 +474,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     // Log ECOX event
     await logEvent({
       workflowId: signerData.workflow_id,
-      signerId: signerData.id,
+      signerId: signerData.signer_id,
       eventType: 'eco_downloaded'
     })
 
@@ -625,108 +540,51 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           </div>
         )}
 
-        {step === 'nda' && signerData && (
-          <NDAAcceptance
-            workflow={signerData.workflow}
-            onAccept={handleNDAAccepted}
-          />
-        )}
-
-        {step === 'receipt' && signerData && (
-          <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg border border-gray-200">
-              {/* Header más amigable */}
-              <div className="mb-8 text-center">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                  <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h1 className="text-2xl font-bold text-gray-900">Verificá tu identidad</h1>
-                <p className="mt-2 text-sm text-gray-600">
-                  Te enviaremos un código de seguridad a <strong>{signerData.email}</strong>
-                </p>
+        {step === 'rejected' && (
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="max-w-md text-center">
+              <div className="mb-6 flex justify-center">
+                <svg
+                  className="h-20 w-20 text-gray-700"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
               </div>
-
-              <div className="space-y-4">
-                {/* Nombre - solo mostrar, no editar */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tu nombre</label>
-                  <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 font-medium">
-                    {signerData.name || signerData.email}
-                  </div>
-                </div>
-
-                {/* Email - solo mostrar */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700">
-                    {signerData.email}
-                  </div>
-                </div>
-
-                {/* Campos opcionales colapsados por defecto */}
-                <details className="mt-4">
-                  <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-900">
-                    + Agregar información adicional (opcional)
-                  </summary>
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de documento</label>
-                      <select
-                        value={receiptData.docIdType}
-                        onChange={(e) => setReceiptData({ ...receiptData, docIdType: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Seleccionar...</option>
-                        <option value="DNI">DNI</option>
-                        <option value="Pasaporte">Pasaporte</option>
-                        <option value="CUIT/CUIL">CUIT/CUIL</option>
-                        <option value="Otro">Otro</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Número</label>
-                      <input
-                        type="text"
-                        value={receiptData.docId}
-                        onChange={(e) => setReceiptData({ ...receiptData, docId: e.target.value })}
-                        placeholder="12345678"
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
-                      <input
-                        type="tel"
-                        value={receiptData.phone}
-                        onChange={(e) => setReceiptData({ ...receiptData, phone: e.target.value })}
-                        placeholder="+54 11 5555-5555"
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </details>
-              </div>
-
-              {error && (
-                <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              )}
-
-              <button
-                onClick={handleReceiptSubmit}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
-              >
-                Enviar código de verificación
-              </button>
-
-              <p className="mt-4 text-center text-xs text-gray-500">
-                Protegemos tus datos con cifrado de extremo a extremo
+              <h2 className="mb-2 text-2xl font-bold text-gray-900">Documento rechazado</h2>
+              <p className="mb-6 text-gray-600">
+                {error || 'El rechazo quedó registrado correctamente.'}
               </p>
+              <button
+                onClick={() => navigate('/')}
+                className="rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
+              >
+                Volver al inicio
+              </button>
             </div>
           </div>
+        )}
+
+        {step === 'preaccess' && signerData && (
+          <PreAccess
+            documentTitle={signerData.workflow.title || signerData.workflow.original_filename || 'Documento'}
+            senderName={signerData.workflow.owner_name}
+            senderEmail={signerData.workflow.owner_email}
+            signerEmail={signerData.email}
+            initialFirstName={getInitialNameParts(signerData.name || signerData.email).firstName}
+            initialLastName={getInitialNameParts(signerData.name || signerData.email).lastName}
+            isSubmitting={preAccessSubmitting}
+            errorMessage={error}
+            onConfirm={handlePreAccessConfirm}
+            onReject={handleRejectSignature}
+          />
         )}
 
         {step === 'otp' && signerData && (
@@ -739,12 +597,14 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 </p>
               </div>
               <div className="space-y-4">
-                <button
-                  onClick={sendOtp}
-                  className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                  Enviar código
-                </button>
+                {!otpSent && (
+                  <button
+                    onClick={sendOtp}
+                    className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    Enviar código
+                  </button>
+                )}
                 {otpSent && (
                   <>
                     <input
@@ -760,6 +620,12 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                       className="w-full rounded-lg border border-blue-600 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
                     >
                       Verificar código
+                    </button>
+                    <button
+                      onClick={sendOtp}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Reenviar código
                     </button>
                   </>
                 )}
@@ -778,8 +644,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             documentPath={signerData.workflow.document_path}
             encryptionKey={signerData.workflow.encryption_key}
             workflowId={signerData.workflow_id}
-            signerId={signerData.id}
-            signedUrl={accessMeta?.encrypted_pdf_url}
+            signerId={signerData.signer_id}
+            signedUrl={signerData.encrypted_pdf_url}
             onContinue={handleDocumentViewed}
             mode={mode}
           />
@@ -844,7 +710,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             <SignaturePad
               signerName={signerData.name || signerData.email}
               workflowId={signerData.workflow_id}
-              signerId={signerData.id}
+              signerId={signerData.signer_id}
               onSign={handleSignatureApplied}
             />
           )

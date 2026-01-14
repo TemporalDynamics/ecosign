@@ -349,7 +349,6 @@ created_at          TIMESTAMPTZ
 ```json
 {
   "success": true,
-  "signatureId": "uuid",
   "workflowStatus": "in_progress",
   "nextSigner": {
     "email": "c@example.com",

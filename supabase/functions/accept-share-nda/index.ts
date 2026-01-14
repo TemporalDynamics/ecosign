@@ -14,17 +14,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
 import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
+import { parseJsonBody } from '../_shared/validation.ts'
+import { AcceptShareNdaSchema } from '../_shared/schemas.ts'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-interface AcceptShareNdaRequest {
-  share_id: string
-  signer_email: string
-  signer_name?: string
-  browser_fingerprint?: string
 }
 
 async function generateNdaHash(content: string): Promise<string> {
@@ -47,23 +42,19 @@ serve(withRateLimit('accept', async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const body: AcceptShareNdaRequest = await req.json()
+    const parsed = await parseJsonBody(req, AcceptShareNdaSchema)
+    if (!parsed.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: parsed.error, details: parsed.details }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
     const {
       share_id,
       signer_email,
       signer_name,
       browser_fingerprint
-    } = body
-
-    if (!share_id || !signer_email) {
-      throw new Error('Missing required fields: share_id, signer_email')
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(signer_email)) {
-      throw new Error('Invalid email format')
-    }
+    } = parsed.data
 
     // Get share data
     const { data: share, error: shareError } = await supabase

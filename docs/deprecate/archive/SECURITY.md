@@ -79,7 +79,7 @@ See: `NOTICE.md`
 
 ## 🛡️ Security Headers
 
-We implement the following security headers (see `vercel.json`):
+We implement the following security headers (see `docs/ops/vercel.json`):
 
 - **X-Content-Type-Options:** `nosniff` (prevent MIME sniffing)
 - **X-Frame-Options:** `DENY` (prevent clickjacking)

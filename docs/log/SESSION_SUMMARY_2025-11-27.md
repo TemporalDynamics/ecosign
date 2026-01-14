@@ -10,13 +10,13 @@ Resolver una serie de fallos de despliegue continuos en Vercel y, posteriormente
 - **Problema Inicial:** Los despliegues fallaban con una variedad de errores, incluyendo paquetes no encontrados (`react-hot-toast`), directorios de salida no encontrados (`dist`), y comandos de `build` inválidos.
 - **Diagnóstico:**
     - El entorno de Vercel no estaba instalando las dependencias del subdirectorio `client`.
-    - El archivo `vercel.json` se estaba revirtiendo a una versión antigua e incorrecta que no era compatible con la estructura de monorepo del proyecto.
+    - El archivo `docs/ops/vercel.json` se estaba revirtiendo a una versión antigua e incorrecta que no era compatible con la estructura de monorepo del proyecto.
     - Un intento de arreglo por parte de otro asistente introdujo un comando inválido (`npm install --include=dev`).
     - La dependencia `terser`, necesaria para el build de producción de Vite, estaba incorrectamente listada en `devDependencies`.
 - **Solución Implementada:**
     1.  Se movió `terser` de `devDependencies` a `dependencies` en `client/package.json`.
     2.  Se eliminó el flag inválido `--include=dev` del script `vercel-build` en el `package.json` raíz.
-    3.  Se aseguró que `vercel.json` tuviera la configuración moderna y correcta, apuntando al script `vercel-build` y al `outputDirectory` correcto (`client/dist`).
+    3.  Se aseguró que `docs/ops/vercel.json` tuviera la configuración moderna y correcta, apuntando al script `vercel-build` y al `outputDirectory` correcto (`client/dist`).
 
 ### 2. Optimización de Rendimiento (Lighthouse)
 

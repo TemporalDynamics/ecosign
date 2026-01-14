@@ -1,8 +1,9 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
@@ -25,6 +26,14 @@ const jsonResponse = (data: unknown, status = 200) =>
       'Content-Type': 'application/json'
     }
   })
+
+async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
+  try {
+    await supabase.functions.invoke('send-pending-emails')
+  } catch (error) {
+    console.warn('send-pending-emails invoke failed', error)
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -85,9 +94,9 @@ serve(async (req) => {
       return jsonResponse({ error: 'Only the workflow owner can respond to change requests' }, 403)
     }
 
-    if (workflow.status !== 'paused') {
+    if (workflow.status !== 'active') {
       return jsonResponse({
-        error: 'Workflow is not in paused state',
+        error: 'Workflow is not active',
         currentStatus: workflow.status
       }, 400)
     }
@@ -103,10 +112,10 @@ serve(async (req) => {
       return jsonResponse({ error: 'Signer not found' }, 404)
     }
 
-    if (signer.status !== 'requested_changes') {
+    if (signer.change_request_status !== 'pending') {
       return jsonResponse({
         error: 'This signer has not requested changes',
-        currentStatus: signer.status
+        currentStatus: signer.change_request_status
       }, 400)
     }
 
@@ -120,10 +129,32 @@ serve(async (req) => {
         .from('workflow_signers')
         .update({
           change_request_status: 'rejected',
-          status: 'ready', // Vuelve a estar listo para firmar
+          status: 'ready_to_sign', // Vuelve a estar listo para firmar
           updated_at: new Date().toISOString()
         })
         .eq('id', signerId)
+
+      await appendCanonicalEvent(
+        supabase,
+        {
+          event_type: 'document.change_resolved',
+          workflow_id: workflowId,
+          signer_id: signerId,
+          payload: { decision: 'rejected', has_notes: !!modificationNotes }
+        },
+        'respond-to-changes'
+      )
+
+      await appendCanonicalEvent(
+        supabase,
+        {
+          event_type: 'signer.ready_to_sign',
+          workflow_id: workflowId,
+          signer_id: signerId,
+          payload: { email: signer.email, signing_order: signer.signing_order }
+        },
+        'respond-to-changes'
+      )
 
       // Reactivar workflow
       await supabase
@@ -156,6 +187,8 @@ serve(async (req) => {
           `,
           delivery_status: 'pending'
         })
+
+      await triggerEmailDelivery(supabase)
 
       return jsonResponse({
         success: true,
@@ -190,10 +223,32 @@ serve(async (req) => {
         .from('workflow_signers')
         .update({
           change_request_status: 'accepted',
-          status: 'pending', // Volverá a firmar con todos
+          status: 'invited', // Volverá a firmar con todos
           updated_at: new Date().toISOString()
         })
         .eq('id', signerId)
+
+      await appendCanonicalEvent(
+        supabase,
+        {
+          event_type: 'document.change_resolved',
+          workflow_id: workflowId,
+          signer_id: signerId,
+          payload: { decision: 'accepted', has_notes: !!modificationNotes }
+        },
+        'respond-to-changes'
+      )
+
+      await appendCanonicalEvent(
+        supabase,
+        {
+          event_type: 'signer.invited',
+          workflow_id: workflowId,
+          signer_id: signerId,
+          payload: { email: signer.email, signing_order: signer.signing_order }
+        },
+        'respond-to-changes'
+      )
 
       // Obtener todos los firmantes previos que ya firmaron
       const { data: previousSigners } = await supabase
@@ -263,12 +318,23 @@ serve(async (req) => {
         .from('workflow_signers')
         .select('*')
         .eq('workflow_id', workflowId)
-        .eq('status', 'ready')
+        .eq('status', 'ready_to_sign')
         .order('signing_order', { ascending: true })
         .limit(1)
         .single()
 
       if (firstSigner) {
+        await appendCanonicalEvent(
+          supabase,
+          {
+            event_type: 'signer.ready_to_sign',
+            workflow_id: workflowId,
+            signer_id: firstSigner.id,
+            payload: { email: firstSigner.email, signing_order: firstSigner.signing_order }
+          },
+          'respond-to-changes'
+        )
+
         await supabase
           .from('workflow_notifications')
           .insert({
@@ -287,6 +353,8 @@ serve(async (req) => {
             delivery_status: 'pending'
           })
       }
+
+      await triggerEmailDelivery(supabase)
 
       return jsonResponse({
         success: true,

@@ -139,6 +139,39 @@ export async function getDocumentEntityId(
 }
 
 /**
+ * Utility: Get user_documents.id from document_entities.id
+ *
+ * Used for dual-read migration when callers only know document_entity_id
+ * but legacy tables still require user_documents.id.
+ *
+ * @param supabase - Supabase client
+ * @param documentEntityId - document_entities.id
+ * @returns user_documents.id or null
+ */
+export async function getUserDocumentId(
+  supabase: SupabaseClient,
+  documentEntityId: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('user_documents')
+      .select('id')
+      .eq('document_entity_id', documentEntityId)
+      .single();
+
+    if (error || !data?.id) {
+      console.error('Failed to get user_document_id:', error?.message);
+      return null;
+    }
+
+    return data.id;
+  } catch (error) {
+    console.error('Unexpected error in getUserDocumentId:', error);
+    return null;
+  }
+}
+
+/**
  * Utility: Hash IP address for privacy (truncate + hash)
  *
  * We want to record that access happened, but not store full IPs.

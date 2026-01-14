@@ -146,7 +146,7 @@ export default function CreateWorkflowWizard({
       }
 
       // Step 2: Create signers
-      const signersToInsert = signers.map((signer) => ({
+      const signersToInsert = signers.map((signer, index) => ({
         workflow_id: workflow.id,
         email: signer.email.trim(),
         name: signer.name.trim() || null,
@@ -154,7 +154,9 @@ export default function CreateWorkflowWizard({
         require_login: signer.require_login,
         require_nda: signer.require_nda,
         quick_access: !signer.require_login,
-        status: 'pending',
+        status: workflowSettings.sequential
+          ? (index === 0 ? 'ready_to_sign' : 'invited')
+          : 'ready_to_sign',
         // Generate access token hash (simple UUID for now, could be more secure)
         access_token_hash: crypto.randomUUID()
       }))
@@ -332,7 +334,7 @@ export default function CreateWorkflowWizard({
                           type="checkbox"
                           checked={signer.require_login}
                           onChange={(e) => updateSigner(index, 'require_login', e.target.checked)}
-                          className="h-4 w-4 rounded border-gray-300"
+                          className="eco-checkbox rounded border-gray-300"
                         />
                         Requiere login
                       </label>
@@ -342,7 +344,7 @@ export default function CreateWorkflowWizard({
                           type="checkbox"
                           checked={signer.require_nda}
                           onChange={(e) => updateSigner(index, 'require_nda', e.target.checked)}
-                          className="h-4 w-4 rounded border-gray-300"
+                          className="eco-checkbox rounded border-gray-300"
                         />
                         Requiere NDA
                       </label>
@@ -385,7 +387,7 @@ export default function CreateWorkflowWizard({
                     onChange={(e) =>
                       setWorkflowSettings({ ...workflowSettings, sequential: e.target.checked })
                     }
-                    className="h-5 w-5 rounded border-gray-300"
+                    className="eco-checkbox rounded border-gray-300"
                   />
                   <div>
                     <div className="font-medium text-gray-900">Firma Secuencial</div>

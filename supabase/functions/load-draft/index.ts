@@ -15,7 +15,6 @@
  *     description?: string,
  *     created_at: string,
  *     documents: [{
- *       id: string,
  *       filename: string,
  *       size: number,
  *       draft_file_ref: string,
@@ -33,29 +32,25 @@
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS'
-}
-
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...corsHeaders,
+      ...headers,
       'Content-Type': 'application/json'
     }
   })
 
 serve(async (req) => {
+  const { headers: corsHeaders } = getCorsHeaders(req.headers.get('Origin') ?? undefined)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   if (req.method !== 'GET') {
-    return jsonResponse({ error: 'Method not allowed' }, 405)
+    return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders)
   }
 
   try {
@@ -66,14 +61,14 @@ serve(async (req) => {
     // 1. Autenticar usuario
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization header' }, 401)
+      return jsonResponse({ error: 'Missing authorization header' }, 401, corsHeaders)
     }
 
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
-      return jsonResponse({ error: 'Unauthorized' }, 401)
+      return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders)
     }
 
     // 2. Parsear query params
@@ -102,11 +97,11 @@ serve(async (req) => {
 
     if (operationsError) {
       console.error('Error loading draft operations:', operationsError)
-      return jsonResponse({ error: 'Failed to load drafts' }, 500)
+      return jsonResponse({ error: 'Failed to load drafts' }, 500, corsHeaders)
     }
 
     if (!operations || operations.length === 0) {
-      return jsonResponse({ success: true, drafts: [] })
+      return jsonResponse({ success: true, drafts: [] }, 200, corsHeaders)
     }
 
     // 4. Cargar documentos de cada draft
@@ -116,7 +111,6 @@ serve(async (req) => {
       const { data: documents, error: documentsError } = await supabase
         .from('operation_documents')
         .select(`
-          id,
           draft_file_ref,
           draft_metadata,
           added_at
@@ -136,7 +130,6 @@ serve(async (req) => {
         created_at: operation.created_at,
         updated_at: operation.updated_at,
         documents: (documents || []).map((doc: any) => ({
-          id: doc.id,
           filename: doc.draft_metadata?.filename || 'unknown',
           size: doc.draft_metadata?.size || 0,
           draft_file_ref: doc.draft_file_ref,
@@ -150,12 +143,12 @@ serve(async (req) => {
     return jsonResponse({
       success: true,
       drafts
-    })
+    }, 200, corsHeaders)
 
   } catch (error) {
     console.error('Error in load-draft:', error)
     return jsonResponse({
       error: error instanceof Error ? error.message : 'Internal server error'
-    }, 500)
+    }, 500, corsHeaders)
   }
 })

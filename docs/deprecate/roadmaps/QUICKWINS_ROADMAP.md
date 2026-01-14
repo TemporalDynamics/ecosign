@@ -45,7 +45,7 @@
   - **Impacto:** +2 puntos
 
 - [ ] **Agregar Security Headers** (30 min)
-  - Archivo: `vercel.json` o middleware
+  - Archivo: `docs/ops/vercel.json` o middleware
   - CSP, HSTS, X-Frame-Options, X-Content-Type-Options
   - **Impacto:** +4 puntos
   - **Riesgo:** Bajo (probar en staging primero)

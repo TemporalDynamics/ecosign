@@ -1,18 +1,20 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
 import { withRateLimit } from '../_shared/ratelimit.ts';
+import { getUserDocumentId } from '../_shared/eventHelper.ts';
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
 interface CreateInviteRequest {
-  documentId: string;
+  documentId?: string;
+  documentEntityId?: string;
   email: string;
   role: 'viewer' | 'signer';
   expiresInDays?: number;
 }
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400'
@@ -56,12 +58,12 @@ serve(withRateLimit('invite', async (req) => {
 
     // Parse request body
     const body: CreateInviteRequest = await req.json();
-    const { documentId, email, role, expiresInDays = 30 } = body;
+    const { documentId, documentEntityId, email, role, expiresInDays = 30 } = body;
 
     // Validate inputs
-    if (!documentId || !email || !role) {
+    if ((!documentId && !documentEntityId) || !email || !role) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: documentId, email, role' }),
+        JSON.stringify({ error: 'Missing required fields: documentId or documentEntityId, email, role' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -74,10 +76,20 @@ serve(withRateLimit('invite', async (req) => {
     }
 
     // Verify user owns the document
+    const resolvedDocumentId = documentId
+      ?? (documentEntityId ? await getUserDocumentId(supabase, documentEntityId) : null);
+
+    if (!resolvedDocumentId) {
+      return new Response(
+        JSON.stringify({ error: 'Document not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { data: document, error: docError } = await supabase
       .from('user_documents')
       .select('id, document_name, user_id')
-      .eq('id', documentId)
+      .eq('id', resolvedDocumentId)
       .single();
 
     if (docError || !document) {
@@ -116,7 +128,7 @@ serve(withRateLimit('invite', async (req) => {
     const { data: invite, error: inviteError } = await supabase
       .from('invites')
       .insert({
-        document_id: documentId,
+        document_id: resolvedDocumentId,
         email: email.toLowerCase().trim(),
         role,
         token: token_value,
@@ -145,7 +157,6 @@ serve(withRateLimit('invite', async (req) => {
       JSON.stringify({
         success: true,
         invite: {
-          id: invite.id,
           token: token_value,
           email: invite.email,
           role: invite.role,

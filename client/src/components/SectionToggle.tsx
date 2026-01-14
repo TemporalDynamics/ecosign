@@ -2,7 +2,7 @@
 // SectionToggle - Componente reutilizable para secciones desplegables
 // ========================================
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 interface SectionToggleProps {
@@ -10,6 +10,9 @@ interface SectionToggleProps {
   count?: number;
   icon?: React.ReactNode;
   defaultOpen?: boolean;
+  openSignal?: number;
+  onToggle?: (isOpen: boolean) => void;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -18,16 +21,29 @@ export default function SectionToggle({
   count,
   icon,
   defaultOpen = true,
+  openSignal,
+  onToggle,
+  action,
   children,
 }: SectionToggleProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (openSignal !== undefined) {
+      setIsOpen(true);
+    }
+  }, [openSignal]);
 
   return (
     <div className="mb-6">
       {/* Header del toggle */}
       <div className="grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-5 bg-gray-50 border-b border-gray-100 rounded-lg">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            const nextOpen = !isOpen;
+            setIsOpen(nextOpen);
+            onToggle?.(nextOpen);
+          }}
           className="flex items-center gap-3 text-left w-full"
           aria-expanded={isOpen}
           type="button"
@@ -52,7 +68,9 @@ export default function SectionToggle({
         </button>
         <div />
         <div />
-        <div />
+        <div className="flex justify-end">
+          {action}
+        </div>
       </div>
 
       {/* Contenido desplegable */}

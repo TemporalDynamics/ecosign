@@ -5,25 +5,17 @@ import { Shield, Clock, FileText, AlertTriangle, CheckCircle, Download, User, Ma
 import { getSupabase } from '../lib/supabaseClient';
 import { trackEvent } from '../lib/analytics';
 
-type RecipientInfo = {
-  id: string;
-  email?: string;
-  name?: string;
-  company?: string;
-  role?: string;
-};
-
 type LinkData = {
   valid?: boolean;
   error?: string;
-  link_id?: string;  // NEW: specific link ID from verify-access
+  document_entity_id?: string;
   nda_accepted?: boolean;
   require_nda?: boolean;
   expires_at?: string;
   pdf_signed_url?: string | null;
   eco_signed_url?: string | null;
   nda_text?: string | null;
-  recipient?: RecipientInfo;
+  recipient_email?: string;
   document?: {
     title?: string;
     original_filename?: string;
@@ -139,8 +131,8 @@ function NdaAccessPage() {
       return;
     }
 
-    if (!linkData?.recipient?.id) {
-      setError("No se encontró el destinatario del enlace.");
+    if (!token) {
+      setError('Token inválido.');
       return;
     }
 
@@ -152,8 +144,7 @@ function NdaAccessPage() {
       // Call accept-nda edge function
       const { data, error: funcError } = await supabase.functions.invoke('accept-nda', {
         body: {
-          recipient_id: linkData.recipient.id,
-          link_id: linkData.link_id,  // NEW: pass specific link_id
+          token,
           signer_name: signerName.trim(),
           signer_email: signerEmail.trim()
         }
@@ -174,7 +165,7 @@ function NdaAccessPage() {
 
       // Track analytics
       trackEvent('nda_accepted', {
-        recipientId: linkData.recipient.id,
+        recipientEmail: linkData.recipient_email,
         documentTitle: linkData.document?.title,
         acceptanceId: data.acceptance_id,
         ndaHash: data.nda_hash
@@ -358,7 +349,7 @@ function NdaAccessPage() {
                   id="accept-terms"
                   checked={termsAccepted}
                   onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                  className="eco-checkbox mt-1 rounded border-gray-300 text-black focus:ring-black"
                 />
                 <label htmlFor="accept-terms" className="text-xs text-gray-700">
                   Acepto los términos del Acuerdo de Confidencialidad. Mi aceptación quedará registrada con fines de auditoría.

@@ -33,7 +33,7 @@
 
   4. Supabase Configurado ⭐⭐⭐⭐
 
-  - URL y ANON_KEY presentes en vercel.json
+  - URL y ANON_KEY presentes en docs/ops/vercel.json
   - SQL migrations listas (001_core_schema.sql, 002_storage_policies.sql)
   - Documentación completa (SUPABASE-QUICK-START.md)
 

@@ -113,7 +113,12 @@ export async function getOperationWithDocuments(
         id,
         source_name,
         source_hash,
-        created_at
+        created_at,
+        lifecycle_status,
+        signed_hash,
+        signed_authority,
+        witness_current_hash,
+        witness_current_storage_path
       )
     `)
     .eq('operation_id', operationId)
@@ -128,6 +133,11 @@ export async function getOperationWithDocuments(
     source_name: doc.document_entities.source_name,
     source_hash: doc.document_entities.source_hash,
     created_at: doc.document_entities.created_at,
+    lifecycle_status: doc.document_entities.lifecycle_status,
+    signed_hash: doc.document_entities.signed_hash,
+    signed_authority: doc.document_entities.signed_authority,
+    witness_current_hash: doc.document_entities.witness_current_hash,
+    witness_current_storage_path: doc.document_entities.witness_current_storage_path,
     added_at: doc.added_at,
   }));
 

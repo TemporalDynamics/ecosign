@@ -142,7 +142,7 @@ Mensaje UX:
 - `docs/ops/POLYGON_ANCHORING_DIAGNOSIS.md`
 - `BLOCKCHAIN_ANCHORING_FIX.md`
 - `BITCOIN_QUICKCHECK.md`
-- `POLYGON_FIX_STEPS.md`
+- `docs/anchoring/POLYGON_FIX_STEPS.md`
 
 ---
 

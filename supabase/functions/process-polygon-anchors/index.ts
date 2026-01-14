@@ -12,7 +12,7 @@ import { appendAnchorEventFromEdge, logAnchorAttempt, logAnchorFailed } from '..
 const logger = createLogger('process-polygon-anchors')
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 }
@@ -35,16 +35,17 @@ const jsonResponse = (data: unknown, status = 200) =>
     },
   })
 
-async function resolveProjectId(anchor: any): Promise<string | null> {
+async function resolveProjectId(anchor: any, userDocumentId?: string | null): Promise<string | null> {
   const fromMetadata = anchor?.metadata?.projectId
   if (typeof fromMetadata === 'string' && fromMetadata.trim()) {
     return fromMetadata
   }
-  if (!supabaseAdmin || !anchor?.user_document_id) return null
+  const resolvedUserDocumentId = userDocumentId ?? anchor?.user_document_id
+  if (!supabaseAdmin || !resolvedUserDocumentId) return null
   const { data, error } = await supabaseAdmin
     .from('user_documents')
     .select('eco_data')
-    .eq('id', anchor.user_document_id)
+    .eq('id', resolvedUserDocumentId)
     .maybeSingle()
   if (error || !data?.eco_data) return null
   const ecoData = data.eco_data as Record<string, unknown>
@@ -86,6 +87,43 @@ async function resolveDocumentEntity(userDocumentId: string): Promise<{ document
     documentEntityId: entity.id,
     witnessHash: entity.witness_hash
   }
+}
+
+async function resolveDocumentEntityById(documentEntityId: string): Promise<{ documentEntityId: string; witnessHash: string } | null> {
+  if (!supabaseAdmin) return null
+
+  const { data: entity, error } = await supabaseAdmin
+    .from('document_entities')
+    .select('id, witness_hash')
+    .eq('id', documentEntityId)
+    .maybeSingle()
+
+  if (error || !entity || !entity.witness_hash) {
+    logger.warn('witness_hash_not_found', { documentEntityId, error: error?.message })
+    return null
+  }
+
+  return {
+    documentEntityId: entity.id,
+    witnessHash: entity.witness_hash
+  }
+}
+
+async function resolveUserDocumentIdFromEntity(documentEntityId: string): Promise<string | null> {
+  if (!supabaseAdmin) return null
+
+  const { data, error } = await supabaseAdmin
+    .from('user_documents')
+    .select('id')
+    .eq('document_entity_id', documentEntityId)
+    .maybeSingle()
+
+  if (error || !data?.id) {
+    logger.warn('user_document_not_found', { documentEntityId, error: error?.message })
+    return null
+  }
+
+  return data.id
 }
 
 async function markFailed(anchorId: string, message: string, attempts: number, userDocumentId?: string, witnessHash?: string) {
@@ -195,18 +233,23 @@ serve(async (req) => {
     for (const anchor of anchors) {
       const txHash = anchor.polygon_tx_hash ?? anchor.metadata?.txHash
       const attempts = (anchor.polygon_attempts ?? 0) + 1
+      const anchorDocumentEntityId = anchor.document_entity_id
+        ?? anchor.metadata?.document_entity_id
+        ?? null
+      const resolvedUserDocumentId = anchor.user_document_id
+        ?? (anchorDocumentEntityId ? await resolveUserDocumentIdFromEntity(anchorDocumentEntityId) : null)
 
       // Resolve document entity for observable events
-      const docEntity = anchor.user_document_id
-        ? await resolveDocumentEntity(anchor.user_document_id)
-        : null
+      const docEntity = anchorDocumentEntityId
+        ? await resolveDocumentEntityById(anchorDocumentEntityId)
+        : (resolvedUserDocumentId ? await resolveDocumentEntity(resolvedUserDocumentId) : null)
 
       if (!txHash) {
         await markFailed(
           anchor.id,
           'Missing polygon_tx_hash',
           attempts,
-          anchor.user_document_id,
+          resolvedUserDocumentId ?? undefined,
           docEntity?.witnessHash
         )
         failed++
@@ -217,10 +260,10 @@ serve(async (req) => {
       // WORKSTREAM 3: Log attempt (observability event)
       // This creates audit trail of ALL attempts (including retries)
       // Philosophy: "UI refleja, no afirma" - every attempt is logged
-      if (anchor.user_document_id && docEntity?.witnessHash) {
+      if (resolvedUserDocumentId && docEntity?.witnessHash) {
         await logAnchorAttempt(
           supabaseAdmin,
-          anchor.user_document_id,
+          resolvedUserDocumentId,
           'polygon',
           docEntity.witnessHash,
           {
@@ -255,7 +298,7 @@ serve(async (req) => {
           anchor.id,
           'Max attempts reached',
           attempts,
-          anchor.user_document_id,
+          resolvedUserDocumentId ?? undefined,
           docEntity?.witnessHash
         )
         failed++
@@ -303,7 +346,7 @@ serve(async (req) => {
             anchor.id,
             `Receipt status ${receipt.status}`,
             attempts,
-            anchor.user_document_id,
+            resolvedUserDocumentId ?? undefined,
             docEntity?.witnessHash
           )
           failed++
@@ -328,8 +371,8 @@ serve(async (req) => {
         }
 
         // P0-3 FIX: Use atomic transaction to update anchors + user_documents together
-        const userDocumentUpdates = anchor.user_document_id ? {
-          document_id: anchor.user_document_id,
+        const userDocumentUpdates = resolvedUserDocumentId ? {
+          document_id: resolvedUserDocumentId,
           has_polygon_anchor: true,
           polygon_anchor_id: anchor.id,
           overall_status: 'certified',
@@ -361,45 +404,43 @@ serve(async (req) => {
 
         // ✅ CANONICAL INTEGRATION: Append anchor event to document_entities.events[]
         // This dual-writes to both legacy tables (above) and canonical events[] (below)
-        if (anchor.user_document_id) {
-          const docEntity = await resolveDocumentEntity(anchor.user_document_id)
-          if (docEntity) {
-            const appendResult = await appendAnchorEventFromEdge(
-              supabaseAdmin,
-              docEntity.documentEntityId,
-              {
-                network: 'polygon',
-                witness_hash: docEntity.witnessHash,
-                txid: txHash,
-                block_height: receipt.blockNumber ?? undefined,
-                confirmed_at: confirmedAt
-              }
-            )
-
-            if (appendResult.success) {
-              logger.info('anchor_event_appended', {
-                anchorId: anchor.id,
-                documentEntityId: docEntity.documentEntityId,
-                network: 'polygon',
-                txHash
-              })
-            } else {
-              // Non-critical: legacy tables are already updated
-              logger.warn('anchor_event_append_failed', {
-                anchorId: anchor.id,
-                documentEntityId: docEntity.documentEntityId,
-                error: appendResult.error
-              })
+        if (docEntity) {
+          const appendResult = await appendAnchorEventFromEdge(
+            supabaseAdmin,
+            docEntity.documentEntityId,
+            {
+              network: 'polygon',
+              witness_hash: docEntity.witnessHash,
+              txid: txHash,
+              block_height: receipt.blockNumber ?? undefined,
+              confirmed_at: confirmedAt
             }
-          } else {
-            logger.warn('document_entity_not_resolved', {
+          )
+
+          if (appendResult.success) {
+            logger.info('anchor_event_appended', {
               anchorId: anchor.id,
-              userDocumentId: anchor.user_document_id
+              documentEntityId: docEntity.documentEntityId,
+              network: 'polygon',
+              txHash
+            })
+          } else {
+            // Non-critical: legacy tables are already updated
+            logger.warn('anchor_event_append_failed', {
+              anchorId: anchor.id,
+              documentEntityId: docEntity.documentEntityId,
+              error: appendResult.error
             })
           }
+        } else {
+          logger.warn('document_entity_not_resolved', {
+            anchorId: anchor.id,
+            userDocumentId: resolvedUserDocumentId,
+            documentEntityId: anchorDocumentEntityId
+          })
         }
 
-        const projectId = await resolveProjectId(anchor)
+        const projectId = await resolveProjectId(anchor, resolvedUserDocumentId)
         if (projectId) {
           const anchorRequestedAt = anchor.created_at || new Date().toISOString()
           const { error: stateError } = await supabaseAdmin
@@ -425,7 +466,7 @@ serve(async (req) => {
           blockNumber: receipt.blockNumber,
           confirmedAt,
           attempts,
-          documentId: anchor.user_document_id
+          documentId: resolvedUserDocumentId
         })
 
         // ❌ DEPRECATED: upgrade_protection_level removed (P0.2)
@@ -450,7 +491,7 @@ serve(async (req) => {
           anchor.id,
           anchorError instanceof Error ? anchorError.message : String(anchorError),
           attempts,
-          anchor.user_document_id,
+          resolvedUserDocumentId ?? undefined,
           docEntity?.witnessHash
         )
         failed++

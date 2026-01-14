@@ -13,7 +13,7 @@ verifysign/
 ├── supabase/        # Backend: Database, Auth, Storage, Edge Functions
 ├── docs/            # Canonical documentation (this file, deployment, API, security)
 ├── scripts/         # Local Automation Helpers
-└── vercel.json      # Hosting Configuration
+└── docs/ops/vercel.json      # Hosting Configuration
 ```
 
 **Key Principles:**
@@ -100,7 +100,7 @@ The platform prioritizes security with multiple layers:
 *   **Deployment**:
     *   Frontend (`client/`) is built and deployed to Vercel as a static site.
     *   Supabase hosts the database, auth, storage, and Edge Functions.
-    *   `vercel.json` and `supabase/config.toml` manage deployment configurations.
+    *   `docs/ops/vercel.json` and `supabase/config.toml` manage deployment configurations.
 
 ---
 

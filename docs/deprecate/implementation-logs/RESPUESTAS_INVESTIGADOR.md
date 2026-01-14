@@ -153,7 +153,7 @@ supabase secrets list | grep POLYGON_CONTRACT_ADDRESS
 
 **Tipo:** SPA (Single Page Application)
 **Routing:** Client-side routing con react-router-dom
-**Deployment:** Vercel (configurado en `vercel.json`)
+**Deployment:** Vercel (configurado en `docs/ops/vercel.json`)
 
 **Estructura de carpetas:**
 ```

@@ -15,7 +15,7 @@ import { acceptNda, type NdaContext } from '../lib/ndaEvents';
 interface NDAAcceptanceScreenProps {
   ndaText: string;
   documentName: string;
-  recipientId?: string;        // Para share-link
+  token?: string;              // Para share-link legacy
   signerId?: string;            // Para signature-flow
   context: NdaContext;
   signerName?: string;
@@ -28,7 +28,7 @@ interface NDAAcceptanceScreenProps {
 export function NDAAcceptanceScreen({
   ndaText,
   documentName,
-  recipientId,
+  token,
   signerId,
   context,
   signerName = '',
@@ -51,7 +51,7 @@ export function NDAAcceptanceScreen({
     try {
       // FASE 2.1: Generar evento probatorio de aceptación
       const result = await acceptNda({
-        recipientId,
+        token,
         signerId,
         context,
         ndaText,
@@ -155,7 +155,7 @@ export function NDAAcceptanceScreen({
               type="checkbox"
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
-              className="mt-1 w-5 h-5 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
+              className="eco-checkbox mt-1 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
             />
             <span className="text-sm text-gray-700">
               <strong>Acepto el acuerdo de confidencialidad</strong> y me comprometo a mantener 

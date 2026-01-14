@@ -1036,7 +1036,7 @@ Mejorar el puntaje promedio de 74/100 a ~80/100 mediante mejoras de bajo riesgo 
 
 **2. Security headers en todas las respuestas:**
 - **Problema detectado:** Solo headers de cache, sin protección contra ataques comunes (clickjacking, MIME sniffing, XSS).
-- **Decisión:** Agregar 7 headers de seguridad en `vercel.json`:
+- **Decisión:** Agregar 7 headers de seguridad en `docs/ops/vercel.json`:
   - `X-Content-Type-Options: nosniff` (evita MIME sniffing)
   - `X-Frame-Options: DENY` (previene clickjacking)
   - `X-XSS-Protection: 1; mode=block` (protección XSS legacy)
@@ -1084,7 +1084,7 @@ Mejorar el puntaje promedio de 74/100 a ~80/100 mediante mejoras de bajo riesgo 
 - `.prettierignore` (13 líneas) - Exclusiones Prettier
 
 **Archivos modificados:**
-- `vercel.json` - Agregados security headers (40 líneas nuevas)
+- `docs/ops/vercel.json` - Agregados security headers (40 líneas nuevas)
 - `.github/workflows/ci.yml` - Refactor completo con parallel jobs
 - `client/package-lock.json` - npm audit fix (glob, node-forge)
 - `eco-packer/package-lock.json` - npm audit fix (js-yaml, node-forge)
@@ -1130,7 +1130,7 @@ Mejorar el puntaje promedio de 74/100 a ~80/100 mediante mejoras de bajo riesgo 
 **Security headers y breakage:**
 - `X-Frame-Options: DENY` puede romper si el site se embebe en iframe.
 - `Permissions-Policy` puede bloquear features futuras (ej: si agregamos video call).
-- Si algo se rompe: ajustar headers específicos en `vercel.json`.
+- Si algo se rompe: ajustar headers específicos en `docs/ops/vercel.json`.
 - Testing en staging recomendado antes de merge.
 
 **esbuild/vite vulnerability:**
@@ -3424,13 +3424,13 @@ Reducir a cero los errores de TypeScript en strict para el frontend público y d
 
 ### 🧠 Decisiones tomadas
 - **Tipado estricto sin romper UX**: Se migraron componentes, páginas y libs de JS/JSX a TS/TSX, eliminando `any` implícitos y ajustando estados nulos para Documents/Verify/Invite/NDA y flujos de firma.
-- **Automatización de Supabase en deploy**: `deploy.sh` ahora corre `supabase db push` y despliega todas las edge functions antes del deploy a Vercel (opt-out con `SUPABASE_AUTOMATE=false`). En CI se agregó `deploy-supabase.yml` para ejecutar lo mismo en cada push a `main` usando secretos del proyecto.
+- **Automatización de Supabase en deploy**: `docs/ops/deploy.sh` ahora corre `supabase db push` y despliega todas las edge functions antes del deploy a Vercel (opt-out con `SUPABASE_AUTOMATE=false`). En CI se agregó `deploy-supabase.yml` para ejecutar lo mismo en cada push a `main` usando secretos del proyecto.
 - **Señal de confianza mínima**: Header público muestra un escudo (Lucide Shield) junto al nombre EcoSign como marca de protección sin alterar el layout.
 
 ### 🛠️ Cambios realizados
 - Renombrado masivo de archivos `.jsx/.js` a `.tsx/.ts` con tipado de props/estados, verificación y descargas (DocumentsPage, VerifyPage, Invite/NdaAccess, SignWorkflow, tooltips y modales).
 - Ajustes en `SignWorkflowPage` para tiempos/descargas tipados y guardas; `WorkflowDetailPage` usa función `get-signed-url` en lugar de acceso directo a `supabaseUrl`.
-- Nuevo workflow `.github/workflows/deploy-supabase.yml` y `deploy.sh` orquestando migraciones + deploy de functions antes de Vercel.
+- Nuevo workflow `.github/workflows/deploy-supabase.yml` y `docs/ops/deploy.sh` orquestando migraciones + deploy de functions antes de Vercel.
 - Header público actualizado con ícono de escudo para confirmar el build nuevo.
 
 ### 🚫 Qué NO se hizo (a propósito)
@@ -3445,7 +3445,7 @@ Reducir a cero los errores de TypeScript en strict para el frontend público y d
 
 ### 📍 Estado final
 - `npm run typecheck` pasa en strict; build Vercel OK.
-- Supabase deploy automatizado en CI y en `deploy.sh` (incluye migraciones y functions).
+- Supabase deploy automatizado en CI y en `docs/ops/deploy.sh` (incluye migraciones y functions).
 - Header muestra escudo en prod como verificación visual de build reciente.
 
 ### 💬 Nota del dev

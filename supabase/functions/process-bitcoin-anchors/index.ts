@@ -16,7 +16,7 @@ import { appendAnchorEventFromEdge, logAnchorAttempt, logAnchorFailed } from '..
 const logger = createLogger('process-bitcoin-anchors');
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS'
 };
@@ -50,16 +50,17 @@ const jsonResponse = (data: unknown, status = 200) =>
     }
   });
 
-async function resolveProjectId(anchor: any): Promise<string | null> {
+async function resolveProjectId(anchor: any, userDocumentId?: string | null): Promise<string | null> {
   const fromMetadata = anchor?.metadata?.projectId
   if (typeof fromMetadata === 'string' && fromMetadata.trim()) {
     return fromMetadata
   }
-  if (!supabaseAdmin || !anchor?.user_document_id) return null
+  const resolvedUserDocumentId = userDocumentId ?? anchor?.user_document_id
+  if (!supabaseAdmin || !resolvedUserDocumentId) return null
   const { data, error } = await supabaseAdmin
     .from('user_documents')
     .select('eco_data')
-    .eq('id', anchor.user_document_id)
+    .eq('id', resolvedUserDocumentId)
     .maybeSingle()
   if (error || !data?.eco_data) return null
   const ecoData = data.eco_data as Record<string, unknown>
@@ -101,6 +102,43 @@ async function resolveDocumentEntity(userDocumentId: string): Promise<{ document
     documentEntityId: entity.id,
     witnessHash: entity.witness_hash
   }
+}
+
+async function resolveDocumentEntityById(documentEntityId: string): Promise<{ documentEntityId: string; witnessHash: string } | null> {
+  if (!supabaseAdmin) return null
+
+  const { data: entity, error } = await supabaseAdmin
+    .from('document_entities')
+    .select('id, witness_hash')
+    .eq('id', documentEntityId)
+    .maybeSingle()
+
+  if (error || !entity || !entity.witness_hash) {
+    logger.warn('witness_hash_not_found', { documentEntityId, error: error?.message })
+    return null
+  }
+
+  return {
+    documentEntityId: entity.id,
+    witnessHash: entity.witness_hash
+  }
+}
+
+async function resolveUserDocumentIdFromEntity(documentEntityId: string): Promise<string | null> {
+  if (!supabaseAdmin) return null
+
+  const { data, error } = await supabaseAdmin
+    .from('user_documents')
+    .select('id')
+    .eq('document_entity_id', documentEntityId)
+    .maybeSingle()
+
+  if (error || !data?.id) {
+    logger.warn('user_document_not_found', { documentEntityId, error: error?.message })
+    return null
+  }
+
+  return data.id
 }
 
 /**
@@ -394,18 +432,24 @@ serve(async (req) => {
       logger.info('queued_anchors_found', { count: queuedAnchors.length });
 
       for (const anchor of queuedAnchors) {
+        const anchorDocumentEntityId = anchor.document_entity_id
+          ?? anchor.metadata?.document_entity_id
+          ?? null
+        const resolvedUserDocumentId = anchor.user_document_id
+          ?? (anchorDocumentEntityId ? await resolveUserDocumentIdFromEntity(anchorDocumentEntityId) : null)
+
         // Resolve document entity for observable events
-        const docEntity = anchor.user_document_id
-          ? await resolveDocumentEntity(anchor.user_document_id)
-          : null;
+        const docEntity = anchorDocumentEntityId
+          ? await resolveDocumentEntityById(anchorDocumentEntityId)
+          : (resolvedUserDocumentId ? await resolveDocumentEntity(resolvedUserDocumentId) : null);
 
         // WORKSTREAM 3: Log attempt (observability event)
         // This creates audit trail of ALL Bitcoin anchoring attempts
         // Philosophy: "UI refleja, no afirma" - every attempt is logged
-        if (anchor.user_document_id && docEntity?.witnessHash) {
+        if (resolvedUserDocumentId && docEntity?.witnessHash) {
           await logAnchorAttempt(
             supabaseAdmin,
-            anchor.user_document_id,
+            resolvedUserDocumentId,
             'bitcoin',
             docEntity.witnessHash,
             {
@@ -418,11 +462,11 @@ serve(async (req) => {
 
         // Policy: if the user cancelled Bitcoin, ignore any late confirmations.
         // Bitcoin is an optional reinforcement layer and must never block or revive once cancelled.
-        if (anchor.user_document_id) {
+        if (resolvedUserDocumentId) {
           const { data: userDocStatus } = await supabaseAdmin
             .from('user_documents')
             .select('bitcoin_status')
-            .eq('id', anchor.user_document_id)
+            .eq('id', resolvedUserDocumentId)
             .single();
           if (userDocStatus?.bitcoin_status === 'cancelled') {
             await supabaseAdmin
@@ -434,7 +478,7 @@ serve(async (req) => {
               .eq('id', anchor.id);
             logger.info('anchor_cancelled_by_user', {
               anchorId: anchor.id,
-              userDocumentId: anchor.user_document_id,
+              userDocumentId: resolvedUserDocumentId,
               reason: 'bitcoin_cancelled'
             });
             continue;
@@ -465,10 +509,10 @@ serve(async (req) => {
           });
         } else {
           // WORKSTREAM 3: Log failure (observability event)
-          if (anchor.user_document_id && docEntity?.witnessHash) {
+          if (resolvedUserDocumentId && docEntity?.witnessHash) {
             await logAnchorFailed(
               supabaseAdmin,
-              anchor.user_document_id,
+              resolvedUserDocumentId,
               'bitcoin',
               docEntity.witnessHash,
               result.error || 'OpenTimestamps submission failed',
@@ -521,12 +565,22 @@ serve(async (req) => {
           continue;
         }
 
+        const anchorDocumentEntityId = anchor.document_entity_id
+          ?? anchor.metadata?.document_entity_id
+          ?? null
+        const resolvedUserDocumentId = anchor.user_document_id
+          ?? (anchorDocumentEntityId ? await resolveUserDocumentIdFromEntity(anchorDocumentEntityId) : null)
+
+        const docEntity = anchorDocumentEntityId
+          ? await resolveDocumentEntityById(anchorDocumentEntityId)
+          : (resolvedUserDocumentId ? await resolveDocumentEntity(resolvedUserDocumentId) : null);
+
         // Policy: late Bitcoin confirmations are ignored after user cancellation.
-        if (anchor.user_document_id) {
+        if (resolvedUserDocumentId) {
           const { data: userDocStatus } = await supabaseAdmin
             .from('user_documents')
             .select('bitcoin_status')
-            .eq('id', anchor.user_document_id)
+            .eq('id', resolvedUserDocumentId)
             .single();
           if (userDocStatus?.bitcoin_status === 'cancelled') {
             await supabaseAdmin
@@ -538,7 +592,7 @@ serve(async (req) => {
               .eq('id', anchor.id);
             logger.info('anchor_cancelled_by_user', {
               anchorId: anchor.id,
-              userDocumentId: anchor.user_document_id,
+              userDocumentId: resolvedUserDocumentId,
               reason: 'bitcoin_cancelled'
             });
             continue;
@@ -578,11 +632,11 @@ serve(async (req) => {
             .eq('id', anchor.id);
 
           // Aplicar Política 1: Si tengo Polygon, el certificado sigue siendo válido
-          if (anchor.user_document_id) {
+          if (resolvedUserDocumentId) {
             const { data: userDoc } = await supabaseAdmin
               .from('user_documents')
               .select('has_polygon_anchor, polygon_anchor_id')
-              .eq('id', anchor.user_document_id)
+              .eq('id', resolvedUserDocumentId)
               .single();
 
             if (userDoc?.has_polygon_anchor) {
@@ -594,11 +648,11 @@ serve(async (req) => {
                   overall_status: 'certified',     // ✅ Válido con Polygon
                   download_enabled: true,          // ✅ Permitir descarga
                 })
-                .eq('id', anchor.user_document_id);
+                .eq('id', resolvedUserDocumentId);
 
               logger.info('document_certified_with_polygon_fallback', {
                 anchorId: anchor.id,
-                userDocumentId: anchor.user_document_id,
+                userDocumentId: resolvedUserDocumentId,
                 polygonAnchorId: userDoc.polygon_anchor_id
               });
             } else {
@@ -610,11 +664,11 @@ serve(async (req) => {
                   overall_status: 'failed',
                   download_enabled: false,
                 })
-                .eq('id', anchor.user_document_id);
+                .eq('id', resolvedUserDocumentId);
 
               logger.error('document_failed_no_valid_anchors', {
                 anchorId: anchor.id,
-                userDocumentId: anchor.user_document_id
+                userDocumentId: resolvedUserDocumentId
               });
             }
           }
@@ -662,8 +716,8 @@ serve(async (req) => {
                 calendar_url: anchor.ots_calendar_url
               };
 
-              const userDocumentUpdates = anchor.user_document_id ? {
-                document_id: anchor.user_document_id,
+              const userDocumentUpdates = resolvedUserDocumentId ? {
+                document_id: resolvedUserDocumentId,
                 bitcoin_status: 'confirmed',
                 bitcoin_confirmed_at: confirmedAt,
                 overall_status: 'certified',
@@ -696,45 +750,43 @@ serve(async (req) => {
 
               // ✅ CANONICAL INTEGRATION: Append anchor event to document_entities.events[]
               // This dual-writes to both legacy tables (above) and canonical events[] (below)
-              if (anchor.user_document_id) {
-                const docEntity = await resolveDocumentEntity(anchor.user_document_id);
-                if (docEntity) {
-                  const appendResult = await appendAnchorEventFromEdge(
-                    supabaseAdmin,
-                    docEntity.documentEntityId,
-                    {
-                      network: 'bitcoin',
-                      witness_hash: docEntity.witnessHash,
-                      txid: txid || 'unknown',
-                      block_height: blockHeight ?? undefined,
-                      confirmed_at: blockData.confirmedAt
-                    }
-                  );
-
-                  if (appendResult.success) {
-                    logger.info('anchor_event_appended', {
-                      anchorId: anchor.id,
-                      documentEntityId: docEntity.documentEntityId,
-                      network: 'bitcoin',
-                      txid
-                    });
-                  } else {
-                    // Non-critical: legacy tables are already updated
-                    logger.warn('anchor_event_append_failed', {
-                      anchorId: anchor.id,
-                      documentEntityId: docEntity.documentEntityId,
-                      error: appendResult.error
-                    });
+              if (docEntity) {
+                const appendResult = await appendAnchorEventFromEdge(
+                  supabaseAdmin,
+                  docEntity.documentEntityId,
+                  {
+                    network: 'bitcoin',
+                    witness_hash: docEntity.witnessHash,
+                    txid: txid || 'unknown',
+                    block_height: blockHeight ?? undefined,
+                    confirmed_at: blockData.confirmedAt
                   }
-                } else {
-                  logger.warn('document_entity_not_resolved', {
+                );
+
+                if (appendResult.success) {
+                  logger.info('anchor_event_appended', {
                     anchorId: anchor.id,
-                    userDocumentId: anchor.user_document_id
+                    documentEntityId: docEntity.documentEntityId,
+                    network: 'bitcoin',
+                    txid
+                  });
+                } else {
+                  // Non-critical: legacy tables are already updated
+                  logger.warn('anchor_event_append_failed', {
+                    anchorId: anchor.id,
+                    documentEntityId: docEntity.documentEntityId,
+                    error: appendResult.error
                   });
                 }
+              } else {
+                logger.warn('document_entity_not_resolved', {
+                  anchorId: anchor.id,
+                  userDocumentId: resolvedUserDocumentId,
+                  documentEntityId: anchorDocumentEntityId
+                });
               }
 
-              const projectId = await resolveProjectId(anchor);
+              const projectId = await resolveProjectId(anchor, resolvedUserDocumentId);
               if (projectId) {
                 const anchorRequestedAt = anchor.created_at || new Date().toISOString();
                 const { error: stateError } = await supabaseAdmin
@@ -770,11 +822,11 @@ serve(async (req) => {
               // Migration: 20260106150000_deprecate_upgrade_protection_level.sql
 
               // Send notifications after successful atomic update
-              if (anchor.user_document_id) {
+              if (resolvedUserDocumentId) {
                 const { data: docData } = await supabaseAdmin
                   .from('user_documents')
                   .select('id, document_name, user_id')
-                  .eq('id', anchor.user_document_id)
+                  .eq('id', resolvedUserDocumentId)
                   .single();
 
                 if (docData) {
@@ -813,7 +865,7 @@ serve(async (req) => {
               }
 
               // Legacy: Send notification for old anchors without user_document_id
-              if (!anchor.user_document_id && anchor.user_email && !anchor.notification_sent) {
+              if (!resolvedUserDocumentId && anchor.user_email && !anchor.notification_sent) {
                 const emailSent = await sendConfirmationEmail(
                   anchor.user_email,
                   anchor.document_hash,
@@ -850,8 +902,8 @@ serve(async (req) => {
             calendar_url: anchor.ots_calendar_url
           };
 
-          const userDocumentUpdates = anchor.user_document_id ? {
-            document_id: anchor.user_document_id,
+          const userDocumentUpdates = resolvedUserDocumentId ? {
+            document_id: resolvedUserDocumentId,
             bitcoin_status: 'confirmed',
             bitcoin_confirmed_at: confirmedAt,
             overall_status: 'certified',
@@ -879,45 +931,43 @@ serve(async (req) => {
 
           // ✅ CANONICAL INTEGRATION: Append anchor event to document_entities.events[]
           // This dual-writes to both legacy tables (above) and canonical events[] (below)
-          if (anchor.user_document_id) {
-            const docEntity = await resolveDocumentEntity(anchor.user_document_id);
-            if (docEntity) {
-              const appendResult = await appendAnchorEventFromEdge(
-                supabaseAdmin,
-                docEntity.documentEntityId,
-                {
-                  network: 'bitcoin',
-                  witness_hash: docEntity.witnessHash,
-                  txid: txid || 'unknown',
-                  block_height: blockHeight ?? undefined,
-                  confirmed_at: confirmedAt
-                }
-              );
-
-              if (appendResult.success) {
-                logger.info('anchor_event_appended', {
-                  anchorId: anchor.id,
-                  documentEntityId: docEntity.documentEntityId,
-                  network: 'bitcoin',
-                  txid
-                });
-              } else {
-                // Non-critical: legacy tables are already updated
-                logger.warn('anchor_event_append_failed', {
-                  anchorId: anchor.id,
-                  documentEntityId: docEntity.documentEntityId,
-                  error: appendResult.error
-                });
+          if (docEntity) {
+            const appendResult = await appendAnchorEventFromEdge(
+              supabaseAdmin,
+              docEntity.documentEntityId,
+              {
+                network: 'bitcoin',
+                witness_hash: docEntity.witnessHash,
+                txid: txid || 'unknown',
+                block_height: blockHeight ?? undefined,
+                confirmed_at: confirmedAt
               }
-            } else {
-              logger.warn('document_entity_not_resolved', {
+            );
+
+            if (appendResult.success) {
+              logger.info('anchor_event_appended', {
                 anchorId: anchor.id,
-                userDocumentId: anchor.user_document_id
+                documentEntityId: docEntity.documentEntityId,
+                network: 'bitcoin',
+                txid
+              });
+            } else {
+              // Non-critical: legacy tables are already updated
+              logger.warn('anchor_event_append_failed', {
+                anchorId: anchor.id,
+                documentEntityId: docEntity.documentEntityId,
+                error: appendResult.error
               });
             }
+          } else {
+            logger.warn('document_entity_not_resolved', {
+              anchorId: anchor.id,
+              userDocumentId: resolvedUserDocumentId,
+              documentEntityId: anchorDocumentEntityId
+            });
           }
 
-          const projectId = await resolveProjectId(anchor);
+          const projectId = await resolveProjectId(anchor, resolvedUserDocumentId);
           if (projectId) {
             const anchorRequestedAt = anchor.created_at || new Date().toISOString();
             const { error: stateError } = await supabaseAdmin
@@ -947,11 +997,11 @@ serve(async (req) => {
           // Migration: 20260106150000_deprecate_upgrade_protection_level.sql
 
           // Send notifications after successful atomic update
-          if (anchor.user_document_id) {
+          if (resolvedUserDocumentId) {
             const { data: docData } = await supabaseAdmin
               .from('user_documents')
               .select('id, document_name, user_id')
-              .eq('id', anchor.user_document_id)
+              .eq('id', resolvedUserDocumentId)
               .single();
 
             if (docData) {
@@ -990,7 +1040,7 @@ serve(async (req) => {
           }
 
           // Legacy: Send notification for old anchors without user_document_id
-          if (!anchor.user_document_id && anchor.user_email && !anchor.notification_sent) {
+          if (!resolvedUserDocumentId && anchor.user_email && !anchor.notification_sent) {
             const emailSent = await sendConfirmationEmail(
               anchor.user_email,
               anchor.document_hash,

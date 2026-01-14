@@ -2025,7 +2025,7 @@ Cerrar formalmente TSA para Caso A (Protección/Firma interna): persistir eviden
 - ✅ Sin errores de TypeScript
 
 #### Documentación
-- ✅ `TSA_VERIFICATION_QUERIES.sql` (raíz del proyecto)
+- ✅ `docs/security/rls/TSA_VERIFICATION_QUERIES.sql` (raíz del proyecto)
   - 10 queries SQL para auditar estado TSA
   - Verificar triggers, eventos, proyecciones
   - Debug de `tsa_latest` derivation

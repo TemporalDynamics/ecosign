@@ -1551,3 +1551,13 @@ Si estas por exponer `{ id: ... }` en response publico:
 - Mantener smoke tests como red minima (no expandir sin necesidad).
 
 ---
+
+
+---
+Patch: Added tooltip for protection badge and audit note
+Date: 2026-01-14T17:33:28.067Z
+Author: GitHub Copilot CLI
+
+Summary:
+- Added title tooltip to ProtectedBadge occurrences in lists so the protection label appears on hover.
+

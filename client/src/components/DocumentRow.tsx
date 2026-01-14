@@ -185,7 +185,9 @@ export default function DocumentRow({
 
       <div className="flex items-center gap-2" data-row-actions>
         {protectionLevel !== 'NONE' && (
-          <ProtectedBadge compact showText={false} className="mr-2" />
+          <span title={protectionLabel}>
+            <ProtectedBadge compact showText={false} className="mr-2" />
+          </span>
         )}
 
         <button

@@ -430,8 +430,8 @@ export default function OperationRow({
                 <h3 className="font-semibold text-gray-900 text-sm truncate">
                   {operation.name}
                 </h3>
-                <span className={`text-xs font-medium ${statusConfig.color}`}>
-                  {statusConfig.label}
+                <span className={`text-xs px-2 py-1 rounded ${getHumanStateColor(humanStateOp.severity)}`}>
+                  {humanStateOp.label}
                 </span>
               </div>
 
@@ -473,8 +473,8 @@ export default function OperationRow({
                 <h3 className="font-semibold text-gray-900 text-sm truncate">
                   {operation.name}
                 </h3>
-                <span className={`text-xs font-medium ${statusConfig.color}`}>
-                  {statusConfig.label}
+                <span className={`text-xs px-2 py-1 rounded ${getHumanStateColor(humanStateOp.severity)}`}>
+                  {humanStateOp.label}
                 </span>
               </div>
 

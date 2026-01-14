@@ -508,3 +508,85 @@ export async function protectAndSendOperation(
 
   return data;
 }
+
+export async function resendReminder(operationId: string, recipientEmail: string, userId?: string) {
+  const supabase = getSupabase();
+
+  // Fetch recent notifications for this workflow + recipient
+  const { data: notifs, error } = await supabase
+    .from('workflow_notifications')
+    .select('id,notification_type,step,created_at')
+    .eq('workflow_id', operationId)
+    .eq('recipient_email', recipientEmail)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error) throw error;
+
+  const reminders = (notifs || []).filter((n: any) => (n.notification_type && String(n.notification_type).includes('reminder')) || n.step === 'reminder');
+  const last = reminders[0];
+  const now = new Date();
+  const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24h
+  const MAX_REMINDERS = 2;
+
+  const actorId = await resolveActorId(userId);
+
+  if (last && last.created_at) {
+    const lastDate = new Date(last.created_at as string);
+    const diff = now.getTime() - lastDate.getTime();
+    if (diff < COOLDOWN_MS) {
+      try {
+        await appendOperationsEvent({
+          operation_id: operationId,
+          kind: 'notification.skipped',
+          actor_id: actorId ?? '',
+          reason: 'cooldown',
+          metadata: { recipient: recipientEmail, cooldown_remaining_ms: COOLDOWN_MS - diff },
+        });
+      } catch (e) {
+        console.warn('Failed to append notification.skipped event', e);
+      }
+      const err: any = new Error('cooldown');
+      err.code = 'cooldown';
+      throw err;
+    }
+  }
+
+  if (reminders.length >= MAX_REMINDERS) {
+    try {
+      await appendOperationsEvent({
+        operation_id: operationId,
+        kind: 'notification.skipped',
+        actor_id: actorId ?? '',
+        reason: 'limit',
+        metadata: { recipient: recipientEmail, count: reminders.length },
+      });
+    } catch (e) {
+      console.warn('Failed to append notification.skipped event', e);
+    }
+    const err: any = new Error('limit');
+    err.code = 'limit';
+    throw err;
+  }
+
+  // Insert reminder into workflow_notifications
+  const { data: inserted, error: insErr } = await supabase
+    .from('workflow_notifications')
+    .insert({
+      workflow_id: operationId,
+      recipient_email: recipientEmail,
+      notification_type: 'reminder',
+      step: 'reminder',
+      delivery_status: 'pending',
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (insErr) {
+    console.error('Error inserting workflow_notifications:', insErr);
+    throw insErr;
+  }
+
+  return inserted;
+}

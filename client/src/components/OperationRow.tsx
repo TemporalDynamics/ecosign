@@ -55,6 +55,7 @@ export default function OperationRow({
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [docSelectMode, setDocSelectMode] = useState(false);
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+  const [resendModalOpen, setResendModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const statusConfig = STATUS_CONFIG[operation.status];
   const humanStateOp = deriveHumanState({ status: operation.status }, []);
@@ -223,6 +224,14 @@ export default function OperationRow({
               type="button"
             >
               <Share2 className="h-5 w-5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setResendModalOpen(true); }}
+              className="text-black hover:text-gray-600"
+              title="Reenviar recordatorio"
+              type="button"
+            >
+              <Send className="h-5 w-5" />
             </button>
             <div className="relative" ref={menuRef}>
               <button
@@ -516,6 +525,14 @@ export default function OperationRow({
             type="button"
           >
             <Share2 className="h-5 w-5" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setResendModalOpen(true); }}
+            className="text-black hover:text-gray-600"
+            title="Reenviar recordatorio"
+            type="button"
+          >
+            <Send className="h-5 w-5" />
           </button>
           <div className="relative flex-shrink-0 ml-1" ref={menuRef}>
             <button

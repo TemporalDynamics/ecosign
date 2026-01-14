@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deriveHumanState } from '../deriveHumanState'
+import { deriveHumanState, getHumanStateColor, getHumanStateIconName } from '../deriveHumanState'
 
 describe('deriveHumanState', () => {
   it('returns draft for null workflow', () => {
@@ -14,6 +14,7 @@ describe('deriveHumanState', () => {
     const s = deriveHumanState(wf as any, signers as any)
     expect(s.key).toBe('waiting_for_signer')
     expect(s.label).toContain('Esperando firma')
+    expect(s.severity).toBe('action')
   })
 
   it('returns completed when workflow is completed', () => {
@@ -21,6 +22,10 @@ describe('deriveHumanState', () => {
     const s = deriveHumanState(wf as any, [])
     expect(s.key).toBe('completed')
     expect(s.severity).toBe('success')
+    // color mapping for success should be gray token
+    expect(getHumanStateColor(s.severity)).toContain('gray')
+    // icon name for success
+    expect(getHumanStateIconName(s.severity)).toBe('CheckCircle')
   })
 
   it('returns cancelled when workflow is cancelled', () => {

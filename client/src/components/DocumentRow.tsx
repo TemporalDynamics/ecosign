@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Shield, Eye, Share2, Download, MoreVertical, Clock } from 'lucide-react';
+import { Shield, Eye, Share2, Download, MoreVertical, Clock, ShieldCheck, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { deriveProtectionLevel, getProtectionLevelLabel, getProtectionLevelColor } from '../lib/protectionLevel';
 import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
@@ -121,7 +121,17 @@ export default function DocumentRow({
 
         {/* Estado column: unified for lists */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className={`text-xs px-2 py-1 rounded ${getHumanStateColor(humanState.severity)}`}>
+          <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${getHumanStateColor(humanState.severity)}`}>
+            {(() => {
+              const iconName = getHumanStateIconName(humanState.severity as any);
+              switch (iconName) {
+                case 'Clock': return <Clock className="w-3 h-3" />;
+                case 'ShieldCheck': return <ShieldCheck className="w-3 h-3" />;
+                case 'CheckCircle': return <CheckCircle className="w-3 h-3" />;
+                case 'XCircle': return <XCircle className="w-3 h-3" />;
+                default: return <Shield className="w-3 h-3" />;
+              }
+            })()}
             {formatState(humanState, context)}
           </span>
         </div>

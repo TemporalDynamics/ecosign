@@ -1,0 +1,167 @@
+═══════════════════════════════════════════════════════════════
+  WEBHOOK SETUP - INSTRUCCIONES PASO A PASO (Dashboard)
+═══════════════════════════════════════════════════════════════
+
+⚠️  La Management API NO soporta webhooks aún (404).
+    La ÚNICA forma es el Dashboard.
+
+───────────────────────────────────────────────────────────────
+PASO 1: Abrí el Dashboard
+───────────────────────────────────────────────────────────────
+
+URL directa:
+https://supabase.com/dashboard/project/uiyojopjbhooxrmamaiw/database/webhooks
+
+───────────────────────────────────────────────────────────────
+PASO 2: Click "Create a new hook" o "+ New webhook"
+───────────────────────────────────────────────────────────────
+
+───────────────────────────────────────────────────────────────
+PASO 3: Configuración (COPIÁ EXACTO)
+───────────────────────────────────────────────────────────────
+
+┌─ Name ─────────────────────────────────────────────────────┐
+│ process-signer-signed-webhook                               │
+└─────────────────────────────────────────────────────────────┘
+
+┌─ Type ─────────────────────────────────────────────────────┐
+│ ⚠️  HTTP Request  ← MUY IMPORTANTE                          │
+│                                                             │
+│ NO SELECCIONES "Supabase Edge Function"                    │
+│ Ese tipo falla silenciosamente (sin logs)                  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─ Source ───────────────────────────────────────────────────┐
+│ Schema: public                                              │
+│ Table: workflow_events                                      │
+│                                                             │
+│ Events:                                                     │
+│   ☑ INSERT                                                  │
+│   ☐ UPDATE                                                  │
+│   ☐ DELETE                                                  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─ Conditions (Filter) ──────────────────────────────────────┐
+│ event_type=eq.signer.signed                                 │
+└─────────────────────────────────────────────────────────────┘
+
+┌─ HTTP Request ─────────────────────────────────────────────┐
+│ Method: POST                                                │
+│                                                             │
+│ URL:                                                        │
+│ https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/process-signer-signed
+└─────────────────────────────────────────────────────────────┘
+
+┌─ HTTP Headers ─────────────────────────────────────────────┐
+│                                                             │
+│ Content-Type: application/json                              │
+│                                                             │
+│ apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzY3MDIxNSwiZXhwIjoyMDc5MjQ2MjE1fQ.p2BGhgKApeNNqwyr-62Rvk_6lqIAt7y9UVstw6XlNCQ
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+┌─ HTTP Body ────────────────────────────────────────────────┐
+│ {                                                           │
+│   "record": {{ record }}                                    │
+│ }                                                           │
+│                                                             │
+│ ⚠️  Notá las DOBLES LLAVES: {{ record }}                    │
+└─────────────────────────────────────────────────────────────┘
+
+───────────────────────────────────────────────────────────────
+PASO 4: Click "Create webhook"
+───────────────────────────────────────────────────────────────
+
+───────────────────────────────────────────────────────────────
+PASO 5: Verificá que esté enabled (toggle verde)
+───────────────────────────────────────────────────────────────
+
+───────────────────────────────────────────────────────────────
+PASO 6: TESTEALO
+───────────────────────────────────────────────────────────────
+
+Opción A: SQL Editor
+
+Copiá y ejecutá esto en SQL Editor:
+
+  INSERT INTO workflow_events (
+    workflow_id,
+    signer_id,
+    event_type,
+    payload
+  ) VALUES (
+    gen_random_uuid(),
+    gen_random_uuid(),
+    'signer.signed',
+    '{}'::jsonb
+  );
+
+Opción B: Desde tu app
+
+Creá un evento signer.signed normalmente desde tu aplicación.
+
+───────────────────────────────────────────────────────────────
+PASO 7: VERIFICÁ QUE FUNCIONÓ
+───────────────────────────────────────────────────────────────
+
+1. Volvé a: Database → Webhooks
+2. Click en: process-signer-signed-webhook
+3. Abrí la pestaña: "Delivery Logs"
+
+Deberías ver algo como:
+
+  ✅ 200 OK - 2026-01-13 12:34:56
+     Response: {"success":true,"workflow_id":"..."}
+
+Posibles resultados:
+
+┌──────────────────────────────────────────────────────────────┐
+│ Status │ Significado                                         │
+├────────┼─────────────────────────────────────────────────────┤
+│ 200 OK │ ✅ Funciona perfecto                                │
+│ 401    │ ❌ apikey incorrecta (revisá service_role_key)     │
+│ 404    │ ❌ URL mal escrita                                 │
+│ 500    │ ❌ Error en Edge Function (mirá logs en Functions) │
+│ (nada) │ ❌ Tipo incorrecto ("Edge Function" en vez de      │
+│        │    "HTTP Request")                                  │
+└────────┴─────────────────────────────────────────────────────┘
+
+───────────────────────────────────────────────────────────────
+CHECKLIST FINAL (antes de crear)
+───────────────────────────────────────────────────────────────
+
+☐ Type = "HTTP Request" (NO "Edge Function")
+☐ Table = workflow_events
+☐ Events = INSERT solamente
+☐ Filter = event_type=eq.signer.signed
+☐ URL tiene tu project_ref correcto
+☐ Header apikey = service_role_key (NO anon)
+☐ Header Content-Type = application/json
+☐ Body tiene {{ record }} con doble llave
+☐ Webhook enabled (toggle verde)
+
+───────────────────────────────────────────────────────────────
+❓ FAQ
+───────────────────────────────────────────────────────────────
+
+P: ¿Por qué no funciona el script automatizado?
+R: Supabase Management API aún no soporta webhooks vía API.
+   Solo desde Dashboard.
+
+P: ¿Dónde está "Delivery Logs"?
+R: Database → Webhooks → (tu webhook) → pestaña "Delivery Logs"
+
+P: ¿Qué hago si no veo logs?
+R: Verificá que el Type sea "HTTP Request", no "Edge Function".
+   Ese es el error #1.
+
+P: ¿Puedo usar la anon key en el header?
+R: NO. Necesitás service_role_key porque el webhook bypassea RLS.
+
+───────────────────────────────────────────────────────────────
+
+✅ Listo. Una vez configurado correctamente, el webhook disparará
+   automáticamente cuando se inserte un evento con:
+   event_type = 'signer.signed'
+
+═══════════════════════════════════════════════════════════════

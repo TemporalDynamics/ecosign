@@ -4,12 +4,12 @@
 // ========================================
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Folder, MoreVertical, FolderOpen, Edit, CheckCircle, Archive, Send, Eye, Share2, Clock, ShieldCheck, XCircle } from 'lucide-react';
+import { Folder, MoreVertical, FolderOpen, Edit, CheckCircle, Archive, Send, Eye, Share2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Operation, OperationStatus } from '../types/operations';
 import DocumentRow from './DocumentRow';
 import { mapEntityToDocumentRecord } from '../lib/documentEntityService';
-import { deriveHumanState, getHumanStateColor, getHumanStateIconName } from '../lib/deriveHumanState';
+import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
 
 interface OperationRowProps {
   operation: Operation;
@@ -199,16 +199,6 @@ export default function OperationRow({
           </div>
 
           <div><span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${getHumanStateColor(humanStateOp.severity)}`}>
-                    {(() => {
-                      const iconName = getHumanStateIconName(humanStateOp.severity as any);
-                      switch (iconName) {
-                        case 'Clock': return <Clock className="w-3 h-3" />;
-                        case 'ShieldCheck': return <ShieldCheck className="w-3 h-3" />;
-                        case 'CheckCircle': return <CheckCircle className="w-3 h-3" />;
-                        case 'XCircle': return <XCircle className="w-3 h-3" />;
-                        default: return <Folder className="w-3 h-3" />;
-                      }
-                    })()}
                     {humanStateOp.label}
                   </span></div>
 

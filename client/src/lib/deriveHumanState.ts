@@ -98,3 +98,19 @@ export function getHumanStateColor(severity: HumanWorkflowState['severity']): st
   return map[severity] || 'text-gray-600 bg-gray-50';
 }
 
+/**
+ * getHumanStateIconName
+ * Returns a lucide-react icon name key to be used by UI components.
+ * Kept as string to avoid coupling this lib with React imports.
+ */
+export function getHumanStateIconName(severity: HumanWorkflowState['severity']): string {
+  const map: Record<HumanWorkflowState['severity'], string> = {
+    action: 'Clock',      // something in progress
+    info: 'ShieldCheck',  // strengthening protection
+    success: 'CheckCircle',// resolved
+    warning: 'XCircle',   // terminal but not alarming
+  };
+  return map[severity] || 'Info';
+}
+
+

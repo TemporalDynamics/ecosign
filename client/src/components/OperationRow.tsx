@@ -198,7 +198,19 @@ export default function OperationRow({
             )}
           </div>
 
-          <div><span className={`text-xs px-2 py-1 rounded ${getHumanStateColor(humanStateOp.severity)}`}>{humanStateOp.label}</span></div>
+          <div><span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${getHumanStateColor(humanStateOp.severity)}`}>
+                    {(() => {
+                      const iconName = getHumanStateIconName(humanStateOp.severity as any);
+                      switch (iconName) {
+                        case 'Clock': return <Clock className="w-3 h-3" />;
+                        case 'ShieldCheck': return <ShieldCheck className="w-3 h-3" />;
+                        case 'CheckCircle': return <CheckCircle className="w-3 h-3" />;
+                        case 'XCircle': return <XCircle className="w-3 h-3" />;
+                        default: return <Folder className="w-3 h-3" />;
+                      }
+                    })()}
+                    {humanStateOp.label}
+                  </span></div>
 
           <div className="text-sm text-gray-500">{formatOperationDate((operation as any).created_at)}</div>
 

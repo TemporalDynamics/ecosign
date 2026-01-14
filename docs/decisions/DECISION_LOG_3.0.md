@@ -1588,3 +1588,137 @@ Rationale:
   single scanning pattern across Operations and Documents.
 
 Timestamp: 2026-01-14T17:44:17.408Z
+
+---
+
+P1.1 — Confirmación y siguiente paso: P1.2 — Color / Severidad / Iconografía
+Timestamp: 2026-01-14T18:15:05.654Z
+
+Decision:
+- Mantener "Estado" unificado como la única columna visual para Operations y Documents.
+- Separar la dimensión Protección (probatoria) como eje independiente: escudo compacto en listas, detalle completo en la vista de documento/preview.
+- No renderizar estados del sistema debajo del nombre (ese espacio queda para texto del usuario).
+- No hacer merge de la rama `p1-ux-de-confianza` a `main` hasta completar P1 (al menos P1.2: mapping de severity → tokens de color e iconografía lineal).
+
+Implementation notes:
+- P1.2 implementará el mapping de severity a colores sobrios (verde/action, azul/info, gris/success/quiet) y la iconografía lineal; por ahora solo tooltips y texto son aceptables.
+- Los colores deben transmitir atención/calma (nada de rojos/alertas), el gris indica resuelto y libera atención.
+- Mantener compatibilidad mobile (card view) con el mismo mapping visual.
+
+Status:
+- P1.1 sellado funcionalmente; cambios ya en rama `p1-ux-de-confianza`.
+- Próximo hito: completar P1.2 (color/severidad/iconografía) antes de merge.
+
+Rationale:
+- Reduces cognitive load by eliminating state ambiguity and reinforces a single scanning pattern across Operations and Documents.
+
+---
+
+
+## P1.3 — Responsabilidad y cierre explícito (UX de confianza)
+
+Objetivo
+
+Que cualquier persona (agente o firmante) pueda responder en 3 segundos:
+
+- ¿Quién está a cargo?
+- ¿Esto sigue vivo o ya terminó?
+- ¿Se puede cambiar algo o ya es inmutable?
+
+Sin leer eventos. Sin abrir detalles técnicos.
+
+1) Responsable visible de la operación (owner / agent)
+
+Qué
+
+Mostrar Responsable de la operación en:
+- OperationRow
+- OperationDetail
+- WorkflowDetail (si pertenece a una operación)
+
+Cómo
+
+Campo: responsible_agent_id
+Visual: Texto sobrio: Responsable: Juan Pérez (sin color ni icono fuerte)
+
+DoD
+
+- Campo visible en OperationRow (desktop + mobile)
+- Visible en detalle de operación
+- No editable fuera del Centro Legal / creación
+
+2) Cierre explícito de flujo (“Todos completaron” como final)
+
+Qué
+
+Cuando el flujo termina: mostrar un cierre explícito, no solo un estado.
+
+Dónde
+
+- WorkflowDetailPage (header)
+- Preview de documento (si completed)
+
+Visual
+
+- Gris (success/quiet)
+- Ícono lineal pequeño opcional (✔️)
+
+DoD
+
+- Timestamp de cierre visible
+- Texto explícito de cierre
+- No hay CTAs activos después del cierre
+
+3) Inmutabilidad post-firma (señal clara, no técnica)
+
+Qué
+
+- Mostrar claramente que no se puede modificar: “Este documento es inmutable” / “El contenido ya no puede modificarse”.
+
+Dónde
+
+- WorkflowDetail
+- Preview de documento
+
+DoD
+
+- Mensaje de inmutabilidad visible post-firma
+- No aparece antes de completed
+- No usa rojo / warning
+
+4) Estados terminales claros (completed / archived / cancelled)
+
+Qué
+
+- Asegurar que los estados terminales sean claros, terminales y sin acciones contradictorias.
+
+Regla
+
+- Estado terminal = UI en gris + cero ambigüedad
+
+DoD
+
+- Estados terminales no muestran acciones activas
+- Texto coherente con P1.1
+- Consistente en Operations y Documents
+
+5) Qué NO entra en P1.3
+
+- Políticas de re-notificación (P1.4)
+- Cambios backend
+- Nuevos estados
+- Colores nuevos (P1.2)
+
+Definition of Done — P1.3
+
+- Responsable visible en operaciones
+- Cierre explícito de flujo con timestamp
+- Señal clara de inmutabilidad post-firma
+- Estados terminales sin acciones
+- Sin nuevos colores / sin rojo / sin ruido
+
+Rationale:
+- Reduce la ambigüedad sobre quién responde y cuándo termina un flujo.
+
+Timestamp: 2026-01-14T18:18:50.512Z
+

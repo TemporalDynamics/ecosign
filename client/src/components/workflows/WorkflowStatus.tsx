@@ -4,7 +4,14 @@
 // Badge and progress display for workflow status
 // ============================================
 
-type WorkflowStatusType = 'draft' | 'active' | 'completed' | 'cancelled'
+type WorkflowStatusType =
+  | 'draft'
+  | 'ready'
+  | 'active'
+  | 'completed'
+  | 'cancelled'
+  | 'rejected'
+  | 'archived'
 
 interface WorkflowStatusProps {
   status: WorkflowStatusType
@@ -25,6 +32,11 @@ export function WorkflowStatusBadge({ status, showLabel = true }: WorkflowStatus
       label: 'Borrador',
       icon: '📝'
     },
+    ready: {
+      color: 'bg-slate-100 text-slate-700 border-slate-200',
+      label: 'Listo',
+      icon: '📌'
+    },
     active: {
       color: 'bg-blue-100 text-blue-700 border-blue-200',
       label: 'Activo',
@@ -39,6 +51,16 @@ export function WorkflowStatusBadge({ status, showLabel = true }: WorkflowStatus
       color: 'bg-red-100 text-red-700 border-red-200',
       label: 'Cancelado',
       icon: '❌'
+    },
+    rejected: {
+      color: 'bg-amber-100 text-amber-700 border-amber-200',
+      label: 'Rechazado',
+      icon: '⛔'
+    },
+    archived: {
+      color: 'bg-gray-100 text-gray-600 border-gray-200',
+      label: 'Archivado',
+      icon: '📦'
     }
   }
 

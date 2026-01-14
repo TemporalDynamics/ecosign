@@ -12,7 +12,7 @@ import { WorkflowStatusBadge } from './WorkflowStatus'
 interface Workflow {
   id: string
   title: string
-  status: 'draft' | 'active' | 'completed' | 'cancelled'
+  status: 'draft' | 'ready' | 'active' | 'completed' | 'cancelled' | 'rejected' | 'archived'
   created_at: string
   updated_at: string
   expires_at: string | null

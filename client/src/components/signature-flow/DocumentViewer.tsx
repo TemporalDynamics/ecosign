@@ -12,6 +12,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { downloadDocument, getSignedDocumentUrl } from '@/utils/documentStorage'
 import { decryptFile } from '@/utils/encryption'
 import { useEcoxLogger } from '@/hooks/useEcoxLogger'
+import { getSupabase } from '@/lib/supabaseClient'
 import { FileText, RefreshCcw, ShieldCheck } from 'lucide-react'
 
 interface DocumentViewerProps {
@@ -64,11 +65,11 @@ export default function DocumentViewer({
     let isMounted = true
 
     const loadDocument = async () => {
-      if (!documentPath) {
-        setError('No encontramos el documento asociado a este flujo.')
-        setLoading(false)
-        return
-      }
+        if (!documentPath && !signedUrl) {
+          setError('No encontramos el documento asociado a este flujo.')
+          setLoading(false)
+          return
+        }
 
       try {
         setLoading(true)
@@ -108,9 +109,25 @@ export default function DocumentViewer({
               signerId,
               eventType: 'document_decrypted'
             })
+
+            try {
+              const supabase = getSupabase()
+              await supabase.functions.invoke('log-workflow-event', {
+                body: {
+                  workflowId,
+                  signerId,
+                  eventType: 'document.decrypted'
+                }
+              })
+            } catch (err) {
+              console.warn('workflow_events document.decrypted failed', err)
+            }
           }
         } else {
-          const resolvedUrl = signedUrl || await getSignedDocumentUrl(documentPath)
+          const isDirectUrl = !!documentPath && /^https?:\/\//i.test(documentPath)
+          const resolvedUrl =
+            signedUrl ||
+            (isDirectUrl ? documentPath : await getSignedDocumentUrl(documentPath as string))
           if (!resolvedUrl) {
             throw new Error('No se pudo generar un link seguro para visualizar el PDF')
           }

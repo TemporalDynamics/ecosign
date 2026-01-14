@@ -6,27 +6,22 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { sendEmail, buildSignerInvitationEmail } from '../_shared/email.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
-import { appendEvent, getDocumentEntityId } from '../_shared/eventHelper.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
+import { parseJsonBody } from '../_shared/validation.ts'
+import { GenerateLinkSchema } from '../_shared/schemas.ts'
+import { appendEvent, getDocumentEntityId, getUserDocumentId } from '../_shared/eventHelper.ts'
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-interface GenerateLinkRequest {
-  document_id: string
-  recipient_email: string
-  expires_in_hours?: number
-  require_nda?: boolean
-  nda_text?: string
-}
-
 serve(withRateLimit('generate', async (req) => {
+  const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+  if (!isAllowed) {
+    return new Response('CORS not allowed', { status: 403, headers: corsHeaders })
   }
 
   try {
@@ -53,30 +48,37 @@ serve(withRateLimit('generate', async (req) => {
     }
 
     // Parse request body
-    const body: GenerateLinkRequest = await req.json()
+    const parsed = await parseJsonBody(req, GenerateLinkSchema)
+    if (!parsed.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: parsed.error, details: parsed.details }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
     const {
       document_id,
+      document_entity_id,
       recipient_email,
       expires_in_hours = 72, // Default 3 days
       require_nda = true,
       nda_text = null
-    } = body
+    } = parsed.data
 
-    if (!document_id || !recipient_email) {
-      throw new Error('Missing required fields: document_id and recipient_email')
+    const resolvedDocumentId = document_id
+      ?? (document_entity_id ? await getUserDocumentId(supabase, document_entity_id) : null)
+
+    if (!resolvedDocumentId) {
+      throw new Error('Document not found')
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(recipient_email)) {
-      throw new Error('Invalid email format')
-    }
+    const documentEntityId = document_entity_id
+      ?? await getDocumentEntityId(supabase, resolvedDocumentId)
 
     // Verify document belongs to user
     const { data: doc, error: docError } = await supabase
       .from('user_documents')
       .select('id, user_id, document_name, document_hash, eco_hash')
-      .eq('id', document_id)
+      .eq('id', resolvedDocumentId)
       .single()
 
     if (docError || !doc) {
@@ -91,14 +93,14 @@ serve(withRateLimit('generate', async (req) => {
     const { data: legacyDoc, error: legacyError } = await supabase
       .from('documents')
       .select('id, owner_id')
-      .eq('id', document_id)
+      .eq('id', resolvedDocumentId)
       .single()
 
     if (legacyError || !legacyDoc) {
       const { error: insertLegacyError } = await supabase
         .from('documents')
         .insert({
-          id: document_id,
+          id: resolvedDocumentId,
           owner_id: user.id,
           title: doc.document_name,
           original_filename: doc.document_name,
@@ -141,7 +143,7 @@ serve(withRateLimit('generate', async (req) => {
     const { data: recipient, error: recipientError } = await supabase
       .from('recipients')
       .insert({
-        document_id,
+        document_id: resolvedDocumentId,
         email: recipient_email,
         recipient_id: recipientIdHex
       })
@@ -157,7 +159,7 @@ serve(withRateLimit('generate', async (req) => {
     const { data: link, error: linkError } = await supabase
       .from('links')
       .insert({
-        document_id,
+        document_id: resolvedDocumentId,
         recipient_id: recipient.id, // Direct link to recipient for correct attribution
         token_hash: tokenHash,
         expires_at: expiresAt,
@@ -179,11 +181,10 @@ serve(withRateLimit('generate', async (req) => {
     const accessUrl = `${appUrl}/nda/${token}`
 
     // Log the link creation event
-    console.log(`Link created: ${link.id} for document ${document_id} to ${recipient_email}`)
+    console.log(`Link created: ${link.id} for document ${resolvedDocumentId} to ${recipient_email}`)
 
     // === PROBATORY EVENT: share_created ===
     // Register that this document was shared (goes to .eco)
-    const documentEntityId = await getDocumentEntityId(supabase, document_id);
     if (documentEntityId) {
       const eventResult = await appendEvent(
         supabase,

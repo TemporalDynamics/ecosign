@@ -101,7 +101,7 @@ export default function NDAAcceptance({ workflow, onAccept }: NDAAcceptanceProps
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
               disabled={!scrolledToBottom}
-              className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="eco-checkbox mt-1 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <span className="text-sm text-gray-700">
               He leído y <strong>acepto el NDA y el registro forense</strong> para este documento.

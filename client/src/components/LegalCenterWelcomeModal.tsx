@@ -98,7 +98,7 @@ const LegalCenterWelcomeModal: React.FC<LegalCenterWelcomeModalProps> = ({ isOpe
             id="dont-show-again"
             checked={doNotShowAgain}
             onChange={(e) => setDoNotShowAgain(e.target.checked)}
-            className="scale-50 rounded border-gray-300 text-gray-600 focus:ring-0"
+            className="eco-checkbox rounded border-gray-300 text-gray-600 focus:ring-0"
           />
           <label htmlFor="dont-show-again" className="text-xs text-gray-500 cursor-pointer select-none">
             No volver a mostrar

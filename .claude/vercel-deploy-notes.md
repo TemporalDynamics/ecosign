@@ -24,7 +24,7 @@
 - `vercel --prod` (múltiples veces)
 - `npx vercel@latest --prod`
 - `npm run vercel-build`
-- Cambié configuraciones de vercel.json
+- Cambié configuraciones de docs/ops/vercel.json
 - Eliminé y re-linkeé el proyecto
 
 ### Lección aprendida:

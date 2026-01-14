@@ -5,19 +5,12 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
+import { parseJsonBody } from '../_shared/validation.ts'
+import { VerifyAccessSchema } from '../_shared/schemas.ts'
 import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-interface VerifyAccessRequest {
-  token: string
-  event_type?: 'view' | 'download' | 'forward'
-}
 
 interface AccessMetadata {
   ip_address?: string
@@ -27,9 +20,14 @@ interface AccessMetadata {
 }
 
 serve(withRateLimit('verify', async (req) => {
+  const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+  if (!isAllowed) {
+    return new Response('CORS not allowed', { status: 403, headers: corsHeaders })
   }
 
   try {
@@ -38,18 +36,15 @@ serve(withRateLimit('verify', async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Parse request body
-    const body: VerifyAccessRequest = await req.json()
-    const { token, event_type = 'view' } = body
-
-    if (!token) {
-      throw new Error('Missing token')
+    // Parse and validate request body
+    const parsed = await parseJsonBody(req, VerifyAccessSchema)
+    if (!parsed.ok) {
+      return new Response(
+        JSON.stringify({ valid: false, error: parsed.error, details: parsed.details }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
-
-    // Validate token format (should be 64 hex chars)
-    if (!/^[a-f0-9]{64}$/i.test(token)) {
-      throw new Error('Invalid token format')
-    }
+    const { token, event_type = 'view' } = parsed.data
 
     // Hash the provided token to lookup in DB
     const tokenEncoder = new TextEncoder()
@@ -211,9 +206,10 @@ serve(withRateLimit('verify', async (req) => {
       console.log(`Access logged: ${event_type} for document ${document.id}`)
     }
 
+    const documentEntityId = await getDocumentEntityId(supabase, link.document_id);
+
     // === PROBATORY EVENT: share_opened ===
     // Register that someone opened this share link (goes to .eco)
-    const documentEntityId = await getDocumentEntityId(supabase, link.document_id);
     if (documentEntityId) {
       const ipHash = metadata.ip_address ? await hashIP(metadata.ip_address) : null;
       const browserFamily = getBrowserFamily(metadata.user_agent);
@@ -299,17 +295,13 @@ serve(withRateLimit('verify', async (req) => {
     return new Response(
       JSON.stringify({
         valid: true,
-        link_id: link.id,
+        document_entity_id: documentEntityId,
         document: {
-          id: document.id,
           title: document.title,
           original_filename: document.original_filename,
           eco_hash: document.eco_hash
         },
-        recipient: {
-          id: recipient.id,
-          email: recipient.email
-        },
+        recipient_email: recipient.email,
         require_nda: link.require_nda,
         nda_text: link.nda_text || null,
         nda_accepted: ndaAccepted,

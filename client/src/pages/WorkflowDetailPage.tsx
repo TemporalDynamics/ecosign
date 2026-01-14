@@ -34,15 +34,39 @@ type AuditEvent = {
 
 const statusStyles: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',
+  ready: 'bg-slate-100 text-slate-800',
   active: 'bg-blue-100 text-blue-800',
   completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800'
+  cancelled: 'bg-red-100 text-red-800',
+  rejected: 'bg-amber-100 text-amber-800',
+  archived: 'bg-gray-100 text-gray-700'
+}
+
+const statusLabels: Record<string, string> = {
+  draft: 'Borrador',
+  ready: 'Listo',
+  active: 'Activo',
+  completed: 'Completado',
+  cancelled: 'Cancelado',
+  rejected: 'Rechazado',
+  archived: 'Archivado'
+}
+
+const signerStatusLabels: Record<string, string> = {
+  created: 'Creado',
+  invited: 'Invitado',
+  accessed: 'Accedido',
+  verified: 'Verificado',
+  ready_to_sign: 'Listo para firmar',
+  signed: 'Firmado',
+  cancelled: 'Cancelado',
+  expired: 'Expirado'
 }
 
 function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[status] || 'bg-gray-100 text-gray-800'}`}>
-      {status}
+      {statusLabels[status] || status}
     </span>
   )
 }
@@ -60,11 +84,11 @@ function SignersList({ signers }: { signers: Signer[] }) {
             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
               s.status === 'signed'
                 ? 'bg-green-100 text-green-800'
-                : s.status === 'cancelled'
+                : s.status === 'cancelled' || s.status === 'expired'
                 ? 'bg-red-100 text-red-800'
                 : 'bg-yellow-100 text-yellow-800'
             }`}>
-              {s.status}
+              {signerStatusLabels[s.status] || s.status}
             </span>
             {s.signed_at && (
               <span className="text-gray-500">{new Date(s.signed_at).toLocaleString()}</span>
@@ -211,11 +235,10 @@ export default function WorkflowDetailPage() {
     try {
       const supabase = getSupabase();
       setActionLoading(true)
-      const { error: updateError } = await supabase
-        .from('signature_workflows')
-        .update({ status: 'cancelled' })
-        .eq('id', workflow.id)
-      if (updateError) throw updateError
+      const { error } = await supabase.functions.invoke('cancel-workflow', {
+        body: { workflowId: workflow.id }
+      })
+      if (error) throw error
       await loadData(workflow.id)
     } catch (err) {
       alert('No se pudo cancelar el workflow')

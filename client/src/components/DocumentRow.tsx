@@ -61,6 +61,14 @@ export default function DocumentRow({
   const created = formatDocDate(document.created_at);
   const humanState = deriveHumanState({ status: document.workflow_status || document.status }, document.signers || []);
 
+  // Helper to format state text with fallbacks (never show 'Estado no reconocido')
+  const formatState = (state: any, ctx: string) => {
+    if (!state || state.key === 'unknown') {
+      return ctx === 'operation' ? 'Abierta' : 'Borrador — editable';
+    }
+    return state.label;
+  };
+
   // TSA Detection (from tsa_latest or events[])
   const tsaData = document.tsa_latest || (Array.isArray(document.events)
     ? document.events.find((e: any) => e.kind === 'tsa')?.tsa
@@ -104,25 +112,23 @@ export default function DocumentRow({
           <Shield className="h-4 w-4 text-gray-700 flex-shrink-0" />
           <div className="min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate max-w-full" title={name}>{name}</div>
-            <div className="text-xs text-gray-500">{humanState.label}</div>
+            {/* user note only - do not render system state here */}
+            {(document.user_note || document.description) && (
+              <div className="text-xs text-gray-500 mt-1">{document.user_note || document.description}</div>
+            )}
           </div>
         </div>
 
+        {/* Estado column: unified for lists */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          {context === 'operation' ? (
-            <span />
-          ) : (
-            <>
-              {protectionLevel !== 'NONE' && (
-                <ProtectedBadge compact showText={false} className="mr-2" />
-              )}
-            </>
-          )}
+          <div>{formatState(humanState, context)}</div>
         </div>
 
         <div className="text-sm text-gray-500">{created}</div>
 
         <div className="flex items-center justify-end gap-3" data-row-actions>
+          {/* Compact protection icon moved to actions column (secondary) */}
+          {protectionLevel !== 'NONE' && <ProtectedBadge compact showText={false} className="mr-2" />}
           <button onClick={() => onOpen && onOpen(document)} className="text-black hover:text-gray-600" title="Ver detalle"><Eye className="h-5 w-5" /></button>
           <button onClick={() => onShare ? onShare(document) : toast('No disponible')} className="text-black hover:text-gray-600" title="Compartir"><Share2 className="h-5 w-5" /></button>
 

@@ -1583,3 +1583,8 @@ Status:
 - Changes committed and pushed to branch p1-ux-de-confianza.
 - Ready for review; awaiting confirmation to merge.
 
+Rationale:
+- Reduces cognitive load by eliminating state ambiguity and reinforces a
+  single scanning pattern across Operations and Documents.
+
+Timestamp: 2026-01-14T17:44:17.408Z

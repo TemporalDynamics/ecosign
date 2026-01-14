@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import type { Operation, OperationStatus } from '../types/operations';
 import DocumentRow from './DocumentRow';
 import { mapEntityToDocumentRecord } from '../lib/documentEntityService';
-import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
+import { deriveHumanState, getHumanStateColor, getHumanStateIconName } from '../lib/deriveHumanState';
 
 interface OperationRowProps {
   operation: Operation;

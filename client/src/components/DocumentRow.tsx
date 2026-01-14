@@ -2,7 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Shield, Eye, Share2, Download, MoreVertical, Clock, ShieldCheck, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { deriveProtectionLevel, getProtectionLevelLabel, getProtectionLevelColor } from '../lib/protectionLevel';
-import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
+import { deriveHumanState, getHumanStateColor, getHumanStateIconName } from '../lib/deriveHumanState';
+
+function formatState(humanState: any, context: string) {
+  // Minimal formatter: for now, show label. Future: include blocking actor when relevant.
+  return humanState && humanState.label ? humanState.label : 'Estado no reconocido';
+}
 import { ProtectedBadge } from './ProtectedBadge';
 
 export default function DocumentRow({

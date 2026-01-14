@@ -33,13 +33,34 @@ serve(async (req) => {
     let signer: any = null
 
     if (signerId) {
+      console.log('apply-signer-signature: Looking for signerId:', signerId)
+
       const { data, error } = await supabase
         .from('workflow_signers')
-        .select('id, workflow_id, status, otp_verified')
+        .select(`
+          id,
+          workflow_id,
+          status,
+          signer_otps!inner(verified_at)
+        `)
         .eq('id', signerId)
         .single()
-      if (error || !data) return json({ error: 'Signer not found' }, 404)
-      signer = data
+
+      console.log('apply-signer-signature: Query result:', { data, error })
+
+      if (error || !data) {
+        console.error('apply-signer-signature: Signer not found', { signerId, error })
+        return json({ error: 'Signer not found' }, 404)
+      }
+
+      // Map the joined data to match expected structure
+      // Note: signer_otps is returned as an array due to the join
+      const otpData = Array.isArray(data.signer_otps) ? data.signer_otps[0] : data.signer_otps
+      signer = {
+        ...data,
+        otp_verified: otpData?.verified_at != null,
+        signer_otps: otpData
+      }
     } else if (accessToken) {
       // accessToken may be raw or already hashed
       const tokenHash = /^[a-f0-9]{64}$/i.test(accessToken) ? accessToken : await (async () => {
@@ -49,17 +70,48 @@ serve(async (req) => {
         return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
       })()
 
+      console.log('apply-signer-signature: Looking for accessToken (hash):', tokenHash.substring(0, 10) + '...')
+
       const { data, error } = await supabase
         .from('workflow_signers')
-        .select('id, workflow_id, status, otp_verified')
+        .select(`
+          id,
+          workflow_id,
+          status,
+          signer_otps!inner(verified_at)
+        `)
         .eq('access_token_hash', tokenHash)
         .single()
-      if (error || !data) return json({ error: 'Signer not found for token' }, 404)
-      signer = data
+
+      console.log('apply-signer-signature: Query result (token):', { data, error })
+
+      if (error || !data) {
+        console.error('apply-signer-signature: Signer not found for token', { tokenHash: tokenHash.substring(0, 10) + '...', error })
+        return json({ error: 'Signer not found for token' }, 404)
+      }
+
+      // Map the joined data to match expected structure
+      // Note: signer_otps is returned as an array due to the join
+      const otpData = Array.isArray(data.signer_otps) ? data.signer_otps[0] : data.signer_otps
+      signer = {
+        ...data,
+        otp_verified: otpData?.verified_at != null,
+        signer_otps: otpData
+      }
     }
 
     // Validate OTP confirmed
+    console.log('apply-signer-signature: Validating OTP', {
+      signerId: signer.id,
+      otpVerified: signer.otp_verified,
+      otpVerifiedAt: signer.signer_otps?.verified_at
+    })
+
     if (!signer.otp_verified) {
+      console.error('apply-signer-signature: OTP not verified', {
+        signerId: signer.id,
+        otpVerifiedAt: signer.signer_otps?.verified_at
+      })
       return json({ error: 'OTP not verified for signer' }, 403)
     }
 

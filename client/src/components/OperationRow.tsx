@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import type { Operation, OperationStatus } from '../types/operations';
 import DocumentRow from './DocumentRow';
 import { mapEntityToDocumentRecord } from '../lib/documentEntityService';
+import { deriveHumanState } from '../lib/deriveHumanState';
 
 interface OperationRowProps {
   operation: Operation;
@@ -56,6 +57,7 @@ export default function OperationRow({
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
   const menuRef = useRef<HTMLDivElement>(null);
   const statusConfig = STATUS_CONFIG[operation.status];
+  const humanStateOp = deriveHumanState({ status: operation.status }, []);
   const formatOperationDate = (value?: string | null) => {
     if (!value) return '—';
     return new Date(value).toLocaleDateString('es-AR', {
@@ -196,7 +198,7 @@ export default function OperationRow({
             )}
           </div>
 
-          <div className="text-xs text-gray-500">{/* probative empty for operations */}</div>
+          <div className="text-xs text-gray-500">{humanStateOp.label}</div>
 
           <div className="text-sm text-gray-500">{formatOperationDate((operation as any).created_at)}</div>
 

@@ -4,7 +4,7 @@
 // ========================================
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Folder, MoreVertical, FolderOpen, Edit, CheckCircle, Archive, Send, Eye, Share2 } from 'lucide-react';
+import { Folder, MoreVertical, FolderOpen, Edit, CheckCircle, Archive, Send, Eye, Share2, Clock, ShieldCheck, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Operation, OperationStatus } from '../types/operations';
 import DocumentRow from './DocumentRow';

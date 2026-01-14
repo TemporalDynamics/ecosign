@@ -184,7 +184,7 @@ export default function DocumentRow({
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
           <div className="text-xs text-gray-500">
             {humanState.label}
-            {flowStatus.detail ? ` — ${flowStatus.detail}` : ''}
+            
             {created ? ` · ${created}` : ''}
           </div>
         </div>

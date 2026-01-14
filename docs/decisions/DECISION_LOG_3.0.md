@@ -1,3 +1,41 @@
+
+## 📝 Template para nuevas entradas
+
+```markdown
+## Iteración YYYY-MM-DD — [Nombre del cambio]
+
+### 🎯 Objetivo
+Qué se buscaba lograr con esta iteración (1–2 frases).
+
+### 🧠 Decisiones tomadas
+- Decisión 1 (qué y por qué)
+- Decisión 2
+- Decisión 3
+
+### 🛠️ Cambios realizados
+- Cambio concreto en UI / lógica
+- Eliminación de código obsoleto
+- Ajustes visuales relevantes
+
+### 🚫 Qué NO se hizo (a propósito)
+- Cosa que se decidió no implementar
+- Feature pospuesta
+- Alternativa descartada
+
+### ⚠️ Consideraciones / deuda futura
+- Cosas a revisar más adelante
+- Suposiciones tomadas
+- Límites actuales
+
+### 📍 Estado final
+- Qué quedó mejor
+- Qué sigue pendiente
+
+### 💬 Nota del dev
+"Este cambio mejora X y evita Y. Si alguien toca esta parte, tener en cuenta Z."
+```
+
+---
 ## Incidente: Cambios no solicitados por LLM (Gemini) — 2026-01-07T04:50:11Z
 
 ### 🎯 Resumen
@@ -1551,3 +1589,52 @@ Si estas por exponer `{ id: ... }` en response publico:
 - Mantener smoke tests como red minima (no expandir sin necesidad).
 
 ---
+
+## Iteración: Auditoría P0 (Resumen) — 2026-01-14T10:54:59Z
+
+### 🎯 Qué se hizo
+- Se leyeron las primeras líneas del Decision Log 3.0 y se alineó el contexto.
+- Se ejecutó una auditoría reproducible F0.1–F0.4 (grep/ls/sed/cat) y se generó el script `scripts/audit_f0.sh` en el repo.
+- Resultado de la auditoría (automática): todos los checks PASS (varianza, incertidumbre, eventos canónicos, token model, contratos).
+
+### 🔐 Estado actual y próximo paso
+- Estado: P0 sellado en F0.1–F0.4 según las comprobaciones automatizadas.
+- Pendiente: confirmación explícita del mantenedor para proceder con el merge de este decision log actualizado y del script de auditoría.
+
+---
+
+# Decision Log — P0 (Fundaciones)
+
+## Alcance
+Este documento consolida las decisiones estructurales congeladas durante P0.
+Toda evolución posterior (P1+) debe respetar estas invariantes.
+
+## Decisiones Clave
+
+### D-P0-01 — Eventos canónicos como fuente de verdad
+Decisión: Toda transición relevante se registra como evento inmutable.
+Motivo: Auditabilidad, trazabilidad y reducción de ambigüedad.
+
+### D-P0-02 — Estados con CHECK + tipos TS
+Decisión: Los estados válidos se definen una sola vez y se sincronizan DB ↔ TS.
+Motivo: Eliminar estados fantasma y drift semántico.
+
+### D-P0-03 — Idempotencia fuerte en notificaciones
+Decisión: UNIQUE(workflow_id, signer_id, notification_type, step).
+Motivo: Prevenir duplicaciones y comportamientos no determinísticos.
+
+### D-P0-04 — Modelo de tokens seguro (HMAC + cifrado)
+Decisión: Token secreto nunca persistido en claro; hash verificable + secreto cifrado.
+Motivo: Seguridad, cumplimiento y recuperación asíncrona segura.
+
+### D-P0-05 — Frontera UI Centro Legal vs Documents
+Decisión: La UI solo permite mutaciones en draft y solo desde Centro Legal.
+Motivo: Coherencia UX y protección del modelo mental.
+
+## Estado
+P0 SELLADO — 2026-01-14
+
+## Referencias
+- Iteración 2026-01-14 — Auditoría y Remediación de Fundamentos P0
+- scripts/audit_f0.sh
+

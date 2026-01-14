@@ -1588,3 +1588,35 @@ Rationale:
   single scanning pattern across Operations and Documents.
 
 Timestamp: 2026-01-14T17:44:17.408Z
+
+---
+
+P1.3 — Responsabilidad y cierre explícito (UX de confianza)
+Timestamp: 2026-01-14T20:51:26.752Z
+
+Decision summary:
+- Mostrar responsable de la operación (responsible_agent_id) en OperationRow,
+  OperationDetail y WorkflowDetail.
+- Mostrar cierre explícito cuando `workflow.status === 'completed'` con
+  timestamp visible y CTA deshabilitados tras cierre.
+- Señal clara de inmutabilidad post-firma en WorkflowDetail y preview:
+  copy "Este documento es inmutable" y explicación de por qué (fecha de
+  primera firma). No aparecer antes de `completed`.
+- Asegurar que estados terminales (completed/archived/cancelled) no muestren
+  acciones activas y se rendericen en tono neutro/quiet.
+
+Definition of Done (P1.3):
+- Responsable visible en OperationRow (desktop + mobile) y OperationDetail.
+- Cierre explícito con timestamp en WorkflowDetailPage y preview cuando aplica.
+- Mensaje de inmutabilidad visible y solo después de `completed`.
+- Estados terminales no muestran CTAs activos.
+- Sin cambios backend ni nuevos estados; sin colores nuevos (P1.2 ya cubre mapping).
+
+Notes:
+- This entry records the product decision to keep responsibility, closure
+  and immutability as pure UI signals derived from existing data (no new
+  semantic state in the backend).
+- Proceed to implement P1.3 in the current P1 work branch; commit per subtask
+  and merge when all checklist items are done.
+
+---

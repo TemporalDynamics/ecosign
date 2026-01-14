@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Shield, Eye, Share2, Download, MoreVertical, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { deriveProtectionLevel, getProtectionLevelLabel, getProtectionLevelColor } from '../lib/protectionLevel';
-import { deriveHumanState } from '../lib/deriveHumanState';
+import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
 import { ProtectedBadge } from './ProtectedBadge';
 
 export default function DocumentRow({

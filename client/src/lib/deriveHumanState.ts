@@ -76,3 +76,20 @@ export function deriveHumanState(workflow: Workflow | null, signers: Signer[] = 
   // Defensive fallback — unknown
   return { key: 'unknown', label: 'Estado no reconocido', severity: 'warning' };
 }
+
+/**
+ * getHumanStateColor
+ * Small mapping helper reserved for UI styling (P1.2).
+ * Returns a Tailwind-friendly class name or color token for the given severity.
+ * Exported now to keep UI mapping centralized and deterministic.
+ */
+export function getHumanStateColor(severity: HumanWorkflowState['severity']): string {
+  const map: Record<HumanWorkflowState['severity'], string> = {
+    info: 'text-gray-700 bg-gray-100',
+    action: 'text-yellow-700 bg-yellow-100',
+    success: 'text-green-700 bg-green-100',
+    warning: 'text-red-700 bg-red-100',
+  };
+  return map[severity] || 'text-gray-700 bg-gray-100';
+}
+

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Shield, Eye, Share2, Download, MoreVertical, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { deriveProtectionLevel, getProtectionLevelLabel, getProtectionLevelColor } from '../lib/protectionLevel';
-import { deriveFlowStatus, FLOW_STATUS } from '../lib/flowStatus';
+import { deriveHumanState } from '../lib/deriveHumanState';
 
 export default function DocumentRow({
   document,
@@ -58,8 +58,7 @@ export default function DocumentRow({
     });
   };
   const created = formatDocDate(document.created_at);
-  const flowStatus = deriveFlowStatus(document);
-  const flowConfig = FLOW_STATUS[flowStatus.key];
+  const humanState = deriveHumanState({ status: document.workflow_status || document.status }, document.signers || []);
 
   // TSA Detection (from tsa_latest or events[])
   const tsaData = document.tsa_latest || (Array.isArray(document.events)
@@ -104,7 +103,7 @@ export default function DocumentRow({
           <Shield className="h-4 w-4 text-gray-700 flex-shrink-0" />
           <div className="min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate max-w-full" title={name}>{name}</div>
-            <div className="text-xs text-gray-500">{flowConfig.label}{flowStatus.detail ? ` — ${flowStatus.detail}` : ''}</div>
+            <div className="text-xs text-gray-500">{humanState.label}</div>
           </div>
         </div>
 
@@ -184,7 +183,7 @@ export default function DocumentRow({
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
           <div className="text-xs text-gray-500">
-            {flowConfig.label}
+            {humanState.label}
             {flowStatus.detail ? ` — ${flowStatus.detail}` : ''}
             {created ? ` · ${created}` : ''}
           </div>

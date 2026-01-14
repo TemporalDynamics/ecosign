@@ -5,6 +5,7 @@ import { formatHashForDisplay } from '@/utils/hashDocument'
 import Header from '@/components/Header'
 import FooterInternal from '@/components/FooterInternal'
 import { ArrowLeft, Clock, Download, FileText, RefreshCw, ShieldCheck, Users, XCircle } from 'lucide-react';
+import { deriveHumanState } from '@/lib/deriveHumanState'
 
 type Workflow = {
   id: string
@@ -135,6 +136,8 @@ export default function WorkflowDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+
+  const humanState = deriveHumanState(workflow, signers)
 
   useEffect(() => {
     if (id) {
@@ -295,6 +298,7 @@ export default function WorkflowDetailPage() {
               <h1 className="text-2xl font-bold text-gray-900">{workflow.title || 'Sin título'}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-700">
                 <StatusBadge status={workflow.status} />
+                <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-sm font-medium text-gray-800">{humanState.label}</span>
                 <span className="flex items-center gap-1 text-gray-500">
                   <Clock className="h-4 w-4" />
                   Creado: {new Date(workflow.created_at).toLocaleString()}

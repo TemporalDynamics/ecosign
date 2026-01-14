@@ -2189,6 +2189,13 @@ function DocumentsPage() {
                 <p className="text-xs text-gray-500 mt-1">
                   Creada: {formatDate(previewOperation.created_at)}
                 </p>
+                {/* Responsable del proceso (P1.4): mostrar nombre o fallback al owner */}
+                {(() => {
+                  const responsibleName = (previewOperation as any).responsible_agent_name || (previewOperation as any).responsible?.display_name || (previewOperation as any).owner_name || null;
+                  return responsibleName ? (
+                    <p className="text-xs text-gray-600 mt-1">Responsable del proceso: {responsibleName}</p>
+                  ) : null;
+                })()}
               </div>
               <button
                 onClick={() => setPreviewOperation(null)}

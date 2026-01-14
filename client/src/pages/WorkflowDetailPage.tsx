@@ -307,7 +307,7 @@ export default function WorkflowDetailPage() {
                   Creado: {new Date(workflow.created_at).toLocaleString()}
                 </span>
                 {responsibleName && (
-                  <span className="text-gray-600">Responsable: {responsibleName}</span>
+                  <span className="text-gray-600">Responsable del proceso: {responsibleName}</span>
                 )}
                 {workflow.document_hash && (
                   <span className="font-mono text-xs text-gray-600">

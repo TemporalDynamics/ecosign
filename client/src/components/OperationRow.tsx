@@ -177,7 +177,7 @@ export default function OperationRow({
                 <div className="min-w-0">
                   <div className="font-semibold text-gray-900 text-sm truncate">{operation.name}</div>
                   {operation.description && <div className="text-xs text-gray-500 truncate">{operation.description}</div>}
-                  {responsibleName && <div className="text-xs text-gray-600 mt-1">Responsable: {responsibleName}</div>}
+                  {responsibleName && <div className="text-xs text-gray-600 mt-1">Responsable del proceso: {responsibleName}</div>}
                 </div>
               </div>
             ) : (
@@ -494,7 +494,7 @@ export default function OperationRow({
                   </>
                 )}
               </div>
-              {responsibleName && <div className="text-xs text-gray-600 mt-1">Responsable: {responsibleName}</div>}
+              {responsibleName && <div className="text-xs text-gray-600 mt-1">Responsable del proceso: {responsibleName}</div>}
             </div>
           </button>
         )}

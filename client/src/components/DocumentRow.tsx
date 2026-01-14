@@ -121,7 +121,9 @@ export default function DocumentRow({
 
         {/* Estado column: unified for lists */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <div>{formatState(humanState, context)}</div>
+          <span className={`text-xs px-2 py-1 rounded ${getHumanStateColor(humanState.severity)}`}>
+            {formatState(humanState, context)}
+          </span>
         </div>
 
         <div className="text-sm text-gray-500">{created}</div>
@@ -176,8 +178,9 @@ export default function DocumentRow({
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
           <div className="text-xs text-gray-500">
-            {humanState.label}
-            
+            <span className={`text-xs px-2 py-1 rounded ${getHumanStateColor(humanState.severity)}`}>
+              {formatState(humanState, context)}
+            </span>
             {created ? ` · ${created}` : ''}
           </div>
         </div>

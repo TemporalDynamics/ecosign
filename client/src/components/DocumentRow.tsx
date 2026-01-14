@@ -3,6 +3,7 @@ import { Shield, Eye, Share2, Download, MoreVertical, Clock } from 'lucide-react
 import toast from 'react-hot-toast';
 import { deriveProtectionLevel, getProtectionLevelLabel, getProtectionLevelColor } from '../lib/protectionLevel';
 import { deriveHumanState } from '../lib/deriveHumanState';
+import { ProtectedBadge } from './ProtectedBadge';
 
 export default function DocumentRow({
   document,
@@ -113,21 +114,7 @@ export default function DocumentRow({
           ) : (
             <>
               {protectionLevel !== 'NONE' && (
-                <span
-                  className={`text-xs px-2 py-1 rounded ${protectionBadgeClasses}`}
-                  title={protectionLabel}
-                >
-                  {protectionLabel}
-                </span>
-              )}
-              {hasTsa && tsaDate && (
-                <span
-                  className="text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded flex items-center gap-1"
-                  title={`Certificado con sello de tiempo: ${tsaDate}`}
-                >
-                  <Clock className="h-3 w-3" />
-                  TSA {tsaDate}
-                </span>
+                <ProtectedBadge compact showText={false} className="mr-2" />
               )}
             </>
           )}
@@ -192,21 +179,7 @@ export default function DocumentRow({
 
       <div className="flex items-center gap-2" data-row-actions>
         {protectionLevel !== 'NONE' && (
-          <span
-            className={`text-xs px-2 py-1 rounded ${protectionBadgeClasses}`}
-            title={protectionLabel}
-          >
-            {protectionLabel}
-          </span>
-        )}
-        {hasTsa && tsaDate && (
-          <span
-            className="text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded flex items-center gap-1"
-            title={`Certificado con sello de tiempo: ${tsaDate}`}
-          >
-            <Clock className="h-3 w-3" />
-            TSA
-          </span>
+          <ProtectedBadge compact showText={false} className="mr-2" />
         )}
 
         <button

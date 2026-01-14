@@ -1561,3 +1561,25 @@ Author: GitHub Copilot CLI
 Summary:
 - Added title tooltip to ProtectedBadge occurrences in lists so the protection label appears on hover.
 
+
+---- 
+P1.1 Iteration — Unified "Estado" column
+Timestamp: 2026-01-14T17:36:32.897Z
+
+Decision:
+- Unify "Estado" as single visual column for both operations and documents.
+- State column is the single source of truth for "what's happening".
+- Do NOT render system state under the name; that area is reserved for user notes.
+- Protection (probative level) is a separate axis: compact shield in lists and full details in document preview.
+
+Implementation notes:
+- UI changes applied to:
+  - client/src/components/DocumentRow.tsx
+  - client/src/pages/DocumentsPage.tsx
+- Added tooltip on protection badge for quick discoverability.
+- Branch: p1-ux-de-confianza
+
+Status:
+- Changes committed and pushed to branch p1-ux-de-confianza.
+- Ready for review; awaiting confirmation to merge.
+

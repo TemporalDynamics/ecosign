@@ -26,7 +26,7 @@ select
     select 1
     from workflow_events we
     where we.workflow_id = sw.id
-      and we.kind in ('signature_applied','signer_signed')
+      and we.event_type in ('signature_applied','signer_signed')
   )                                      as has_signature_event,
 
   -- P0 truth
@@ -42,7 +42,7 @@ select
       or
       exists (select 1 from workflow_events we
               where we.workflow_id = sw.id
-                and we.kind in ('signature_applied','signer_signed'))
+                and we.event_type in ('signature_applied','signer_signed'))
     )
   )                                      as p0_done
 
@@ -55,8 +55,8 @@ create index if not exists idx_ws_workflow_status
 create index if not exists idx_sig_workflow
   on workflow_signatures (workflow_id);
 
-create index if not exists idx_we_workflow_kind
-  on workflow_events (workflow_id, kind);
+create index if not exists idx_we_workflow_event_type
+  on workflow_events (workflow_id, event_type);
 
 create index if not exists idx_sw_status
   on signature_workflows (status);

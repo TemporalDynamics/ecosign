@@ -65,3 +65,27 @@ export const CANONICAL_EVENT_TYPES = [
 ] as const;
 
 export type CanonicalEventType = typeof CANONICAL_EVENT_TYPES[number];
+
+// P2.2: Signature Instances and Application Events
+export interface SignatureInstance {
+  id: string;
+  workflow_id: string;
+  document_entity_id: string;
+  batch_id: string;
+  signer_id: string;
+  signature_payload: {
+    strokes?: unknown;
+    vector?: unknown;
+    crypto_proof?: unknown;
+    metadata?: Record<string, unknown>;
+  };
+  created_at: string;
+}
+
+export interface SignatureApplicationEvent {
+  id: string;
+  workflow_id: string;
+  signature_instance_id: string;
+  field_id: string;
+  applied_at: string;
+}

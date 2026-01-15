@@ -33,6 +33,14 @@ type AuditEvent = {
   details: Record<string, any> | null
 }
 
+type WorkflowArtifact = {
+  id: string
+  artifact_hash: string
+  artifact_url: string
+  finalized_at: string
+  status: 'pending' | 'building' | 'ready' | 'failed'
+}
+
 const statusStyles: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',
   ready: 'bg-slate-100 text-slate-800',
@@ -133,6 +141,7 @@ export default function WorkflowDetailPage() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null)
   const [signers, setSigners] = useState<Signer[]>([])
   const [auditTrail, setAuditTrail] = useState<AuditEvent[]>([])
+  const [artifact, setArtifact] = useState<WorkflowArtifact | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -142,6 +151,47 @@ export default function WorkflowDetailPage() {
   useEffect(() => {
     if (id) {
       loadData(id)
+    }
+  }, [id])
+
+  // C3: Listen for workflow.artifact_finalized event
+  useEffect(() => {
+    if (!id) return
+
+    const supabase = getSupabase()
+    
+    const subscription = supabase
+      .channel(`workflow-artifacts:${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'workflow_artifacts',
+          filter: `workflow_id=eq.${id}`
+        },
+        (payload) => {
+          console.log('Artifact finalized:', payload)
+          setArtifact(payload.new as WorkflowArtifact)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'workflow_artifacts',
+          filter: `workflow_id=eq.${id}`
+        },
+        (payload) => {
+          console.log('Artifact updated:', payload)
+          setArtifact(payload.new as WorkflowArtifact)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      subscription.unsubscribe()
     }
   }, [id])
 
@@ -178,6 +228,16 @@ export default function WorkflowDetailPage() {
 
       if (auditError) throw auditError
       setAuditTrail((auditData || []) as AuditEvent[])
+
+      // C3: Load artifact if exists
+      const { data: artifactData, error: artifactError } = await supabase
+        .from('workflow_artifacts')
+        .select('id, artifact_hash, artifact_url, finalized_at, status')
+        .eq('workflow_id', workflowId)
+        .maybeSingle()
+
+      if (artifactError) console.warn('Error loading artifact:', artifactError)
+      setArtifact(artifactData as WorkflowArtifact | null)
     } catch (err: any) {
       console.error('Error loading workflow detail:', err)
       setError(err.message || 'Error al cargar el workflow')
@@ -311,12 +371,37 @@ export default function WorkflowDetailPage() {
               </div>
             </div>
             <div className="flex gap-3">
-              <button
-                onClick={downloadPDF}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-              >
-                <Download className="h-4 w-4" /> PDF firmado
-              </button>
+              {/* C3: Show artifact download button only when ready */}
+              {artifact?.status === 'ready' && artifact.artifact_url ? (
+                <a
+                  href={artifact.artifact_url}
+                  download
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                >
+                  <Download className="h-4 w-4" /> Artefacto Final
+                </a>
+              ) : workflow?.status === 'completed' && (artifact?.status === 'building' || artifact?.status === 'pending') ? (
+                <button
+                  disabled
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-400 cursor-not-allowed"
+                >
+                  <RefreshCw className="h-4 w-4 animate-spin" /> Procesando documento final...
+                </button>
+              ) : workflow?.status === 'completed' && !artifact ? (
+                <button
+                  disabled
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-400 cursor-not-allowed"
+                >
+                  <RefreshCw className="h-4 w-4 animate-spin" /> Procesando documento final...
+                </button>
+              ) : (
+                <button
+                  onClick={downloadPDF}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                >
+                  <Download className="h-4 w-4" /> PDF firmado
+                </button>
+              )}
               <button
                 onClick={downloadECO}
                 className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"

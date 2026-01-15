@@ -473,7 +473,12 @@ export async function getSignedDocumentUrl(path: string, expiresIn = 3600): Prom
     }
 
     const { signedUrl } = await response.json();
-    return signedUrl;
+    
+    // P2.3: Cache-bust to force browser/iframe reload after witness updates
+    // Append timestamp to ensure fresh PDF loads even if path doesn't change
+    const cacheBustParam = `v=${Date.now()}`;
+    const separator = signedUrl.includes('?') ? '&' : '?';
+    return `${signedUrl}${separator}${cacheBustParam}`;
   } catch (error) {
     console.error('Error creating signed URL:', error);
     return null;

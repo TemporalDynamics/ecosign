@@ -41,6 +41,7 @@ import type { CustodyMode } from '../lib/documentEntityService';
 import { convertToOverlaySpec } from '../utils/overlaySpecConverter';
 import { saveDraftOperation } from '../lib/draftOperationsService';
 import { saveWorkflowFields, loadWorkflowFields } from '../lib/workflowFieldsService';
+import { resolveBatchAssignments } from '../lib/batches';
 
 // PASO 3: Módulos refactorizados
 import { 
@@ -985,6 +986,35 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           return;
         }
 
+        // P2.1 - Agrupar campos por batch y auto-asignar (usar helper central)
+        try {
+          const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+
+          // Si hay batches sin asignar y la cantidad de batches es igual a la cantidad de firmantes,
+          // hacer una asignación automática en orden (heurística útil para la mayoría de casos).
+          if (unassignedBatches.length > 0) {
+            if (batches.length === validSigners.length) {
+              batches.forEach((b, idx) => {
+                const signer = validSigners[idx];
+                if (signer && !b.assignedSignerEmail) {
+                  b.assignedSignerEmail = signer.email;
+                }
+              });
+
+              // Nota: La asignación vive en batches (batch.assignedSignerEmail). No debemos
+              // propagar assignedTo a cada field (evita duplicar estado). Forzar re-render UI.
+              setSignatureFields((prev) => [...prev]);
+            } else {
+              // No se puede enviar si existen batches sin asignar y no hay una correspondencia obvia
+              toast('Asigná los grupos de campos a los firmantes antes de enviar', { position: 'top-right' });
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (p2err) {
+          console.warn('P2.1 auto-assign falló, dejando flujo para asignación manual:', p2err);
+        }
+
         // SPRINT 5: Si hay campos configurados, estamparlos en el PDF antes de enviar
         let fileToSend = file;
         if (signatureFields.length > 0) {
@@ -1090,6 +1120,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         // Iniciar workflow en backend (crea notificaciones y dispara send-pending-emails)
         try {
+          // P2.1 - bloquear canvas para evitar mutaciones mientras se inicia el workflow
+          setIsCanvasLocked(true);
           const workflowResult = await startSignatureWorkflow({
             documentUrl: signedUrlData.signedUrl,
             documentHash,

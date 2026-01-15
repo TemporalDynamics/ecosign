@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Shield, Eye, Share2, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { deriveProtectionLevel, getProtectionLevelLabel, getProtectionLevelColor } from '../lib/protectionLevel';
+import { deriveProtectionLevel, getProtectionLevelLabel } from '../lib/protectionLevel';
 import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
 
-import { ProtectedBadge } from './ProtectedBadge';
+import { ProtectionLayerBadge } from './ProtectionLayerBadge';
 
 export default function DocumentRow({
   document,
@@ -62,7 +62,6 @@ export default function DocumentRow({
   const created = formatDocDate(document.created_at);
   const humanState = deriveHumanState({ status: document.workflow_status || document.status }, document.signers || []);
 
-  // Helper to format state text with fallbacks (never show 'Estado no reconocido')
   const formatState = (state: any, ctx: string) => {
     if (!state || state.key === 'unknown') {
       return ctx === 'operation' ? 'Abierta' : 'Borrador — editable';
@@ -70,33 +69,12 @@ export default function DocumentRow({
     return state.label;
   };
 
-  // TSA Detection (from tsa_latest or events[])
-  const tsaData = document.tsa_latest || (Array.isArray(document.events)
-    ? document.events.find((e: any) => e.kind === 'tsa')?.tsa
-    : null);
-  const hasTsa = !!tsaData;
-  const tsaDate = tsaData?.gen_time ? new Date(tsaData.gen_time).toLocaleDateString('es-AR', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  }) : null;
-
-  // Protection Level (canonical derivation from events[])
-  const protectionLevel = Array.isArray(document.events)
+  const derivedProtectionLevel = Array.isArray(document.events)
     ? deriveProtectionLevel(document.events)
     : 'NONE';
-  const protectionLabel = getProtectionLevelLabel(protectionLevel);
-  const protectionColor = getProtectionLevelColor(protectionLevel);
 
-  // Protection Level badge classes (Tailwind)
-  const protectionBadgeClasses = {
-    gray: 'text-gray-700 bg-gray-100',
-    green: 'text-green-700 bg-green-100',
-    blue: 'text-blue-700 bg-blue-100',
-    purple: 'text-purple-700 bg-purple-100',
-  }[protectionColor] || 'text-gray-700 bg-gray-100';
+  const protectionLabel = getProtectionLevelLabel(derivedProtectionLevel);
 
-  // Grid row mode: render cells so they align with header grid
   if (asRow) {
     return (
       <div className="contents">
@@ -110,17 +88,17 @@ export default function DocumentRow({
               aria-label="Seleccionar documento"
             />
           )}
-          <Shield className="h-4 w-4 text-gray-700 flex-shrink-0" />
+          <div title={protectionLabel}>
+            <ProtectionLayerBadge layer={derivedProtectionLevel} />
+          </div>
           <div className="min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate max-w-full" title={name}>{name}</div>
-            {/* user note only - do not render system state here */}
             {(document.user_note || document.description) && (
               <div className="text-xs text-gray-500 mt-1">{document.user_note || document.description}</div>
             )}
           </div>
         </div>
 
-        {/* Estado column: unified for lists */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${getHumanStateColor(humanState.severity)}`}>
             {formatState(humanState, context)}
@@ -130,8 +108,6 @@ export default function DocumentRow({
         <div className="text-sm text-gray-500">{created}</div>
 
         <div className="flex items-center justify-end gap-3" data-row-actions>
-          {/* Compact protection icon moved to actions column (secondary) */}
-          {protectionLevel !== 'NONE' && <ProtectedBadge compact showText={false} className="mr-2" />}
           <button onClick={() => onOpen && onOpen(document)} className="text-black hover:text-gray-600" title="Ver detalle"><Eye className="h-5 w-5" /></button>
           <button onClick={() => onShare ? onShare(document) : toast('No disponible')} className="text-black hover:text-gray-600" title="Compartir"><Share2 className="h-5 w-5" /></button>
 
@@ -175,7 +151,9 @@ export default function DocumentRow({
             aria-label="Seleccionar documento"
           />
         )}
-        <Shield className="h-4 w-4 text-gray-700 flex-shrink-0" />
+        <div title={protectionLabel}>
+          <ProtectionLayerBadge layer={derivedProtectionLevel} />
+        </div>
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
           <div className="text-xs text-gray-500">
@@ -188,12 +166,6 @@ export default function DocumentRow({
       </div>
 
       <div className="flex items-center gap-2" data-row-actions>
-        {protectionLevel !== 'NONE' && (
-          <span title={protectionLabel}>
-            <ProtectedBadge compact showText={false} className="mr-2" />
-          </span>
-        )}
-
         <button
           onClick={() => onOpen && onOpen(document)}
           className="text-xs text-gray-700 px-2 py-1 rounded hover:bg-gray-100"

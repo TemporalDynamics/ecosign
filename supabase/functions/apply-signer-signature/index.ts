@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { captureAndApplySignature } from '../_shared/signatureCapture.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -113,6 +114,55 @@ serve(async (req) => {
         otpVerifiedAt: signer.signer_otps?.verified_at
       })
       return json({ error: 'OTP not verified for signer' }, 403)
+    }
+
+    // P2.2 — Capture and apply signature to all batch fields
+    // Get workflow to resolve document_entity_id
+    const { data: workflow, error: wfError } = await supabase
+      .from('signature_workflows')
+      .select('document_entity_id')
+      .eq('id', signer.workflow_id)
+      .single()
+
+    if (wfError || !workflow) {
+      console.error('apply-signer-signature: Workflow not found', wfError)
+      return json({ error: 'Workflow not found' }, 404)
+    }
+
+    // Get all batches assigned to this signer
+    const { data: batches, error: batchError } = await supabase
+      .from('batches')
+      .select('id')
+      .eq('document_entity_id', workflow.document_entity_id)
+      .eq('assigned_signer_id', signer.id)
+
+    if (batchError) {
+      console.error('apply-signer-signature: Error fetching batches', batchError)
+      return json({ error: 'Could not fetch batches' }, 500)
+    }
+
+    if (!batches || batches.length === 0) {
+      console.warn('apply-signer-signature: No batches assigned to signer', { signerId: signer.id })
+      // Allow workflow to continue even if no batches (legacy compatibility)
+    } else {
+      // Apply signature to all batches
+      for (const batch of batches) {
+        try {
+          await captureAndApplySignature(supabase, {
+            workflow_id: signer.workflow_id,
+            document_entity_id: workflow.document_entity_id,
+            batch_id: batch.id,
+            signer_id: signer.id,
+            signature_payload: signatureData || {}
+          })
+        } catch (captureError: any) {
+          console.error('apply-signer-signature: Error capturing signature for batch', {
+            batchId: batch.id,
+            error: captureError.message
+          })
+          return json({ error: 'Could not apply signature to batch', details: captureError.message }, 500)
+        }
+      }
     }
 
     // Insert canonical event: use existing event_type allowed by DB

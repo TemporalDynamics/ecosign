@@ -202,6 +202,23 @@ serve(async (req) => {
 
     if (wfUpdErr) console.warn('could not update workflow hash', wfUpdErr)
 
+    // P2.3 — Update witness_current_storage_path to enable progressive visibility
+    // After each signature, the witness reflects the current state
+    const { data: workflowWithDoc } = await supabase
+      .from('signature_workflows')
+      .select('document_entity_id')
+      .eq('id', workflowId)
+      .single()
+
+    if (workflowWithDoc?.document_entity_id) {
+      const { error: witnessErr } = await supabase
+        .from('document_entities')
+        .update({ witness_current_storage_path: uploadPath })
+        .eq('id', workflowWithDoc.document_entity_id)
+
+      if (witnessErr) console.warn('could not update witness_current_storage_path', witnessErr)
+    }
+
     // 9) append canonical event signature.applied
     const evtPayload = {
       workflow_id: workflowId,

@@ -1722,3 +1722,234 @@ Rationale:
 
 Timestamp: 2026-01-14T18:18:50.512Z
 
+ Iteración 2026-01-14 — Migración Visual de Nivel de Protección (Fase de
+  Auditoría)
+
+  🎯 Objetivo
+  Implementar una "migración por superposición" para el nivel de protección
+  del documento, permitiendo una auditoría visual en vivo de la nueva lógica
+  de derivación. El objetivo era validar que la nueva verdad canónica (basada
+  en events) funcionaba correctamente antes de eliminar el sistema de estado
+  obsoleto.
+
+  🧠 Decisiones tomadas
+   - No eliminar la lógica existente, sino introducir la nueva en paralelo.
+     Se tomó esta decisión para evitar un refactor "big bang" y no romper la
+     UI actual, siguiendo una estrategia de migración segura.
+   - Realizar una "auditoría visual viva" mostrando ambas verdades (legacy
+     vs. derivada) al mismo tiempo en modo desarrollo. Esto permite validar
+     el comportamiento de la nueva lógica con datos reales y en todas las
+     fases del ciclo de vida del documento (ACTIVE, REINFORCED, TOTAL) sin
+     riesgo.
+   - Centralizar la lógica de derivación en la función pura
+     deriveProtectionLevel y hacer que el componente UI (DocumentRow) sea un
+     mero consumidor de ese resultado, respetando el
+     DERIVED_PROTECTION_CONTRACT.md.
+   - Utilizar el componente `ProtectionLayerBadge` (que estaba sin usar) para
+     mostrar la nueva verdad, ya que estaba diseñado para manejar los
+     múltiples niveles de protección, a diferencia del simple ProtectedBadge.
+
+  🛠️ Cambios realizados
+   - En DocumentRow.tsx, se importó y se renderizó el componente
+     ProtectionLayerBadge.
+   - Se pasó a ProtectionLayerBadge el resultado de la función
+     deriveProtectionLevel(document.events), que ya existía en el componente.
+   - Se creó y añadió un componente DebugBadge (solo visible en NODE_ENV ===
+     'development') que muestra textualmente los valores de
+     legacyProtectionLevel y derivedProtectionLevel para facilitar la
+     comparación.
+   - Se mantuvo el ProtectedBadge original, pero se lo envolvió en un borde
+     rojo para identificarlo claramente como "Legacy" durante la auditoría
+     visual.
+   - Se ajustó la obtención del legacyProtectionLevel para usar el operador
+     ?? 'NONE' para mayor claridad y robustez defensiva.
+
+  🚫 Qué NO se hizo (a propósito)
+   - No se eliminó el código que lee document.protection_level ni el
+     componente ProtectedBadge.
+   - No se implementó el "switch" final controlado por un feature flag para
+     usar la nueva lógica en producción.
+   - No se modificaron otros componentes; el cambio se aisló exclusivamente
+     en DocumentRow.tsx.
+   - No se tocó el backend. Todos los cambios fueron en el frontend para
+     alinearse con la verdad que el backend ya provee a través del log de
+     eventos.
+
+  ⚠️ Consideraciones / deuda futura
+   - La implementación actual resulta en una duplicación visual (dos badges)
+     y un DebugBadge que deben ser eliminados en la futura Fase 4 (Limpieza).
+   - El componente padre de DocumentRow (probablemente DocumentList) debe
+     asegurar que la consulta a la base de datos siempre pida
+     document_entities ( events ) para que la derivación funcione.
+   - La Fase 3 (Switch controlado) de la estrategia de migración aún está
+     pendiente de ejecución.
+
+  📍 Estado final
+   - Qué quedó mejor: El componente DocumentRow.tsx ahora es capaz de
+     visualizar el nivel de protección real y canónico del documento,
+     permitiendo validar en vivo la corrección del Problema 1. El sistema
+     está listo para una verificación segura.
+   - Qué sigue pendiente: Realizar la verificación visual en un entorno de
+     desarrollo para confirmar que la secuencia ACTIVE → REINFORCED → TOTAL
+     funciona como se espera. Tras esa validación, se podrá proceder con las
+     fases de switch y limpieza.
+
+  💬 Nota del dev
+  "Este cambio introduce una 'auditoría visual' para el nivel de protección.
+  La verdad se deriva de document.events a través de deriveProtectionLevel.
+  El ProtectionLayerBadge muestra la nueva verdad, mientras que el
+  ProtectedBadge (legacy) y el DebugBadge se mantienen para comparación. No
+  eliminar el código legacy hasta que la Fase 3 (switch) y 4 (limpieza) de la
+  migración sean aprobadas y ejecutadas."
+
+---
+
+## P2.1 (Fase 0.5 + Fase 1) — Batch Foundation & Workflow Gates
+Timestamp: 2026-01-15T04:08:40.418Z
+
+### 🎯 Resumen
+Implementación de la fundación contractual para Grupos de Campos (Batch), incluyendo schema DB, backfill de datos legacy, source of truth de asignación (`batch.assigned_signer_id`), y enforcement backend de workflow gates. Este trabajo establece que los campos ya no se asignan individualmente sino como grupos lógicos, y que las mutaciones post-activación del workflow quedan bloqueadas a nivel backend.
+
+### ✅ Decisiones Clave
+
+#### 1. Entidad Batch como Source of Truth
+**Decisión:** Los firmantes se asignan a batches, nunca a campos individuales.
+
+**Implementación:**
+- Tabla `batches` creada con `assigned_signer_id` (FK a `workflow_signers`)
+- Campo `batch_id` agregado a `workflow_fields` (NOT NULL tras backfill)
+- `field.assignedTo` queda deprecated (read-only, no se usa para decisiones)
+
+**Razón:**
+- Simplifica lógica de asignación (1 batch = 1 signer)
+- Reduce duplicación de estado (N fields no repiten signer)
+- Base limpia para P2.2 (firma una vez, aplicada a todos los campos del batch)
+
+#### 2. Backfill Conservador (1 field = 1 batch)
+**Decisión:** Crear 1 batch por cada campo legacy existente, sin inferir agrupaciones por proximidad espacial.
+
+**Implementación:**
+- Migration `20260115030200_backfill_batches.sql`
+- Cada `workflow_field` sin `batch_id` recibe su propio batch
+- Campo `origin='legacy_backfill'` para trazabilidad
+
+**Razón:**
+- No inventar intención del usuario (heurísticas espaciales son frágiles)
+- Permite que en Fase 2 (UI) el usuario agrupe explícitamente
+- Es reversible y auditable
+
+#### 3. Workflow Gates (Backend Enforcement)
+**Decisión:** Bloquear toda mutación de fields/batches cuando `workflow_status !== 'draft'`.
+
+**Implementación:**
+- Helper canónico: `canMutateWorkflow(workflowStatus)`
+- Gates aplicados en Edge Functions: `workflow-fields/*` (create/update/delete)
+- Rechazo con status `409 Conflict`
+- Logging de intentos bloqueados: evento `workflow.mutation_rejected`
+
+**Razón:**
+- Garantiza inmutabilidad post-activación (sin depender de UI)
+- Previene race conditions y manipulación de metadata
+- Auditable para contextos legales/probatorios
+
+#### 4. Logging de Rechazos (Auditoría)
+**Decisión:** Todo intento de mutación bloqueado se registra como evento canónico.
+
+**Implementación:**
+- Helper: `logWorkflowMutationRejected({ workflowId, actorUserId, targetType, reason, payload })`
+- Evento: `workflow.mutation_rejected` en `workflow_events`
+
+**Razón:**
+- Trazabilidad completa de intentos no autorizados
+- Base para alertas futuras (si un actor intenta mutar repetidamente)
+- Cumple requisitos de auditoría para flujos legales
+
+### 🛠️ Cambios Implementados
+
+#### Backend (Supabase)
+- **Migrations:**
+  - `20260115030000_create_batches_table.sql` — Tabla `batches`
+  - `20260115030100_add_batch_id_to_fields.sql` — FK `workflow_fields.batch_id`
+  - `20260115030200_backfill_batches.sql` — Backfill legacy (1 field = 1 batch)
+  - `20260115030300_enforce_batch_id_not_null.sql` — Constraint NOT NULL
+  - `20260115040000_add_assigned_signer_to_batches.sql` — FK `batches.assigned_signer_id`
+
+- **Edge Functions (nuevos helpers):**
+  - `supabase/functions/_shared/workflowGates.ts` — `canMutateWorkflow()`
+  - `supabase/functions/_shared/workflowLogging.ts` — `logWorkflowMutationRejected()`
+
+- **Edge Functions (modificados):**
+  - `workflow-fields/index.ts` — Aplica gates en todos los endpoints de mutación
+
+#### Frontend (Client)
+- `client/src/lib/batch.ts` — Helpers de agrupación y resolución de asignaciones (preparación UX)
+
+### 🚫 Qué NO se hizo (a propósito)
+- **UI de asignación explícita:** La pantalla "Asignar grupos de campos" se implementará en Fase 2 (UI explícita). Hoy el sistema soporta batches en backend pero la UX todavía no es visible.
+- **Eliminar `field.assignedTo`:** Campo deprecated pero no eliminado (compatibilidad con legacy, se eliminará post-Fase 2).
+- **Validaciones V1/V2/V3 completas:** Las validaciones de "todos los batches asignados" y "un batch no puede tener dos signers" se implementarán en Fase 2.
+- **Transición `draft → active` mejorada:** Hoy solo bloquea mutaciones; evento `operation.activated` y atomicidad mejorada irán en Fase 2.
+
+### 📌 Cumplimiento de Contratos
+
+✅ **P2.1 — Reglas Canónicas**
+- R1: Todo field pertenece a un batch ✅ (NOT NULL enforced)
+- R2: Solo el batch se asigna a un signer ✅ (`batches.assigned_signer_id`)
+- R3: Activar congela estructura ✅ (gates backend)
+- R4: Post-activate mutación rechazada + logueada ✅ (409 + evento)
+
+✅ **Contrato BATCH_CONTRACT.md** (implícito)
+- Batch es entidad formal con id/label/order/assigned_signer_id
+- Batch puede tener múltiples fields (1:N)
+- Un signer puede tener múltiples batches (permitido explícitamente)
+
+### 📊 Archivos Creados/Modificados
+
+```
+✨ supabase/migrations/20260115030000_create_batches_table.sql
+✨ supabase/migrations/20260115030100_add_batch_id_to_fields.sql
+✨ supabase/migrations/20260115030200_backfill_batches.sql
+✨ supabase/migrations/20260115030300_enforce_batch_id_not_null.sql
+✨ supabase/migrations/20260115040000_add_assigned_signer_to_batches.sql
+✨ supabase/functions/_shared/workflowGates.ts
+✨ supabase/functions/_shared/workflowLogging.ts
+✏️ supabase/functions/workflow-fields/index.ts
+✨ client/src/lib/batch.ts
+```
+
+**Total:** 8 nuevos, 1 modificado, 5 migraciones DB
+
+### 🎓 Lecciones Aprendadas
+- **Backfill Conservador > Heurístico:** Inferir agrupaciones espaciales es frágil; mejor crear batches simples y que el usuario los agrupe en UI.
+- **Gates Backend = Seguridad Real:** Bloquear mutaciones solo en UI es insuficiente; el backend debe ser el guardián final.
+- **Logging de Rechazos es Oro:** Registrar intentos bloqueados permite auditoría post-facto y detección de behavior sospechoso.
+- **Fase 0.5 Crítica:** Migrar schema antes de cambiar lógica evita estados parciales o datos inconsistentes.
+
+### 🔜 Próximos Pasos (Fase 2 — UI explícita)
+1. **Pantalla "Asignar grupos de campos"** en flujo de firmas
+2. **Highlight visual de batch** al seleccionar un campo
+3. **Validaciones V1/V2/V3** antes de activar workflow
+4. **Feedback real-time** (resaltar campos al asignar batch → signer)
+5. **Recovery de campos desde DB** al reabrir documento
+
+### 📌 Estado Final
+**P2.1 (Fase 0.5 + Fase 1) CERRADO ✅**
+
+- Infraestructura de batch completada y validada
+- Workflow gates enforced en backend
+- Sistema ya no puede mentir sobre asignaciones o permitir mutaciones post-activación
+- Listo para construir UX explícita en Fase 2
+
+**Criterio de cierre cumplido:**
+> "Si intento mutar un campo o batch por API después de activar y el backend lo rechaza y lo loguea, Fase 1 está terminada."
+
+✅ Verificado con Edge Function `workflow-fields` retornando 409 Conflict.
+
+---
+
+Firma: P2.1 (Fase 0.5 + Fase 1) completado — Batch foundation & workflow gates operational
+Timestamp: 2026-01-15T04:08:40.418Z
+Branch: `p2` (WIP local, commit pendiente aprobación)
+Responsables: GitHub Copilot CLI + Manu
+
+

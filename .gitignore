@@ -177,3 +177,4 @@ claims/
 .env*.local
 ECOSIGN_AUDIT_REPORT.md
 INVESTOR_ROOM/
+docs/architecture/INTEGRITY_PROTOCOL_VISION.md

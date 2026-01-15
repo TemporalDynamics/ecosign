@@ -6,9 +6,6 @@ import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
 
 import { ProtectionLayerBadge } from './ProtectionLayerBadge';
 
-// FASE 3: Switch controlado
-const USE_DERIVED_PROTECTION = true;
-
 export default function DocumentRow({
   document,
   context = 'documents',
@@ -72,17 +69,11 @@ export default function DocumentRow({
     return state.label;
   };
 
-  // FASE 3: Lógica de Switch
-  const legacyProtectionLevel = document.protection_level ?? 'NONE';
   const derivedProtectionLevel = Array.isArray(document.events)
     ? deriveProtectionLevel(document.events)
     : 'NONE';
 
-  const levelToRender = USE_DERIVED_PROTECTION
-    ? derivedProtectionLevel
-    : legacyProtectionLevel;
-
-  const protectionLabel = getProtectionLevelLabel(levelToRender);
+  const protectionLabel = getProtectionLevelLabel(derivedProtectionLevel);
 
   if (asRow) {
     return (
@@ -98,7 +89,7 @@ export default function DocumentRow({
             />
           )}
           <div title={protectionLabel}>
-            <ProtectionLayerBadge layer={levelToRender} />
+            <ProtectionLayerBadge layer={derivedProtectionLevel} />
           </div>
           <div className="min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate max-w-full" title={name}>{name}</div>
@@ -161,7 +152,7 @@ export default function DocumentRow({
           />
         )}
         <div title={protectionLabel}>
-          <ProtectionLayerBadge layer={levelToRender} />
+          <ProtectionLayerBadge layer={derivedProtectionLevel} />
         </div>
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>

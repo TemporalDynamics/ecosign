@@ -10,7 +10,7 @@
  * - Viewer derives visual from events + witness
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { SignatureInstance, SignatureApplicationEvent } from './types.ts';
 
 /**
@@ -18,7 +18,7 @@ import type { SignatureInstance, SignatureApplicationEvent } from './types.ts';
  * Returns the signature_instance created.
  */
 export async function captureSignature(
-  supabaseClient: ReturnType<typeof createClient>,
+  supabaseClient: SupabaseClient,
   params: {
     workflowId: string;
     documentEntityId: string;
@@ -51,7 +51,7 @@ export async function captureSignature(
  * Creates signature_application_events for each field.
  */
 export async function applySignatureToFields(
-  supabaseClient: ReturnType<typeof createClient>,
+  supabaseClient: SupabaseClient,
   params: {
     workflowId: string;
     signatureInstanceId: string;
@@ -80,7 +80,7 @@ export async function applySignatureToFields(
  * Get all signature instances for a workflow.
  */
 export async function getSignatureInstances(
-  supabaseClient: ReturnType<typeof createClient>,
+  supabaseClient: SupabaseClient,
   workflowId: string
 ): Promise<SignatureInstance[]> {
   const { data, error } = await supabaseClient
@@ -99,7 +99,7 @@ export async function getSignatureInstances(
  * Get all application events for a signature instance.
  */
 export async function getApplicationEvents(
-  supabaseClient: ReturnType<typeof createClient>,
+  supabaseClient: SupabaseClient,
   signatureInstanceId: string
 ): Promise<SignatureApplicationEvent[]> {
   const { data, error } = await supabaseClient
@@ -118,7 +118,7 @@ export async function getApplicationEvents(
  * Check if a signer has already signed a batch.
  */
 export async function hasSignedBatch(
-  supabaseClient: ReturnType<typeof createClient>,
+  supabaseClient: SupabaseClient,
   batchId: string,
   signerId: string
 ): Promise<boolean> {

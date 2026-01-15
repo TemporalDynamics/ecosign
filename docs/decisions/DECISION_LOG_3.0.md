@@ -1952,4 +1952,344 @@ Timestamp: 2026-01-15T04:08:40.418Z
 Branch: `p2` (WIP local, commit pendiente aprobación)
 Responsables: GitHub Copilot CLI + Manu
 
+---
+
+## Problema 2 — Artefacto Final del Workflow (COMPLETO) — 2026-01-15T15:12:23.173Z
+
+### 🎯 Resumen
+Implementación completa del sistema de generación, persistencia y notificación del Artefacto Final del Workflow. Un workflow completado ahora produce exactamente un artefacto verificable, inmutable y entregable, conforme al contrato canónico `FINAL_ARTIFACT_CONTRACT.md`.
+
+**Problema resuelto:** Workflows que terminaban (`status=completed`) pero no producían un entregable material. El "cierre técnico" y el "cierre humano" no coincidían.
+
+**Resultado:** Con Problema 2 cerrado, el sistema ya no puede mentir: completed = hay artefacto material + evento canónico + notificación al usuario.
+
+### ✅ Fases Completadas
+
+#### FASE A — Auditoría de Cierre (NO código) ✓
+
+**Objetivo:** Entender el estado real del sistema antes de escribir código.
+
+**Hallazgos clave:**
+- Punto de cierre actual identificado: `apply-signer-signature` muta estado, `process-signature` emite evento
+- Datos disponibles verificados: documento base, firmas (P2.2), timestamps, identificadores, metadata de protección
+- Gap crítico: Falta tabla de control (`workflow_artifacts`) y worker de construcción asíncrona
+
+**Veredicto:** Sistema listo para producir artefacto. Falta orquestación, no datos.
+
+**Archivo:** `docs/artefacto-final/FASE_A_AUDIT.md`
+
+#### FASE B — Contratos y Modelo de Datos ✓
+
+**B1. Tabla `workflow_artifacts`**
+
+Tabla de control que garantiza idempotencia y trazabilidad:
+
+```sql
+CREATE TABLE workflow_artifacts (
+  id uuid PRIMARY KEY,
+  workflow_id uuid NOT NULL UNIQUE,  -- 🔒 Un workflow = un artefacto
+  status text NOT NULL CHECK (status IN ('pending', 'building', 'ready', 'failed')),
+  artifact_id uuid,
+  artifact_hash text,
+  artifact_url text,
+  build_attempts integer DEFAULT 0,
+  last_error text,
+  created_at timestamptz,
+  updated_at timestamptz,
+  finalized_at timestamptz
+);
+```
+
+**Invariante crítico:** `UNIQUE(workflow_id)` garantiza que un workflow produce un solo artefacto, incluso ante retries.
+
+**B2. Evento canónico `workflow.artifact_finalized`**
+
+Evento de cierre definitivo, NO intermedio:
+
+```json
+{
+  "type": "workflow.artifact_finalized",
+  "workflow_id": "uuid",
+  "artifact_id": "uuid",
+  "artifact_hash": "sha256:...",
+  "artifact_url": "https://...",
+  "finalized_at": "ISO-8601"
+}
+```
+
+**Reglas:**
+- Se emite UNA sola vez por workflow
+- Solo cuando `artifact.status=ready` Y `artifact_url` existe
+- Idempotencia via `UNIQUE(workflow_id, event_type) ON CONFLICT DO NOTHING`
+
+**Diferencia con `workflow.completed`:**
+- `completed` = cierre lógico del flujo
+- `artifact_finalized` = cierre entregable (hay PDF material)
+
+**Archivos:**
+- `supabase/migrations/20260115130000_create_workflow_artifacts.sql`
+- `supabase/functions/_shared/canonicalEventHelper.ts` (extendido)
+
+#### FASE C — Implementación ✓
+
+**C1. Worker `build-final-artifact` (núcleo)**
+
+Worker que detecta workflows completados sin artefacto y construye el PDF final.
+
+**Responsabilidades:**
+1. Query de tareas: workflows con `status=completed` sin artefacto
+2. Lock lógico: `UPDATE workflow_artifacts SET status='building'`
+3. Recolección de datos: documento base + firmas (P2.2) + metadata
+4. Ensamblaje PDF: aplicar firmas, generar hoja de evidencia (witness)
+5. Persistencia: subir a Storage, calcular SHA-256
+6. Actualización: `status='ready'`, `artifact_hash`, `artifact_url`, `finalized_at`
+7. Emisión: evento `workflow.artifact_finalized` (una sola vez)
+
+**Invariantes garantizadas:**
+- Mismo workflow → mismo hash (idempotencia)
+- Reintento seguro (lock lógico previene duplicación)
+- Rollback automático si falla persistencia
+
+**Archivo:** `supabase/functions/_workers/build-final-artifact/index.ts`
+
+**C2. Worker `notify-artifact-ready` (pasivo)**
+
+Worker desacoplado que escucha el evento `workflow.artifact_finalized` y notifica.
+
+**Responsabilidades:**
+- Escuchar evento
+- Resolver participantes (owner + firmantes)
+- Encolar emails con `artifact_url`
+
+**Reglas:**
+- ❌ No reconstruye nada
+- ❌ No verifica hashes
+- ❌ No toca workflows
+- ✅ Solo distribuye notificación
+
+**Archivo:** `supabase/functions/_workers/notify-artifact-ready/index.ts`
+
+**C3. UI reactiva (no líder)**
+
+Componentes que escuchan el evento y muestran estado:
+
+**Antes del evento:**
+```
+Estado: "Procesando documento final…"
+CTA: Ninguno
+```
+
+**Después del evento:**
+```
+Estado: "Documento final listo"
+CTA: Botón "Descargar artefacto"
+Hash: [Visible en modo verificación]
+```
+
+**Regla de oro:** El cierre mental del usuario = evento `artifact_finalized`, NO `workflow.completed`.
+
+**Archivos modificados:**
+- `client/src/pages/WorkflowDetailPage.tsx`
+- `client/src/components/WorkflowHeader.tsx`
+
+### 🧭 Decisiones Arquitectónicas Clave
+
+#### 1. Artefacto = Documento + Evidencia + Identidad
+**Decisión:** El artefacto NO es solo el PDF. Es la tríada inseparable.
+
+**Capas:**
+- Documento: PDF con firmas aplicadas
+- Evidencia: hoja de witness (firmantes, timestamps, hashes)
+- Identidad: `artifact_hash` (SHA-256 estable)
+
+**Razón:** Un PDF sin evidencia no es verificable. Un hash sin documento no es entregable.
+
+#### 2. Idempotencia Criptográfica
+**Decisión:** Mismo workflow → mismo `artifact_hash`, incluso ante reintentos.
+
+**Implementación:**
+- Datos de entrada determinísticos (eventos canónicos, no timestamps runtime)
+- PDF generation con parámetros fijos
+- Hash calculado sobre contenido binario final
+
+**Razón:** Garantiza que retry por crash no produce "otro PDF parecido" sino el mismo artefacto byte-a-byte.
+
+#### 3. Worker Asíncrono (No bloquea UI)
+**Decisión:** Generación del artefacto ocurre en background, NO en el request de "completar workflow".
+
+**Razón:**
+- Ensamblaje de PDF puede tardar 5-10 segundos (firmas, evidencia, metadata)
+- Usuario no debe esperar bloqueado
+- Permite retry sin afectar UX
+
+**Flujo:**
+```
+Usuario: "Completar workflow" → 200 OK (inmediato)
+Backend: workflow.status = completed
+Worker: build-final-artifact (async)
+Evento: workflow.artifact_finalized (cuando esté listo)
+UI: Reactiva, muestra "listo" al recibir evento
+```
+
+#### 4. Tabla de Control (No lógica en eventos)
+**Decisión:** `workflow_artifacts` es la única fuente de verdad sobre el estado de construcción.
+
+**Razón:**
+- Eventos son append-only (no se puede "checkear si ya se emitió")
+- Tabla permite lock lógico (`status=building`) para prevenir duplicados
+- Soporta retry seguro (leer `last_error`, incrementar `build_attempts`)
+
+#### 5. Evento = Cierre Definitivo
+**Decisión:** `workflow.artifact_finalized` se emite solo cuando TODO está listo.
+
+**Reglas:**
+- ❌ No se emite "artifact building" intermedio
+- ❌ No se emite si falla generación
+- ✅ Solo se emite una vez, cuando `status=ready` Y archivo existe
+
+**Razón:** El evento es el "certificado de entrega". No debe mentir.
+
+### 📌 Cumplimiento del Contrato Canónico
+
+✅ **FINAL_ARTIFACT_CONTRACT.md**
+
+**0. Propósito**
+- Artefacto es verificable ✅ (hash + evidencia)
+- Artefacto es inmutable ✅ (`upsert: false`, no UPDATE policy)
+- Artefacto es entregable ✅ (Storage + URL público con auth)
+
+**1. Definición**
+- Documento inmutable ✅
+- Encapsula contenido + evidencia ✅
+- Verificable independiente ✅ (hoja de witness incluida)
+
+**2. Momento de creación**
+- Trigger: `workflow.completed` ✅
+- No antes ✅
+- No manual ✅
+
+**3. Contenido**
+- Capa Documento ✅ (PDF con firmas)
+- Capa Evidencia ✅ (witness sheet)
+- Capa Identidad ✅ (`artifact_hash`, `artifact_id`)
+
+**4. Inmutabilidad**
+- Una vez generado, no se sobrescribe ✅
+- Lock lógico previene duplicación ✅
+
+**5. Almacenamiento**
+- Persistido en Storage ✅
+- Descargable ✅
+- Verificable en el futuro ✅
+
+**6. Evento canónico**
+- `workflow.artifact_finalized` ✅
+- Una sola vez ✅
+- Solo después de persistencia ✅
+
+### 📊 Archivos Creados/Modificados
+
+```
+✨ docs/contracts/FINAL_ARTIFACT_CONTRACT.md (nuevo - contrato canónico)
+✨ docs/artefacto-final/ROADMAP_IMPLEMENTACION.md (nuevo - guía dev)
+✨ docs/artefacto-final/FASE_A_AUDIT.md (nuevo - auditoría)
+✨ docs/artefacto-final/FASE_B_CONTRACTS.md (nuevo - diseño validado)
+✨ supabase/migrations/20260115130000_create_workflow_artifacts.sql (nuevo)
+✨ supabase/functions/_workers/build-final-artifact/index.ts (nuevo - ~350 líneas)
+✨ supabase/functions/_workers/notify-artifact-ready/index.ts (nuevo - ~120 líneas)
+✏️ supabase/functions/_shared/canonicalEventHelper.ts (extendido)
+✏️ client/src/pages/WorkflowDetailPage.tsx
+✏️ client/src/components/WorkflowHeader.tsx
+```
+
+**Total:** 7 nuevos, 3 modificados, 1 migración DB
+
+### 🎓 Lecciones Aprendadas
+
+- **Auditoría Primero, Código Después:** FASE A evitó refactors innecesarios al confirmar que los datos ya existían.
+- **Contrato Primero, Schema Después:** Definir `FINAL_ARTIFACT_CONTRACT.md` antes de escribir SQL previno ambigüedades semánticas.
+- **Worker Asíncrono = UX Premium:** Generación en background permite UI fluida sin bloqueos.
+- **Idempotencia = Retry Seguro:** Lock lógico + hash determinístico permiten reintentos sin duplicación.
+- **Evento = Certificado de Entrega:** `workflow.artifact_finalized` es el único indicador confiable de que hay material entregable.
+
+### 🔐 Invariantes Críticos (No Negociables)
+
+```
+MUST:
+- Un workflow produce exactamente un artefacto (UNIQUE constraint)
+- Mismo workflow → mismo hash (idempotencia criptográfica)
+- Artefacto incluye documento + evidencia + identidad
+- Evento solo se emite cuando artifact.status=ready
+- Inmutable una vez generado (no UPDATE, no regeneración)
+
+MUST NOT:
+- No generar artefacto antes de workflow.completed
+- No emitir evento sin persistencia confirmada
+- No permitir sobrescribir artefacto existente
+- No depender de UI para construcción
+- No usar timestamps runtime como input de hash
+```
+
+### 🚀 Impacto en el Sistema
+
+**Antes del Problema 2:**
+- Workflow termina → usuario queda sin entregable material
+- "¿Dónde está el documento?" → fricción cognitiva
+- Cierre técnico ≠ cierre humano
+
+**Después del Problema 2:**
+- Workflow termina → artefacto se genera automáticamente
+- Usuario recibe notificación + URL de descarga
+- Cierre técnico = cierre humano = entregable material
+
+**Resultado filosófico:**
+> "El sistema ya no promete, entrega."
+
+### 🔜 Trabajo Futuro (Post-MVP)
+
+**NO implementado pero en roadmap:**
+- ❌ Verificador externo que consume artefacto (Problema 3)
+- ❌ Firma del artefacto por EcoSign (TSA sobre PDF final)
+- ❌ Metadata extendida (QR code, deeplink, crypto proofs)
+- ❌ Retry policy avanzada (backoff exponencial, límite de attempts)
+
+**Decisión:** Problema 2 completo según alcance definido. Features avanzadas para Q2 2026.
+
+### ⏱️ Timeline
+
+**Inicio:** 2026-01-15 ~08:00 UTC (tras completar P2)
+**FASE A:** ~2 horas (auditoría + análisis)
+**FASE B:** ~1 hora (diseño de contratos + schema)
+**FASE C:** ~4 horas (workers + UI + testing)
+**Fin:** 2026-01-15 15:12:23 UTC
+
+**Duración total:** ~7 horas (auditoría + implementación)
+
+### 📌 Estado Final
+
+**Problema 2 — CERRADO ✅**
+
+**Criterio de cierre cumplido:**
+> "Un workflow completed produce exactamente un artefacto verificable, inmutable y entregable, sin ambigüedad ni side-effects."
+
+✅ Verificado mediante:
+- Query manual: `SELECT * FROM workflow_artifacts WHERE status='ready'`
+- Test E2E: completar workflow → verificar evento → descargar artefacto
+- Validación de hash: regenerar artefacto → mismo SHA-256
+
+**Sistema ahora garantiza:**
+- completed = hay artefacto ✅
+- artefacto = entregable material ✅
+- usuario notificado ✅
+- cierre mental = evento `artifact_finalized` ✅
+
+---
+
+Firma: Problema 2 completado — Final artifact generation operational
+Timestamp: 2026-01-15T15:12:23.173Z
+Branch: `artefacto-final` → merged to `main`
+Responsables: GitHub Copilot CLI + Manu
+Roadmap: `docs/artefacto-final/ROADMAP_IMPLEMENTACION.md`
+Contract: `docs/contracts/FINAL_ARTIFACT_CONTRACT.md`
+
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, ChevronUp, ChevronDown } from 'lucide-react';
+import { Check, X, ChevronUp, ChevronDown, Zap, HardDrive, ShoppingCart, TrendingUp } from 'lucide-react';
 import Header from '../components/Header';
 import FooterInternal from '../components/FooterInternal';
 import InhackeableTooltip from '../components/InhackeableTooltip';
@@ -164,10 +164,95 @@ function DashboardPricingPage() {
       <Header variant="private" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 pt-32">
+        {/* Account Summary Section */}
+        <div className="mb-16 bg-gradient-to-r from-gray-50 to-white rounded-2xl border border-gray-200 p-6 md:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            {/* Current Plan Info */}
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-[#0E4B8B]/10 flex items-center justify-center">
+                  <Zap className="w-6 h-6 text-[#0E4B8B]" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Tu plan actual</p>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-2xl font-bold text-black">FREE</h2>
+                    <span className="bg-gray-200 text-gray-700 text-xs font-semibold px-2 py-0.5 rounded">Activo</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Tenés acceso a 3 firmas legales por mes y 1 GB de almacenamiento.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">
+                  <Check className="w-3 h-3" /> Firmantes ilimitados
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">
+                  <Check className="w-3 h-3" /> Blindaje forense básico
+                </span>
+              </div>
+            </div>
+
+            {/* Usage Metrics */}
+            <div className="flex-1 grid grid-cols-2 gap-4">
+              {/* Signatures Used */}
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-[#0E4B8B]" />
+                  <span className="text-sm font-medium text-gray-700">Firmas este mes</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-black">1</span>
+                  <span className="text-gray-500">/ 3</span>
+                </div>
+                <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#0E4B8B] rounded-full" style={{ width: '33%' }} />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">2 firmas disponibles</p>
+              </div>
+
+              {/* Storage Used */}
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <HardDrive className="w-4 h-4 text-[#0E4B8B]" />
+                  <span className="text-sm font-medium text-gray-700">Almacenamiento</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-black">124</span>
+                  <span className="text-gray-500">MB / 1 GB</span>
+                </div>
+                <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: '12%' }} />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">900 MB disponibles</p>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex-shrink-0 flex flex-col gap-3 lg:w-48">
+              <button className="w-full flex items-center justify-center gap-2 bg-[#0E4B8B] hover:bg-[#0a3a6b] text-white font-semibold py-3 px-4 rounded-lg transition">
+                <ShoppingCart className="w-4 h-4" />
+                Comprar firmas
+              </button>
+              <button className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg border border-gray-300 transition">
+                <HardDrive className="w-4 h-4" />
+                Más storage
+              </button>
+            </div>
+          </div>
+
+          {/* Rollover Info */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium text-gray-700">Acumulación activa:</span> Tenés <span className="font-semibold text-black">5 firmas acumuladas</span> de meses anteriores (vencen en 45 días).
+            </p>
+          </div>
+        </div>
+
         <header className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Planes de Servicio EcoSign</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">Elegí el plan que mejor se adapte a tus necesidades. Precios claros, sin excedentes y sin sorpresas.</p>
-          <p className="text-sm text-gray-600 mt-2">Probá sin tarjeta y podés cancelar cuando quieras.</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-black mb-4">Mejorá tu plan</h1>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto">Elegí el plan que mejor se adapte a tus necesidades. Precios claros, sin excedentes y sin sorpresas.</p>
         </header>
 
         {/* Pricing Cards */}
@@ -279,6 +364,32 @@ function DashboardPricingPage() {
             </p>
             <p className="text-base text-gray-700 leading-relaxed">
               Las más antiguas vencen a los 60 días para mantener tu cuenta ordenada.
+            </p>
+          </div>
+        </div>
+
+        {/* Almacenamiento seguro */}
+        <div className="max-w-4xl mx-auto px-4 py-24">
+          <h2 className="text-4xl font-bold text-center mb-6">Tu almacenamiento, tu control</h2>
+          <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-12">
+            Si comprás almacenamiento adicional, es tuyo para siempre.<br />
+            <strong>Sin pagos mensuales.</strong> Comprás una vez y lo usás cuando quieras.
+          </p>
+          <div className="bg-gray-50 p-6 rounded-lg max-w-3xl mx-auto mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-black">Cifrado de extremo a extremo</p>
+                <p className="text-sm text-gray-600">Tus documentos se cifran antes de subir.</p>
+              </div>
+            </div>
+            <p className="text-base text-gray-700 leading-relaxed">
+              <strong>Ni nosotros ni la nube podemos leer tu contenido.</strong><br />
+              Solo vos tenés acceso a tus documentos originales.
             </p>
           </div>
         </div>

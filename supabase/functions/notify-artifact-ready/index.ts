@@ -2,7 +2,7 @@
  * FASE C2 — Worker: notify-artifact-ready
  *
  * Purpose: Notify users when their workflow artifact is ready for download
- * Contract: docs/contracts/FINAL_ARTIFACT_CONTRACT.md (C2)
+ * Contract: docs/contratos/CONTRATO_ARTEFACTO_FINAL.md (C2)
  *
  * Responsibilities:
  * - Find ready artifacts without notifications sent
@@ -20,16 +20,28 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 const NOTIFICATION_TYPE = 'artifact_ready';
 
+const requireCronSecret = (req: Request) => {
+  const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
+  const provided = req.headers.get('x-cron-secret') ?? '';
+  if (!cronSecret || provided !== cronSecret) {
+    return new Response('Forbidden', { status: 403, headers: corsHeaders });
+  }
+  return null;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const authError = requireCronSecret(req);
+  if (authError) return authError;
 
   try {
     const supabaseClient = createClient(
@@ -179,8 +191,15 @@ serve(async (req) => {
     const successCount = results.filter(r => r.status === 'success').length;
     if (successCount > 0) {
       try {
-        await supabaseClient.functions.invoke('send-pending-emails');
-        console.log('[notify-artifact-ready] Triggered email delivery');
+        const cronSecret = Deno.env.get('CRON_SECRET')
+        if (!cronSecret) {
+          console.warn('[notify-artifact-ready] send-pending-emails skipped: missing CRON_SECRET')
+        } else {
+          await supabaseClient.functions.invoke('send-pending-emails', {
+            headers: { 'x-cron-secret': cronSecret }
+          });
+          console.log('[notify-artifact-ready] Triggered email delivery');
+        }
       } catch (emailError) {
         console.warn('[notify-artifact-ready] Failed to trigger email delivery:', emailError);
       }

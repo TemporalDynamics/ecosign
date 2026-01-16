@@ -42,7 +42,14 @@ const jsonResponse = (data: unknown, status = 200) =>
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
-    await supabase.functions.invoke('send-pending-emails')
+    const cronSecret = Deno.env.get('CRON_SECRET')
+    if (!cronSecret) {
+      console.warn('send-pending-emails skipped: missing CRON_SECRET')
+      return
+    }
+    await supabase.functions.invoke('send-pending-emails', {
+      headers: { 'x-cron-secret': cronSecret }
+    })
   } catch (error) {
     console.warn('send-pending-emails invoke failed', error)
   }
@@ -74,6 +81,14 @@ serve(async (req) => {
     const body: ProcessSignatureRequest = await req.json()
     const { accessToken, signatureData, ndaAccepted, ndaFingerprint, ipAddress, userAgent } = body
 
+    const reportedIpAddress = ipAddress ?? null
+    const reportedUserAgent = userAgent ?? null
+    const observedIpAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+      || req.headers.get('cf-connecting-ip')
+      || req.headers.get('x-real-ip')
+      || null
+    const observedUserAgent = req.headers.get('user-agent') || null
+
     if (!accessToken || !signatureData) {
       return jsonResponse({ error: 'Missing required fields' }, 400)
     }
@@ -88,7 +103,8 @@ serve(async (req) => {
       .from('workflow_signers')
       .select(`
         *,
-        workflow:signature_workflows(*)
+        workflow:signature_workflows(*),
+        signer_otps(verified_at)
       `)
       .eq('access_token_hash', tokenHash)
       .single()
@@ -97,7 +113,21 @@ serve(async (req) => {
       return jsonResponse({ error: 'Invalid or expired access token' }, 404)
     }
 
-    // 2. Validar que sea su turno
+    // 2. Validar token vigente y OTP verificado
+    if (signer.token_revoked_at) {
+      return jsonResponse({ error: 'Token has been revoked' }, 403)
+    }
+
+    if (signer.token_expires_at && new Date(signer.token_expires_at) < new Date()) {
+      return jsonResponse({ error: 'Token has expired' }, 403)
+    }
+
+    const otpData = Array.isArray(signer.signer_otps) ? signer.signer_otps[0] : signer.signer_otps
+    if (!otpData?.verified_at) {
+      return jsonResponse({ error: 'OTP not verified for signer' }, 403)
+    }
+
+    // 3. Validar que sea su turno
     if (signer.status !== 'ready_to_sign') {
       return jsonResponse({
         error: 'Not your turn to sign yet',
@@ -105,14 +135,14 @@ serve(async (req) => {
       }, 403)
     }
 
-    // 3. Validar NDA si es requerido
+    // 4. Validar NDA si es requerido
     if (signer.require_nda && !ndaAccepted) {
       return jsonResponse({
         error: 'NDA acceptance is required before signing'
       }, 400)
     }
 
-    // 4. Obtener versión actual del workflow
+    // 5. Obtener versión actual del workflow
     const { data: currentVersion, error: versionError } = await supabase
       .from('workflow_versions')
       .select('*')
@@ -155,20 +185,20 @@ serve(async (req) => {
       return signals
     }
 
-    const identityLevel = determineIdentityLevel(signer, { ndaAccepted, ipAddress, userAgent })
+    const identityLevel = determineIdentityLevel(signer, { ndaAccepted, ipAddress: observedIpAddress, userAgent: observedUserAgent })
     const identityAssurance = {
       level: identityLevel,
       provider: 'ecosign',
       method: identityLevel === 'L1' ? 'email_magic_link' : null,
       timestamp: signedAt,
-      signals: buildIdentitySignals(signer, { ndaAccepted, ipAddress, userAgent })
+      signals: buildIdentitySignals(signer, { ndaAccepted, ipAddress: observedIpAddress, userAgent: observedUserAgent })
     }
     let timeAssurance = {
       source: forensicConfig.rfc3161 ? 'RFC3161' : 'server_clock',
       confidence: forensicConfig.rfc3161 ? 'high' : 'informational'
     }
 
-    const ua = userAgent || ''
+    const ua = observedUserAgent || ''
     const deviceType = /Mobi|Android/i.test(ua) ? 'mobile' : 'desktop'
     const osFamily = /Windows/i.test(ua)
       ? 'windows'
@@ -185,7 +215,11 @@ serve(async (req) => {
     const environment = {
       device_type: deviceType,
       os_family: osFamily,
-      network_type: 'unknown'
+      network_type: 'unknown',
+      observed_ip: observedIpAddress,
+      observed_user_agent: observedUserAgent,
+      reported_ip: reportedIpAddress,
+      reported_user_agent: reportedUserAgent
     }
 
     const systemCapabilities = {
@@ -339,12 +373,12 @@ serve(async (req) => {
         rfc3161_token: rfc3161Token,
         polygon_tx_hash: polygonTxHash,
         bitcoin_anchor_id: bitcoinAnchorId,
-        ip_address: ipAddress,
-        user_agent: userAgent,
+        ip_address: observedIpAddress,
+        user_agent: observedUserAgent,
         // NDA tracking (checkbox legal, no documento separado)
         nda_accepted: ndaAccepted || false,
         nda_accepted_at: ndaAccepted ? new Date().toISOString() : null,
-        nda_ip_address: ndaAccepted ? ipAddress : null,
+        nda_ip_address: ndaAccepted ? observedIpAddress : null,
         nda_fingerprint: ndaAccepted ? ndaFingerprint : null
       })
       .select()

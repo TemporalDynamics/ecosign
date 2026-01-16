@@ -4,7 +4,7 @@
 **Estado:** Canónico  
 **Versión:** 1.0  
 **Fecha:** 2026-01-15  
-**Contrato base:** `docs/contracts/FINAL_ARTIFACT_CONTRACT.md`
+**Contrato base:** `docs/contratos/CONTRATO_ARTEFACTO_FINAL.md`
 
 ---
 
@@ -332,9 +332,9 @@ Este evento es el único trigger permitido.
 
 ## Referencias
 
-- **Contrato:** `docs/contracts/FINAL_ARTIFACT_CONTRACT.md`
+- **Contrato:** `docs/contratos/CONTRATO_ARTEFACTO_FINAL.md`
 - **Decisiones:** `docs/decisions/DECISION_LOG_3.0.md`
-- **Notificaciones:** `docs/contracts/NOTIFICATION_POLICY.md`
+- **Notificaciones:** `docs/contratos/NOTIFICATION_POLICY.md`
 
 ---
 

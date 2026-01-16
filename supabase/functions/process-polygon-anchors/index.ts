@@ -35,6 +35,15 @@ const jsonResponse = (data: unknown, status = 200) =>
     },
   })
 
+const requireCronSecret = (req: Request) => {
+  const cronSecret = Deno.env.get('CRON_SECRET') ?? ''
+  const provided = req.headers.get('x-cron-secret') ?? ''
+  if (!cronSecret || provided !== cronSecret) {
+    return jsonResponse({ error: 'Forbidden' }, 403)
+  }
+  return null
+}
+
 async function resolveProjectId(anchor: any, userDocumentId?: string | null): Promise<string | null> {
   const fromMetadata = anchor?.metadata?.projectId
   if (typeof fromMetadata === 'string' && fromMetadata.trim()) {
@@ -195,6 +204,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+
+  const authError = requireCronSecret(req)
+  if (authError) return authError
 
   if (!supabaseAdmin || !provider) {
     return jsonResponse({ error: 'Supabase or Polygon RPC not configured' }, 500)

@@ -51,7 +51,14 @@ const jsonResponse = (data: unknown, status = 200) =>
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
-    await supabase.functions.invoke('send-pending-emails')
+    const cronSecret = Deno.env.get('CRON_SECRET')
+    if (!cronSecret) {
+      console.warn('send-pending-emails skipped: missing CRON_SECRET')
+      return
+    }
+    await supabase.functions.invoke('send-pending-emails', {
+      headers: { 'x-cron-secret': cronSecret }
+    })
   } catch (error) {
     console.warn('send-pending-emails invoke failed', error)
   }

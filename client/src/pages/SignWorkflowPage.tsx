@@ -359,7 +359,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     const supabase = getSupabase();
     setError(null)
     const { data, error } = await supabase.functions.invoke('send-signer-otp', {
-      body: { signerId: signerData.signer_id }
+      body: { signerId: signerData.signer_id, accessToken: token }
     })
     if (error) {
       setError(error.message)

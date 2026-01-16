@@ -62,6 +62,7 @@ type DocumentRecord = {
   signed_authority?: 'internal' | 'external' | null;
   events?: any[];
   signer_links?: any[];
+  source_storage_path?: string | null;
 };
 
 type DocumentEntityRow = {
@@ -71,6 +72,7 @@ type DocumentEntityRow = {
   source_captured_at: string;
   witness_current_hash?: string | null;
   witness_current_storage_path?: string | null;
+  source_storage_path?: string | null;
   signed_hash?: string | null;
   signed_authority?: 'internal' | 'external' | null;
   composite_hash?: string | null;
@@ -210,6 +212,9 @@ const formatDate = (date: string | number | Date | null | undefined) => {
   });
 };
 
+const getPdfStoragePath = (doc: DocumentRecord | null) =>
+  doc?.pdf_storage_path || doc?.source_storage_path || null;
+
 const computeHash = async (
   mode: VerificationMode,
   fileOrBlob: Blob | File
@@ -234,12 +239,13 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     content_hash: entity.source_hash,
     created_at: entity.created_at || entity.source_captured_at,
     pdf_storage_path: entity.witness_current_storage_path ?? null,
+    source_storage_path: entity.source_storage_path ?? null,
     status: entity.lifecycle_status ?? null,
     signed_authority: entity.signed_authority ?? null,
-    has_legal_timestamp: false,
+    has_legal_timestamp: !!entity.tsa_latest,
     has_polygon_anchor: false,
     has_bitcoin_anchor: false,
-    events: [],
+    events: Array.isArray(entity.events) ? entity.events : [],
     signer_links: []
   };
 };
@@ -532,6 +538,7 @@ function DocumentsPage() {
           source_name,
           source_hash,
           source_captured_at,
+          source_storage_path,
           witness_current_hash,
           witness_current_storage_path,
           signed_hash,
@@ -708,7 +715,7 @@ function DocumentsPage() {
     if (isGuestMode()) return;
     if (
       showVerifyModal &&
-      verifyDoc?.pdf_storage_path &&
+      getPdfStoragePath(verifyDoc) &&
       !autoVerifyAttempted &&
       verificationMode !== "source"
     ) {
@@ -738,6 +745,30 @@ function DocumentsPage() {
     return () => {
       window.removeEventListener("ecosign:document-created", handleDocumentCreated);
       window.removeEventListener("ecosign:document-updated", handleDocumentUpdated);
+    };
+  }, [loadDocuments]);
+
+  useEffect(() => {
+    if (isGuestMode()) return;
+    const pollIntervalMs = 30000;
+    let cancelled = false;
+    let inFlight = false;
+
+    const poll = async () => {
+      if (cancelled || inFlight) return;
+      if (document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        await loadDocuments();
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const intervalId = window.setInterval(poll, pollIntervalMs);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
     };
   }, [loadDocuments]);
 
@@ -900,8 +931,9 @@ function DocumentsPage() {
           throw new Error("Este formato no tiene previsualización disponible.");
         }
         let blob: Blob | null = null;
-        if (previewDoc.pdf_storage_path) {
-          blob = await fetchPreviewBlobFromPath(previewDoc.pdf_storage_path);
+        const storagePath = getPdfStoragePath(previewDoc);
+        if (storagePath) {
+          blob = await fetchPreviewBlobFromPath(storagePath);
         } else if (previewDoc.encrypted_path) {
           blob = await fetchEncryptedPdfBlob(previewDoc);
         }
@@ -1075,8 +1107,9 @@ function DocumentsPage() {
 
   const handlePdfDownload = (doc: DocumentRecord | null) => {
     if (!doc) return;
-    if (doc.pdf_storage_path) {
-      downloadFromPath(doc.pdf_storage_path, doc.document_name);
+    const storagePath = getPdfStoragePath(doc);
+    if (storagePath) {
+      downloadFromPath(storagePath, doc.document_name);
       return;
     }
     if (doc.encrypted_path) {
@@ -1187,14 +1220,15 @@ function DocumentsPage() {
   };
 
   const autoVerifyStoredPdf = async (doc: DocumentRecord, mode: VerificationMode) => {
-    if (!doc.pdf_storage_path && !doc.encrypted_path) return;
+    if (!getPdfStoragePath(doc) && !doc.encrypted_path) return;
     try {
       const supabase = getSupabase();
       setVerifying(true);
       setVerifyResult(null);
       let blob: Blob;
-      if (doc.pdf_storage_path) {
-        const { data, error } = await supabase.storage.from("user-documents").createSignedUrl(doc.pdf_storage_path, 600);
+      const storagePath = getPdfStoragePath(doc);
+      if (storagePath) {
+        const { data, error } = await supabase.storage.from("user-documents").createSignedUrl(storagePath, 600);
         if (error || !data?.signedUrl) {
           throw error || new Error("No se pudo crear el enlace de verificación automática.");
         }

@@ -29,6 +29,9 @@ serve(async (req) => {
     if (!signerId && !accessToken) {
       return json({ error: 'Missing signerId or accessToken' }, 400)
     }
+    if (signerId && !workflowId) {
+      return json({ error: 'Missing workflowId for signerId flow' }, 400)
+    }
 
     // Resolve signer
     let signer: any = null
@@ -103,6 +106,15 @@ serve(async (req) => {
         otp_verified: otpData?.verified_at != null,
         signer_otps: otpData
       }
+    }
+
+    if (workflowId && signer.workflow_id !== workflowId) {
+      console.error('apply-signer-signature: Workflow mismatch', {
+        signerId: signer.id,
+        signerWorkflowId: signer.workflow_id,
+        providedWorkflowId: workflowId
+      })
+      return json({ error: 'Signer does not belong to this workflow' }, 403)
     }
 
     // GATE: Check if token has been revoked

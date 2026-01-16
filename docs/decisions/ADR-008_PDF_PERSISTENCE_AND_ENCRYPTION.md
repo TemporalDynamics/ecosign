@@ -13,7 +13,7 @@ persisted witness PDFs. Encryption is applied only in specific custody paths.
 
 This breaks UI truthfulness, forensic integrity, and product expectations.
 
-See `docs/contracts/PDF_STORAGE_CONTRACT.md` for the canonical rules.
+See `docs/contratos/CONTRATO_ALMACENAMIENTO_PDF.md` for the canonical rules.
 
 ## Decision
 1) **Keep `hash_only`** but still **persist an encrypted original PDF** for all documents

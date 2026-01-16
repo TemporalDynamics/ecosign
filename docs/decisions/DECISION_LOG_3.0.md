@@ -2190,7 +2190,7 @@ UI: Reactiva, muestra "listo" al recibir evento
 ### 📊 Archivos Creados/Modificados
 
 ```
-✨ docs/contracts/FINAL_ARTIFACT_CONTRACT.md (nuevo - contrato canónico)
+✨ docs/contratos/CONTRATO_ARTEFACTO_FINAL.md (nuevo - contrato canónico)
 ✨ docs/artefacto-final/ROADMAP_IMPLEMENTACION.md (nuevo - guía dev)
 ✨ docs/artefacto-final/FASE_A_AUDIT.md (nuevo - auditoría)
 ✨ docs/artefacto-final/FASE_B_CONTRACTS.md (nuevo - diseño validado)
@@ -2290,7 +2290,7 @@ Timestamp: 2026-01-15T15:12:23.173Z
 Branch: `artefacto-final` → merged to `main`
 Responsables: GitHub Copilot CLI + Manu
 Roadmap: `docs/artefacto-final/ROADMAP_IMPLEMENTACION.md`
-Contract: `docs/contracts/FINAL_ARTIFACT_CONTRACT.md`
+Contract: `docs/contratos/CONTRATO_ARTEFACTO_FINAL.md`
 
 ---
 
@@ -2469,5 +2469,4 @@ Timestamp: 2026-01-15T18:30:00Z
 Branch: `final-artifact-implementation`
 Responsable: Claude Code (Opus 4.5) + Manu
 Contract actualizado: `docs/contratos/PROTECTION_LEVEL_RULES.md`
-
 

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Shield, Eye, Share2, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { deriveProtectionLevel, getProtectionLevelLabel } from '../lib/protectionLevel';
-import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
+import { deriveFlowStatus, FLOW_STATUS } from '../lib/flowStatus';
 
 import { ProtectionLayerBadge } from './ProtectionLayerBadge';
 
@@ -60,13 +60,14 @@ export default function DocumentRow({
     });
   };
   const created = formatDocDate(document.created_at);
-  const humanState = deriveHumanState({ status: document.workflow_status || document.status }, document.signers || []);
+  const flowStatus = deriveFlowStatus(document);
+  const flowConfig = FLOW_STATUS[flowStatus.key];
 
-  const formatState = (state: any, ctx: string) => {
-    if (!state || state.key === 'unknown') {
-      return ctx === 'operation' ? 'Abierta' : 'Borrador — editable';
+  const formatState = (ctx: string) => {
+    if (!flowConfig) {
+      return ctx === 'operation' ? 'Abierta' : 'Procesando';
     }
-    return state.label;
+    return flowStatus.detail || flowConfig.label;
   };
 
   const derivedProtectionLevel = Array.isArray(document.events)
@@ -100,8 +101,8 @@ export default function DocumentRow({
         </div>
 
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${getHumanStateColor(humanState.severity)}`}>
-            {formatState(humanState, context)}
+          <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${flowConfig?.bg || 'bg-gray-100'} ${flowConfig?.color || 'text-gray-700'}`}>
+            {formatState(context)}
           </span>
         </div>
 
@@ -157,8 +158,8 @@ export default function DocumentRow({
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
           <div className="text-xs text-gray-500">
-            <span className={`text-xs px-2 py-1 rounded ${getHumanStateColor(humanState.severity)}`}>
-              {formatState(humanState, context)}
+            <span className={`text-xs px-2 py-1 rounded ${flowConfig?.bg || 'bg-gray-100'} ${flowConfig?.color || 'text-gray-700'}`}>
+              {formatState(context)}
             </span>
             {created ? ` · ${created}` : ''}
           </div>

@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { sendEmail, buildSignerOtpEmail } from '../_shared/email.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
+import { createTokenHash } from '../_shared/cryptoHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -12,6 +13,7 @@ const corsHeaders = {
 
 interface RequestPayload {
   signerId: string
+  accessToken?: string
 }
 
 const json = (data: unknown, status = 200) =>
@@ -31,6 +33,13 @@ const generateCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
+const requireCronSecret = (req: Request) => {
+  const cronSecret = Deno.env.get('CRON_SECRET') ?? ''
+  const provided = req.headers.get('x-cron-secret') ?? ''
+  if (cronSecret && provided === cronSecret) return null
+  return new Response('Forbidden', { status: 403, headers: corsHeaders })
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
@@ -40,20 +49,36 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { signerId } = (await req.json()) as RequestPayload
+    const { signerId, accessToken } = (await req.json()) as RequestPayload
     if (!signerId) return json({ error: 'signerId is required' }, 400)
 
+    const authError = requireCronSecret(req)
+    if (authError) {
+      if (!accessToken) return authError
+    }
+
     // Fetch signer info
-    const { data: signer, error: signerErr } = await supabase
+    const tokenHash = accessToken
+      ? (/^[a-f0-9]{64}$/i.test(accessToken) ? accessToken : await createTokenHash(accessToken))
+      : null
+
+    let signerQuery = supabase
       .from('workflow_signers')
       .select(`
         id,
         email,
         name,
+        token_expires_at,
+        token_revoked_at,
         workflow:signature_workflows (id, title)
       `)
       .eq('id', signerId)
-      .single()
+
+    if (tokenHash) {
+      signerQuery = signerQuery.eq('access_token_hash', tokenHash)
+    }
+
+    const { data: signer, error: signerErr } = await signerQuery.single()
 
     if (signerErr || !signer) {
       return json(
@@ -67,6 +92,14 @@ serve(async (req) => {
         { error: 'Signer email missing', details: 'signer_email_empty' },
         400
       )
+    }
+
+    if (signer.token_revoked_at) {
+      return json({ error: 'Token has been revoked' }, 403)
+    }
+
+    if (signer.token_expires_at && new Date(signer.token_expires_at) < new Date()) {
+      return json({ error: 'Token has expired' }, 403)
     }
 
     if (!signer.workflow?.id) {

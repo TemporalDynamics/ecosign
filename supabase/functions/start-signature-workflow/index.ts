@@ -34,6 +34,13 @@ interface StartWorkflowRequest {
     polygon: boolean
     bitcoin: boolean
   }
+  /**
+   * Delivery mode for signer notifications.
+   * - 'email': Send invitation emails to signers automatically (default)
+   * - 'link': No automatic emails, creator shares link manually
+   * Immutable after workflow creation.
+   */
+  deliveryMode?: 'email' | 'link'
 }
 
 const jsonResponse = (data: unknown, status = 200) =>
@@ -87,7 +94,8 @@ serve(withRateLimit('workflow', async (req) => {
       originalFilename,
       documentEntityId,
       signers,
-      forensicConfig
+      forensicConfig,
+      deliveryMode = 'email' // Default to email for backwards compatibility
     } = body
 
     if (!documentUrl || !documentHash || !originalFilename || !signers || signers.length === 0) {
@@ -100,6 +108,7 @@ serve(withRateLimit('workflow', async (req) => {
       original_file_url: documentUrl,
       status: 'active',
       forensic_config: forensicConfig,
+      delivery_mode: deliveryMode, // 'email' or 'link' - immutable after creation
       ...(documentEntityId ? { document_entity_id: documentEntityId } : {})
     }
 
@@ -204,14 +213,19 @@ serve(withRateLimit('workflow', async (req) => {
         }
     }
 
+    const notificationMessage = deliveryMode === 'email'
+      ? `Workflow started. ${signers.length} signer(s) added. First signer notified by email.`
+      : `Workflow started. ${signers.length} signer(s) added. Share the link manually (no email sent).`
+
     return jsonResponse({
       success: true,
       workflowId: workflow.id,
       versionId: version.id,
       status: workflow.status,
+      deliveryMode,
       signersCount: signers.length,
       firstSignerUrl: signUrl,
-      message: `Workflow started. ${signers.length} signer(s) added. First signer notified.`,
+      message: notificationMessage,
       _debug: debugInfo
     })
 

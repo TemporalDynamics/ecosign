@@ -42,6 +42,8 @@ serve(async (req) => {
           id,
           workflow_id,
           status,
+          token_expires_at,
+          token_revoked_at,
           signer_otps!inner(verified_at)
         `)
         .eq('id', signerId)
@@ -79,6 +81,8 @@ serve(async (req) => {
           id,
           workflow_id,
           status,
+          token_expires_at,
+          token_revoked_at,
           signer_otps!inner(verified_at)
         `)
         .eq('access_token_hash', tokenHash)
@@ -99,6 +103,34 @@ serve(async (req) => {
         otp_verified: otpData?.verified_at != null,
         signer_otps: otpData
       }
+    }
+
+    // GATE: Check if token has been revoked
+    if (signer.token_revoked_at) {
+      console.error('apply-signer-signature: Token revoked', {
+        signerId: signer.id,
+        revokedAt: signer.token_revoked_at
+      })
+      return json({ error: 'Token has been revoked' }, 403)
+    }
+
+    // GATE: Check if token has expired
+    if (signer.token_expires_at && new Date(signer.token_expires_at) < new Date()) {
+      console.error('apply-signer-signature: Token expired', {
+        signerId: signer.id,
+        expiredAt: signer.token_expires_at
+      })
+      return json({ error: 'Token has expired' }, 403)
+    }
+
+    // GATE: Check if signer is in a terminal state
+    const terminalStates = ['signed', 'cancelled', 'expired']
+    if (terminalStates.includes(signer.status)) {
+      console.error('apply-signer-signature: Signer in terminal state', {
+        signerId: signer.id,
+        status: signer.status
+      })
+      return json({ error: `Cannot sign: signer status is ${signer.status}` }, 403)
     }
 
     // Validate OTP confirmed

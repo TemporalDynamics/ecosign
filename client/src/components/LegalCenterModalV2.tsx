@@ -910,71 +910,40 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         const sourceHash = await hashSource(file);
         canonicalSourceHash = sourceHash;
 
-        // Sprint 4: Custody mode - cifrar y almacenar original si es necesario
-        let storagePath: string | null = null;
-        if (custodyModeChoice === 'encrypted_custody') {
-          try {
-            // Primero crear document_entity con hash_only temporal
-            const tempCreated = await createSourceTruth({
-              name: file.name,
-              mime_type: file.type || 'application/pdf',
-              size_bytes: file.size,
-              hash: sourceHash,
-              custody_mode: 'hash_only',
-              storage_path: null
-            });
-            canonicalDocumentId = tempCreated.id as string;
+        const tempCreated = await createSourceTruth({
+          name: file.name,
+          mime_type: file.type || 'application/pdf',
+          size_bytes: file.size,
+          hash: sourceHash,
+          custody_mode: 'hash_only',
+          storage_path: null
+        });
+        canonicalDocumentId = tempCreated.id as string;
 
-            // Cifrar y subir archivo original
-            setCertifyProgress({
-              stage: 'preparing',
-              message: 'Cifrando archivo original...'
-            });
-            storagePath = await storeEncryptedCustody(file, canonicalDocumentId);
+        setCertifyProgress({
+          stage: 'preparing',
+          message: 'Cifrando archivo original...'
+        });
+        const storagePath = await storeEncryptedCustody(file, canonicalDocumentId);
 
-            // Actualizar document_entity con custody mode y storage path
-            const { error: updateError } = await supabase
-              .from('document_entities')
-              .update({
-                custody_mode: 'encrypted_custody',
-                source_storage_path: storagePath
-              })
-              .eq('id', canonicalDocumentId);
+        const { error: updateError } = await supabase
+          .from('document_entities')
+          .update({
+            custody_mode: custodyModeChoice === 'encrypted_custody' ? 'encrypted_custody' : 'hash_only',
+            source_storage_path: storagePath
+          })
+          .eq('id', canonicalDocumentId);
 
-            if (updateError) {
-              console.warn('Failed to update custody_mode:', updateError);
-            } else {
-              console.log('✅ Encrypted custody stored:', storagePath);
-            }
-          } catch (custodyErr) {
-            console.warn('Encrypted custody failed, falling back to hash_only:', custodyErr);
-            // Continuar con hash_only si falla el cifrado
-            if (!canonicalDocumentId) {
-              const created = await createSourceTruth({
-                name: file.name,
-                mime_type: file.type || 'application/pdf',
-                size_bytes: file.size,
-                hash: sourceHash,
-                custody_mode: 'hash_only',
-                storage_path: null
-              });
-              canonicalDocumentId = created.id as string;
-            }
-          }
+        if (updateError) {
+          console.warn('Failed to update custody metadata:', updateError);
         } else {
-          // hash_only mode (default)
-          const created = await createSourceTruth({
-            name: file.name,
-            mime_type: file.type || 'application/pdf',
-            size_bytes: file.size,
-            hash: sourceHash,
-            custody_mode: 'hash_only',
-            storage_path: null
-          });
-          canonicalDocumentId = created.id as string;
+          console.log('✅ Encrypted custody stored:', storagePath);
         }
       } catch (err) {
-        console.warn('Canonical createSourceTruth skipped:', err);
+        console.error('Encrypted custody required but failed:', err);
+        showToast('No se pudo cifrar y guardar el original. Intentá nuevamente.', { type: 'error' });
+        setLoading(false);
+        return;
       }
       if (canonicalDocumentId) {
         console.debug('Canonical document_entities created:', canonicalDocumentId);

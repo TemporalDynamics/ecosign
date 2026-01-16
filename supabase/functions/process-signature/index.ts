@@ -525,8 +525,11 @@ serve(async (req) => {
         delivery_status: 'pending'
       })
 
-    // Notificar al siguiente firmante (si existe)
-    if (nextSigner) {
+    // Notificar al siguiente firmante (si existe y delivery_mode es 'email')
+    // Si delivery_mode='link', el creador comparte el link manualmente
+    const workflowDeliveryMode = workflow.delivery_mode || 'email'
+
+    if (nextSigner && workflowDeliveryMode === 'email') {
       // Obtener token del siguiente firmante
       const { data: nextSignerFull } = await supabase
         .from('workflow_signers')
@@ -558,6 +561,11 @@ serve(async (req) => {
           `,
           delivery_status: 'pending'
         })
+    } else if (nextSigner && workflowDeliveryMode === 'link') {
+      console.log('process-signature: Skipping next signer notification (delivery_mode=link)', {
+        workflowId: signer.workflow_id,
+        nextSignerEmail: nextSigner.email
+      })
     }
 
     // 11. Si no hay más firmantes, notificar a todos

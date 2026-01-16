@@ -4,7 +4,19 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { sendResendEmail, buildFounderWelcomeEmail } from '../_shared/email.ts';
 
+const requireCronSecret = (req: Request) => {
+  const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
+  const provided = req.headers.get('x-cron-secret') ?? '';
+  if (!cronSecret || provided !== cronSecret) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  return null;
+};
+
 serve(async (req: Request) => {
+  const authError = requireCronSecret(req);
+  if (authError) return authError;
+
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
   const SUPABASE_SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const MAX_RETRIES = 10;

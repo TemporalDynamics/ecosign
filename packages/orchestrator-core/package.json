@@ -1,0 +1,8 @@
+{
+  "name": "@temporaldynamics/orchestrator-core",
+  "version": "0.1.0",
+  "description": "Agnostic orchestration core (types and interfaces only)",
+  "main": "src/index.ts",
+  "type": "module",
+  "license": "MIT"
+}

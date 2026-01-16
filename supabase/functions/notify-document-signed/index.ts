@@ -26,11 +26,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const requireCronSecret = (req: Request) => {
+  const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
+  const provided = req.headers.get('x-cron-secret') ?? '';
+  if (!cronSecret || provided !== cronSecret) {
+    return new Response('Forbidden', { status: 403, headers: corsHeaders });
+  }
+  return null;
+};
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const authError = requireCronSecret(req);
+  if (authError) return authError;
 
   try {
     // Crear cliente Supabase con service role key

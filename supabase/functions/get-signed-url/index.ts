@@ -78,12 +78,34 @@ serve(async (req) => {
       // Check if user is a signer in this workflow
       const { data: signer } = await supabaseAdmin
         .from('workflow_signers')
-        .select('id')
+        .select('id, status, token_expires_at, token_revoked_at')
         .eq('workflow_id', workflowId)
         .eq('email', user.email)
         .single()
 
       if (!signer) {
+        return new Response(
+          JSON.stringify({ error: 'Access denied' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (signer.token_revoked_at) {
+        return new Response(
+          JSON.stringify({ error: 'Access denied' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (signer.token_expires_at && new Date(signer.token_expires_at) < new Date()) {
+        return new Response(
+          JSON.stringify({ error: 'Access denied' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const terminalStatuses = ['signed', 'cancelled', 'expired']
+      if (terminalStatuses.includes(signer.status)) {
         return new Response(
           JSON.stringify({ error: 'Access denied' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

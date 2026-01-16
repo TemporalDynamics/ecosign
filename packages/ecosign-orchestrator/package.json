@@ -1,0 +1,11 @@
+{
+  "name": "@temporaldynamics/ecosign-orchestrator",
+  "version": "0.1.0",
+  "description": "EcoSign adapter for the orchestration core",
+  "main": "src/index.ts",
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "@temporaldynamics/orchestrator-core": "0.1.0"
+  }
+}

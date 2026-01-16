@@ -2,7 +2,7 @@
  * FASE C1 — Worker: build-final-artifact
  * 
  * Purpose: Convert completed workflows into final, immutable, verifiable artifacts
- * Contract: docs/contracts/FINAL_ARTIFACT_CONTRACT.md
+ * Contract: docs/contratos/CONTRATO_ARTEFACTO_FINAL.md
  * 
  * Responsibilities:
  * - Detect completed workflows without artifacts

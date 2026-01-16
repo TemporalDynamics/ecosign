@@ -135,3 +135,87 @@ export async function hasSignedBatch(
 
   return !!data;
 }
+
+/**
+ * Capture and apply signature to all fields in a batch.
+ *
+ * This is the main entry point for the "sign once, apply to all" pattern.
+ *
+ * Flow:
+ * 1. Check idempotency (skip if already signed)
+ * 2. Create signature_instance
+ * 3. Fetch all fields for the batch
+ * 4. Create signature_application_events for each field
+ *
+ * @returns The signature_instance (existing or newly created)
+ */
+export async function captureAndApplySignature(
+  supabaseClient: SupabaseClient,
+  params: {
+    workflow_id: string;
+    document_entity_id: string;
+    batch_id: string;
+    signer_id: string;
+    signature_payload: SignatureInstance['signature_payload'];
+  }
+): Promise<SignatureInstance> {
+  // 1. Idempotency check: if already signed, return existing instance
+  const { data: existing } = await supabaseClient
+    .from('signature_instances')
+    .select('*')
+    .eq('batch_id', params.batch_id)
+    .eq('signer_id', params.signer_id)
+    .single();
+
+  if (existing) {
+    console.log('captureAndApplySignature: Batch already signed, returning existing instance', {
+      batchId: params.batch_id,
+      signerId: params.signer_id,
+      instanceId: existing.id
+    });
+    return existing as SignatureInstance;
+  }
+
+  // 2. Capture signature (create signature_instance)
+  const instance = await captureSignature(supabaseClient, {
+    workflowId: params.workflow_id,
+    documentEntityId: params.document_entity_id,
+    batchId: params.batch_id,
+    signerId: params.signer_id,
+    signaturePayload: params.signature_payload,
+  });
+
+  // 3. Get all fields for this batch
+  const { data: fields, error: fieldsError } = await supabaseClient
+    .from('workflow_fields')
+    .select('id')
+    .eq('batch_id', params.batch_id);
+
+  if (fieldsError) {
+    console.error('captureAndApplySignature: Failed to fetch fields', fieldsError);
+    throw new Error(`Failed to fetch fields for batch: ${fieldsError.message}`);
+  }
+
+  // 4. Apply signature to all fields (if any exist)
+  if (fields && fields.length > 0) {
+    const fieldIds = fields.map((f: { id: string }) => f.id);
+
+    await applySignatureToFields(supabaseClient, {
+      workflowId: params.workflow_id,
+      signatureInstanceId: instance.id,
+      fieldIds,
+    });
+
+    console.log('captureAndApplySignature: Applied signature to fields', {
+      instanceId: instance.id,
+      fieldCount: fieldIds.length
+    });
+  } else {
+    console.log('captureAndApplySignature: No fields in batch, signature captured only', {
+      instanceId: instance.id,
+      batchId: params.batch_id
+    });
+  }
+
+  return instance;
+}

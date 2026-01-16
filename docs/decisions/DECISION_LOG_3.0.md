@@ -2292,4 +2292,182 @@ Responsables: GitHub Copilot CLI + Manu
 Roadmap: `docs/artefacto-final/ROADMAP_IMPLEMENTACION.md`
 Contract: `docs/contracts/FINAL_ARTIFACT_CONTRACT.md`
 
+---
+
+## Estabilización Pre-Demo: 7 Puntos Críticos de Pulido — 2026-01-15T18:30:00Z
+
+### 🎯 Resumen
+
+Sesión de estabilización pre-demo para preparar EcoSign para brokers y agentes. Se identificaron 7 puntos críticos de pulido y se implementaron todos en una sesión de trabajo. El foco fue alinear la UI con la verdad canónica, eliminar fallbacks legacy, y mejorar la experiencia de usuario en puntos de fricción específicos.
+
+### ✅ Cambios Implementados
+
+#### **1. Regla de Protección Actualizada (CRÍTICO)**
+**Archivos:** `client/src/lib/protectionLevel.ts`, `docs/contratos/PROTECTION_LEVEL_RULES.md`
+
+**Cambio de regla:**
+```
+ANTES:
+- REINFORCED = TSA + Polygon
+- TOTAL = TSA + Polygon + Bitcoin
+
+DESPUÉS:
+- REINFORCED = TSA + primer anchor (Polygon OR Bitcoin)
+- TOTAL = TSA + Polygon + Bitcoin (ambos)
+```
+
+**Razón:** Permite que Plan FREE tenga protección reforzada usando solo TSA + Bitcoin (más lento pero mismo valor probatorio). Diferenciación comercial sin degradar valor.
+
+**Impacto:**
+- Plan FREE: TSA + Bitcoin → REINFORCED
+- Plan PRO: TSA + Polygon → REINFORCED (rápido), luego TSA + Polygon + Bitcoin → TOTAL
+
+#### **2. Canvas Autofit Horizontal**
+**Archivo:** `client/src/components/LegalCenterModalV2.tsx`
+
+**Cambios:**
+- Margen reducido de 32px a 16px (línea 633)
+- Breathing aumentado de 0.9 a 0.98 (línea 635)
+- Contenedor explícito: `overflow-x-hidden overflow-y-auto` (línea 2721)
+
+**Regla UX establecida:**
+- ❌ NUNCA scroll horizontal
+- ✅ Documento llena ancho disponible
+- ✅ Solo scroll vertical permitido
+
+#### **3. Email Validation Toast Spam**
+**Archivo:** `client/src/components/LegalCenterModalV2.tsx`
+
+**Problema:** Toast disparaba en cada keystroke cuando email pasaba de inválido a válido.
+
+**Solución:**
+- Removido toast de `handleEmailChange` (línea 739-744)
+- Nuevo handler `handleEmailBlur` (línea 746-765)
+- Agregado `onBlur` a inputs de email (líneas 3445, 3663)
+
+**Comportamiento nuevo:**
+- Al escribir: silencio total
+- Al salir del campo (blur): toast de éxito O error, una sola vez
+
+#### **4. DocumentsPage Unificación Canónica**
+**Archivo:** `client/src/pages/DocumentsPage.tsx`
+
+**Eliminados fallbacks legacy:**
+- `deriveProbativeState`: ya no lee `has_polygon_anchor`, `bitcoin_status`, `has_bitcoin_anchor`
+- `ProbativeTimeline`: ahora lee solo de `events[]`
+- `buildVerificationResult`: derivación canónica completa
+
+**Nueva lógica de derivación:**
+```typescript
+// REINFORCED: TSA + primer anchor (either one)
+if (hasTsa && (hasPolygon || hasBitcoin)) level = "reinforced";
+// TOTAL: TSA + both anchors
+if (hasTsa && hasPolygon && hasBitcoin) level = "total";
+```
+
+#### **5. Anchoring Visibility Mejorada**
+**Archivo:** `client/src/pages/DocumentsPage.tsx`
+
+**ProbativeTimeline actualizado:**
+- Labels claros: "Registro Polygon confirmado", "Registro Bitcoin confirmado"
+- Timestamps de confirmación extraídos de `events[]`
+- Información canónica, no legacy
+
+#### **6. Header: "Planes" → "Mi cuenta"**
+**Archivo:** `client/src/components/Header.tsx`
+
+**Cambio:** Renombrado en desktop (línea 37) y mobile (línea 90)
+- URL sin cambios: `/planes`
+- Nombre visible: "Mi cuenta"
+
+#### **7. Storage Copy Claro**
+**Archivo:** `client/src/pages/DashboardPricingPage.tsx`
+
+**Nueva sección agregada:** "Tu almacenamiento, tu control" (líneas 286-310)
+- Pago único, no recurrente
+- Cifrado de extremo a extremo
+- "Ni nosotros ni la nube podemos leer tu contenido"
+
+### 🧭 Decisiones Arquitectónicas Clave
+
+1. **Eliminación de Legacy Fallbacks:** La UI ahora lee SOLO de `events[]`. Documentos legacy que no tienen eventos mostrarán nivel NONE hasta que se migre su data.
+
+2. **Regla de Protección Simétrica:** Polygon y Bitcoin son intercambiables para REINFORCED. Esto simplifica la lógica y permite flexibilidad comercial.
+
+3. **Validación en Blur:** Patrón UX estándar adoptado. Validación solo cuando el usuario "termina" de escribir, no durante la escritura.
+
+4. **Canvas Fit-to-Width:** Regla UX canónica establecida. El documento siempre debe caber horizontalmente sin scroll.
+
+### 📌 Impacto en el Sistema
+
+**Coherencia lograda:**
+- ✅ DocumentRow, deriveProbativeState, ProbativeTimeline usan misma lógica
+- ✅ Todos leen de `events[]` canónicamente
+- ✅ Nueva regla de protección aplicada consistentemente
+
+**UX mejorada:**
+- ✅ No más spam de toasts
+- ✅ Canvas llena el ancho disponible
+- ✅ Información de storage clara
+
+**Diferenciación comercial:**
+- ✅ Plan FREE puede tener protección reforzada (TSA + Bitcoin)
+- ✅ Plan PRO tiene ventaja de velocidad (Polygon) + máxima protección (TOTAL)
+
+### 🔜 Trabajo Pendiente (Post-Demo)
+
+**NO implementado pero identificado:**
+- ❌ Observabilidad completa de anchoring (pending/failed/txid)
+- ❌ Página "Mi cuenta" con dashboard de uso
+- ❌ Componente de supervisor (multi-cuenta)
+- ❌ P3 Power Features (batch send, multi-document)
+
+**Decisión:** Los 7 puntos críticos están completos. Features avanzadas para post-demo.
+
+### 🎓 Lecciones Aprendidas
+
+- **"Legacy contamina":** Fallbacks legacy crean inconsistencias sutiles. Mejor eliminarlos completamente.
+- **"Reglas simétricas simplifican":** Tratar Polygon y Bitcoin igual para REINFORCED reduce casos edge.
+- **"Validación al terminar, no durante":** UX estándar que evita ruido.
+
+### ⏱️ Timeline
+
+**Inicio:** 2026-01-15 ~17:00 UTC
+**Fin:** 2026-01-15 ~18:30 UTC
+**Duración:** ~1.5 horas
+
+### 📊 Build Status
+
+```
+✓ 2453 modules transformed
+✓ built in 38.25s
+✓ No errores de compilación
+```
+
+### 📌 Estado Final
+
+**Estabilización Pre-Demo — COMPLETA ✅**
+
+**Criterios cumplidos:**
+- ✅ Regla de protección actualizada y documentada
+- ✅ Canvas autofit funcional
+- ✅ Email validation sin spam
+- ✅ DocumentsPage canónicamente consistente
+- ✅ Timeline muestra timestamps de anchoring
+- ✅ Header renombrado a "Mi cuenta"
+- ✅ Storage copy claro
+
+**Sistema listo para:**
+- Demo con brokers ✅
+- Demo con agentes ✅
+- Sin explicación extra necesaria ✅
+
+---
+
+Firma: Estabilización pre-demo completada — 7 puntos críticos implementados
+Timestamp: 2026-01-15T18:30:00Z
+Branch: `final-artifact-implementation`
+Responsable: Claude Code (Opus 4.5) + Manu
+Contract actualizado: `docs/contratos/PROTECTION_LEVEL_RULES.md`
+
 

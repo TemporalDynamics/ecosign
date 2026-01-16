@@ -81,13 +81,13 @@ type ProtectionLevel =
 
 **Requisitos:**
 - `ACTIVE` ✅
-- Existe al menos un anchor confirmado en **Polygon**
+- Existe al menos un anchor confirmado en **Polygon O Bitcoin** (el primero que confirme)
 
 ```json
 {
   "kind": "anchor",
   "anchor": {
-    "network": "polygon",
+    "network": "polygon" | "bitcoin",
     "txid": "...",
     "confirmed_at": "2026-01-06T..."
   }
@@ -98,6 +98,8 @@ type ProtectionLevel =
 - Evidencia temporal + registro público distribuido
 - Independencia de una sola autoridad
 - Alta resistencia a disputas
+- Plan FREE usa Bitcoin (más lento, mismo valor probatorio)
+- Plan PRO usa Polygon (más rápido) + Bitcoin (máximo)
 
 ---
 
@@ -107,7 +109,7 @@ type ProtectionLevel =
 
 **Requisitos:**
 - `REINFORCED` ✅
-- Existe al menos un anchor confirmado en **Bitcoin**
+- Existen anchors confirmados en **AMBAS redes: Polygon Y Bitcoin**
 
 ```json
 {
@@ -163,8 +165,11 @@ function deriveProtectionLevel(events: Event[]): ProtectionLevel {
          e.anchor.confirmed_at !== undefined
   );
 
-  if (hasBitcoin) return 'TOTAL';
-  if (hasPolygon) return 'REINFORCED';
+  // TOTAL: TSA + both anchors
+  if (hasBitcoin && hasPolygon && hasTsa) return 'TOTAL';
+  // REINFORCED: TSA + first anchor (either one)
+  if ((hasPolygon || hasBitcoin) && hasTsa) return 'REINFORCED';
+  // ACTIVE: TSA only
   if (hasTsa) return 'ACTIVE';
   return 'NONE';
 }
@@ -196,8 +201,9 @@ Cualquier implementación debe ser equivalente.
 | Escenario | Nivel | Motivo |
 |-----------|-------|--------|
 | TSA válido, anchors fallidos | `ACTIVE` | TSA es suficiente |
-| Polygon confirmado, no Bitcoin | `REINFORCED` | Bitcoin opcional |
-| Bitcoin confirmado sin Polygon | ❌ **INVÁLIDO** | Orden lógico violado |
+| Polygon confirmado, no Bitcoin | `REINFORCED` | Primer anchor cuenta |
+| Bitcoin confirmado sin Polygon | `REINFORCED` | Primer anchor cuenta (Plan FREE) |
+| Polygon + Bitcoin confirmados | `TOTAL` | Ambos anchors = máximo |
 | Múltiples TSA | `ACTIVE` | Idempotente |
 | Re-anchor mismo network | Sin cambio | Unicidad garantizada |
 
@@ -281,7 +287,7 @@ Mientras exista legacy:
 
 ---
 
-### Ejemplo 2: Polygon falla, Bitcoin OK
+### Ejemplo 2: Solo Bitcoin (Plan FREE)
 
 ```json
 {
@@ -290,9 +296,10 @@ Mientras exista legacy:
     { "kind": "anchor", "anchor": { "network": "bitcoin", ... } }
   ]
 }
-// → ❌ ESTADO INVÁLIDO
-// Violación: Bitcoin sin Polygon rompe orden lógico
-// Sistema debe prevenir este caso
+// → REINFORCED
+// Plan FREE usa solo TSA + Bitcoin
+// Mismo valor probatorio, solo más lento
+// No requiere Polygon para ser REINFORCED
 ```
 
 ---
@@ -370,8 +377,8 @@ export interface AnchorEvent extends Event {
  * Rules:
  * - NONE: No TSA
  * - ACTIVE: Has TSA
- * - REINFORCED: Has TSA + Polygon anchor
- * - TOTAL: Has TSA + Polygon anchor + Bitcoin anchor
+ * - REINFORCED: Has TSA + first anchor (Polygon OR Bitcoin)
+ * - TOTAL: Has TSA + Polygon anchor + Bitcoin anchor (both)
  *
  * Monotonic: Level can only increase, never decrease
  */
@@ -402,8 +409,11 @@ export function deriveProtectionLevel(events: Event[]): ProtectionLevel {
   );
 
   // Apply derivation rules (order matters for correctness)
+  // TOTAL: TSA + both anchors
   if (hasBitcoin && hasPolygon && hasTsa) return 'TOTAL';
-  if (hasPolygon && hasTsa) return 'REINFORCED';
+  // REINFORCED: TSA + first anchor (either one)
+  if ((hasPolygon || hasBitcoin) && hasTsa) return 'REINFORCED';
+  // ACTIVE: TSA only
   if (hasTsa) return 'ACTIVE';
   return 'NONE';
 }
@@ -495,10 +505,13 @@ BEGIN
   ) INTO has_bitcoin;
 
   -- Apply derivation rules
+  -- TOTAL: TSA + both anchors
   IF has_bitcoin AND has_polygon AND has_tsa THEN
     RETURN 'TOTAL';
-  ELSIF has_polygon AND has_tsa THEN
+  -- REINFORCED: TSA + first anchor (either one)
+  ELSIF (has_polygon OR has_bitcoin) AND has_tsa THEN
     RETURN 'REINFORCED';
+  -- ACTIVE: TSA only
   ELSIF has_tsa THEN
     RETURN 'ACTIVE';
   ELSE
@@ -611,14 +624,14 @@ describe('deriveProtectionLevel', () => {
     expect(deriveProtectionLevel(events)).toBe('ACTIVE');
   });
 
-  test('Invalid: Bitcoin without Polygon', () => {
+  test('REINFORCED: Bitcoin only (Plan FREE)', () => {
     const events = [
       { kind: 'tsa', witness_hash: 'abc', tsa: { token_b64: 'xyz' } },
       { kind: 'anchor', anchor: { network: 'bitcoin', confirmed_at: '...' } }
     ];
-    // System should prevent this, but if it happens:
-    // Falls back to ACTIVE (has TSA but no Polygon)
-    expect(deriveProtectionLevel(events)).toBe('ACTIVE');
+    // Plan FREE uses TSA + Bitcoin only
+    // First anchor (either network) triggers REINFORCED
+    expect(deriveProtectionLevel(events)).toBe('REINFORCED');
   });
 });
 ```

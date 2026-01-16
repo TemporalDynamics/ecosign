@@ -142,22 +142,20 @@ type ProbativeStateResult = {
 };
 
 const deriveProbativeState = (doc: DocumentRecord, planTier: PlanTier): ProbativeStateResult => {
-  // ✅ CANONICAL DERIVATION: Read from events[] with fallback to legacy
+  // ✅ CANONICAL DERIVATION: Read ONLY from events[] (no legacy fallbacks)
   const events = doc.events || [];
 
-  // TSA: already canonical (reads from events[])
+  // TSA: canonical from events[]
   const tsa = getLatestTsaEvent(events);
   const hasTsa = tsa.present;
 
-  // Polygon: canonical from events[] with legacy fallback
+  // Polygon: canonical from events[] ONLY
   const polygonAnchor = getAnchorEvent(events, 'polygon');
-  const hasPolygon = polygonAnchor !== null || !!doc.has_polygon_anchor;
+  const hasPolygon = polygonAnchor !== null;
 
-  // Bitcoin: canonical from events[] with legacy fallback
+  // Bitcoin: canonical from events[] ONLY
   const bitcoinAnchor = getAnchorEvent(events, 'bitcoin');
-  const bitcoinConfirmed = bitcoinAnchor !== null ||
-                          doc.bitcoin_status === "confirmed" ||
-                          !!doc.has_bitcoin_anchor;
+  const hasBitcoin = bitcoinAnchor !== null;
 
   const ecoAvailable = !!(
     doc.eco_storage_path ||
@@ -166,18 +164,25 @@ const deriveProbativeState = (doc: DocumentRecord, planTier: PlanTier): Probativ
     doc.content_hash
   );
 
-  // Derive level using canonical algorithm (matches PROTECTION_LEVEL_RULES.md)
+  // Derive level using canonical algorithm (matches PROTECTION_LEVEL_RULES.md v2)
+  // - NONE: No TSA
+  // - BASE: Has hash but no TSA
+  // - ACTIVE: Has TSA
+  // - REINFORCED: Has TSA + first anchor (Polygon OR Bitcoin)
+  // - TOTAL: Has TSA + both anchors (Polygon AND Bitcoin)
   let level: ProbativeLevel = (doc.content_hash || doc.eco_hash) ? "base" : "none";
 
   if (hasTsa) {
     level = "active";
   }
 
-  if (hasTsa && hasPolygon) {
+  // REINFORCED: TSA + first anchor (either one)
+  if (hasTsa && (hasPolygon || hasBitcoin)) {
     level = "reinforced";
   }
 
-  if (hasTsa && hasPolygon && bitcoinConfirmed) {
+  // TOTAL: TSA + both anchors
+  if (hasTsa && hasPolygon && hasBitcoin) {
     level = "total";
   }
 
@@ -189,7 +194,7 @@ const deriveProbativeState = (doc: DocumentRecord, planTier: PlanTier): Probativ
     config: PROBATIVE_STATES[level],
     ecoAvailable,
     ecoxAvailable,
-    bitcoinConfirmed,
+    bitcoinConfirmed: hasBitcoin,
     ecoxPlanAllowed
   };
 };
@@ -1237,13 +1242,20 @@ function DocumentsPage() {
       : null;
     const matches = matchesDocument ?? matchesContent ?? null;
 
+    // Check protection level from events[] (canonical)
+    const events = doc.events || [];
+    const hasTsa = getLatestTsaEvent(events).present;
+    const hasPolygon = getAnchorEvent(events, 'polygon') !== null;
+    const hasBitcoin = getAnchorEvent(events, 'bitcoin') !== null;
+    const isTotal = hasTsa && hasPolygon && hasBitcoin;
+
     return {
       matches,
       matchesDocument,
       matchesContent,
       hash: normalizedHash,
       source,
-      extended: doc.bitcoin_status === "confirmed" ? "Protección total confirmada." : null
+      extended: isTotal ? "Protección total confirmada." : null
     };
   };
 
@@ -2730,13 +2742,21 @@ function PreviewBadges({ doc, planTier }: { doc: DocumentRecord; planTier: PlanT
 }
 
 function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
-  // Read TSA from events[] (canonical)
-  const tsa = getLatestTsaEvent(doc.events);
+  // ✅ CANONICAL: Read ALL protection data from events[] (no legacy fields)
+  const events = doc.events || [];
+
+  // TSA: canonical from events[]
+  const tsa = getLatestTsaEvent(events);
   const hasTsa = tsa.present;
-  
-  const hasPolygon = !!doc.has_polygon_anchor;
-  const bitcoinStatus = doc.bitcoin_status;
-  const bitcoinConfirmed = bitcoinStatus === "confirmed" || !!doc.has_bitcoin_anchor;
+
+  // Polygon: canonical from events[] ONLY
+  const polygonAnchor = getAnchorEvent(events, 'polygon');
+  const hasPolygon = polygonAnchor !== null;
+
+  // Bitcoin: canonical from events[] ONLY
+  const bitcoinAnchor = getAnchorEvent(events, 'bitcoin');
+  const hasBitcoin = bitcoinAnchor !== null;
+
   const hasIntegrity = !!(doc.content_hash || doc.eco_hash);
   const timelineItems = [];
 
@@ -2766,19 +2786,23 @@ function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
   }
 
   if (hasPolygon) {
+    const polygonTime = polygonAnchor?.anchor?.confirmed_at;
     timelineItems.push({
-      label: "Registro público confirmado",
-      description: "Huella publicada en registro digital independiente.",
+      label: "Registro Polygon confirmado",
+      description: polygonTime
+        ? `Confirmado: ${formatDate(polygonTime)}`
+        : "Huella publicada en blockchain Polygon.",
       status: "ok"
     });
   }
 
-  if (bitcoinConfirmed) {
+  if (hasBitcoin) {
+    const bitcoinTime = bitcoinAnchor?.anchor?.confirmed_at;
     timelineItems.push({
-      label: "Refuerzo independiente confirmado",
-      description: doc.bitcoin_confirmed_at
-        ? `Confirmado: ${formatDate(doc.bitcoin_confirmed_at)}`
-        : "Confirmado.",
+      label: "Registro Bitcoin confirmado",
+      description: bitcoinTime
+        ? `Confirmado: ${formatDate(bitcoinTime)}`
+        : "Huella anclada en Bitcoin.",
       status: "ok"
     });
   }

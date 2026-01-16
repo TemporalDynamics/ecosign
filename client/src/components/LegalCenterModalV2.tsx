@@ -628,8 +628,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect?.width) {
-          const availableWidth = Math.max(0, entry.contentRect.width - 32);
-          const breathing = 0.9;
+          // Fit-to-width: el documento debe ocupar el ancho disponible sin scroll horizontal
+          // Solo restamos 16px (8px por lado) para un margen mínimo
+          const availableWidth = Math.max(0, entry.contentRect.width - 16);
+          // Breathing de 0.98 para llenar casi todo el espacio (antes era 0.9)
+          const breathing = 0.98;
           const fitScale = availableWidth / VIRTUAL_PAGE_WIDTH;
           const scale = Math.min(1, fitScale) * breathing;
           setVirtualScale(Math.max(0.5, scale));
@@ -734,21 +737,29 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   };
 
   const handleEmailChange = (index: number, value: string) => {
-    const oldEmail = emailInputs[index].email;
     const newInputs = [...emailInputs];
     newInputs[index] = { ...newInputs[index], email: value };
     setEmailInputs(newInputs);
+    // NO mostrar toast aquí - se muestra en onBlur para evitar spam mientras escribe
+  };
 
-    // CONSTITUCIÓN: Toast "Destinatario agregado correctamente" (líneas 441-451)
-    // Mostrar solo cuando el email cambia de inválido/vacío a válido
-    const wasValid = isValidEmail(oldEmail.trim()).valid;
-    const isNowValid = isValidEmail(value.trim()).valid;
+  // Validar email solo cuando el usuario termina de escribir (onBlur)
+  const handleEmailBlur = (index: number) => {
+    const email = emailInputs[index].email.trim();
+    if (!email) return; // Campo vacío, no mostrar nada
 
-    if (!wasValid && isNowValid) {
+    const validation = isValidEmail(email);
+    if (validation.valid) {
       showToast('Destinatario agregado correctamente.', {
         type: 'success',
         duration: 2000,
         position: 'top-right'
+      });
+    } else if (validation.error) {
+      showToast(validation.error, {
+        type: 'error',
+        duration: 3000,
+        position: 'bottom-right'
       });
     }
   };
@@ -2710,11 +2721,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </div>
 
                     {/* Preview del contenido - altura fija según modo */}
+                    {/* overflow-x-hidden: NUNCA scroll horizontal, overflow-y-auto: scroll vertical permitido */}
                     <div
                       ref={previewContainerRef}
                       className={`relative group ${
                         isPreviewFullscreen || isDocumentFocus ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
-                      } bg-gray-100 overflow-hidden`}
+                      } bg-gray-100 overflow-x-hidden overflow-y-auto`}
                     >
                       {documentLoaded && ndaEnabled && !ndaPanelOpen && !isFocusMode && (
                         <button
@@ -3430,6 +3442,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                     type="email"
                                     value={input.email}
                                     onChange={(e) => handleEmailChange(index, e.target.value)}
+                                    onBlur={() => handleEmailBlur(index)}
                                     placeholder="email@ejemplo.com"
                                     className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
                                   />
@@ -3647,6 +3660,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         type="email"
                         value={input.email}
                         onChange={(e) => handleEmailChange(index, e.target.value)}
+                        onBlur={() => handleEmailBlur(index)}
                         placeholder="email@ejemplo.com"
                         className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
                       />

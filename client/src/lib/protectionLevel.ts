@@ -46,8 +46,8 @@ export interface AnchorEvent extends Event {
  * Rules:
  * - NONE: No TSA
  * - ACTIVE: Has TSA
- * - REINFORCED: Has TSA + Polygon anchor
- * - TOTAL: Has TSA + Polygon anchor + Bitcoin anchor
+ * - REINFORCED: Has TSA + first anchor (Polygon OR Bitcoin)
+ * - TOTAL: Has TSA + Polygon anchor + Bitcoin anchor (both)
  *
  * Monotonic: Level can only increase, never decrease
  *
@@ -81,8 +81,11 @@ export function deriveProtectionLevel(events: Event[]): ProtectionLevel {
   );
 
   // Apply derivation rules (order matters for correctness)
+  // TOTAL: TSA + both anchors (Polygon AND Bitcoin)
   if (hasBitcoin && hasPolygon && hasTsa) return 'TOTAL';
-  if (hasPolygon && hasTsa) return 'REINFORCED';
+  // REINFORCED: TSA + first anchor (Polygon OR Bitcoin)
+  if ((hasPolygon || hasBitcoin) && hasTsa) return 'REINFORCED';
+  // ACTIVE: TSA only
   if (hasTsa) return 'ACTIVE';
   return 'NONE';
 }
@@ -135,7 +138,7 @@ export function getProtectionLevelDescription(level: ProtectionLevel): string {
   const descriptions: Record<ProtectionLevel, string> = {
     NONE: 'Documento sin evidencia temporal verificable',
     ACTIVE: 'Evidencia temporal certificada (TSA)',
-    REINFORCED: 'Evidencia temporal + registro público (Polygon)',
+    REINFORCED: 'Evidencia temporal + registro público (Polygon o Bitcoin)',
     TOTAL: 'Evidencia temporal + registros públicos múltiples (Polygon + Bitcoin)',
   };
   return descriptions[level];

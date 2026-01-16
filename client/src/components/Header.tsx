@@ -34,7 +34,7 @@ const PrivateNavDesktop = ({ onLogout, openLegalCenter }: { onLogout: () => void
     { label: 'Inicio', to: '/inicio' },
     { label: 'Documentos', to: '/documentos' },
     { label: 'Verificador', to: '/verificador' },
-    { label: 'Planes', to: '/planes' }
+    { label: 'Mi cuenta', to: '/planes' }
   ];
 
   return (
@@ -87,7 +87,7 @@ const PrivateNavMobile = ({ onLogout, openLegalCenter, setMobileMenuOpen }: { on
         { label: 'Inicio', to: '/inicio' },
         { label: 'Documentos', to: '/documentos' },
         { label: 'Verificador', to: '/verificador' },
-        { label: 'Planes', to: '/planes' }
+        { label: 'Mi cuenta', to: '/planes' }
     ];
 
     return (

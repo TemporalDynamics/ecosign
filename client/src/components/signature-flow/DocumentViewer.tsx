@@ -135,7 +135,10 @@ export default function DocumentViewer({
         }
 
         if (isMounted) {
-          setPdfUrl(newObjectUrl)
+          // Ensure the PDF viewer fits width by requesting page-width zoom when possible.
+          // Appending a PDF fragment (#zoom=page-width) hints to browsers' PDF viewers to fit horizontally.
+          const fitUrl = newObjectUrl ? `${newObjectUrl}#zoom=page-width` : null
+          setPdfUrl(fitUrl)
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'No se pudo cargar el documento'

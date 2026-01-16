@@ -27,7 +27,8 @@ import { encryptFile, type EncryptedFile } from './encryptionService';
  */
 export async function storeEncryptedCustody(
   file: File,
-  documentEntityId: string
+  documentEntityId: string,
+  purpose: 'source' | 'witness' = 'source'
 ): Promise<string> {
   const supabase = getSupabase();
 
@@ -50,6 +51,7 @@ export async function storeEncryptedCustody(
     body: {
       document_entity_id: documentEntityId,
       encrypted_data: base64Encrypted,
+      purpose,
       metadata: {
         original_name: encryptedFile.originalName,
         original_mime: encryptedFile.originalMime,

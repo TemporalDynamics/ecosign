@@ -57,6 +57,7 @@ const jsonResponse = (data: unknown, status = 200) =>
 interface StoreEncryptedRequest {
   document_entity_id: string
   encrypted_data: string // base64
+  purpose?: 'source' | 'witness'
   metadata: {
     original_name: string
     original_mime: string
@@ -93,7 +94,7 @@ serve(async (req) => {
 
     // 2. Parsear body
     const body: StoreEncryptedRequest = await req.json()
-    const { document_entity_id, encrypted_data, metadata } = body
+    const { document_entity_id, encrypted_data, metadata, purpose = 'source' } = body
 
     if (!document_entity_id || !encrypted_data || !metadata) {
       return jsonResponse({
@@ -122,17 +123,13 @@ serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized: you do not own this document' }, 403)
     }
 
-    if (documentEntity.custody_mode !== 'encrypted_custody') {
-      return jsonResponse({
-        error: 'Document custody_mode must be "encrypted_custody"'
-      }, 400)
-    }
-
     // 4. Decodificar base64 a bytes
     const encryptedBytes = Uint8Array.from(atob(encrypted_data), c => c.charCodeAt(0))
 
-    // 5. Construir path: {user_id}/{document_entity_id}/encrypted_source
-    const storagePath = `${user.id}/${document_entity_id}/encrypted_source`
+    // 5. Construir path: {user_id}/{document_entity_id}/encrypted_source|encrypted_witness/{timestamp}
+    const storagePath = purpose === 'witness'
+      ? `${user.id}/${document_entity_id}/encrypted_witness/${Date.now()}`
+      : `${user.id}/${document_entity_id}/encrypted_source`
 
     // 6. Subir al bucket 'custody'
     const { error: uploadError } = await supabase.storage
@@ -150,21 +147,23 @@ serve(async (req) => {
       }, 500)
     }
 
-    // 7. Actualizar document_entities.source_storage_path
-    const { error: updateError } = await supabase
-      .from('document_entities')
-      .update({
-        source_storage_path: storagePath
-      })
-      .eq('id', document_entity_id)
+    // 7. Actualizar document_entities.source_storage_path (solo si es source)
+    if (purpose === 'source') {
+      const { error: updateError } = await supabase
+        .from('document_entities')
+        .update({
+          source_storage_path: storagePath
+        })
+        .eq('id', document_entity_id)
 
-    if (updateError) {
-      console.error('Error updating source_storage_path:', updateError)
-      // Intentar limpiar el archivo subido
-      await supabase.storage.from('custody').remove([storagePath])
-      return jsonResponse({
-        error: 'Failed to update document entity with storage path'
-      }, 500)
+      if (updateError) {
+        console.error('Error updating source_storage_path:', updateError)
+        // Intentar limpiar el archivo subido
+        await supabase.storage.from('custody').remove([storagePath])
+        return jsonResponse({
+          error: 'Failed to update document entity with storage path'
+        }, 500)
+      }
     }
 
     // 8. Log de auditoría (opcional, para Phase 2)
@@ -179,6 +178,7 @@ serve(async (req) => {
     return jsonResponse({
       success: true,
       storage_path: storagePath,
+      purpose,
       message: `Encrypted custody stored for "${metadata.original_name}" (${metadata.original_size} bytes)`
     })
 

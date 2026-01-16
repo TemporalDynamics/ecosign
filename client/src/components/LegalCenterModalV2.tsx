@@ -1056,10 +1056,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         if (canonicalDocumentId) {
           try {
+            const witnessStoragePath = await storeEncryptedCustody(
+              fileToSend,
+              canonicalDocumentId,
+              'witness'
+            );
+
             await ensureWitnessCurrent(canonicalDocumentId, {
               hash: documentHash,
               mime_type: 'application/pdf',
-              storage_path: storagePath,
+              storage_path: witnessStoragePath,
               status: 'generated'
             });
 
@@ -1263,10 +1269,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         const witnessBytes = await fileToProcess.arrayBuffer();
         witnessHash = await hashWitness(witnessBytes);
         if (canonicalDocumentId) {
+          const witnessStoragePath = await storeEncryptedCustody(
+            fileToProcess,
+            canonicalDocumentId,
+            'witness'
+          );
+
           await ensureWitnessCurrent(canonicalDocumentId, {
             hash: witnessHash,
             mime_type: 'application/pdf',
-            storage_path: '',
+            storage_path: witnessStoragePath,
             status: 'generated'
           });
 

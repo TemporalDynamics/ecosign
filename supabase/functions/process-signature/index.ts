@@ -562,9 +562,10 @@ serve(async (req) => {
           delivery_status: 'pending'
         })
     } else if (nextSigner && workflowDeliveryMode === 'link') {
-      console.log('process-signature: Skipping next signer notification (delivery_mode=link)', {
+      console.log('[DELIVERY_MODE=link] Skipping signer notification - creator must share link manually', {
         workflowId: signer.workflow_id,
-        nextSignerEmail: nextSigner.email
+        nextSignerEmail: nextSigner.email,
+        nextSignerOrder: nextSigner.signing_order
       })
     }
 

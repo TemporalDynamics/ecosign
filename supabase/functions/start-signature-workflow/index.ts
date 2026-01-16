@@ -102,6 +102,11 @@ serve(withRateLimit('workflow', async (req) => {
       return jsonResponse({ error: 'Missing required fields' }, 400)
     }
 
+    // Validate deliveryMode if provided
+    if (deliveryMode && !['email', 'link'].includes(deliveryMode)) {
+      return jsonResponse({ error: 'Invalid deliveryMode. Must be "email" or "link"' }, 400)
+    }
+
     const workflowPayload = {
       owner_id: user.id,
       original_filename: originalFilename,

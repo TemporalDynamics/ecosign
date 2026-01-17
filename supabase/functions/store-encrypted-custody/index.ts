@@ -66,6 +66,12 @@ interface StoreEncryptedRequest {
 }
 
 serve(async (req) => {
+  console.log('[store-encrypted-custody] ⚡ REQUEST RECEIVED', {
+    method: req.method,
+    contentLength: req.headers.get('content-length'),
+    timestamp: new Date().toISOString()
+  })
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -93,7 +99,14 @@ serve(async (req) => {
     }
 
     // 2. Parsear body
+    console.log('[store-encrypted-custody] Parsing body...')
     const body: StoreEncryptedRequest = await req.json()
+    console.log('[store-encrypted-custody] Body parsed', {
+      document_entity_id: body.document_entity_id,
+      encrypted_data_length: body.encrypted_data?.length,
+      purpose: body.purpose,
+      metadata: body.metadata
+    })
     const { document_entity_id, encrypted_data, metadata, purpose = 'source' } = body
 
     if (!document_entity_id || !encrypted_data || !metadata) {

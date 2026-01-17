@@ -68,7 +68,7 @@ Nota: incluir id evita ambiguedades y asegura estabilidad entre clientes/servido
 ## 5. Anclaje
 - MUST: solo se ancla batch_hash.
 - 1 transaccion, 1 costo, 1 prueba de simultaneidad.
-- Los documentos conservan TSA, ECO y verificacion individual.
+- Los documentos conservan TSA, ECO (snapshots) y verificacion individual.
 
 ## 6. UX obligatoria
 - MUST: 1 mail por firmante por batch.

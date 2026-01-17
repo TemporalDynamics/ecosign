@@ -70,17 +70,14 @@ export async function appendTsaEventFromEdge(
       },
     };
 
-    // 4. Append to events[] (DB trigger will validate)
-    const currentEvents = Array.isArray(entity.events) ? entity.events : [];
-    const { error: updateError } = await supabase
-      .from('document_entities')
-      .update({
-        events: [...currentEvents, event],
-      })
-      .eq('id', documentId);
+    const { error: rpcError } = await supabase.rpc('append_document_entity_event', {
+      p_document_entity_id: documentId,
+      p_event: event,
+      p_source: null,
+    });
 
-    if (updateError) {
-      return { success: false, error: `Failed to append TSA event: ${updateError.message}` };
+    if (rpcError) {
+      return { success: false, error: `Failed to append TSA event: ${rpcError.message}` };
     }
 
     return { success: true };

@@ -155,7 +155,8 @@ Esto permite afirmar:
 ### 5.1 `hash_only`
 
 * EcoSign **NO guarda** el archivo.
-* Solo existe el hash y el ECO.
+* La evidencia primaria entregada al usuario es el ECO (snapshots firmados).
+* El registro tecnico extendido append-only es el ECOX.
 * El usuario es responsable de mantener el archivo inmutable.
 
 **Advertencia obligatoria al usuario:**

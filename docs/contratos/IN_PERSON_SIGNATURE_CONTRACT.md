@@ -47,7 +47,7 @@ Caso A: con cuenta
 - Se muestra: "Este es el mismo documento/operacion que estas confirmando".
 
 Caso B: sin cuenta
-- Se solicita ECO (minimo).
+- Se solicita ECO (snapshot minimo).
 - MUST: se valida que el ECO corresponde al subject (document o batch) comparando hash(s) esperados.
 - Se permite confirmar.
 

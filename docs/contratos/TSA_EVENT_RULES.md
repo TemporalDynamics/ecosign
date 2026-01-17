@@ -137,6 +137,7 @@ events[] = [
 ---
 
 ## 7. Proyección ECO v2
+TSA alimenta el ECOX y habilita snapshots ECO; no cierra la historia.
 
 El formato `.eco v2` **DEBE** incluir TSA si existe:
 

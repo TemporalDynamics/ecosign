@@ -17,7 +17,7 @@ Estas entidades son proyecciones directas del canon:
 * VisualWitness (testigos visuales)
 * HashChain (cadena de hashes)
 * TransformLog (registro de transformaciones)
-* ECO (payload verificable, como archivo/registro)
+* ECO (payload verificable, snapshot firmado)
 
 ---
 

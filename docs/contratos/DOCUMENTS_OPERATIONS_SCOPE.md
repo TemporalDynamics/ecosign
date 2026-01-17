@@ -14,7 +14,7 @@ Definir la frontera explicita entre Documents/Operations y Centro Legal.
 ## 2. Acciones permitidas en Documents/Operations
 - Ver detalle
 - Compartir
-- Descargar (PDF/ECO/original)
+- Descargar (PDF/ECO snapshot/original)
 - Verificar
 - Agregar a operacion
 - Cambiar estado operativo (completar/archivar)

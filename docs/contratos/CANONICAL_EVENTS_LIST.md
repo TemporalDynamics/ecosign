@@ -8,6 +8,8 @@ Normas: MUST, SHOULD, MAY
 Definir la lista minima de eventos canonicos que deben existir.
 
 ## 1. Eventos obligatorios (MUST)
+- eco.snapshot.issued
+- eco.finalized
 - workflow.created
 - workflow.activated
 - workflow.completed

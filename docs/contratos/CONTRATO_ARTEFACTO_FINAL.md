@@ -182,6 +182,7 @@ Un tercero debe poder verificar que un artefacto corresponde a un workflow espec
 - `DECISION_LOG_3.0.md` — Decisiones de arquitectura P0/P1/P2
 - `NOTIFICATION_POLICY.md` — Política de notificaciones
 - Roadmap de implementación: `docs/roadmaps/FINAL_ARTIFACT_ROADMAP.md`
+- CONTRATO_AUTORIDAD_EJECUTOR.md
 
 ---
 

@@ -6,6 +6,8 @@ Normas: MUST, SHOULD, MAY
 
 Proposito: definir el verificador v2 como lectura pura del .ECO v2. No introduce conceptos nuevos.
 
+El verificador valida un snapshot ECO especifico (eco_snapshot_seq / eco_version).
+
 ---
 
 ## 1. Input unico

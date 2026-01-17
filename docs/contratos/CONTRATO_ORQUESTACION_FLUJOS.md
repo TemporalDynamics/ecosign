@@ -90,3 +90,8 @@ Estos estados son distintos de los intermedios de lifecycle_status.
 - Backend de storage de jobs (SQL/Redis).
 - Politica de backoff y limites de reintentos por paso.
 - Mapeo de estados terminales a document_entities.lifecycle_status.
+
+## Referencias
+- CONTRATO_AUTORIDAD_EJECUTOR.md
+- LISTA_IMPLEMENTACION_AUTORIDAD_EJECUTOR.md
+- CONTRATO_MAPEO_EJECUTOR.md

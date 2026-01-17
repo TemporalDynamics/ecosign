@@ -920,30 +920,40 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         });
         canonicalDocumentId = tempCreated.id as string;
 
-        setCertifyProgress({
-          stage: 'preparing',
-          message: 'Cifrando archivo original...'
-        });
-        const storagePath = await storeEncryptedCustody(file, canonicalDocumentId);
+        // Solo cifrar y subir el original si el usuario eligió encrypted_custody
+        if (custodyModeChoice === 'encrypted_custody') {
+          setCertifyProgress({
+            stage: 'preparing',
+            message: 'Cifrando archivo original...'
+          });
+          const storagePath = await storeEncryptedCustody(file, canonicalDocumentId);
 
-        const { error: updateError } = await supabase
-          .from('document_entities')
-          .update({
-            custody_mode: custodyModeChoice === 'encrypted_custody' ? 'encrypted_custody' : 'hash_only',
-            source_storage_path: storagePath
-          })
-          .eq('id', canonicalDocumentId);
+          const { error: updateError } = await supabase
+            .from('document_entities')
+            .update({
+              custody_mode: 'encrypted_custody',
+              source_storage_path: storagePath
+            })
+            .eq('id', canonicalDocumentId);
 
-        if (updateError) {
-          console.warn('Failed to update custody metadata:', updateError);
+          if (updateError) {
+            console.warn('Failed to update custody metadata:', updateError);
+          } else {
+            console.log('✅ Encrypted custody stored:', storagePath);
+          }
         } else {
-          console.log('✅ Encrypted custody stored:', storagePath);
+          console.log('ℹ️ Custody mode is hash_only, skipping encrypted upload');
         }
       } catch (err) {
-        console.error('Encrypted custody required but failed:', err);
-        showToast('No se pudo cifrar y guardar el original. Intentá nuevamente.', { type: 'error' });
-        setLoading(false);
-        return;
+        // Solo es error fatal si el usuario QUERÍA guardar el original
+        if (custodyModeChoice === 'encrypted_custody') {
+          console.error('Encrypted custody required but failed:', err);
+          showToast('No se pudo cifrar y guardar el original. Intentá nuevamente.', { type: 'error' });
+          setLoading(false);
+          return;
+        }
+        // Si es hash_only, el error de custody no es bloqueante
+        console.warn('Custody upload failed (non-blocking for hash_only):', err);
       }
       if (canonicalDocumentId) {
         console.debug('Canonical document_entities created:', canonicalDocumentId);
@@ -1056,16 +1066,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         if (canonicalDocumentId) {
           try {
-            const witnessStoragePath = await storeEncryptedCustody(
+            // Subir backup cifrado a custody (no bloqueante)
+            storeEncryptedCustody(
               fileToSend,
               canonicalDocumentId,
               'witness'
-            );
+            ).catch(err => console.warn('Custody backup skipped:', err));
 
+            // Usar el storagePath de user-documents para descarga (ya subido arriba)
             await ensureWitnessCurrent(canonicalDocumentId, {
               hash: documentHash,
               mime_type: 'application/pdf',
-              storage_path: witnessStoragePath,
+              storage_path: storagePath, // Path en user-documents (plaintext, descargable)
               status: 'generated'
             });
 
@@ -1269,6 +1281,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         const witnessBytes = await fileToProcess.arrayBuffer();
         witnessHash = await hashWitness(witnessBytes);
         if (canonicalDocumentId) {
+          // Obtener usuario para los paths de storage
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (!currentUser) {
+            throw new Error('Usuario no autenticado');
+          }
+
+          // 1. Subir versión CIFRADA a custody (backup)
           const witnessStoragePath = await storeEncryptedCustody(
             fileToProcess,
             canonicalDocumentId,
@@ -1281,6 +1300,33 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             storage_path: witnessStoragePath,
             status: 'generated'
           });
+
+          // 2. Subir versión SIN CIFRAR a user-documents (para descarga)
+          const downloadPath = `${currentUser.id}/${Date.now()}-${file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from('user-documents')
+            .upload(downloadPath, fileToProcess, {
+              contentType: 'application/pdf',
+              upsert: false
+            });
+
+          if (!uploadError) {
+            console.log('✅ Witness PDF uploaded to user-documents:', downloadPath);
+            // Actualizar witness_current_storage_path con el path de descarga (plaintext)
+            // El path de custody (cifrado) queda como backup, pero el de descarga es el importante
+            const { error: updateError } = await supabase
+              .from('document_entities')
+              .update({ witness_current_storage_path: downloadPath })
+              .eq('id', canonicalDocumentId);
+
+            if (updateError) {
+              console.warn('⚠️ Could not update witness storage path:', updateError);
+            } else {
+              console.log('✅ witness_current_storage_path updated to downloadable path:', downloadPath);
+            }
+          } else {
+            console.warn('⚠️ Could not upload witness to user-documents (download may fail):', uploadError);
+          }
 
           if (canonicalSourceHash && file.type !== 'application/pdf') {
             await appendTransform(canonicalDocumentId, {

@@ -1,7 +1,8 @@
-# EXECUTOR_FLOW_MAPPING
+# CONTRATO_MAPEO_EJECUTOR
 
 Fecha: 2026-01-15
-Estado: Approved (v1)
+Estado: Canonical
+Version: v1.0
 
 ## Objetivo
 Congelar el mapeo canonico de orquestacion:
@@ -73,6 +74,11 @@ NDA | Finalizar | entity.finalize | build (+ notify) | build-final-artifact | ar
 ## Nota sobre finalize
 `entity.finalize` se considera completo cuando se emite `artifact.finalized`.
 Las notificaciones son side-effects no bloqueantes.
+
+## Referencias
+- CONTRATO_AUTORIDAD_EJECUTOR.md
+- CONTRATO_ORQUESTACION_FLUJOS.md
+- LISTA_IMPLEMENTACION_AUTORIDAD_EJECUTOR.md
 
 ## Pendientes / TBD
 - Identificar nombres exactos de workers/edges para cada step donde dice TBD.

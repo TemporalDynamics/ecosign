@@ -14,6 +14,7 @@ export default function DocumentRow({
   onShare,
   onDownloadPdf,
   onDownloadEco,
+  onDownloadOriginal,
   onVerify,
   onMove,
   onInPerson,
@@ -28,6 +29,7 @@ export default function DocumentRow({
   onShare?: (doc: any) => void;
   onDownloadPdf?: (doc: any) => void;
   onDownloadEco?: (doc: any) => void;
+  onDownloadOriginal?: (doc: any) => void;
   onVerify?: (doc: any) => void;
   onMove?: (doc: any) => void;
   onInPerson?: (doc: any) => void;
@@ -120,7 +122,21 @@ export default function DocumentRow({
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onDownloadEco(document)}>Descargar .ECO</button>
                 )}
                 {onDownloadPdf && (
-                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onDownloadPdf(document)}>Descargar PDF</button>
+                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onDownloadPdf(document)}>Descargar copia fiel</button>
+                )}
+                {onDownloadOriginal && (
+                  <button
+                    className={`w-full text-left px-3 py-2 text-sm ${
+                      document.custody_mode === 'encrypted_custody' && document.source_storage_path
+                        ? 'hover:bg-gray-50'
+                        : 'text-gray-400 cursor-not-allowed'
+                    }`}
+                    onClick={() => document.custody_mode === 'encrypted_custody' && document.source_storage_path && onDownloadOriginal(document)}
+                    disabled={!(document.custody_mode === 'encrypted_custody' && document.source_storage_path)}
+                    title={document.custody_mode === 'encrypted_custody' && document.source_storage_path ? '' : 'Original no disponible'}
+                  >
+                    Descargar original
+                  </button>
                 )}
                 {onVerify && (
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onVerify(document)}>Verificar documento</button>
@@ -209,7 +225,22 @@ export default function DocumentRow({
                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
                   onClick={() => onDownloadPdf(document)}
                 >
-                  Descargar PDF
+                  Descargar copia fiel
+                </button>
+              )}
+
+              {onDownloadOriginal && (
+                <button
+                  className={`w-full text-left px-3 py-2 text-sm ${
+                    document.custody_mode === 'encrypted_custody' && document.source_storage_path
+                      ? 'hover:bg-gray-50'
+                      : 'text-gray-400 cursor-not-allowed'
+                  }`}
+                  onClick={() => document.custody_mode === 'encrypted_custody' && document.source_storage_path && onDownloadOriginal(document)}
+                  disabled={!(document.custody_mode === 'encrypted_custody' && document.source_storage_path)}
+                  title={document.custody_mode === 'encrypted_custody' && document.source_storage_path ? '' : 'Original no disponible'}
+                >
+                  Descargar original
                 </button>
               )}
 

@@ -9,6 +9,8 @@ Referencia canonica: VERDAD_CANONICA (docs/contratos/verdad-canonica.md)
 
 Definir el contenido minimo del archivo .ECO como testigo verificable de la Verdad Canonica. No introduce conceptos nuevos.
 
+Cada archivo .ECO emitido es un snapshot firmado por EcoSign.
+
 ---
 
 ## 1. Invariante Principal

@@ -81,6 +81,7 @@ VisualWitness {
 * MUST: el PDF contiene metadatos XMP con `source_hash` y `eco_id`.
 * MUST: `source_hash` en XMP coincide con `SourceTruth.hash`.
 * MUST: `eco_id` en XMP refiere al identificador del archivo `.ECO`.
+* MUST: `eco_snapshot_seq` en XMP identifica el snapshot ECO asociado.
 * SHOULD: estos metadatos no son opcionales en ningun flujo que genere testigo.
 
 ---

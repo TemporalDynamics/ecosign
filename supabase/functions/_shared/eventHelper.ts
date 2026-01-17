@@ -59,38 +59,16 @@ export async function appendEvent(
       return { success: false, error: 'Event "at" must be valid ISO 8601 timestamp' };
     }
 
-    // 2. Fetch current document entity
-    const { data: entity, error: fetchError } = await supabase
-      .from('document_entities')
-      .select('id, events')
-      .eq('id', documentEntityId)
-      .single();
+    const { error: rpcError } = await supabase.rpc('append_document_entity_event', {
+      p_document_entity_id: documentEntityId,
+      p_event: event,
+      p_source: source ?? null,
+    });
 
-    if (fetchError || !entity) {
+    if (rpcError) {
       return {
         success: false,
-        error: `Document entity not found: ${fetchError?.message || 'not found'}`
-      };
-    }
-
-    // 3. Add optional _source for forensics (not for UI, for debugging)
-    const eventWithSource = source
-      ? { ...event, _source: source }
-      : event;
-
-    // 4. Append to events[] (DB trigger will validate append-only)
-    const currentEvents = Array.isArray(entity.events) ? entity.events : [];
-    const { error: updateError } = await supabase
-      .from('document_entities')
-      .update({
-        events: [...currentEvents, eventWithSource],
-      })
-      .eq('id', documentEntityId);
-
-    if (updateError) {
-      return {
-        success: false,
-        error: `Failed to append event: ${updateError.message}`
+        error: `Failed to append event: ${rpcError.message}`
       };
     }
 

@@ -94,3 +94,6 @@ Un segundo worker, más simple, se suscribe a este nuevo evento canónico.
     *   Mientras el `workflow.status` es `completed` pero no se ha recibido el evento `workflow.artifact_finalized`, la UI puede mostrar un estado intermedio como "Procesando documento final...".
     *   Al recibir el evento `workflow.artifact_finalized`, la UI debe mostrar el estado de cierre final: "Documento final listo" y habilitar un botón de descarga que apunte al `artifact_url` del evento.
     *   Este es el **"cierre mental"** real para el usuario.
+
+## Referencias
+- CONTRATO_AUTORIDAD_EJECUTOR.md

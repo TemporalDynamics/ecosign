@@ -8,6 +8,8 @@ Proposito: definir el formato .ECO v2 como proyeccion directa del canon. No intr
 
 Nota: el sistema puede mantener representaciones internas mas ricas del canon para auditoria o reconstruccion. El formato .ECO v2 es la proyeccion publica estable y verificable.
 
+El .ECO v2 es una proyeccion del ECOX en un instante (snapshot).
+
 ---
 
 ## 1. Invariante principal

@@ -104,16 +104,14 @@ export async function appendAnchorEventFromEdge(
       },
     };
 
-    // 6. Append to events[] (DB trigger will handle derivations)
-    const { error: updateError } = await supabase
-      .from('document_entities')
-      .update({
-        events: [...currentEvents, event],
-      })
-      .eq('id', documentId);
+    const { error: rpcError } = await supabase.rpc('append_document_entity_event', {
+      p_document_entity_id: documentId,
+      p_event: event,
+      p_source: null,
+    });
 
-    if (updateError) {
-      return { success: false, error: `Failed to append anchor event: ${updateError.message}` };
+    if (rpcError) {
+      return { success: false, error: `Failed to append anchor event: ${rpcError.message}` };
     }
 
     return { success: true };

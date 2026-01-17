@@ -21,10 +21,17 @@ self.addEventListener('install', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
+  // ❌ NUNCA interceptar requests cross-origin (APIs externas, Supabase, etc.)
+  // Esto incluye Supabase en localhost:54321 y producción
+  if (url.origin !== self.location.origin) {
+    // No hacer nada - dejar que el navegador maneje directamente
+    return;
+  }
+
   // ❌ NUNCA interceptar rutas de share/crypto/OTP
   // Estas rutas DEBEN ir directo a la red sin cache ni SW
-  if (url.pathname.startsWith('/shared/') || 
+  if (url.pathname.startsWith('/shared/') ||
       url.pathname.startsWith('/s/') ||
       url.pathname.includes('/share')) {
     // Bypass completo: delegar 100% al navegador/red

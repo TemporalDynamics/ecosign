@@ -27,6 +27,7 @@ import { disableGuestMode, isGuestMode } from "../utils/guestMode";
 import { deleteDraftOperation, loadDraftFile, loadDraftOperations } from "../lib/draftOperationsService";
 import { useLegalCenter } from "../contexts/LegalCenterContext";
 import { decryptFile, ensureCryptoSession, getSessionUnwrapKey, unwrapDocumentKey } from "../lib/e2e";
+import { decryptFile as decryptCustodyFile } from "../lib/encryptionService";
 import { hashSigned, hashSource, hashWitness } from "../lib/canonicalHashing";
 import { listDrafts, type DraftMeta } from "../utils/draftStorage";
 
@@ -63,6 +64,7 @@ type DocumentRecord = {
   events?: any[];
   signer_links?: any[];
   source_storage_path?: string | null;
+  custody_mode?: 'hash_only' | 'encrypted_custody' | null;
 };
 
 type DocumentEntityRow = {
@@ -77,8 +79,11 @@ type DocumentEntityRow = {
   signed_authority?: 'internal' | 'external' | null;
   composite_hash?: string | null;
   lifecycle_status?: string | null;
+  custody_mode?: 'hash_only' | 'encrypted_custody' | null;
   created_at?: string | null;
   updated_at?: string | null;
+  tsa_latest?: any;
+  events?: any[];
 };
 
 type DraftRow = DraftMeta & {
@@ -212,8 +217,12 @@ const formatDate = (date: string | number | Date | null | undefined) => {
   });
 };
 
-const getPdfStoragePath = (doc: DocumentRecord | null) =>
-  doc?.pdf_storage_path || doc?.source_storage_path || null;
+const getPdfStoragePath = (doc: DocumentRecord | null) => {
+  // Only return pdf_storage_path (plaintext PDF in user-documents bucket)
+  // DO NOT fall back to source_storage_path (encrypted custody path in different bucket)
+  // If pdf_storage_path is null, handlePdfDownload will use encrypted_path instead
+  return doc?.pdf_storage_path || null;
+};
 
 const computeHash = async (
   mode: VerificationMode,
@@ -242,6 +251,7 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     source_storage_path: entity.source_storage_path ?? null,
     status: entity.lifecycle_status ?? null,
     signed_authority: entity.signed_authority ?? null,
+    custody_mode: entity.custody_mode ?? null,
     has_legal_timestamp: !!entity.tsa_latest,
     has_polygon_anchor: false,
     has_bitcoin_anchor: false,
@@ -545,6 +555,7 @@ function DocumentsPage() {
           signed_authority,
           composite_hash,
           lifecycle_status,
+          custody_mode,
           created_at,
           updated_at,
           events,
@@ -825,7 +836,13 @@ function DocumentsPage() {
     if (!storagePath) return;
     try {
       const supabase = getSupabase();
-      const { data, error } = await supabase.storage.from("user-documents").createSignedUrl(storagePath, 3600);
+      // Detect bucket based on path pattern
+      // custody: {user_id}/{doc_id}/encrypted_witness/... or encrypted_source
+      // user-documents: everything else
+      const isCustodyPath = storagePath.includes('/encrypted_witness/') || storagePath.includes('/encrypted_source');
+      const bucket = isCustodyPath ? "custody" : "user-documents";
+      console.log('[downloadFromPath] Using bucket:', bucket, 'for path:', storagePath);
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 3600);
       if (error) {
         console.error("Error creando URL de descarga:", error);
         window.alert("No pudimos preparar la descarga. Probá regenerar el certificado y reintentá.");
@@ -840,6 +857,29 @@ function DocumentsPage() {
       }
 
       const blob = await response.blob();
+      console.log('[downloadFromPath] Downloaded blob:', {
+        size: blob.size,
+        type: blob.type,
+        contentType: response.headers.get('content-type'),
+      });
+
+      // Verificar si el blob tiene contenido válido
+      if (blob.size === 0) {
+        console.error('[downloadFromPath] Downloaded blob is empty!');
+        window.alert("El archivo descargado está vacío.");
+        return;
+      }
+
+      // Verificar primeros bytes para detectar tipo de archivo
+      const firstBytes = await blob.slice(0, 10).arrayBuffer();
+      const header = new Uint8Array(firstBytes);
+      const headerHex = Array.from(header).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      console.log('[downloadFromPath] File header (first 10 bytes):', headerHex);
+
+      // PDF starts with %PDF (25 50 44 46)
+      const isPdf = header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46;
+      console.log('[downloadFromPath] Is valid PDF:', isPdf);
+
       const fallbackName = storagePath.split("/").pop() || "archivo.eco";
       triggerDownload(blob, fileName || fallbackName);
     } catch (err) {
@@ -853,7 +893,11 @@ function DocumentsPage() {
       throw new Error("Iniciá sesión para previsualizar documentos.");
     }
     const supabase = getSupabase();
-    const { data, error } = await supabase.storage.from("user-documents").createSignedUrl(storagePath, 3600);
+    // Detect bucket based on path pattern
+    const isCustodyPath = storagePath.includes('/encrypted_witness/') || storagePath.includes('/encrypted_source');
+    const bucket = isCustodyPath ? "custody" : "user-documents";
+    console.log('[fetchPreviewBlobFromPath] Using bucket:', bucket, 'for path:', storagePath);
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 3600);
     if (error || !data?.signedUrl) {
       throw new Error("No pudimos preparar la previsualización.");
     }
@@ -865,7 +909,22 @@ function DocumentsPage() {
   };
 
   const fetchEncryptedPdfBlob = async (doc: DocumentRecord) => {
+    console.log('[fetchEncryptedPdfBlob] Starting download for document:', {
+      id: doc.id,
+      name: doc.document_name,
+      encrypted_path: doc.encrypted_path,
+      wrapped_key: doc.wrapped_key ? `[${doc.wrapped_key.length} chars]` : null,
+      wrap_iv: doc.wrap_iv ? `[${doc.wrap_iv.length} chars]` : null,
+      pdf_storage_path: doc.pdf_storage_path,
+      source_storage_path: doc.source_storage_path,
+    });
+
     if (!doc.encrypted_path || !doc.wrapped_key || !doc.wrap_iv) {
+      console.error('[fetchEncryptedPdfBlob] Missing encryption fields:', {
+        hasEncryptedPath: !!doc.encrypted_path,
+        hasWrappedKey: !!doc.wrapped_key,
+        hasWrapIv: !!doc.wrap_iv,
+      });
       throw new Error("No tenemos la información de cifrado para este documento.");
     }
 
@@ -884,23 +943,51 @@ function DocumentsPage() {
       throw new Error("No se pudo inicializar el cifrado de sesión. Cerrá sesión e ingresá nuevamente.");
     }
 
+    console.log('[fetchEncryptedPdfBlob] Creating signed URL for path:', doc.encrypted_path);
     const { data, error } = await supabase.storage
       .from("user-documents")
       .createSignedUrl(doc.encrypted_path, 3600);
 
     if (error || !data?.signedUrl) {
+      console.error('[fetchEncryptedPdfBlob] Failed to create signed URL:', error);
       throw new Error("No pudimos preparar la descarga del PDF.");
     }
 
+    console.log('[fetchEncryptedPdfBlob] Fetching encrypted blob from signed URL');
     const response = await fetch(data.signedUrl);
     if (!response.ok) {
+      console.error('[fetchEncryptedPdfBlob] Fetch failed:', response.status, response.statusText);
       throw new Error("No se pudo descargar el PDF cifrado.");
     }
 
     const encryptedBlob = await response.blob();
+    console.log('[fetchEncryptedPdfBlob] Downloaded encrypted blob:', {
+      size: encryptedBlob.size,
+      type: encryptedBlob.type,
+    });
+
+    if (encryptedBlob.size === 0) {
+      console.error('[fetchEncryptedPdfBlob] ⚠️ Downloaded blob is EMPTY!');
+      throw new Error("El archivo cifrado está vacío en el servidor.");
+    }
+
     const sessionUnwrapKey = getSessionUnwrapKey();
+    console.log('[fetchEncryptedPdfBlob] Unwrapping document key...');
     const documentKey = await unwrapDocumentKey(doc.wrapped_key, doc.wrap_iv, sessionUnwrapKey);
-    return decryptFile(encryptedBlob, documentKey);
+    console.log('[fetchEncryptedPdfBlob] Document key unwrapped, decrypting...');
+
+    const decryptedBlob = await decryptFile(encryptedBlob, documentKey);
+    console.log('[fetchEncryptedPdfBlob] ✅ Decryption complete:', {
+      decryptedSize: decryptedBlob.size,
+      decryptedType: decryptedBlob.type,
+    });
+
+    if (decryptedBlob.size === 0) {
+      console.error('[fetchEncryptedPdfBlob] ⚠️ Decrypted blob is EMPTY!');
+      throw new Error("El archivo descifrado está vacío.");
+    }
+
+    return decryptedBlob;
   };
 
   useEffect(() => {
@@ -1107,35 +1194,113 @@ function DocumentsPage() {
 
   const handlePdfDownload = (doc: DocumentRecord | null) => {
     if (!doc) return;
+    console.log('[handlePdfDownload] Starting download:', {
+      id: doc.id,
+      name: doc.document_name,
+      pdf_storage_path: doc.pdf_storage_path,
+      encrypted_path: doc.encrypted_path,
+      hasWrappedKey: !!doc.wrapped_key,
+      hasWrapIv: !!doc.wrap_iv,
+    });
+
     const storagePath = getPdfStoragePath(doc);
+    console.log('[handlePdfDownload] getPdfStoragePath returned:', storagePath);
+
     if (storagePath) {
+      console.log('[handlePdfDownload] Using plain storage path:', storagePath);
       downloadFromPath(storagePath, doc.document_name);
       return;
     }
     if (doc.encrypted_path) {
+      console.log('[handlePdfDownload] Using encrypted path:', doc.encrypted_path);
       fetchEncryptedPdfBlob(doc)
-        .then((blob) => triggerDownload(blob, doc.document_name))
+        .then((blob) => {
+          console.log('[handlePdfDownload] Got blob, size:', blob.size);
+          triggerDownload(blob, doc.document_name);
+        })
         .catch((err) => {
           console.error("Error descargando PDF cifrado:", err);
           window.alert(err instanceof Error ? err.message : "No pudimos descargar el PDF.");
         });
       return;
     }
+    console.warn('[handlePdfDownload] No storage path available for document');
     window.alert("Este documento no tiene copia guardada.");
   };
 
-  const handleOriginalDownload = (doc: DocumentRecord | null) => {
+  const handleOriginalDownload = async (doc: DocumentRecord | null) => {
     if (!doc) return;
-    if (!doc.encrypted_path) {
-      window.alert("Este documento no tiene archivo original cifrado.");
+
+    // Verificar que el documento tenga el original guardado
+    if (doc.custody_mode !== 'encrypted_custody' || !doc.source_storage_path) {
+      window.alert("Este documento no tiene el archivo original guardado.");
       return;
     }
-    fetchEncryptedPdfBlob(doc)
-      .then((blob) => triggerDownload(blob, doc.document_name))
-      .catch((err) => {
-        console.error("Error descargando original cifrado:", err);
-        window.alert(err instanceof Error ? err.message : "No pudimos descargar el original.");
-      });
+
+    try {
+      const supabase = getSupabase();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        window.alert("Necesitás iniciar sesión para descargar el original.");
+        return;
+      }
+
+      console.log('[handleOriginalDownload] Downloading from custody:', doc.source_storage_path);
+
+      // Descargar archivo cifrado desde custody bucket
+      const { data, error } = await supabase.storage
+        .from('custody')
+        .createSignedUrl(doc.source_storage_path, 3600);
+
+      if (error || !data?.signedUrl) {
+        console.error('[handleOriginalDownload] Error creating signed URL:', error);
+        window.alert("No pudimos preparar la descarga del original.");
+        return;
+      }
+
+      const response = await fetch(data.signedUrl);
+      if (!response.ok) {
+        window.alert("No se pudo descargar el archivo original.");
+        return;
+      }
+
+      const encryptedBlob = await response.blob();
+      console.log('[handleOriginalDownload] Downloaded encrypted blob:', encryptedBlob.size, 'bytes');
+
+      // Descifrar usando la clave derivada del userId
+      const encryptedData = await encryptedBlob.arrayBuffer();
+
+      // Determinar MIME type basado en la extensión del nombre original
+      const extension = doc.document_name.split('.').pop()?.toLowerCase() || '';
+      const mimeTypes: Record<string, string> = {
+        'pdf': 'application/pdf',
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'webp': 'image/webp',
+        'txt': 'text/plain',
+        'md': 'text/markdown',
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      };
+      const originalMime = mimeTypes[extension] || 'application/octet-stream';
+
+      const decryptedFile = await decryptCustodyFile(
+        encryptedData,
+        user.id,
+        originalMime,
+        doc.document_name
+      );
+
+      console.log('[handleOriginalDownload] Decrypted file:', decryptedFile.size, 'bytes');
+      triggerDownload(decryptedFile, doc.document_name);
+
+    } catch (err) {
+      console.error("Error descargando original cifrado:", err);
+      window.alert(err instanceof Error ? err.message : "No pudimos descargar el original.");
+    }
   };
 
   const handleVerifyDoc = (doc: DocumentRecord | null) => {
@@ -1228,7 +1393,10 @@ function DocumentsPage() {
       let blob: Blob;
       const storagePath = getPdfStoragePath(doc);
       if (storagePath) {
-        const { data, error } = await supabase.storage.from("user-documents").createSignedUrl(storagePath, 600);
+        // Detect bucket based on path pattern
+        const isCustodyPath = storagePath.includes('/encrypted_witness/') || storagePath.includes('/encrypted_source');
+        const bucket = isCustodyPath ? "custody" : "user-documents";
+        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 600);
         if (error || !data?.signedUrl) {
           throw error || new Error("No se pudo crear el enlace de verificación automática.");
         }
@@ -1927,6 +2095,7 @@ function DocumentsPage() {
                       onShare={(d) => handleShareDoc(d)}
                       onDownloadEco={(d) => handleEcoDownload(d)}
                       onDownloadPdf={(d) => handlePdfDownload(d)}
+                      onDownloadOriginal={(d) => handleOriginalDownload(d)}
                       onVerify={(d) => handleVerifyDoc(d)}
                       onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
                       onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
@@ -1960,6 +2129,7 @@ function DocumentsPage() {
                         onShare={(d) => handleShareDoc(d)}
                         onDownloadEco={(d) => handleEcoDownload(d)}
                         onDownloadPdf={(d) => handlePdfDownload(d)}
+                        onDownloadOriginal={(d) => handleOriginalDownload(d)}
                         onVerify={(d) => handleVerifyDoc(d)}
                         onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
                         onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
@@ -2167,42 +2337,60 @@ function DocumentsPage() {
                   </div>
                 </div>
 
+                {/* Evidencias del documento */}
                 <div className="grid gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleShareDoc(previewDoc)}
-                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
-                  >
-                    Compartir
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handlePdfDownload(previewDoc)}
-                    className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:bg-gray-800"
-                  >
-                    Descargar PDF witness
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOriginalDownload(previewDoc)}
-                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!previewDoc.encrypted_path}
-                  >
-                    Descargar original
-                  </button>
+                  {/* ECO - Evidencia criptográfica (protagonista) */}
                   <button
                     type="button"
                     onClick={() => handleEcoDownload(previewDoc)}
-                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                    className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:bg-gray-800"
                   >
                     Descargar ECO
+                    <span className="ml-2 text-xs opacity-70">evidencia verificable</span>
                   </button>
+
+                  {/* Copia fiel (witness) */}
+                  <button
+                    type="button"
+                    onClick={() => handlePdfDownload(previewDoc)}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                    title="Representación fiel y verificable del documento"
+                  >
+                    Descargar copia fiel
+                  </button>
+
+                  {/* Original - Siempre visible, deshabilitado si no está disponible */}
+                  <button
+                    type="button"
+                    onClick={() => handleOriginalDownload(previewDoc)}
+                    className={`px-3 py-2 rounded-lg border text-sm font-semibold ${
+                      previewDoc.custody_mode === 'encrypted_custody' && previewDoc.source_storage_path
+                        ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                    disabled={!(previewDoc.custody_mode === 'encrypted_custody' && previewDoc.source_storage_path)}
+                    title={previewDoc.custody_mode === 'encrypted_custody' && previewDoc.source_storage_path
+                      ? 'Archivo original subido por el usuario'
+                      : 'Original no disponible - no se guardó copia cifrada'}
+                  >
+                    Descargar original
+                  </button>
+
+                  <div className="border-t border-gray-200 my-1" />
+
                   <button
                     type="button"
                     onClick={() => handleVerifyDoc(previewDoc)}
                     className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
                   >
                     Verificar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleShareDoc(previewDoc)}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+                  >
+                    Compartir
                   </button>
                   <button
                     type="button"

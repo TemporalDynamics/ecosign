@@ -2,6 +2,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response('disabled', { status: 204 });
+  }
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });

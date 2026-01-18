@@ -209,6 +209,9 @@ async function insertNotification(anchor: any, txHash: string, blockNumber?: num
 }
 
 serve(async (req) => {
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response('disabled', { status: 204 });
+  }
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
 
   if (req.method === 'OPTIONS') {

@@ -66,6 +66,9 @@ interface StoreEncryptedRequest {
 }
 
 serve(async (req) => {
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response('disabled', { status: 204 });
+  }
   console.log('[store-encrypted-custody] ⚡ REQUEST RECEIVED', {
     method: req.method,
     contentLength: req.headers.get('content-length'),

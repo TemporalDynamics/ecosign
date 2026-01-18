@@ -33,6 +33,9 @@ import { CreateSignerLinkSchema } from '../_shared/schemas.ts';
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
 serve(async (req) => {
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response('disabled', { status: 204 });
+  }
   const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined);
 
   // Handle CORS preflight

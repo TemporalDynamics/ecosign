@@ -920,6 +920,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         });
         canonicalDocumentId = tempCreated.id as string;
 
+        if (!canonicalDocumentId) {
+          throw new Error(
+            'No se pudo crear la entidad canónica del documento (document_entities).'
+          );
+        }
+
         // Solo cifrar y subir el original si el usuario eligió encrypted_custody
         if (custodyModeChoice === 'encrypted_custody') {
           setCertifyProgress({
@@ -954,6 +960,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         }
         // Si es hash_only, el error de custody no es bloqueante
         console.warn('Custody upload failed (non-blocking for hash_only):', err);
+        if (!canonicalDocumentId) {
+          throw new Error(
+            'No se pudo crear la entidad canónica del documento (document_entities).'
+          );
+        }
       }
       if (canonicalDocumentId) {
         console.debug('Canonical document_entities created:', canonicalDocumentId);

@@ -50,13 +50,37 @@ const jsonResponse = (data: unknown, status = 200) =>
     }
   });
 
-const requireCronSecret = (req: Request) => {
+/**
+ * Validates cron/admin access via either:
+ * 1. x-cron-secret header matching CRON_SECRET env var
+ * 2. Authorization header with service role JWT
+ */
+const requireCronOrServiceRole = (req: Request) => {
+  // Option 1: x-cron-secret header
   const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
-  const provided = req.headers.get('x-cron-secret') ?? '';
-  if (!cronSecret || provided !== cronSecret) {
-    return jsonResponse({ error: 'Forbidden' }, 403);
+  const providedCronSecret = req.headers.get('x-cron-secret') ?? '';
+  if (cronSecret && providedCronSecret === cronSecret) {
+    return null; // Authorized via cron secret
   }
-  return null;
+
+  // Option 2: Authorization header with service role key
+  const authHeader = req.headers.get('authorization') ?? '';
+  const serviceRoleKey = supabaseServiceKey ?? '';
+  if (authHeader && serviceRoleKey) {
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    if (token === serviceRoleKey) {
+      return null; // Authorized via service role
+    }
+  }
+
+  logger.warn('auth_rejected', {
+    hasCronSecret: !!cronSecret,
+    hasProvidedCronSecret: !!providedCronSecret,
+    hasAuthHeader: !!authHeader,
+    hasServiceRoleKey: !!serviceRoleKey
+  });
+
+  return jsonResponse({ error: 'Forbidden' }, 403);
 };
 
 async function resolveProjectId(anchor: any, userDocumentId?: string | null): Promise<string | null> {
@@ -413,7 +437,7 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const authError = requireCronSecret(req);
+  const authError = requireCronOrServiceRole(req);
   if (authError) return authError;
 
   if (!supabaseAdmin) {

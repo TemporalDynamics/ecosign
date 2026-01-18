@@ -65,13 +65,27 @@ const groupEventsByPhase = (events: TimelineEvent[]) => {
     }
 
     // Protection (TSA / certification)
-    if (kind === 'tsa' || label.includes('sello de tiempo') || label.includes('evidencia temporal') || label.includes('certific')) {
+    if (
+      kind === 'tsa' ||
+      kind === 'tsa.confirmed' ||
+      label.includes('sello de tiempo') ||
+      label.includes('evidencia temporal') ||
+      label.includes('certific')
+    ) {
       buckets.protection.push(ev);
       return;
     }
 
     // Additional protection / anchoring
-    if (kind === 'anchor' || label.includes('anclaje') || label.includes('anchaj') || label.includes('anchor')) {
+    if (
+      kind === 'anchor' ||
+      kind === 'anchor.confirmed' ||
+      kind === 'anchor.pending' ||
+      kind === 'anchor.failed' ||
+      label.includes('anclaje') ||
+      label.includes('anchaj') ||
+      label.includes('anchor')
+    ) {
       buckets.additional.push(ev);
       return;
     }
@@ -206,4 +220,3 @@ export default function VerifierTimeline({ events, loading = false, error = null
     </div>
   );
 }
-

@@ -17,6 +17,7 @@ const RATE_LIMITS = {
   invite: 5,       // 5 requests per minute for invitations
   accept: 10,      // 10 requests per minute for NDA acceptance
   workflow: 5,     // 5 requests per minute for workflow operations
+  record: 20,      // 20 requests per minute for event recording
   default: 30,     // 30 requests per minute for other operations
 } as const;
 
@@ -74,7 +75,7 @@ export async function checkRateLimit(
   req: Request,
   type: RateLimitType = 'default'
 ) {
-  const limit = RATE_LIMITS[type];
+  const limit = RATE_LIMITS[type] ?? RATE_LIMITS.default;
 
   // Get identifier (IP address or fallback to anonymous)
   const ip = req.headers.get('x-forwarded-for') ||
@@ -120,6 +121,9 @@ export function rateLimitResponse(
   reset: number
 ): Response {
   const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+  const safeLimit = Number.isFinite(limit) ? limit : RATE_LIMITS.default;
+  const safeRemaining = Number.isFinite(remaining) ? remaining : 0;
+  const safeReset = Number.isFinite(reset) ? reset : Date.now() + 60_000;
 
   return new Response(
     JSON.stringify({
@@ -131,9 +135,9 @@ export function rateLimitResponse(
       status: 429,
       headers: {
         'Content-Type': 'application/json',
-        'X-RateLimit-Limit': limit.toString(),
-        'X-RateLimit-Remaining': remaining.toString(),
-        'X-RateLimit-Reset': reset.toString(),
+        'X-RateLimit-Limit': safeLimit.toString(),
+        'X-RateLimit-Remaining': safeRemaining.toString(),
+        'X-RateLimit-Reset': safeReset.toString(),
         'Retry-After': retryAfter.toString(),
       },
     }

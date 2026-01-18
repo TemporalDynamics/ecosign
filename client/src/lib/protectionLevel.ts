@@ -19,23 +19,25 @@ export interface Event {
 }
 
 export interface TsaEvent extends Event {
-  kind: 'tsa';
-  witness_hash: string;
-  tsa: {
+  kind: 'tsa' | 'tsa.confirmed';
+  witness_hash?: string;
+  tsa?: {
     token_b64: string;
     gen_time?: string;
   };
+  payload?: Record<string, unknown>;
 }
 
 export interface AnchorEvent extends Event {
-  kind: 'anchor';
-  anchor: {
+  kind: 'anchor' | 'anchor.confirmed' | 'anchor.pending' | 'anchor.failed';
+  anchor?: {
     network: 'polygon' | 'bitcoin';
-    witness_hash: string;
-    txid: string;
+    witness_hash?: string;
+    txid?: string;
     block_height?: number;
-    confirmed_at: string;
+    confirmed_at?: string;
   };
+  payload?: Record<string, unknown>;
 }
 
 /**
@@ -61,23 +63,29 @@ export function deriveProtectionLevel(events: Event[]): ProtectionLevel {
 
   // Check for TSA event
   const hasTsa = events.some((e): e is TsaEvent =>
-    e.kind === 'tsa' &&
-    typeof (e as any).witness_hash === 'string' &&
-    typeof (e as any).tsa?.token_b64 === 'string'
+    (e.kind === 'tsa' || e.kind === 'tsa.confirmed') &&
+    (typeof (e as any).witness_hash === 'string' ||
+      typeof (e as any).payload?.witness_hash === 'string') &&
+    (typeof (e as any).tsa?.token_b64 === 'string' ||
+      typeof (e as any).payload?.token_b64 === 'string')
   );
 
   // Check for confirmed Polygon anchor
   const hasPolygon = events.some((e): e is AnchorEvent =>
-    e.kind === 'anchor' &&
-    (e as any).anchor?.network === 'polygon' &&
-    typeof (e as any).anchor?.confirmed_at === 'string'
+    (e.kind === 'anchor' || e.kind === 'anchor.confirmed') &&
+    ((e as any).anchor?.network === 'polygon' ||
+      (e as any).payload?.network === 'polygon') &&
+    (typeof (e as any).anchor?.confirmed_at === 'string' ||
+      typeof (e as any).payload?.confirmed_at === 'string')
   );
 
   // Check for confirmed Bitcoin anchor
   const hasBitcoin = events.some((e): e is AnchorEvent =>
-    e.kind === 'anchor' &&
-    (e as any).anchor?.network === 'bitcoin' &&
-    typeof (e as any).anchor?.confirmed_at === 'string'
+    (e.kind === 'anchor' || e.kind === 'anchor.confirmed') &&
+    ((e as any).anchor?.network === 'bitcoin' ||
+      (e as any).payload?.network === 'bitcoin') &&
+    (typeof (e as any).anchor?.confirmed_at === 'string' ||
+      typeof (e as any).payload?.confirmed_at === 'string')
   );
 
   // Apply derivation rules (order matters for correctness)
@@ -149,9 +157,11 @@ export function getProtectionLevelDescription(level: ProtectionLevel): string {
  */
 export function getTsaEvent(events: Event[]): TsaEvent | null {
   return (events.find((e): e is TsaEvent =>
-    e.kind === 'tsa' &&
-    typeof (e as any).witness_hash === 'string' &&
-    typeof (e as any).tsa?.token_b64 === 'string'
+    (e.kind === 'tsa' || e.kind === 'tsa.confirmed') &&
+    (typeof (e as any).witness_hash === 'string' ||
+      typeof (e as any).payload?.witness_hash === 'string') &&
+    (typeof (e as any).tsa?.token_b64 === 'string' ||
+      typeof (e as any).payload?.token_b64 === 'string')
   ) || null);
 }
 
@@ -160,9 +170,11 @@ export function getTsaEvent(events: Event[]): TsaEvent | null {
  */
 export function getAnchorEvents(events: Event[]): AnchorEvent[] {
   return events.filter((e): e is AnchorEvent =>
-    e.kind === 'anchor' &&
-    typeof (e as any).anchor?.network === 'string' &&
-    typeof (e as any).anchor?.confirmed_at === 'string'
+    (e.kind === 'anchor' || e.kind === 'anchor.confirmed') &&
+    (typeof (e as any).anchor?.network === 'string' ||
+      typeof (e as any).payload?.network === 'string') &&
+    (typeof (e as any).anchor?.confirmed_at === 'string' ||
+      typeof (e as any).payload?.confirmed_at === 'string')
   );
 }
 
@@ -171,9 +183,11 @@ export function getAnchorEvents(events: Event[]): AnchorEvent[] {
  */
 export function getAnchorEvent(events: Event[], network: 'polygon' | 'bitcoin'): AnchorEvent | null {
   return (events.find((e): e is AnchorEvent =>
-    e.kind === 'anchor' &&
-    (e as any).anchor?.network === network &&
-    typeof (e as any).anchor?.confirmed_at === 'string'
+    (e.kind === 'anchor' || e.kind === 'anchor.confirmed') &&
+    ((e as any).anchor?.network === network ||
+      (e as any).payload?.network === network) &&
+    (typeof (e as any).anchor?.confirmed_at === 'string' ||
+      typeof (e as any).payload?.confirmed_at === 'string')
   ) || null);
 }
 

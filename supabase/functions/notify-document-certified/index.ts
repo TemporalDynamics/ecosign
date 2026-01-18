@@ -1,18 +1,27 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail, buildDocumentCertifiedEmail } from '../_shared/email.ts';
 import { getUserDocumentId } from '../_shared/eventHelper.ts';
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (!isAllowed) {
+    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {

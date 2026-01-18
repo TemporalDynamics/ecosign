@@ -1,6 +1,10 @@
 # PLAN MAESTRO DE EJECUCIÓN — EcoSign Contracts → Sistema Vivo
 Fecha: 2026-01-12T17:59:58.607Z
 
+## Convencion de eventos (Fase 1)
+Las referencias a eventos en este documento deben interpretarse
+segun la convencion canonica `kind + at + payload`.
+
 Resumen
 ------
 Roadmap maestro dividido en fases numeradas y pasos atómicos. Cada paso incluye:

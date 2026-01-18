@@ -6,6 +6,9 @@
 
 ---
 
+Nota Fase 1: este indice es informativo y no define autoridad operativa.
+La autoridad de ejecucion reside en el Executor.
+
 ## 🎯 Resumen Ejecutivo
 
 Este directorio contiene la documentación completa de la auditoría forense, hardening, y deployment del sistema de anchoring (Bitcoin + Polygon) para EcoSign.

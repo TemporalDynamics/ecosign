@@ -13,6 +13,10 @@ como se traduce cada combinacion de intent en jobs y eventos canonicos.
 - Los workers/edge ejecutan tareas y escriben resultados (eventos canonicos).
 - El avance del flujo ocurre solo cuando el executor observa eventos canonicos.
 
+## Convencion de eventos (Fase 1)
+La convención canonica es `kind + at + payload`. Toda referencia a eventos
+en este documento se interpreta bajo esa regla.
+
 ## 2) Roles del sistema (modelo mental)
 - UI (CTA): declara intencion, no decide el flujo.
 - Executor (capataz): decide el siguiente paso y cuando finaliza.

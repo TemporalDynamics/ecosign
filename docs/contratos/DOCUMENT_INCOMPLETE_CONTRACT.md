@@ -41,6 +41,9 @@ Un documento ES INCOMPLETO si y solo si:
 La existencia de cualquiera de estos eventos cierra el documento y lo excluye
 de "incompleto":
 
+Convencion de eventos (Fase 1):
+Las referencias a eventos se interpretan como `kind + at + payload`.
+
 - `document.completed`
 - `artifact.finalized`
 - `workflow.completed`

@@ -8,6 +8,10 @@
 
 ---
 
+## Convencion de eventos (Fase 1)
+Las referencias a eventos en este documento deben interpretarse
+segun la convencion canonica `kind + at + payload`.
+
 ## 0️⃣ CONTEXTO CRÍTICO
 
 ### Lo que YA está resuelto (frontend)

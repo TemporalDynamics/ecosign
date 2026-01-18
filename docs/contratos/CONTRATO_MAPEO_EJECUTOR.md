@@ -25,6 +25,10 @@ mezclar capas o decisiones implicitas.
 - Los estados derivados se proyectan desde eventos; el Executor no escribe
   estados salvo `failed`.
 
+## Convencion de eventos (Fase 1)
+Toda referencia a eventos en este documento usa la convención canonica
+`kind + at + payload`. Cualquier `event`/`type`/`timestamp` es derivado.
+
 ## CTAs en alcance
 - Proteger documento
 - Firmar documento (mi firma)

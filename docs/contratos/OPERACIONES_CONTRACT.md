@@ -27,6 +27,9 @@ Este contrato existe para evitar:
 - ❌ Carpetas engañosas
 - ❌ Confusión entre archivo, evidencia y proceso
 
+La decision de ejecucion y enforcement corresponde al Executor.
+Este contrato define reglas, no timing ni ejecucion.
+
 ---
 
 ## 1️⃣ DEFINICIÓN FUNDAMENTAL

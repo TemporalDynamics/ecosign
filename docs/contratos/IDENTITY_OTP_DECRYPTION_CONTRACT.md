@@ -4,6 +4,10 @@ Version: v1.0
 Estado: CANONICO  
 Normas: MUST, SHOULD, MAY
 
+## Convencion de eventos (Fase 1)
+Las referencias a eventos en este documento deben interpretarse
+segun la convencion canonica `kind + at + payload`.
+
 ## 0. Proposito
 Definir el flujo obligatorio de pre-acceso, OTP y desbloqueo de lectura del documento
 sin crear cuentas ni exponer contenido antes de la verificacion.

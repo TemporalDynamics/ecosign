@@ -4,6 +4,11 @@
 **Sprint completado:** Canonical Anchor Integration  
 **Branch:** `feature/canonical-contracts-refactor`
 
+> Nota Fase 1:
+> Este documento describe decisiones históricas.
+> No define autoridad operativa ni eventos canónicos en Fase 1.
+> La autoridad de ejecución reside exclusivamente en el Executor.
+
 ---
 
 ## 🎯 CONTEXTO

@@ -4,6 +4,11 @@
 **Estado:** ✅ CERRADO (no se reabre)  
 **Versión:** 1.0
 
+> Nota Fase 1:
+> Este documento describe arquitectura histórica o conceptual.
+> No define autoridad operativa ni eventos canónicos en Fase 1.
+> La autoridad de ejecución reside exclusivamente en el Executor.
+
 ---
 
 ## 🎯 PRINCIPIO FUNDAMENTAL

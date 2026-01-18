@@ -5,6 +5,9 @@ Define the canonical rules for PDF persistence, witness generation, and encrypti
 This contract establishes the minimum guarantees required for UI truthfulness,
 forensic integrity, and user trust.
 
+La decision de ejecucion y enforcement corresponde al Executor.
+Este contrato define reglas, no timing ni ejecucion.
+
 ## Reglas Canonicas
 
 ### Regla A — El PDF original debe existir

@@ -5,6 +5,11 @@ Estado: Canonical
 Ambito: Evidencia, forense, almacenamiento
 Fecha: 2026-01-16
 
+> Nota Fase 1:
+> Este documento describe arquitectura histórica o conceptual.
+> No define autoridad operativa ni eventos canónicos en Fase 1.
+> La autoridad de ejecución reside exclusivamente en el Executor.
+
 Esquemas minimos de ECO (snapshot) y ECOX (timeline vivo).
 
 ## ECO (snapshot)

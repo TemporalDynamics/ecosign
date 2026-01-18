@@ -5,6 +5,10 @@ Estado: Canonical
 Ambito: Evidencia, forense, executor, storage
 Fecha: 2026-01-16
 
+## Convencion de eventos (Fase 1)
+Las referencias a eventos en este documento deben interpretarse
+segun la convencion canonica `kind + at + payload`.
+
 ## 1. Principio rector
 - ECOX es un artefacto vivo y append-only.
 - ECO es un snapshot derivado, firmado e inmutable.

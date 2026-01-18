@@ -6,6 +6,10 @@
 
 ---
 
+## Convencion de eventos (Fase 1)
+Las referencias a eventos en este documento deben interpretarse
+segun la convencion canonica `kind + at + payload`.
+
 ## 0. Propósito
 
 Este contrato define qué es, cómo se genera y cuándo se considera válido el **Artefacto Final del Workflow**.

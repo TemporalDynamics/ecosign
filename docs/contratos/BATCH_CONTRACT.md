@@ -4,6 +4,10 @@ Version: v0.2
 Normas: MUST, SHOULD, MAY
 Referencia: DOCUMENT_ENTITY_CONTRACT
 
+## Convencion de eventos (Fase 1)
+Las referencias a eventos en este documento deben interpretarse
+segun la convencion canonica `kind + at + payload`.
+
 ## 0. Proposito
 Un Batch define una capa probatoria conjunta sobre documentos existentes.
 No crea un "documento nuevo" ni modifica DocumentEntity.

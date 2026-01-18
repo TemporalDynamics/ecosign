@@ -4,6 +4,11 @@
 > **Autor:** DEV 4 — Forense / Infra & Blockchain  
 > **Fecha:** 2025-12-13
 
+> Nota Fase 1:
+> Este documento describe arquitectura histórica o conceptual.
+> No define autoridad operativa ni eventos canónicos en Fase 1.
+> La autoridad de ejecución reside exclusivamente en el Executor.
+
 ---
 
 ## 📊 Executive Summary

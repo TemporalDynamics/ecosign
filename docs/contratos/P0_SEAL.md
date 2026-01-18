@@ -4,6 +4,9 @@ Generado: 2026-01-14T08:18:20Z
 
 Criterio P0 (definitivo): Un workflow cumple P0 si y solo si:
 
+Convencion de eventos (Fase 1):
+Las referencias a eventos en este documento se interpretan como `kind + at + payload`.
+
 - signature_workflows.status = 'completed'
 - Existe >= 1 signer con workflow_signers.status = 'signed'
 - Existe evidencia forense minima: al menos una fila en workflow_signatures OR un evento canónico de firma (workflow_events.kind in ('signature_applied','signer_signed'))

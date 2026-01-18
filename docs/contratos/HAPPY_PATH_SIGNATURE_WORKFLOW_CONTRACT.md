@@ -77,6 +77,9 @@ CONTRATOS
 - Rechazo por parte de firmante: genera workflow_rejected y queda registrado; para corregir se debe crear un nuevo workflow.
 
 9) EVENT CANONICALITY & AUDIT
+Convencion de eventos (Fase 1):
+Las referencias a eventos en este documento se interpretan como `kind + at + payload`.
+
 - Todo estado transicional relevante genera un evento canónico en document_entities.events[] y un registro audit (log-ecox-event) con metadatos (ip_hash, user_agent_family, timezone, geolocation si aplica).
 - Eventos mínimos: workflow_created, workflow_started, signer_invited, access_link_opened, signer_receipt (document_received), otp_sent, otp_verified, signature_applied, tsa, polygon_anchor, bitcoin_anchor, signer_replaced, workflow_cancelled, workflow_rejected, workflow_completed.
 - appendEvent se usa para eventos canónicos canónicamente visibles en el document_entity; log-ecox-event se usa para auditoría enriquecida (telemetría y seguridad).

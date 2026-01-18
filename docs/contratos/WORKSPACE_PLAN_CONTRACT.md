@@ -9,6 +9,9 @@ Definir de manera canonica el modelo de planes, limites y enforcement de
 EcoSign, estableciendo al workspace como la unidad unica de control
 economico, legal y operativo.
 
+La decision de ejecucion y enforcement corresponde al Executor.
+Este contrato define reglas, no timing ni ejecucion.
+
 Este contrato rige:
 
 - planes

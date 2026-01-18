@@ -4,6 +4,10 @@ Version: v1.0
 Estado: CANONICO  
 Normas: MUST, SHOULD, MAY
 
+## Convencion de eventos (Fase 1)
+Las referencias a eventos en este documento deben interpretarse
+segun la convencion canonica `kind + at + payload`.
+
 ## 0. Proposito
 Establecer la responsabilidad explicita de cada operacion para reducir
 ambiguedad operativa y mejorar auditoria interna.

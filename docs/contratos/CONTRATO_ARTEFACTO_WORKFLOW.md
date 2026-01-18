@@ -3,6 +3,10 @@
 **Fecha:** 2026-01-14
 **Estado:** Propuesto
 
+## Convencion de eventos (Fase 1)
+Las referencias a eventos en este documento deben interpretarse
+segun la convencion canonica `kind + at + payload`.
+
 ## 1. Principio Rector
 
 El ciclo de vida de un workflow de firma no termina cuando su estado es `completed`. Termina cuando se ha generado y entregado un **artefacto final y verificable** a todas las partes.

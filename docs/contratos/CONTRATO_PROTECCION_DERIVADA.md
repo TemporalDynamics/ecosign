@@ -19,6 +19,10 @@ Este array es de solo-añadido (`append-only`).
 
 El Nivel de Protección se calculará a través de una función pura `deriveProtectionLevel(events: Event[]): ProtectionLevel`.
 
+## Convencion de eventos (Fase 1)
+Las referencias a `type` en este documento se interpretan como `kind`.
+La fuente canónica es `kind + at + payload`.
+
 **Principio de Conmutatividad:** El orden en que los eventos aparecen en el array no debe afectar el resultado final. La función debe basarse en la presencia de ciertos eventos, no en su secuencia.
 
 La lógica de esta función es la siguiente:

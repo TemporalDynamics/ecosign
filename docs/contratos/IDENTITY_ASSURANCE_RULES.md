@@ -23,6 +23,9 @@ Esta decisión define:
 - El backend puede avanzar sin refactors destructivos
 - No necesitamos más para seguir
 
+La decision de ejecucion y enforcement corresponde al Executor.
+Este contrato define reglas, no timing ni ejecucion.
+
 ---
 
 ## 1. Principio Fundamental

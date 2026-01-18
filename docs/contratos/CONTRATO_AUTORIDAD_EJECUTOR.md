@@ -27,6 +27,10 @@ Evento canonico = evento que:
 - habilita una transicion
 - puede ser citado como evidencia
 
+## Convencion canonica de eventos (Fase 1)
+- MUST: `kind + at + payload` es la unica forma canonica.
+- MUST NOT: `type`, `event`, `timestamp` como fuente de verdad.
+
 ## Verdad canonica
 La verdad canonica del sistema se expresa exclusivamente mediante eventos canonicos append-only.
 

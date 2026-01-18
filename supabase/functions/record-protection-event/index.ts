@@ -12,11 +12,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { withRateLimit } from '../_shared/ratelimit.ts'
 import { appendEvent, getDocumentEntityId } from '../_shared/eventHelper.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface RecordProtectionRequest {
   document_id: string
@@ -30,9 +27,21 @@ interface RecordProtectionRequest {
 }
 
 serve(withRateLimit('record', async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders })
+    }
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (!isAllowed) {
+    return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
   }
 
   try {
@@ -81,6 +90,16 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Document not found')
     }
 
+    const { data: entity, error: entityError } = await supabase
+      .from('document_entities')
+      .select('id, witness_hash')
+      .eq('id', documentEntityId)
+      .single()
+
+    if (entityError || !entity) {
+      throw new Error('Document entity not found for document_entity_id: ' + documentEntityId)
+    }
+
     // Build protection array (what was requested/enabled)
     const protectionMethods: string[] = []
 
@@ -100,8 +119,8 @@ serve(withRateLimit('record', async (req) => {
       protectionMethods.push('bitcoin')
     }
 
-    // Construct the protection_enabled event
-    const event = {
+    // Construct the protection_enabled event (legacy-compatible)
+    const protectionEvent = {
       kind: 'protection_enabled',
       at: new Date().toISOString(),
       protection: {
@@ -122,7 +141,7 @@ serve(withRateLimit('record', async (req) => {
     const eventResult = await appendEvent(
       supabase,
       documentEntityId,
-      event,
+      protectionEvent,
       'record-protection-event'
     )
 
@@ -131,7 +150,54 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Failed to record protection event: ' + eventResult.error)
     }
 
-    console.log(`✅ protection_enabled event recorded for document ${document_id}`)
+    const documentProtectedEvent = {
+      kind: FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
+      at: new Date().toISOString(),
+      payload: {
+        document_entity_id: documentEntityId,
+        document_id,
+        document_hash: doc.document_hash,
+        witness_hash: entity.witness_hash || doc.eco_hash || doc.document_hash,
+        protection: protectionMethods
+      }
+    }
+
+    const protectedResult = await appendEvent(
+      supabase,
+      documentEntityId,
+      documentProtectedEvent,
+      'record-protection-event'
+    )
+
+    if (!protectedResult.success) {
+      console.error('Failed to append document.protected event:', protectedResult.error)
+      throw new Error('Failed to record document.protected event: ' + protectedResult.error)
+    }
+
+    const dedupeKey = `document.protected:${documentEntityId}`
+    const { error: enqueueError } = await supabase
+      .from('executor_jobs')
+      .upsert({
+        type: FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
+        entity_type: 'document',
+        entity_id: documentEntityId,
+        payload: {
+          document_entity_id: documentEntityId,
+          document_id,
+          document_hash: doc.document_hash,
+          witness_hash: entity.witness_hash || doc.eco_hash || doc.document_hash
+        },
+        status: 'queued',
+        run_at: new Date().toISOString(),
+        dedupe_key: dedupeKey
+      }, { onConflict: 'dedupe_key', ignoreDuplicates: true })
+
+    if (enqueueError) {
+      console.error('Failed to enqueue executor job:', enqueueError.message)
+      throw new Error('Failed to enqueue executor job: ' + enqueueError.message)
+    }
+
+    console.log(`✅ protection_enabled + document.protected recorded for document ${document_id}`)
 
     return new Response(
       JSON.stringify({

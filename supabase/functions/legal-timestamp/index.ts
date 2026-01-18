@@ -1,10 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
 
 interface TimestampRequestBody {
   hash_hex: string
@@ -16,11 +12,11 @@ interface TimestampRequestBody {
 const DEFAULT_TSA_URL = 'https://freetsa.org/tsr'
 const HASH_ALGORITHM_OID = '2.16.840.1.101.3.4.2.1' // SHA-256
 
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...corsHeaders,
+      ...headers,
       'Content-Type': 'application/json'
     }
   })
@@ -178,12 +174,21 @@ function bufferToBase64(buffer: ArrayBuffer): string {
 }
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders })
+    }
     return new Response('ok', { headers: corsHeaders })
   }
 
+  if (!isAllowed) {
+    return jsonResponse({ success: false, error: 'Origin not allowed' }, 403, corsHeaders)
+  }
+
   if (req.method !== 'POST') {
-    return jsonResponse({ success: false, error: 'Method not allowed' }, 405)
+    return jsonResponse({ success: false, error: 'Method not allowed' }, 405, corsHeaders)
   }
 
   try {
@@ -230,6 +235,6 @@ serve(async (req) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error'
     console.error('legal-timestamp error', message)
-    return jsonResponse({ success: false, error: message }, 400)
+    return jsonResponse({ success: false, error: message }, 400, corsHeaders)
   }
 })

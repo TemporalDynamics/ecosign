@@ -29,18 +29,14 @@
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
 
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...corsHeaders,
+      ...headers,
       'Content-Type': 'application/json'
     }
   })
@@ -60,12 +56,21 @@ const UPLOAD_URL_EXPIRY_SECONDS = 3600 // 1 hour
 serve(async (req) => {
   console.log('[create-custody-upload-url] Request received')
 
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders })
+    }
     return new Response('ok', { headers: corsHeaders })
   }
 
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders)
+  }
+
   if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405)
+    return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders)
   }
 
   try {
@@ -76,14 +81,14 @@ serve(async (req) => {
     // 1. Authenticate user
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization header' }, 401)
+      return jsonResponse({ error: 'Missing authorization header' }, 401, corsHeaders)
     }
 
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
-      return jsonResponse({ error: 'Unauthorized' }, 401)
+      return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders)
     }
 
     // 2. Parse body (small payload - no file data)
@@ -93,7 +98,7 @@ serve(async (req) => {
     if (!document_entity_id || !metadata) {
       return jsonResponse({
         error: 'Invalid request: document_entity_id and metadata required'
-      }, 400)
+      }, 400, corsHeaders)
     }
 
     console.log('[create-custody-upload-url] Request:', {
@@ -111,11 +116,11 @@ serve(async (req) => {
       .single()
 
     if (documentError || !documentEntity) {
-      return jsonResponse({ error: 'Document entity not found' }, 404)
+      return jsonResponse({ error: 'Document entity not found' }, 404, corsHeaders)
     }
 
     if (documentEntity.owner_id !== user.id) {
-      return jsonResponse({ error: 'Unauthorized: you do not own this document' }, 403)
+      return jsonResponse({ error: 'Unauthorized: you do not own this document' }, 403, corsHeaders)
     }
 
     // 4. Generate storage path

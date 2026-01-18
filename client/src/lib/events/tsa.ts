@@ -26,7 +26,9 @@ export function getLatestTsaEvent(events?: EventEntry[]): TsaUiInfo {
     return { present: false };
   }
 
-  const tsaEvents = events.filter((e): e is TsaEvent => e.kind === 'tsa');
+  const tsaEvents = events.filter((e): e is TsaEvent =>
+    e.kind === 'tsa' || e.kind === 'tsa.confirmed'
+  );
   
   if (tsaEvents.length === 0) {
     return { present: false };
@@ -38,9 +40,11 @@ export function getLatestTsaEvent(events?: EventEntry[]): TsaUiInfo {
   return {
     present: true,
     at: last.at,
-    gen_time: last.tsa?.gen_time,
-    provider: mapProviderName(last.tsa?.policy_oid),
-    witness_hash: last.witness_hash,
+    gen_time: last.tsa?.gen_time ?? (last.payload?.['gen_time'] as string | undefined),
+    provider: mapProviderName(
+      last.tsa?.policy_oid ?? (last.payload?.['policy_oid'] as string | undefined),
+    ),
+    witness_hash: last.witness_hash ?? (last.payload?.['witness_hash'] as string | undefined),
   };
 }
 

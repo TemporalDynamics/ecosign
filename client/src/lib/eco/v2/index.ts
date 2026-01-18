@@ -19,10 +19,10 @@ export type TransformLogEntry = {
 };
 
 export type TsaEvent = {
-  kind: 'tsa';
+  kind: 'tsa' | 'tsa.confirmed' | 'tsa.failed';
   at: string;
-  witness_hash: string;
-  tsa: {
+  witness_hash?: string;
+  tsa?: {
     token_b64: string;
     gen_time?: string;
     policy_oid?: string;
@@ -31,9 +31,23 @@ export type TsaEvent = {
     tsa_cert_fingerprint?: string;
     token_hash?: string;
   };
+  payload?: Record<string, unknown>;
 };
 
-export type EventEntry = TsaEvent; // Future: | AnchorEvent | ExternalSignatureEvent
+export type AnchorEvent = {
+  kind: 'anchor' | 'anchor.confirmed' | 'anchor.pending' | 'anchor.failed';
+  at: string;
+  anchor?: {
+    network: 'polygon' | 'bitcoin';
+    witness_hash?: string;
+    txid?: string;
+    block_height?: number;
+    confirmed_at?: string;
+  };
+  payload?: Record<string, unknown>;
+};
+
+export type EventEntry = TsaEvent | AnchorEvent;
 
 export type EcoV2 = {
   version: 'eco.v2';
@@ -260,7 +274,9 @@ const verifyTsaEvents = (
   events: EventEntry[],
   witnessHash: string | undefined
 ): { present: boolean; valid?: boolean; witness_hash?: string; gen_time?: string } => {
-  const tsaEvents = events.filter((e): e is TsaEvent => e.kind === 'tsa');
+  const tsaEvents = events.filter((e): e is TsaEvent =>
+    e.kind === 'tsa' || e.kind === 'tsa.confirmed'
+  );
   
   if (tsaEvents.length === 0) {
     return { present: false };
@@ -269,22 +285,26 @@ const verifyTsaEvents = (
   const lastTsa = tsaEvents[tsaEvents.length - 1];
 
   // MUST: TSA witness_hash must match canonical witness_hash
-  if (witnessHash && lastTsa.witness_hash !== witnessHash) {
+  const tsaWitness = lastTsa.witness_hash ?? (lastTsa.payload?.['witness_hash'] as string | undefined);
+  const tsaGenTime = lastTsa.tsa?.gen_time ?? (lastTsa.payload?.['gen_time'] as string | undefined);
+  const tsaToken = lastTsa.tsa?.token_b64 ?? (lastTsa.payload?.['token_b64'] as string | undefined);
+
+  if (witnessHash && tsaWitness && tsaWitness !== witnessHash) {
     return {
       present: true,
       valid: false,
-      witness_hash: lastTsa.witness_hash,
-      gen_time: lastTsa.tsa.gen_time,
+      witness_hash: tsaWitness,
+      gen_time: tsaGenTime,
     };
   }
 
   // MUST: token_b64 must be present
-  if (!lastTsa.tsa.token_b64) {
+  if (!tsaToken) {
     return {
       present: true,
       valid: false,
-      witness_hash: lastTsa.witness_hash,
-      gen_time: lastTsa.tsa.gen_time,
+      witness_hash: tsaWitness,
+      gen_time: tsaGenTime,
     };
   }
 
@@ -292,8 +312,8 @@ const verifyTsaEvents = (
   return {
     present: true,
     valid: true,
-    witness_hash: lastTsa.witness_hash,
-    gen_time: lastTsa.tsa.gen_time,
+    witness_hash: tsaWitness,
+    gen_time: tsaGenTime,
   };
 };
 

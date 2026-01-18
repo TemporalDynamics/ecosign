@@ -240,6 +240,7 @@ const computeHash = async (
 
 const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord => {
   const documentHash = entity.signed_hash || entity.witness_current_hash || entity.source_hash;
+  const tsaInfo = getLatestTsaEvent(entity.events as any[]);
   return {
     id: entity.id,
     document_entity_id: entity.id,
@@ -252,7 +253,7 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     status: entity.lifecycle_status ?? null,
     signed_authority: entity.signed_authority ?? null,
     custody_mode: entity.custody_mode ?? null,
-    has_legal_timestamp: !!entity.tsa_latest,
+    has_legal_timestamp: tsaInfo.present,
     has_polygon_anchor: false,
     has_bitcoin_anchor: false,
     events: Array.isArray(entity.events) ? entity.events : [],

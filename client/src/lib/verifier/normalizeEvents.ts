@@ -11,7 +11,13 @@ const OPERATION_LABELS: Record<string, string> = {
 
 const DOCUMENT_LABELS: Record<string, string> = {
   created: 'Documento creado',
+  'document.protected': 'Documento protegido',
   protection_enabled: 'Protección legal habilitada',
+  'tsa.confirmed': 'Sello de tiempo registrado',
+  'tsa.failed': 'Sello de tiempo fallido',
+  'anchor.confirmed': 'Anclaje público confirmado',
+  'anchor.failed': 'Anclaje público fallido',
+  'anchor.pending': 'Anclaje público pendiente',
   nda_accepted: 'NDA aceptado',
   otp_verified: 'Identidad verificada (OTP)',
   signature_applied: 'Firma aplicada',
@@ -23,15 +29,17 @@ const DOCUMENT_LABELS: Record<string, string> = {
 };
 
 const getAnchorLabel = (event: DocumentEventEntry): string | null => {
-  if (event.kind !== 'anchor') return null;
-  const anchor = event.anchor as { network?: string } | undefined;
-  if (anchor?.network === 'polygon') return 'Anclaje público confirmado (Polygon)';
-  if (anchor?.network === 'bitcoin') return 'Anclaje público confirmado (Bitcoin)';
+  if (event.kind !== 'anchor' && event.kind !== 'anchor.confirmed') return null;
+  const anchor = (event.anchor as { network?: string } | undefined) ?? null;
+  const payload = (event.payload as { network?: string } | undefined) ?? null;
+  const network = anchor?.network ?? payload?.network;
+  if (network === 'polygon') return 'Anclaje público confirmado (Polygon)';
+  if (network === 'bitcoin') return 'Anclaje público confirmado (Bitcoin)';
   return 'Anclaje público confirmado';
 };
 
 const getTsaLabel = (event: DocumentEventEntry): string | null => {
-  if (event.kind !== 'tsa') return null;
+  if (event.kind !== 'tsa' && event.kind !== 'tsa.confirmed') return null;
   return 'Sello de tiempo registrado';
 };
 

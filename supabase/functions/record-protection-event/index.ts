@@ -11,12 +11,13 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { withRateLimit } from '../_shared/ratelimit.ts'
-import { appendEvent, getDocumentEntityId } from '../_shared/eventHelper.ts'
+import { appendEvent, getDocumentEntityId, getUserDocumentId } from '../_shared/eventHelper.ts'
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface RecordProtectionRequest {
-  document_id: string
+  document_id?: string
+  document_entity_id?: string
   protection_details: {
     signature_type?: 'legal' | 'certified' | 'none'
     forensic_enabled: boolean
@@ -67,23 +68,36 @@ serve(withRateLimit('record', async (req) => {
 
     // Parse request body
     const body: RecordProtectionRequest = await req.json()
-    const { document_id, protection_details } = body
+    const { document_id, document_entity_id, protection_details } = body
 
-    if (!document_id) {
-      throw new Error('Missing required field: document_id')
+    if (!document_id && !document_entity_id) {
+      throw new Error('Missing required field: document_id or document_entity_id')
     }
 
-    // Get document_entity_id
-    const documentEntityId = await getDocumentEntityId(supabase, document_id)
+    let documentEntityId = document_entity_id ?? null
+    let userDocumentId = document_id ?? null
+
+    if (!documentEntityId && userDocumentId) {
+      documentEntityId = await getDocumentEntityId(supabase, userDocumentId)
+    }
+
+    if (!userDocumentId && documentEntityId) {
+      userDocumentId = await getUserDocumentId(supabase, documentEntityId)
+    }
+
     if (!documentEntityId) {
-      throw new Error('Document entity not found for document_id: ' + document_id)
+      throw new Error('Document entity not found for document_id: ' + (document_id ?? 'null'))
+    }
+
+    if (!userDocumentId) {
+      throw new Error('User document not found for document_entity_id: ' + documentEntityId)
     }
 
     // Get document info for event context
     const { data: doc, error: docError } = await supabase
       .from('user_documents')
       .select('id, document_hash, eco_hash, protection_level, polygon_status, bitcoin_status')
-      .eq('id', document_id)
+      .eq('id', userDocumentId)
       .single()
 
     if (docError || !doc) {
@@ -155,7 +169,7 @@ serve(withRateLimit('record', async (req) => {
       at: new Date().toISOString(),
       payload: {
         document_entity_id: documentEntityId,
-        document_id,
+        document_id: userDocumentId,
         document_hash: doc.document_hash,
         witness_hash: entity.witness_hash || doc.eco_hash || doc.document_hash,
         protection: protectionMethods
@@ -183,7 +197,7 @@ serve(withRateLimit('record', async (req) => {
         entity_id: documentEntityId,
         payload: {
           document_entity_id: documentEntityId,
-          document_id,
+          document_id: userDocumentId,
           document_hash: doc.document_hash,
           witness_hash: entity.witness_hash || doc.eco_hash || doc.document_hash
         },
@@ -197,13 +211,14 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Failed to enqueue executor job: ' + enqueueError.message)
     }
 
-    console.log(`✅ protection_enabled + document.protected recorded for document ${document_id}`)
+    console.log(`✅ protection_enabled + document.protected recorded for document ${userDocumentId}`)
 
     return new Response(
       JSON.stringify({
         success: true,
         event_recorded: true,
-        document_id,
+        document_id: userDocumentId,
+        document_entity_id: documentEntityId,
         protection_methods: protectionMethods
       }),
       {

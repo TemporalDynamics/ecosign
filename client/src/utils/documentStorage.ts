@@ -29,6 +29,7 @@ function sanitizeFileName(fileName: string): string {
 }
 
 type SaveUserDocumentOptions = {
+  documentEntityId?: string | null;
   signNowDocumentId?: string | null;
   signNowStatus?: string | null;
   signedAt?: string | null;
@@ -118,6 +119,7 @@ const toUint8Array = (input: ArrayBuffer | ArrayBufferView<ArrayBufferLike>): Ui
 export async function saveUserDocument(pdfFile: File, ecoData: unknown, options: SaveUserDocumentOptions = {}): Promise<SaveUserDocumentResult> {
   const supabase = getSupabase();
   const {
+    documentEntityId = null,
     signNowDocumentId = null,
     signNowStatus = null,
     signedAt = null,
@@ -281,6 +283,7 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
     .from('user_documents')
     .insert({
       user_id: user.id,
+      document_entity_id: documentEntityId,
       document_name: pdfFile.name,
       document_hash: documentHash,
       document_size: pdfFile.size,

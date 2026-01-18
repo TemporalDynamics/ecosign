@@ -1540,6 +1540,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       // ✅ REFACTOR: Blockchain anchors no bloquean certificación
       // Los anchors se marcan como 'pending' y se resuelven async
       const savedDoc = await saveUserDocument(fileToProcess, ecoData, {
+        documentEntityId: canonicalDocumentId,
         hasLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
         hasPolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
         hasBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,

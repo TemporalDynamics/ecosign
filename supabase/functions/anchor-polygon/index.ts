@@ -19,22 +19,13 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
 import { ethers } from 'npm:ethers@6.9.0'
 import { createLogger } from '../_shared/logger.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 export const config = {
   verify_jwt: false
 }
 
 const logger = createLogger('anchor-polygon')
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') ?? ''
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Credentials': 'true'
-  }
-}
 
 type AnchorRequest = {
   documentHash: string
@@ -46,9 +37,16 @@ type AnchorRequest = {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req)
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
 
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', {
+        status: 403,
+        headers: corsHeaders
+      })
+    }
+
     return new Response(null, {
       status: 204,
       headers: corsHeaders
@@ -56,6 +54,13 @@ serve(async (req) => {
   }
 
   try {
+    if (!isAllowed) {
+      return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     const body = await req.json() as AnchorRequest
     const {
       documentHash,
@@ -91,6 +96,48 @@ serve(async (req) => {
         error: 'Invalid documentHash. Must be 64 hex characters (SHA-256)'
       }), {
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    )
+
+    const { data: existingAnchor, error: existingError } = await supabase
+      .from('anchors')
+      .select('id, anchor_status, polygon_status, polygon_tx_hash, metadata')
+      .eq('document_hash', documentHash)
+      .eq('anchor_type', 'polygon')
+      .maybeSingle()
+
+    if (existingError) {
+      logger.warn('anchor_lookup_failed', { error: existingError.message })
+    }
+
+    if (existingAnchor && existingAnchor.anchor_status !== 'failed') {
+      const existingMetadata = (existingAnchor.metadata || {}) as Record<string, unknown>
+      const existingSponsorAddress = typeof existingMetadata['sponsorAddress'] === 'string'
+        ? String(existingMetadata['sponsorAddress'])
+        : undefined
+
+      logger.info('anchor_already_exists', {
+        anchorId: existingAnchor.id,
+        status: existingAnchor.anchor_status
+      })
+
+      return new Response(JSON.stringify({
+        success: true,
+        status: existingAnchor.polygon_status ?? existingAnchor.anchor_status,
+        txHash: existingAnchor.polygon_tx_hash,
+        anchorId: existingAnchor.id,
+        message: 'Anchor already exists for this document hash.',
+        sponsorAddress: existingSponsorAddress,
+        explorerUrl: existingAnchor.polygon_tx_hash
+          ? `https://polygonscan.com/tx/${existingAnchor.polygon_tx_hash}`
+          : undefined
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -153,12 +200,6 @@ serve(async (req) => {
       sponsorAddress
     })
 
-    // Save to database
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
-
     // Resolve missing data from user_documents if available
     let finalDocumentId = documentId
     let finalUserEmail = userEmail
@@ -197,8 +238,7 @@ serve(async (req) => {
       }
     }
 
-    // Insert anchor record
-    const { data: anchorData, error: anchorError } = await supabase.from('anchors').insert({
+    const anchorPayload = {
       document_hash: documentHash,
       document_id: finalDocumentId,
       user_id: finalUserId,
@@ -209,7 +249,14 @@ serve(async (req) => {
       anchor_status: 'pending',
       polygon_status: 'pending',
       polygon_tx_hash: txHash,
+      polygon_error_message: null,
+      polygon_attempts: 0,
+      polygon_block_number: null,
+      polygon_block_hash: null,
+      polygon_confirmed_at: null,
+      confirmed_at: null,
       metadata: {
+        ...(existingAnchor?.metadata ?? {}),
         txHash,
         sponsorAddress,
         network: 'polygon-mainnet',
@@ -218,7 +265,20 @@ serve(async (req) => {
         projectId: projectId || undefined,
         document_entity_id: documentEntityId
       }
-    }).select().single()
+    }
+
+    const { data: anchorData, error: anchorError } = existingAnchor
+      ? await supabase
+        .from('anchors')
+        .update(anchorPayload)
+        .eq('id', existingAnchor.id)
+        .select()
+        .single()
+      : await supabase
+        .from('anchors')
+        .upsert(anchorPayload, { onConflict: 'document_hash,anchor_type' })
+        .select()
+        .single()
 
     if (anchorError) {
       logger.error('anchor_insert_failed', {
@@ -240,8 +300,10 @@ serve(async (req) => {
       documentEntityId
     })
 
+    const shouldUpdateStatus = !existingAnchor || existingAnchor.anchor_status === 'failed'
+
     // Update anchor_states for project tracking
-    if (projectId) {
+    if (projectId && shouldUpdateStatus) {
       const anchorRequestedAt = new Date().toISOString()
       const { error: stateError } = await supabase
         .from('anchor_states')
@@ -256,7 +318,7 @@ serve(async (req) => {
     }
 
     // Update user_documents status to indicate anchoring in progress
-    if (userDocumentId) {
+    if (userDocumentId && shouldUpdateStatus) {
       const { error: updateError } = await supabase
         .from('user_documents')
         .update({

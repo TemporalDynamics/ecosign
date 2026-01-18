@@ -8,18 +8,13 @@ import { sendResendEmail } from '../_shared/email.ts';
 import { createLogger, withTiming } from '../_shared/logger.ts';
 import { Buffer } from 'node:buffer';
 import { appendAnchorEventFromEdge, logAnchorAttempt, logAnchorFailed } from '../_shared/anchorHelper.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 // TODO(canon): Migrate from user_document_id to document_entity_id
 // Current: Uses user_document_id (legacy), dual-writes to events[]
 // Future: Use document_entity_id as primary key
 
 const logger = createLogger('process-bitcoin-anchors');
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS'
-};
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -41,46 +36,35 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
 
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...corsHeaders,
+      ...headers,
       'Content-Type': 'application/json'
     }
   });
 
 /**
- * Validates cron/admin access via either:
- * 1. x-cron-secret header matching CRON_SECRET env var
- * 2. Authorization header with service role JWT
+ * Validates cron/admin access via:
+ * Authorization header with service role JWT
  */
-const requireCronOrServiceRole = (req: Request) => {
-  // Option 1: x-cron-secret header
-  const cronSecret = Deno.env.get('CRON_SECRET') ?? '';
-  const providedCronSecret = req.headers.get('x-cron-secret') ?? '';
-  if (cronSecret && providedCronSecret === cronSecret) {
-    return null; // Authorized via cron secret
-  }
-
-  // Option 2: Authorization header with service role key
+const requireServiceRole = (req: Request, corsHeaders: Record<string, string>) => {
   const authHeader = req.headers.get('authorization') ?? '';
   const serviceRoleKey = supabaseServiceKey ?? '';
   if (authHeader && serviceRoleKey) {
     const token = authHeader.replace(/^Bearer\s+/i, '');
     if (token === serviceRoleKey) {
-      return null; // Authorized via service role
+      return null;
     }
   }
 
   logger.warn('auth_rejected', {
-    hasCronSecret: !!cronSecret,
-    hasProvidedCronSecret: !!providedCronSecret,
     hasAuthHeader: !!authHeader,
     hasServiceRoleKey: !!serviceRoleKey
   });
 
-  return jsonResponse({ error: 'Forbidden' }, 403);
+  return jsonResponse({ error: 'Forbidden' }, 403, corsHeaders);
 };
 
 async function resolveProjectId(anchor: any, userDocumentId?: string | null): Promise<string | null> {
@@ -433,15 +417,28 @@ async function sendConfirmationEmail(
 }
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', {
+        status: 403,
+        headers: corsHeaders
+      });
+    }
+
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const authError = requireCronOrServiceRole(req);
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders);
+  }
+
+  const authError = requireServiceRole(req, corsHeaders);
   if (authError) return authError;
 
   if (!supabaseAdmin) {
-    return jsonResponse({ error: 'Supabase not configured' }, 500);
+    return jsonResponse({ error: 'Supabase not configured' }, 500, corsHeaders);
   }
 
   try {
@@ -667,7 +664,7 @@ serve(async (req) => {
             })
             .eq('id', anchor.id);
 
-          // Aplicar Política 1: Si tengo Polygon, el certificado sigue siendo válido
+          // Política: timeout no es error; mantener pending y permitir reintentos manuales
           if (resolvedUserDocumentId) {
             const { data: userDoc } = await supabaseAdmin
               .from('user_documents')
@@ -676,33 +673,33 @@ serve(async (req) => {
               .single();
 
             if (userDoc?.has_polygon_anchor) {
-              // Polygon está OK → Certificado válido aunque Bitcoin falló
+              // Polygon está OK → Certificado válido aunque Bitcoin esté en timeout
               await supabaseAdmin
                 .from('user_documents')
                 .update({
-                  bitcoin_status: 'failed',
+                  bitcoin_status: 'pending',
                   overall_status: 'certified',     // ✅ Válido con Polygon
                   download_enabled: true,          // ✅ Permitir descarga
                 })
                 .eq('id', resolvedUserDocumentId);
 
-              logger.info('document_certified_with_polygon_fallback', {
+              logger.info('document_certified_with_polygon_timeout', {
                 anchorId: anchor.id,
                 userDocumentId: resolvedUserDocumentId,
                 polygonAnchorId: userDoc.polygon_anchor_id
               });
             } else {
-              // No hay Polygon → Certificado failed
+              // No hay Polygon → mantener pending sin marcar failed
               await supabaseAdmin
                 .from('user_documents')
                 .update({
-                  bitcoin_status: 'failed',
-                  overall_status: 'failed',
+                  bitcoin_status: 'pending',
+                  overall_status: 'pending_anchor',
                   download_enabled: false,
                 })
                 .eq('id', resolvedUserDocumentId);
 
-              logger.error('document_failed_no_valid_anchors', {
+              logger.warn('document_timeout_no_valid_anchors', {
                 anchorId: anchor.id,
                 userDocumentId: resolvedUserDocumentId
               });
@@ -1134,11 +1131,11 @@ serve(async (req) => {
     };
 
     logger.info('process_bitcoin_anchors_completed', summary);
-    return jsonResponse(summary);
+    return jsonResponse(summary, 200, corsHeaders);
 
   } catch (error) {
     logger.error('process_bitcoin_anchors_fatal', {}, error instanceof Error ? error : new Error(String(error)));
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return jsonResponse({ error: message }, 500);
+    return jsonResponse({ error: message }, 500, corsHeaders);
   }
 });

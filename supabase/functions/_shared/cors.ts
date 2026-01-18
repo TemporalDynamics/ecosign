@@ -27,9 +27,6 @@ function getAllowedOrigins(): string[] {
     const frontendUrl = normalizeOrigin(Deno.env.get('FRONTEND_URL') || '');
     if (siteUrl) fallback.push(siteUrl);
     if (frontendUrl) fallback.push(frontendUrl);
-    if (fallback.length === 0) {
-      fallback.push('http://localhost:5173', 'http://localhost:4173');
-    }
   }
 
   return Array.from(new Set([...values, ...fallback]));
@@ -41,7 +38,7 @@ export function getCorsHeaders(origin?: string) {
   const isAllowed = !normalizedOrigin || allowedOrigins.includes(normalizedOrigin);
   const allowOrigin = normalizedOrigin
     ? (isAllowed ? normalizedOrigin : 'null')
-    : (allowedOrigins[0] || '*');
+    : (allowedOrigins[0] || 'null');
 
   return {
     isAllowed,

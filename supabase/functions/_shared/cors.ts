@@ -35,7 +35,11 @@ function getAllowedOrigins(): string[] {
 export function getCorsHeaders(origin?: string) {
   const allowedOrigins = getAllowedOrigins();
   const normalizedOrigin = origin ? normalizeOrigin(origin) : null;
-  const isAllowed = !normalizedOrigin || allowedOrigins.includes(normalizedOrigin);
+  const isNullOrigin = normalizedOrigin === 'null';
+  const isAllowed =
+    !normalizedOrigin ||
+    isNullOrigin ||
+    allowedOrigins.includes(normalizedOrigin);
   const allowOrigin = normalizedOrigin
     ? (isAllowed ? normalizedOrigin : 'null')
     : (allowedOrigins[0] || 'null');

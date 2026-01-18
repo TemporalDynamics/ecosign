@@ -21,19 +21,13 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
 import { createLogger } from '../_shared/logger.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 export const config = {
   verify_jwt: false
 }
 
 const logger = createLogger('anchor-bitcoin')
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400'
-}
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -51,25 +45,38 @@ type AnchorRequest = {
   metadata?: Record<string, unknown>
 }
 
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...corsHeaders,
+      ...headers,
       'Content-Type': 'application/json'
     }
   })
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', {
+        status: 403,
+        headers: corsHeaders
+      })
+    }
+
     return new Response('ok', { headers: corsHeaders })
   }
 
   if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405)
+    return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders)
   }
 
   try {
+    if (!isAllowed) {
+      return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders)
+    }
+
     const body = await req.json() as AnchorRequest
     const { documentHash, documentId = null, userDocumentId = null, userId = null, userEmail = null, metadata = {} } = body
 
@@ -82,18 +89,18 @@ serve(async (req) => {
 
     if (!documentHash || typeof documentHash !== 'string') {
       logger.error('invalid_document_hash', { documentHash })
-      return jsonResponse({ error: 'documentHash is required' }, 400)
+      return jsonResponse({ error: 'documentHash is required' }, 400, corsHeaders)
     }
 
     const isHex64 = /^[0-9a-f]{64}$/i
     if (!isHex64.test(documentHash.trim())) {
       logger.error('invalid_hash_format', { documentHash })
-      return jsonResponse({ error: 'Invalid documentHash. Must be 64 hex characters (SHA-256).' }, 400)
+      return jsonResponse({ error: 'Invalid documentHash. Must be 64 hex characters (SHA-256).' }, 400, corsHeaders)
     }
 
     if (!supabaseAdmin) {
       logger.error('supabase_not_configured')
-      return jsonResponse({ error: 'Supabase client is not configured' }, 500)
+      return jsonResponse({ error: 'Supabase client is not configured' }, 500, corsHeaders)
     }
 
     const nowIso = new Date().toISOString()
@@ -121,6 +128,41 @@ serve(async (req) => {
     let finalUserEmail = userEmail
     let finalUserId = validUserId
     let documentEntityId: string | null = null
+
+    const { data: existingAnchor, error: existingError } = await supabaseAdmin
+      .from('anchors')
+      .select('id, anchor_status, metadata, user_email')
+      .eq('document_hash', documentHash)
+      .eq('anchor_type', 'opentimestamps')
+      .maybeSingle()
+
+    if (existingError) {
+      logger.warn('anchor_lookup_failed', { error: existingError.message })
+    }
+
+    if (existingAnchor && existingAnchor.anchor_status !== 'failed') {
+      const existingMetadata = (existingAnchor.metadata || {}) as Record<string, unknown>
+      const existingEmail = typeof existingAnchor.user_email === 'string'
+        ? existingAnchor.user_email
+        : (typeof existingMetadata['userEmail'] === 'string'
+          ? String(existingMetadata['userEmail'])
+          : finalUserEmail)
+
+      logger.info('anchor_already_exists', {
+        anchorId: existingAnchor.id,
+        status: existingAnchor.anchor_status
+      })
+
+      return jsonResponse({
+        anchorId: existingAnchor.id,
+        status: existingAnchor.anchor_status,
+        estimatedTime: '4-24 hours',
+        message: 'Bitcoin anchoring already queued for this document hash.',
+        willNotify: Boolean(existingEmail),
+        notificationEmail: existingEmail,
+        record: existingAnchor
+      }, 200, corsHeaders)
+    }
 
     if (userDocumentId && (!documentId || !userEmail || !projectId || !finalUserId)) {
       const { data: userDoc } = await supabaseAdmin
@@ -150,27 +192,42 @@ serve(async (req) => {
       }
     }
 
+    const anchorPayload = {
+      document_hash: documentHash,
+      document_id: finalDocumentId,
+      user_document_id: userDocumentId,
+      document_entity_id: documentEntityId,
+      user_id: finalUserId,
+      user_email: finalUserEmail,
+      anchor_type: 'opentimestamps',
+      anchor_status: 'queued',
+      bitcoin_attempts: 0,
+      bitcoin_error_message: null,
+      error_message: null,
+      ots_proof: null,
+      ots_calendar_url: null,
+      metadata: {
+        ...(existingAnchor?.metadata ?? {}),
+        ...enrichedMetadata,
+        projectId: projectId || undefined,
+        document_entity_id: documentEntityId
+      }
+    }
+
     // Insert anchor record with 'queued' status
     // process-bitcoin-anchors worker will batch these and submit to OpenTimestamps
-    const { data, error } = await supabaseAdmin
-      .from('anchors')
-      .insert({
-        document_hash: documentHash,
-        document_id: finalDocumentId,
-        user_document_id: userDocumentId,
-        document_entity_id: documentEntityId,
-        user_id: finalUserId,
-        user_email: finalUserEmail,
-        anchor_type: 'opentimestamps',
-        anchor_status: 'queued',
-        metadata: {
-          ...enrichedMetadata,
-          projectId: projectId || undefined,
-          document_entity_id: documentEntityId
-        }
-      })
-      .select()
-      .single()
+    const { data, error } = existingAnchor
+      ? await supabaseAdmin
+        .from('anchors')
+        .update(anchorPayload)
+        .eq('id', existingAnchor.id)
+        .select()
+        .single()
+      : await supabaseAdmin
+        .from('anchors')
+        .upsert(anchorPayload, { onConflict: 'document_hash,anchor_type' })
+        .select()
+        .single()
 
     if (error || !data) {
       logger.error('anchor_insert_failed', {
@@ -182,7 +239,7 @@ serve(async (req) => {
         details: error?.message || 'Unknown error',
         code: error?.code,
         hint: error?.hint
-      }, 500)
+      }, 500, corsHeaders)
     }
 
     logger.info('anchor_queued', {
@@ -206,7 +263,7 @@ serve(async (req) => {
     }
 
     // Update user_documents to reflect Bitcoin anchoring has started
-    if (userDocumentId) {
+    if (userDocumentId && (!existingAnchor || existingAnchor.anchor_status === 'failed')) {
       const { error: updateError } = await supabaseAdmin
         .from('user_documents')
         .update({
@@ -232,12 +289,12 @@ serve(async (req) => {
       willNotify: Boolean(finalUserEmail),
       notificationEmail: finalUserEmail,
       record: data
-    })
+    }, 200, corsHeaders)
   } catch (error) {
     logger.error('anchor_bitcoin_error', {
       error: error instanceof Error ? error.message : String(error)
     })
     const message = error instanceof Error ? error.message : String(error)
-    return jsonResponse({ error: message || 'Unexpected error' }, 500)
+    return jsonResponse({ error: message || 'Unexpected error' }, 500, corsHeaders)
   }
 })

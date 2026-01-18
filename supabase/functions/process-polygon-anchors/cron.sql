@@ -1,13 +1,6 @@
--- Schedule process-polygon-anchors every minute
+-- Schedule process-polygon-anchors every minute (uses vault via invoke_process_polygon_anchors)
 SELECT cron.schedule(
   'process-polygon-anchors',
   '*/1 * * * *',
-  $$
-    SELECT net.http_post(
-      url := 'https://<your-project-ref>.supabase.co/functions/v1/process-polygon-anchors',
-      headers := jsonb_build_object(
-        'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key')
-      )
-    );
-  $$
+  $$SELECT public.invoke_process_polygon_anchors();$$
 );

@@ -4,18 +4,13 @@ import { ethers } from 'npm:ethers@6.9.0'
 import { createLogger, withTiming } from '../_shared/logger.ts'
 import { shouldRetry, RETRY_CONFIGS, getNextRetryTime } from '../_shared/retry.ts'
 import { appendAnchorEventFromEdge, logAnchorAttempt, logAnchorFailed } from '../_shared/anchorHelper.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 // TODO(canon): Migrate from user_document_id to document_entity_id
 // Current: Uses user_document_id (legacy), dual-writes to events[]
 // Future: Use document_entity_id as primary key
 
 const logger = createLogger('process-polygon-anchors')
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-}
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -26,46 +21,35 @@ const supabaseAdmin = (supabaseUrl && supabaseServiceKey)
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null
 
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
     headers: {
-      ...corsHeaders,
+      ...headers,
       'Content-Type': 'application/json',
     },
   })
 
 /**
- * Validates cron/admin access via either:
- * 1. x-cron-secret header matching CRON_SECRET env var
- * 2. Authorization header with service role JWT
+ * Validates cron/admin access via:
+ * Authorization header with service role JWT
  */
-const requireCronOrServiceRole = (req: Request) => {
-  // Option 1: x-cron-secret header
-  const cronSecret = Deno.env.get('CRON_SECRET') ?? ''
-  const providedCronSecret = req.headers.get('x-cron-secret') ?? ''
-  if (cronSecret && providedCronSecret === cronSecret) {
-    return null // Authorized via cron secret
-  }
-
-  // Option 2: Authorization header with service role key
+const requireServiceRole = (req: Request, corsHeaders: Record<string, string>) => {
   const authHeader = req.headers.get('authorization') ?? ''
   const serviceRoleKey = supabaseServiceKey ?? ''
   if (authHeader && serviceRoleKey) {
     const token = authHeader.replace(/^Bearer\s+/i, '')
     if (token === serviceRoleKey) {
-      return null // Authorized via service role
+      return null
     }
   }
 
   logger.warn('auth_rejected', {
-    hasCronSecret: !!cronSecret,
-    hasProvidedCronSecret: !!providedCronSecret,
     hasAuthHeader: !!authHeader,
     hasServiceRoleKey: !!serviceRoleKey
   })
 
-  return jsonResponse({ error: 'Forbidden' }, 403)
+  return jsonResponse({ error: 'Forbidden' }, 403, corsHeaders)
 }
 
 async function resolveProjectId(anchor: any, userDocumentId?: string | null): Promise<string | null> {
@@ -225,15 +209,28 @@ async function insertNotification(anchor: any, txHash: string, blockNumber?: num
 }
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', {
+        status: 403,
+        headers: corsHeaders
+      })
+    }
+
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const authError = requireCronOrServiceRole(req)
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders)
+  }
+
+  const authError = requireServiceRole(req, corsHeaders)
   if (authError) return authError
 
   if (!supabaseAdmin || !provider) {
-    return jsonResponse({ error: 'Supabase or Polygon RPC not configured' }, 500)
+    return jsonResponse({ error: 'Supabase or Polygon RPC not configured' }, 500, corsHeaders)
   }
 
   try {
@@ -256,12 +253,12 @@ serve(async (req) => {
 
     if (error) {
       logger.error('fetch_anchors_failed', { error: error.message }, error)
-      return jsonResponse({ error: 'Failed to fetch polygon anchors', details: error.message }, 500)
+      return jsonResponse({ error: 'Failed to fetch polygon anchors', details: error.message }, 500, corsHeaders)
     }
 
     if (!anchors || anchors.length === 0) {
       logger.info('no_anchors_to_process')
-      return jsonResponse({ success: true, message: 'No polygon anchors to process', processed })
+      return jsonResponse({ success: true, message: 'No polygon anchors to process', processed }, 200, corsHeaders)
     }
 
     logger.info('anchors_fetched', { count: anchors.length })
@@ -555,9 +552,9 @@ serve(async (req) => {
       skippedBackoff,
       durationMs: totalDurationMs,
       message: `Polygon anchors processed: ${processed} (confirmed ${confirmed}, waiting ${waiting}, failed ${failed}, skipped ${skippedBackoff})`,
-    })
+    }, 200, corsHeaders)
   } catch (err) {
     logger.error('process_polygon_anchors_fatal', {}, err instanceof Error ? err : new Error(String(err)))
-    return jsonResponse({ error: err instanceof Error ? err.message : String(err) }, 500)
+    return jsonResponse({ error: err instanceof Error ? err.message : String(err) }, 500, corsHeaders)
   }
 })

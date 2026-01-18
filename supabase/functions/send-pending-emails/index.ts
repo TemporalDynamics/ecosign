@@ -14,6 +14,9 @@ const requireCronSecret = (req: Request) => {
 };
 
 serve(async (req: Request) => {
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response('disabled', { status: 204 });
+  }
   const authError = requireCronSecret(req);
   if (authError) return authError;
 

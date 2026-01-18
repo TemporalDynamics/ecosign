@@ -54,6 +54,9 @@ interface CreateUploadUrlRequest {
 const UPLOAD_URL_EXPIRY_SECONDS = 3600 // 1 hour
 
 serve(async (req) => {
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response('disabled', { status: 204 });
+  }
   console.log('[create-custody-upload-url] Request received')
 
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)

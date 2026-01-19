@@ -1,0 +1,21 @@
+import { CONTRACT_ECO_ECOX, DocumentEntityRules } from './authorityRules.ts';
+
+export function validateEventAppend(documentEntity: any, event: any) {
+  const rule = DocumentEntityRules[event.kind];
+  if (!rule) return { ok: true };
+
+  const events = Array.isArray(documentEntity?.events) ? documentEntity.events : [];
+  if (rule.unique && events.some((e: any) => e.kind === event.kind)) {
+    return { ok: false, reason: 'event_kind_duplicate', contract: CONTRACT_ECO_ECOX };
+  }
+
+  if (rule.requireWitnessHash && !event.payload?.witness_hash) {
+    return { ok: false, reason: 'event_witness_hash_required', contract: CONTRACT_ECO_ECOX };
+  }
+
+  if (rule.requireTokenB64 && !event.payload?.token_b64) {
+    return { ok: false, reason: 'event_tsa_token_required', contract: CONTRACT_ECO_ECOX };
+  }
+
+  return { ok: true };
+}

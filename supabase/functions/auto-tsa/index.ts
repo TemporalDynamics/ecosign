@@ -15,9 +15,10 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 serve(async (req) => {
-  if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 })
-  }
+  // FASE guard disabled for MVP
+  // if (Deno.env.get('FASE') !== '1') {
+  //   return new Response('disabled', { status: 204 })
+  // }
 
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })

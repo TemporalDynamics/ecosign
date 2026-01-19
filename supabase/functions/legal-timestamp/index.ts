@@ -174,9 +174,10 @@ function bufferToBase64(buffer: ArrayBuffer): string {
 }
 
 serve(async (req) => {
-  if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
-  }
+  // FASE guard disabled for MVP - TSA always available
+  // if (Deno.env.get('FASE') !== '1') {
+  //   return new Response('disabled', { status: 204 });
+  // }
 
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
 

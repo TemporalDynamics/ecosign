@@ -46,6 +46,11 @@ serve(withRateLimit('record', async (req) => {
   }
 
   try {
+    const origin = req.headers.get('origin') ?? 'unknown'
+    const rawBody = await req.clone().text()
+    console.log('[record-protection-event] origin:', origin)
+    console.log('[record-protection-event] raw body:', rawBody)
+
     // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -106,13 +111,16 @@ serve(withRateLimit('record', async (req) => {
 
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
-      .select('id, witness_hash')
+      .select('id, witness_hash, source_hash')
       .eq('id', documentEntityId)
       .single()
 
     if (entityError || !entity) {
       throw new Error('Document entity not found for document_entity_id: ' + documentEntityId)
     }
+
+    // Use witness_hash if available, otherwise fall back to source_hash
+    const effectiveWitnessHash = entity.witness_hash || entity.source_hash
 
     // Build protection array (what was requested/enabled)
     const protectionMethods: string[] = []
@@ -171,7 +179,7 @@ serve(withRateLimit('record', async (req) => {
         document_entity_id: documentEntityId,
         document_id: userDocumentId,
         document_hash: doc.document_hash,
-        witness_hash: entity.witness_hash || doc.eco_hash || doc.document_hash,
+        witness_hash: effectiveWitnessHash,
         protection: protectionMethods
       }
     }
@@ -188,10 +196,9 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Failed to record document.protected event: ' + protectedResult.error)
     }
 
-    const dedupeKey = `document.protected:${documentEntityId}`
     const { error: enqueueError } = await supabase
       .from('executor_jobs')
-      .upsert({
+      .insert({
         type: FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
         entity_type: 'document',
         entity_id: documentEntityId,
@@ -199,12 +206,11 @@ serve(withRateLimit('record', async (req) => {
           document_entity_id: documentEntityId,
           document_id: userDocumentId,
           document_hash: doc.document_hash,
-          witness_hash: entity.witness_hash || doc.eco_hash || doc.document_hash
+          witness_hash: effectiveWitnessHash
         },
         status: 'queued',
-        run_at: new Date().toISOString(),
-        dedupe_key: dedupeKey
-      }, { onConflict: 'dedupe_key', ignoreDuplicates: true })
+        run_at: new Date().toISOString()
+      })
 
     if (enqueueError) {
       console.error('Failed to enqueue executor job:', enqueueError.message)

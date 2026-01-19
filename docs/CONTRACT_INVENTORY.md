@@ -30,6 +30,7 @@ Nota: inventario generado sin lectura de contenido; campos TBD requieren lectura
 | CONTRATO_ALMACENAMIENTO_PDF.md | TBD | general | Declarativo | TBD | TBD | TBD | docs/contratos/CONTRATO_ALMACENAMIENTO_PDF.md |
 | CONTRATO_ARTEFACTO_FINAL.md | TBD | general | Declarativo | TBD | TBD | TBD | docs/contratos/CONTRATO_ARTEFACTO_FINAL.md |
 | CONTRATO_ARTEFACTO_WORKFLOW.md | TBD | firma/workflow | Declarativo | TBD | TBD | TBD | docs/contratos/CONTRATO_ARTEFACTO_WORKFLOW.md |
+| AUTORIDAD_DEL_SISTEMA.md | v1.0 | general | Declarativo | TBD | TBD | TBD | docs/contratos/AUTORIDAD_DEL_SISTEMA.md |
 | CONTRATO_AUTORIDAD_EJECUTOR.md | TBD | general | Declarativo | TBD | TBD | TBD | docs/contratos/CONTRATO_AUTORIDAD_EJECUTOR.md |
 | CONTRATO_CAMINOS_FELICES.md | TBD | general | Declarativo | TBD | TBD | TBD | docs/contratos/CONTRATO_CAMINOS_FELICES.md |
 | CONTRATO_ECO_ECOX.md | TBD | documento | Declarativo | TBD | TBD | TBD | docs/contratos/CONTRATO_ECO_ECOX.md |

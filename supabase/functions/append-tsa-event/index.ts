@@ -30,7 +30,7 @@ type RequestBody = {
 
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
+    return new Response(null, { status: 204 });
   }
 
   // Handle CORS preflight

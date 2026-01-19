@@ -760,29 +760,30 @@ function DocumentsPage() {
     };
   }, [loadDocuments]);
 
-  useEffect(() => {
-    if (isGuestMode()) return;
-    const pollIntervalMs = 30000;
-    let cancelled = false;
-    let inFlight = false;
-
-    const poll = async () => {
-      if (cancelled || inFlight) return;
-      if (document.visibilityState !== "visible") return;
-      inFlight = true;
-      try {
-        await loadDocuments();
-      } finally {
-        inFlight = false;
-      }
-    };
-
-    const intervalId = window.setInterval(poll, pollIntervalMs);
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [loadDocuments]);
+  // Polling disabled - was causing full page re-renders (white flash)
+  // useEffect(() => {
+  //   if (isGuestMode()) return;
+  //   const pollIntervalMs = 30000;
+  //   let cancelled = false;
+  //   let inFlight = false;
+  //
+  //   const poll = async () => {
+  //     if (cancelled || inFlight) return;
+  //     if (document.visibilityState !== "visible") return;
+  //     inFlight = true;
+  //     try {
+  //       await loadDocuments();
+  //     } finally {
+  //       inFlight = false;
+  //     }
+  //   };
+  //
+  //   const intervalId = window.setInterval(poll, pollIntervalMs);
+  //   return () => {
+  //     cancelled = true;
+  //     window.clearInterval(intervalId);
+  //   };
+  // }, [loadDocuments]);
 
   // Cargar operaciones
   const loadOperations = useCallback(async () => {
@@ -1702,9 +1703,8 @@ function DocumentsPage() {
               {/* Shared header (desktop) — global under search/new operation */}
               <div className={`hidden md:grid ${GRID_TOKENS.documents.columns} ${GRID_TOKENS.documents.gapX} px-6 py-3 bg-gray-50 text-xs text-gray-600 font-medium mb-2`}>
                 <div>Nombre</div>
-                <div>Estado del documento</div>
-                <div>Fecha de creación</div>
-                <div className="justify-self-end" style={{ transform: 'translateX(-110px)' }}>Acciones</div>
+                <div>Estado</div>
+                <div className="justify-self-end">Acciones</div>
               </div>
 
               {/* Sección de Operaciones */}

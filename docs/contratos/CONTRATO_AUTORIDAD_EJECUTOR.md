@@ -88,6 +88,7 @@ Este contrato no requiere refactors inmediatos.
 Define el norte: eliminar duplicidad estructural de forma progresiva.
 
 ## Referencias
+- AUTORIDAD_DEL_SISTEMA.md
 - CONTRATO_ORQUESTACION_FLUJOS.md
 - LISTA_IMPLEMENTACION_AUTORIDAD_EJECUTOR.md
 - CONTRATO_MAPEO_EJECUTOR.md

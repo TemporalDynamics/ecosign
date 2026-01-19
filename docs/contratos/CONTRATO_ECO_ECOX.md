@@ -37,6 +37,35 @@ El ECOX:
 El ECOX puede generarse sistematicamente como parte del proceso interno,
 independientemente de si el usuario lo solicita o no.
 
+### 1.3 Document Entity = ECOX vivo (implementacion)
+`document_entities` junto con su campo `events[]` constituye la implementacion
+canonica del ECOX vivo.
+
+- `events[]` representa la linea de tiempo append-only y es la fuente unica de verdad.
+- Campos derivados como `tsa_latest`, `anchor_latest` u otros son proyecciones,
+  nunca fuentes de verdad.
+- El executor y los workers escriben eventos canonicos; no escriben estados.
+
+El archivo `.ECOX` es una exportacion (snapshot) tecnica del estado del ECOX vivo
+en un instante dado y no constituye una fuente de verdad.
+
+### 1.4 ECOX exportado (no canonico)
+Si existe una tabla `ecox_*`, su funcion es exclusivamente registrar
+exportaciones del ECOX.
+
+Dicha tabla puede incluir:
+- `document_entity_id`
+- `snapshot_seq`
+- `requested_by`
+- `generated_at`
+- `hash`
+- `storage_path`
+
+Esta tabla:
+- NO es fuente de verdad
+- NO define estado del documento
+- NO reemplaza a `document_entities.events[]`
+
 ## 2. Propiedades del ECO (obligatorias)
 
 ### Autosuficiencia probatoria
@@ -153,3 +182,4 @@ un ECO existente.
 ## 10. Estado del contrato
 Este contrato es canonico.
 Toda implementacion futura (executor, workers, UI, storage, verificacion) debe alinearse con estas definiciones.
+Referencia operativa: `docs/ops/HITO_CORE_E2E_LOCAL.md`.

@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts';
+import { validateEventAppend } from '../_shared/validateEventAppend.ts';
 
 type ExecutorJob = {
   id: string;
@@ -28,16 +29,10 @@ const jsonResponse = (data: unknown, status = 200) =>
 async function emitEvent(
   supabase: ReturnType<typeof createClient>,
   documentEntityId: string,
-  kind: string,
-  payload: Record<string, unknown>,
+  event: { kind: string; at: string; payload: Record<string, unknown> },
   source: string,
 ): Promise<void> {
-  const result = await appendEvent(
-    supabase,
-    documentEntityId,
-    { kind, at: new Date().toISOString(), payload },
-    source,
-  );
+  const result = await appendEvent(supabase, documentEntityId, event, source);
 
   if (!result.success) {
     throw new Error(result.error ?? 'Failed to append event');
@@ -108,7 +103,7 @@ async function handleDocumentProtected(
 
   const { data: entity, error: entityError } = await supabase
     .from('document_entities')
-    .select('id, witness_hash')
+    .select('id, witness_hash, events')
     .eq('id', documentEntityId)
     .single();
 
@@ -121,149 +116,78 @@ async function handleDocumentProtected(
     await emitEvent(
       supabase,
       documentEntityId,
-      FASE1_EVENT_KINDS.TSA_FAILED,
-      { reason: 'missing_witness_hash', retryable: false },
+      {
+        kind: FASE1_EVENT_KINDS.TSA_FAILED,
+        at: new Date().toISOString(),
+        payload: { reason: 'missing_witness_hash', retryable: false },
+      },
       'fase1-executor',
     );
     throw new Error('witness_hash missing');
   }
 
-  // TSA
+  // TSA - Fase 1 MVP: solo sello de tiempo legal RFC 3161
   try {
     const tsaResponse = await callFunction('legal-timestamp', {
       hash_hex: witnessHash,
     });
 
-    await emitEvent(
-      supabase,
-      documentEntityId,
-      FASE1_EVENT_KINDS.TSA_CONFIRMED,
-      {
+    const tsaEvent = {
+      kind: FASE1_EVENT_KINDS.TSA_CONFIRMED,
+      at: new Date().toISOString(),
+      payload: {
         witness_hash: witnessHash,
         token_b64: tsaResponse.token,
         tsa_url: tsaResponse.tsa_url,
         algorithm: tsaResponse.algorithm,
         standard: tsaResponse.standard,
       },
+    };
+
+    const validation = validateEventAppend(entity, tsaEvent, { mode: 'strict' });
+    if (!validation.ok) {
+      throw new Error(`authority_reject:${validation.reason}`);
+    }
+
+    await emitEvent(
+      supabase,
+      documentEntityId,
+      tsaEvent,
       'fase1-executor',
     );
+
+    // Fase 1 MVP: TSA completado = documento protegido
+    // Polygon y Bitcoin deshabilitados temporalmente
+    console.log(`[fase1-executor] TSA completed for ${documentEntityId}, skipping anchors (Fase 1 MVP)`);
+
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await emitEvent(
       supabase,
       documentEntityId,
-      FASE1_EVENT_KINDS.TSA_FAILED,
-      { reason: message, retryable: false, witness_hash: witnessHash },
-      'fase1-executor',
-    );
-    throw error;
-  }
-
-  // Polygon
-  try {
-    const polygonResponse = await callFunction('anchor-polygon', {
-      documentHash: witnessHash,
-      userDocumentId,
-      documentId: userDocumentId,
-      metadata: { source: 'fase1-executor' },
-    });
-
-    const txHash = polygonResponse.txHash as string | undefined;
-    if (!txHash) {
-      throw new Error('polygon tx_hash missing');
-    }
-
-    const receipt = await waitForPolygonConfirmation(txHash);
-    if (!receipt) {
-      await emitEvent(
-        supabase,
-        documentEntityId,
-        FASE1_EVENT_KINDS.ANCHOR_FAILED,
-        {
-          network: 'polygon',
-          reason: 'confirmation_timeout',
-          retryable: true,
-          tx_hash: txHash,
-          witness_hash: witnessHash,
-        },
-        'fase1-executor',
-      );
-      throw new Error('polygon confirmation timeout');
-    }
-
-    if (receipt.status !== '0x1') {
-      await emitEvent(
-        supabase,
-        documentEntityId,
-        FASE1_EVENT_KINDS.ANCHOR_FAILED,
-        {
-          network: 'polygon',
-          reason: 'transaction_failed',
-          retryable: false,
-          tx_hash: txHash,
-          witness_hash: witnessHash,
-        },
-        'fase1-executor',
-      );
-      throw new Error('polygon transaction failed');
-    }
-
-    await emitEvent(
-      supabase,
-      documentEntityId,
-      FASE1_EVENT_KINDS.ANCHOR_CONFIRMED,
       {
-        network: 'polygon',
-        tx_hash: txHash,
-        witness_hash: witnessHash,
-        block_height: receipt.blockNumber,
-        confirmed_at: new Date().toISOString(),
-      },
-      'fase1-executor',
-    );
-  } catch (error) {
-    throw error;
-  }
-
-  // Bitcoin (pending allowed)
-  try {
-    const bitcoinResponse = await callFunction('anchor-bitcoin', {
-      documentHash: witnessHash,
-      userDocumentId,
-      documentId: userDocumentId,
-      metadata: { source: 'fase1-executor' },
-    });
-
-    await emitEvent(
-      supabase,
-      documentEntityId,
-      FASE1_EVENT_KINDS.ANCHOR_PENDING,
-      {
-        network: 'bitcoin',
-        anchor_id: bitcoinResponse.anchorId ?? null,
-        witness_hash: witnessHash,
-      },
-      'fase1-executor',
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await emitEvent(
-      supabase,
-      documentEntityId,
-      FASE1_EVENT_KINDS.ANCHOR_FAILED,
-      {
-        network: 'bitcoin',
-        reason: message,
-        retryable: false,
-        witness_hash: witnessHash,
+        kind: FASE1_EVENT_KINDS.TSA_FAILED,
+        at: new Date().toISOString(),
+        payload: { reason: message, retryable: false, witness_hash: witnessHash },
       },
       'fase1-executor',
     );
     throw error;
   }
+
+  // Polygon - DESHABILITADO para Fase 1 MVP
+  // TODO: Reactivar en Fase 2
+
+  // Bitcoin - DESHABILITADO para Fase 1 MVP
+  // TODO: Reactivar en Fase 2
 }
 
 Deno.serve(async (req) => {
+  // FASE guard disabled for MVP - executor always available
+  // if (Deno.env.get('FASE') !== '1') {
+  //   return new Response('disabled', { status: 204 });
+  // }
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 204 });
   }

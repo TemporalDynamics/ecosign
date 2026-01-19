@@ -1,10 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Shield, Eye, Share2, MoreVertical } from 'lucide-react';
+import { Eye, Share2, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { deriveProtectionLevel, getProtectionLevelLabel } from '../lib/protectionLevel';
-import { deriveFlowStatus, FLOW_STATUS } from '../lib/flowStatus';
-
-import { ProtectionLayerBadge } from './ProtectionLayerBadge';
+import { deriveProtectionLevel } from '../lib/protectionLevel';
 
 export default function DocumentRow({
   document,
@@ -51,32 +48,36 @@ export default function DocumentRow({
   }, [openMenu]);
 
   const name = document.document_name || document.source_name || document.id;
-  const formatDocDate = (value?: string | null) => {
-    if (!value) return '—';
-    return new Date(value).toLocaleDateString('es-AR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-  const created = formatDocDate(document.created_at);
-  const flowStatus = deriveFlowStatus(document);
-  const flowConfig = FLOW_STATUS[flowStatus.key];
 
-  const formatState = (ctx: string) => {
-    if (!flowConfig) {
-      return ctx === 'operation' ? 'Abierta' : 'Procesando';
-    }
-    return flowStatus.detail || flowConfig.label;
-  };
-
+  // Derive simple status: Procesando | Protegido | Error
   const derivedProtectionLevel = Array.isArray(document.events)
     ? deriveProtectionLevel(document.events)
     : 'NONE';
 
-  const protectionLabel = getProtectionLevelLabel(derivedProtectionLevel);
+  // Check for error events
+  const hasError = Array.isArray(document.events) && document.events.some(
+    (e: any) => e.kind === 'anchor.failed' || e.kind === 'tsa.failed' || e.kind === 'protection.failed'
+  );
+
+  // Simple status derivation
+  type SimpleStatus = 'processing' | 'protected' | 'error';
+  let simpleStatus: SimpleStatus = 'processing';
+  let statusLabel = '⏳ Procesando';
+  let statusBg = 'bg-amber-100';
+  let statusColor = 'text-amber-700';
+
+  if (hasError) {
+    simpleStatus = 'error';
+    statusLabel = '❌ Error';
+    statusBg = 'bg-red-100';
+    statusColor = 'text-red-700';
+  } else if (derivedProtectionLevel !== 'NONE') {
+    // Has TSA = protected
+    simpleStatus = 'protected';
+    statusLabel = '✅ Protegido';
+    statusBg = 'bg-emerald-100';
+    statusColor = 'text-emerald-700';
+  }
 
   if (asRow) {
     return (
@@ -91,24 +92,16 @@ export default function DocumentRow({
               aria-label="Seleccionar documento"
             />
           )}
-          <div title={protectionLabel}>
-            <ProtectionLayerBadge layer={derivedProtectionLevel} />
-          </div>
           <div className="min-w-0">
             <div className="text-sm font-medium text-gray-900 truncate max-w-full" title={name}>{name}</div>
-            {(document.user_note || document.description) && (
-              <div className="text-xs text-gray-500 mt-1">{document.user_note || document.description}</div>
-            )}
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${flowConfig?.bg || 'bg-gray-100'} ${flowConfig?.color || 'text-gray-700'}`}>
-            {formatState(context)}
+          <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${statusBg} ${statusColor}`}>
+            {statusLabel}
           </span>
         </div>
-
-        <div className="text-sm text-gray-500">{created}</div>
 
         <div className="flex items-center justify-end gap-3" data-row-actions>
           <button onClick={() => onOpen && onOpen(document)} className="text-black hover:text-gray-600" title="Ver detalle"><Eye className="h-5 w-5" /></button>
@@ -168,16 +161,12 @@ export default function DocumentRow({
             aria-label="Seleccionar documento"
           />
         )}
-        <div title={protectionLabel}>
-          <ProtectionLayerBadge layer={derivedProtectionLevel} />
-        </div>
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
-          <div className="text-xs text-gray-500">
-            <span className={`text-xs px-2 py-1 rounded ${flowConfig?.bg || 'bg-gray-100'} ${flowConfig?.color || 'text-gray-700'}`}>
-              {formatState(context)}
+          <div className="text-xs text-gray-500 mt-1">
+            <span className={`text-xs px-2 py-1 rounded ${statusBg} ${statusColor}`}>
+              {statusLabel}
             </span>
-            {created ? ` · ${created}` : ''}
           </div>
         </div>
       </div>

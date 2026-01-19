@@ -36,6 +36,9 @@ const requireCronSecret = (req: Request) => {
 };
 
 serve(async (req) => {
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response('disabled', { status: 204 });
+  }
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });

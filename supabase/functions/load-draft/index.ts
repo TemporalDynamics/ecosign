@@ -44,6 +44,9 @@ const jsonResponse = (data: unknown, status = 200, headers: Record<string, strin
   })
 
 serve(async (req) => {
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response('disabled', { status: 204 });
+  }
   const { headers: corsHeaders } = getCorsHeaders(req.headers.get('Origin') ?? undefined)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })

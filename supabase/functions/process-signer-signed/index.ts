@@ -17,6 +17,9 @@ const json = (data: unknown, status = 200) =>
 
 // Minimal idempotent worker: process a single signer.signed event by id
 serve(async (req) => {
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response('disabled', { status: 204 });
+  }
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 

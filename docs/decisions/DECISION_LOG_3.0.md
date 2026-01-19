@@ -2469,4 +2469,29 @@ Timestamp: 2026-01-15T18:30:00Z
 Branch: `final-artifact-implementation`
 Responsable: Claude Code (Opus 4.5) + Manu
 Contract actualizado: `docs/contratos/PROTECTION_LEVEL_RULES.md`
+## Decision: Autoridad del Sistema + Juez en write-path (Fase 1 TSA) — 2026-01-19
 
+### 🎯 Resumen
+Se formalizo la autoridad del sistema en contratos canonicos y se creo un
+compilado tecnico minimo (authority rules). El executor pasa a actuar como
+poder judicial: valida eventos canonicos contra rules antes de escribir en el
+write-path. El primer alcance es TSA (fase 1).
+
+### ✅ Decisiones clave
+- La autoridad reside en contratos + rules + validadores, no en procesos.
+- Se agrega `AUTORIDAD_DEL_SISTEMA.md` como contrato canonico.
+- Se crea `packages/authority` con reglas y validador puro.
+- `fase1-executor` valida `tsa.confirmed` antes de escribir evento.
+
+### 🔧 Implementacion
+- `docs/contratos/AUTORIDAD_DEL_SISTEMA.md`
+- `packages/authority/src/authorityRules.ts`
+- `packages/authority/src/validateEventAppend.ts`
+- `tests/authority/validateEventAppend.test.ts`
+- `supabase/functions/fase1-executor/index.ts`
+
+### 📌 Alcance
+- Solo TSA (eventos `tsa` / `tsa.confirmed`).
+- Validacion strict en el executor, sin parsing de contratos.
+
+---

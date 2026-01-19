@@ -27,29 +27,30 @@
 10. **`CONTRATO_ECO_ECOX.md`** — Diferenciacion ECO vs ECOX
 11. **`CONTRATO_LIFECYCLE_ECO_ECOX.md`** — Lifecycle ECO/ECOX (snapshots)
 12. **`ECO_ECOX_MIN_SCHEMA.md`** — Esquema minimo ECO/ECOX
+13. **`AUTORIDAD_DEL_SISTEMA.md`** — Autoridad canónica (write-path)
 
 ### Nivel 4: Flujos y Experiencia
-13. **`FLOW_MODES_CONTRACT.md`** — Modos de firma
-14. **`IDENTITY_OTP_DECRYPTION_CONTRACT.md`** — Pre-acceso + OTP + decrypt
-15. **`IMPACTO_TECNICO_MAPA.md`** — Mapa de impacto técnico
-16. **`CONTRATO_AUTORIDAD_EJECUTOR.md`** — Autoridad unica del executor
-17. **`CONTRATO_MAPEO_EJECUTOR.md`** — Mapeo CTA -> Intent -> Job
-18. **`LISTA_IMPLEMENTACION_AUTORIDAD_EJECUTOR.md`** — Checklist minima de autoridad
+14. **`FLOW_MODES_CONTRACT.md`** — Modos de firma
+15. **`IDENTITY_OTP_DECRYPTION_CONTRACT.md`** — Pre-acceso + OTP + decrypt
+16. **`IMPACTO_TECNICO_MAPA.md`** — Mapa de impacto técnico
+17. **`CONTRATO_AUTORIDAD_EJECUTOR.md`** — Autoridad unica del executor
+18. **`CONTRATO_MAPEO_EJECUTOR.md`** — Mapeo CTA -> Intent -> Job
+19. **`LISTA_IMPLEMENTACION_AUTORIDAD_EJECUTOR.md`** — Checklist minima de autoridad
 
 ### Nivel 5: Organización y Contexto
-19. **`OPERACIONES_CONTRACT.md`** ⭐ — Carpetas lógicas y operaciones
-20. **`DRAFT_OPERATION_RULES.md`** ⭐ — Borradores operativos (sin validez legal)
-21. **`LEGAL_CENTER_LAYOUT_CONTRACT.md`** — Layout del Centro Legal
-22. **`LEGAL_CENTER_STAGE_CONTRACT.md`** — Etapas del Centro Legal
-23. **`WORKFLOW_STATUS_SEMANTICS.md`** — Estados semánticos (esperando acción)
-24. **`OPERATIONS_RESPONSIBILITY.md`** — Responsable por operación
-25. **`EVIDENCE_MOMENT_CONTRACT.md`** — Evidencia del momento (UI humana)
-26. **`POST_SIGNATURE_IMMUTABILITY.md`** — Inmutabilidad post-firma (UI)
-27. **`WORKFLOW_CLOSURE_UX.md`** — Señal de cierre
-28. **`NOTIFICATION_POLICY.md`** — Política anti-spam
-29. **`CANONICAL_EVENTS_LIST.md`** — Lista mínima de eventos
-30. **`EVENTS_VS_NOTIFICATIONS.md`** — Separación evento/notificación
-31. **`DOCUMENTS_OPERATIONS_SCOPE.md`** — Frontera Documents vs Centro Legal
+20. **`OPERACIONES_CONTRACT.md`** ⭐ — Carpetas lógicas y operaciones
+21. **`DRAFT_OPERATION_RULES.md`** ⭐ — Borradores operativos (sin validez legal)
+22. **`LEGAL_CENTER_LAYOUT_CONTRACT.md`** — Layout del Centro Legal
+23. **`LEGAL_CENTER_STAGE_CONTRACT.md`** — Etapas del Centro Legal
+24. **`WORKFLOW_STATUS_SEMANTICS.md`** — Estados semánticos (esperando acción)
+25. **`OPERATIONS_RESPONSIBILITY.md`** — Responsable por operación
+26. **`EVIDENCE_MOMENT_CONTRACT.md`** — Evidencia del momento (UI humana)
+27. **`POST_SIGNATURE_IMMUTABILITY.md`** — Inmutabilidad post-firma (UI)
+28. **`WORKFLOW_CLOSURE_UX.md`** — Señal de cierre
+29. **`NOTIFICATION_POLICY.md`** — Política anti-spam
+30. **`CANONICAL_EVENTS_LIST.md`** — Lista mínima de eventos
+31. **`EVENTS_VS_NOTIFICATIONS.md`** — Separación evento/notificación
+32. **`DOCUMENTS_OPERATIONS_SCOPE.md`** — Frontera Documents vs Centro Legal
 
 ---
 

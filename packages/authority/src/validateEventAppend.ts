@@ -1,4 +1,4 @@
-import { CONTRACT_ECO_ECOX, DocumentEntityRules } from './authorityRules';
+import { CONTRACT_ECO_ECOX, DocumentEntityRules } from './authorityRules.ts';
 
 type DocumentEntitySnapshot = {
   id?: string;

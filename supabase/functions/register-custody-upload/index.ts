@@ -139,19 +139,20 @@ serve(async (req) => {
       console.warn('[register-custody-upload] Could not verify file exists:', fileError)
     }
 
-    // 6. Update document_entities.source_storage_path (only for source)
+    // 6. Update document_entities.source_storage_path and custody_mode (only for source)
     if (purpose === 'source') {
       const { error: updateError } = await supabase
         .from('document_entities')
         .update({
-          source_storage_path: storage_path
+          source_storage_path: storage_path,
+          custody_mode: 'encrypted_custody'
         })
         .eq('id', document_entity_id)
 
       if (updateError) {
-        console.error('[register-custody-upload] Error updating source_storage_path:', updateError)
+        console.error('[register-custody-upload] Error updating source_storage_path and custody_mode:', updateError)
         return jsonResponse({
-          error: 'Failed to update document entity with storage path'
+          error: 'Failed to update document entity with custody metadata'
         }, 500)
       }
     }

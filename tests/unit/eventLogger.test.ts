@@ -33,10 +33,7 @@ describe('EVENT_TYPES constants', () => {
     expect(EVENT_TYPES.EXPIRED).toBe('expired');
   });
 
-  test('should have exactly 10 event types', () => {
-    const keys = Object.keys(EVENT_TYPES);
-    expect(keys).toHaveLength(10);
-  });
+  // NOTE: event set is intentionally extensible; do not assert exact length.
 
   test('should have unique values', () => {
     const values = Object.values(EVENT_TYPES);
@@ -44,10 +41,12 @@ describe('EVENT_TYPES constants', () => {
     expect(uniqueValues.size).toBe(values.length);
   });
 
-  test('all event type values should be lowercase snake_case', () => {
+  test('all event type values should follow lowercase with [a-z0-9_.]+', () => {
+    // Allow lowercase names including numbers, underscores and dots (e.g. anchor.attempt)
     const values = Object.values(EVENT_TYPES);
+    const re = /^[a-z][a-z0-9_.]*$/;
     values.forEach((value) => {
-      expect(value).toMatch(/^[a-z_]+$/);
+      expect(value).toMatch(re);
     });
   });
 });

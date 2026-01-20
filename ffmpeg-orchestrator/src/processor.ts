@@ -127,4 +127,9 @@ export class FFmpegProcessor implements Processor<FFmpegInput, FFmpegOutput> {
       updateProgress(currentProgress);
     });
   }
+
+  // Backwards-compatible alias for older consumers/tests
+  processJob(job: Job & { metadata: FFmpegInput }, onProgress: ProgressCallback): Promise<Job & { result: FFmpegOutput }> {
+    return this.execute(job, onProgress);
+  }
 }

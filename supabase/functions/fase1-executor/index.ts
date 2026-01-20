@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts';
 import { validateEventAppend } from '../_shared/validateEventAppend.ts';
+import { decideProtectDocumentV2 } from '../_shared/protectDocumentV2Decision.ts';
 
 type ExecutorJob = {
   id: string;
@@ -208,14 +209,13 @@ async function handleProtectDocumentV2(
   }
 
   const events = Array.isArray(entity.events) ? entity.events : [];
-  const hasRequest = events.some((event: { kind?: string }) => event.kind === 'document.protected.requested');
-  if (!hasRequest) {
+  const decision = decideProtectDocumentV2(events);
+  if (decision === 'noop_missing_request') {
     console.log(`[fase1-executor] NOOP protect_document_v2 (no request event) for job ${job.id}`);
     return;
   }
 
-  const hasTsaConfirmed = events.some((event: { kind?: string }) => event.kind === 'tsa.confirmed');
-  if (hasTsaConfirmed) {
+  if (decision === 'noop_already_tsa') {
     console.log(`[fase1-executor] NOOP protect_document_v2 (tsa.confirmed exists) for job ${job.id}`);
     return;
   }

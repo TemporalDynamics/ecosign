@@ -63,6 +63,10 @@ serve(async (req) => {
     return jsonResponse({ success: true, noop: true });
   }
 
+  if (events.some((event: { kind?: string }) => event.kind === 'artifact.failed')) {
+    return jsonResponse({ success: true, noop: true });
+  }
+
   await emitEvent(
     supabase,
     documentEntityId,

@@ -1,17 +1,22 @@
 import { MemoryJobQueue } from './queue';
 import { JobRepository } from './job-repository';
-import { FFmpegProcessor } from './processor';
+import { FFmpegProcessor, FFmpegInput, FFmpegOutput } from './processor';
 import { CommandBuilder } from './command-builder';
-import { Job, JobOptions, JobQueue } from './types';
+import { Job, JobOptions, JobQueue, Processor } from './types';
 
-export { 
-  MemoryJobQueue, 
-  JobRepository, 
-  FFmpegProcessor, 
+export {
+  MemoryJobQueue,
+  JobRepository,
+  FFmpegProcessor,
   CommandBuilder,
   Job,
   JobOptions,
-  JobQueue
+  JobQueue,
+  // Core abstraction - implement this for custom processors
+  Processor,
+  // FFmpeg-specific types
+  FFmpegInput,
+  FFmpegOutput,
 };
 
 /**

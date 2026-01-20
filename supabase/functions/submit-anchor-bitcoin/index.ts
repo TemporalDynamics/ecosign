@@ -100,7 +100,11 @@ serve(async (req) => {
     await emitEvent(
       supabase,
       documentEntityId,
-      { kind: 'anchor.submitted', at: new Date().toISOString() },
+      {
+        kind: 'anchor.submitted',
+        at: new Date().toISOString(),
+        payload: { network: 'bitcoin' },
+      },
       'submit-anchor-bitcoin',
     );
 

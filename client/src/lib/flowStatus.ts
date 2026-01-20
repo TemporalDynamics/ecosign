@@ -42,8 +42,11 @@ const normalizeStatus = (value: string | null | undefined) =>
 
 export const deriveFlowStatus = (doc: any): { key: FlowStatusKey; detail?: string } => {
   const rawStatus = normalizeStatus(
-    doc.lifecycle_status || doc.overall_status || doc.status || doc.workflow_status
+    doc.overall_status || doc.status || doc.workflow_status
   );
+  const hasTsaConfirmed = Array.isArray(doc.events)
+    ? doc.events.some((event: any) => event?.kind === 'tsa.confirmed')
+    : false;
   const signerLinks: SignerLink[] = Array.isArray(doc.signer_links) ? doc.signer_links : [];
   const pendingSigners = signerLinks.filter((signer) => {
     const status = normalizeStatus(signer.status);
@@ -52,13 +55,7 @@ export const deriveFlowStatus = (doc: any): { key: FlowStatusKey; detail?: strin
 
   if (rawStatus === "draft") return { key: "draft" };
 
-  if (
-    rawStatus === "protected" ||
-    rawStatus === "certified" ||
-    rawStatus === "anchored" ||
-    doc?.tsa_latest ||
-    doc?.has_legal_timestamp
-  ) {
+  if (hasTsaConfirmed) {
     return { key: "protected" };
   }
 
@@ -87,7 +84,7 @@ export const deriveFlowStatus = (doc: any): { key: FlowStatusKey; detail?: strin
     return { key: "sent" };
   }
 
-  if (doc.witness_current_hash || doc.tsa_latest) {
+  if (doc.witness_current_hash) {
     return { key: "configured" };
   }
 

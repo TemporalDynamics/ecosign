@@ -19,7 +19,7 @@ export interface Event {
 }
 
 export interface TsaEvent extends Event {
-  kind: 'tsa' | 'tsa.confirmed';
+  kind: 'tsa.confirmed' | 'tsa.failed';
   witness_hash?: string;
   tsa?: {
     token_b64: string;
@@ -63,7 +63,7 @@ export function deriveProtectionLevel(events: Event[]): ProtectionLevel {
 
   // Check for TSA event
   const hasTsa = events.some((e): e is TsaEvent =>
-    (e.kind === 'tsa' || e.kind === 'tsa.confirmed') &&
+    e.kind === 'tsa.confirmed' &&
     (typeof (e as any).witness_hash === 'string' ||
       typeof (e as any).payload?.witness_hash === 'string') &&
     (typeof (e as any).tsa?.token_b64 === 'string' ||
@@ -157,7 +157,7 @@ export function getProtectionLevelDescription(level: ProtectionLevel): string {
  */
 export function getTsaEvent(events: Event[]): TsaEvent | null {
   return (events.find((e): e is TsaEvent =>
-    (e.kind === 'tsa' || e.kind === 'tsa.confirmed') &&
+    e.kind === 'tsa.confirmed' &&
     (typeof (e as any).witness_hash === 'string' ||
       typeof (e as any).payload?.witness_hash === 'string') &&
     (typeof (e as any).tsa?.token_b64 === 'string' ||

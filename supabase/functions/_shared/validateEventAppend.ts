@@ -1,6 +1,11 @@
 import { CONTRACT_ECO_ECOX, DocumentEntityRules } from './authorityRules.ts';
 
 export function validateEventAppend(documentEntity: any, event: any) {
+  // FASE 1 ONLY: temporary hard-lock to TSA outcomes. Expand in Phase 2.
+  if (event?.kind !== 'tsa.confirmed' && event?.kind !== 'tsa.failed') {
+    return { ok: false, reason: 'event_kind_not_allowed', contract: CONTRACT_ECO_ECOX };
+  }
+
   const rule = DocumentEntityRules[event.kind];
   if (!rule) return { ok: true };
 

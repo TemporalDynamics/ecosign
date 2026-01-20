@@ -10,6 +10,8 @@ type ExecutorJob = {
   attempts: number;
 };
 
+const V2_PROTECT_JOB_TYPE = 'protect_document_v2';
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const FUNCTIONS_URL = `${SUPABASE_URL.replace(/\/+$/, '')}/functions/v1`;
@@ -117,7 +119,7 @@ async function handleDocumentProtected(
       supabase,
       documentEntityId,
       {
-        kind: FASE1_EVENT_KINDS.TSA_FAILED,
+        kind: 'tsa.failed',
         at: new Date().toISOString(),
         payload: { reason: 'missing_witness_hash', retryable: false },
       },
@@ -133,7 +135,7 @@ async function handleDocumentProtected(
     });
 
     const tsaEvent = {
-      kind: FASE1_EVENT_KINDS.TSA_CONFIRMED,
+      kind: 'tsa.confirmed',
       at: new Date().toISOString(),
       payload: {
         witness_hash: witnessHash,
@@ -166,7 +168,7 @@ async function handleDocumentProtected(
       supabase,
       documentEntityId,
       {
-        kind: FASE1_EVENT_KINDS.TSA_FAILED,
+        kind: 'tsa.failed',
         at: new Date().toISOString(),
         payload: { reason: message, retryable: false, witness_hash: witnessHash },
       },
@@ -180,6 +182,45 @@ async function handleDocumentProtected(
 
   // Bitcoin - DESHABILITADO para Fase 1 MVP
   // TODO: Reactivar en Fase 2
+}
+
+async function handleProtectDocumentV2(
+  supabase: ReturnType<typeof createClient>,
+  job: ExecutorJob,
+): Promise<void> {
+  const payload = job.payload ?? {};
+  const documentEntityId = String(payload['document_entity_id'] ?? '');
+
+  if (!documentEntityId) {
+    console.log(`[fase1-executor] NOOP protect_document_v2 (missing document_entity_id) for job ${job.id}`);
+    return;
+  }
+
+  const { data: entity, error: entityError } = await supabase
+    .from('document_entities')
+    .select('id, events')
+    .eq('id', documentEntityId)
+    .single();
+
+  if (entityError || !entity) {
+    console.log(`[fase1-executor] NOOP protect_document_v2 (document not found) for job ${job.id}`);
+    return;
+  }
+
+  const events = Array.isArray(entity.events) ? entity.events : [];
+  const hasRequest = events.some((event: { kind?: string }) => event.kind === 'document.protected.requested');
+  if (!hasRequest) {
+    console.log(`[fase1-executor] NOOP protect_document_v2 (no request event) for job ${job.id}`);
+    return;
+  }
+
+  const hasTsaConfirmed = events.some((event: { kind?: string }) => event.kind === 'tsa.confirmed');
+  if (hasTsaConfirmed) {
+    console.log(`[fase1-executor] NOOP protect_document_v2 (tsa.confirmed exists) for job ${job.id}`);
+    return;
+  }
+
+  await handleDocumentProtected(supabase, job);
 }
 
 Deno.serve(async (req) => {
@@ -231,6 +272,8 @@ Deno.serve(async (req) => {
     try {
       if (job.type === FASE1_EVENT_KINDS.DOCUMENT_PROTECTED) {
         await handleDocumentProtected(supabase, job);
+      } else if (job.type === V2_PROTECT_JOB_TYPE) {
+        await handleProtectDocumentV2(supabase, job);
       } else {
         throw new Error(`No handler for job type: ${job.type}`);
       }

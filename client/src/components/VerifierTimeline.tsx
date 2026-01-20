@@ -66,8 +66,8 @@ const groupEventsByPhase = (events: TimelineEvent[]) => {
 
     // Protection (TSA / certification)
     if (
-      kind === 'tsa' ||
       kind === 'tsa.confirmed' ||
+      kind === 'tsa.failed' ||
       label.includes('sello de tiempo') ||
       label.includes('evidencia temporal') ||
       label.includes('certific')

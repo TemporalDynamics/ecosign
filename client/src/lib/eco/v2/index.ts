@@ -19,7 +19,7 @@ export type TransformLogEntry = {
 };
 
 export type TsaEvent = {
-  kind: 'tsa' | 'tsa.confirmed' | 'tsa.failed';
+  kind: 'tsa.confirmed' | 'tsa.failed';
   at: string;
   witness_hash?: string;
   tsa?: {
@@ -275,7 +275,7 @@ const verifyTsaEvents = (
   witnessHash: string | undefined
 ): { present: boolean; valid?: boolean; witness_hash?: string; gen_time?: string } => {
   const tsaEvents = events.filter((e): e is TsaEvent =>
-    e.kind === 'tsa' || e.kind === 'tsa.confirmed'
+    e.kind === 'tsa.confirmed'
   );
   
   if (tsaEvents.length === 0) {

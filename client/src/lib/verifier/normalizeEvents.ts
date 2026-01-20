@@ -39,7 +39,7 @@ const getAnchorLabel = (event: DocumentEventEntry): string | null => {
 };
 
 const getTsaLabel = (event: DocumentEventEntry): string | null => {
-  if (event.kind !== 'tsa' && event.kind !== 'tsa.confirmed') return null;
+  if (event.kind !== 'tsa.confirmed') return null;
   return 'Sello de tiempo registrado';
 };
 

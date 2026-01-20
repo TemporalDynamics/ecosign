@@ -6,61 +6,11 @@ import {
 } from './types';
 import { JobRepository } from './job-repository';
 import { FFmpegProcessor } from './processor';
-import {
-  validateTimeline,
-  getTotalDuration,
-  Project as EngineProject,
-  Segment as EngineSegment,
-} from '@temporaldynamics/timeline-engine';
 
-function cloneSegments(segments: EngineSegment[] = []): EngineSegment[] {
-  return segments.map((segment) => ({ ...segment }));
-}
-
-function normalizeProject(project: JobProjectManifest): JobProjectManifest {
-  const timeline = cloneSegments(
-    Array.isArray(project.timeline) && project.timeline.length > 0
-      ? project.timeline
-      : project.segments ?? []
-  ).sort((a, b) => a.projectStartTime - b.projectStartTime);
-
-  const timelineErrors = validateTimeline(timeline);
-  if (timelineErrors.length > 0) {
-    throw new Error(
-      `JobQueue: manifest inválido. Errores en timeline: ${timelineErrors.join('; ')}`
-    );
-  }
-
-  const normalizedAssets: EngineProject['assets'] = Object.fromEntries(
-    Object.entries(project.assets ?? {}).map(([id, asset]) => [id, { ...asset }])
-  );
-
-  const baseProject: EngineProject = {
-    ...project,
-    assets: normalizedAssets,
-    timeline,
-    version: project.version ?? '1.0.0',
-    createdAt: project.createdAt ?? Date.now(),
-    updatedAt: project.updatedAt ?? Date.now(),
-  } as EngineProject;
-
-  const duration = getTotalDuration(baseProject);
-
-  return {
-    ...baseProject,
-    duration,
-    segments: timeline,
-  };
-}
+// Timeline normalization removed to keep core agnostic.
 
 function normalizeMetadata(metadata: JobOptions['metadata']): JobOptions['metadata'] {
-  const nextMetadata = { ...metadata } as JobOptions['metadata'];
-
-  if (nextMetadata.project) {
-    nextMetadata.project = normalizeProject(nextMetadata.project);
-  }
-
-  return nextMetadata;
+  return { ...metadata };
 }
 
 export class MemoryJobQueue implements JobQueue {
@@ -174,7 +124,7 @@ export class MemoryJobQueue implements JobQueue {
         await this.repository.updateJob(job);
 
         // Process the job
-        job = await this.processor.processJob(job, (progress) => {
+        job = await this.processor.execute(job, (progress) => {
           job.progress = progress;
           job.updatedAt = new Date();
           this.jobs.set(jobId, job);

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { appendEvent } from '../_shared/eventHelper.ts';
+import { processArtifact, type ArtifactInput } from '../../../packages/artifact-processor/src/index.ts';
 
 type BuildArtifactRequest = {
   document_entity_id: string;
@@ -50,7 +51,7 @@ serve(async (req) => {
 
   const { data: entity, error: entityError } = await supabase
     .from('document_entities')
-    .select('id, events')
+    .select('id, events, witness_current_storage_path, created_at')
     .eq('id', documentEntityId)
     .single();
 
@@ -67,16 +68,111 @@ serve(async (req) => {
     return jsonResponse({ success: true, noop: true });
   }
 
-  await emitEvent(
-    supabase,
-    documentEntityId,
-    {
-      kind: 'artifact.failed',
-      at: new Date().toISOString(),
-      payload: { reason: 'not_implemented', retryable: false },
-    },
-    'build-artifact',
-  );
+  const witnessPath = entity.witness_current_storage_path as string | null;
+  if (!witnessPath) {
+    await emitEvent(
+      supabase,
+      documentEntityId,
+      {
+        kind: 'artifact.failed',
+        at: new Date().toISOString(),
+        payload: { reason: 'missing_witness_pdf', retryable: false },
+      },
+      'build-artifact',
+    );
+    return jsonResponse({ error: 'missing_witness_pdf' }, 400);
+  }
 
-  return jsonResponse({ success: true, stub: true });
+  try {
+    const download = await supabase.storage.from('user-documents').download(witnessPath);
+    if (download.error || !download.data) {
+      await emitEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'artifact.failed',
+          at: new Date().toISOString(),
+          payload: { reason: 'pdf_download_failed', retryable: true },
+        },
+        'build-artifact',
+      );
+      return jsonResponse({ error: 'pdf_download_failed' }, 500);
+    }
+
+    const pdfBytes = new Uint8Array(await download.data.arrayBuffer());
+    const tsaEvent = events.find((event: { kind?: string }) => event.kind === 'tsa.confirmed') as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    const tokenB64 = typeof tsaEvent?.payload?.['token_b64'] === 'string'
+      ? String(tsaEvent.payload?.['token_b64'])
+      : null;
+    const tsaToken = tokenB64 ? Uint8Array.from(atob(tokenB64), (c) => c.charCodeAt(0)) : null;
+
+    const input: ArtifactInput = {
+      pdf_base: pdfBytes,
+      signatures: [],
+      tsa_token: tsaToken,
+      anchors: [],
+      metadata: {
+        document_entity_id: documentEntityId,
+        created_at: entity.created_at ?? new Date().toISOString(),
+        artifact_version: 'v1',
+      },
+    };
+
+    const result = await processArtifact(input);
+    const artifactPath = `artifacts/${documentEntityId}/${result.artifact_version}.pdf`;
+    const upload = await supabase.storage
+      .from('user-documents')
+      .upload(artifactPath, new Blob([result.artifact], { type: result.mime }), {
+        upsert: true,
+        contentType: result.mime,
+      });
+
+    if (upload.error) {
+      await emitEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'artifact.failed',
+          at: new Date().toISOString(),
+          payload: { reason: 'artifact_upload_failed', retryable: true },
+        },
+        'build-artifact',
+      );
+      return jsonResponse({ error: 'artifact_upload_failed' }, 500);
+    }
+
+    await emitEvent(
+      supabase,
+      documentEntityId,
+      {
+        kind: 'artifact.finalized',
+        at: new Date().toISOString(),
+        payload: {
+          artifact_storage_path: artifactPath,
+          artifact_hash: result.hash,
+          mime: result.mime,
+          size_bytes: result.size_bytes,
+          artifact_version: result.artifact_version,
+        },
+      },
+      'build-artifact',
+    );
+
+    return jsonResponse({ success: true, artifact_storage_path: artifactPath });
+  } catch (error) {
+    await emitEvent(
+      supabase,
+      documentEntityId,
+      {
+        kind: 'artifact.failed',
+        at: new Date().toISOString(),
+        payload: { reason: 'artifact_build_failed', retryable: true },
+      },
+      'build-artifact',
+    );
+    const message = error instanceof Error ? error.message : String(error);
+    return jsonResponse({ error: message }, 500);
+  }
 });

@@ -78,10 +78,6 @@ serve(async (req) => {
   }
 
   const events = Array.isArray(entity.events) ? entity.events : [];
-  if (events.some((event: { kind?: string }) => event.kind === 'anchor.submitted')) {
-    // NOTE: Per-network dedupe needs payload fields not defined in contract.
-    return jsonResponse({ success: true, noop: true });
-  }
 
   const witnessHash = String(entity.witness_hash ?? '');
   if (!witnessHash) {

@@ -83,7 +83,7 @@ serve(async (req) => {
     return jsonResponse({ success: true, noop: true });
   }
 
-  const witnessHash = String(body.witness_hash ?? entity.witness_hash ?? '');
+  const witnessHash = String(entity.witness_hash ?? '');
   if (!witnessHash) {
     await emitEvent(
       supabase,
@@ -108,9 +108,6 @@ serve(async (req) => {
       payload: {
         witness_hash: witnessHash,
         token_b64: tsaResponse.token,
-        tsa_url: tsaResponse.tsa_url,
-        algorithm: tsaResponse.algorithm,
-        standard: tsaResponse.standard,
       },
     };
 

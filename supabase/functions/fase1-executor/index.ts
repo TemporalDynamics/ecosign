@@ -12,6 +12,9 @@ type ExecutorJob = {
 };
 
 const V2_PROTECT_JOB_TYPE = 'protect_document_v2';
+const BUILD_ARTIFACT_JOB_TYPE = 'build_artifact';
+const SUBMIT_ANCHOR_POLYGON_JOB_TYPE = 'submit_anchor_polygon';
+const SUBMIT_ANCHOR_BITCOIN_JOB_TYPE = 'submit_anchor_bitcoin';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -221,6 +224,135 @@ async function handleProtectDocumentV2(
   }
 
   await handleDocumentProtected(supabase, job);
+
+  const updated = await supabase
+    .from('document_entities')
+    .select('events')
+    .eq('id', documentEntityId)
+    .single();
+
+  if (updated.error || !updated.data) {
+    console.log(`[fase1-executor] NOOP protect_document_v2 (events reload failed) for job ${job.id}`);
+    return;
+  }
+
+  const updatedEvents = Array.isArray(updated.data.events) ? updated.data.events : [];
+  const hasArtifact = updatedEvents.some((event: { kind?: string }) => event.kind === 'artifact.finalized');
+  if (!hasArtifact) {
+    await enqueueExecutorJob(
+      supabase,
+      BUILD_ARTIFACT_JOB_TYPE,
+      documentEntityId,
+      payload['document_id'] ? String(payload['document_id']) : null,
+      `${documentEntityId}:${BUILD_ARTIFACT_JOB_TYPE}`,
+    );
+    return;
+  }
+
+  const requestEvent = updatedEvents.find((event: { kind?: string }) =>
+    event.kind === 'document.protected.requested'
+  ) as { payload?: Record<string, unknown> } | undefined;
+  const protection = Array.isArray(requestEvent?.payload?.['protection'])
+    ? (requestEvent?.payload?.['protection'] as Array<unknown>)
+    : [];
+
+  if (protection.includes('polygon')) {
+    await enqueueExecutorJob(
+      supabase,
+      SUBMIT_ANCHOR_POLYGON_JOB_TYPE,
+      documentEntityId,
+      payload['document_id'] ? String(payload['document_id']) : null,
+      `${documentEntityId}:${SUBMIT_ANCHOR_POLYGON_JOB_TYPE}`,
+    );
+  }
+
+  if (protection.includes('bitcoin')) {
+    await enqueueExecutorJob(
+      supabase,
+      SUBMIT_ANCHOR_BITCOIN_JOB_TYPE,
+      documentEntityId,
+      payload['document_id'] ? String(payload['document_id']) : null,
+      `${documentEntityId}:${SUBMIT_ANCHOR_BITCOIN_JOB_TYPE}`,
+    );
+  }
+}
+
+async function enqueueExecutorJob(
+  supabase: ReturnType<typeof createClient>,
+  type: string,
+  documentEntityId: string,
+  documentId: string | null,
+  dedupeKey: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('executor_jobs')
+    .insert({
+      type,
+      entity_type: 'document',
+      entity_id: documentEntityId,
+      dedupe_key: dedupeKey,
+      payload: {
+        document_entity_id: documentEntityId,
+        document_id: documentId,
+      },
+      status: 'queued',
+      run_at: new Date().toISOString(),
+    });
+
+  if (error && error.code !== '23505') {
+    console.log(`[fase1-executor] Failed to enqueue ${type} for ${documentEntityId}: ${error.message}`);
+  }
+}
+
+async function handleBuildArtifact(
+  supabase: ReturnType<typeof createClient>,
+  job: ExecutorJob,
+): Promise<void> {
+  const documentEntityId = String(job.payload?.['document_entity_id'] ?? '');
+  const documentId = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
+
+  if (!documentEntityId) {
+    throw new Error('document_entity_id missing in payload');
+  }
+
+  await callFunction('build-artifact', {
+    document_entity_id: documentEntityId,
+    document_id: documentId,
+  });
+}
+
+async function handleSubmitAnchorPolygon(
+  supabase: ReturnType<typeof createClient>,
+  job: ExecutorJob,
+): Promise<void> {
+  const documentEntityId = String(job.payload?.['document_entity_id'] ?? '');
+  const documentId = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
+
+  if (!documentEntityId) {
+    throw new Error('document_entity_id missing in payload');
+  }
+
+  await callFunction('submit-anchor-polygon', {
+    document_entity_id: documentEntityId,
+    document_id: documentId,
+  });
+}
+
+async function handleSubmitAnchorBitcoin(
+  supabase: ReturnType<typeof createClient>,
+  job: ExecutorJob,
+): Promise<void> {
+  const documentEntityId = String(job.payload?.['document_entity_id'] ?? '');
+  const documentId = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
+
+  if (!documentEntityId) {
+    throw new Error('document_entity_id missing in payload');
+  }
+
+  await callFunction('submit-anchor-bitcoin', {
+    document_entity_id: documentEntityId,
+    document_id: documentId,
+  });
 }
 
 Deno.serve(async (req) => {
@@ -274,6 +406,12 @@ Deno.serve(async (req) => {
         await handleDocumentProtected(supabase, job);
       } else if (job.type === V2_PROTECT_JOB_TYPE) {
         await handleProtectDocumentV2(supabase, job);
+      } else if (job.type === BUILD_ARTIFACT_JOB_TYPE) {
+        await handleBuildArtifact(supabase, job);
+      } else if (job.type === SUBMIT_ANCHOR_POLYGON_JOB_TYPE) {
+        await handleSubmitAnchorPolygon(supabase, job);
+      } else if (job.type === SUBMIT_ANCHOR_BITCOIN_JOB_TYPE) {
+        await handleSubmitAnchorBitcoin(supabase, job);
       } else {
         throw new Error(`No handler for job type: ${job.type}`);
       }

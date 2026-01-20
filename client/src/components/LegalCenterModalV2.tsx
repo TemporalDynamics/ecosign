@@ -1106,7 +1106,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
             await advanceLifecycle(canonicalDocumentId, 'witness_ready');
           } catch (err) {
-            console.warn('Canonical witness/transform skipped:', err);
+            console.error('❌ Canonical witness preparation failed:', err);
+            showToast('No se pudo preparar la copia fiel (PDF witness).', { type: 'error' });
+            setLoading(false);
+            return;
           }
         }
 
@@ -1258,6 +1261,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
       // Preparar archivo con Hoja de Auditoría (SOLO para Firma Legal)
       let witnessHash: string | null = null;
+      let witnessStorageReady = false;
 
       // Solo agregar Hoja de Auditoría si es Firma Legal (NO para Firma Certificada)
       if (signatureType === 'legal') {
@@ -1298,21 +1302,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             throw new Error('Usuario no autenticado');
           }
 
-          // 1. Subir versión CIFRADA a custody (backup)
-          const witnessStoragePath = await storeEncryptedCustody(
-            fileToProcess,
-            canonicalDocumentId,
-            'witness'
-          );
-
-          await ensureWitnessCurrent(canonicalDocumentId, {
-            hash: witnessHash,
-            mime_type: 'application/pdf',
-            storage_path: witnessStoragePath,
-            status: 'generated'
-          });
-
-          // 2. Subir versión SIN CIFRAR a user-documents (para descarga)
+          // 1. Subir versión SIN CIFRAR a user-documents (para descarga)
           const downloadPath = `${currentUser.id}/${Date.now()}-${file.name}`;
           const { error: uploadError } = await supabase.storage
             .from('user-documents')
@@ -1321,7 +1311,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               upsert: false
             });
 
-          if (!uploadError) {
+          if (uploadError) {
+            throw new Error('WITNESS_UPLOAD_FAILED');
+          } else {
             console.log('✅ Witness PDF uploaded to user-documents:', downloadPath);
             // Actualizar witness_current_storage_path con el path de descarga (plaintext)
             // El path de custody (cifrado) queda como backup, pero el de descarga es el importante
@@ -1331,13 +1323,26 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               .eq('id', canonicalDocumentId);
 
             if (updateError) {
-              console.warn('⚠️ Could not update witness storage path:', updateError);
+              throw new Error('WITNESS_PATH_UPDATE_FAILED');
             } else {
               console.log('✅ witness_current_storage_path updated to downloadable path:', downloadPath);
+              witnessStorageReady = true;
             }
-          } else {
-            console.warn('⚠️ Could not upload witness to user-documents (download may fail):', uploadError);
           }
+
+          await ensureWitnessCurrent(canonicalDocumentId, {
+            hash: witnessHash,
+            mime_type: 'application/pdf',
+            storage_path: downloadPath,
+            status: 'generated'
+          });
+
+          // 2. Subir versión CIFRADA a custody (backup no bloqueante)
+          storeEncryptedCustody(
+            fileToProcess,
+            canonicalDocumentId,
+            'witness'
+          ).catch(err => console.warn('Custody backup skipped:', err));
 
           if (canonicalSourceHash && file.type !== 'application/pdf') {
             await appendTransform(canonicalDocumentId, {
@@ -1351,10 +1356,19 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             });
           }
 
+          if (!witnessStorageReady) {
+            throw new Error('INVARIANT_VIOLATION: witness path missing');
+          }
+
           await advanceLifecycle(canonicalDocumentId, 'witness_ready');
         }
       } catch (err) {
-        console.warn('Canonical witness preparation skipped:', err);
+        console.error('❌ Canonical witness preparation failed:', err);
+        toast.error('No se pudo preparar la copia fiel (PDF witness).', {
+          position: 'bottom-right'
+        });
+        setLoading(false);
+        return;
       }
 
       // 1. Certificar con o sin SignNow según tipo de firma seleccionado

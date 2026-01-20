@@ -18,6 +18,7 @@ import { getCorsHeaders } from '../_shared/cors.ts'
 interface RecordProtectionRequest {
   document_id?: string
   document_entity_id?: string
+  flow_version?: 'v1' | 'v2'
   protection_details: {
     signature_type?: 'legal' | 'certified' | 'none'
     forensic_enabled: boolean
@@ -73,7 +74,8 @@ serve(withRateLimit('record', async (req) => {
 
     // Parse request body
     const body: RecordProtectionRequest = await req.json()
-    const { document_id, document_entity_id, protection_details } = body
+    const { document_id, document_entity_id, protection_details, flow_version } = body
+    const flowVersion = flow_version ?? 'v1'
 
     if (!document_id && !document_entity_id) {
       throw new Error('Missing required field: document_id or document_entity_id')
@@ -172,8 +174,12 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Failed to record protection event: ' + eventResult.error)
     }
 
+    const requestEventKind =
+      flowVersion === 'v2'
+        ? FASE1_EVENT_KINDS.DOCUMENT_PROTECTED_REQUESTED
+        : FASE1_EVENT_KINDS.DOCUMENT_PROTECTED
     const documentProtectedEvent = {
-      kind: FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
+      kind: requestEventKind,
       at: new Date().toISOString(),
       payload: {
         document_entity_id: documentEntityId,
@@ -199,7 +205,7 @@ serve(withRateLimit('record', async (req) => {
     const { error: enqueueError } = await supabase
       .from('executor_jobs')
       .insert({
-        type: FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
+        type: flowVersion === 'v2' ? 'protect_document_v2' : FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
         entity_type: 'document',
         entity_id: documentEntityId,
         payload: {
@@ -217,7 +223,7 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Failed to enqueue executor job: ' + enqueueError.message)
     }
 
-    console.log(`✅ protection_enabled + document.protected recorded for document ${userDocumentId}`)
+    console.log(`✅ protection_enabled + ${requestEventKind} recorded for document ${userDocumentId}`)
 
     return new Response(
       JSON.stringify({

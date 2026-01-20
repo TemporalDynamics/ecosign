@@ -162,7 +162,7 @@ export const mapEntityToDocumentRecord = (entity: any) => {
     created_at: entity.created_at || entity.source_captured_at,
     pdf_storage_path: entity.witness_current_storage_path ?? null,
     source_storage_path: entity.source_storage_path ?? null,
-    status: entity.lifecycle_status ?? null,
+    status: null,
     signed_authority: entity.signed_authority ?? null,
     has_legal_timestamp: false,
     has_polygon_anchor: false,

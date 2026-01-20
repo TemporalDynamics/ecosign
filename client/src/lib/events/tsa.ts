@@ -27,7 +27,7 @@ export function getLatestTsaEvent(events?: EventEntry[]): TsaUiInfo {
   }
 
   const tsaEvents = events.filter((e): e is TsaEvent =>
-    e.kind === 'tsa' || e.kind === 'tsa.confirmed'
+    e.kind === 'tsa.confirmed'
   );
   
   if (tsaEvents.length === 0) {

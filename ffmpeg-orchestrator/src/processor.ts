@@ -1,7 +1,6 @@
 import { spawn } from 'child_process';
-import { Job } from './types';
+import { Job, Processor, CommandOptions } from './types';
 import { CommandBuilder } from './command-builder';
-import { CommandOptions } from './types';
 
 export type ProgressCallback = (progress: number) => void;
 
@@ -23,7 +22,31 @@ function clampProgress(progress: number): number {
   return Math.min(100, Math.max(0, progress));
 }
 
-export class FFmpegProcessor {
+/**
+ * FFmpeg-specific input metadata
+ */
+export interface FFmpegInput {
+  args?: string[];
+  commandOptions?: CommandOptions;
+  duration?: number;
+  output?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * FFmpeg-specific output result
+ */
+export interface FFmpegOutput {
+  output?: string;
+}
+
+/**
+ * FFmpegProcessor - Implementation of Processor for FFmpeg jobs
+ *
+ * Spawns ffmpeg as a child process, monitors progress via stderr,
+ * and returns the completed job with output path.
+ */
+export class FFmpegProcessor implements Processor<FFmpegInput, FFmpegOutput> {
   constructor(private readonly ffmpegPath: string = 'ffmpeg') {}
 
   private resolveArgs(job: Job): string[] {
@@ -40,11 +63,11 @@ export class FFmpegProcessor {
     throw new Error(`Job ${job.id} no contiene metadata suficiente para construir el comando de FFmpeg.`);
   }
 
-  async processJob(job: Job, onProgress: ProgressCallback): Promise<Job> {
+  async execute(job: Job & { metadata: FFmpegInput }, onProgress: ProgressCallback): Promise<Job & { result: FFmpegOutput }> {
     const args = this.resolveArgs(job);
     const totalDuration = typeof job.metadata?.duration === 'number' ? job.metadata.duration : undefined;
 
-    return new Promise<Job>((resolve, reject) => {
+    return new Promise<Job & { result: FFmpegOutput }>((resolve, reject) => {
       const child = spawn(this.ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
       const startTime = new Date();
       let currentProgress = clampProgress(job.progress ?? 0);

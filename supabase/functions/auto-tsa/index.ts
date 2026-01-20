@@ -14,11 +14,18 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
+const isFlagEnabled = (name: string) =>
+  String(Deno.env.get(name) ?? '').toLowerCase() === 'true'
+
 serve(async (req) => {
   // FASE guard disabled for MVP
   // if (Deno.env.get('FASE') !== '1') {
   //   return new Response('disabled', { status: 204 })
   // }
+
+  if (isFlagEnabled('V2_AUTHORITY_ONLY') || isFlagEnabled('DISABLE_AUTO_TSA')) {
+    return new Response('disabled', { status: 204 })
+  }
 
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })

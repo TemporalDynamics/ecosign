@@ -59,7 +59,6 @@ type DocumentRecord = {
   ecox_file_data?: string | null;
   status?: string | null;
   overall_status?: string | null;
-  lifecycle_status?: string | null;
   signed_authority?: 'internal' | 'external' | null;
   events?: any[];
   signer_links?: any[];
@@ -78,11 +77,9 @@ type DocumentEntityRow = {
   signed_hash?: string | null;
   signed_authority?: 'internal' | 'external' | null;
   composite_hash?: string | null;
-  lifecycle_status?: string | null;
   custody_mode?: 'hash_only' | 'encrypted_custody' | null;
   created_at?: string | null;
   updated_at?: string | null;
-  tsa_latest?: any;
   events?: any[];
 };
 

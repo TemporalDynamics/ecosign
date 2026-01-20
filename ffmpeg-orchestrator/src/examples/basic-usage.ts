@@ -17,15 +17,8 @@ async function setupServer() {
     const job = await queue.add({
       type: 'transcode',
       metadata: {
-        project: {
-          id: 'demo-project',
-          name: 'Demo Project',
-          assets: {},
-          timeline: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          version: '1.0.0',
-        },
+        project: {},
+
         input: {
           path: '/path/to/source.mov',
           options: ['-threads', '2'],

@@ -7,10 +7,98 @@ import {
 import { JobRepository } from './job-repository';
 import { FFmpegProcessor } from './processor';
 
-// Timeline normalization removed to keep core agnostic.
+// Minimal timeline utilities reintroduced locally to satisfy tests without external dependency.
+
+function cloneSegments(segments: any[] = []): any[] {
+  return segments.map((segment) => ({ ...segment }));
+}
+
+function validateTimeline(timeline: any[] = []): string[] {
+  const errors: string[] = [];
+  // Ensure segments are ordered by projectStartTime
+  const sorted = [...timeline].sort((a, b) => (a.projectStartTime ?? 0) - (b.projectStartTime ?? 0));
+
+  let lastEnd = -Infinity;
+  for (const seg of sorted) {
+    const start = typeof seg.startTime === 'number' ? seg.startTime : NaN;
+    const end = typeof seg.endTime === 'number' ? seg.endTime : NaN;
+    const projStart = typeof seg.projectStartTime === 'number' ? seg.projectStartTime : NaN;
+
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+      errors.push(`Segment ${seg.id || '<unknown>'} tiene tiempo inválido`);
+      continue;
+    }
+
+    const segDuration = end - start;
+    if (!Number.isFinite(projStart)) {
+      errors.push(`Segment ${seg.id || '<unknown>'} faltante projectStartTime`);
+      continue;
+    }
+
+    if (projStart < lastEnd) {
+      errors.push(`Segment ${seg.id || '<unknown>'} overlap detected`);
+    }
+
+    lastEnd = Math.max(lastEnd, projStart + segDuration);
+  }
+
+  return errors;
+}
+
+function getTotalDuration(project: any): number {
+  const timeline = Array.isArray(project.timeline) ? project.timeline : project.segments ?? [];
+  let maxEnd = 0;
+  for (const seg of timeline) {
+    const projStart = typeof seg.projectStartTime === 'number' ? seg.projectStartTime : 0;
+    const segDuration = typeof seg.endTime === 'number' && typeof seg.startTime === 'number' ? seg.endTime - seg.startTime : 0;
+    maxEnd = Math.max(maxEnd, projStart + segDuration);
+  }
+  return maxEnd;
+}
+
+function normalizeProject(project: JobProjectManifest): JobProjectManifest {
+  const p: any = project as any;
+  const timeline = cloneSegments(
+    Array.isArray(p.timeline) && p.timeline.length > 0
+      ? p.timeline
+      : p.segments ?? []
+  ).sort((a: any, b: any) => (a.projectStartTime ?? 0) - (b.projectStartTime ?? 0));
+
+  const timelineErrors = validateTimeline(timeline);
+  if (timelineErrors.length > 0) {
+    throw new Error(`JobQueue: manifest inválido. Errores en timeline: ${timelineErrors.join('; ')}`);
+  }
+
+  const normalizedAssets: any = Object.fromEntries(
+    Object.entries(p.assets ?? {}).map(([id, asset]) => [id, { ...(asset as any) }])
+  );
+
+  const baseProject: any = {
+    ...p,
+    assets: normalizedAssets,
+    timeline,
+    version: p.version ?? '1.0.0',
+    createdAt: p.createdAt ?? Date.now(),
+    updatedAt: p.updatedAt ?? Date.now(),
+  };
+
+  const duration = getTotalDuration(baseProject);
+
+  return {
+    ...baseProject,
+    duration,
+    segments: timeline,
+  };
+}
 
 function normalizeMetadata(metadata: JobOptions['metadata']): JobOptions['metadata'] {
-  return { ...metadata };
+  const nextMetadata = { ...metadata } as JobOptions['metadata'];
+
+  if (nextMetadata.project) {
+    nextMetadata.project = normalizeProject(nextMetadata.project);
+  }
+
+  return nextMetadata;
 }
 
 export class MemoryJobQueue implements JobQueue {
@@ -123,12 +211,22 @@ export class MemoryJobQueue implements JobQueue {
         this.jobs.set(jobId, job);
         await this.repository.updateJob(job);
 
-        // Process the job
-        job = await this.processor.execute(job, (progress) => {
-          job.progress = progress;
-          job.updatedAt = new Date();
-          this.jobs.set(jobId, job);
-        });
+        // Process the job: prefer execute(), fallback to legacy processJob()
+        if (typeof (this.processor as any).execute === 'function') {
+          job = await (this.processor as any).execute(job, (progress: number) => {
+            job.progress = progress;
+            job.updatedAt = new Date();
+            this.jobs.set(jobId, job);
+          });
+        } else if (typeof (this.processor as any).processJob === 'function') {
+          job = await (this.processor as any).processJob(job, (progress: number) => {
+            job.progress = progress;
+            job.updatedAt = new Date();
+            this.jobs.set(jobId, job);
+          });
+        } else {
+          throw new Error('Processor does not implement execute or processJob');
+        }
 
         // Update the completed job
         this.jobs.set(jobId, job);

@@ -29,6 +29,9 @@ export const config = {
 
 const logger = createLogger('anchor-bitcoin')
 
+const isFlagEnabled = (name: string) =>
+  String(Deno.env.get(name) ?? '').toLowerCase() === 'true'
+
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
@@ -82,6 +85,13 @@ serve(async (req) => {
 
     const body = await req.json() as AnchorRequest
     const { documentHash, documentId = null, userDocumentId = null, userId = null, userEmail = null, metadata = {} } = body
+
+    const authorityOnly = isFlagEnabled('V2_AUTHORITY_ONLY') || isFlagEnabled('DISABLE_DB_ANCHOR_TRIGGERS')
+    const source = typeof metadata?.source === 'string' ? metadata.source : null
+    if (authorityOnly && source !== 'executor_v2') {
+      logger.warn('anchor_bitcoin_blocked', { source })
+      return jsonResponse({ success: false, error: 'disabled' }, 204, corsHeaders)
+    }
 
     logger.info('anchor_bitcoin_request', {
       documentHash: documentHash?.substring(0, 16) + '...',

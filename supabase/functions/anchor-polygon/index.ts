@@ -27,6 +27,9 @@ export const config = {
 
 const logger = createLogger('anchor-polygon')
 
+const isFlagEnabled = (name: string) =>
+  String(Deno.env.get(name) ?? '').toLowerCase() === 'true'
+
 type AnchorRequest = {
   documentHash: string
   documentId?: string | null
@@ -74,6 +77,13 @@ serve(async (req) => {
       userEmail = null,
       metadata = {}
     } = body
+
+    const authorityOnly = isFlagEnabled('V2_AUTHORITY_ONLY') || isFlagEnabled('DISABLE_DB_ANCHOR_TRIGGERS')
+    const source = typeof metadata?.source === 'string' ? metadata.source : null
+    if (authorityOnly && source !== 'executor_v2') {
+      logger.warn('anchor_polygon_blocked', { source });
+      return new Response('disabled', { status: 204, headers: corsHeaders })
+    }
 
     logger.info('anchor_polygon_request', {
       documentHash: documentHash?.substring(0, 16) + '...',

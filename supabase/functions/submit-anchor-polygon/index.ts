@@ -79,20 +79,31 @@ serve(async (req) => {
 
   const events = Array.isArray(entity.events) ? entity.events : [];
 
-  const witnessHash = String(entity.witness_hash ?? '');
-  if (!witnessHash) {
+  const artifactEvent = events.find((event: { kind?: string }) => event.kind === 'artifact.finalized') as
+    | { payload?: Record<string, unknown> }
+    | undefined;
+  const artifactHash = typeof artifactEvent?.payload?.['artifact_hash'] === 'string'
+    ? String(artifactEvent.payload?.['artifact_hash'])
+    : '';
+
+  if (!artifactHash) {
+    return jsonResponse({ success: true, noop: true });
+  }
+
+  const isHex64 = /^[0-9a-f]{64}$/i;
+  if (!isHex64.test(artifactHash)) {
     await emitEvent(
       supabase,
       documentEntityId,
       { kind: 'anchor.failed', at: new Date().toISOString() },
       'submit-anchor-polygon',
     );
-    return jsonResponse({ error: 'witness_hash missing' }, 400);
+    return jsonResponse({ error: 'artifact_hash invalid' }, 400);
   }
 
   try {
     await callFunction('anchor-polygon', {
-      documentHash: witnessHash,
+      documentHash: artifactHash,
       documentId: body.document_id ?? null,
       metadata: { source: 'executor_v2' },
     });

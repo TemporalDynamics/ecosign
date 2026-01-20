@@ -13,8 +13,8 @@ const loadFlowStatus = async () => {
 test('flowStatus: protegido gana sobre firmado si hay TSA', async () => {
   const { deriveFlowStatus } = await loadFlowStatus();
   const doc = {
-    lifecycle_status: 'signed',
-    tsa_latest: { gen_time: '2026-01-10T12:00:00Z' },
+    status: 'signed',
+    events: [{ kind: 'tsa.confirmed', at: '2026-01-10T12:00:00Z' }],
   };
   assert.strictEqual(deriveFlowStatus(doc).key, 'protected');
 });
@@ -28,14 +28,14 @@ test('flowStatus: draft explícito queda en borrador', async () => {
 test('flowStatus: en firma si hay firmantes pendientes', async () => {
   const { deriveFlowStatus } = await loadFlowStatus();
   const doc = {
-    lifecycle_status: 'in_signature_flow',
+    status: 'in_signature_flow',
     signer_links: [{ status: 'pending' }, { status: 'sent' }],
   };
   assert.strictEqual(deriveFlowStatus(doc).key, 'signing');
 });
 
-test('flowStatus: protegido si hay has_legal_timestamp', async () => {
+test('flowStatus: protegido si hay tsa.confirmed en events', async () => {
   const { deriveFlowStatus } = await loadFlowStatus();
-  const doc = { has_legal_timestamp: true };
+  const doc = { events: [{ kind: 'tsa.confirmed', at: '2026-01-10T12:00:00Z' }] };
   assert.strictEqual(deriveFlowStatus(doc).key, 'protected');
 });

@@ -250,7 +250,7 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     created_at: entity.created_at || entity.source_captured_at,
     pdf_storage_path: entity.witness_current_storage_path ?? null,
     source_storage_path: entity.source_storage_path ?? null,
-    status: entity.lifecycle_status ?? null,
+    status: null,
     signed_authority: entity.signed_authority ?? null,
     custody_mode: entity.custody_mode ?? null,
     has_legal_timestamp: tsaInfo.present,
@@ -555,12 +555,10 @@ function DocumentsPage() {
           signed_hash,
           signed_authority,
           composite_hash,
-          lifecycle_status,
           custody_mode,
           created_at,
           updated_at,
-          events,
-          tsa_latest
+          events
         `
         )
         .eq("owner_id", user.id)

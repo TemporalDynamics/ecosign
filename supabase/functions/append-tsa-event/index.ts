@@ -89,10 +89,10 @@ serve(async (req) => {
       return jsonResponse(result, 400);
     }
 
-    // 3) Return updated entity (triggers should have set tsa_latest)
+    // 3) Return updated entity
     const { data: updated, error: refetchError } = await supabase
       .from('document_entities')
-      .select('id, witness_hash, tsa_latest, events')
+      .select('id, witness_hash, events')
       .eq('id', body.document_entity_id)
       .single();
 

@@ -6,26 +6,44 @@
 BEGIN;
 
 -- 1) Disable cron jobs that may trigger workers/pollers/notifications
-UPDATE cron.job
-SET active = false
-WHERE jobname ILIKE '%polygon%'
-   OR jobname ILIKE '%bitcoin%'
-   OR jobname ILIKE '%anchor%'
-   OR jobname ILIKE '%email%'
-   OR jobname ILIKE '%notify%'
-   OR jobname ILIKE '%welcome%'
-   OR jobname ILIKE '%pending%'
-   OR jobname ILIKE '%cron%';
+DO $$
+BEGIN
+  IF to_regclass('cron.job') IS NOT NULL THEN
+    UPDATE cron.job
+    SET active = false
+    WHERE jobname ILIKE '%polygon%'
+       OR jobname ILIKE '%bitcoin%'
+       OR jobname ILIKE '%anchor%'
+       OR jobname ILIKE '%email%'
+       OR jobname ILIKE '%notify%'
+       OR jobname ILIKE '%welcome%'
+       OR jobname ILIKE '%pending%'
+       OR jobname ILIKE '%cron%';
+  ELSE
+    RAISE NOTICE 'Skipping cron disable (cron.job not available)';
+  END IF;
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipping cron disable (insufficient privilege)';
+END $$;
 
 -- 2) Disable triggers on legacy/operational tables to prevent background writes
-ALTER TABLE public.anchors DISABLE TRIGGER ALL;
-ALTER TABLE public.anchor_states DISABLE TRIGGER ALL;
-ALTER TABLE public.workflow_notifications DISABLE TRIGGER ALL;
-ALTER TABLE public.system_emails DISABLE TRIGGER ALL;
-ALTER TABLE public.workflow_events DISABLE TRIGGER ALL;
-ALTER TABLE public.workflow_signers DISABLE TRIGGER ALL;
-ALTER TABLE public.user_documents DISABLE TRIGGER ALL;
-ALTER TABLE public.operation_documents DISABLE TRIGGER ALL;
+DO $$
+BEGIN
+  ALTER TABLE public.anchors DISABLE TRIGGER ALL;
+  ALTER TABLE public.anchor_states DISABLE TRIGGER ALL;
+  ALTER TABLE public.workflow_notifications DISABLE TRIGGER ALL;
+  ALTER TABLE public.system_emails DISABLE TRIGGER ALL;
+  ALTER TABLE public.workflow_events DISABLE TRIGGER ALL;
+  ALTER TABLE public.workflow_signers DISABLE TRIGGER ALL;
+  ALTER TABLE public.user_documents DISABLE TRIGGER ALL;
+  ALTER TABLE public.operation_documents DISABLE TRIGGER ALL;
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'Skipping trigger disable (insufficient privilege)';
+  WHEN undefined_table THEN
+    RAISE NOTICE 'Skipping trigger disable (missing tables)';
+END $$;
 
 COMMIT;
 

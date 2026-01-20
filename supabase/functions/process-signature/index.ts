@@ -40,6 +40,42 @@ const jsonResponse = (data: unknown, status = 200) =>
     }
   })
 
+const isFlagEnabled = (name: string) =>
+  String(Deno.env.get(name) ?? '').toLowerCase() === 'true'
+
+async function emitDocumentSigned(
+  supabase: ReturnType<typeof createClient>,
+  documentEntityId: string,
+  source: string
+): Promise<void> {
+  const { data: entity, error } = await supabase
+    .from('document_entities')
+    .select('events')
+    .eq('id', documentEntityId)
+    .single()
+
+  if (error || !entity) {
+    console.warn('document_entity not found for document.signed', documentEntityId)
+    return
+  }
+
+  const events = Array.isArray(entity.events) ? entity.events : []
+  if (events.some((event: { kind?: string }) => event.kind === 'document.signed')) {
+    return
+  }
+
+  await appendEvent(
+    supabase,
+    documentEntityId,
+    {
+      kind: 'document.signed',
+      at: new Date().toISOString(),
+      payload: { source }
+    },
+    'process-signature'
+  )
+}
+
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
     const cronSecret = Deno.env.get('CRON_SECRET')
@@ -291,7 +327,9 @@ serve(async (req) => {
     let bitcoinAnchorId = null
 
     // RFC 3161 Timestamp (always over witness hash)
-    if (forensicConfig.rfc3161) {
+    const authorityOnly = isFlagEnabled('V2_AUTHORITY_ONLY') || isFlagEnabled('DISABLE_PROCESS_SIGNATURE_EXECUTION')
+
+    if (forensicConfig.rfc3161 && !authorityOnly) {
       try {
         const { data: tsaData, error: tsaError } = await supabase.functions.invoke('legal-timestamp', {
           body: { hash_hex: currentVersion.document_hash }
@@ -327,7 +365,7 @@ serve(async (req) => {
     }
 
     // Polygon Anchoring
-    if (forensicConfig.polygon) {
+    if (forensicConfig.polygon && !authorityOnly) {
       try {
         const { data: polygonData, error: polygonError } = await supabase.functions.invoke('anchor-polygon', {
           body: {
@@ -345,7 +383,7 @@ serve(async (req) => {
     }
 
     // Bitcoin Anchoring
-    if (forensicConfig.bitcoin) {
+    if (forensicConfig.bitcoin && !authorityOnly) {
       try {
         const { data: bitcoinData, error: bitcoinError } = await supabase.functions.invoke('anchor-bitcoin', {
           body: {
@@ -495,6 +533,12 @@ serve(async (req) => {
         },
         'process-signature'
       )
+
+      if (workflow.document_entity_id) {
+        await emitDocumentSigned(supabase, workflow.document_entity_id, 'internal')
+      } else {
+        console.warn('workflow.document_entity_id missing, document.signed not emitted')
+      }
     }
 
     // 10. Crear notificaciones

@@ -48,6 +48,16 @@ type AnchorResponse = {
 export async function anchorToPolygon(documentHash: string, options: AnchorRequestOptions = {}): Promise<AnchorResponse> {
   const supabase = getSupabase();
   try {
+    const authorityOnly = String(import.meta.env.VITE_V2_AUTHORITY_ONLY || '').toLowerCase() === 'true'
+      || String(import.meta.env.VITE_DISABLE_CLIENT_ANCHOR_EXECUTION || '').toLowerCase() === 'true';
+
+    if (authorityOnly) {
+      return {
+        success: false,
+        error: 'Client anchoring disabled (executor authority only)'
+      };
+    }
+
     console.log('🔗 Requesting Polygon anchor for hash:', documentHash);
 
     // Validar hash

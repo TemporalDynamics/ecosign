@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { appendEvent } from '../_shared/eventHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -22,6 +23,41 @@ const json = (data: unknown, status = 200) =>
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
+
+const isFlagEnabled = (name: string) =>
+  String(Deno.env.get(name) ?? '').toLowerCase() === 'true'
+
+async function emitDocumentSigned(
+  documentEntityId: string,
+  source: string
+): Promise<void> {
+  const { data: entity, error } = await supabase
+    .from('document_entities')
+    .select('events')
+    .eq('id', documentEntityId)
+    .single()
+
+  if (error || !entity) {
+    console.warn('document_entity not found for document.signed', documentEntityId)
+    return
+  }
+
+  const events = Array.isArray(entity.events) ? entity.events : []
+  if (events.some((event: { kind?: string }) => event.kind === 'document.signed')) {
+    return
+  }
+
+  await appendEvent(
+    supabase,
+    documentEntityId,
+    {
+      kind: 'document.signed',
+      at: new Date().toISOString(),
+      payload: { source }
+    },
+    'signnow-webhook'
+  )
+}
 
 async function getSignNowAccessToken(): Promise<string> {
   if (!signNowBasic || !signNowClientId || !signNowClientSecret) {
@@ -153,25 +189,34 @@ serve(async (req) => {
         .in('id', signerIds)
     }
 
-    // Forensic pipeline
-    try {
-      await supabase.functions.invoke('legal-timestamp', { body: { hash_hex: signedHash } })
-    } catch (e) {
-      console.error('legal-timestamp failed', e)
-    }
-    try {
-      await supabase.functions.invoke('anchor-polygon', {
-        body: { documentHash: signedHash, documentId: workflow.id, userEmail: ownerUser?.email || 'owner@ecosign.app' }
-      })
-    } catch (e) {
-      console.error('anchor-polygon failed', e)
-    }
-    try {
-      await supabase.functions.invoke('anchor-bitcoin', {
-        body: { documentHash: signedHash, documentId: workflow.id, userEmail: ownerUser?.email || 'owner@ecosign.app' }
-      })
-    } catch (e) {
-      console.error('anchor-bitcoin failed', e)
+    const authorityOnly = isFlagEnabled('V2_AUTHORITY_ONLY') || isFlagEnabled('DISABLE_SIGNNOW_EXECUTION')
+    if (authorityOnly) {
+      if (workflow.document_entity_id) {
+        await emitDocumentSigned(workflow.document_entity_id, 'signnow')
+      } else {
+        console.warn('workflow.document_entity_id missing, document.signed not emitted')
+      }
+    } else {
+      // Forensic pipeline
+      try {
+        await supabase.functions.invoke('legal-timestamp', { body: { hash_hex: signedHash } })
+      } catch (e) {
+        console.error('legal-timestamp failed', e)
+      }
+      try {
+        await supabase.functions.invoke('anchor-polygon', {
+          body: { documentHash: signedHash, documentId: workflow.id, userEmail: ownerUser?.email || 'owner@ecosign.app' }
+        })
+      } catch (e) {
+        console.error('anchor-polygon failed', e)
+      }
+      try {
+        await supabase.functions.invoke('anchor-bitcoin', {
+          body: { documentHash: signedHash, documentId: workflow.id, userEmail: ownerUser?.email || 'owner@ecosign.app' }
+        })
+      } catch (e) {
+        console.error('anchor-bitcoin failed', e)
+      }
     }
 
     // Notifications

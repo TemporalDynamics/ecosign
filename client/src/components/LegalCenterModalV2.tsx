@@ -3643,7 +3643,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               {!isFocusMode && (
               <div className="md:hidden sticky bottom-0 bg-white pt-2 pb-3 border-t border-gray-200">
                 <button
-                  onClick={handleCertify}
+                  onClick={handleProtectClick}
                   disabled={!file || loading || !isCTAEnabled()}
                   className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
                 >

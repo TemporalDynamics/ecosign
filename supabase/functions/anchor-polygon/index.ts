@@ -41,7 +41,7 @@ type AnchorRequest = {
 
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
+    return new Response(null, { status: 204 });
   }
 
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
@@ -82,7 +82,7 @@ serve(async (req) => {
     const source = typeof metadata?.source === 'string' ? metadata.source : null
     if (authorityOnly && source !== 'executor_v2') {
       logger.warn('anchor_polygon_blocked', { source });
-      return new Response('disabled', { status: 204, headers: corsHeaders })
+      return new Response(null, { status: 204, headers: corsHeaders })
     }
 
     logger.info('anchor_polygon_request', {

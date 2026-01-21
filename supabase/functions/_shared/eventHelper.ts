@@ -20,12 +20,47 @@ export type GenericEvent = {
   [key: string]: any; // Contextual data specific to event kind
 };
 
+// Clasificación formal de eventos
+export type EventClass = 'evidence' | 'tracking';
+
+export const EVENT_CLASS: Record<string, EventClass> = {
+  // Eventos de evidencia fuerte (requieren _source verificable)
+  'document.signed': 'evidence',
+  'tsa.confirmed': 'evidence',
+  'anchor': 'evidence',  // confirmación real
+  'artifact.finalized': 'evidence',
+  'document.protected.requested': 'evidence',
+
+  // Eventos de seguimiento/fallo (requieren _source verificable)
+  'anchor.submitted': 'tracking',
+  'tsa.failed': 'tracking',
+  'anchor.failed': 'tracking',
+  'artifact.failed': 'tracking',
+};
+
+// Allowlist de fuentes autorizadas para eventos
+const AUTHORIZED_SOURCES: Record<string, string[]> = {
+  // Eventos de evidencia fuerte (requieren _source verificable)
+  'document.signed': ['process-signature'],
+  'tsa.confirmed': ['process-signature', 'legal-timestamp', 'fase1-executor'],
+  'anchor.submitted': ['submit-anchor-polygon', 'submit-anchor-bitcoin'],
+  'anchor': ['process-polygon-anchors', 'process-bitcoin-anchors'],  // confirmación real
+  'artifact.finalized': ['build-artifact'],
+  'document.protected.requested': ['start-signature-workflow'],
+
+  // Eventos de seguimiento/fallo (requieren _source verificable)
+  'tsa.failed': ['process-signature', 'fase1-executor'],
+  'anchor.failed': ['submit-anchor-*', 'process-polygon-anchors', 'process-bitcoin-anchors'],
+  'artifact.failed': ['build-artifact'],
+};
+
 /**
  * Append any event to document_entities.events[]
  *
  * MUST: event.kind must be present
  * MUST: event.at must be ISO 8601 timestamp
  * MUST: events[] is append-only (enforced by DB trigger)
+ * MUST: source must be authorized for this event kind (guardrail)
  *
  * @param supabase - Supabase client (with service role key)
  * @param documentEntityId - document_entities.id
@@ -47,6 +82,31 @@ export async function appendEvent(
 
     if (!event.at || typeof event.at !== 'string') {
       return { success: false, error: 'Event must have an "at" ISO 8601 timestamp' };
+    }
+
+    // 2. Validate source authority for this event kind (guardrail)
+    if (AUTHORIZED_SOURCES[event.kind]) {
+      if (!source) {
+        return {
+          success: false,
+          error: `Missing _source for protected event kind "${event.kind}"`
+        };
+      }
+      
+      const allowedSources = AUTHORIZED_SOURCES[event.kind];
+      const isAuthorized = allowedSources.some(allowed => {
+        if (allowed.endsWith('*')) {
+          return source.startsWith(allowed.slice(0, -1));
+        }
+        return source === allowed;
+      });
+      
+      if (!isAuthorized) {
+        return {
+          success: false,
+          error: `Unauthorized source "${source}" for event kind "${event.kind}". Allowed: [${allowedSources.join(', ')}]`
+        };
+      }
     }
 
     // Validate ISO 8601 format (basic check)
@@ -187,4 +247,25 @@ export function getBrowserFamily(userAgent: string | null | undefined): string {
   if (ua.includes('opera/') || ua.includes('opr/')) return 'opera';
 
   return 'other';
+}
+
+/**
+ * Get the classification of an event (evidence or tracking)
+ */
+export function getEventClass(kind: string): EventClass | undefined {
+  return EVENT_CLASS[kind];
+}
+
+/**
+ * Check if an event is of evidence class (requires stronger validation)
+ */
+export function isEvidenceEvent(kind: string): boolean {
+  return EVENT_CLASS[kind] === 'evidence';
+}
+
+/**
+ * Check if an event is of tracking class (auxiliary information)
+ */
+export function isTrackingEvent(kind: string): boolean {
+  return EVENT_CLASS[kind] === 'tracking';
 }

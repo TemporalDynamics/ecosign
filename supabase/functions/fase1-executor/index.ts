@@ -235,16 +235,6 @@ async function handleProtectDocumentV2(
 
   const updatedEvents = Array.isArray(updated.data.events) ? updated.data.events : [];
   const hasArtifact = updatedEvents.some((event: { kind?: string }) => event.kind === 'artifact.finalized');
-  if (!hasArtifact) {
-    await enqueueExecutorJob(
-      supabase,
-      BUILD_ARTIFACT_JOB_TYPE,
-      documentEntityId,
-      payload['document_id'] ? String(payload['document_id']) : null,
-      `${documentEntityId}:${BUILD_ARTIFACT_JOB_TYPE}`,
-    );
-    return;
-  }
 
   const requestEvent = updatedEvents.find((event: { kind?: string }) =>
     event.kind === 'document.protected.requested'
@@ -252,8 +242,19 @@ async function handleProtectDocumentV2(
   const protection = Array.isArray(requestEvent?.payload?.['protection'])
     ? (requestEvent?.payload?.['protection'] as Array<unknown>)
     : [];
+  const requiresPolygon = protection.includes('polygon');
+  const requiresBitcoin = protection.includes('bitcoin');
 
-  if (protection.includes('polygon')) {
+  const hasTsaConfirmed = updatedEvents.some((event: { kind?: string }) => event.kind === 'tsa.confirmed');
+  const hasAnchorConfirmed = (network: 'polygon' | 'bitcoin') => updatedEvents.some((event: any) =>
+    (event.kind === 'anchor' || event.kind === 'anchor.confirmed') &&
+    (event.anchor?.network === network || event.payload?.network === network) &&
+    (typeof event.anchor?.confirmed_at === 'string' || typeof event.payload?.confirmed_at === 'string')
+  );
+  const hasPolygonConfirmed = hasAnchorConfirmed('polygon');
+  const hasBitcoinConfirmed = hasAnchorConfirmed('bitcoin');
+
+  if (hasTsaConfirmed && requiresPolygon && !hasPolygonConfirmed) {
     await enqueueExecutorJob(
       supabase,
       SUBMIT_ANCHOR_POLYGON_JOB_TYPE,
@@ -263,13 +264,27 @@ async function handleProtectDocumentV2(
     );
   }
 
-  if (protection.includes('bitcoin')) {
+  if (hasTsaConfirmed && requiresBitcoin && !hasBitcoinConfirmed) {
     await enqueueExecutorJob(
       supabase,
       SUBMIT_ANCHOR_BITCOIN_JOB_TYPE,
       documentEntityId,
       payload['document_id'] ? String(payload['document_id']) : null,
       `${documentEntityId}:${SUBMIT_ANCHOR_BITCOIN_JOB_TYPE}`,
+    );
+  }
+
+  const readyForArtifact = hasTsaConfirmed
+    && (!requiresPolygon || hasPolygonConfirmed)
+    && (!requiresBitcoin || hasBitcoinConfirmed);
+
+  if (!hasArtifact && readyForArtifact) {
+    await enqueueExecutorJob(
+      supabase,
+      BUILD_ARTIFACT_JOB_TYPE,
+      documentEntityId,
+      payload['document_id'] ? String(payload['document_id']) : null,
+      `${documentEntityId}:${BUILD_ARTIFACT_JOB_TYPE}`,
     );
   }
 }

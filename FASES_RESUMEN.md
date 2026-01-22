@@ -64,7 +64,8 @@ Implementar las reglas puras como funciones ejecutables que pueden ser usadas po
 - Sirven como referencia y alineación semántica
 
 ### Pendientes para completar Fase 2
-- [ ] **Protocolo de migración implementado:** Seguir protocolo de migración paso a paso con validación UI
+- [x] **Protocolo de migración implementado:** Seguir protocolo de migración paso a paso con validación UI
+- [ ] **Paso 1 TSA-only completado:** Migrar decisión de run_tsa con validación UI
 - [ ] **Integrar runtime con el executor existente:** Conectar funciones puras al sistema actual
 - [ ] **Validar que decisiones coincidan con comportamiento actual:** Asegurar consistencia
 - [ ] **Implementar sistema de logs de decisiones:** Registrar todas las decisiones del orquestador

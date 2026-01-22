@@ -94,6 +94,7 @@ const uiState = deriveUiState(documentEntity.events);
 - [ ] UI refleja cambios solo con eventos
 - [ ] No hay regresiones en funcionalidad
 - [ ] Validación manual completa exitosa
+- [ ] Responsable de validación confirma explícitamente estado **ACEPTADO**
 - [ ] Equipo aprueba comportamiento
 
 ---

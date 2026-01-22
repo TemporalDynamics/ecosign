@@ -80,7 +80,7 @@ Hacia: runtime canónico (contracts-runtime.decideNextJobs)
 - [ ] No hay estados imposibles
 
 ### Post-validación
-- [ ] Equipo aprueba comportamiento
+- [ ] Responsable de validación confirma explícitamente estado **ACEPTADO**
 - [ ] No hay regresiones
 - [ ] Ready para siguiente paso
 

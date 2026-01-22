@@ -85,12 +85,30 @@ Se abre la app y se recorren todos los flujos afectados por esa decisión.
 - La decisión puede considerarse "migrada"
 - → Se habilita mover la siguiente decisión
 
-❌ **RECHAZADO**  
+❌ **RECHAZADO**
 - La UI muestra algo incorrecto
 - El estado aparece antes o después
 - Hay ambigüedad visual
 - → Se revierte o corrige
 - → NO se avanza de fase
+
+### 5️⃣ Autoridad de Aprobación (Regla No Negociable)
+
+**Una decisión migrada NO se considera validada cuando:**
+- El dev afirma que "la UI refleja correctamente"
+- Existen logs correctos
+- El comportamiento parece correcto en código
+
+**Una decisión migrada SOLO se considera ACEPTADA cuando:**
+- El responsable de validación (arquitecto / owner del sistema)
+- Ejecuta el flujo completo en su entorno local
+- Observa manualmente la UI
+- Confirma explícitamente el estado **ACEPTADO**
+
+**Hasta ese momento:**
+- El dev debe detener el avance
+- No puede migrar la siguiente decisión
+- No puede asumir validación implícita
 
 ---
 

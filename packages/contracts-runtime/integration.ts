@@ -92,68 +92,13 @@ export async function runShadowComparison(
   }
 }
 
-// Función para activar modo controlado (usar decisión canónica)
-export async function executeCanonicalDecision(
-  supabase: ReturnType<typeof createClient>,
-  documentEntityId: string,
-  protection: string[]
-): Promise<{ executedJobs: string[]; reason: string }> {
-  
-  // 1. Obtener eventos
-  const { data: entity, error } = await supabase
-    .from('document_entities')
-    .select('events')
-    .eq('id', documentEntityId)
-    .single();
-
-  if (error || !entity) {
-    throw new Error(`Failed to get document entity: ${error?.message}`);
-  }
-
-  const events = Array.isArray(entity.events) ? entity.events : [];
-
-  // 2. Tomar decisión canónica
-  const decision = decideNextJobs(events, protection);
-
-  // 3. Ejecutar jobs según decisión canónica
-  const executedJobs: string[] = [];
-  
-  for (const job of decision.jobs) {
-    try {
-      // Aquí iría la lógica para encolar el job específico
-      // usando el sistema de executor_jobs
-      
-      // Ejemplo de encolado:
-      const { error: jobError } = await supabase
-        .from('executor_jobs')
-        .insert({
-          type: job,
-          entity_type: 'document',
-          entity_id: documentEntityId,
-          payload: { 
-            document_entity_id: documentEntityId,
-            protection
-          },
-          status: 'queued',
-          run_at: new Date().toISOString(),
-          dedupe_key: `${documentEntityId}:${job}:${Date.now()}`
-        });
-
-      if (!jobError) {
-        executedJobs.push(job);
-      } else {
-        console.error(`Failed to queue job ${job}:`, jobError.message);
-      }
-    } catch (jobError) {
-      console.error(`Error queuing job ${job}:`, jobError);
-    }
-  }
-
-  return {
-    executedJobs,
-    reason: decision.reason
-  };
-}
+// NOTA: executeCanonicalDecision fue removido porque es Fase 3 (ejecución real)
+// Paso 1 es solo SHADOW (comparar sin ejecutar)
+// La función executeCanonicalDecision será necesaria en Fase 3, cuando
+// se migre la AUTORIDAD de decisión del executor al orquestador.
+//
+// Por ahora, solo validamos que la decisión canónica coincida con la actual
+// usando runShadowComparison() y validateExecutorDecision().
 
 /**
  * Validación específica para la decisión de run_tsa

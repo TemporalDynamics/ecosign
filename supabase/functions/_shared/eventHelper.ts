@@ -46,7 +46,7 @@ const AUTHORIZED_SOURCES: Record<string, string[]> = {
   'anchor.submitted': ['submit-anchor-polygon', 'submit-anchor-bitcoin'],
   'anchor': ['process-polygon-anchors', 'process-bitcoin-anchors'],  // confirmación real
   'artifact.finalized': ['build-artifact'],
-  'document.protected.requested': ['start-signature-workflow'],
+  'document.protected.requested': ['start-signature-workflow', 'record-protection-event'],
 
   // Eventos de seguimiento/fallo (requieren _source verificable)
   'tsa.failed': ['process-signature', 'fase1-executor'],

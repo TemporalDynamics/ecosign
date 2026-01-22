@@ -3,7 +3,7 @@ import { appendEvent } from '../_shared/eventHelper.ts';
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts';
 import { validateEventAppend } from '../_shared/validateEventAppend.ts';
 import { decideProtectDocumentV2 } from '../_shared/protectDocumentV2Decision.ts';
-import { shouldEnqueueRunTsa, shouldEnqueuePolygon, shouldEnqueueBitcoin } from '../_shared/decisionEngineCanonical.ts';
+import { shouldEnqueueRunTsa, shouldEnqueuePolygon, shouldEnqueueBitcoin, shouldEnqueueArtifact } from '../_shared/decisionEngineCanonical.ts';
 
 type ExecutorJob = {
   id: string;
@@ -363,11 +363,42 @@ async function handleProtectDocumentV2(
     );
   }
 
+  // DECISIÓN ACTUAL (autoridad real) - Artifact
   const readyForArtifact = hasTsaConfirmed
     && (!requiresPolygon || hasPolygonConfirmed)
     && (!requiresBitcoin || hasBitcoinConfirmed);
+  const currentShouldEnqueueArtifact = !hasArtifact && readyForArtifact;
 
-  if (!hasArtifact && readyForArtifact) {
+  // SHADOW: Decisión canónica - Artifact
+  const canonicalShouldEnqueueArtifact = shouldEnqueueArtifact(updatedEvents, protection as string[]);
+
+  // SHADOW COMPARISON - Artifact
+  if (currentShouldEnqueueArtifact !== canonicalShouldEnqueueArtifact) {
+    console.warn('[SHADOW DISCREPANCY] artifact decision mismatch:', {
+      documentEntityId,
+      jobId: job.id,
+      currentDecision: currentShouldEnqueueArtifact,
+      canonicalDecision: canonicalShouldEnqueueArtifact,
+      hasTsa: hasTsaConfirmed,
+      hasArtifact,
+      readyForArtifact,
+      requiresPolygon,
+      hasPolygonConfirmed,
+      requiresBitcoin,
+      hasBitcoinConfirmed,
+      phase: 'PASO_1_SHADOW_MODE_D3'
+    });
+  } else {
+    console.log('[SHADOW MATCH] artifact decision matches canonical:', {
+      documentEntityId,
+      jobId: job.id,
+      shouldEnqueue: currentShouldEnqueueArtifact,
+      phase: 'PASO_1_SHADOW_MODE_D3'
+    });
+  }
+
+  // CONTINUAR CON LÓGICA ACTUAL (sin cambios)
+  if (currentShouldEnqueueArtifact) {
     await enqueueExecutorJob(
       supabase,
       BUILD_ARTIFACT_JOB_TYPE,

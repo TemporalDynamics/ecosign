@@ -150,3 +150,53 @@ export const shouldEnqueueBitcoin = (events: EventLike[], protection: string[]):
 
   return hasTsa && requiresBitcoin && !hasBitcoin;
 };
+
+// ============================================================================
+// D3 - Documento finalizado (Artifact)
+// ============================================================================
+
+/**
+ * D3 - Decisión: ¿Debería encolarse build_artifact?
+ *
+ * Esta decisión determina si el documento está listo para generar
+ * el artifact final (PDF sellado con todas las evidencias).
+ *
+ * Regla canónica:
+ * - Hay TSA confirmado (protección básica)
+ * - Todos los anchors SOLICITADOS están confirmados
+ * - NO existe artifact.finalized (no regenerar)
+ *
+ * La lógica de "todos los anchors solicitados" es:
+ * - Si se pidió polygon → debe estar confirmado
+ * - Si se pidió bitcoin → debe estar confirmado
+ * - Si no se pidió → no se requiere
+ *
+ * @param events - Eventos canónicos del documento
+ * @param protection - Array de protecciones solicitadas
+ * @returns true si se debería encolar build_artifact
+ */
+export const shouldEnqueueArtifact = (events: EventLike[], protection: string[]): boolean => {
+  // 1. Verificar TSA
+  const hasTsa = events.some((e) => e.kind === 'tsa.confirmed');
+  if (!hasTsa) return false;
+
+  // 2. Verificar que NO exista artifact finalizado
+  const hasArtifact = events.some((e) => e.kind === 'artifact.finalized');
+  if (hasArtifact) return false;
+
+  // 3. Verificar que todos los anchors SOLICITADOS estén confirmados
+  const requiresPolygon = protection.includes('polygon');
+  const requiresBitcoin = protection.includes('bitcoin');
+
+  const hasPolygon = hasAnchorConfirmed(events, 'polygon');
+  const hasBitcoin = hasAnchorConfirmed(events, 'bitcoin');
+
+  // Si se pidió polygon y NO está confirmado → no listo
+  if (requiresPolygon && !hasPolygon) return false;
+
+  // Si se pidió bitcoin y NO está confirmado → no listo
+  if (requiresBitcoin && !hasBitcoin) return false;
+
+  // TSA + todos los anchors solicitados confirmados + sin artifact → listo
+  return true;
+};

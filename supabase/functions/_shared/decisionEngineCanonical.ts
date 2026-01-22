@@ -40,3 +40,26 @@ export const shouldEnqueueRunTsa = (events: EventLike[]): boolean => {
 export const decideRunTsaCanonical = (events: EventLike[]): 'run_tsa' | 'noop' => {
   return shouldEnqueueRunTsa(events) ? 'run_tsa' : 'noop';
 };
+
+/**
+ * D2 - Estado protegido simple
+ *
+ * Derivación: ¿El documento completó su protección básica (TSA)?
+ *
+ * Esta NO es una decisión de ejecución (no encola jobs).
+ * Es una derivación de estado para UI y validaciones.
+ *
+ * Regla canónica:
+ * - Tiene TSA confirmado → protegido
+ * - No tiene TSA → procesando (o sin protección)
+ *
+ * Equivalencia con UI actual:
+ * - UI: deriveProtectionLevel(events) !== 'NONE'
+ * - Canónico: isDocumentProtected(events)
+ *
+ * @param events - Eventos canónicos del documento
+ * @returns true si el documento está protegido (tiene TSA)
+ */
+export const isDocumentProtected = (events: EventLike[]): boolean => {
+  return events.some((event) => event.kind === 'tsa.confirmed');
+};

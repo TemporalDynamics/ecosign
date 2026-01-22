@@ -45,10 +45,8 @@ export function LegalCenterShell({
           maxWidth: 'calc(100vw - 80px)', // Margen mínimo lateral
 
           // CONTRATO VERTICAL (CRÍTICO)
-          // Mobile: viewport - 4rem header
-          height: 'calc(100svh - 3rem)',
-          // Desktop: viewport - 80px header - 48px margins
-          maxHeight: 'calc(100vh - 96px)',
+          // Desktop/Mobile: viewport - 80px header - 48px margins
+          maxHeight: 'calc(100svh - 96px)',
 
           // IMPORTANTE: overflow visible permite que panels absolute
           // se extiendan lateralmente fuera del modal sin clipearlos.

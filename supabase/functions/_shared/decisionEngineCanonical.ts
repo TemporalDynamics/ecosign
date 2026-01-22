@@ -63,3 +63,90 @@ export const decideRunTsaCanonical = (events: EventLike[]): 'run_tsa' | 'noop' =
 export const isDocumentProtected = (events: EventLike[]): boolean => {
   return events.some((event) => event.kind === 'tsa.confirmed');
 };
+
+// ============================================================================
+// D4 - Anchors pendientes (Polygon / Bitcoin)
+// ============================================================================
+
+/**
+ * Helper: Verifica si hay un anchor confirmado para una red específica
+ *
+ * Valida causalidad temporal: confirmed_at >= event.at
+ *
+ * @param events - Eventos canónicos del documento
+ * @param network - Red blockchain ('polygon' | 'bitcoin')
+ * @returns true si hay anchor confirmado válido
+ */
+const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin'): boolean => {
+  return events.some((event: any) => {
+    // Verificar que sea el tipo correcto de evento
+    if (event.kind !== 'anchor' && event.kind !== 'anchor.confirmed') {
+      return false;
+    }
+
+    // Verificar que tenga la red correcta
+    const hasCorrectNetwork = (event.anchor?.network === network || event.payload?.network === network);
+    if (!hasCorrectNetwork) {
+      return false;
+    }
+
+    // Verificar que tenga confirmed_at
+    const confirmedAtValue = event.anchor?.confirmed_at || event.payload?.confirmed_at;
+    if (!confirmedAtValue) {
+      return false;
+    }
+
+    // Verificar causalidad temporal: confirmed_at >= at
+    try {
+      const confirmedAt = new Date(confirmedAtValue);
+      const at = new Date(event.at);
+      if (confirmedAt < at) {
+        return false; // Rompe causalidad temporal
+      }
+    } catch {
+      return false; // Fecha inválida
+    }
+
+    return true;
+  });
+};
+
+/**
+ * D4.1 - Decisión: ¿Debería encolarse submit_anchor_polygon?
+ *
+ * Regla canónica:
+ * - Hay TSA confirmado
+ * - Se pidió protección polygon
+ * - NO hay anchor polygon confirmado
+ *
+ * @param events - Eventos canónicos del documento
+ * @param protection - Array de protecciones solicitadas
+ * @returns true si se debería encolar submit_anchor_polygon
+ */
+export const shouldEnqueuePolygon = (events: EventLike[], protection: string[]): boolean => {
+  const hasTsa = events.some((e) => e.kind === 'tsa.confirmed');
+  const requiresPolygon = protection.includes('polygon');
+  const hasPolygon = hasAnchorConfirmed(events, 'polygon');
+
+  return hasTsa && requiresPolygon && !hasPolygon;
+};
+
+/**
+ * D4.2 - Decisión: ¿Debería encolarse submit_anchor_bitcoin?
+ *
+ * Regla canónica:
+ * - Hay TSA confirmado
+ * - Se pidió protección bitcoin
+ * - NO hay anchor bitcoin confirmado
+ *
+ * @param events - Eventos canónicos del documento
+ * @param protection - Array de protecciones solicitadas
+ * @returns true si se debería encolar submit_anchor_bitcoin
+ */
+export const shouldEnqueueBitcoin = (events: EventLike[], protection: string[]): boolean => {
+  const hasTsa = events.some((e) => e.kind === 'tsa.confirmed');
+  const requiresBitcoin = protection.includes('bitcoin');
+  const hasBitcoin = hasAnchorConfirmed(events, 'bitcoin');
+
+  return hasTsa && requiresBitcoin && !hasBitcoin;
+};

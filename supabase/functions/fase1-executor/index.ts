@@ -3,7 +3,7 @@ import { appendEvent } from '../_shared/eventHelper.ts';
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts';
 import { validateEventAppend } from '../_shared/validateEventAppend.ts';
 import { decideProtectDocumentV2 } from '../_shared/protectDocumentV2Decision.ts';
-import { shouldEnqueueRunTsa } from '../_shared/decisionEngineCanonical.ts';
+import { shouldEnqueueRunTsa, shouldEnqueuePolygon, shouldEnqueueBitcoin } from '../_shared/decisionEngineCanonical.ts';
 
 type ExecutorJob = {
   id: string;
@@ -288,7 +288,62 @@ async function handleProtectDocumentV2(
   const hasPolygonConfirmed = hasAnchorConfirmed('polygon');
   const hasBitcoinConfirmed = hasAnchorConfirmed('bitcoin');
 
-  if (hasTsaConfirmed && requiresPolygon && !hasPolygonConfirmed) {
+  // DECISIÓN ACTUAL (autoridad real) - Polygon
+  const currentShouldEnqueuePolygon = hasTsaConfirmed && requiresPolygon && !hasPolygonConfirmed;
+
+  // SHADOW: Decisión canónica - Polygon
+  const canonicalShouldEnqueuePolygon = shouldEnqueuePolygon(updatedEvents, protection as string[]);
+
+  // SHADOW COMPARISON - Polygon
+  if (currentShouldEnqueuePolygon !== canonicalShouldEnqueuePolygon) {
+    console.warn('[SHADOW DISCREPANCY] polygon anchor decision mismatch:', {
+      documentEntityId,
+      jobId: job.id,
+      currentDecision: currentShouldEnqueuePolygon,
+      canonicalDecision: canonicalShouldEnqueuePolygon,
+      hasTsa: hasTsaConfirmed,
+      requiresPolygon,
+      hasPolygonConfirmed,
+      phase: 'PASO_1_SHADOW_MODE_D4'
+    });
+  } else {
+    console.log('[SHADOW MATCH] polygon anchor decision matches canonical:', {
+      documentEntityId,
+      jobId: job.id,
+      shouldEnqueue: currentShouldEnqueuePolygon,
+      phase: 'PASO_1_SHADOW_MODE_D4'
+    });
+  }
+
+  // DECISIÓN ACTUAL (autoridad real) - Bitcoin
+  const currentShouldEnqueueBitcoin = hasTsaConfirmed && requiresBitcoin && !hasBitcoinConfirmed;
+
+  // SHADOW: Decisión canónica - Bitcoin
+  const canonicalShouldEnqueueBitcoin = shouldEnqueueBitcoin(updatedEvents, protection as string[]);
+
+  // SHADOW COMPARISON - Bitcoin
+  if (currentShouldEnqueueBitcoin !== canonicalShouldEnqueueBitcoin) {
+    console.warn('[SHADOW DISCREPANCY] bitcoin anchor decision mismatch:', {
+      documentEntityId,
+      jobId: job.id,
+      currentDecision: currentShouldEnqueueBitcoin,
+      canonicalDecision: canonicalShouldEnqueueBitcoin,
+      hasTsa: hasTsaConfirmed,
+      requiresBitcoin,
+      hasBitcoinConfirmed,
+      phase: 'PASO_1_SHADOW_MODE_D4'
+    });
+  } else {
+    console.log('[SHADOW MATCH] bitcoin anchor decision matches canonical:', {
+      documentEntityId,
+      jobId: job.id,
+      shouldEnqueue: currentShouldEnqueueBitcoin,
+      phase: 'PASO_1_SHADOW_MODE_D4'
+    });
+  }
+
+  // CONTINUAR CON LÓGICA ACTUAL (sin cambios)
+  if (currentShouldEnqueuePolygon) {
     await enqueueExecutorJob(
       supabase,
       SUBMIT_ANCHOR_POLYGON_JOB_TYPE,
@@ -298,7 +353,7 @@ async function handleProtectDocumentV2(
     );
   }
 
-  if (hasTsaConfirmed && requiresBitcoin && !hasBitcoinConfirmed) {
+  if (currentShouldEnqueueBitcoin) {
     await enqueueExecutorJob(
       supabase,
       SUBMIT_ANCHOR_BITCOIN_JOB_TYPE,

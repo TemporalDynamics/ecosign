@@ -64,11 +64,12 @@ Implementar las reglas puras como funciones ejecutables que pueden ser usadas po
 - Sirven como referencia y alineación semántica
 
 ### Pendientes para completar Fase 2
-- [ ] Integrar runtime con el executor existente
-- [ ] Validar que decisiones coincidan con comportamiento actual
-- [ ] Implementar sistema de logs de decisiones
-- [ ] Asegurar consistencia con contratos canónicos
-- [ ] Validar determinismo completo
+- [ ] **Protocolo de migración implementado:** Seguir protocolo de migración paso a paso con validación UI
+- [ ] **Integrar runtime con el executor existente:** Conectar funciones puras al sistema actual
+- [ ] **Validar que decisiones coincidan con comportamiento actual:** Asegurar consistencia
+- [ ] **Implementar sistema de logs de decisiones:** Registrar todas las decisiones del orquestador
+- [ ] **Asegurar consistencia con contratos canónicos:** Validar que runtime siga contratos
+- [ ] **Validar determinismo completo:** Asegurar que mismo input = mismo output
 
 ---
 

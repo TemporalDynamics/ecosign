@@ -3,6 +3,7 @@ import { appendEvent } from '../_shared/eventHelper.ts';
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts';
 import { validateEventAppend } from '../_shared/validateEventAppend.ts';
 import { decideProtectDocumentV2 } from '../_shared/protectDocumentV2Decision.ts';
+import { shouldEnqueueRunTsa } from '../_shared/decisionEngineCanonical.ts';
 
 type ExecutorJob = {
   id: string;
@@ -212,7 +213,40 @@ async function handleProtectDocumentV2(
   }
 
   const events = Array.isArray(entity.events) ? entity.events : [];
+
+  // DECISIÓN ACTUAL (autoridad real)
   const decision = decideProtectDocumentV2(events);
+
+  // SHADOW: Decisión canónica (solo validación, no afecta flujo)
+  const canonicalShouldEnqueue = shouldEnqueueRunTsa(events);
+  const canonicalDecision = canonicalShouldEnqueue ? 'run_tsa' : 'noop';
+
+  // SHADOW COMPARISON: Comparar decisiones
+  const currentShouldEnqueue = decision === 'run_tsa';
+  if (currentShouldEnqueue !== canonicalShouldEnqueue) {
+    console.warn('[SHADOW DISCREPANCY] run_tsa decision mismatch:', {
+      documentEntityId,
+      jobId: job.id,
+      currentDecision: decision,
+      canonicalDecision,
+      currentShouldEnqueue,
+      canonicalShouldEnqueue,
+      eventsCount: events.length,
+      hasRequest: events.some((e: any) => e.kind === 'document.protected.requested'),
+      hasTsa: events.some((e: any) => e.kind === 'tsa.confirmed'),
+      phase: 'PASO_1_SHADOW_MODE'
+    });
+  } else {
+    console.log('[SHADOW MATCH] run_tsa decision matches canonical:', {
+      documentEntityId,
+      jobId: job.id,
+      decision,
+      shouldEnqueue: currentShouldEnqueue,
+      phase: 'PASO_1_SHADOW_MODE'
+    });
+  }
+
+  // CONTINUAR CON LÓGICA ACTUAL (sin cambios)
   if (decision === 'noop_missing_request') {
     console.log(`[fase1-executor] NOOP protect_document_v2 (no request event) for job ${job.id}`);
     return;

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
+import { shouldConfirmIdentity } from '../../../packages/authority/src/decisions/confirmIdentity.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -46,7 +47,7 @@ serve(async (req) => {
 
     const { data: signer, error: signerError } = await supabase
       .from('workflow_signers')
-      .select('id, email, name, workflow_id, signing_order')
+      .select('id, email, name, workflow_id, signing_order, status')
       .eq('id', body.signerId)
       .single()
 
@@ -56,6 +57,70 @@ serve(async (req) => {
 
     const fullName = `${body.firstName.trim()} ${body.lastName.trim()}`
 
+    // Shadow mode: compute decisions before any mutation
+    // Legacy decision: validaciones básicas (trimmed names + flags)
+    const legacyDecision = Boolean(
+      signer &&
+      body.firstName?.trim() &&
+      body.lastName?.trim() &&
+      body.confirmedRecipient &&
+      body.acceptedLogging
+    )
+
+    // Canonical decision: validaciones completas (estados + deduplicación)
+    const canonicalDecision = shouldConfirmIdentity({
+      signer: signer ? {
+        id: signer.id,
+        email: signer.email,
+        name: signer.name,
+        status: signer.status,
+        workflow_id: signer.workflow_id,
+      } : null,
+      identity: {
+        firstName: body.firstName,
+        lastName: body.lastName,
+        confirmedRecipient: body.confirmedRecipient,
+        acceptedLogging: body.acceptedLogging,
+      },
+    })
+
+    // Log shadow comparison
+    try {
+      await supabase.from('shadow_decision_logs').insert({
+        decision_code: 'D11_CONFIRM_IDENTITY',
+        workflow_id: signer.workflow_id,
+        signer_id: signer.id,
+        legacy_decision: legacyDecision,
+        canonical_decision: canonicalDecision,
+        context: {
+          operation: 'confirm-identity',
+          signer_status: signer.status,
+          signer_name_before: signer.name,
+          confirmed_recipient: body.confirmedRecipient,
+          accepted_logging: body.acceptedLogging,
+          phase: 'PASO_2_SHADOW_MODE_D11',
+        },
+      })
+    } catch (logError) {
+      console.warn('[D11 SHADOW] Log insert failed', logError)
+    }
+
+    if (legacyDecision !== canonicalDecision) {
+      console.warn('[SHADOW DIVERGENCE D11]', {
+        legacy: legacyDecision,
+        canonical: canonicalDecision,
+        signer_id: signer.id,
+        signer_status: signer.status,
+        signer_name: signer.name,
+      })
+    } else {
+      console.log('[SHADOW MATCH D11]', {
+        decision: legacyDecision,
+        signer_id: signer.id,
+      })
+    }
+
+    // Ejecutar decisión legacy (autoridad actual)
     await supabase
       .from('workflow_signers')
       .update({

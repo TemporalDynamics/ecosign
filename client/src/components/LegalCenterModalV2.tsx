@@ -743,6 +743,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     // NO mostrar toast aquí - se muestra en onBlur para evitar spam mientras escribe
   };
 
+  const extractEmailsFromText = (text: string): string[] => {
+    const matches = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+    if (!matches) return [];
+    return matches.map((email) => email.trim()).filter(Boolean);
+  };
+
   // Validar email solo cuando el usuario termina de escribir (onBlur)
   const handleEmailBlur = (index: number) => {
     const email = emailInputs[index].email.trim();
@@ -762,6 +768,50 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         position: 'bottom-right'
       });
     }
+  };
+
+  const handleEmailPaste = (index: number, event: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = event.clipboardData.getData('text');
+    const extracted = extractEmailsFromText(text);
+    if (extracted.length <= 1) return;
+
+    event.preventDefault();
+
+    const existing = new Set(
+      emailInputs
+        .map((input) => input.email.trim().toLowerCase())
+        .filter(Boolean)
+    );
+    const unique: string[] = [];
+    for (const raw of extracted) {
+      const email = raw.toLowerCase();
+      if (!email || existing.has(email)) continue;
+      if (!isValidEmail(email).valid) continue;
+      existing.add(email);
+      unique.push(email);
+    }
+
+    if (unique.length === 0) {
+      showToast('Los emails pegados ya estaban cargados.', {
+        type: 'default',
+        duration: 2500,
+        position: 'top-right'
+      });
+      return;
+    }
+
+    const next = [...emailInputs];
+    next[index] = { ...next[index], email: unique[0] };
+    for (let i = 1; i < unique.length; i += 1) {
+      next.push({ email: unique[i], name: '', requireLogin: true, requireNda: true });
+    }
+    setEmailInputs(next);
+
+    showToast(`Se agregaron ${unique.length} firmante${unique.length > 1 ? 's' : ''}.`, {
+      type: 'success',
+      duration: 2000,
+      position: 'top-right'
+    });
   };
 
   const handleNameChange = (index: number, value: string) => {
@@ -3497,6 +3547,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                     type="email"
                                     value={input.email}
                                     onChange={(e) => handleEmailChange(index, e.target.value)}
+                                    onPaste={(e) => handleEmailPaste(index, e)}
                                     onBlur={() => handleEmailBlur(index)}
                                     placeholder="email@ejemplo.com"
                                     className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
@@ -3715,6 +3766,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         type="email"
                         value={input.email}
                         onChange={(e) => handleEmailChange(index, e.target.value)}
+                        onPaste={(e) => handleEmailPaste(index, e)}
                         onBlur={() => handleEmailBlur(index)}
                         placeholder="email@ejemplo.com"
                         className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"

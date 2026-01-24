@@ -5,6 +5,19 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 /**
+ * Generates a cryptographically secure random token.
+ * Used for access tokens, OTPs, and other secure identifiers.
+ * Returns a URL-safe base64-encoded string of 32 random bytes (256 bits).
+ */
+export function generateSecretToken(): string {
+  const randomBytes = crypto.getRandomValues(new Uint8Array(32));
+  return toBase64(randomBytes)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, ''); // URL-safe base64
+}
+
+/**
  * Creates a secure HMAC-SHA256 hash of a token.
  * This is used to store a verifiable, non-reversible representation of the token in the DB.
  * Relies on the TOKEN_SECRET environment variable.

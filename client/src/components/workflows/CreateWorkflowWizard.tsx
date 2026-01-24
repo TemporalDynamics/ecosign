@@ -6,6 +6,7 @@
 // ============================================
 
 import { useState } from 'react'
+import type { ClipboardEvent } from 'react'
 import { getSupabase } from '@/lib/supabaseClient'
 import { X, CheckCircle } from 'lucide-react';
 import DocumentUploader from '@/components/documents/DocumentUploader'
@@ -86,6 +87,56 @@ export default function CreateWorkflowWizard({
     const updated = [...signers]
     updated[index] = { ...updated[index], [field]: value }
     setSigners(updated)
+  }
+
+  const extractEmailsFromText = (text: string): string[] => {
+    const matches = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)
+    if (!matches) return []
+    return matches.map((email) => email.trim()).filter(Boolean)
+  }
+
+  const handleSignerEmailPaste = (index: number, event: ClipboardEvent<HTMLInputElement>) => {
+    const text = event.clipboardData.getData('text')
+    const extracted = extractEmailsFromText(text)
+    if (extracted.length <= 1) return
+
+    event.preventDefault()
+
+    const existing = new Set(
+      signers
+        .map((signer) => signer.email.trim().toLowerCase())
+        .filter(Boolean)
+    )
+    const unique: string[] = []
+    for (const raw of extracted) {
+      const email = raw.toLowerCase()
+      if (!email || existing.has(email)) continue
+      existing.add(email)
+      unique.push(email)
+    }
+
+    if (unique.length === 0) {
+      return
+    }
+
+    const next = [...signers]
+    next[index] = { ...next[index], email: unique[0] }
+    for (let i = 1; i < unique.length; i += 1) {
+      next.push({
+        email: unique[i],
+        name: '',
+        require_login: true,
+        require_nda: true,
+        signing_order: next.length + 1
+      })
+    }
+
+    const normalized = next.map((signer, idx) => ({
+      ...signer,
+      signing_order: idx + 1
+    }))
+    setSigners(normalized)
+    setError(null)
   }
 
   const validateSigners = (): boolean => {
@@ -311,6 +362,7 @@ export default function CreateWorkflowWizard({
                           type="email"
                           value={signer.email}
                           onChange={(e) => updateSigner(index, 'email', e.target.value)}
+                          onPaste={(e) => handleSignerEmailPaste(index, e)}
                           placeholder="firmante@ejemplo.com"
                           className="w-full rounded-md border px-3 py-2 text-sm"
                         />

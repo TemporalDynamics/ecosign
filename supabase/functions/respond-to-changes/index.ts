@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
+import { shouldRespondToChanges } from '../../../packages/authority/src/decisions/respondToChanges.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -80,10 +81,62 @@ serve(async (req) => {
     const { workflowId, signerId, action, newDocumentUrl, newDocumentHash, modificationNotes } = body
 
     if (!workflowId || !signerId || !action) {
+      const legacyDecision = false
+      const canonicalDecision = shouldRespondToChanges({
+        actor_id: user.id,
+        payload: { workflowId, signerId, action, newDocumentUrl, newDocumentHash },
+        workflow: null,
+        signer: null
+      })
+
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D15_RESPOND_TO_CHANGES',
+          workflow_id: null,
+          signer_id: null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'respond-to-changes',
+            phase: 'PASO_2_SHADOW_MODE_D15',
+            reason: 'missing_required_fields',
+            action: action ?? null
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D15)', logError)
+      }
+
       return jsonResponse({ error: 'Missing required fields' }, 400)
     }
 
     if (action === 'accept' && (!newDocumentUrl || !newDocumentHash)) {
+      const legacyDecision = false
+      const canonicalDecision = shouldRespondToChanges({
+        actor_id: user.id,
+        payload: { workflowId, signerId, action, newDocumentUrl, newDocumentHash },
+        workflow: null,
+        signer: null
+      })
+
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D15_RESPOND_TO_CHANGES',
+          workflow_id: null,
+          signer_id: null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'respond-to-changes',
+            phase: 'PASO_2_SHADOW_MODE_D15',
+            reason: 'missing_new_document',
+            action
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D15)', logError)
+      }
+
       return jsonResponse({
         error: 'When accepting changes, newDocumentUrl and newDocumentHash are required'
       }, 400)
@@ -97,14 +150,94 @@ serve(async (req) => {
       .single()
 
     if (workflowError || !workflow) {
+      const legacyDecision = false
+      const canonicalDecision = shouldRespondToChanges({
+        actor_id: user.id,
+        payload: { workflowId, signerId, action, newDocumentUrl, newDocumentHash },
+        workflow: null,
+        signer: null
+      })
+
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D15_RESPOND_TO_CHANGES',
+          workflow_id: null,
+          signer_id: null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'respond-to-changes',
+            phase: 'PASO_2_SHADOW_MODE_D15',
+            reason: 'workflow_not_found',
+            action
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D15)', logError)
+      }
+
       return jsonResponse({ error: 'Workflow not found' }, 404)
     }
 
     if (workflow.owner_id !== user.id) {
+      const legacyDecision = false
+      const canonicalDecision = shouldRespondToChanges({
+        actor_id: user.id,
+        payload: { workflowId, signerId, action, newDocumentUrl, newDocumentHash },
+        workflow: { id: workflow.id, owner_id: workflow.owner_id, status: workflow.status },
+        signer: null
+      })
+
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D15_RESPOND_TO_CHANGES',
+          workflow_id: workflow.id,
+          signer_id: null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'respond-to-changes',
+            phase: 'PASO_2_SHADOW_MODE_D15',
+            reason: 'actor_not_owner',
+            workflow_status: workflow.status,
+            action
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D15)', logError)
+      }
+
       return jsonResponse({ error: 'Only the workflow owner can respond to change requests' }, 403)
     }
 
     if (workflow.status !== 'active') {
+      const legacyDecision = false
+      const canonicalDecision = shouldRespondToChanges({
+        actor_id: user.id,
+        payload: { workflowId, signerId, action, newDocumentUrl, newDocumentHash },
+        workflow: { id: workflow.id, owner_id: workflow.owner_id, status: workflow.status },
+        signer: null
+      })
+
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D15_RESPOND_TO_CHANGES',
+          workflow_id: workflow.id,
+          signer_id: null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'respond-to-changes',
+            phase: 'PASO_2_SHADOW_MODE_D15',
+            reason: 'workflow_not_active',
+            workflow_status: workflow.status,
+            action
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D15)', logError)
+      }
+
       return jsonResponse({
         error: 'Workflow is not active',
         currentStatus: workflow.status
@@ -119,14 +252,94 @@ serve(async (req) => {
       .single()
 
     if (signerError || !signer) {
+      const legacyDecision = false
+      const canonicalDecision = shouldRespondToChanges({
+        actor_id: user.id,
+        payload: { workflowId, signerId, action, newDocumentUrl, newDocumentHash },
+        workflow: { id: workflow.id, owner_id: workflow.owner_id, status: workflow.status },
+        signer: null
+      })
+
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D15_RESPOND_TO_CHANGES',
+          workflow_id: workflow.id,
+          signer_id: null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'respond-to-changes',
+            phase: 'PASO_2_SHADOW_MODE_D15',
+            reason: 'signer_not_found',
+            action
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D15)', logError)
+      }
+
       return jsonResponse({ error: 'Signer not found' }, 404)
     }
 
     if (signer.change_request_status !== 'pending') {
+      const legacyDecision = false
+      const canonicalDecision = shouldRespondToChanges({
+        actor_id: user.id,
+        payload: { workflowId, signerId, action, newDocumentUrl, newDocumentHash },
+        workflow: { id: workflow.id, owner_id: workflow.owner_id, status: workflow.status },
+        signer: { id: signer.id, workflow_id: signer.workflow_id, change_request_status: signer.change_request_status }
+      })
+
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D15_RESPOND_TO_CHANGES',
+          workflow_id: workflow.id,
+          signer_id: signer.id,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'respond-to-changes',
+            phase: 'PASO_2_SHADOW_MODE_D15',
+            reason: 'request_not_pending',
+            action
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D15)', logError)
+      }
+
       return jsonResponse({
         error: 'This signer has not requested changes',
         currentStatus: signer.change_request_status
       }, 400)
+    }
+
+    const legacyDecision = true
+    const canonicalDecision = shouldRespondToChanges({
+      actor_id: user.id,
+      payload: { workflowId, signerId, action, newDocumentUrl, newDocumentHash },
+      workflow: { id: workflow.id, owner_id: workflow.owner_id, status: workflow.status },
+      signer: { id: signer.id, workflow_id: signer.workflow_id, change_request_status: signer.change_request_status }
+    })
+
+    try {
+      await supabase.from('shadow_decision_logs').insert({
+        decision_code: 'D15_RESPOND_TO_CHANGES',
+        workflow_id: workflow.id,
+        signer_id: signer.id,
+        legacy_decision: legacyDecision,
+        canonical_decision: canonicalDecision,
+        context: {
+          operation: 'respond-to-changes',
+          phase: 'PASO_2_SHADOW_MODE_D15',
+          action,
+          workflow_status: workflow.status,
+          signer_status: signer.status,
+          change_request_status: signer.change_request_status
+        }
+      })
+    } catch (logError) {
+      console.warn('shadow log insert failed (D15)', logError)
     }
 
     const appUrl = Deno.env.get('APP_URL') || 'https://ecosign.app'

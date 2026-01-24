@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
+import { shouldCancelWorkflow } from '../../../packages/authority/src/decisions/cancelWorkflow.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -16,7 +17,7 @@ const jsonResponse = (data: unknown, status = 200) =>
 
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
+    return new Response(null, { status: 204 });
   }
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
@@ -49,6 +50,40 @@ serve(async (req) => {
       .eq('id', workflowId)
       .single()
 
+    // Shadow mode: compute decisions before any mutation
+    const legacyDecision = Boolean(
+      workflow &&
+      workflow.owner_id === user.id &&
+      !['completed', 'cancelled', 'archived'].includes(workflow.status)
+    )
+    const canonicalDecision = shouldCancelWorkflow({
+      actor_id: user.id,
+      workflow: workflow ? { owner_id: workflow.owner_id, status: workflow.status } : null
+    })
+
+    const isUuid = typeof workflowId === 'string' &&
+      /^[0-9a-fA-F-]{36}$/.test(workflowId)
+
+    if (isUuid) {
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D9_CANCEL_WORKFLOW',
+          workflow_id: workflowId,
+          signer_id: null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            actor_id: user.id,
+            operation: 'cancel-workflow',
+            old_status: workflow?.status ?? null,
+            phase: 'PASO_2_SHADOW_MODE_D9'
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D9)', logError)
+      }
+    }
+
     if (workflowError || !workflow) {
       return jsonResponse({ error: 'Workflow not found' }, 404)
     }
@@ -75,7 +110,7 @@ serve(async (req) => {
       {
         event_type: 'workflow.cancelled',
         workflow_id: workflowId,
-        payload: { previous_status: workflow.status },
+        payload: { previous_status: workflow.status, cancelled_at: new Date().toISOString() },
         actor_id: user.id
       },
       'cancel-workflow'

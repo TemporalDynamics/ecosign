@@ -24,6 +24,50 @@ Durante una refactorización en la rama feature/canonical-contracts-refactor, el
 3. Si en el futuro se decide rescatar algo del backup, hacerlo por cherry-pick explícito, revisado por código y con pruebas.
 
 ---
+## Iteración: Industrialización de decisiones (Bache 1) — 2026-01-24
+
+### 🎯 Resumen
+Se cerró el Bache 1 de decisiones de workflow con contratos formales (D12–D15),
+instrumentación shadow en Edge y observabilidad genérica para comparar legacy vs
+canonical en producción. La infraestructura de shadow ya quedó reutilizable para
+todos los baches siguientes.
+
+### ✅ Decisiones/Contratos cerrados
+- D12 — Apply Signer Signature (contrato + invariantes ajustadas)
+- D13 — Start Signature Workflow (contrato + signing order secuencial)
+- D14 — Request Document Changes (contrato + bloqueo lógico documentado)
+- D15 — Respond To Changes (contrato + consistencia signer/workflow)
+
+### ✅ Implementación realizada
+- Funciones canónicas en `packages/authority/src/decisions/*`:
+  - `applySignerSignature.ts`
+  - `startSignatureWorkflow.ts`
+  - `requestDocumentChanges.ts`
+  - `respondToChanges.ts`
+- Instrumentación shadow en Edge:
+  - `supabase/functions/apply-signer-signature/index.ts`
+  - `supabase/functions/start-signature-workflow/index.ts`
+  - `supabase/functions/request-document-changes/index.ts`
+  - `supabase/functions/respond-to-changes/index.ts`
+- Infra shadow común (vistas genéricas):
+  - `shadow_decision_summary`
+  - `shadow_decision_last_runs`
+  - `shadow_decision_divergences`
+  - Migración: `supabase/migrations/20260124100000_shadow_decision_generic_views.sql`
+- SQL pack de verificación del bache:
+  - `docs/audits/batch1-shadow-verification.sql`
+
+### 🔍 Estado actual
+- Shadow logging activo para D12–D15.
+- Vistas genéricas aplicadas en DB (db push realizado).
+
+### 🔜 Próximo paso inmediato (pendiente)
+1. Ejecutar `docs/audits/batch1-shadow-verification.sql` y revisar métricas.
+2. Generar 5–10 runs reales por decisión (D12–D15).
+3. Con 0 divergencias, marcar D12–D15 como VALIDADO en `docs/authority-audit.md`.
+4. Luego: tests unitarios (regresión) para D12–D15.
+
+---
 Firma: maniobra de recuperación automatizada ejecutada desde el entorno local por petición del mantenedor.
 
 ---

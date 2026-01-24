@@ -24,10 +24,44 @@ export function FlowScene({
     return null;
   }
 
+  const extractEmailsFromText = (text: string): string[] => {
+    const matches = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+    if (!matches) return [];
+    return matches.map((email) => email.trim()).filter(Boolean);
+  };
+
   const handleEmailChange = (index: number, email: string) => {
     const newEmails = [...signerEmails];
     newEmails[index] = email;
     onSignerEmailsChange(newEmails);
+  };
+
+  const handleEmailPaste = (index: number, event: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = event.clipboardData.getData('text');
+    const extracted = extractEmailsFromText(text);
+    if (extracted.length <= 1) return;
+
+    event.preventDefault();
+
+    const existing = new Set(
+      signerEmails.map((email) => email.trim().toLowerCase()).filter(Boolean)
+    );
+    const unique: string[] = [];
+    for (const raw of extracted) {
+      const email = raw.toLowerCase();
+      if (!email || existing.has(email)) continue;
+      existing.add(email);
+      unique.push(email);
+    }
+
+    if (unique.length === 0) return;
+
+    const next = [...signerEmails];
+    next[index] = unique[0];
+    for (let i = 1; i < unique.length; i += 1) {
+      next.push(unique[i]);
+    }
+    onSignerEmailsChange(next);
   };
 
   const handleAddSigner = () => {
@@ -60,6 +94,7 @@ export function FlowScene({
                   type="email"
                   value={email}
                   onChange={(e) => handleEmailChange(index, e.target.value)}
+                  onPaste={(e) => handleEmailPaste(index, e)}
                   placeholder="email@ejemplo.com"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />

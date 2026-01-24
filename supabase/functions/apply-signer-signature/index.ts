@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { captureAndApplySignature } from '../_shared/signatureCapture.ts'
+import { shouldApplySignerSignature } from '../../../packages/authority/src/decisions/applySignerSignature.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -111,41 +112,50 @@ serve(async (req) => {
       }
     }
 
-    if (workflowId && signer.workflow_id !== workflowId) {
+    const workflowIdMismatch = Boolean(workflowId && signer.workflow_id !== workflowId)
+    if (workflowIdMismatch) {
       console.error('apply-signer-signature: Workflow mismatch', {
         signerId: signer.id,
         signerWorkflowId: signer.workflow_id,
         providedWorkflowId: workflowId
       })
-      return json({ error: 'Signer does not belong to this workflow' }, 403)
     }
 
+    // Fetch workflow early for canonical decision and batching
+    const { data: workflow, error: wfError } = await supabase
+      .from('signature_workflows')
+      .select('id, document_entity_id, status')
+      .eq('id', signer.workflow_id)
+      .single()
+
     // GATE: Check if token has been revoked
-    if (signer.token_revoked_at) {
+    const tokenRevoked = Boolean(signer.token_revoked_at)
+    if (tokenRevoked) {
       console.error('apply-signer-signature: Token revoked', {
         signerId: signer.id,
         revokedAt: signer.token_revoked_at
       })
-      return json({ error: 'Token has been revoked' }, 403)
     }
 
     // GATE: Check if token has expired
-    if (signer.token_expires_at && new Date(signer.token_expires_at) < new Date()) {
+    const tokenExpired = Boolean(
+      signer.token_expires_at && new Date(signer.token_expires_at) < new Date()
+    )
+    if (tokenExpired) {
       console.error('apply-signer-signature: Token expired', {
         signerId: signer.id,
         expiredAt: signer.token_expires_at
       })
-      return json({ error: 'Token has expired' }, 403)
     }
 
     // GATE: Check if signer is in a terminal state
     const terminalStates = ['signed', 'cancelled', 'expired']
-    if (terminalStates.includes(signer.status)) {
+    const signerTerminal = terminalStates.includes(signer.status)
+    if (signerTerminal) {
       console.error('apply-signer-signature: Signer in terminal state', {
         signerId: signer.id,
         status: signer.status
       })
-      return json({ error: `Cannot sign: signer status is ${signer.status}` }, 403)
     }
 
     // Validate OTP confirmed
@@ -155,21 +165,94 @@ serve(async (req) => {
       otpVerifiedAt: signer.signer_otps?.verified_at
     })
 
-    if (!signer.otp_verified) {
+    const otpVerified = Boolean(signer.otp_verified)
+    if (!otpVerified) {
       console.error('apply-signer-signature: OTP not verified', {
         signerId: signer.id,
         otpVerifiedAt: signer.signer_otps?.verified_at
       })
-      return json({ error: 'OTP not verified for signer' }, 403)
     }
 
-    // P2.2 — Capture and apply signature to all batch fields
-    // Get workflow to resolve document_entity_id
-    const { data: workflow, error: wfError } = await supabase
-      .from('signature_workflows')
-      .select('document_entity_id')
-      .eq('id', signer.workflow_id)
-      .single()
+    const legacyDecision = Boolean(
+      (signerId || accessToken) &&
+      (!signerId || workflowId) &&
+      signer &&
+      !workflowIdMismatch &&
+      workflow &&
+      !tokenRevoked &&
+      !tokenExpired &&
+      !signerTerminal &&
+      otpVerified
+    )
+
+    const canonicalDecision = shouldApplySignerSignature({
+      signer: signer ? {
+        id: signer.id,
+        workflow_id: signer.workflow_id,
+        status: signer.status,
+        token_expires_at: signer.token_expires_at ?? null,
+        token_revoked_at: signer.token_revoked_at ?? null,
+        otp_verified: otpVerified
+      } : null,
+      workflow: workflow ? {
+        id: workflow.id,
+        document_entity_id: workflow.document_entity_id ?? null
+      } : null,
+      payload: {
+        signerId,
+        accessToken,
+        workflowId
+      }
+    })
+
+    const logWorkflowId = workflow?.id ?? (typeof workflowId === 'string' ? workflowId : null)
+    const logSignerId = signer?.id ?? (typeof signerId === 'string' ? signerId : null)
+    const isUuid = (value: string | null) => Boolean(value && /^[0-9a-fA-F-]{36}$/.test(value))
+
+    if (isUuid(logWorkflowId) || isUuid(logSignerId)) {
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D12_APPLY_SIGNER_SIGNATURE',
+          workflow_id: isUuid(logWorkflowId) ? logWorkflowId : null,
+          signer_id: isUuid(logSignerId) ? logSignerId : null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'apply-signer-signature',
+            workflow_id: signer?.workflow_id ?? null,
+            signer_status: signer?.status ?? null,
+            workflow_status: workflow?.status ?? null,
+            token_revoked_at: signer?.token_revoked_at ?? null,
+            token_expires_at: signer?.token_expires_at ?? null,
+            otp_verified: otpVerified,
+            workflow_id_mismatch: workflowIdMismatch,
+            phase: 'PASO_2_SHADOW_MODE_D12'
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D12)', logError)
+      }
+    }
+
+    if (workflowIdMismatch) {
+      return json({ error: 'Signer does not belong to this workflow' }, 403)
+    }
+
+    if (tokenRevoked) {
+      return json({ error: 'Token has been revoked' }, 403)
+    }
+
+    if (tokenExpired) {
+      return json({ error: 'Token has expired' }, 403)
+    }
+
+    if (signerTerminal) {
+      return json({ error: `Cannot sign: signer status is ${signer.status}` }, 403)
+    }
+
+    if (!otpVerified) {
+      return json({ error: 'OTP not verified for signer' }, 403)
+    }
 
     if (wfError || !workflow) {
       console.error('apply-signer-signature: Workflow not found', wfError)

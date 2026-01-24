@@ -334,9 +334,13 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
-# [edge_runtime.secrets]
 [edge_runtime.secrets]
 ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+# Token security (cryptoHelper.ts)
+TOKEN_SECRET = "dev-secret-token-hmac-sha256-key-for-local-development-only"
+TOKEN_ENCRYPTION_KEY = "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY="
+# Frontend URL (para links de firma)
+FRONTEND_URL = "http://localhost:5173"
 
 [analytics]
 enabled = true

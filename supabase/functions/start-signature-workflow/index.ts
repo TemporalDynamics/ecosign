@@ -7,6 +7,7 @@ import {
   createTokenHash,
   encryptToken,
 } from '../_shared/cryptoHelper.ts'
+import { shouldStartSignatureWorkflow } from '../../../packages/authority/src/decisions/startSignatureWorkflow.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -106,12 +107,111 @@ serve(withRateLimit('workflow', async (req) => {
     } = body
 
     if (!documentUrl || !documentHash || !originalFilename || !signers || signers.length === 0) {
+      const legacyDecision = false
+      const canonicalDecision = shouldStartSignatureWorkflow({
+        actor_id: user.id,
+        payload: {
+          documentUrl,
+          documentHash,
+          originalFilename,
+          documentEntityId,
+          signers,
+          forensicConfig,
+          deliveryMode
+        }
+      })
+
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D13_START_SIGNATURE_WORKFLOW',
+          workflow_id: null,
+          signer_id: null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'start-signature-workflow',
+            phase: 'PASO_2_SHADOW_MODE_D13',
+            reason: 'missing_required_fields',
+            signers_count: signers ? signers.length : 0,
+            delivery_mode: deliveryMode ?? null
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D13)', logError)
+      }
+
       return jsonResponse({ error: 'Missing required fields' }, 400)
     }
 
     // Validate deliveryMode if provided
     if (deliveryMode && !['email', 'link'].includes(deliveryMode)) {
+      const legacyDecision = false
+      const canonicalDecision = shouldStartSignatureWorkflow({
+        actor_id: user.id,
+        payload: {
+          documentUrl,
+          documentHash,
+          originalFilename,
+          documentEntityId,
+          signers,
+          forensicConfig,
+          deliveryMode
+        }
+      })
+
+      try {
+        await supabase.from('shadow_decision_logs').insert({
+          decision_code: 'D13_START_SIGNATURE_WORKFLOW',
+          workflow_id: null,
+          signer_id: null,
+          legacy_decision: legacyDecision,
+          canonical_decision: canonicalDecision,
+          context: {
+            operation: 'start-signature-workflow',
+            phase: 'PASO_2_SHADOW_MODE_D13',
+            reason: 'invalid_delivery_mode',
+            signers_count: signers.length,
+            delivery_mode: deliveryMode
+          }
+        })
+      } catch (logError) {
+        console.warn('shadow log insert failed (D13)', logError)
+      }
+
       return jsonResponse({ error: 'Invalid deliveryMode. Must be "email" or "link"' }, 400)
+    }
+
+    const legacyDecision = true
+    const canonicalDecision = shouldStartSignatureWorkflow({
+      actor_id: user.id,
+      payload: {
+        documentUrl,
+        documentHash,
+        originalFilename,
+        documentEntityId,
+        signers,
+        forensicConfig,
+        deliveryMode
+      }
+    })
+
+    try {
+      await supabase.from('shadow_decision_logs').insert({
+        decision_code: 'D13_START_SIGNATURE_WORKFLOW',
+        workflow_id: null,
+        signer_id: null,
+        legacy_decision: legacyDecision,
+        canonical_decision: canonicalDecision,
+        context: {
+          operation: 'start-signature-workflow',
+          phase: 'PASO_2_SHADOW_MODE_D13',
+          signers_count: signers.length,
+          delivery_mode: deliveryMode ?? 'email',
+          has_document_entity_id: Boolean(documentEntityId)
+        }
+      })
+    } catch (logError) {
+      console.warn('shadow log insert failed (D13)', logError)
     }
 
     const workflowPayload = {

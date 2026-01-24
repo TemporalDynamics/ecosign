@@ -1,12 +1,13 @@
 /**
  * Rate Limiting Helper using Upstash Redis
- * 
+ *
  * This module provides rate limiting functionality for Supabase Edge Functions
  * using Upstash Redis with sliding window algorithm.
  */
 
 import { Ratelimit } from 'https://esm.sh/@upstash/ratelimit@1.0.0';
 import { Redis } from 'https://esm.sh/@upstash/redis@1.28.0';
+import { getCorsHeaders } from './cors.ts';
 
 /**
  * Rate limit configuration per endpoint type
@@ -118,7 +119,8 @@ export async function checkRateLimit(
 export function rateLimitResponse(
   limit: number,
   remaining: number,
-  reset: number
+  reset: number,
+  corsHeaders: Record<string, string> = {}
 ): Response {
   const retryAfter = Math.ceil((reset - Date.now()) / 1000);
   const safeLimit = Number.isFinite(limit) ? limit : RATE_LIMITS.default;
@@ -134,6 +136,7 @@ export function rateLimitResponse(
     {
       status: 429,
       headers: {
+        ...corsHeaders,
         'Content-Type': 'application/json',
         'X-RateLimit-Limit': safeLimit.toString(),
         'X-RateLimit-Remaining': safeRemaining.toString(),
@@ -162,22 +165,43 @@ export function withRateLimit(
   handler: (req: Request) => Promise<Response> | Response
 ) {
   return async (req: Request): Promise<Response> => {
-    // Check rate limit
-    const { success, limit, remaining, reset } = await checkRateLimit(req, type);
+    // Get CORS headers early for error responses
+    const { headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
 
-    // If rate limit exceeded, return 429
-    if (!success) {
-      return rateLimitResponse(limit, remaining, reset);
+    try {
+      // Check rate limit
+      const { success, limit, remaining, reset } = await checkRateLimit(req, type);
+
+      // If rate limit exceeded, return 429 with CORS headers
+      if (!success) {
+        return rateLimitResponse(limit, remaining, reset, corsHeaders);
+      }
+
+      // Execute the original handler
+      const response = await handler(req);
+
+      // Add rate limit headers to successful responses
+      response.headers.set('X-RateLimit-Limit', limit.toString());
+      response.headers.set('X-RateLimit-Remaining', remaining.toString());
+      response.headers.set('X-RateLimit-Reset', reset.toString());
+
+      return response;
+    } catch (error) {
+      // If any error occurs in rate limiting, return 500 with CORS headers
+      console.error('Error in rate limit middleware:', error);
+      return new Response(
+        JSON.stringify({
+          error: 'Internal Server Error',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        }),
+        {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
     }
-
-    // Execute the original handler
-    const response = await handler(req);
-
-    // Add rate limit headers to successful responses
-    response.headers.set('X-RateLimit-Limit', limit.toString());
-    response.headers.set('X-RateLimit-Remaining', remaining.toString());
-    response.headers.set('X-RateLimit-Reset', reset.toString());
-
-    return response;
   };
 }

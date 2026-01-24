@@ -168,6 +168,11 @@ export function withRateLimit(
     // Get CORS headers early for error responses
     const { headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
 
+    // OPTIONS requests bypass rate limiting (CORS preflight)
+    if (req.method === 'OPTIONS') {
+      return handler(req);
+    }
+
     try {
       // Check rate limit
       const { success, limit, remaining, reset } = await checkRateLimit(req, type);

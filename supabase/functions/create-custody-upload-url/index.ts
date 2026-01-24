@@ -54,12 +54,13 @@ interface CreateUploadUrlRequest {
 const UPLOAD_URL_EXPIRY_SECONDS = 3600 // 1 hour
 
 serve(async (req) => {
-  if (Deno.env.get('FASE') !== '1') {
-    return new Response(null, { status: 204 });
-  }
   console.log('[create-custody-upload-url] Request received')
 
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
+
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   if (req.method === 'OPTIONS') {
     if (!isAllowed) {
@@ -140,7 +141,7 @@ serve(async (req) => {
       console.error('[create-custody-upload-url] Failed to create signed URL:', signedUrlError)
       return jsonResponse({
         error: `Failed to create upload URL: ${signedUrlError?.message || 'Unknown error'}`
-      }, 500)
+      }, 500, corsHeaders)
     }
 
     const expiresAt = new Date(Date.now() + UPLOAD_URL_EXPIRY_SECONDS * 1000).toISOString()
@@ -163,6 +164,6 @@ serve(async (req) => {
     console.error('[create-custody-upload-url] Error:', error)
     return jsonResponse({
       error: error instanceof Error ? error.message : 'Internal server error'
-    }, 500)
+    }, 500, corsHeaders)
   }
 })

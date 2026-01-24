@@ -68,7 +68,31 @@ serve(withRateLimit('accept', async (req) => {
     }
 
     // Validate email matches
-    if (share.recipient_email.toLowerCase() !== signer_email.toLowerCase()) {
+    const emailMatches = share.recipient_email.toLowerCase() === signer_email.toLowerCase()
+    const legacyDecision = Boolean(emailMatches && share.nda_enabled && !share.nda_accepted_at)
+    const canonicalDecision = Boolean(emailMatches && share.nda_enabled && !share.nda_accepted_at)
+
+    try {
+      await supabase.from('shadow_decision_logs').insert({
+        decision_code: 'D19_ACCEPT_SHARE_NDA',
+        workflow_id: null,
+        signer_id: null,
+        legacy_decision: legacyDecision,
+        canonical_decision: canonicalDecision,
+        context: {
+          operation: 'accept-share-nda',
+          share_id,
+          nda_enabled: share.nda_enabled,
+          nda_accepted_at: share.nda_accepted_at,
+          email_matches: emailMatches,
+          phase: 'PASO_2_SHADOW_MODE_D19'
+        }
+      })
+    } catch (logError) {
+      console.warn('[D19 SHADOW] Log insert failed', logError)
+    }
+
+    if (!emailMatches) {
       throw new Error('Email mismatch')
     }
 

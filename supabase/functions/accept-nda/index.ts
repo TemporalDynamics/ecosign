@@ -78,6 +78,44 @@ serve(withRateLimit('accept', async (req) => {
       .eq('recipient_id', recipient.id)
       .single()
 
+    const legacyDecision = Boolean(
+      token &&
+      signer_name &&
+      signer_email &&
+      link?.recipient_id &&
+      recipient &&
+      !existingNda
+    )
+
+    const canonicalDecision = Boolean(
+      token &&
+      signer_name &&
+      signer_email &&
+      link &&
+      link.recipient_id &&
+      recipient &&
+      !existingNda
+    )
+
+    try {
+      await supabase.from('shadow_decision_logs').insert({
+        decision_code: 'D16_ACCEPT_NDA',
+        workflow_id: null,
+        signer_id: null,
+        legacy_decision: legacyDecision,
+        canonical_decision: canonicalDecision,
+        context: {
+          operation: 'accept-nda',
+          link_id: link?.id ?? null,
+          recipient_id: recipient?.id ?? null,
+          has_existing_acceptance: Boolean(existingNda),
+          phase: 'PASO_2_SHADOW_MODE_D16'
+        }
+      })
+    } catch (logError) {
+      console.warn('[D16 SHADOW] Log insert failed', logError)
+    }
+
     if (existingNda) {
       return new Response(
         JSON.stringify({

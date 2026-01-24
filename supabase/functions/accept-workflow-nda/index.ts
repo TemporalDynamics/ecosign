@@ -42,7 +42,31 @@ serve(async (req) => {
 
     if (error || !signer) return json({ error: 'Signer not found' }, 404)
 
-    if (signer.email.toLowerCase() !== signer_email.toLowerCase()) {
+    const emailMatches = signer.email.toLowerCase() === signer_email.toLowerCase()
+    const legacyDecision = Boolean(emailMatches && !signer.nda_accepted)
+    const canonicalDecision = Boolean(emailMatches && !signer.nda_accepted)
+
+    const isUuid = (value: string | null) => Boolean(value && /^[0-9a-fA-F-]{36}$/.test(value))
+    try {
+      await supabase.from('shadow_decision_logs').insert({
+        decision_code: 'D17_ACCEPT_WORKFLOW_NDA',
+        workflow_id: null,
+        signer_id: isUuid(signer_id) ? signer_id : null,
+        legacy_decision: legacyDecision,
+        canonical_decision: canonicalDecision,
+        context: {
+          operation: 'accept-workflow-nda',
+          signer_id: signer.id,
+          email_matches: emailMatches,
+          nda_accepted: signer.nda_accepted,
+          phase: 'PASO_2_SHADOW_MODE_D17'
+        }
+      })
+    } catch (logError) {
+      console.warn('[D17 SHADOW] Log insert failed', logError)
+    }
+
+    if (!emailMatches) {
       return json({ error: 'Email mismatch for signer' }, 400)
     }
 

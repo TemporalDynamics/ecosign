@@ -8,12 +8,7 @@ import {
   encryptToken,
 } from '../_shared/cryptoHelper.ts'
 import { shouldStartSignatureWorkflow } from '../../../packages/authority/src/decisions/startSignatureWorkflow.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface Signer {
   email: string
@@ -44,12 +39,6 @@ interface StartWorkflowRequest {
   deliveryMode?: 'email' | 'link'
 }
 
-const jsonResponse = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  })
-
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
     const cronSecret = Deno.env.get('CRON_SECRET')
@@ -66,8 +55,23 @@ async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
 }
 
 serve(withRateLimit('workflow', async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
+
+  const jsonResponse = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders })
+    }
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403)
   }
 
   if (req.method !== 'POST') {

@@ -16,11 +16,7 @@ import { withRateLimit } from '../_shared/ratelimit.ts'
 import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 import { parseJsonBody } from '../_shared/validation.ts'
 import { AcceptShareNdaSchema } from '../_shared/schemas.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 async function generateNdaHash(content: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -32,9 +28,20 @@ async function generateNdaHash(content: string): Promise<string> {
 }
 
 serve(withRateLimit('accept', async (req) => {
-  // Handle CORS preflight
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders })
+    }
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (!isAllowed) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Origin not allowed' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
 
   try {

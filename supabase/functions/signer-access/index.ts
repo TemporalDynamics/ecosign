@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno'
 import { encode as base64Encode } from 'https://deno.land/std@0.182.0/encoding/base64.ts'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'

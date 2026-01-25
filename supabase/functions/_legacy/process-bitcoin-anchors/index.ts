@@ -3,7 +3,7 @@
 // Enhanced to support user_documents bitcoin_status tracking
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno';
 import { sendResendEmail } from '../_shared/email.ts';
 import { createLogger, withTiming } from '../_shared/logger.ts';
 import { Buffer } from 'node:buffer';

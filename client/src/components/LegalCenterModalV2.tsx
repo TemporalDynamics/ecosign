@@ -1098,7 +1098,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         const arrayBuffer = await fileToSend.arrayBuffer();
         const documentHash = await hashWitness(arrayBuffer);
 
-        const storagePath = `${user.id}/${Date.now()}-${file.name}`;
+        // Sanitize filename to prevent Storage errors
+        const sanitizedWorkflowFilename = file.name
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-zA-Z0-9.-]/g, '_')
+          .replace(/__+/g, '_');
+
+        const storagePath = `${user.id}/${Date.now()}-${sanitizedWorkflowFilename}`;
         const { error: uploadError } = await supabase.storage
           .from('user-documents')
           .upload(storagePath, fileToSend, {
@@ -1353,7 +1360,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           }
 
           // 1. Subir versión SIN CIFRAR a user-documents (para descarga)
-          const downloadPath = `${currentUser.id}/${Date.now()}-${file.name}`;
+          // Sanitize filename to prevent Storage errors
+          const sanitizedWitnessFilename = file.name
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9.-]/g, '_')
+            .replace(/__+/g, '_');
+
+          const downloadPath = `${currentUser.id}/${Date.now()}-${sanitizedWitnessFilename}`;
           const { error: uploadError } = await supabase.storage
             .from('user-documents')
             .upload(downloadPath, fileToProcess, {

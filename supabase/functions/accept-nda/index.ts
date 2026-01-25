@@ -2,7 +2,7 @@
 // Edge function to record NDA acceptance with signature metadata
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'

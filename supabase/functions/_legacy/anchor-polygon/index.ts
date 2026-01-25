@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno'
 import { ethers } from 'https://esm.sh/ethers@6.9.0'
 
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)

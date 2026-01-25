@@ -9,7 +9,7 @@
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno'
 import { withRateLimit } from '../_shared/ratelimit.ts'
 import { appendEvent, getDocumentEntityId, getUserDocumentId } from '../_shared/eventHelper.ts'
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts'

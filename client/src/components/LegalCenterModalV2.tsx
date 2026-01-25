@@ -2058,7 +2058,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         return false;
       }
 
-      const storagePath = `${user.id}/${Date.now()}-${pdfFile.name}`;
+      // Sanitize filename: remove special characters (accents, etc) that break Storage
+      const sanitizedFilename = pdfFile.name
+        .normalize('NFD') // Decompose accented characters
+        .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace special chars with underscore
+        .replace(/__+/g, '_'); // Collapse multiple underscores
+
+      const storagePath = `${user.id}/${Date.now()}-${sanitizedFilename}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('user-documents')
         .upload(storagePath, pdfFile, {

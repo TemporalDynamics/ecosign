@@ -37,7 +37,7 @@
  */
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno'
+import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),

@@ -39,6 +39,18 @@ interface StartWorkflowRequest {
   deliveryMode?: 'email' | 'link'
 }
 
+function extractStoragePath(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    const match = parsed.pathname.match(/\/storage\/v1\/object\/(?:sign|public)\/([^/]+)\/(.+)$/)
+    if (!match) return null
+    const path = decodeURIComponent(match[2])
+    return path || null
+  } catch {
+    return null
+  }
+}
+
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
     const cronSecret = Deno.env.get('CRON_SECRET')
@@ -218,10 +230,14 @@ serve(withRateLimit('workflow', async (req) => {
       console.warn('shadow log insert failed (D13)', logError)
     }
 
+    const documentPath = extractStoragePath(documentUrl)
+
     const workflowPayload = {
       owner_id: user.id,
       original_filename: originalFilename,
       original_file_url: documentUrl,
+      document_path: documentPath ?? null,
+      document_hash: documentHash,
       status: 'active',
       forensic_config: forensicConfig,
       delivery_mode: deliveryMode, // 'email' or 'link' - immutable after creation
@@ -289,24 +305,79 @@ serve(withRateLimit('workflow', async (req) => {
       accessTokens[signer.email] = { token, tokenHash }
     }
 
+    // HYPOTHESIS DEBUGGING: Log the exact payload before the insert.
+    console.log('[DEBUG] signersToInsert payload:', JSON.stringify(signersToInsert, null, 2));
+
     const { data: insertedSigners, error: signersError } = await supabase
       .from('workflow_signers')
       .insert(signersToInsert)
       .select('id, email, status, signing_order')
 
     if (signersError) {
+      // HYPOTHESIS DEBUGGING: Log insert failure.
+      console.error('[DEBUG] Failed to insert signers.', signersError);
       return jsonResponse({ error: 'Failed to create signers', details: signersError?.message }, 500)
     }
+
+    // HYPOTHESIS DEBUGGING: Log insert success.
+    console.log(`[DEBUG] Successfully inserted ${insertedSigners?.length || 0} signers.`);
     
     // ... (Canonical event logging remains the same)
 
-    const appUrl = Deno.env.get('APP_URL') || 'https://www.ecosign.app'
+    const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
 
-    await supabase
-      .from('workflow_notifications')
-      .insert({
-        // ... (notification to owner remains the same)
-      })
+    // Create notification only for the first signer (sequential flow)
+    const notifications = []
+    if (deliveryMode === 'email') {
+      for (const insertedSigner of insertedSigners) {
+        if (insertedSigner.signing_order !== 1) continue
+
+        const token = accessTokens[insertedSigner.email]?.token
+        if (!token) continue
+
+        const signLink = `${appUrl}/sign/${token}`
+        const expiresDate = new Date()
+        expiresDate.setDate(expiresDate.getDate() + tokenLifetimeDays)
+        const displayName = insertedSigner.email.split('@')[0]
+
+        notifications.push({
+          workflow_id: workflow.id,
+          recipient_email: insertedSigner.email,
+          recipient_type: 'signer',
+          signer_id: insertedSigner.id,
+          notification_type: 'your_turn_to_sign',
+          subject: `Tenés un documento para firmar — ${originalFilename}`,
+          body_html: `<html><body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; color: #0f172a;">
+            <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
+              <p style="margin:0 0 12px;color:#0f172a;">Hola ${displayName},</p>
+              <p style="margin:0 0 12px;color:#334155;">Te enviaron un documento para firmar:</p>
+              <p style="margin:0 0 16px;font-weight:600;color:#0f172a;">${originalFilename}</p>
+              <p style="margin:0 0 16px;color:#334155;">EcoSign certifica tu firma con trazabilidad completa y te entrega una copia segura, para que siempre tengas tu propia evidencia.</p>
+              <p style="margin:16px 0;">
+                <a href="${signLink}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Ver y Firmar Documento</a>
+              </p>
+              <p style="margin:0 0 12px;color:#64748b;font-size:12px;">Link válido hasta: ${expiresDate.toLocaleDateString('es-AR')}</p>
+              <p style="margin:16px 0 0;color:#0f172a;font-weight:600;">EcoSign. Transparencia que acompaña.</p>
+              <p style="margin:8px 0 0;color:#94a3b8;font-size:12px;">Este enlace es personal e intransferible. Todas las acciones quedan registradas por seguridad.</p>
+            </div>
+          </body></html>`,
+          delivery_status: 'pending'
+        })
+      }
+    }
+
+    if (notifications.length > 0) {
+      const { error: notifError } = await supabase
+        .from('workflow_notifications')
+        .insert(notifications)
+
+      if (notifError) {
+        console.error('Failed to create notifications:', notifError)
+        // Don't fail the workflow creation, just log the error
+      } else {
+        console.log(`✅ Created ${notifications.length} notifications`)
+      }
+    }
 
     await triggerEmailDelivery(supabase)
 

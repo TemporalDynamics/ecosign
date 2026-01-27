@@ -158,7 +158,7 @@ serve(async (req) => {
       expires_at: expiresAt,
       purpose,
       document_entity_id
-    })
+    }, 200, corsHeaders)
 
   } catch (error) {
     console.error('[create-custody-upload-url] Error:', error)

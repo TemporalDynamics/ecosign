@@ -1,9 +1,10 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno'
+import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendTsaEventFromEdge } from '../_shared/tsaHelper.ts'
 import { appendEvent } from '../_shared/eventHelper.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
+import { decryptToken } from '../_shared/cryptoHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -100,6 +101,31 @@ async function hashToken(token: string): Promise<string> {
     .join('')
 }
 
+const isTokenHash = (value?: string | null) =>
+  !!value && /^[a-f0-9]{64}$/i.test(value)
+
+async function resolveSignerToken(
+  signer: { access_token_ciphertext?: string | null; access_token_nonce?: string | null },
+  fallbackToken?: string | null
+): Promise<string | null> {
+  if (fallbackToken && !isTokenHash(fallbackToken)) {
+    return fallbackToken
+  }
+
+  if (signer.access_token_ciphertext && signer.access_token_nonce) {
+    try {
+      return await decryptToken({
+        ciphertext: signer.access_token_ciphertext,
+        nonce: signer.access_token_nonce
+      })
+    } catch (error) {
+      console.warn('Failed to decrypt signer token', error)
+    }
+  }
+
+  return null
+}
+
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
     return new Response('disabled', { status: 204 });
@@ -171,6 +197,27 @@ serve(async (req) => {
       return jsonResponse({
         error: 'Not your turn to sign yet',
         currentStatus: signer.status
+      }, 403)
+    }
+
+    const { data: pendingSigners, error: pendingError } = await supabase
+      .from('workflow_signers')
+      .select('id, signing_order, status')
+      .eq('workflow_id', signer.workflow_id)
+      .in('status', ['ready_to_sign', 'invited'])
+      .order('signing_order', { ascending: true })
+      .limit(1)
+
+    if (pendingError) {
+      console.warn('Failed to fetch pending signer order', pendingError)
+    }
+
+    const nextInLine = Array.isArray(pendingSigners) ? pendingSigners[0] : pendingSigners
+    if (nextInLine && nextInLine.id !== signer.id) {
+      return jsonResponse({
+        error: 'Not your turn to sign yet',
+        expectedOrder: nextInLine.signing_order,
+        currentOrder: signer.signing_order
       }, 403)
     }
 
@@ -579,6 +626,9 @@ serve(async (req) => {
         })
     }
 
+    const signerToken = await resolveSignerToken(signer, accessToken)
+    const signerLink = signerToken ? `${appUrl}/sign/${signerToken}` : null
+
     await supabase
       .from('workflow_notifications')
       .insert({
@@ -593,12 +643,18 @@ serve(async (req) => {
           <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
             El documento <strong>${workflow.original_filename}</strong> ya está certificado.
           </p>
-          <p style="font-family:Arial,sans-serif;margin:12px 0 8px;">
-            <a href="${appUrl}/sign/${tokenHash}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar PDF firmado</a>
-          </p>
-          <p style="font-family:Arial,sans-serif;margin:8px 0 16px;">
-            <a href="${appUrl}/sign/${tokenHash}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar archivo ECO</a>
-          </p>
+          ${signerLink ? `
+            <p style="font-family:Arial,sans-serif;margin:12px 0 8px;">
+              <a href="${signerLink}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar PDF firmado</a>
+            </p>
+            <p style="font-family:Arial,sans-serif;margin:8px 0 16px;">
+              <a href="${signerLink}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar archivo ECO</a>
+            </p>
+          ` : `
+            <p style="font-family:Arial,sans-serif;margin:12px 0 16px;color:#334155;">
+              Tu evidencia está lista. Si necesitás el link de descarga, respondé a este mail y te lo reenviamos.
+            </p>
+          `}
           <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:12px 0 0;">Firmaste con la misma evidencia que recibe el remitente.</p>
           <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:4px 0 12px;">Tu firma te pertenece. Tu evidencia también.</p>
           <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:12px 0 0;">EcoSign. Transparencia que acompaña.</p>
@@ -618,30 +674,42 @@ serve(async (req) => {
         .eq('id', nextSigner.id)
         .single()
 
-      // Generar URL de firma usando access_token_hash almacenado (usamos el hash como token público)
-      const nextSignerUrl = nextSignerFull?.access_token_hash
-        ? `${appUrl}/sign/${nextSignerFull.access_token_hash}`
-        : `${appUrl}/sign/${nextSigner.id}`
+      const nextSignerToken = nextSignerFull
+        ? await resolveSignerToken(nextSignerFull)
+        : null
 
-      await supabase
-        .from('workflow_notifications')
-        .insert({
-          workflow_id: signer.workflow_id,
-          recipient_email: nextSigner.email,
-          recipient_type: 'signer',
-          signer_id: nextSigner.id,
-          notification_type: 'your_turn_to_sign',
-          subject: `Firma requerida: ${workflow.original_filename}`,
-          body_html: `
-            <h2>Firma Requerida</h2>
-            <p>Hola ${nextSigner.name || nextSigner.email},</p>
-            <p>Es tu turno de firmar el documento: <strong>${workflow.original_filename}</strong></p>
-            <p>Firmantes anteriores: ${signer.signing_order}/${workflow.signers_count || 'varios'}</p>
-            <p>Este documento cuenta con certificación forense completa.</p>
-            <p><a href="${nextSignerUrl}">Ver y Firmar Documento</a></p>
-          `,
-          delivery_status: 'pending'
+      if (!nextSignerToken) {
+        console.warn('Missing next signer token; skipping notification', {
+          workflowId: signer.workflow_id,
+          nextSignerId: nextSigner.id
         })
+      }
+
+      const nextSignerUrl = nextSignerToken
+        ? `${appUrl}/sign/${nextSignerToken}`
+        : null
+
+      if (nextSignerUrl) {
+        await supabase
+          .from('workflow_notifications')
+          .insert({
+            workflow_id: signer.workflow_id,
+            recipient_email: nextSigner.email,
+            recipient_type: 'signer',
+            signer_id: nextSigner.id,
+            notification_type: 'your_turn_to_sign',
+            subject: `Firma requerida: ${workflow.original_filename}`,
+            body_html: `
+              <h2>Firma Requerida</h2>
+              <p>Hola ${nextSigner.name || nextSigner.email},</p>
+              <p>Es tu turno de firmar el documento: <strong>${workflow.original_filename}</strong></p>
+              <p>Firmantes anteriores: ${signer.signing_order}/${workflow.signers_count || 'varios'}</p>
+              <p>Este documento cuenta con certificación forense completa.</p>
+              <p><a href="${nextSignerUrl}">Ver y Firmar Documento</a></p>
+            `,
+            delivery_status: 'pending'
+          })
+      }
     } else if (nextSigner && workflowDeliveryMode === 'link') {
       console.log('[DELIVERY_MODE=link] Skipping signer notification - creator must share link manually', {
         workflowId: signer.workflow_id,

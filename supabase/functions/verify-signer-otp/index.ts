@@ -1,24 +1,19 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno'
+import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface RequestPayload {
   signerId: string
   otp: string
 }
 
-const json = (data: unknown, status = 200) =>
+const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    headers: { ...headers, 'Content-Type': 'application/json' }
   })
 
 const hashCode = async (code: string) => {
@@ -29,11 +24,18 @@ const hashCode = async (code: string) => {
 }
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
   if (Deno.env.get('FASE') !== '1') {
     return new Response('disabled', { status: 204 });
   }
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+  if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders })
+    }
+    return new Response('ok', { headers: corsHeaders })
+  }
+  if (!isAllowed) return json({ error: 'Origin not allowed' }, 403, corsHeaders)
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, corsHeaders)
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
@@ -50,7 +52,7 @@ serve(async (req) => {
     }
 
     const { signerId, otp } = (await req.json()) as RequestPayload
-    if (!signerId || !otp) return json({ error: 'signerId and otp are required' }, 400)
+    if (!signerId || !otp) return json({ error: 'signerId and otp are required' }, 400, corsHeaders)
 
     const { data: record, error: otpErr } = await supabase
       .from('signer_otps')
@@ -58,15 +60,15 @@ serve(async (req) => {
       .eq('signer_id', signerId)
       .single()
 
-    if (otpErr || !record) return json({ error: 'OTP not found' }, 404)
+    if (otpErr || !record) return json({ error: 'OTP not found' }, 404, corsHeaders)
 
-    if (record.verified_at) return json({ error: 'OTP already used' }, 400)
+    if (record.verified_at) return json({ error: 'OTP already used' }, 400, corsHeaders)
 
-    if (record.attempts >= 5) return json({ error: 'Too many attempts' }, 429)
+    if (record.attempts >= 5) return json({ error: 'Too many attempts' }, 429, corsHeaders)
 
     const now = new Date()
     if (new Date(record.expires_at) < now) {
-      return json({ error: 'OTP expired' }, 400)
+      return json({ error: 'OTP expired' }, 400, corsHeaders)
     }
 
     const hash = await hashCode(otp.trim())
@@ -85,7 +87,7 @@ serve(async (req) => {
     }
 
     if (!isValid) {
-      return json({ error: 'OTP inválido' }, 400)
+      return json({ error: 'OTP inválido' }, 400, corsHeaders)
     }
 
     // === PROBATORY EVENT: otp_verified ===
@@ -163,9 +165,9 @@ serve(async (req) => {
       'verify-signer-otp'
     )
 
-    return json({ success: true })
+    return json({ success: true }, 200, corsHeaders)
   } catch (error: any) {
     console.error('verify-signer-otp error', error)
-    return json({ error: error?.message || 'Unexpected error' }, 500)
+    return json({ error: error?.message || 'Unexpected error' }, 500, corsHeaders)
   }
 })

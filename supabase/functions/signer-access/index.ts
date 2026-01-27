@@ -1,23 +1,18 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno'
+import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { encode as base64Encode } from 'https://deno.land/std@0.182.0/encoding/base64.ts'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface RequestBody {
   token: string
 }
 
-const json = (data: unknown, status = 200) =>
+const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    headers: { ...headers, 'Content-Type': 'application/json' }
   })
 
 // Retry helper with exponential backoff
@@ -191,16 +186,29 @@ import { createTokenHash } from '../_shared/cryptoHelper.ts'
 // ... (imports and CORS headers remain the same)
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
+
   if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+
+  if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders })
+    }
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (!isAllowed) {
+    return json({ error: 'Origin not allowed' }, 403, corsHeaders)
+  }
+
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, corsHeaders)
 
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const { token } = (await req.json()) as RequestBody
-    if (!token) return json({ error: 'token is required' }, 400)
+    if (!token) return json({ error: 'token is required' }, 400, corsHeaders)
 
     const tokenHash = await createTokenHash(token)
 
@@ -216,7 +224,7 @@ serve(async (req) => {
     // GATE 1: Check if token exists at all
     if (signerError || !signer) {
       console.warn(`Signer access denied: token hash not found. Token: ${token.substring(0, 5)}...`)
-      return json({ error: 'Invalid or expired token' }, 404)
+      return json({ error: 'Invalid or expired token' }, 404, corsHeaders)
     }
 
     // GATE 2: Check if token has been explicitly revoked
@@ -228,7 +236,7 @@ serve(async (req) => {
         signer_id: signer.id,
         payload: { reason: 'Access attempt with revoked token' }
       }, 'signer-access')
-      return json({ error: 'Invalid or expired token' }, 404)
+      return json({ error: 'Invalid or expired token' }, 404, corsHeaders)
     }
 
     // GATE 3: Check if token has expired
@@ -244,14 +252,14 @@ serve(async (req) => {
       if (signer.status !== 'expired' && signer.status !== 'signed') {
         await supabase.from('workflow_signers').update({ status: 'expired' }).eq('id', signer.id)
       }
-      return json({ error: 'Invalid or expired token' }, 404)
+      return json({ error: 'Invalid or expired token' }, 404, corsHeaders)
     }
 
     // GATE 4: Check if signer status is terminal
     const terminalStatus = ['signed', 'cancelled', 'expired']
     if (terminalStatus.includes(signer.status)) {
       console.warn(`Signer access denied: terminal status "${signer.status}". Signer ID: ${signer.id}`)
-      return json({ error: 'This signing link is no longer active.' }, 403)
+      return json({ error: 'This signing link is no longer active.' }, 403, corsHeaders)
     }
 
     // All gates passed. Log access event.
@@ -290,13 +298,22 @@ serve(async (req) => {
         workflow_id: signer.workflow_id,
         email: signer.email,
         name: signer.name,
-        // ... and all other fields the frontend needs
+        signing_order: signer.signing_order,
         status: signer.status,
+        require_login: signer.require_login,
+        require_nda: signer.require_nda,
+        quick_access: signer.quick_access,
+        nda_accepted: signer.nda_accepted ?? null,
+        nda_accepted_at: signer.nda_accepted_at ?? null,
+        signature_type: signer.signature_type ?? signer.workflow?.signature_type ?? null,
+        signnow_embed_url: signer.signnow_embed_url ?? signer.workflow?.signnow_embed_url ?? null,
+        encrypted_pdf_url: signer.encrypted_pdf_url ?? null,
         otp_verified: otpVerified,
-    })
+        workflow: signer.workflow ?? null,
+    }, 200, corsHeaders)
 
   } catch (error) {
     console.error('signer-access error', error)
-    return json({ error: 'Internal error' }, 500)
+    return json({ error: 'Internal error' }, 500, corsHeaders)
   }
 })

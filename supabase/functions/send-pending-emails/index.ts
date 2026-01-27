@@ -1,7 +1,7 @@
 // send-pending-emails robust version (TypeScript)
 // Reemplazar en supabase/functions/send-pending-emails
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno';
+import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { sendResendEmail, buildFounderWelcomeEmail } from '../_shared/email.ts';
 
 const requireCronSecret = (req: Request) => {
@@ -120,6 +120,28 @@ serve(async (req: Request) => {
     } else {
       for (const r of workflowRows) {
         try {
+          if (r.notification_type === 'your_turn_to_sign' && r.signer_id) {
+            const { data: signerStatus, error: signerStatusError } = await supabase
+              .from('workflow_signers')
+              .select('status')
+              .eq('id', r.signer_id)
+              .single()
+
+            if (signerStatusError) {
+              console.warn('No se pudo validar estado del signer, se omite envío', signerStatusError)
+              continue
+            }
+
+            if (signerStatus?.status !== 'ready_to_sign') {
+              console.info('Email omitido: signer no está listo para firmar', {
+                signer_id: r.signer_id,
+                status: signerStatus?.status,
+                notification_id: r.id
+              })
+              continue
+            }
+          }
+
           const from = Deno.env.get('DEFAULT_FROM') ?? 'EcoSign <no-reply@email.ecosign.app>';
           const to = r.recipient_email;
           const subject = r.subject || 'Notificación EcoSign';

@@ -1,25 +1,20 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno'
+import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { sendEmail, buildSignerOtpEmail } from '../_shared/email.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { createTokenHash } from '../_shared/cryptoHelper.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 interface RequestPayload {
   signerId: string
   accessToken?: string
 }
 
-const json = (data: unknown, status = 200) =>
+const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    headers: { ...headers, 'Content-Type': 'application/json' }
   })
 
 const hashCode = async (code: string) => {
@@ -37,15 +32,22 @@ const requireCronSecret = (req: Request) => {
   const cronSecret = Deno.env.get('CRON_SECRET') ?? ''
   const provided = req.headers.get('x-cron-secret') ?? ''
   if (cronSecret && provided === cronSecret) return null
-  return new Response('Forbidden', { status: 403, headers: corsHeaders })
+  return new Response('Forbidden', { status: 403 })
 }
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
   if (Deno.env.get('FASE') !== '1') {
     return new Response('disabled', { status: 204 });
   }
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+  if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders })
+    }
+    return new Response('ok', { headers: corsHeaders })
+  }
+  if (!isAllowed) return json({ error: 'Origin not allowed' }, 403, corsHeaders)
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, corsHeaders)
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
@@ -53,7 +55,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const { signerId, accessToken } = (await req.json()) as RequestPayload
-    if (!signerId) return json({ error: 'signerId is required' }, 400)
+    if (!signerId) return json({ error: 'signerId is required' }, 400, corsHeaders)
 
     const authError = requireCronSecret(req)
     if (authError) {
@@ -86,29 +88,32 @@ serve(async (req) => {
     if (signerErr || !signer) {
       return json(
         { error: 'Signer not found', details: signerErr?.message || 'signer_missing' },
-        404
+        404,
+        corsHeaders
       )
     }
 
     if (!signer.email) {
       return json(
         { error: 'Signer email missing', details: 'signer_email_empty' },
-        400
+        400,
+        corsHeaders
       )
     }
 
     if (signer.token_revoked_at) {
-      return json({ error: 'Token has been revoked' }, 403)
+      return json({ error: 'Token has been revoked' }, 403, corsHeaders)
     }
 
     if (signer.token_expires_at && new Date(signer.token_expires_at) < new Date()) {
-      return json({ error: 'Token has expired' }, 403)
+      return json({ error: 'Token has expired' }, 403, corsHeaders)
     }
 
     if (!signer.workflow?.id) {
       return json(
         { error: 'Workflow not found for signer', details: 'workflow_missing' },
-        500
+        500,
+        corsHeaders
       )
     }
 
@@ -136,7 +141,8 @@ serve(async (req) => {
           error: 'Could not generate OTP',
           details: upsertErr.message
         },
-        500
+        500,
+        corsHeaders
       )
     }
 
@@ -158,7 +164,8 @@ serve(async (req) => {
           statusCode: emailRes.statusCode,
           signerEmail: signer.email
         },
-        500
+        500,
+        corsHeaders
       )
     }
 
@@ -187,9 +194,9 @@ serve(async (req) => {
       'send-signer-otp'
     )
 
-    return json({ success: true, expiresAt, emailSent: !!emailRes.success })
+    return json({ success: true, expiresAt, emailSent: !!emailRes.success }, 200, corsHeaders)
   } catch (error: any) {
     console.error('send-signer-otp error', error)
-    return json({ error: error?.message || 'Unexpected error', details: error?.stack }, 500)
+    return json({ error: error?.message || 'Unexpected error', details: error?.stack }, 500, corsHeaders)
   }
 })

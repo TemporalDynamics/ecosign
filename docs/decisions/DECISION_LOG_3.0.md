@@ -2539,3 +2539,76 @@ write-path. El primer alcance es TSA (fase 1).
 - Validacion strict en el executor, sin parsing de contratos.
 
 ---
+
+## Iteración: Sistema Canónico Completo — Hito H6 (Apagado de Autoridad Paralela) — 2026-01-27
+
+### 🎯 Resumen
+Se completó exitosamente el Hito H6: "Apagado de Autoridad Paralela (Legacy)". El sistema ahora opera con una única autoridad canónica basada en la arquitectura de DecisionAuthority + ExecutionEngine con sincronización unidireccional de feature flags.
+
+### ✅ Logros alcanzados
+- **Verdad canónica**: `document_entities.events[]` como fuente única de verdad inmutable
+- **Autoridad canónica**: `packages/authority` como reglas de negocio puras
+- **DecisionAuthority**: `fase1-executor` que solo decide, no ejecuta
+- **ExecutionEngine**: `orchestrator` que solo ejecuta, no decide
+- **Sincronización unidireccional**: Deno Env → SQL Table para feature flags
+- **Separación completa**: Decisión vs Ejecución desacoplada
+- **Sistema reversible**: Activación gradual con feature flags por decisión
+
+### 🔧 Componentes implementados
+- `feature_flags` tabla persistente en PostgreSQL
+- `is_decision_under_canonical_authority()` función SQL que lee de tabla
+- `syncFlagsToDatabase()` función que sincroniza Deno → SQL
+- Triggers actualizados con checks de feature flags
+- Executor actualizado para respetar autoridad canónica
+- Orchestrator como motor de ejecución desacoplado
+- Cron de orchestrator para mantener sistema activo
+- Scripts de verificación y monitoreo completos
+
+### 📁 Artefactos generados
+- `CANONICAL_ARCHITECTURE_README.md` - Documentación completa del sistema
+- `CANONICAL_NAMING_MODEL.md` - Modelo de naming canónico
+- `CANONICAL_GLOSSARY.md` - Glosario oficial del sistema
+- `OPERATIONS_GUIDE.md` - Guía de operaciones
+- `MONITORING_DASHBOARD.md` - Dashboard de supervisión
+- `SUMMARY_EXECUTIVE.md` - Resumen ejecutivo
+- `scripts/verify_canonical_system.ts` - Verificación del sistema
+- `scripts/monitor_canonical_system.ts` - Monitor del sistema
+- `tests/featureFlags.test.ts` - Tests de feature flags
+- `tests/integration_tests.ts` - Tests de integración
+- `tests/regression_tests.ts` - Tests de regresión
+
+### 🔄 Flujo canónico operativo
+```
+Usuario → Evento canónico → document_entities.events[]
+DecisionAuthority ← Lee verdad ← document_entities
+DecisionAuthority → Usa autoridad → packages/authority
+DecisionAuthority → Escribe job → executor_jobs cola neutral
+ExecutionEngine ← Lee cola neutral ← executor_jobs
+ExecutionEngine → Ejecuta trabajo → Resultado
+ExecutionEngine → Evento resultado → document_entities.events[]
+```
+
+### 🛡️ Garantías del sistema
+- ✅ Un solo libro contable: `document_entities.events[]`
+- ✅ Un solo cerebro: `packages/authority`
+- ✅ Separación completa: Decisión vs Ejecución
+- ✅ Sistema auditado: Todo como eventos inmutables
+- ✅ Reversible: Rollback instantáneo con flags
+- ✅ Escalable: Componentes stateless y desacoplados
+- ✅ Legalmente protegido: Autoridad clara y separada de ejecución
+
+### 🚀 Próximo estado
+- Sistema listo para activación gradual de feature flags
+- Validación con carga real de usuarios
+- Preparación para escalamiento a millones de documentos
+- Implementación de observabilidad avanzada
+
+---
+
+Firma: Hito H6 completado — Sistema canónico operativo
+Timestamp: 2026-01-27T15:00:00Z
+Branch: `canonical-architecture-complete`
+Responsable: Claude Code (Opus 4.5) + Manu
+Contract actualizado: `docs/contratos/AUTORIDAD_DEL_SISTEMA.md`
+
+---

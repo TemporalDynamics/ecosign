@@ -1,9 +1,14 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.92.0?target=deno';
+import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts';
 import { validateEventAppend } from '../_shared/validateEventAppend.ts';
 import { decideProtectDocumentV2 } from '../_shared/protectDocumentV2Decision.ts';
 import { shouldEnqueueRunTsa, shouldEnqueuePolygon, shouldEnqueueBitcoin, shouldEnqueueArtifact } from '../_shared/decisionEngineCanonical.ts';
+import { isDecisionUnderCanonicalAuthority } from '../_shared/featureFlags.ts';
+import { syncFlagsToDatabase } from '../_shared/flagSync.ts';
+
+// Asegurarse de que la función esté disponible
+declare function syncFlagsToDatabase(supabase: any): Promise<void>;
 
 type ExecutorJob = {
   id: string;
@@ -108,6 +113,7 @@ async function handleDocumentProtected(
     throw new Error('document_entity_id missing in payload');
   }
 
+  // 1. LEER VERDAD: Obtener el estado actual de document_entity
   const { data: entity, error: entityError } = await supabase
     .from('document_entities')
     .select('id, witness_hash, events')
@@ -118,75 +124,97 @@ async function handleDocumentProtected(
     throw new Error(`document_entity not found: ${entityError?.message ?? 'missing'}`);
   }
 
-  const witnessHash = entity.witness_hash || String(payload['witness_hash'] ?? '');
-  if (!witnessHash) {
-    await emitEvent(
+  // 2. USAR AUTORIDAD: Aplicar reglas de packages/authority
+  const events = Array.isArray(entity.events) ? entity.events : [];
+
+  // Decisión basada en packages/authority (shouldEnqueueRunTsa)
+  const shouldEnqueueTsa = shouldEnqueueRunTsa(events);
+
+  // 3. ESCRIBIR EN COLA NEUTRAL: En lugar de ejecutar directamente, encolar job
+  if (shouldEnqueueTsa) {
+    await enqueueExecutorJob(
       supabase,
+      'run_tsa', // Tipo de job neutral
       documentEntityId,
+      userDocumentId,
+      `${documentEntityId}:run_tsa`,
       {
-        kind: 'tsa.failed',
-        at: new Date().toISOString(),
-        payload: { reason: 'missing_witness_hash', retryable: false },
-      },
-      'fase1-executor',
+        witness_hash: entity.witness_hash,
+        document_entity_id: documentEntityId,
+        user_document_id: userDocumentId
+      }
     );
-    throw new Error('witness_hash missing');
+
+    console.log(`[fase1-executor] Job encolado para TSA: ${documentEntityId}`);
+  } else {
+    console.log(`[fase1-executor] No se requiere TSA para: ${documentEntityId}`);
   }
 
-  // TSA - Fase 1 MVP: solo sello de tiempo legal RFC 3161
-  try {
-    const tsaResponse = await callFunction('legal-timestamp', {
-      hash_hex: witnessHash,
-    });
+  // Manejar también anclajes y artifact basados en autoridad
+  const protection = Array.isArray(payload['protection'])
+    ? (payload['protection'] as Array<unknown>)
+    : [];
+  const requiresPolygon = protection.includes('polygon');
+  const requiresBitcoin = protection.includes('bitcoin');
 
-    const tsaEvent = {
-      kind: 'tsa.confirmed',
-      at: new Date().toISOString(),
-      payload: {
-        witness_hash: witnessHash,
-        token_b64: tsaResponse.token,
-        tsa_url: tsaResponse.tsa_url,
-        algorithm: tsaResponse.algorithm,
-        standard: tsaResponse.standard,
-      },
-    };
+  const hasTsaConfirmed = events.some((event: { kind?: string }) => event.kind === 'tsa.confirmed');
+  const hasAnchorConfirmed = (network: 'polygon' | 'bitcoin') => events.some((event: any) =>
+    (event.kind === 'anchor' || event.kind === 'anchor.confirmed') &&
+    (event.anchor?.network === network || event.payload?.network === network) &&
+    (typeof event.anchor?.confirmed_at === 'string' || typeof event.payload?.confirmed_at === 'string')
+  );
+  const hasPolygonConfirmed = hasAnchorConfirmed('polygon');
+  const hasBitcoinConfirmed = hasAnchorConfirmed('bitcoin');
 
-    const validation = validateEventAppend(entity, tsaEvent, { mode: 'strict' });
-    if (!validation.ok) {
-      throw new Error(`authority_reject:${validation.reason}`);
-    }
-
-    await emitEvent(
+  // Decisión para anclaje Polygon basado en autoridad
+  const shouldEnqueuePolygon = shouldEnqueuePolygon(events, protection as string[]);
+  if (shouldEnqueuePolygon) {
+    await enqueueExecutorJob(
       supabase,
+      'submit_anchor_polygon',
       documentEntityId,
-      tsaEvent,
-      'fase1-executor',
-    );
-
-    // Fase 1 MVP: TSA completado = documento protegido
-    // Polygon y Bitcoin deshabilitados temporalmente
-    console.log(`[fase1-executor] TSA completed for ${documentEntityId}, skipping anchors (Fase 1 MVP)`);
-
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await emitEvent(
-      supabase,
-      documentEntityId,
+      userDocumentId,
+      `${documentEntityId}:submit_anchor_polygon`,
       {
-        kind: 'tsa.failed',
-        at: new Date().toISOString(),
-        payload: { reason: message, retryable: false, witness_hash: witnessHash },
-      },
-      'fase1-executor',
+        document_entity_id: documentEntityId,
+        user_document_id: userDocumentId,
+        witness_hash: entity.witness_hash
+      }
     );
-    throw error;
   }
 
-  // Polygon - DESHABILITADO para Fase 1 MVP
-  // TODO: Reactivar en Fase 2
+  // Decisión para anclaje Bitcoin basado en autoridad
+  const shouldEnqueueBitcoin = shouldEnqueueBitcoin(events, protection as string[]);
+  if (shouldEnqueueBitcoin) {
+    await enqueueExecutorJob(
+      supabase,
+      'submit_anchor_bitcoin',
+      documentEntityId,
+      userDocumentId,
+      `${documentEntityId}:submit_anchor_bitcoin`,
+      {
+        document_entity_id: documentEntityId,
+        user_document_id: userDocumentId,
+        witness_hash: entity.witness_hash
+      }
+    );
+  }
 
-  // Bitcoin - DESHABILITADO para Fase 1 MVP
-  // TODO: Reactivar en Fase 2
+  // Decisión para build artifact basado en autoridad
+  const shouldEnqueueArtifact = shouldEnqueueArtifact(events, protection as string[]);
+  if (shouldEnqueueArtifact) {
+    await enqueueExecutorJob(
+      supabase,
+      'build_artifact',
+      documentEntityId,
+      userDocumentId,
+      `${documentEntityId}:build_artifact`,
+      {
+        document_entity_id: documentEntityId,
+        user_document_id: userDocumentId
+      }
+    );
+  }
 }
 
 async function handleProtectDocumentV2(
@@ -214,39 +242,44 @@ async function handleProtectDocumentV2(
 
   const events = Array.isArray(entity.events) ? entity.events : [];
 
-  // DECISIÓN ACTUAL (autoridad real)
-  const decision = decideProtectDocumentV2(events);
-
-  // SHADOW: Decisión canónica (solo validación, no afecta flujo)
+  // SHADOW: Decisión canónica (solo validación, no afecta flujo si no está activa)
   const canonicalShouldEnqueue = shouldEnqueueRunTsa(events);
   const canonicalDecision = canonicalShouldEnqueue ? 'run_tsa' : 'noop';
 
-  // SHADOW COMPARISON: Comparar decisiones
-  const currentShouldEnqueue = decision === 'run_tsa';
+  // DECISIÓN ACTUAL (autoridad real según flags)
+  const isD1Canonical = isDecisionUnderCanonicalAuthority('D1_RUN_TSA_ENABLED');
+  const decision = isD1Canonical
+    ? (canonicalShouldEnqueue ? 'run_tsa' : 'noop')  // Usar lógica canónica
+    : decideProtectDocumentV2(events);               // Usar lógica legacy
+
+  // SHADOW COMPARISON: Comparar decisiones (siempre para monitoreo)
+  const currentShouldEnqueue = !isD1Canonical && decideProtectDocumentV2(events) === 'run_tsa';
   if (currentShouldEnqueue !== canonicalShouldEnqueue) {
     console.warn('[SHADOW DISCREPANCY] run_tsa decision mismatch:', {
       documentEntityId,
       jobId: job.id,
-      currentDecision: decision,
+      currentDecision: !isD1Canonical ? decideProtectDocumentV2(events) : 'canonical_used',
       canonicalDecision,
       currentShouldEnqueue,
       canonicalShouldEnqueue,
+      isD1Canonical,
       eventsCount: events.length,
       hasRequest: events.some((e: any) => e.kind === 'document.protected.requested'),
       hasTsa: events.some((e: any) => e.kind === 'tsa.confirmed'),
-      phase: 'PASO_1_SHADOW_MODE'
+      phase: isD1Canonical ? 'PASO_2_CANONICAL_ACTIVE' : 'PASO_1_SHADOW_MODE'
     });
   } else {
     console.log('[SHADOW MATCH] run_tsa decision matches canonical:', {
       documentEntityId,
       jobId: job.id,
       decision,
-      shouldEnqueue: currentShouldEnqueue,
-      phase: 'PASO_1_SHADOW_MODE'
+      shouldEnqueue: canonicalShouldEnqueue,
+      isD1Canonical,
+      phase: isD1Canonical ? 'PASO_2_CANONICAL_ACTIVE' : 'PASO_1_SHADOW_MODE'
     });
   }
 
-  // CONTINUAR CON LÓGICA ACTUAL (sin cambios)
+  // CONTINUAR CON LÓGICA SEGÚN AUTORIDAD ACTIVA
   if (decision === 'noop_missing_request') {
     console.log(`[fase1-executor] NOOP protect_document_v2 (no request event) for job ${job.id}`);
     return;
@@ -288,11 +321,11 @@ async function handleProtectDocumentV2(
   const hasPolygonConfirmed = hasAnchorConfirmed('polygon');
   const hasBitcoinConfirmed = hasAnchorConfirmed('bitcoin');
 
-  // DECISIÓN ACTUAL (autoridad real) - Polygon
-  const currentShouldEnqueuePolygon = hasTsaConfirmed && requiresPolygon && !hasPolygonConfirmed;
-
-  // SHADOW: Decisión canónica - Polygon
+  // DECISIÓN DE ANCLAJES - Polygon
+  const isD4Canonical = isDecisionUnderCanonicalAuthority('D4_ANCHORS_ENABLED');
+  const currentShouldEnqueuePolygon = !isD4Canonical && hasTsaConfirmed && requiresPolygon && !hasPolygonConfirmed;
   const canonicalShouldEnqueuePolygon = shouldEnqueuePolygon(updatedEvents, protection as string[]);
+  const polygonShouldEnqueue = isD4Canonical ? canonicalShouldEnqueuePolygon : currentShouldEnqueuePolygon;
 
   // SHADOW COMPARISON - Polygon
   if (currentShouldEnqueuePolygon !== canonicalShouldEnqueuePolygon) {
@@ -304,22 +337,34 @@ async function handleProtectDocumentV2(
       hasTsa: hasTsaConfirmed,
       requiresPolygon,
       hasPolygonConfirmed,
-      phase: 'PASO_1_SHADOW_MODE_D4'
+      isD4Canonical,
+      phase: isD4Canonical ? 'PASO_2_CANONICAL_ACTIVE' : 'PASO_1_SHADOW_MODE_D4'
     });
   } else {
     console.log('[SHADOW MATCH] polygon anchor decision matches canonical:', {
       documentEntityId,
       jobId: job.id,
-      shouldEnqueue: currentShouldEnqueuePolygon,
-      phase: 'PASO_1_SHADOW_MODE_D4'
+      shouldEnqueue: polygonShouldEnqueue,
+      isD4Canonical,
+      phase: isD4Canonical ? 'PASO_2_CANONICAL_ACTIVE' : 'PASO_1_SHADOW_MODE_D4'
     });
   }
 
-  // DECISIÓN ACTUAL (autoridad real) - Bitcoin
-  const currentShouldEnqueueBitcoin = hasTsaConfirmed && requiresBitcoin && !hasBitcoinConfirmed;
+  // ENCONE JOB PARA ANCLAJE POLYGON
+  if (polygonShouldEnqueue) {
+    await enqueueExecutorJob(
+      supabase,
+      SUBMIT_ANCHOR_POLYGON_JOB_TYPE,
+      documentEntityId,
+      payload['document_id'] ? String(payload['document_id']) : null,
+      `${documentEntityId}:${SUBMIT_ANCHOR_POLYGON_JOB_TYPE}`,
+    );
+  }
 
-  // SHADOW: Decisión canónica - Bitcoin
+  // DECISIÓN DE ANCLAJES - Bitcoin
+  const currentShouldEnqueueBitcoin = !isD4Canonical && hasTsaConfirmed && requiresBitcoin && !hasBitcoinConfirmed;
   const canonicalShouldEnqueueBitcoin = shouldEnqueueBitcoin(updatedEvents, protection as string[]);
+  const bitcoinShouldEnqueue = isD4Canonical ? canonicalShouldEnqueueBitcoin : currentShouldEnqueueBitcoin;
 
   // SHADOW COMPARISON - Bitcoin
   if (currentShouldEnqueueBitcoin !== canonicalShouldEnqueueBitcoin) {
@@ -331,29 +376,21 @@ async function handleProtectDocumentV2(
       hasTsa: hasTsaConfirmed,
       requiresBitcoin,
       hasBitcoinConfirmed,
-      phase: 'PASO_1_SHADOW_MODE_D4'
+      isD4Canonical,
+      phase: isD4Canonical ? 'PASO_2_CANONICAL_ACTIVE' : 'PASO_1_SHADOW_MODE_D4'
     });
   } else {
     console.log('[SHADOW MATCH] bitcoin anchor decision matches canonical:', {
       documentEntityId,
       jobId: job.id,
-      shouldEnqueue: currentShouldEnqueueBitcoin,
-      phase: 'PASO_1_SHADOW_MODE_D4'
+      shouldEnqueue: bitcoinShouldEnqueue,
+      isD4Canonical,
+      phase: isD4Canonical ? 'PASO_2_CANONICAL_ACTIVE' : 'PASO_1_SHADOW_MODE_D4'
     });
   }
 
-  // CONTINUAR CON LÓGICA ACTUAL (sin cambios)
-  if (currentShouldEnqueuePolygon) {
-    await enqueueExecutorJob(
-      supabase,
-      SUBMIT_ANCHOR_POLYGON_JOB_TYPE,
-      documentEntityId,
-      payload['document_id'] ? String(payload['document_id']) : null,
-      `${documentEntityId}:${SUBMIT_ANCHOR_POLYGON_JOB_TYPE}`,
-    );
-  }
-
-  if (currentShouldEnqueueBitcoin) {
+  // ENCONE JOB PARA ANCLAJE BITCOIN
+  if (bitcoinShouldEnqueue) {
     await enqueueExecutorJob(
       supabase,
       SUBMIT_ANCHOR_BITCOIN_JOB_TYPE,
@@ -363,14 +400,14 @@ async function handleProtectDocumentV2(
     );
   }
 
-  // DECISIÓN ACTUAL (autoridad real) - Artifact
+  // DECISIÓN DE ARTIFACT - Artifact
+  const isD3Canonical = isDecisionUnderCanonicalAuthority('D3_BUILD_ARTIFACT_ENABLED');
   const readyForArtifact = hasTsaConfirmed
     && (!requiresPolygon || hasPolygonConfirmed)
     && (!requiresBitcoin || hasBitcoinConfirmed);
-  const currentShouldEnqueueArtifact = !hasArtifact && readyForArtifact;
-
-  // SHADOW: Decisión canónica - Artifact
+  const currentShouldEnqueueArtifact = !isD3Canonical && !hasArtifact && readyForArtifact;
   const canonicalShouldEnqueueArtifact = shouldEnqueueArtifact(updatedEvents, protection as string[]);
+  const artifactShouldEnqueue = isD3Canonical ? canonicalShouldEnqueueArtifact : currentShouldEnqueueArtifact;
 
   // SHADOW COMPARISON - Artifact
   if (currentShouldEnqueueArtifact !== canonicalShouldEnqueueArtifact) {
@@ -386,19 +423,21 @@ async function handleProtectDocumentV2(
       hasPolygonConfirmed,
       requiresBitcoin,
       hasBitcoinConfirmed,
-      phase: 'PASO_1_SHADOW_MODE_D3'
+      isD3Canonical,
+      phase: isD3Canonical ? 'PASO_2_CANONICAL_ACTIVE' : 'PASO_1_SHADOW_MODE_D3'
     });
   } else {
     console.log('[SHADOW MATCH] artifact decision matches canonical:', {
       documentEntityId,
       jobId: job.id,
-      shouldEnqueue: currentShouldEnqueueArtifact,
-      phase: 'PASO_1_SHADOW_MODE_D3'
+      shouldEnqueue: artifactShouldEnqueue,
+      isD3Canonical,
+      phase: isD3Canonical ? 'PASO_2_CANONICAL_ACTIVE' : 'PASO_1_SHADOW_MODE_D3'
     });
   }
 
-  // CONTINUAR CON LÓGICA ACTUAL (sin cambios)
-  if (currentShouldEnqueueArtifact) {
+  // ENCONE JOB PARA BUILD ARTIFACT
+  if (artifactShouldEnqueue) {
     await enqueueExecutorJob(
       supabase,
       BUILD_ARTIFACT_JOB_TYPE,
@@ -506,7 +545,15 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const limit = Number(body?.limit ?? DEFAULT_LIMIT);
 
-  const { data: jobs, error: claimError } = await supabase.rpc('claim_executor_jobs', {
+  // Sincronizar flags desde Deno Env hacia SQL (una vez por ejecución)
+  try {
+    await syncFlagsToDatabase(supabase);
+  } catch (error) {
+    console.error('[fase1-executor] Error sincronizando flags:', error.message);
+    // Continuar con ejecución normal, usar valores por defecto
+  }
+
+  const { data: jobs, error: claimError } = await supabase.rpc('claim_initial_decision_jobs', {
     p_limit: Number.isFinite(limit) ? limit : DEFAULT_LIMIT,
     p_worker_id: workerId,
   });

@@ -40,24 +40,73 @@ async function getSystemMetrics(): Promise<SystemMetrics> {
     .from('document_entities')
     .select('*', { count: 'exact', head: true });
 
-  // Contar eventos totales
-  const { count: totalEventsCount } = await supabase
-    .from('events')
-    .select('*', { count: 'exact', head: true });
+  // Contar eventos totales en document_entities
+  let totalEventsCount = 0;
+  try {
+    const { data: entities } = await supabase
+      .from('document_entities')
+      .select('events');
 
-  // Contar eventos de hoy
+    if (entities) {
+      for (const entity of entities) {
+        if (Array.isArray(entity.events)) {
+          totalEventsCount += entity.events.length;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Error contando eventos en document_entities:', error.message);
+  }
+
+  // Contar eventos de hoy en document_entities
   const today = new Date().toISOString().split('T')[0];
-  const { count: eventsTodayCount } = await supabase
-    .from('events')
-    .select('*', { count: 'exact', head: true })
-    .gte('at', `${today}T00:00:00.000Z`);
+  let eventsTodayCount = 0;
+  try {
+    const { data: entitiesToday } = await supabase
+      .from('document_entities')
+      .select('events');
 
-  // Contar eventos de la última hora
+    if (entitiesToday) {
+      for (const entity of entitiesToday) {
+        if (Array.isArray(entity.events)) {
+          for (const event of entity.events) {
+            if (typeof event === 'object' && event.at && event.at.startsWith(today)) {
+              eventsTodayCount++;
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Error contando eventos de hoy:', error.message);
+  }
+
+  // Contar eventos de la última hora en document_entities
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count: eventsLastHourCount } = await supabase
-    .from('events')
-    .select('*', { count: 'exact', head: true })
-    .gte('at', oneHourAgo);
+  let eventsLastHourCount = 0;
+  try {
+    const { data: entitiesLastHour } = await supabase
+      .from('document_entities')
+      .select('events');
+
+    if (entitiesLastHour) {
+      for (const entity of entitiesLastHour) {
+        if (Array.isArray(entity.events)) {
+          for (const event of entity.events) {
+            if (typeof event === 'object' && event.at) {
+              const eventTime = new Date(event.at);
+              const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+              if (eventTime >= hourAgo) {
+                eventsLastHourCount++;
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Error contando eventos de última hora:', error.message);
+  }
 
   // Contar flags activos
   const { count: activeFlagsCount } = await supabase
@@ -91,8 +140,8 @@ async function getSystemMetrics(): Promise<SystemMetrics> {
     .select('*', { count: 'exact', head: true })
     .eq('status', 'succeeded');
 
-  const jobSuccessRate = totalJobsCount && totalJobsCount > 0
-    ? (successfulJobsCount || 0) / totalJobsCount * 100
+  const jobSuccessRate = totalJobsCount && totalJobsCount > 0 
+    ? (successfulJobsCount || 0) / totalJobsCount * 100 
     : 0;
 
   // Contar ejecuciones recientes
@@ -104,7 +153,7 @@ async function getSystemMetrics(): Promise<SystemMetrics> {
   // Calcular tiempo promedio de ejecución
   let avgExecutionTime = 0;
   let lastExecutionTime: string | null = null;
-
+  
   try {
     const { data: recentRuns } = await supabase
       .from('executor_job_runs')
@@ -124,12 +173,12 @@ async function getSystemMetrics(): Promise<SystemMetrics> {
       if (durations.length > 0) {
         avgExecutionTime = durations.reduce((a: number, b: number) => a + b, 0) / durations.length;
       }
-
+      
       // Obtener la última ejecución
-      const lastRun = recentRuns.sort((a: any, b: any) =>
+      const lastRun = recentRuns.sort((a: any, b: any) => 
         new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
       )[0];
-
+      
       if (lastRun) {
         lastExecutionTime = lastRun.started_at;
       }
@@ -227,7 +276,7 @@ ${statusEmojis[metrics.system_status]} DASHBOARD DE MONITOREO DEL SISTEMA CANÓN
 🚨 ALERTAS (${criticalAlerts.length + warningAlerts.length}):
    Críticas: ${criticalAlerts.length}
    ${criticalAlerts.map(alert => `      🔴 ${alert}`).join('\n   ') || '      ✅ Ninguna'}
-
+   
    Advertencias: ${warningAlerts.length}
    ${warningAlerts.map(alert => `      🟡 ${alert}`).join('\n   ') || '      ✅ Ninguna'}
 
@@ -237,16 +286,16 @@ ${statusEmojis[metrics.system_status]} DASHBOARD DE MONITOREO DEL SISTEMA CANÓN
    - Verdad Canónica: ${metrics.total_events > 0 ? 'COMPLETA' : 'VACÍA'} (${metrics.total_events} eventos)
    - Separación: ${metrics.active_flags > 0 ? 'MANTENIDA' : 'PENDIENTE'}
 
-${metrics.system_status === 'healthy' ?
-  '✅ SISTEMA OPERANDO NORMALMENTE' :
-  metrics.system_status === 'warning' ?
-  '⚠️ SISTEMA CON ADVERTENCIAS - MONITOREAR' :
+${metrics.system_status === 'healthy' ? 
+  '✅ SISTEMA OPERANDO NORMALMENTE' : 
+  metrics.system_status === 'warning' ? 
+  '⚠️ SISTEMA CON ADVERTENCIAS - MONITOREAR' : 
   '❌ SISTEMA CON ALERTAS CRÍTICAS - REQUIERE ATENCIÓN INMEDIATA'}
 
-${criticalAlerts.length > 0 ?
-  '\n🚨 ACCIÓN INMEDIATA REQUERIDA - Revisar alertas críticas' :
-  warningAlerts.length > 0 ?
-  '\n⚠️ MONITOREO RECOMENDADO - Revisar advertencias' :
+${criticalAlerts.length > 0 ? 
+  '\n🚨 ACCIÓN INMEDIATA REQUERIDA - Revisar alertas críticas' : 
+  warningAlerts.length > 0 ? 
+  '\n⚠️ MONITOREO RECOMENDADO - Revisar advertencias' : 
   '\n🎯 SISTEMA ESTABLE - Todo funcionando según lo esperado'}
 
 =======================================================

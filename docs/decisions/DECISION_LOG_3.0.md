@@ -2612,3 +2612,62 @@ Responsable: Claude Code (Opus 4.5) + Manu
 Contract actualizado: `docs/contratos/AUTORIDAD_DEL_SISTEMA.md`
 
 ---
+
+## Cierre Oficial del Hito H6 — 2026-01-27
+
+### 🎯 Objetivo Alcanzado
+**H6: Apagado de Autoridad Paralela (Legacy)** - COMPLETADO
+
+### ✅ Logros Confirmados
+1. **DecisionAuthority** completamente separado de **ExecutionEngine**
+2. **Verdad canónica** en `document_entities.events[]` (append-only)
+3. **Autoridad canónica** en `packages/authority` (reglas puras)
+4. **Feature flags por decisión** (D1, D3, D4, D5) para transición gradual
+5. **Sistema cableado** sin rediseño de componentes existentes
+6. **No duplicación de side-effects** - sistema auditado y verificable
+
+### 🧠 Naming Canónico Establecido
+- `DecisionAuthority` (antes "executor") - Solo decide, no ejecuta
+- `ExecutionEngine` (antes "orchestrator") - Solo ejecuta, no decide
+- `WakeExecutionEngine` - Solo despierta sistema, sin lógica de negocio
+
+### 🔧 Componentes Activos
+- Tabla persistente `feature_flags` para control de autoridad
+- Funciones SQL `is_decision_under_canonical_authority()` que leen de tabla
+- Triggers actualizados con checks de flags
+- Executor actualizado para usar autoridad canónica
+- Orchestrator como motor de ejecución desacoplado
+- Cron de orchestrator manteniendo sistema activo
+
+### 🔄 Flujo Canónico Confirmado
+```
+Usuario → Evento canónico → document_entities.events[]
+DecisionAuthority ← Lee verdad ← document_entities
+DecisionAuthority → Usa autoridad → packages/authority
+DecisionAuthority → Escribe job → executor_jobs cola neutral
+ExecutionEngine ← Lee cola neutral ← executor_jobs
+ExecutionEngine → Ejecuta trabajo → Resultado
+ExecutionEngine → Evento resultado → document_entities.events[]
+```
+
+### 📊 Validación Real
+- Sistema operativo con datos reales
+- No hay duplicación de side-effects
+- Separación de responsabilidades mantenida
+- Transición gradual posible con feature flags
+- Rollback inmediato disponible
+
+### 🚀 Próximo Estado
+- Activación gradual de flags (D1, D3, D4, D5)
+- Validación con carga real de usuarios
+- Monitoreo continuo del sistema
+- Posible eliminación del bridge temporal
+
+---
+
+Firma: Cierre oficial del Hito H6
+Timestamp: 2026-01-27T18:00:00Z
+Branch: `h6-official-closure`
+Responsable: Sistema Canónico Ecosign
+
+---

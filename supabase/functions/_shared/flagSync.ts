@@ -39,6 +39,6 @@ export async function syncFlagsToDatabase(supabase: any): Promise<void> {
     }
   }
 
-  console.log('[fase1-executor] Flags sincronizados a la base de datos:', 
+  console.log('[fase1-executor] Flags sincronizados a la base de datos:',
     updates.map(u => `${u.flag_name}=${u.enabled}`).join(', '));
 }

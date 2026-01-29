@@ -5,7 +5,7 @@
 -- ============================================
 
 -- ============================================
--- FUNCIÓN: wake_execution_engine (despierta wake-authority)
+-- FUNCIÓN: wake_execution_engine (despierta fase1-executor)
 -- ============================================
 CREATE OR REPLACE FUNCTION public.wake_execution_engine()
 RETURNS void AS $fn$
@@ -25,15 +25,15 @@ BEGIN
     RETURN;
   END IF;
 
-  RAISE NOTICE 'wake_execution_engine: Despertando wake-authority...';
+  RAISE NOTICE 'wake_execution_engine: Despertando fase1-executor...';
 
   SELECT net.http_post(
-    url := supabase_url || '/functions/v1/wake-authority',
+    url := supabase_url || '/functions/v1/fase1-executor',
     headers := jsonb_build_object('Content-Type', 'application/json'),
     body := jsonb_build_object('source', 'wake_execution_engine')
   ) INTO request_id;
 
-  RAISE NOTICE 'wake_execution_engine: wake-authority despertado, request_id=%', request_id;
+  RAISE NOTICE 'wake_execution_engine: fase1-executor despertado, request_id=%', request_id;
 EXCEPTION
   WHEN OTHERS THEN
     RAISE WARNING 'wake_execution_engine: Error despertando ExecutionEngine: %', SQLERRM;

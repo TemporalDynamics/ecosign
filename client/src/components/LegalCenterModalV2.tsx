@@ -1673,7 +1673,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         // === PROBATORY EVENT: protection_enabled ===
         // Record that protection was enabled for this document (canonical events ledger)
-        const useProtectV2 = String(import.meta.env.VITE_USE_PROTECT_V2 || '').toLowerCase() === 'true';
+        const useProtectV2 = String(import.meta.env.VITE_USE_PROTECT_V2 ?? 'true').toLowerCase() === 'true';
         supabase.functions.invoke('record-protection-event', {
           body: {
             document_id: savedDoc.id,

@@ -1,0 +1,248 @@
+version: 1
+events:
+  protection_enabled:
+    sources:
+      - record-protection-event
+    triggers: []
+    jobs: []
+    ui:
+      status: "Protección habilitada"
+    depends_on: []
+
+  document.protected.requested:
+    sources:
+      - record-protection-event
+    triggers:
+      - on_document_entity_events_change
+    jobs:
+      - run_tsa
+    ui:
+      status: "Procesando protección"
+    depends_on:
+      - protection_enabled
+
+  document.protected:
+    sources:
+      - legacy
+    triggers: []
+    jobs: []
+    ui:
+      status: "Protegido (legacy)"
+    depends_on: []
+    allow_unemitted: true
+    deprecated: true
+
+  tsa.confirmed:
+    sources:
+      - run-tsa
+      - fase1-executor
+      - legal-timestamp
+    triggers:
+      - on_document_entity_events_change
+    jobs:
+      - submit_anchor_polygon
+      - submit_anchor_bitcoin
+    ui:
+      status: "Protegido"
+    depends_on:
+      - document.protected.requested
+
+  tsa.failed:
+    sources:
+      - run-tsa
+      - fase1-executor
+    triggers: []
+    jobs: []
+    ui:
+      status: "Error TSA"
+    depends_on:
+      - document.protected.requested
+
+  tsa:
+    sources:
+      - legacy
+    triggers:
+      - on_document_entity_events_change
+    jobs: []
+    ui:
+      status: "TSA (legacy)"
+    depends_on: []
+    allow_unemitted: true
+    deprecated: true
+
+  tsa.completed:
+    sources:
+      - legacy
+    triggers:
+      - on_document_entity_events_change
+    jobs: []
+    ui:
+      status: "TSA completado (legacy)"
+    depends_on: []
+    allow_unemitted: true
+    deprecated: true
+
+  anchor.submitted:
+    sources:
+      - submit-anchor-polygon
+      - submit-anchor-bitcoin
+    triggers: []
+    jobs: []
+    ui:
+      status: "Anclaje enviado"
+    depends_on:
+      - tsa.confirmed
+
+  anchor.confirmed:
+    sources:
+      - process-polygon-anchors
+      - process-bitcoin-anchors
+    triggers:
+      - on_document_entity_events_change
+    jobs:
+      - build_artifact
+    ui:
+      status: "Anclaje confirmado"
+    depends_on:
+      - anchor.submitted
+
+  anchor:
+    sources:
+      - process-polygon-anchors
+      - process-bitcoin-anchors
+    triggers:
+      - on_document_entity_events_change
+    jobs:
+      - build_artifact
+    ui:
+      status: "Anclaje confirmado"
+    depends_on:
+      - anchor.submitted
+
+  anchor.failed:
+    sources:
+      - submit-anchor-polygon
+      - submit-anchor-bitcoin
+    triggers: []
+    jobs: []
+    ui:
+      status: "Error anclaje"
+    depends_on:
+      - anchor.submitted
+
+  anchor.pending:
+    sources:
+      - legacy
+    triggers: []
+    jobs: []
+    ui:
+      status: "Anclaje pendiente (legacy)"
+    depends_on: []
+    allow_unemitted: true
+    deprecated: true
+
+  artifact.finalized:
+    sources:
+      - build-artifact
+    triggers: []
+    jobs: []
+    ui:
+      status: "Artifact listo"
+    depends_on:
+      - anchor.confirmed
+
+  artifact.completed:
+    sources:
+      - legacy
+    triggers: []
+    jobs: []
+    ui:
+      status: "Artifact completado (legacy)"
+    depends_on: []
+    allow_unemitted: true
+    deprecated: true
+
+  artifact.failed:
+    sources:
+      - build-artifact
+    triggers: []
+    jobs: []
+    ui:
+      status: "Error artifact"
+    depends_on:
+      - anchor.confirmed
+
+  protection.failed:
+    sources:
+      - record-protection-event
+    triggers: []
+    jobs: []
+    ui:
+      status: "Error protección"
+    depends_on:
+      - document.protected.requested
+
+  document.signed:
+    sources:
+      - process-signature
+    triggers: []
+    jobs: []
+    ui:
+      status: "Hash fijado"
+    depends_on: []
+
+  signature:
+    sources:
+      - process-signature
+    triggers: []
+    jobs: []
+    ui:
+      status: "Firma aplicada"
+    depends_on: []
+
+  field_signature:
+    sources:
+      - legacy
+    triggers: []
+    jobs: []
+    ui:
+      status: "Campo firmado"
+    depends_on: []
+    allow_unemitted: true
+    deprecated: true
+
+  nda_accepted:
+    sources:
+      - nda-flow
+    triggers: []
+    jobs: []
+    ui:
+      status: "NDA aceptado"
+    depends_on: []
+
+  otp_verified:
+    sources:
+      - otp-flow
+    triggers: []
+    jobs: []
+    ui:
+      status: "OTP verificado"
+    depends_on: []
+
+  share_created:
+    sources:
+      - share-service
+    triggers: []
+    jobs: []
+    ui:
+      status: "Compartido"
+    depends_on: []
+
+  share_opened:
+    sources:
+      - share-service
+    triggers: []
+    jobs: []
+    ui:
+      status: "Compartido"
+    depends_on: []

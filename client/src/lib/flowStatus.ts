@@ -1,3 +1,5 @@
+import { hasTsaConfirmed } from "./protectionLevel";
+
 export type FlowStatusKey = "draft" | "configured" | "sent" | "signing" | "signed" | "protected";
 
 export const FLOW_STATUS = {
@@ -22,7 +24,7 @@ export const FLOW_STATUS = {
     bg: "bg-purple-100",
   },
   signed: {
-    label: "Firmado",
+    label: "Hash fijado",
     color: "text-emerald-700",
     bg: "bg-emerald-100",
   },
@@ -44,9 +46,7 @@ export const deriveFlowStatus = (doc: any): { key: FlowStatusKey; detail?: strin
   const rawStatus = normalizeStatus(
     doc.overall_status || doc.status || doc.workflow_status
   );
-  const hasTsaConfirmed = Array.isArray(doc.events)
-    ? doc.events.some((event: any) => event?.kind === 'tsa.confirmed')
-    : false;
+  const tsaConfirmed = hasTsaConfirmed(doc.events);
   const signerLinks: SignerLink[] = Array.isArray(doc.signer_links) ? doc.signer_links : [];
   const pendingSigners = signerLinks.filter((signer) => {
     const status = normalizeStatus(signer.status);
@@ -55,7 +55,7 @@ export const deriveFlowStatus = (doc: any): { key: FlowStatusKey; detail?: strin
 
   if (rawStatus === "draft") return { key: "draft" };
 
-  if (hasTsaConfirmed) {
+  if (tsaConfirmed) {
     return { key: "protected" };
   }
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Eye, Share2, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { deriveProtectionLevel } from '../lib/protectionLevel';
+import { hasTsaConfirmed } from '../lib/protectionLevel';
 
 export default function DocumentRow({
   document,
@@ -50,9 +50,7 @@ export default function DocumentRow({
   const name = document.document_name || document.source_name || document.id;
 
   // Derive simple status: Procesando | Protegido | Error
-  const derivedProtectionLevel = Array.isArray(document.events)
-    ? deriveProtectionLevel(document.events)
-    : 'NONE';
+  const isProtected = hasTsaConfirmed(document.events);
 
   // Check for error events
   const hasError = Array.isArray(document.events) && document.events.some(
@@ -71,7 +69,7 @@ export default function DocumentRow({
     statusLabel = '❌ Error';
     statusBg = 'bg-red-100';
     statusColor = 'text-red-700';
-  } else if (derivedProtectionLevel !== 'NONE') {
+  } else if (isProtected) {
     // Has TSA = protected
     simpleStatus = 'protected';
     statusLabel = '✅ Protegido';

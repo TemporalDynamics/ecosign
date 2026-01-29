@@ -42,14 +42,14 @@ export const EVENT_CLASS: Record<string, EventClass> = {
 const AUTHORIZED_SOURCES: Record<string, string[]> = {
   // Eventos de evidencia fuerte (requieren _source verificable)
   'document.signed': ['process-signature'],
-  'tsa.confirmed': ['process-signature', 'legal-timestamp', 'fase1-executor'],
+  'tsa.confirmed': ['process-signature', 'legal-timestamp', 'fase1-executor', 'run-tsa'],
   'anchor.submitted': ['submit-anchor-polygon', 'submit-anchor-bitcoin'],
   'anchor': ['process-polygon-anchors', 'process-bitcoin-anchors'],  // confirmación real
   'artifact.finalized': ['build-artifact'],
   'document.protected.requested': ['start-signature-workflow', 'record-protection-event'],
 
   // Eventos de seguimiento/fallo (requieren _source verificable)
-  'tsa.failed': ['process-signature', 'fase1-executor'],
+  'tsa.failed': ['process-signature', 'fase1-executor', 'run-tsa'],
   'anchor.failed': ['submit-anchor-*', 'process-polygon-anchors', 'process-bitcoin-anchors'],
   'artifact.failed': ['build-artifact'],
 };

@@ -1,3 +1,6 @@
+-- LEGACY: replaced by 20260129120300_final_canonical_controls.sql
+-- NOTE: kept for history; do not edit.
+
 -- ============================================
 -- Migration: Pure Canonical Mode Controls
 -- Fecha: 2026-01-27

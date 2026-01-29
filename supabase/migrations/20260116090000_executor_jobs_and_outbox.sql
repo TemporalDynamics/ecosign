@@ -1,3 +1,6 @@
+-- LEGACY: replaced by 20260129120200_final_executor_job_claims.sql
+-- NOTE: kept for history; do not edit.
+
 -- Executor jobs table (queue + locking + idempotency)
 CREATE TABLE IF NOT EXISTS public.executor_jobs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

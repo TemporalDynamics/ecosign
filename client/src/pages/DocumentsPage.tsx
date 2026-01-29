@@ -614,6 +614,44 @@ function DocumentsPage() {
     }
   }, []);
 
+  // Realtime: update document list when document_entities.events changes
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const supabase = getSupabase();
+    const channel = supabase
+      .channel(`document-entities-${currentUserId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "document_entities",
+          filter: `owner_id=eq.${currentUserId}`,
+        },
+        (payload: { new?: DocumentEntityRow }) => {
+          const updated = payload.new;
+          if (!updated?.id) return;
+
+          const mapped = mapDocumentEntityToRecord(updated);
+          setDocuments((prev) => {
+            const idx = prev.findIndex(
+              (doc) => doc.document_entity_id === updated.id || doc.id === updated.id
+            );
+            if (idx === -1) return [mapped, ...prev];
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...mapped, events: mapped.events };
+            return next;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
+
   const loadPlan = useCallback(async () => {
     try {
       const supabase = getSupabase();

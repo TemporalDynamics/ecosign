@@ -1,0 +1,59 @@
+{
+  "version": "5",
+  "remote": {
+    "https://esm.sh/v135/@supabase/functions-js@2.1.5/denonext/functions-js.mjs": "739affd2df20c1affd91991c3731c2537d270b82be5cdbd926c43be40eb2fdc5",
+    "https://esm.sh/v135/@supabase/gotrue-js@2.57.1/denonext/gotrue-js.mjs": "86aeb9064279d065b534f57af094242814804d30cbd3e4912b7363e04e381614",
+    "https://esm.sh/v135/@supabase/node-fetch@2.6.14/denonext/node-fetch.mjs": "23a71af3512da67a8757ab1e2356fa22565758444ea1fc08e0de0e8d4625e8aa",
+    "https://esm.sh/v135/@supabase/node-fetch@2.6.15/denonext/node-fetch.mjs": "efad00ea3d4cbe1bee688836ef75339d49a1981bc5728a13e9ad5f26791d5efb",
+    "https://esm.sh/v135/@supabase/postgrest-js@1.9.0/denonext/postgrest-js.mjs": "e6239e65dca3c73527af617ee406934dc509a33e4082a9da9c3aa6c430519cdf",
+    "https://esm.sh/v135/@supabase/realtime-js@2.8.4/denonext/realtime-js.mjs": "9f8af6f82b095b1b1d336a92c4ff8519a5b7f783a1e09eab005114b983cafd5d",
+    "https://esm.sh/v135/@supabase/storage-js@2.5.5/denonext/storage-js.mjs": "66e29e4e55c7d396503e2d1d9376cfbc34f046b962bce4524c2d80b209fff413",
+    "https://esm.sh/v135/@supabase/supabase-js@2.39.0/denonext/dist/module.js": "8552274ee9de541c74808d585f975ee9d81c3749f8464b477015a104f004820a",
+    "https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js": "73adf0249f49513622de6e8028dcbb2b74e0c56fe3f0020bc7139bec6686eabc",
+    "https://esm.sh/v135/es5-ext@0.10.62/denonext/global.js": "2f51d9acef1f761faaa542da919b3c747744ea29fe709d0a904fd531716a93d6",
+    "https://esm.sh/v135/websocket@1.0.34/denonext/websocket.mjs": "dfe5d62007e9f7430d561e2376fe47caa9d04cb016d83d3386fcc2206a90296b"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@eslint/js@^9.39.2",
+        "npm:@noble/ed25519@3",
+        "npm:@noble/hashes@^2.0.1",
+        "npm:@sentry/react@^10.32.1",
+        "npm:@sentry/vite-plugin@^4.6.1",
+        "npm:@supabase/supabase-js@2.39.0",
+        "npm:@types/react-dom@^18.2.15",
+        "npm:@types/react@^18.2.37",
+        "npm:@upstash/ratelimit@^2.0.7",
+        "npm:@upstash/redis@^1.35.8",
+        "npm:@vercel/analytics@^1.5.0",
+        "npm:@vitejs/plugin-react@^4.1.0",
+        "npm:asn1.js@^4.10.1",
+        "npm:autoprefixer@^10.4.21",
+        "npm:dotenv@^17.2.3",
+        "npm:eslint-plugin-react-hooks@^7.0.1",
+        "npm:eslint-plugin-react-refresh@~0.4.24",
+        "npm:eslint-plugin-react@^7.37.5",
+        "npm:eslint@^9.39.2",
+        "npm:globals@^16.5.0",
+        "npm:jszip@^3.10.1",
+        "npm:lucide-react@0.553",
+        "npm:node-forge@^1.3.1",
+        "npm:pdf-lib@^1.17.1",
+        "npm:pdfjs-dist@3.11.174",
+        "npm:postcss@^8.5.6",
+        "npm:process@~0.11.10",
+        "npm:react-dom@^18.2.0",
+        "npm:react-helmet-async@^2.0.5",
+        "npm:react-hot-toast@^2.6.0",
+        "npm:react-router-dom@^6.18.0",
+        "npm:react@^18.2.0",
+        "npm:tailwindcss@^3.4.18",
+        "npm:terser@^5.36.0",
+        "npm:typescript@^5.9.3",
+        "npm:vite-plugin-node-polyfills@0.24",
+        "npm:vite@^4.5.0"
+      ]
+    }
+  }
+}

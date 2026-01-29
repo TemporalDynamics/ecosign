@@ -1,0 +1,2 @@
+[functions.wake-authority]
+verify_jwt = false

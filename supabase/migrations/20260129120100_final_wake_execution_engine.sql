@@ -5,40 +5,35 @@
 -- ============================================
 
 -- ============================================
--- FUNCIÓN: wake_execution_engine (solo despierta, no decide ni ejecuta)
+-- FUNCIÓN: wake_execution_engine (despierta wake-authority)
 -- ============================================
 CREATE OR REPLACE FUNCTION public.wake_execution_engine()
 RETURNS void AS $fn$
 DECLARE
   supabase_url TEXT;
-  service_role_key TEXT;
   request_id BIGINT;
 BEGIN
-  SELECT current_setting('app.settings.supabase_url', true),
-         current_setting('app.settings.service_role_key', true)
-  INTO supabase_url, service_role_key;
+  SELECT COALESCE(
+           current_setting('app.settings.supabase_url', true),
+           'https://uiyojopjbhooxrmamaiw.supabase.co'
+         ),
+         NULL
+  INTO supabase_url, request_id;
 
-  IF supabase_url IS NULL OR service_role_key IS NULL THEN
-    RAISE WARNING 'Missing app settings for wake_execution_engine. Skipping wake.';
+  IF supabase_url IS NULL THEN
+    RAISE WARNING 'Missing app.settings.supabase_url for wake_execution_engine. Skipping wake.';
     RETURN;
   END IF;
 
-  RAISE NOTICE 'wake_execution_engine: Despertando ExecutionEngine...';
+  RAISE NOTICE 'wake_execution_engine: Despertando wake-authority...';
 
   SELECT net.http_post(
-    url := supabase_url || '/functions/v1/orchestrator',
-    headers := jsonb_build_object(
-      'Authorization', 'Bearer ' || service_role_key,
-      'Content-Type', 'application/json'
-    ),
-    body := jsonb_build_object(
-      'action', 'poll_jobs',
-      'timestamp', EXTRACT(EPOCH FROM NOW())::INTEGER,
-      'source', 'wake_execution_engine'
-    )
+    url := supabase_url || '/functions/v1/wake-authority',
+    headers := jsonb_build_object('Content-Type', 'application/json'),
+    body := jsonb_build_object('source', 'wake_execution_engine')
   ) INTO request_id;
 
-  RAISE NOTICE 'wake_execution_engine: ExecutionEngine despertado, request_id=%', request_id;
+  RAISE NOTICE 'wake_execution_engine: wake-authority despertado, request_id=%', request_id;
 EXCEPTION
   WHEN OTHERS THEN
     RAISE WARNING 'wake_execution_engine: Error despertando ExecutionEngine: %', SQLERRM;

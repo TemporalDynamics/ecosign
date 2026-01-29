@@ -18,7 +18,9 @@
     "lint:fix": "cd client && npm run lint:fix",
     "typecheck": "cd client && npm run typecheck",
     "deadcode": "knip --max-issues 100",
-    "validate": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "validate": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "audit:events": "ts-node --transpile-only scripts/audit-events.ts",
+    "ci:predeploy": "npm run audit:events"
   },
   "keywords": [
     "supabase",
@@ -38,11 +40,13 @@
     "pdfjs-dist": "3.11.174"
   },
   "devDependencies": {
+    "ts-node": "^10.9.2",
     "@types/jsdom": "^27.0.0",
     "@vitest/coverage-v8": "^4.0.9",
     "@vitest/ui": "^4.0.9",
     "dotenv": "^17.2.3",
     "knip": "^5.73.4",
+    "yaml": "^2.6.1",
     "supabase": "^2.58.5",
     "typescript": "^5.9.3",
     "vitest": "^4.0.9"

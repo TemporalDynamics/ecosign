@@ -1,3 +1,6 @@
+-- LEGACY: replaced by 20260129120000_final_feature_flags.sql
+-- NOTE: kept for history; do not edit.
+
 -- ============================================
 -- Migration: Feature Flags Table Creation
 -- Fecha: 2026-01-27
@@ -45,10 +48,19 @@ $$ LANGUAGE plpgsql;
 -- ============================================
 -- TRIGGER PARA ACTUALIZAR FECHA DE MODIFICACIÓN
 -- ============================================
-CREATE TRIGGER update_feature_flags_updated_at 
-  BEFORE UPDATE ON public.feature_flags 
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_feature_flags_updated_at_column();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'update_feature_flags_updated_at'
+  ) THEN
+    CREATE TRIGGER update_feature_flags_updated_at
+      BEFORE UPDATE ON public.feature_flags
+      FOR EACH ROW
+      EXECUTE FUNCTION update_feature_flags_updated_at_column();
+  END IF;
+END $$;
 
 -- ============================================
 -- FUNCIÓN: Verificar si una decisión está bajo autoridad canónica

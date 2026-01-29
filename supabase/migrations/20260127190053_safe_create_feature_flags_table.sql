@@ -1,3 +1,6 @@
+-- LEGACY: replaced by 20260129120000_final_feature_flags.sql
+-- NOTE: kept for history; do not edit.
+
 -- ============================================
 -- Migration: Safe Feature Flags Table Creation
 -- Fecha: 2026-01-27
@@ -43,20 +46,20 @@ ON CONFLICT (flag_name) DO UPDATE SET
 -- ============================================
 -- CREAR FUNCIÓN DE ACTUALIZACIÓN DE FECHA SI NO EXISTE
 -- ============================================
-DO $$
+DO $do$
 BEGIN
   -- Eliminar función si ya existe (por seguridad)
   DROP FUNCTION IF EXISTS update_feature_flags_updated_at_column() CASCADE;
   
   -- Crear función de actualización
   CREATE OR REPLACE FUNCTION update_feature_flags_updated_at_column()
-  RETURNS TRIGGER AS $$
+  RETURNS TRIGGER AS $fn$
   BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
   END;
-  $$ LANGUAGE plpgsql;
-END $$;
+  $fn$ LANGUAGE plpgsql;
+END $do$;
 
 -- ============================================
 -- CREAR TRIGGER DE ACTUALIZACIÓN SI NO EXISTE

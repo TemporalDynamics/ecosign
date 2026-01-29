@@ -1,10 +1,7 @@
--- LEGACY: replaced by 20260129120000_final_feature_flags.sql
--- NOTE: kept for history; do not edit.
-
 -- ============================================
--- Migration: Feature Flags Table Creation
--- Fecha: 2026-01-27
--- Descripción: Crea tabla de feature flags para control de autoridad canónica
+-- Migration: Final Feature Flags (Consolidated)
+-- Fecha: 2026-01-29
+-- Descripción: Estado final consolidado de feature_flags y funciones de autoridad
 -- ============================================
 
 -- ============================================
@@ -18,9 +15,9 @@ CREATE TABLE IF NOT EXISTS public.feature_flags (
 );
 
 -- ============================================
--- ÍNDICES PARA RENDIMIENTO
+-- ÍNDICE PARA RENDIMIENTO
 -- ============================================
-CREATE INDEX IF NOT EXISTS idx_feature_flags_enabled 
+CREATE INDEX IF NOT EXISTS idx_feature_flags_enabled
   ON public.feature_flags (enabled);
 
 -- ============================================
@@ -35,20 +32,20 @@ ON CONFLICT (flag_name) DO UPDATE SET
   enabled = EXCLUDED.enabled;
 
 -- ============================================
--- FUNCIÓN PARA ACTUALIZAR FECHA DE MODIFICACIÓN
+-- FUNCIÓN PARA ACTUALIZAR updated_at
 -- ============================================
 CREATE OR REPLACE FUNCTION update_feature_flags_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $fn$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn$ LANGUAGE plpgsql;
 
 -- ============================================
--- TRIGGER PARA ACTUALIZAR FECHA DE MODIFICACIÓN
+-- TRIGGER PARA updated_at (solo si no existe)
 -- ============================================
-DO $$
+DO $do$
 BEGIN
   IF NOT EXISTS (
     SELECT 1
@@ -60,35 +57,33 @@ BEGIN
       FOR EACH ROW
       EXECUTE FUNCTION update_feature_flags_updated_at_column();
   END IF;
-END $$;
+END $do$;
 
 -- ============================================
--- FUNCIÓN: Verificar si una decisión está bajo autoridad canónica
+-- FUNCIÓN: Verificar autoridad canónica
 -- ============================================
 CREATE OR REPLACE FUNCTION public.is_decision_under_canonical_authority(decision_id TEXT)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN AS $fn$
 DECLARE
   flag_enabled BOOLEAN;
 BEGIN
-  -- Leer el estado del flag desde la tabla persistente
   SELECT enabled INTO flag_enabled
   FROM public.feature_flags
   WHERE flag_name = decision_id;
-  
-  -- Si no existe el flag o es NULL, devolver FALSE (modo legacy por defecto)
+
   RETURN COALESCE(flag_enabled, FALSE);
 END;
-$$ LANGUAGE plpgsql;
+$fn$ LANGUAGE plpgsql;
 
 -- ============================================
--- FUNCIÓN: Verificar si una decisión está en modo shadow
+-- FUNCIÓN: Modo shadow
 -- ============================================
 CREATE OR REPLACE FUNCTION public.is_decision_in_shadow_mode(decision_id TEXT)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN AS $fn$
 BEGIN
   RETURN NOT public.is_decision_under_canonical_authority(decision_id);
 END;
-$$ LANGUAGE plpgsql;
+$fn$ LANGUAGE plpgsql;
 
 -- ============================================
 -- COMENTARIOS PARA DOCUMENTACIÓN
@@ -105,10 +100,10 @@ COMMENT ON FUNCTION public.is_decision_in_shadow_mode IS 'Verifica si una decisi
 -- ============================================
 -- VERIFICACIÓN
 -- ============================================
-DO $$
+DO $do$
 BEGIN
-  RAISE NOTICE '✅ Tabla y funciones de feature flags creadas';
+  RAISE NOTICE '✅ Feature flags (final) aplicadas';
   RAISE NOTICE '   - Tabla: feature_flags';
   RAISE NOTICE '   - Funciones: is_decision_under_canonical_authority, is_decision_in_shadow_mode';
   RAISE NOTICE '   - Flags por defecto: D1, D3, D4, D5';
-END $$;
+END $do$;

@@ -1,3 +1,6 @@
+-- LEGACY: replaced by 20260129120200_final_executor_job_claims.sql
+-- NOTE: kept for history; do not edit.
+
 -- ============================================
 -- Migration: Executor-specific job claiming function
 -- Fecha: 2026-01-27

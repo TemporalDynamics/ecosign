@@ -1,3 +1,6 @@
+-- LEGACY: replaced by 20260129120100_final_wake_execution_engine.sql
+-- NOTE: kept for history; do not edit.
+
 -- ============================================
 -- Migration: Wake Execution Engine Function Only
 -- Fecha: 2026-01-27

@@ -199,6 +199,15 @@ export function hasTsa(events: Event[]): boolean {
 }
 
 /**
+ * Check if events array has TSA confirmation (by kind only)
+ * Single source of truth for "protected" state in UI.
+ */
+export function hasTsaConfirmed(events?: Event[]): boolean {
+  if (!Array.isArray(events) || events.length === 0) return false;
+  return events.some((event) => event?.kind === 'tsa.confirmed');
+}
+
+/**
  * Check if events array has anchor for specific network
  */
 export function hasAnchor(events: Event[], network: 'polygon' | 'bitcoin'): boolean {

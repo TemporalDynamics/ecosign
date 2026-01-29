@@ -1,3 +1,6 @@
+-- LEGACY: replaced by 20260129120000_final_feature_flags.sql
+-- NOTE: kept for history; do not edit.
+
 -- ============================================
 -- Migration: Feature Flags Persistent Table
 -- Fecha: 2026-01-26

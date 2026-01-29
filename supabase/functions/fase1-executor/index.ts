@@ -21,6 +21,7 @@ const V2_PROTECT_JOB_TYPE = 'protect_document_v2';
 const BUILD_ARTIFACT_JOB_TYPE = 'build_artifact';
 const SUBMIT_ANCHOR_POLYGON_JOB_TYPE = 'submit_anchor_polygon';
 const SUBMIT_ANCHOR_BITCOIN_JOB_TYPE = 'submit_anchor_bitcoin';
+const RUN_TSA_JOB_TYPE = 'run_tsa';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -31,6 +32,7 @@ const POLYGON_RPC_URL =
 const DEFAULT_LIMIT = 5;
 const POLYGON_CONFIRM_TIMEOUT_MS = 60_000;
 const POLYGON_CONFIRM_INTERVAL_MS = 5_000;
+const REQUEUE_TSA_LIMIT = 50;
 
 const jsonResponse = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -167,8 +169,8 @@ async function handleDocumentProtected(
   const hasBitcoinConfirmed = hasAnchorConfirmed('bitcoin');
 
   // Decisión para anclaje Polygon basado en autoridad
-  const shouldEnqueuePolygon = shouldEnqueuePolygon(events, protection as string[]);
-  if (shouldEnqueuePolygon) {
+  const shouldEnqueuePolygonResult = shouldEnqueuePolygon(events, protection as string[]);
+  if (shouldEnqueuePolygonResult) {
     await enqueueExecutorJob(
       supabase,
       'submit_anchor_polygon',
@@ -454,7 +456,13 @@ async function enqueueExecutorJob(
   documentEntityId: string,
   documentId: string | null,
   dedupeKey: string,
+  payload?: Record<string, unknown>,
 ): Promise<void> {
+  const jobPayload = payload ?? {
+    document_entity_id: documentEntityId,
+    document_id: documentId,
+  };
+
   const { error } = await supabase
     .from('executor_jobs')
     .insert({
@@ -462,16 +470,63 @@ async function enqueueExecutorJob(
       entity_type: 'document',
       entity_id: documentEntityId,
       dedupe_key: dedupeKey,
-      payload: {
-        document_entity_id: documentEntityId,
-        document_id: documentId,
-      },
+      payload: jobPayload,
       status: 'queued',
       run_at: new Date().toISOString(),
     });
 
   if (error && error.code !== '23505') {
     console.log(`[fase1-executor] Failed to enqueue ${type} for ${documentEntityId}: ${error.message}`);
+    return;
+  }
+
+  if (error && error.code === '23505') {
+    const { error: updateError } = await supabase
+      .from('executor_jobs')
+      .update({
+        status: 'queued',
+        run_at: new Date().toISOString(),
+        locked_at: null,
+        locked_by: null,
+        last_error: null,
+      })
+      .eq('dedupe_key', dedupeKey)
+      .in('status', ['failed', 'retry_scheduled', 'dead']);
+
+    if (updateError) {
+      console.log(`[fase1-executor] Failed to requeue ${type} for ${documentEntityId}: ${updateError.message}`);
+    }
+  }
+}
+
+async function requeueMissingTsaJobs(
+  supabase: ReturnType<typeof createClient>,
+): Promise<void> {
+  const { data: entities, error } = await supabase
+    .from('document_entities')
+    .select('id, events')
+    .contains('events', [{ kind: 'document.protected.requested' }])
+    .limit(REQUEUE_TSA_LIMIT);
+
+  if (error) {
+    console.error('[fase1-executor] Error fetching TSA requeue candidates:', error.message);
+    return;
+  }
+
+  const candidates = (entities ?? []).filter((entity: any) => {
+    const events = Array.isArray(entity.events) ? entity.events : [];
+    const hasTsa = events.some((event: { kind?: string }) => event.kind === 'tsa.confirmed');
+    return !hasTsa && shouldEnqueueRunTsa(events);
+  });
+
+  for (const entity of candidates) {
+    await enqueueExecutorJob(
+      supabase,
+      RUN_TSA_JOB_TYPE,
+      String(entity.id),
+      null,
+      `${entity.id}:${RUN_TSA_JOB_TYPE}`,
+    );
   }
 }
 
@@ -553,6 +608,13 @@ Deno.serve(async (req) => {
     // Continuar con ejecución normal, usar valores por defecto
   }
 
+  // Reencolar TSA si hay protección solicitada sin TSA confirmada
+  try {
+    await requeueMissingTsaJobs(supabase);
+  } catch (error) {
+    console.error('[fase1-executor] Error reencolando TSA:', error.message);
+  }
+
   const { data: jobs, error: claimError } = await supabase.rpc('claim_initial_decision_jobs', {
     p_limit: Number.isFinite(limit) ? limit : DEFAULT_LIMIT,
     p_worker_id: workerId,
@@ -589,6 +651,8 @@ Deno.serve(async (req) => {
         await handleBuildArtifact(supabase, job);
       } else if (job.type === SUBMIT_ANCHOR_POLYGON_JOB_TYPE) {
         await handleSubmitAnchorPolygon(supabase, job);
+      } else if (job.type === RUN_TSA_JOB_TYPE) {
+        await handleRunTsa(supabase, job);
       } else if (job.type === SUBMIT_ANCHOR_BITCOIN_JOB_TYPE) {
         await handleSubmitAnchorBitcoin(supabase, job);
       } else {
@@ -643,3 +707,25 @@ Deno.serve(async (req) => {
 
   return jsonResponse({ success: true, processed: results.length, results });
 });
+
+async function handleRunTsa(supabase, job) {
+  console.log(`[handleRunTsa] Processing run_tsa job: ${job.id}`);
+  
+  const { document_entity_id } = job.payload;
+  
+  if (!document_entity_id) {
+    throw new Error(`Missing document_entity_id in job payload: ${JSON.stringify(job.payload)}`);
+  }
+  
+  try {
+    // Delegar el flujo completo a la función run-tsa (incluye validación y append del evento).
+    await callFunction('run-tsa', {
+      document_entity_id,
+    });
+    
+    console.log(`[handleRunTsa] Successfully processed TSA for document ${document_entity_id}`);
+  } catch (error) {
+    console.error(`[handleRunTsa] Error processing TSA for job ${job.id}:`, error);
+    throw error;
+  }
+}

@@ -75,7 +75,10 @@ serve(withRateLimit('record', async (req) => {
     // Parse request body
     const body: RecordProtectionRequest = await req.json()
     const { document_id, document_entity_id, protection_details, flow_version } = body
-    const flowVersion = flow_version ?? 'v1'
+    const flowVersion = flow_version ?? 'v2'
+    if (flowVersion === 'v1') {
+      console.warn('[record-protection-event] flow_version=v1 (legacy). Consider upgrading to v2.');
+    }
 
     if (!document_id && !document_entity_id) {
       throw new Error('Missing required field: document_id or document_entity_id')

@@ -139,20 +139,13 @@ async function callFunction(functionName: string, body: Record<string, unknown>)
 // Procesar un job
 async function processJob(job: ExecutorJob): Promise<void> {
   const { id: jobId, type, entity_id: documentEntityId, payload } = job;
-  
+
   try {
     console.log(`🔧 Procesando job: ${jobId} (${type}) para entity: ${documentEntityId}`);
-    
-    // Actualizar estado del job
-    await supabase
-      .from('executor_jobs')
-      .update({
-        status: 'processing',
-        locked_at: new Date().toISOString(),
-        locked_by: 'orchestrator',
-        attempts: job.attempts + 1
-      })
-      .eq('id', jobId);
+
+    // NOTA: El job ya fue reclamado por claim_orchestrator_jobs
+    // con status='processing', locked_at=now(), locked_by='orchestrator', attempts incrementado
+    // NO necesitamos actualizar el status aquí
 
     // Ejecutar el job usando el handler correspondiente
     const handler = jobHandlers[type];
@@ -161,7 +154,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
     }
 
     const result = await handler(job);
-    
+
     if (!result.success) {
       throw new Error(`Job falló: ${JSON.stringify(result.error)}`);
     }
@@ -197,10 +190,10 @@ async function processJob(job: ExecutorJob): Promise<void> {
       .eq('id', jobId);
 
     console.log(`✅ Job completado: ${jobId} para entity: ${documentEntityId}`);
-    
+
   } catch (error) {
     console.error(`❌ Error procesando job ${jobId}:`, error);
-    
+
     // Marcar job como fallido
     await supabase
       .from('executor_jobs')
@@ -221,7 +214,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
 function getEventKindForResult(type: JobType): string {
   switch (type) {
     case 'run_tsa':
-      return 'tsa.completed';
+      return 'tsa.confirmed';
     case 'submit_anchor_polygon':
       return 'anchor.submitted';
     case 'submit_anchor_bitcoin':
@@ -233,20 +226,20 @@ function getEventKindForResult(type: JobType): string {
   }
 }
 
-// Poll jobs de la cola
+// Poll jobs de la cola usando claim atómico
 async function pollJobs(): Promise<void> {
   console.log('👂 Orchestrator iniciado, buscando jobs...');
-  
+
   try {
-    const { data: jobs, error } = await supabase
-      .from('executor_jobs')
-      .select('*')
-      .eq('status', 'queued')
-      .order('created_at', { ascending: true })
-      .limit(10); // Procesar lotes de 10
+    // Usar claim_orchestrator_jobs para reclamar jobs de forma atómica
+    // Esto previene conflictos de concurrencia usando FOR UPDATE SKIP LOCKED
+    const { data: jobs, error } = await supabase.rpc('claim_orchestrator_jobs', {
+      p_limit: 10,
+      p_worker_id: 'orchestrator'
+    });
 
     if (error) {
-      throw new Error(`Error obteniendo jobs: ${error.message}`);
+      throw new Error(`Error reclamando jobs: ${error.message}`);
     }
 
     if (!jobs || jobs.length === 0) {
@@ -254,9 +247,9 @@ async function pollJobs(): Promise<void> {
       return;
     }
 
-    console.log(`📦 Procesando ${jobs.length} jobs...`);
-    
-    // Procesar cada job
+    console.log(`📦 Procesando ${jobs.length} jobs reclamados...`);
+
+    // Procesar cada job ya reclamado
     for (const job of jobs) {
       try {
         await processJob(job as ExecutorJob);
@@ -265,7 +258,7 @@ async function pollJobs(): Promise<void> {
         // Continuar con el siguiente job
       }
     }
-    
+
   } catch (error) {
     console.error('❌ Error en el polling de jobs:', error);
   }

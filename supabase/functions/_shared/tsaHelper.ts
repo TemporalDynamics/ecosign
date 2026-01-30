@@ -56,7 +56,7 @@ export async function appendTsaEventFromEdge(
 
     // 3. Build TSA event
     const event = {
-      kind: 'tsa',
+      kind: 'tsa.confirmed',
       at: new Date().toISOString(),
       witness_hash: payload.witness_hash,
       tsa: {
@@ -107,7 +107,7 @@ export async function hasTsaEvent(
     if (error || !entity) return false;
 
     const events = Array.isArray(entity.events) ? entity.events : [];
-    return events.some((e: any) => e.kind === 'tsa');
+    return events.some((e: any) => e.kind === 'tsa.confirmed');
   } catch {
     return false;
   }

@@ -21,9 +21,9 @@ RETURNS boolean
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- MUST: kind = "tsa"
-  IF event->>'kind' != 'tsa' THEN
-    RAISE EXCEPTION 'TSA event must have kind="tsa"';
+  -- MUST: kind = "tsa" or "tsa.confirmed"
+  IF event->>'kind' NOT IN ('tsa', 'tsa.confirmed') THEN
+    RAISE EXCEPTION 'TSA event must have kind="tsa" or kind="tsa.confirmed"';
   END IF;
 
   -- MUST: at (ISO 8601 timestamp)
@@ -79,9 +79,9 @@ BEGIN
       event_kind := new_event->>'kind';
 
       -- Validate TSA events
-      IF event_kind = 'tsa' THEN
+      IF event_kind IN ('tsa', 'tsa.confirmed') THEN
         PERFORM validate_tsa_event(new_event);
-        
+
         -- MUST: witness_hash must match current witness_hash
         IF new_event->>'witness_hash' != NEW.witness_hash THEN
           RAISE EXCEPTION 'TSA event witness_hash must match document_entities.witness_hash';
@@ -112,7 +112,7 @@ BEGIN
   -- Find last TSA event in events[]
   SELECT event INTO last_tsa
   FROM jsonb_array_elements(NEW.events) AS event
-  WHERE event->>'kind' = 'tsa'
+  WHERE event->>'kind' IN ('tsa', 'tsa.confirmed')
   ORDER BY event->>'at' DESC
   LIMIT 1;
 

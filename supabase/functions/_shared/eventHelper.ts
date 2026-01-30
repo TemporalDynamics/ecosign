@@ -32,10 +32,11 @@ export const EVENT_CLASS: Record<string, EventClass> = {
   'document.protected.requested': 'evidence',
 
   // Eventos de seguimiento/fallo (requieren _source verificable)
-  'anchor.submitted': 'tracking',
+  'anchor.pending': 'tracking',
   'tsa.failed': 'tracking',
   'anchor.failed': 'tracking',
   'artifact.failed': 'tracking',
+  'protection.failed': 'tracking',
 };
 
 // Allowlist de fuentes autorizadas para eventos
@@ -43,7 +44,7 @@ const AUTHORIZED_SOURCES: Record<string, string[]> = {
   // Eventos de evidencia fuerte (requieren _source verificable)
   'document.signed': ['process-signature'],
   'tsa.confirmed': ['process-signature', 'legal-timestamp', 'fase1-executor', 'run-tsa'],
-  'anchor.submitted': ['submit-anchor-polygon', 'submit-anchor-bitcoin'],
+  'anchor.pending': ['submit-anchor-polygon', 'submit-anchor-bitcoin'],
   'anchor': ['process-polygon-anchors', 'process-bitcoin-anchors'],  // confirmación real
   'artifact.finalized': ['build-artifact'],
   'document.protected.requested': ['start-signature-workflow', 'record-protection-event'],
@@ -52,6 +53,7 @@ const AUTHORIZED_SOURCES: Record<string, string[]> = {
   'tsa.failed': ['process-signature', 'fase1-executor', 'run-tsa'],
   'anchor.failed': ['submit-anchor-*', 'process-polygon-anchors', 'process-bitcoin-anchors'],
   'artifact.failed': ['build-artifact'],
+  'protection.failed': ['record-protection-event'],
 };
 
 /**

@@ -96,7 +96,8 @@ export class LegacyToCanonicalMigrationService {
       console.log(`[migration] Documento migrado: ${legacyDoc.id} → ${newEntity.id}`);
       return newEntity.id;
     } catch (error) {
-      console.error(`[migration] Error migrando documento legacy ${legacyDoc.id}:`, error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[migration] Error migrando documento legacy ${legacyDoc.id}:`, message);
       return null;
     }
   }
@@ -140,9 +141,10 @@ export class LegacyToCanonicalMigrationService {
         events.push({
           kind: 'tsa.confirmed',
           at: legacyDoc.tsa_confirmed_at || new Date().toISOString(),
-          payload: {
+          witness_hash: legacyDoc.eco_hash || legacyDoc.document_hash,
+          tsa: {
             token_b64: legacyDoc.tsa_token,
-            witness_hash: legacyDoc.eco_hash || legacyDoc.document_hash
+            digest_algo: 'sha256'
           },
           _source: 'migration_from_user_documents'
         });
@@ -151,12 +153,13 @@ export class LegacyToCanonicalMigrationService {
       // Evento de anclaje Polygon si existe
       if (legacyDoc.polygon_tx_hash) {
         events.push({
-          kind: 'anchor.confirmed',
+          kind: 'anchor',
           at: legacyDoc.polygon_confirmed_at || new Date().toISOString(),
-          payload: {
+          anchor: {
             network: 'polygon',
-            tx_hash: legacyDoc.polygon_tx_hash,
-            confirmed_at: legacyDoc.polygon_confirmed_at
+            witness_hash: legacyDoc.eco_hash || legacyDoc.document_hash,
+            txid: legacyDoc.polygon_tx_hash,
+            confirmed_at: legacyDoc.polygon_confirmed_at || new Date().toISOString(),
           },
           _source: 'migration_from_user_documents'
         });
@@ -165,12 +168,13 @@ export class LegacyToCanonicalMigrationService {
       // Evento de anclaje Bitcoin si existe
       if (legacyDoc.bitcoin_tx_hash) {
         events.push({
-          kind: 'anchor.confirmed',
+          kind: 'anchor',
           at: legacyDoc.bitcoin_confirmed_at || new Date().toISOString(),
-          payload: {
+          anchor: {
             network: 'bitcoin',
-            tx_hash: legacyDoc.bitcoin_tx_hash,
-            confirmed_at: legacyDoc.bitcoin_confirmed_at
+            witness_hash: legacyDoc.eco_hash || legacyDoc.document_hash,
+            txid: legacyDoc.bitcoin_tx_hash,
+            confirmed_at: legacyDoc.bitcoin_confirmed_at || new Date().toISOString(),
           },
           _source: 'migration_from_user_documents'
         });
@@ -179,10 +183,10 @@ export class LegacyToCanonicalMigrationService {
       // Evento de artifact si existe
       if (legacyDoc.eco_storage_path) {
         events.push({
-          kind: 'artifact.completed',
+          kind: 'artifact.finalized',
           at: legacyDoc.updated_at || new Date().toISOString(),
           payload: {
-            storage_path: legacyDoc.eco_storage_path,
+            artifact_storage_path: legacyDoc.eco_storage_path,
             artifact_type: 'eco'
           },
           _source: 'migration_from_user_documents'
@@ -244,13 +248,9 @@ export class LegacyToCanonicalMigrationService {
     }
 
     const hasTsa = events.some((e: any) => e.kind === 'tsa.confirmed');
-    const hasPolygon = events.some((e: any) => 
-      e.kind === 'anchor.confirmed' && e.payload?.network === 'polygon'
-    );
-    const hasBitcoin = events.some((e: any) => 
-      e.kind === 'anchor.confirmed' && e.payload?.network === 'bitcoin'
-    );
-    const hasArtifact = events.some((e: any) => e.kind === 'artifact.completed');
+    const hasPolygon = events.some((e: any) => e.kind === 'anchor' && e.anchor?.network === 'polygon');
+    const hasBitcoin = events.some((e: any) => e.kind === 'anchor' && e.anchor?.network === 'bitcoin');
+    const hasArtifact = events.some((e: any) => e.kind === 'artifact.finalized');
 
     if (hasTsa && hasPolygon && hasBitcoin && hasArtifact) {
       return 'completed';
@@ -319,7 +319,8 @@ export class CanonicalModelIntegrityService {
 
       return true;
     } catch (error) {
-      console.error('[integrity] Error verificando integridad:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[integrity] Error verificando integridad:', message);
       return false;
     }
   }

@@ -1,4 +1,4 @@
-export type EventLike = { kind?: string };
+export type EventLike = { kind?: string; at?: string };
 export type ProtectV2Job =
   | 'run_tsa'
   | 'build_artifact'
@@ -16,18 +16,18 @@ const hasEvent = (events: EventLike[], kind: string) => events.some((event) => e
 const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin'): boolean => {
   return events.some((event) => {
     // Verificar que sea el tipo correcto de evento
-    if (event.kind !== 'anchor' && event.kind !== 'anchor.confirmed') {
+    if (event.kind !== 'anchor') {
       return false;
     }
 
     // Verificar que tenga la red correcta
-    const hasCorrectNetwork = ((event as any).anchor?.network === network || (event as any).payload?.network === network);
+    const hasCorrectNetwork = (event as any).anchor?.network === network;
     if (!hasCorrectNetwork) {
       return false;
     }
 
     // Verificar que tenga confirmed_at
-    const confirmedAtValue = (event as any).anchor?.confirmed_at || (event as any).payload?.confirmed_at;
+    const confirmedAtValue = (event as any).anchor?.confirmed_at;
     if (!confirmedAtValue) {
       return false;
     }
@@ -35,7 +35,11 @@ const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin')
     // Verificar causalidad temporal: confirmed_at >= at
     try {
       const confirmedAt = new Date(confirmedAtValue);
-      const at = new Date(event.at);
+      const atValue = (event as any).at;
+      if (typeof atValue !== 'string' || !atValue) {
+        return false;
+      }
+      const at = new Date(atValue);
       if (confirmedAt < at) {
         return false; // Rompe causalidad temporal
       }
@@ -47,8 +51,7 @@ const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin')
   });
 };
 
-// Nota: 'anchor.confirmed' reservado para futura fase,
-// hoy 'anchor' con confirmed_at es el canónico
+// Nota: hoy el evento canónico es 'anchor' con anchor.confirmed_at
 
 // Verifica si todos los anclajes requeridos están confirmados
 const hasRequiredAnchors = (events: EventLike[], protection: string[]): boolean => {

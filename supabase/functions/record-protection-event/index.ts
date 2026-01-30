@@ -243,6 +243,33 @@ serve(withRateLimit('record', async (req) => {
     )
   } catch (error) {
     console.error('Error in record-protection-event:', error)
+
+    // Try to record protection.failed event if we have document_entity_id
+    try {
+      if (documentEntityId) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+        await appendEvent(
+          supabase,
+          documentEntityId,
+          {
+            kind: 'protection.failed',
+            at: new Date().toISOString(),
+            error: {
+              message: error.message || 'Internal server error',
+              code: error.code || 'UNKNOWN_ERROR'
+            }
+          },
+          'record-protection-event'
+        )
+      }
+    } catch (eventError) {
+      console.error('Failed to record protection.failed event:', eventError)
+      // Don't throw - we still want to return the original error
+    }
+
     return new Response(
       JSON.stringify({
         success: false,

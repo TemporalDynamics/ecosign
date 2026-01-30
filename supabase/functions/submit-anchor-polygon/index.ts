@@ -101,9 +101,12 @@ serve(async (req) => {
       supabase,
       documentEntityId,
       {
-        kind: 'anchor.submitted',
+        kind: 'anchor.pending',
         at: new Date().toISOString(),
-        payload: { network: 'polygon' }
+        anchor: {
+          network: 'polygon',
+          witness_hash: witnessHash
+        }
       },
       'submit-anchor-polygon',
     );

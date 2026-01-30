@@ -101,10 +101,10 @@ serve(async (req) => {
 
     const pdfBytes = new Uint8Array(await download.data.arrayBuffer());
     const tsaEvent = events.find((event: { kind?: string }) => event.kind === 'tsa.confirmed') as
-      | { payload?: Record<string, unknown> }
+      | { tsa?: Record<string, unknown> }
       | undefined;
-    const tokenB64 = typeof tsaEvent?.payload?.['token_b64'] === 'string'
-      ? String(tsaEvent.payload?.['token_b64'])
+    const tokenB64 = typeof tsaEvent?.tsa?.['token_b64'] === 'string'
+      ? String(tsaEvent.tsa?.['token_b64'])
       : null;
     const tsaToken = tokenB64 ? Uint8Array.from(atob(tokenB64), (c) => c.charCodeAt(0)) : null;
 
@@ -122,9 +122,12 @@ serve(async (req) => {
 
     const result = await processArtifact(input);
     const artifactPath = `artifacts/${documentEntityId}/${result.artifact_version}.pdf`;
+
+    // Ensure a plain ArrayBuffer-backed Uint8Array for BlobPart compatibility.
+    const artifactBytes = new Uint8Array(result.artifact);
     const upload = await supabase.storage
       .from('user-documents')
-      .upload(artifactPath, new Blob([result.artifact], { type: result.mime }), {
+      .upload(artifactPath, new Blob([artifactBytes], { type: result.mime }), {
         upsert: true,
         contentType: result.mime,
       });

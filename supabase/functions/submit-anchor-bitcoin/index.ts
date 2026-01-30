@@ -101,9 +101,12 @@ serve(async (req) => {
       supabase,
       documentEntityId,
       {
-        kind: 'anchor.submitted',
+        kind: 'anchor.pending',
         at: new Date().toISOString(),
-        payload: { network: 'bitcoin' }
+        anchor: {
+          network: 'bitcoin',
+          witness_hash: witnessHash
+        }
       },
       'submit-anchor-bitcoin',
     );

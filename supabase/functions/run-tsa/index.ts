@@ -41,7 +41,7 @@ async function callFunction(name: string, body: Record<string, unknown>) {
 async function emitEvent(
   supabase: ReturnType<typeof createClient>,
   documentEntityId: string,
-  event: { kind: string; at: string; payload?: Record<string, unknown> },
+  event: { kind: string; at: string; [key: string]: unknown },
   source: string,
 ): Promise<void> {
   const result = await appendEvent(supabase, documentEntityId, event, source);
@@ -105,10 +105,10 @@ serve(async (req) => {
     const tsaEvent = {
       kind: 'tsa.confirmed',
       at: new Date().toISOString(),
-      payload: {
-        witness_hash: witnessHash,
+      witness_hash: witnessHash,
+      tsa: {
         token_b64: tsaResponse.token,
-      },
+      }
     };
 
     const validation = validateEventAppend(entity, tsaEvent);
@@ -126,6 +126,10 @@ serve(async (req) => {
       {
         kind: 'tsa.failed',
         at: new Date().toISOString(),
+        payload: {
+          retryable: true,
+          error: { message }
+        }
       },
       'run-tsa',
     );

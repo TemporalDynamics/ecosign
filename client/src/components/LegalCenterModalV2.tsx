@@ -94,7 +94,8 @@ async function persistTsaToEvents(
         token_b64: tsaToken,
         gen_time: certResult?.timestamp,
         tsa_url: certResult?.legalTimestamp?.tsa || 'https://freetsa.org/tsr',
-        digest_algo: 'sha256'
+        digest_algo: 'sha256',
+        expected_witness_hash: witnessHash,
       }
     });
 

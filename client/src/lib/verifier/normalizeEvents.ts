@@ -15,6 +15,7 @@ const DOCUMENT_LABELS: Record<string, string> = {
   protection_enabled: 'Protección legal habilitada',
   'tsa.confirmed': 'Sello de tiempo registrado',
   'tsa.failed': 'Sello de tiempo fallido',
+  'anchor': 'Anclaje público confirmado',
   'anchor.confirmed': 'Anclaje público confirmado',
   'anchor.failed': 'Anclaje público fallido',
   'anchor.pending': 'Anclaje público pendiente',

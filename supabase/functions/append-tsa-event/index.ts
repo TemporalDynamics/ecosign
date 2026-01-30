@@ -13,6 +13,7 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 type RequestBody = {
   document_entity_id: string;
   token_b64: string;
+  expected_witness_hash?: string;
   // Optional metadata from TSA response
   gen_time?: string;
   tsa_url?: string;
@@ -76,6 +77,17 @@ serve(async (req) => {
       return jsonResponse(
         { success: false, error: 'document_entity has no witness_hash' },
         400,
+        corsHeaders
+      );
+    }
+
+    if (body.expected_witness_hash && body.expected_witness_hash !== entity.witness_hash) {
+      return jsonResponse(
+        {
+          success: false,
+          error: `witness_hash mismatch: expected ${body.expected_witness_hash}, got ${entity.witness_hash}`,
+        },
+        409,
         corsHeaders
       );
     }

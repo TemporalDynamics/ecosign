@@ -4,7 +4,6 @@
 // ========================================
 
 import { getSupabase } from './supabaseClient';
-import { appendOperationEvent } from './documentEntityService';
 import type {
   Operation,
   OperationStatus,
@@ -314,14 +313,6 @@ export async function addDocumentToOperation(
 
   // Emit canonical operation event (append-only) — best-effort: failures here should not break main flow
   try {
-    await appendOperationEvent(documentEntityId, {
-      kind: 'operation.document_added',
-      actor: { id: userId, type: 'user' },
-      operation_id: operationId,
-      reason: null,
-      metadata: {},
-    });
-
     await appendOperationsEvent({
       operation_id: operationId,
       kind: 'operation.document_added',
@@ -363,14 +354,6 @@ export async function removeDocumentFromOperation(
   }
 
   try {
-    await appendOperationEvent(documentEntityId, {
-      kind: 'operation.document_removed',
-      actor: { id: actorId, type: 'user' },
-      operation_id: operationId,
-      reason: null,
-      metadata: {},
-    });
-
     await appendOperationsEvent({
       operation_id: operationId,
       kind: 'operation.document_removed',

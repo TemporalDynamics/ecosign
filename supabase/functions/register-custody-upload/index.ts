@@ -173,7 +173,7 @@ serve(async (req) => {
       storage_path,
       purpose,
       message: `Encrypted custody registered for "${metadata.original_name}" (${metadata.original_size} bytes)`
-    }, corsHeaders)
+    }, 200, corsHeaders)
 
   } catch (error) {
     console.error('[register-custody-upload] Error:', error)

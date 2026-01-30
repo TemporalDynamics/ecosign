@@ -14,6 +14,60 @@ const FALLBACK_TEMPLATES: Record<string, string> = {
         Si no solicitaste este codigo, ignora este mensaje.
       </p>
     </div>
+  `,
+  'documento-certificado-resumen.html': `
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documento certificado</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.5;
+      background-color: #ffffff;
+      color: #111111;
+    }
+    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { padding: 24px 32px; border-bottom: 1px solid #EAEAEA; }
+    .logo { display: block; width: 32px; height: 32px; }
+    .content { padding: 32px; }
+    .content h1 { font-size: 22px; font-weight: 600; margin-bottom: 16px; }
+    .content p { font-size: 14px; color: #111111; margin-bottom: 16px; }
+    .content p.secondary { color: #555555; }
+    .content ul { margin: 12px 0 16px 20px; font-size: 14px; color: #111111; }
+    .footer { padding: 24px 32px 32px; border-top: 1px solid #EAEAEA; }
+    .footer p { font-size: 12px; color: #555555; margin: 6px 0; }
+    .footer a { color: #111111; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="{{siteUrl}}/assets/icons/icon-128x128.png" alt="EcoSign" class="logo" />
+    </div>
+    <div class="content">
+      <h1>Documento certificado</h1>
+      <p>{{owner_name}}, tu documento fue certificado.</p>
+      <p class="secondary"><strong>{{document_name}}</strong></p>
+      <p class="secondary">Fecha: {{certified_at}}</p>
+      <p class="secondary">Capas de certificacion:</p>
+      <ul>
+        <li>Hardening: {{hardening}}</li>
+        <li>Timestamp legal: {{legal_timestamp}}</li>
+        <li>Anchor Polygon: {{polygon_anchor}}</li>
+      </ul>
+      <p class="secondary">ID interno: {{document_id}}</p>
+    </div>
+    <div class="footer">
+      <p>No vendemos firmas. Vendemos certeza.</p>
+      <p>Si no reconoces esta accion, contactanos.</p>
+    </div>
+  </div>
+</body>
+</html>
   `
 };
 

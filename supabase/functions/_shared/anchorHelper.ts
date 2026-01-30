@@ -201,7 +201,7 @@ export async function getAnchorEvent(
  * @returns Protection level string
  */
 export function deriveProtectionLevel(events: any[]): string {
-  const hasTsa = events.some((e: any) => e.kind === 'tsa');
+  const hasTsa = events.some((e: any) => e.kind === 'tsa.confirmed');
   const hasPolygon = events.some(
     (e: any) => e.kind === 'anchor' && e.anchor?.network === 'polygon'
   );

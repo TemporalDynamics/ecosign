@@ -104,7 +104,7 @@ BEGIN
       event_kind := new_event->>'kind';
 
       -- Validate TSA events
-      IF event_kind = 'tsa' THEN
+      IF event_kind IN ('tsa', 'tsa.confirmed') THEN
         PERFORM validate_tsa_event(new_event);
 
         -- 🔒 CRITICAL: witness_hash must match document witness_hash

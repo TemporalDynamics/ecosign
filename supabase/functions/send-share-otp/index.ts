@@ -1,16 +1,18 @@
 /**
  * Send Share OTP Edge Function
- * 
+ *
  * Sends an OTP to a recipient for accessing a shared encrypted document.
  */
 
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-};
+function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
+}
 
 interface SendShareOTPRequest {
   recipientEmail: string;
@@ -22,12 +24,21 @@ interface SendShareOTPRequest {
 }
 
 Deno.serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
+    return new Response('disabled', { status: 204, headers: corsHeaders });
   }
-  // Handle CORS preflight
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders);
   }
 
   try {
@@ -44,10 +55,7 @@ Deno.serve(async (req) => {
 
     // Validate required fields
     if (!recipientEmail || !otp || !shareUrl || !documentName) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: 'Missing required fields' }, 400, corsHeaders);
     }
 
     // Get Resend API key from environment
@@ -159,22 +167,16 @@ Deno.serve(async (req) => {
 
     const emailResult = await emailResponse.json();
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        emailId: emailResult.id,
-        message: 'OTP email sent successfully',
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      success: true,
+      emailId: emailResult.id,
+      message: 'OTP email sent successfully',
+    }, 200, corsHeaders);
   } catch (error) {
     console.error('Error in send-share-otp:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }, 500, corsHeaders);
   }
 });

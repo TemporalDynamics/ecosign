@@ -2,18 +2,14 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { shouldRejectSignature } from '../../../packages/authority/src/decisions/rejectSignature.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-}
-
-const json = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), {
+function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  })
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
+}
 
 interface Payload {
   signerId: string
@@ -21,11 +17,24 @@ interface Payload {
 }
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
+    return new Response('disabled', { status: 204, headers: corsHeaders });
   }
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+
+  if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders);
+  }
+
+  if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders)
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
@@ -33,7 +42,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const body = (await req.json()) as Payload
-    if (!body?.signerId) return json({ error: 'signerId is required' }, 400)
+    if (!body?.signerId) return jsonResponse({ error: 'signerId is required' }, 400, corsHeaders)
 
     const { data: signer, error: signerError } = await supabase
       .from('workflow_signers')
@@ -42,7 +51,7 @@ serve(async (req) => {
       .single()
 
     if (signerError || !signer) {
-      return json({ error: 'Signer not found' }, 404)
+      return jsonResponse({ error: 'Signer not found' }, 404, corsHeaders)
     }
 
     // Obtener workflow para shadow mode
@@ -131,9 +140,9 @@ serve(async (req) => {
       'reject-signature'
     )
 
-    return json({ success: true })
+    return jsonResponse({ success: true }, 200, corsHeaders)
   } catch (error: any) {
     console.error('reject-signature error', error)
-    return json({ error: error?.message || 'Unexpected error' }, 500)
+    return jsonResponse({ error: error?.message || 'Unexpected error' }, 500, corsHeaders)
   }
 })

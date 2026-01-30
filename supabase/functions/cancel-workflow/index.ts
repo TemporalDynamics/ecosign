@@ -2,25 +2,34 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { shouldCancelWorkflow } from '../../../packages/authority/src/decisions/cancelWorkflow.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
 }
 
-const jsonResponse = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  })
-
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (Deno.env.get('FASE') !== '1') {
-    return new Response(null, { status: 204 });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
+
+  if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders);
+  }
+
+  if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders)
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
@@ -28,7 +37,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return jsonResponse({ error: 'Missing authorization' }, 401)
+    if (!authHeader) return jsonResponse({ error: 'Missing authorization' }, 401, corsHeaders)
 
     const supabaseAuth = createClient(
       supabaseUrl,
@@ -38,11 +47,11 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser()
     if (userError || !user) {
-      return jsonResponse({ error: 'Unauthorized', details: userError?.message }, 401)
+      return jsonResponse({ error: 'Unauthorized', details: userError?.message }, 401, corsHeaders)
     }
 
     const { workflowId } = await req.json()
-    if (!workflowId) return jsonResponse({ error: 'workflowId is required' }, 400)
+    if (!workflowId) return jsonResponse({ error: 'workflowId is required' }, 400, corsHeaders)
 
     const { data: workflow, error: workflowError } = await supabase
       .from('signature_workflows')
@@ -85,15 +94,15 @@ serve(async (req) => {
     }
 
     if (workflowError || !workflow) {
-      return jsonResponse({ error: 'Workflow not found' }, 404)
+      return jsonResponse({ error: 'Workflow not found' }, 404, corsHeaders)
     }
 
     if (workflow.owner_id !== user.id) {
-      return jsonResponse({ error: 'Forbidden' }, 403)
+      return jsonResponse({ error: 'Forbidden' }, 403, corsHeaders)
     }
 
     if (['completed', 'cancelled', 'archived'].includes(workflow.status)) {
-      return jsonResponse({ error: 'Workflow cannot be cancelled' }, 400)
+      return jsonResponse({ error: 'Workflow cannot be cancelled' }, 400, corsHeaders)
     }
 
     const { error: updateError } = await supabase
@@ -102,7 +111,7 @@ serve(async (req) => {
       .eq('id', workflowId)
 
     if (updateError) {
-      return jsonResponse({ error: 'Failed to cancel workflow' }, 500)
+      return jsonResponse({ error: 'Failed to cancel workflow' }, 500, corsHeaders)
     }
 
     await appendCanonicalEvent(
@@ -116,9 +125,9 @@ serve(async (req) => {
       'cancel-workflow'
     )
 
-    return jsonResponse({ success: true })
+    return jsonResponse({ success: true }, 200, corsHeaders)
   } catch (error) {
     console.error('cancel-workflow error', error)
-    return jsonResponse({ error: 'Internal error' }, 500)
+    return jsonResponse({ error: 'Internal error' }, 500, corsHeaders)
   }
 })

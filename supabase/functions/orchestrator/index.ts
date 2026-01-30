@@ -10,7 +10,8 @@
  */
 
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
-import { appendEvent } from '../_shared/eventHelper.ts';
+// Orchestrator ejecuta jobs y marca estado en executor_jobs.
+// Los hechos canónicos (TSA/anchors/artifact) los emiten las funciones específicas.
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -159,25 +160,6 @@ async function processJob(job: ExecutorJob): Promise<void> {
       throw new Error(`Job falló: ${JSON.stringify(result.error)}`);
     }
 
-    // Reportar resultado como evento canónico
-    const eventKind = getEventKindForResult(type);
-    const eventPayload = {
-      job_id: jobId,
-      ...result.result,
-      executed_at: new Date().toISOString()
-    };
-
-    await appendEvent(
-      supabase,
-      documentEntityId,
-      {
-        kind: eventKind,
-        at: new Date().toISOString(),
-        payload: eventPayload
-      },
-      'orchestrator'
-    );
-
     // Marcar job como completado
     await supabase
       .from('executor_jobs')
@@ -207,22 +189,6 @@ async function processJob(job: ExecutorJob): Promise<void> {
       .eq('id', jobId);
 
     throw error;
-  }
-}
-
-// Mapeo de tipos de job a eventos de resultado
-function getEventKindForResult(type: JobType): string {
-  switch (type) {
-    case 'run_tsa':
-      return 'tsa.confirmed';
-    case 'submit_anchor_polygon':
-      return 'anchor.submitted';
-    case 'submit_anchor_bitcoin':
-      return 'anchor.submitted';
-    case 'build_artifact':
-      return 'artifact.completed';
-    default:
-      return 'job.completed';
   }
 }
 
@@ -287,8 +253,9 @@ Deno.serve(async (req) => {
       );
     } catch (error) {
       console.error('Error en polling manual:', error);
+      const message = error instanceof Error ? error.message : String(error);
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: message }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -330,8 +297,9 @@ Deno.serve(async (req) => {
       }
     } catch (error) {
       console.error('Error en procesamiento POST:', error);
+      const message = error instanceof Error ? error.message : String(error);
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: message }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }

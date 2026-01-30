@@ -6,7 +6,19 @@
  * sin exponer la complejidad interna del modelo canónico.
  */
 
-import { DocumentEntity } from '../types/documentEntity.ts';
+type DocumentEntity = {
+  id: string;
+  owner_id: string;
+  source_hash: string;
+  witness_hash: string;
+  signed_hash: string;
+  composite_hash: string;
+  lifecycle_status: string;
+  created_at: string;
+  updated_at: string;
+  events?: unknown;
+  metadata?: Record<string, unknown>;
+};
 
 /**
  * Mapea una entidad canónica a un resumen de documento
@@ -19,15 +31,9 @@ export function mapEntityToDocumentSummary(entity: DocumentEntity): DocumentSumm
   
   // Derivar información desde eventos
   const hasTsa = events.some((e: any) => e.kind === 'tsa.confirmed');
-  const hasPolygon = events.some((e: any) => 
-    (e.kind === 'anchor.confirmed' || e.kind === 'anchor') && 
-    (e.payload?.network === 'polygon' || e.anchor?.network === 'polygon')
-  );
-  const hasBitcoin = events.some((e: any) => 
-    (e.kind === 'anchor.confirmed' || e.kind === 'anchor') && 
-    (e.payload?.network === 'bitcoin' || e.anchor?.network === 'bitcoin')
-  );
-  const hasArtifact = events.some((e: any) => e.kind === 'artifact.completed');
+  const hasPolygon = events.some((e: any) => e.kind === 'anchor' && e.anchor?.network === 'polygon');
+  const hasBitcoin = events.some((e: any) => e.kind === 'anchor' && e.anchor?.network === 'bitcoin');
+  const hasArtifact = events.some((e: any) => e.kind === 'artifact.finalized');
   
   // Derivar estado desde eventos
   let derivedStatus: string = 'created';
@@ -97,7 +103,7 @@ export function mapEntityToShareContext(entity: DocumentEntity): ShareContext {
     status: entity.lifecycle_status,
     has_tsa: events.some((e: any) => e.kind === 'tsa.confirmed'),
     has_anchors: events.some((e: any) => e.kind.includes('anchor')),
-    has_artifact: events.some((e: any) => e.kind === 'artifact.completed'),
+    has_artifact: events.some((e: any) => e.kind === 'artifact.finalized'),
     protection_methods: getProtectionMethods(events),
     created_at: entity.created_at,
     updated_at: entity.updated_at
@@ -199,7 +205,7 @@ function deriveProtectionStatus(events: any[]): string {
   
   const hasTsa = events.some((e: any) => e.kind === 'tsa.confirmed');
   const hasAnchors = events.some((e: any) => e.kind.includes('anchor'));
-  const hasArtifact = events.some((e: any) => e.kind === 'artifact.completed');
+  const hasArtifact = events.some((e: any) => e.kind === 'artifact.finalized');
   
   if (hasTsa && hasAnchors && hasArtifact) return 'complete';
   if (hasTsa && hasAnchors) return 'anchored';
@@ -213,16 +219,16 @@ function deriveProtectionStatus(events: any[]): string {
 function deriveAnchorStatus(events: any[]): AnchorStatus {
   if (!Array.isArray(events)) return { polygon: 'none', bitcoin: 'none' };
   
-  const polygonConfirmed = events.some((e: any) => 
-    (e.kind === 'anchor.confirmed' || e.kind === 'anchor') && 
-    (e.payload?.network === 'polygon' || e.anchor?.network === 'polygon') &&
-    e.payload?.confirmed_at
+  const polygonConfirmed = events.some((e: any) =>
+    e.kind === 'anchor' &&
+    e.anchor?.network === 'polygon' &&
+    e.anchor?.confirmed_at
   );
   
-  const bitcoinConfirmed = events.some((e: any) => 
-    (e.kind === 'anchor.confirmed' || e.kind === 'anchor') && 
-    (e.payload?.network === 'bitcoin' || e.anchor?.network === 'bitcoin') &&
-    e.payload?.confirmed_at
+  const bitcoinConfirmed = events.some((e: any) =>
+    e.kind === 'anchor' &&
+    e.anchor?.network === 'bitcoin' &&
+    e.anchor?.confirmed_at
   );
   
   return {

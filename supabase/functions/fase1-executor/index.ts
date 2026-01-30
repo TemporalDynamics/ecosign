@@ -3,12 +3,14 @@ import { appendEvent } from '../_shared/eventHelper.ts';
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts';
 import { validateEventAppend } from '../_shared/validateEventAppend.ts';
 import { decideProtectDocumentV2 } from '../_shared/protectDocumentV2Decision.ts';
-import { shouldEnqueueRunTsa, shouldEnqueuePolygon, shouldEnqueueBitcoin, shouldEnqueueArtifact } from '../_shared/decisionEngineCanonical.ts';
+import {
+  shouldEnqueueRunTsa,
+  shouldEnqueuePolygon,
+  shouldEnqueueBitcoin as shouldEnqueueBitcoinCanonical,
+  shouldEnqueueArtifact as shouldEnqueueArtifactCanonical,
+} from '../_shared/decisionEngineCanonical.ts';
 import { isDecisionUnderCanonicalAuthority } from '../_shared/featureFlags.ts';
 import { syncFlagsToDatabase } from '../_shared/flagSync.ts';
-
-// Asegurarse de que la función esté disponible
-declare function syncFlagsToDatabase(supabase: any): Promise<void>;
 
 type ExecutorJob = {
   id: string;
@@ -161,9 +163,9 @@ async function handleDocumentProtected(
 
   const hasTsaConfirmed = events.some((event: { kind?: string }) => event.kind === 'tsa.confirmed');
   const hasAnchorConfirmed = (network: 'polygon' | 'bitcoin') => events.some((event: any) =>
-    (event.kind === 'anchor' || event.kind === 'anchor.confirmed') &&
-    (event.anchor?.network === network || event.payload?.network === network) &&
-    (typeof event.anchor?.confirmed_at === 'string' || typeof event.payload?.confirmed_at === 'string')
+    event.kind === 'anchor' &&
+    event.anchor?.network === network &&
+    typeof event.anchor?.confirmed_at === 'string'
   );
   const hasPolygonConfirmed = hasAnchorConfirmed('polygon');
   const hasBitcoinConfirmed = hasAnchorConfirmed('bitcoin');
@@ -186,8 +188,8 @@ async function handleDocumentProtected(
   }
 
   // Decisión para anclaje Bitcoin basado en autoridad
-  const shouldEnqueueBitcoin = shouldEnqueueBitcoin(events, protection as string[]);
-  if (shouldEnqueueBitcoin) {
+  const shouldEnqueueBitcoinResult = shouldEnqueueBitcoinCanonical(events, protection as string[]);
+  if (shouldEnqueueBitcoinResult) {
     await enqueueExecutorJob(
       supabase,
       'submit_anchor_bitcoin',
@@ -203,8 +205,8 @@ async function handleDocumentProtected(
   }
 
   // Decisión para build artifact basado en autoridad
-  const shouldEnqueueArtifact = shouldEnqueueArtifact(events, protection as string[]);
-  if (shouldEnqueueArtifact) {
+  const shouldEnqueueArtifactResult = shouldEnqueueArtifactCanonical(events, protection as string[]);
+  if (shouldEnqueueArtifactResult) {
     await enqueueExecutorJob(
       supabase,
       'build_artifact',
@@ -316,9 +318,9 @@ async function handleProtectDocumentV2(
 
   const hasTsaConfirmed = updatedEvents.some((event: { kind?: string }) => event.kind === 'tsa.confirmed');
   const hasAnchorConfirmed = (network: 'polygon' | 'bitcoin') => updatedEvents.some((event: any) =>
-    (event.kind === 'anchor' || event.kind === 'anchor.confirmed') &&
-    (event.anchor?.network === network || event.payload?.network === network) &&
-    (typeof event.anchor?.confirmed_at === 'string' || typeof event.payload?.confirmed_at === 'string')
+    event.kind === 'anchor' &&
+    event.anchor?.network === network &&
+    typeof event.anchor?.confirmed_at === 'string'
   );
   const hasPolygonConfirmed = hasAnchorConfirmed('polygon');
   const hasBitcoinConfirmed = hasAnchorConfirmed('bitcoin');
@@ -365,7 +367,7 @@ async function handleProtectDocumentV2(
 
   // DECISIÓN DE ANCLAJES - Bitcoin
   const currentShouldEnqueueBitcoin = !isD4Canonical && hasTsaConfirmed && requiresBitcoin && !hasBitcoinConfirmed;
-  const canonicalShouldEnqueueBitcoin = shouldEnqueueBitcoin(updatedEvents, protection as string[]);
+  const canonicalShouldEnqueueBitcoin = shouldEnqueueBitcoinCanonical(updatedEvents, protection as string[]);
   const bitcoinShouldEnqueue = isD4Canonical ? canonicalShouldEnqueueBitcoin : currentShouldEnqueueBitcoin;
 
   // SHADOW COMPARISON - Bitcoin
@@ -408,7 +410,7 @@ async function handleProtectDocumentV2(
     && (!requiresPolygon || hasPolygonConfirmed)
     && (!requiresBitcoin || hasBitcoinConfirmed);
   const currentShouldEnqueueArtifact = !isD3Canonical && !hasArtifact && readyForArtifact;
-  const canonicalShouldEnqueueArtifact = shouldEnqueueArtifact(updatedEvents, protection as string[]);
+  const canonicalShouldEnqueueArtifact = shouldEnqueueArtifactCanonical(updatedEvents, protection as string[]);
   const artifactShouldEnqueue = isD3Canonical ? canonicalShouldEnqueueArtifact : currentShouldEnqueueArtifact;
 
   // SHADOW COMPARISON - Artifact
@@ -604,7 +606,8 @@ Deno.serve(async (req) => {
   try {
     await syncFlagsToDatabase(supabase);
   } catch (error) {
-    console.error('[fase1-executor] Error sincronizando flags:', error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[fase1-executor] Error sincronizando flags:', message);
     // Continuar con ejecución normal, usar valores por defecto
   }
 
@@ -612,7 +615,8 @@ Deno.serve(async (req) => {
   try {
     await requeueMissingTsaJobs(supabase);
   } catch (error) {
-    console.error('[fase1-executor] Error reencolando TSA:', error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[fase1-executor] Error reencolando TSA:', message);
   }
 
   const { data: jobs, error: claimError } = await supabase.rpc('claim_initial_decision_jobs', {
@@ -708,7 +712,7 @@ Deno.serve(async (req) => {
   return jsonResponse({ success: true, processed: results.length, results });
 });
 
-async function handleRunTsa(supabase, job) {
+async function handleRunTsa(supabase: any, job: ExecutorJob) {
   console.log(`[handleRunTsa] Processing run_tsa job: ${job.id}`);
   
   const { document_entity_id } = job.payload;

@@ -14,11 +14,11 @@ export function validateEventAppend(documentEntity: any, event: any) {
     return { ok: false, reason: 'event_kind_duplicate', contract: CONTRACT_ECO_ECOX };
   }
 
-  if (rule.requireWitnessHash && !event.payload?.witness_hash) {
+  if (rule.requireWitnessHash && !event.witness_hash) {
     return { ok: false, reason: 'event_witness_hash_required', contract: CONTRACT_ECO_ECOX };
   }
 
-  if (rule.requireTokenB64 && !event.payload?.token_b64) {
+  if (rule.requireTokenB64 && !event.tsa?.token_b64) {
     return { ok: false, reason: 'event_tsa_token_required', contract: CONTRACT_ECO_ECOX };
   }
 

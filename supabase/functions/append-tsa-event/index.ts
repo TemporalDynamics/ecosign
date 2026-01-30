@@ -1,17 +1,12 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { appendTsaEventFromEdge } from '../_shared/tsaHelper.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-};
-
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    headers: { 'Content-Type': 'application/json', ...headers },
   });
 }
 
@@ -29,13 +24,22 @@ type RequestBody = {
 };
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (Deno.env.get('FASE') !== '1') {
-    return new Response(null, { status: 204 });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (!isAllowed) {
+    return jsonResponse({ success: false, error: 'Origin not allowed' }, 403, corsHeaders);
   }
 
   try {
@@ -48,7 +52,8 @@ serve(async (req) => {
     if (!body?.document_entity_id || !body?.token_b64) {
       return jsonResponse(
         { success: false, error: 'Missing document_entity_id or token_b64' },
-        400
+        400,
+        corsHeaders
       );
     }
 
@@ -62,14 +67,16 @@ serve(async (req) => {
     if (fetchError || !entity) {
       return jsonResponse(
         { success: false, error: fetchError?.message ?? 'document_entity not found' },
-        400
+        400,
+        corsHeaders
       );
     }
 
     if (!entity.witness_hash) {
       return jsonResponse(
         { success: false, error: 'document_entity has no witness_hash' },
-        400
+        400,
+        corsHeaders
       );
     }
 
@@ -86,7 +93,7 @@ serve(async (req) => {
     });
 
     if (!result.success) {
-      return jsonResponse(result, 400);
+      return jsonResponse(result, 400, corsHeaders);
     }
 
     // 3) Return updated entity
@@ -97,18 +104,19 @@ serve(async (req) => {
       .single();
 
     if (refetchError) {
-      return jsonResponse({ success: false, error: refetchError.message }, 400);
+      return jsonResponse({ success: false, error: refetchError.message }, 400, corsHeaders);
     }
 
     return jsonResponse({
       success: true,
       document_entity: updated,
-    });
+    }, 200, corsHeaders);
   } catch (e) {
     console.error('append-tsa-event error:', e);
     return jsonResponse(
       { success: false, error: String(e) },
-      500
+      500,
+      corsHeaders
     );
   }
 });

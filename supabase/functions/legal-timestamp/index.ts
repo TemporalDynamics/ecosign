@@ -236,7 +236,7 @@ serve(async (req) => {
       token_bytes: arrayBuffer.byteLength,
       algorithm: 'SHA-256',
       standard: 'RFC 3161'
-    })
+    }, 200, corsHeaders)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error'
     console.error('legal-timestamp error', message)

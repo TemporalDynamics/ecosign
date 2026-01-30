@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1?target=deno';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 type Signer = {
   email: string;
@@ -60,12 +61,6 @@ type SignNowInviteResponse = {
   [key: string]: unknown;
 };
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-};
-
 // Retry helper with exponential backoff for network errors
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
@@ -117,14 +112,12 @@ const supabaseAdmin = (supabaseUrl && supabaseServiceKey)
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
 
-const jsonResponse = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), {
+function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json'
-    }
+    headers: { 'Content-Type': 'application/json', ...headers },
   });
+}
 
 const base64ToUint8Array = (base64: string): Uint8Array => {
   const cleaned = base64.split(',').pop() ?? '';
@@ -358,15 +351,25 @@ const downloadSignedDocument = async (documentId: string): Promise<Uint8Array | 
 };
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
+    return new Response('disabled', { status: 204, headers: corsHeaders });
   }
+
   if (req.method === 'OPTIONS') {
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
     return new Response('ok', { headers: corsHeaders });
   }
 
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders);
+  }
+
   if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+    return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders);
   }
 
   let integrationRequestId: string | null = null;
@@ -394,11 +397,11 @@ serve(async (req) => {
     } = body;
 
     if (!Array.isArray(signers) || signers.length === 0) {
-      return jsonResponse({ error: 'At least one signer is required' }, 400);
+      return jsonResponse({ error: 'At least one signer is required' }, 400, corsHeaders);
     }
 
     if (!documentFile?.base64) {
-      return jsonResponse({ error: 'Missing original document payload (documentFile.base64)' }, 400);
+      return jsonResponse({ error: 'Missing original document payload (documentFile.base64)' }, 400, corsHeaders);
     }
 
     const client = workflowId ? ensureSupabaseClient() : null;
@@ -579,7 +582,8 @@ serve(async (req) => {
       next_steps: 'SignNow enviará los eventos al webhook cuando el documento esté firmado. El PDF final con audit trail se descargará y guardará automáticamente.',
       signnow_document_id: signNowDocumentId,
       signnow_embed_url: signingUrl,
-      workflow_id: workflowId || null
+      workflow_id: workflowId || null,
+      cors_headers: corsHeaders
     };
 
     // Si viene workflowId, enlazar documento/URL a workflow y firmantes
@@ -631,10 +635,10 @@ serve(async (req) => {
       }
     }
 
-    return jsonResponse(responsePayload, 200);
+    return jsonResponse(responsePayload, 200, corsHeaders);
   } catch (error) {
     console.error('SignNow function error', error);
     const message = error instanceof Error ? error.message : String(error);
-    return jsonResponse({ error: message || 'Unexpected error' }, 500);
+    return jsonResponse({ error: message || 'Unexpected error' }, 500, corsHeaders);
   }
 });

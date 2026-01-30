@@ -97,7 +97,7 @@ export function getAvailableTSAs() {
  * This is the canonical way to timestamp a document.
  * - Requests RFC 3161 token from TSA
  * - Verifies token locally
- * - Persists to events[] via appendTsaEvent
+ * - Persists to events[] via append-tsa-event Edge Function
  * 
  * @param documentId - document_entities.id
  * @param witnessHash - canonical witness_hash (must match DB)

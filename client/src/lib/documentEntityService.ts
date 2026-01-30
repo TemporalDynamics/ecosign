@@ -57,7 +57,7 @@ export type TsaEventPayload = {
 };
 
 export type TsaEvent = {
-  kind: 'tsa';
+  kind: 'tsa.confirmed';
   at: string;
   witness_hash: string;
   tsa: {
@@ -354,116 +354,55 @@ export const appendOperationEvent = async (
     metadata?: Record<string, unknown>;
   }
 ) => {
-  // Validate kind
-  if (!['operation.document_added', 'operation.document_removed'].includes(eventPayload.kind)) {
-    throw new Error(`Invalid operation event kind: ${eventPayload.kind}`);
-  }
-
-  // Ensure document exists
-  const doc = await getDocumentEntity(documentId);
-
-  // Ensure operation exists
-  const supabase = getSupabase();
-  const { data: opData, error: opError } = await supabase
-    .from('operations')
-    .select('id')
-    .eq('id', eventPayload.operation_id)
-    .maybeSingle();
-
-  if (opError) {
-    console.error('Error validating operation_id:', opError);
-    throw opError;
-  }
-
-  if (!opData) {
-    throw new Error(`Invalid operation_id: ${eventPayload.operation_id}`);
-  }
-
-  // Build canonical event
-  const event = {
-    kind: eventPayload.kind,
-    at: new Date().toISOString(),
-    actor: eventPayload.actor,
-    operation_id: eventPayload.operation_id,
-    document_entity_id: documentId,
-    reason: eventPayload.reason ?? null,
-    metadata: eventPayload.metadata ?? {},
-  };
-
-  // Append to document.events[] (append-only)
-  const currentEvents = Array.isArray(doc.events) ? doc.events : [];
-  const { error } = await getSupabase()
-    .from('document_entities')
-    .update({ events: [...currentEvents, event] })
-    .eq('id', documentId);
-
-  if (error) {
-    throw new Error(`Failed to append operation event: ${error.message}`);
-  }
+  /**
+   * @deprecated
+   * Do not write to document_entities.events[] from the client.
+   * The canonical ledger is append-only and guarded server-side.
+   *
+   * Use `public.operations_events` via `appendOperationsEvent()` (already used)
+   * or a dedicated Edge Function that calls `append_document_entity_event()`.
+   */
+  throw new Error('appendOperationEvent is deprecated: client must not update document_entities.events[]');
 };
 
 export const appendDocumentEvent = async (
   documentId: string,
   event: Record<string, unknown>
 ) => {
-  const doc = await getDocumentEntity(documentId);
-  const currentEvents = Array.isArray(doc.events) ? doc.events : [];
-  const { error } = await getSupabase()
-    .from('document_entities')
-    .update({
-      events: [...currentEvents, event],
-    })
-    .eq('id', documentId);
-
-  if (error) {
-    throw new Error(`Failed to append document event: ${error.message}`);
-  }
+  /**
+   * @deprecated
+   * Do not write to document_entities.events[] from the client.
+   * Use server-side writers (Edge Functions) that call append_document_entity_event().
+   */
+  throw new Error('appendDocumentEvent is deprecated: client must not update document_entities.events[]');
 };
 
 export const appendTsaEvent = async (
   documentId: string,
   payload: TsaEventPayload
 ) => {
-  const doc = await getDocumentEntity(documentId);
-
-  // MUST: witness_hash consistency check
-  if (payload.witness_hash !== doc.witness_hash) {
-    throw new Error(
-      `TSA witness_hash mismatch: expected ${doc.witness_hash}, got ${payload.witness_hash}`
-    );
-  }
-
-  // MUST: witness_hash must exist (document must have witness)
-  if (!doc.witness_hash) {
-    throw new Error('Cannot append TSA event: document has no witness_hash');
-  }
-
-  // Build TSA event
-  const event: TsaEvent = {
-    kind: 'tsa',
-    at: new Date().toISOString(),
-    witness_hash: payload.witness_hash,
-    tsa: {
+  // Canonical client path: call Edge writer (service role inside) to append TSA evidence.
+  // This prevents client-side dialects and respects DB enforcement.
+  const supabase = getSupabase();
+  const { data, error } = await supabase.functions.invoke('append-tsa-event', {
+    body: {
+      document_entity_id: documentId,
       token_b64: payload.token_b64,
       gen_time: payload.gen_time,
       policy_oid: payload.policy_oid,
       serial: payload.serial,
-      digest_algo: payload.digest_algo || 'sha256',
+      digest_algo: payload.digest_algo,
       tsa_cert_fingerprint: payload.tsa_cert_fingerprint,
       token_hash: payload.token_hash,
-    },
-  };
-
-  // Append to events[] (DB trigger will validate)
-  const currentEvents = Array.isArray(doc.events) ? doc.events : [];
-  const { error } = await getSupabase()
-    .from('document_entities')
-    .update({
-      events: [...currentEvents, event],
-    })
-    .eq('id', documentId);
+      expected_witness_hash: payload.witness_hash,
+    }
+  });
 
   if (error) {
-    throw new Error(`Failed to append TSA event: ${error.message}`);
+    throw new Error(error.message || 'Failed to append TSA event via Edge Function');
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || 'Failed to append TSA event');
   }
 };

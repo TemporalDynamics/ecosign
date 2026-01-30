@@ -32,25 +32,16 @@ interface ExecutorJob {
 // Handlers para cada tipo de job
 const jobHandlers: Record<JobType, (job: ExecutorJob) => Promise<any>> = {
   'run_tsa': async (job) => {
-    const { witness_hash, document_entity_id } = job.payload;
-    
-    console.log(`🏃 Ejecutando TSA para entity: ${document_entity_id}`);
-    
-    // Llamar al worker de TSA
-    const tsaResponse = await callFunction('legal-timestamp', {
-      hash_hex: String(witness_hash),
+    const documentEntityId = String(job.payload?.document_entity_id ?? job.entity_id);
+
+    console.log(`🏃 Ejecutando TSA (canónico) para entity: ${documentEntityId}`);
+
+    // Use canonical TSA writer which is idempotent (noop if already confirmed)
+    const tsaResponse = await callFunction('run-tsa', {
+      document_entity_id: documentEntityId,
     });
 
-    return {
-      success: true,
-      result: {
-        witness_hash,
-        token_b64: tsaResponse.token,
-        tsa_url: tsaResponse.tsa_url,
-        algorithm: tsaResponse.algorithm,
-        standard: tsaResponse.standard,
-      }
-    };
+    return { success: true, result: tsaResponse };
   },
 
   'submit_anchor_polygon': async (job) => {

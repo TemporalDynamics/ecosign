@@ -5,7 +5,7 @@
 
 import { getSupabase } from './supabaseClient';
 import { verifyTSRToken } from './tsrVerifier';
-import { appendTsaEvent, type TsaEventPayload } from './documentEntityService';
+import type { TsaEventPayload } from './documentEntityService';
 
 const DEFAULT_TSA_URL = 'https://freetsa.org/tsr';
 
@@ -108,26 +108,13 @@ export async function requestAndPersistTsa(
   witnessHash: string,
   options: TimestampOptions = {}
 ) {
-  // Step 1: Request TSA token
-  const tsaResponse = await requestLegalTimestamp(witnessHash, options);
-
-  // Step 2: Build TSA event payload
-  const payload: TsaEventPayload = {
-    token_b64: tsaResponse.token,
-    witness_hash: witnessHash,
-    gen_time: tsaResponse.timestamp,
-    policy_oid: tsaResponse.policy || undefined,
-    serial: tsaResponse.serialNumber || undefined,
-    digest_algo: tsaResponse.algorithm || 'SHA-256',
-  };
-
-  // Step 3: Persist to events[] (triggers DB validation)
-  await appendTsaEvent(documentId, payload);
-
-  return {
-    success: true,
-    timestamp: tsaResponse.timestamp,
-    tsa_url: tsaResponse.tsaUrl,
-    verified: tsaResponse.verified,
-  };
+  /**
+   * @deprecated
+   * TSA evidence must be produced server-side via the job pipeline.
+   * Keep this function only as a stub to prevent legacy callers.
+   */
+  void documentId;
+  void witnessHash;
+  void options;
+  throw new Error('requestAndPersistTsa is deprecated: TSA must be produced server-side via jobs (run-tsa)');
 }

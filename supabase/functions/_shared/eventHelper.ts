@@ -31,6 +31,11 @@ function isUuid(v: unknown): v is string {
   return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
+const LEGACY_UNDERSCORE_EVENT_KINDS = new Set([
+  // Legacy (pre-dot-notation). Allowed temporarily.
+  'protection_enabled',
+]);
+
 // Clasificación formal de eventos
 export type EventClass = 'evidence' | 'tracking';
 
@@ -98,7 +103,7 @@ export async function appendEvent(
       return { success: false, error: 'Event must have an "at" ISO 8601 timestamp' };
     }
 
-    if (event.kind.includes('_')) {
+    if (event.kind.includes('_') && !LEGACY_UNDERSCORE_EVENT_KINDS.has(event.kind)) {
       return { success: false, error: `Event kind must not contain underscore: "${event.kind}"` };
     }
 

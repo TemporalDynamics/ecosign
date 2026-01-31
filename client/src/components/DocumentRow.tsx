@@ -57,12 +57,17 @@ export default function DocumentRow({
     (e: any) => e.kind === 'anchor.failed' || e.kind === 'tsa.failed' || e.kind === 'protection.failed'
   );
 
+  const hasProtectionRequested = Array.isArray(document.events) && document.events.some(
+    (e: any) => e.kind === 'document.protected.requested'
+  );
+
   // Simple status derivation
   type SimpleStatus = 'processing' | 'protected' | 'error';
   let simpleStatus: SimpleStatus = 'processing';
   let statusLabel = '⏳ Procesando';
   let statusBg = 'bg-amber-100';
   let statusColor = 'text-amber-700';
+  let statusTooltip: string | undefined = undefined;
 
   if (hasError) {
     simpleStatus = 'error';
@@ -75,6 +80,12 @@ export default function DocumentRow({
     statusLabel = '✅ Protegido';
     statusBg = 'bg-emerald-100';
     statusColor = 'text-emerald-700';
+  }
+
+  if (simpleStatus === 'processing') {
+    statusTooltip = hasProtectionRequested
+      ? 'El sello de tiempo (TSA) se esta confirmando. En unos segundos este estado cambiara automaticamente (no hace falta refrescar).'
+      : 'El documento se esta procesando. Este estado se actualiza automaticamente.';
   }
 
   if (asRow) {
@@ -96,7 +107,10 @@ export default function DocumentRow({
         </div>
 
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${statusBg} ${statusColor}`}>
+          <span
+            className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${statusBg} ${statusColor}`}
+            title={statusTooltip}
+          >
             {statusLabel}
           </span>
         </div>

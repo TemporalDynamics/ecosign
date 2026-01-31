@@ -17,10 +17,19 @@
 // and strict generic types frequently diverge across functions.
 
 export type GenericEvent = {
+  id?: string;
   kind: string;
   at: string; // ISO 8601 timestamp
+  v?: number;
+  actor?: string;
+  entity_id?: string;
+  correlation_id?: string;
   [key: string]: any; // Contextual data specific to event kind
 };
+
+function isUuid(v: unknown): v is string {
+  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
 
 // Clasificación formal de eventos
 export type EventClass = 'evidence' | 'tracking';
@@ -89,6 +98,10 @@ export async function appendEvent(
       return { success: false, error: 'Event must have an "at" ISO 8601 timestamp' };
     }
 
+    if (event.kind.includes('_')) {
+      return { success: false, error: `Event kind must not contain underscore: "${event.kind}"` };
+    }
+
     // 2. Validate source authority for this event kind (guardrail)
     if (AUTHORIZED_SOURCES[event.kind]) {
       if (!source) {
@@ -124,9 +137,18 @@ export async function appendEvent(
       return { success: false, error: 'Event "at" must be valid ISO 8601 timestamp' };
     }
 
+    const envelope = {
+      ...event,
+      id: isUuid(event.id) ? event.id : crypto.randomUUID(),
+      v: typeof event.v === 'number' ? event.v : 1,
+      actor: typeof event.actor === 'string' && event.actor.length > 0 ? event.actor : (source ?? 'unknown'),
+      entity_id: isUuid(event.entity_id) ? event.entity_id : documentEntityId,
+      correlation_id: isUuid(event.correlation_id) ? event.correlation_id : crypto.randomUUID(),
+    };
+
     const { error: rpcError } = await supabase.rpc('append_document_entity_event', {
       p_document_entity_id: documentEntityId,
-      p_event: event,
+      p_event: envelope,
       p_source: source ?? null,
     });
 

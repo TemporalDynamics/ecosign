@@ -935,7 +935,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     // FASE 3.A: Show progress (P0.5)
     setCertifyProgress({
       stage: 'preparing',
-      message: 'Preparando documento...'
+      message: ''
     });
 
     try {
@@ -1458,14 +1458,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       // FASE 3.A: Update progress to timestamping (P0.5)
       setCertifyProgress({
         stage: 'timestamping',
-        message: 'Generando timestamp legal...'
+        message: ''
       });
 
       // FASE 3.C: Timeout detection (P0.6)
       timeoutWarning = setTimeout(() => {
         setCertifyProgress(prev => ({
           ...prev,
-          message: 'Generando timestamp legal... (puede tardar más de lo habitual)'
+          message: 'puede tardar'
         }));
       }, 5000); // Show warning after 5 seconds
 
@@ -1594,7 +1594,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       // FASE 3.A: Update progress to generating certificate (P0.5)
       setCertifyProgress({
         stage: 'generating',
-        message: 'Generando certificado .ECO...'
+        message: ''
       });
 
       let ecoData = certResult.ecoData;

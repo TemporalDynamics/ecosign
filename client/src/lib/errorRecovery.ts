@@ -23,7 +23,7 @@ export type CertifyStage =
  * After timestamping, the document is saved in backend (even if later steps fail).
  */
 export function determineIfWorkSaved(stage: CertifyStage): boolean {
-  // Saved stages: from timestamping onwards (TSA is persisted)
+  // Saved stages: from timestamping onwards (core record exists; proof may complete async)
   const savedStages: CertifyStage[] = [
     'timestamping',
     'anchoring',
@@ -59,10 +59,10 @@ export function canRetryFromStage(stage: CertifyStage): boolean {
 export function getStageName(stage: CertifyStage): string {
   const stageNames: Record<CertifyStage, string> = {
     idle: 'Iniciando',
-    preparing: 'Preparando documento',
-    timestamping: 'Timestamping legal',
-    anchoring: 'Anclaje blockchain',
-    generating: 'Generando certificado',
+    preparing: 'Documento preparado',
+    timestamping: 'Sello de tiempo en proceso',
+    anchoring: 'Refuerzos en segundo plano',
+    generating: 'Certificado EcoSign en preparacion',
     done: 'Completado',
   };
 

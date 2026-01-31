@@ -97,31 +97,33 @@ export function CertifyProgress({
           <Loader2 className="w-6 h-6 text-gray-900 animate-spin flex-shrink-0" />
           <div className="flex-1">
             <h3 className="font-semibold text-gray-900">
-              Certificando documento
+              Protegiendo tu documento
             </h3>
-            <p className="text-sm text-gray-600 mt-1">{message}</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Iniciamos la generacion de una prueba verificable e independiente.
+            </p>
           </div>
         </div>
 
         {/* P0.5: Pasos visibles */}
         <div className="space-y-2">
           <ProgressStep
-            label="Preparando documento"
+            label="Documento preparado"
             status={getStepStatus(stage, 'preparing')}
           />
           <ProgressStep
-            label="Timestamping legal"
+            label="Sello de tiempo en proceso"
             status={getStepStatus(stage, 'timestamping')}
           />
           <ProgressStep
-            label="Anclaje blockchain"
-            status={getStepStatus(stage, 'anchoring')}
-          />
-          <ProgressStep
-            label="Generando certificado"
+            label="Certificado EcoSign en preparacion"
             status={getStepStatus(stage, 'generating')}
           />
         </div>
+
+        <p className="text-xs text-gray-600 mt-4">
+          Podes seguir trabajando. Este proceso se completa automaticamente y el estado se actualiza solo.
+        </p>
 
         {/* P0.6: Timeout feedback */}
         {message.includes('puede tardar') && (

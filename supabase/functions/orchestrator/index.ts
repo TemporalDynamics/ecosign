@@ -21,6 +21,8 @@ const WORKER_ID = 'orchestrator';
 const RUN_INSTANCE_ID = crypto.randomUUID();
 const RUN_WORKER_ID = `${WORKER_ID}-${RUN_INSTANCE_ID}`;
 
+const HEARTBEAT_INTERVAL_MS = 15_000;
+
 // Tipos de jobs soportados
 type JobType = 'run_tsa' | 'submit_anchor_polygon' | 'submit_anchor_bitcoin' | 'build_artifact';
 
@@ -167,8 +169,35 @@ async function processJob(job: ExecutorJob): Promise<void> {
   const startedAt = new Date();
   await logRun('started', job, startedAt);
 
+  const isLongJob = type === 'run_tsa' || type === 'submit_anchor_polygon' || type === 'submit_anchor_bitcoin';
+  let heartbeatTimer: number | null = null;
+  const stopHeartbeat = () => {
+    if (heartbeatTimer !== null) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  };
+
+  const startHeartbeat = () => {
+    if (!isLongJob) return;
+    if (heartbeatTimer !== null) return;
+    heartbeatTimer = setInterval(async () => {
+      try {
+        await supabase.rpc('update_job_heartbeat', {
+          p_job_id: jobId,
+          p_worker_id: WORKER_ID,
+        });
+      } catch (e) {
+        // Non-fatal: reclaim TTL is still the fallback.
+        console.warn(`[orchestrator] heartbeat update failed for job ${jobId}:`, e);
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+  };
+
   try {
     console.log(`🔧 Procesando job: ${jobId} (${type}) para entity: ${documentEntityId}`);
+
+    startHeartbeat();
 
     // NOTA: El job ya fue reclamado por claim_orchestrator_jobs
     // con status='processing', locked_at=now(), locked_by='orchestrator', attempts incrementado
@@ -187,6 +216,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
     }
 
     // Marcar job como completado
+    stopHeartbeat();
     await supabase
       .from('executor_jobs')
       .update({
@@ -204,6 +234,8 @@ async function processJob(job: ExecutorJob): Promise<void> {
 
   } catch (error) {
     console.error(`❌ Error procesando job ${jobId}:`, error);
+
+    stopHeartbeat();
 
     const finishedAt = new Date();
     const message = error instanceof Error ? error.message : String(error);

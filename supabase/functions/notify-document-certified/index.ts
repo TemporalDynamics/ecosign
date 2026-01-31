@@ -7,11 +7,12 @@ import { getUserDocumentId } from '../_shared/eventHelper.ts';
 // TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
 
-serve(async (req) => {
-  if (Deno.env.get('FASE') !== '1') {
-    return new Response(null, { status: 204 });
-  }
+serve(async (req: Request) => {
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   if (req.method === 'OPTIONS') {
     if (!isAllowed) {
@@ -94,8 +95,9 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error sending document certified notification:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,

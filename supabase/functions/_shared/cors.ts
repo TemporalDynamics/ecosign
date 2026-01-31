@@ -40,9 +40,13 @@ export function getCorsHeaders(origin?: string) {
     !normalizedOrigin ||
     isNullOrigin ||
     allowedOrigins.includes(normalizedOrigin);
-  const allowOrigin = normalizedOrigin
-    ? (isAllowed ? normalizedOrigin : 'null')
-    : (allowedOrigins[0] || 'null');
+
+  // In some contexts (file://, sandboxed iframes, opaque origins), browsers use Origin: null.
+  // Using '*' here avoids brittle mismatches while still requiring auth for protected endpoints.
+  const allowOrigin =
+    !normalizedOrigin || isNullOrigin
+      ? '*'
+      : (isAllowed ? normalizedOrigin : 'null');
 
   return {
     isAllowed,

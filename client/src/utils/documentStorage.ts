@@ -364,6 +364,7 @@ export async function getUserDocuments(): Promise<any[]> {
     .select(`
       id,
       document_name,
+      document_entity_id,
       document_hash,
       created_at,
       updated_at,
@@ -376,7 +377,10 @@ export async function getUserDocuments(): Promise<any[]> {
       overall_status,
       notes,
       file_type,
-      document_size
+      document_size,
+      document_entity:document_entities(
+        events
+      )
     `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
@@ -386,8 +390,16 @@ export async function getUserDocuments(): Promise<any[]> {
     throw new Error(`Error al obtener documentos: ${error.message}`);
   }
 
-  // Return all fields (no transformation needed - DocumentsPage expects full data)
-  return data || [];
+  // Flatten canonical events for UI status (DocumentRow expects document.events)
+  const rows = (data || []).map((row: any) => {
+    const events = row?.document_entity?.events;
+    return {
+      ...row,
+      events: Array.isArray(events) ? events : [],
+    };
+  });
+
+  return rows;
 }
 
 /**

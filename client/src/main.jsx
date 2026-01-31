@@ -70,7 +70,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 )
 
 // Register service worker
-if ('serviceWorker' in navigator) {
+// TEMPORARILY DISABLED - debugging CORS issue with Origin: null
+// TODO: Re-enable after fixing SW CORS issue
+if (false && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
       .then(() => {

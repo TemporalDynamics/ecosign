@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ecosign-cache-v2';
+const CACHE_NAME = 'ecosign-cache-v3';
 const urlsToCache = [
   '/assets/icons/icon-72x72.png',
   '/assets/icons/icon-96x96.png',

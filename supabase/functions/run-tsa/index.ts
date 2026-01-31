@@ -39,7 +39,7 @@ async function callFunction(name: string, body: Record<string, unknown>) {
 }
 
 async function emitEvent(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   documentEntityId: string,
   event: { kind: string; at: string; [key: string]: unknown },
   source: string,
@@ -81,6 +81,19 @@ serve(async (req) => {
   const events = Array.isArray(entity.events) ? entity.events : [];
   if (events.some((event: { kind?: string }) => event.kind === 'tsa.confirmed')) {
     return jsonResponse({ success: true, noop: true });
+  }
+
+  // Guard: TSA evidence must be causally after an explicit protection request.
+  // This prevents out-of-order histories caused by races or alternate writers.
+  const hasProtectionRequest = events.some((event: { kind?: string }) => event.kind === 'document.protected.requested');
+  if (!hasProtectionRequest) {
+    return jsonResponse(
+      {
+        error: 'precondition_failed:missing_document.protected.requested',
+        retryable: true,
+      },
+      409,
+    );
   }
 
   const witnessHash = String(entity.witness_hash ?? '');

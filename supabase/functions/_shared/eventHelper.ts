@@ -12,7 +12,9 @@
  *   }, 'create-signer-link'); // source is optional but valuable
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// NOTE: We intentionally accept a loosely-typed Supabase client here.
+// The Edge runtime imports supabase-js via different module URLs/versions,
+// and strict generic types frequently diverge across functions.
 
 export type GenericEvent = {
   kind: string;
@@ -43,14 +45,15 @@ export const EVENT_CLASS: Record<string, EventClass> = {
 const AUTHORIZED_SOURCES: Record<string, string[]> = {
   // Eventos de evidencia fuerte (requieren _source verificable)
   'document.signed': ['process-signature'],
-  'tsa.confirmed': ['process-signature', 'legal-timestamp', 'fase1-executor', 'run-tsa'],
+  // TSA evidence is emitted only by run-tsa (job-driven).
+  'tsa.confirmed': ['run-tsa'],
   'anchor.pending': ['submit-anchor-polygon', 'submit-anchor-bitcoin'],
   'anchor': ['process-polygon-anchors', 'process-bitcoin-anchors'],  // confirmación real
   'artifact.finalized': ['build-artifact'],
   'document.protected.requested': ['start-signature-workflow', 'record-protection-event'],
 
   // Eventos de seguimiento/fallo (requieren _source verificable)
-  'tsa.failed': ['process-signature', 'fase1-executor', 'run-tsa'],
+  'tsa.failed': ['run-tsa'],
   'anchor.failed': ['submit-anchor-*', 'process-polygon-anchors', 'process-bitcoin-anchors'],
   'artifact.failed': ['build-artifact'],
   'protection.failed': ['record-protection-event'],
@@ -71,7 +74,7 @@ const AUTHORIZED_SOURCES: Record<string, string[]> = {
  * @returns Success/error result
  */
 export async function appendEvent(
-  supabase: SupabaseClient,
+  supabase: any,
   documentEntityId: string,
   event: GenericEvent,
   source?: string
@@ -138,9 +141,10 @@ export async function appendEvent(
     return { success: true };
   } catch (error) {
     console.error('Unexpected error in appendEvent:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error: `Unexpected error: ${error.message || 'unknown error'}`
+      error: `Unexpected error: ${message || 'unknown error'}`
     };
   }
 }
@@ -156,7 +160,7 @@ export async function appendEvent(
  * @returns document_entity_id or null
  */
 export async function getDocumentEntityId(
-  supabase: SupabaseClient,
+  supabase: any,
   userDocumentId: string
 ): Promise<string | null> {
   try {
@@ -189,7 +193,7 @@ export async function getDocumentEntityId(
  * @returns user_documents.id or null
  */
 export async function getUserDocumentId(
-  supabase: SupabaseClient,
+  supabase: any,
   documentEntityId: string
 ): Promise<string | null> {
   try {

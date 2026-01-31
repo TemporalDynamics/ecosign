@@ -381,28 +381,11 @@ export const appendTsaEvent = async (
   documentId: string,
   payload: TsaEventPayload
 ) => {
-  // Canonical client path: call Edge writer (service role inside) to append TSA evidence.
-  // This prevents client-side dialects and respects DB enforcement.
-  const supabase = getSupabase();
-  const { data, error } = await supabase.functions.invoke('append-tsa-event', {
-    body: {
-      document_entity_id: documentId,
-      token_b64: payload.token_b64,
-      gen_time: payload.gen_time,
-      policy_oid: payload.policy_oid,
-      serial: payload.serial,
-      digest_algo: payload.digest_algo,
-      tsa_cert_fingerprint: payload.tsa_cert_fingerprint,
-      token_hash: payload.token_hash,
-      expected_witness_hash: payload.witness_hash,
-    }
-  });
-
-  if (error) {
-    throw new Error(error.message || 'Failed to append TSA event via Edge Function');
-  }
-
-  if (!data?.success) {
-    throw new Error(data?.error || 'Failed to append TSA event');
-  }
+  /**
+   * @deprecated
+   * Do not write TSA evidence from the client.
+   * TSA is produced server-side via the job pipeline (run-tsa) and appended as tsa.confirmed.
+   */
+  void payload;
+  throw new Error('appendTsaEvent is deprecated: TSA must be produced server-side via jobs (run-tsa)');
 };

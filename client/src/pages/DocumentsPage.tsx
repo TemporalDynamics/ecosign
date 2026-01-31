@@ -322,6 +322,7 @@ function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [planTier, setPlanTier] = useState<PlanTier>(null); // free | pro | business | enterprise
   const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
+  const [pendingOpenEntityId, setPendingOpenEntityId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -677,6 +678,45 @@ function DocumentsPage() {
     loadDocuments();
     loadPlan();
   }, [loadDocuments, loadPlan]);
+
+  // Deep-link from other flows (e.g. duplicate name warning)
+  useEffect(() => {
+    try {
+      const id = sessionStorage.getItem('ecosign_open_document_entity_id');
+      if (id) {
+        sessionStorage.removeItem('ecosign_open_document_entity_id');
+        setPendingOpenEntityId(id);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingOpenEntityId) return;
+
+    const open = async () => {
+      try {
+        const found = documents.find((d) => d.document_entity_id === pendingOpenEntityId || d.id === pendingOpenEntityId);
+        if (found) {
+          setPreviewDoc(found);
+          setPendingOpenEntityId(null);
+          return;
+        }
+
+        const docEntity = await getDocumentEntity(pendingOpenEntityId);
+        const mapped = mapDocumentEntityToRecord(docEntity as any);
+        setPreviewDoc(mapped);
+      } catch (err) {
+        console.error('Error opening document from deep link:', err);
+        toast.error('No se pudo abrir el documento', { position: 'top-right' });
+      } finally {
+        setPendingOpenEntityId(null);
+      }
+    };
+
+    open();
+  }, [pendingOpenEntityId, documents]);
 
   useEffect(() => {
     if (!editingOperation) return;

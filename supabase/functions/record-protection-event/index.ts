@@ -31,6 +31,9 @@ interface RecordProtectionRequest {
 serve(withRateLimit('record', async (req) => {
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
 
+  // Used for best-effort failure event reporting in catch.
+  let documentEntityId: string | null = null
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     if (!isAllowed) {
@@ -84,7 +87,7 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Missing required field: document_id or document_entity_id')
     }
 
-    let documentEntityId = document_entity_id ?? null
+    documentEntityId = document_entity_id ?? null
     let userDocumentId = document_id ?? null
 
     if (!documentEntityId && userDocumentId) {
@@ -146,6 +149,11 @@ serve(withRateLimit('record', async (req) => {
       protectionMethods.push('bitcoin')
     }
 
+    const requestEventKind =
+      flowVersion === 'v2'
+        ? FASE1_EVENT_KINDS.DOCUMENT_PROTECTED_REQUESTED
+        : FASE1_EVENT_KINDS.DOCUMENT_PROTECTED
+
     // Construct the protection_enabled event (legacy-compatible)
     const protectionEvent = {
       kind: 'protection_enabled',
@@ -164,6 +172,29 @@ serve(withRateLimit('record', async (req) => {
       }
     }
 
+    // Idempotency: if protection was already requested, treat this call as success.
+    const { data: existingEvents } = await supabase
+      .from('document_entities')
+      .select('events')
+      .eq('id', documentEntityId)
+      .single();
+
+    const eventsArr = Array.isArray(existingEvents?.events) ? existingEvents.events : [];
+    const alreadyRequested = eventsArr.some((e: any) => e?.kind === requestEventKind);
+    if (alreadyRequested) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          event_recorded: false,
+          idempotent: true,
+          document_id: userDocumentId,
+          document_entity_id: documentEntityId,
+          protection_methods: protectionMethods,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
+      );
+    }
+
     // Append event to canonical ledger
     const eventResult = await appendEvent(
       supabase,
@@ -177,10 +208,6 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Failed to record protection event: ' + eventResult.error)
     }
 
-    const requestEventKind =
-      flowVersion === 'v2'
-        ? FASE1_EVENT_KINDS.DOCUMENT_PROTECTED_REQUESTED
-        : FASE1_EVENT_KINDS.DOCUMENT_PROTECTED
     const documentProtectedEvent = {
       kind: requestEventKind,
       at: new Date().toISOString(),
@@ -205,12 +232,14 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Failed to record document.protected event: ' + protectedResult.error)
     }
 
+    const dedupeKey = `${documentEntityId}:${flowVersion === 'v2' ? 'protect_document_v2' : 'document.protected'}`;
     const { error: enqueueError } = await supabase
       .from('executor_jobs')
       .insert({
         type: flowVersion === 'v2' ? 'protect_document_v2' : FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
         entity_type: 'document',
         entity_id: documentEntityId,
+        dedupe_key: dedupeKey,
         payload: {
           document_entity_id: documentEntityId,
           document_id: userDocumentId,
@@ -223,7 +252,10 @@ serve(withRateLimit('record', async (req) => {
 
     if (enqueueError) {
       console.error('Failed to enqueue executor job:', enqueueError.message)
-      throw new Error('Failed to enqueue executor job: ' + enqueueError.message)
+      // If dedupe_key already exists, treat as idempotent success.
+      if (!enqueueError.message?.toLowerCase().includes('duplicate')) {
+        throw new Error('Failed to enqueue executor job: ' + enqueueError.message)
+      }
     }
 
     console.log(`✅ protection_enabled + ${requestEventKind} recorded for document ${userDocumentId}`)
@@ -244,6 +276,8 @@ serve(withRateLimit('record', async (req) => {
   } catch (error) {
     console.error('Error in record-protection-event:', error)
 
+    const message = error instanceof Error ? error.message : String(error)
+
     // Try to record protection.failed event if we have document_entity_id
     try {
       if (documentEntityId) {
@@ -258,8 +292,8 @@ serve(withRateLimit('record', async (req) => {
             kind: 'protection.failed',
             at: new Date().toISOString(),
             error: {
-              message: error.message || 'Internal server error',
-              code: error.code || 'UNKNOWN_ERROR'
+              message: message || 'Internal server error',
+              code: 'RECORD_PROTECTION_FAILED'
             }
           },
           'record-protection-event'
@@ -273,7 +307,7 @@ serve(withRateLimit('record', async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Internal server error'
+        error: message || 'Internal server error'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

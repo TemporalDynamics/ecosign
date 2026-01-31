@@ -67,52 +67,8 @@ import { LegalCenterStage } from './centro-legal/stage';
 const USE_SCENE_RENDERER = true; // FASE 1: SceneRenderer
 const USE_NEW_STAGE = true;      // FASE 2: Stage (canvas invariante - modelo de capas)
 
-/**
- * Helper to persist TSA event to document_entities.events[] via Edge Function
- * This is the canonical way to append TSA events - uses server-side validation
- */
-async function persistTsaToEvents(
-  documentEntityId: string,
-  certResult: any,
-  witnessHash: string
-): Promise<void> {
-  try {
-    // Extract TSA token from certResult
-    const tsaToken = certResult?.ecoData?.signatures?.[0]?.legalTimestamp?.token;
-
-    if (!tsaToken) {
-      console.warn('⚠️ No TSA token in certResult, skipping persistence');
-      return;
-    }
-
-    const supabase = getSupabase();
-
-    console.log('📝 Persisting TSA event to document_entities.events[]...');
-    const { data, error } = await supabase.functions.invoke('append-tsa-event', {
-      body: {
-        document_entity_id: documentEntityId,
-        token_b64: tsaToken,
-        gen_time: certResult?.timestamp,
-        tsa_url: certResult?.legalTimestamp?.tsa || 'https://freetsa.org/tsr',
-        digest_algo: 'sha256',
-        expected_witness_hash: witnessHash,
-      }
-    });
-
-    if (error) {
-      console.error('❌ Failed to persist TSA event:', error);
-      return;
-    }
-
-    if (data?.success) {
-      console.log('✅ TSA event persisted to events[]:', data);
-    } else {
-      console.error('❌ TSA persistence failed:', data?.error);
-    }
-  } catch (err) {
-    console.error('❌ Error persisting TSA event:', err);
-  }
-}
+// NOTE: TSA evidence is appended server-side via jobs (run-tsa).
+// The client must not call append-tsa-event.
 
 type InitialAction = 'sign' | 'workflow' | 'nda' | 'certify';
 type SignatureType = 'legal' | 'certified' | null;
@@ -229,6 +185,14 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
   const [showProtectionModal, setShowProtectionModal] = useState(false);
   const [showUnprotectedWarning, setShowUnprotectedWarning] = useState(false);
+
+  // Duplicate name warning (early UX guard; not canonical)
+  const [duplicateNamePrompt, setDuplicateNamePrompt] = useState<null | {
+    entityId: string;
+    fileName: string;
+    createdAt: string;
+    hasProtectionStarted: boolean;
+  }>(null);
 
   // Sprint 4: Custody mode
   const [showCustodyModal, setShowCustodyModal] = useState(false);
@@ -493,6 +457,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   if (!isOpen) return null;
 
+  const openExistingDocumentEntity = (entityId: string) => {
+    try {
+      sessionStorage.setItem('ecosign_open_document_entity_id', entityId);
+    } catch {
+      // ignore
+    }
+    resetAndClose();
+    if (onClose) onClose();
+    window.location.assign('/documents');
+  };
+
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -560,6 +535,40 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       setDocumentLoaded(true); // CONSTITUCIÓN: Controlar visibilidad de acciones
       setPreviewError(false);
       console.log('Archivo seleccionado:', selectedFile.name);
+
+      // Early warning: same filename already exists (do not block).
+      try {
+        if (!isGuestMode()) {
+          const supabase = getSupabase();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: existing } = await supabase
+              .from('document_entities')
+              .select('id, created_at, events')
+              .eq('owner_id', user.id)
+              .eq('source_name', selectedFile.name)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (existing?.id) {
+              const eventsArr = Array.isArray((existing as any).events) ? (existing as any).events : [];
+              const hasProtectionStarted = eventsArr.some((ev: any) =>
+                ev?.kind === 'document.protected.requested' || ev?.kind === 'tsa.confirmed'
+              );
+
+              setDuplicateNamePrompt({
+                entityId: existing.id,
+                fileName: selectedFile.name,
+                createdAt: existing.created_at,
+                hasProtectionStarted,
+              });
+            }
+          }
+        }
+      } catch (dupErr) {
+        console.warn('Duplicate name check skipped:', dupErr);
+      }
 
       // BLOQUE 1: Toast inicial si protección está activa
       if (forensicEnabled) {
@@ -1513,7 +1522,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
           // Usar el archivo firmado por SignNow para certificar
           certResult = await certifyFile(signedPdfFromSignNow || fileToProcess, {
-            useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+            // TSA runs server-side via jobs (run-tsa)
+            useLegalTimestamp: false,
             usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
             useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
             signatureData: null, // Ya está firmado por SignNow
@@ -1536,7 +1546,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
           // Fallback a firma estándar
           certResult = await certifyFile(fileToProcess, {
-            useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+            // TSA runs server-side via jobs (run-tsa)
+            useLegalTimestamp: false,
             usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
             useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
             signatureData: signatureData
@@ -1546,7 +1557,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         // ✅ Usar motor interno (Firma Legal)
         console.log('📝 Usando motor interno de Firma Legal');
         certResult = await certifyFile(fileToProcess, {
-          useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
+          // TSA runs server-side via jobs (run-tsa)
+          useLegalTimestamp: false,
           usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
           useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
           signatureData: signatureData
@@ -1556,19 +1568,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       // FASE 3.C: Clear timeout warning (P0.6)
       clearTimeout(timeoutWarning);
 
-      // ✅ CANONICAL TSA: Persist TSA event to document_entities.events[]
-      // This happens AFTER certifyFile but BEFORE saving to user_documents
-      // The Edge Function will read witness_hash from DB and append the TSA event
-      if (
-        canonicalDocumentId &&
-        witnessHash &&
-        certResult?.legalTimestamp &&
-        typeof certResult.legalTimestamp === 'object' &&
-        'enabled' in certResult.legalTimestamp &&
-        certResult.legalTimestamp.enabled
-      ) {
-        await persistTsaToEvents(canonicalDocumentId, certResult, witnessHash);
-      }
+      // TSA evidence is appended asynchronously by the server-side job pipeline.
 
       // 2. Guardar en Supabase (guardar el PDF procesado, no el original)
       // Status inicial: 'signed' si ya se firmó, 'draft' si no hay firmantes
@@ -3995,6 +3995,40 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         onReject={handleWelcomeReject}
         onNeverShow={handleWelcomeNeverShow}
       />
+
+      {/* Early warning: duplicate filename (non-blocking) */}
+      {duplicateNamePrompt && (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-5">
+            <h3 className="text-lg font-semibold text-gray-900">Documento con el mismo nombre</h3>
+            <p className="text-sm text-gray-700 mt-2">
+              Ya existe un documento llamado <span className="font-medium">{duplicateNamePrompt.fileName}</span>.
+              {duplicateNamePrompt.hasProtectionStarted
+                ? ' Ese documento ya inicio un proceso de proteccion.'
+                : ' Si ya lo cargaste antes, tal vez no hace falta repetirlo.'}
+            </p>
+            <div className="flex gap-2 mt-4">
+              <button
+                type="button"
+                className="flex-1 px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                onClick={() => openExistingDocumentEntity(duplicateNamePrompt.entityId)}
+              >
+                Ver documento existente
+              </button>
+              <button
+                type="button"
+                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-800 hover:bg-gray-50"
+                onClick={() => setDuplicateNamePrompt(null)}
+              >
+                Continuar igual
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Este aviso se basa en el nombre del archivo (no es una verificacion por huella).
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmación para desactivar toasts */}
       {showToastConfirmModal && (

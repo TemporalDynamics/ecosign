@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Desregistrar Service Worker - FORZADO</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: system-ui; padding: 20px; max-width: 800px; margin: 0 auto; }
+    .success { color: green; font-weight: bold; }
+    .error { color: red; font-weight: bold; }
+    .warning { color: orange; font-weight: bold; }
+    button { padding: 10px 20px; font-size: 16px; margin: 10px 5px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>🔧 Desregistrar Service Worker (FORZADO)</h1>
+  <div id="status">Verificando...</div>
+  <div id="actions" style="margin-top: 20px;"></div>
+
+  <script>
+    const statusDiv = document.getElementById('status');
+    const actionsDiv = document.getElementById('actions');
+
+    async function unregisterAll() {
+      statusDiv.innerHTML = 'Desregistrando TODOS los Service Workers...<br>';
+
+      if (!('serviceWorker' in navigator)) {
+        statusDiv.innerHTML += '<span class="error">⚠️ Service Workers no soportados</span>';
+        return;
+      }
+
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+
+        if (registrations.length === 0) {
+          statusDiv.innerHTML += '<span class="success">✅ No hay Service Workers registrados</span><br>';
+          showNextSteps();
+          return;
+        }
+
+        statusDiv.innerHTML += `<span class="warning">Encontrados ${registrations.length} Service Worker(s)</span><br>`;
+
+        // Forzar unregister de todos
+        for (const reg of registrations) {
+          statusDiv.innerHTML += `Desregistrando: ${reg.scope}<br>`;
+          await reg.unregister();
+
+          // Forzar terminación del worker activo
+          if (reg.active) {
+            try {
+              reg.active.postMessage({ action: 'skipWaiting' });
+            } catch (e) {
+              // Ignorar errores de postMessage
+            }
+          }
+        }
+
+        statusDiv.innerHTML += '<br><span class="success">✅ TODOS desregistrados!</span><br>';
+
+        // Verificar que realmente se desregistraron
+        setTimeout(async () => {
+          const check = await navigator.serviceWorker.getRegistrations();
+          if (check.length === 0) {
+            statusDiv.innerHTML += '<span class="success">✅ Verificado: 0 Service Workers activos</span><br>';
+          } else {
+            statusDiv.innerHTML += `<span class="error">⚠️ Aún quedan ${check.length} activos - intenta de nuevo</span><br>`;
+            actionsDiv.innerHTML = '<button onclick="location.reload()">🔄 Reintentar</button>';
+            return;
+          }
+
+          showNextSteps();
+        }, 1000);
+
+      } catch (err) {
+        statusDiv.innerHTML += `<br><span class="error">❌ Error: ${err.message}</span>`;
+      }
+    }
+
+    function showNextSteps() {
+      statusDiv.innerHTML += '<br><hr><br>';
+      statusDiv.innerHTML += '<h2>📋 IMPORTANTE - Próximos Pasos:</h2>';
+      statusDiv.innerHTML += '<ol>';
+      statusDiv.innerHTML += '<li><strong>Cierra ESTA pestaña</strong></li>';
+      statusDiv.innerHTML += '<li><strong>Cierra TODAS las pestañas/ventanas de ecosign.app</strong></li>';
+      statusDiv.innerHTML += '<li><strong>Espera 5 segundos</strong></li>';
+      statusDiv.innerHTML += '<li><strong>Abre una nueva pestaña en <a href="https://www.ecosign.app" target="_blank">https://www.ecosign.app</a></strong></li>';
+      statusDiv.innerHTML += '<li><strong>Abre la consola (F12) y verifica:</strong><br><code>navigator.serviceWorker.getRegistrations().then(r => console.log("SW Count:", r.length))</code><br>Debe mostrar: <code>SW Count: 0</code></li>';
+      statusDiv.innerHTML += '<li><strong>Prueba proteger un documento</strong></li>';
+      statusDiv.innerHTML += '</ol>';
+
+      actionsDiv.innerHTML = '<button onclick="window.close()">❌ Cerrar esta pestaña</button>';
+    }
+
+    // Auto-ejecutar al cargar
+    unregisterAll();
+  </script>
+</body>
+</html>

@@ -1672,30 +1672,29 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           fileType: file.type
         });
 
-        // === PROBATORY EVENT: protection_enabled ===
-        // Record that protection was enabled for this document (canonical events ledger)
+        // === PROBATORY EVENT: protection_enabled + document.protected.requested ===
+        // Canonical ledger write: if this fails, the document is NOT protected.
         const useProtectV2 = String(import.meta.env.VITE_USE_PROTECT_V2 ?? 'true').toLowerCase() === 'true';
-        supabase.functions.invoke('record-protection-event', {
-          body: {
-            document_id: savedDoc.id,
-            flow_version: useProtectV2 ? 'v2' : 'v1',
-            protection_details: {
-              signature_type: signatureType || 'none',
-              forensic_enabled: forensicEnabled,
-              tsa_requested: forensicEnabled && forensicConfig.useLegalTimestamp,
-              polygon_requested: forensicEnabled && forensicConfig.usePolygonAnchor,
-              bitcoin_requested: forensicEnabled && forensicConfig.useBitcoinAnchor
+        if (forensicEnabled) {
+          const { data, error } = await supabase.functions.invoke('record-protection-event', {
+            body: {
+              document_id: savedDoc.id,
+              flow_version: useProtectV2 ? 'v2' : 'v1',
+              protection_details: {
+                signature_type: signatureType || 'none',
+                forensic_enabled: forensicEnabled,
+                tsa_requested: forensicEnabled && forensicConfig.useLegalTimestamp,
+                polygon_requested: forensicEnabled && forensicConfig.usePolygonAnchor,
+                bitcoin_requested: forensicEnabled && forensicConfig.useBitcoinAnchor
+              }
             }
-          }
-        }).then(({ data, error }) => {
+          });
+
           if (error) {
-            console.warn('⚠️ Error recording protection event (non-critical):', error);
-          } else {
-            console.log('✅ protection_enabled event recorded:', data);
+            throw new Error(`record-protection-event failed: ${error.message}`);
           }
-        }).catch(err => {
-          console.warn('⚠️ Failed to record protection event:', err);
-        });
+          console.log('✅ protection events recorded:', data);
+        }
       }
 
       // 3. Registrar evento 'created' (ChainLog)

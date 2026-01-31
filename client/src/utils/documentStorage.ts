@@ -251,12 +251,10 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
     return 'pdf';
   };
 
-  // ✅ Protection level ALWAYS starts at ACTIVE (TSA confirmed)
-  // Level only increases based on CONFIRMED anchors, never on intent
-  // - ACTIVE: Certificate created + TSA confirmed
-  // - REINFORCED: Polygon anchor CONFIRMED (upgraded by worker)
-  // - TOTAL: Bitcoin anchor CONFIRMED (upgraded by worker)
-  const protectionLevel = 'ACTIVE';
+  // Protection level is derived from canonical events.
+  // Do NOT write ACTIVE optimistically; DB enforces that ACTIVE implies proof events exist.
+  // Leave NULL on creation and let workers/derived views decide level from events.
+  const protectionLevel: string | null = null;
 
   // ✅ Set anchor statuses to PENDING when requested
   // Workers will resolve these and upgrade protection_level accordingly

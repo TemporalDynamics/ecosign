@@ -130,6 +130,7 @@ benchmark/
 profiling/
 experimental/
 validation/
+!/docs/validation/
 
 zk/
 zkp/

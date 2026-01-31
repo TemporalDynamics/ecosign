@@ -636,7 +636,7 @@ Deno.serve(async (req) => {
     await supabase.from('executor_jobs').update({
       attempts: attempt,
       updated_at: startedAt.toISOString(),
-    }).eq('id', job.id);
+    }).eq('id', job.id).eq('locked_by', workerId);
 
     await supabase.from('executor_job_runs').insert({
       job_id: job.id,
@@ -669,7 +669,7 @@ Deno.serve(async (req) => {
         locked_at: null,
         locked_by: null,
         updated_at: finishedAt.toISOString(),
-      }).eq('id', job.id);
+      }).eq('id', job.id).eq('locked_by', workerId);
 
       await supabase.from('executor_job_runs').insert({
         job_id: job.id,
@@ -692,7 +692,7 @@ Deno.serve(async (req) => {
         locked_at: null,
         locked_by: null,
         updated_at: finishedAt.toISOString(),
-      }).eq('id', job.id);
+      }).eq('id', job.id).eq('locked_by', workerId);
 
       await supabase.from('executor_job_runs').insert({
         job_id: job.id,

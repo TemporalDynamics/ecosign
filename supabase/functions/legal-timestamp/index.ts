@@ -10,6 +10,7 @@ interface TimestampRequestBody {
 }
 
 const DEFAULT_TSA_URL = 'https://freetsa.org/tsr'
+const DEFAULT_TSA_TIMEOUT_MS = 15_000
 const HASH_ALGORITHM_OID = '2.16.840.1.101.3.4.2.1' // SHA-256
 
 const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -173,6 +174,41 @@ function bufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary)
 }
 
+function getTsaTimeoutMs(): number {
+  const raw = Deno.env.get('TSA_TIMEOUT_MS')
+  const parsed = raw ? Number(raw) : NaN
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_TSA_TIMEOUT_MS
+  return Math.floor(parsed)
+}
+
+function getDefaultTsaUrls(): string[] {
+  const raw = String(Deno.env.get('TSA_URLS') ?? '').trim()
+  if (!raw) return [DEFAULT_TSA_URL]
+  const urls = raw
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)
+  return urls.length > 0 ? urls : [DEFAULT_TSA_URL]
+}
+
+async function fetchWithTimeout(url: string, body: Uint8Array, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/timestamp-query',
+        'Accept': 'application/timestamp-reply'
+      },
+      body: body as unknown as BodyInit,
+      signal: controller.signal
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 serve(async (req) => {
   // FASE guard disabled for MVP - TSA always available
   // if (Deno.env.get('FASE') !== '1') {
@@ -205,38 +241,61 @@ serve(async (req) => {
     }
 
     const hashBytes = hexToBytes(hashHex)
-    const tsaUrl = body.tsa_url || DEFAULT_TSA_URL
+    const timeoutMs = getTsaTimeoutMs()
+    const defaultUrls = getDefaultTsaUrls()
+    const urls = body.tsa_url
+      ? [body.tsa_url, ...defaultUrls.filter((u) => u !== body.tsa_url)]
+      : defaultUrls
     const nonceLength = body.nonce_bytes && body.nonce_bytes >= 8 && body.nonce_bytes <= 32
       ? body.nonce_bytes
       : 12
 
     const tsrBytes = buildTimestampRequest(hashBytes, nonceLength, body.cert_req ?? true)
 
-    const response = await fetch(tsaUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/timestamp-query',
-        'Accept': 'application/timestamp-reply'
-      },
-      body: tsrBytes
-    })
+    const startedAt = Date.now()
+    const attempts: Array<{ url: string; error: string }> = []
+    let lastError = 'TSA request failed'
 
-    if (!response.ok) {
-      const text = await response.text().catch(() => '')
-      throw new Error(`TSA request failed (${response.status}): ${text || response.statusText}`)
+    for (const url of urls) {
+      try {
+        const response = await fetchWithTimeout(url, tsrBytes, timeoutMs)
+        if (!response.ok) {
+          const text = await response.text().catch(() => '')
+          const message = `TSA request failed (${response.status}): ${text || response.statusText}`
+          attempts.push({ url, error: message })
+          lastError = message
+          continue
+        }
+
+        const arrayBuffer = await response.arrayBuffer()
+        const tokenBase64 = bufferToBase64(arrayBuffer)
+
+        return jsonResponse({
+          success: true,
+          token: tokenBase64,
+          tsa_url: url,
+          token_bytes: arrayBuffer.byteLength,
+          algorithm: 'SHA-256',
+          standard: 'RFC 3161',
+          elapsed_ms: Date.now() - startedAt,
+          timeout_ms: timeoutMs,
+        }, 200, corsHeaders)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        const message = `TSA request error: ${msg}`
+        attempts.push({ url, error: message })
+        lastError = message
+      }
     }
 
-    const arrayBuffer = await response.arrayBuffer()
-    const tokenBase64 = bufferToBase64(arrayBuffer)
-
     return jsonResponse({
-      success: true,
-      token: tokenBase64,
-      tsa_url: tsaUrl,
-      token_bytes: arrayBuffer.byteLength,
-      algorithm: 'SHA-256',
-      standard: 'RFC 3161'
-    }, 200, corsHeaders)
+      success: false,
+      error: lastError,
+      retryable: true,
+      attempted: attempts,
+      elapsed_ms: Date.now() - startedAt,
+      timeout_ms: timeoutMs,
+    }, 502, corsHeaders)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error'
     console.error('legal-timestamp error', message)

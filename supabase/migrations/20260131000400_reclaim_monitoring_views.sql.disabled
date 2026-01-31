@@ -1,0 +1,147 @@
+-- Migration: Add monitoring views for stale job detection
+-- Purpose: Observability and health checks for TTL reclaim
+-- Part of: TTL Reclaim + Heartbeat (Fase 1.2 - Optional Fase 3)
+-- Note: Deploy this AFTER validating core reclaim functionality
+
+-- View: executor_jobs_stale_monitor
+-- Shows running jobs with their age vs TTL and health status
+CREATE OR REPLACE VIEW public.executor_jobs_stale_monitor AS
+WITH ttl_config AS (
+  SELECT * FROM (VALUES
+    ('protect_document_v2', 5),
+    ('document.protected', 5),
+    ('run_tsa', 30),
+    ('submit_anchor_polygon', 60),
+    ('submit_anchor_bitcoin', 60),
+    ('build_artifact', 15)
+  ) AS t(job_type, ttl_minutes)
+),
+running_jobs AS (
+  SELECT
+    ej.id,
+    ej.dedupe_key,
+    ej.type,
+    ej.status,
+    ej.attempts,
+    ej.locked_at,
+    ej.locked_by,
+    ej.heartbeat_at,
+    ej.created_at,
+    ej.updated_at,
+    ej.last_error,
+    tc.ttl_minutes,
+    CASE
+      WHEN ej.heartbeat_at IS NULL THEN ej.locked_at
+      WHEN ej.locked_at IS NULL THEN ej.heartbeat_at
+      ELSE GREATEST(ej.locked_at, ej.heartbeat_at)
+    END AS last_seen_at,
+    EXTRACT(EPOCH FROM (now() - (
+      CASE
+        WHEN ej.heartbeat_at IS NULL THEN ej.locked_at
+        WHEN ej.locked_at IS NULL THEN ej.heartbeat_at
+        ELSE GREATEST(ej.locked_at, ej.heartbeat_at)
+      END
+    ))) / 60.0 AS age_minutes,
+    EXTRACT(EPOCH FROM (now() - (
+      CASE
+        WHEN ej.heartbeat_at IS NULL THEN ej.locked_at
+        WHEN ej.locked_at IS NULL THEN ej.heartbeat_at
+        ELSE GREATEST(ej.locked_at, ej.heartbeat_at)
+      END
+    ))) / 60.0 / tc.ttl_minutes AS ttl_ratio
+  FROM public.executor_jobs ej
+  LEFT JOIN ttl_config tc ON ej.type = tc.job_type
+  WHERE ej.status IN ('running', 'processing')
+)
+SELECT
+  id,
+  dedupe_key,
+  type,
+  status,
+  attempts,
+  locked_at,
+  locked_by,
+  heartbeat_at,
+  last_seen_at,
+  created_at,
+  updated_at,
+  ttl_minutes,
+  ROUND(age_minutes::numeric, 2) AS age_minutes,
+  ROUND(ttl_ratio::numeric, 2) AS ttl_ratio,
+  CASE
+    WHEN ttl_ratio >= 1.0 THEN 'STALE'
+    WHEN ttl_ratio >= 0.8 THEN 'WARNING'
+    ELSE 'OK'
+  END AS health_status,
+  last_error
+FROM running_jobs
+ORDER BY ttl_ratio DESC, age_minutes DESC;
+
+COMMENT ON VIEW public.executor_jobs_stale_monitor IS
+  'Monitors running jobs against their TTL. health_status: OK (<80% TTL), WARNING (80-100% TTL), STALE (>100% TTL).';
+
+-- Helper query: Jobs running > 2x TTL (should return 0 rows after reclaim works)
+-- Run manually: SELECT * FROM public.executor_jobs_stale_validation;
+CREATE OR REPLACE VIEW public.executor_jobs_stale_validation AS
+WITH ttl_config AS (
+  SELECT * FROM (VALUES
+    ('protect_document_v2', 5),
+    ('document.protected', 5),
+    ('run_tsa', 30),
+    ('submit_anchor_polygon', 60),
+    ('submit_anchor_bitcoin', 60),
+    ('build_artifact', 15)
+  ) AS t(job_type, ttl_minutes)
+)
+SELECT
+  ej.id,
+  ej.dedupe_key,
+  ej.type,
+  ej.status,
+  ej.attempts,
+  ej.locked_at,
+  ej.locked_by,
+  ej.heartbeat_at,
+  tc.ttl_minutes,
+  EXTRACT(EPOCH FROM (now() - (
+    CASE
+      WHEN ej.heartbeat_at IS NULL THEN ej.locked_at
+      WHEN ej.locked_at IS NULL THEN ej.heartbeat_at
+      ELSE GREATEST(ej.locked_at, ej.heartbeat_at)
+    END
+  ))) / 60.0 AS age_minutes,
+  'CRITICAL: Running > 2x TTL' AS issue
+FROM public.executor_jobs ej
+INNER JOIN ttl_config tc ON ej.type = tc.job_type
+WHERE ej.status IN ('running', 'processing')
+  AND (
+    CASE
+      WHEN ej.heartbeat_at IS NULL THEN ej.locked_at
+      WHEN ej.locked_at IS NULL THEN ej.heartbeat_at
+      ELSE GREATEST(ej.locked_at, ej.heartbeat_at)
+    END
+  ) < now() - (tc.ttl_minutes * 2 || ' minutes')::interval;
+
+COMMENT ON VIEW public.executor_jobs_stale_validation IS
+  'Critical validation: Shows jobs running > 2x their TTL. Should return 0 rows if reclaim is working.';
+
+-- Helper query: Recent reclaim history (from last_error)
+-- Run manually: SELECT * FROM public.executor_jobs_reclaim_history LIMIT 20;
+CREATE OR REPLACE VIEW public.executor_jobs_reclaim_history AS
+SELECT
+  id,
+  dedupe_key,
+  type,
+  status,
+  attempts,
+  locked_at,
+  locked_by,
+  heartbeat_at,
+  updated_at,
+  last_error
+FROM public.executor_jobs
+WHERE last_error LIKE 'RECLAIMED_TTL:%'
+ORDER BY updated_at DESC;
+
+COMMENT ON VIEW public.executor_jobs_reclaim_history IS
+  'Shows jobs that were reclaimed (last_error starts with RECLAIMED_TTL). Useful for auditing reclaim behavior.';

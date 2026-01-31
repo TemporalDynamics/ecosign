@@ -1,0 +1,95 @@
+-- Migration: Test queries for TTL Reclaim validation
+-- Purpose: Manual tests to verify reclaim functionality
+-- Part of: TTL Reclaim + Heartbeat (Fase 1.2)
+-- Note: These are comments with test queries, not executable DDL
+
+/*
+==========================================
+TEST 1: Simulate Worker Muerto (Dead Worker)
+==========================================
+
+Purpose: Verify that a job with old locked_at gets reclaimed automatically
+
+Steps:
+1. Create or update a test job with stale locked_at (> TTL)
+2. Run reclaim function
+3. Verify job status changed to 'queued' and attempts incremented
+
+-- Step 1: Create stale job (run_tsa with 35 min age, TTL is 30 min)
+INSERT INTO public.executor_jobs (
+  dedupe_key,
+  type,
+  status,
+  locked_at,
+  locked_by,
+  attempts,
+  payload
+)
+VALUES (
+  'test-ttl-reclaim-' || extract(epoch from now())::text,
+  'run_tsa',
+  'running',
+  now() - interval '35 minutes',
+  'test-worker-dead',
+  1,
+  '{}'::jsonb
+)
+ON CONFLICT (dedupe_key) DO UPDATE
+SET
+  status = 'running',
+  locked_at = now() - interval '35 minutes',
+  locked_by = 'test-worker-dead',
+  attempts = 1,
+  heartbeat_at = NULL;
+
+-- Step 2: Execute reclaim
+SELECT * FROM public.reclaim_stale_jobs();
+
+-- Step 3: Verify job was reclaimed
+SELECT
+  dedupe_key,
+  type,
+  status,
+  attempts,
+  locked_at,
+  locked_by,
+  heartbeat_at,
+  last_error
+FROM public.executor_jobs
+WHERE dedupe_key LIKE 'test-ttl-reclaim-%'
+  AND last_error LIKE 'RECLAIMED_TTL:%'
+ORDER BY created_at DESC
+LIMIT 5;
+
+==========================================
+TEST 2: Jobs Running > 2x TTL (Should be 0)
+==========================================
+
+Purpose: Verify no jobs are running longer than 2x their TTL
+
+SELECT *
+FROM public.executor_jobs ej
+WHERE ej.status IN ('running', 'processing')
+  AND ej.type = 'run_tsa'
+  AND COALESCE(ej.heartbeat_at, ej.locked_at) < now() - interval '60 minutes';
+
+==========================================
+TEST 3: Max Attempts -> Dead
+==========================================
+
+Purpose: Verify jobs that exceeded max_attempts become dead
+
+UPDATE public.executor_jobs
+SET attempts = 10,
+    status = 'running',
+    locked_at = now() - interval '35 minutes',
+    locked_by = 'test-worker-dead',
+    heartbeat_at = NULL
+WHERE dedupe_key = 'test-max-attempts';
+
+SELECT * FROM public.reclaim_stale_jobs();
+
+SELECT id, dedupe_key, status, attempts, last_error
+FROM public.executor_jobs
+WHERE dedupe_key = 'test-max-attempts';
+*/

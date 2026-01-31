@@ -17,6 +17,10 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+const WORKER_ID = 'orchestrator';
+const RUN_INSTANCE_ID = crypto.randomUUID();
+const RUN_WORKER_ID = `${WORKER_ID}-${RUN_INSTANCE_ID}`;
+
 // Tipos de jobs soportados
 type JobType = 'run_tsa' | 'submit_anchor_polygon' | 'submit_anchor_bitcoin' | 'build_artifact';
 
@@ -26,7 +30,35 @@ interface ExecutorJob {
   entity_id: string;
   payload: Record<string, unknown>;
   attempts: number;
+  max_attempts?: number;
   created_at: string;
+}
+
+function computeRetryDelayMs(type: JobType, attempts: number): number {
+  const attempt = Math.max(1, Math.floor(attempts || 1));
+  const baseMs = type === 'run_tsa' ? 30_000 : 60_000;
+  const capMs = 10 * 60_000;
+  return Math.min(capMs, baseMs * attempt);
+}
+
+async function logRun(
+  status: 'started' | 'succeeded' | 'failed',
+  job: ExecutorJob,
+  startedAt: Date,
+  finishedAt?: Date,
+  error?: string,
+): Promise<void> {
+  const durationMs = finishedAt ? Math.max(0, finishedAt.getTime() - startedAt.getTime()) : null;
+  await supabase.from('executor_job_runs').insert({
+    job_id: job.id,
+    status,
+    attempt: job.attempts ?? 1,
+    worker_id: RUN_WORKER_ID,
+    started_at: startedAt.toISOString(),
+    finished_at: finishedAt ? finishedAt.toISOString() : null,
+    duration_ms: durationMs,
+    error: error ?? null,
+  });
 }
 
 // Handlers para cada tipo de job
@@ -132,6 +164,9 @@ async function callFunction(functionName: string, body: Record<string, unknown>)
 async function processJob(job: ExecutorJob): Promise<void> {
   const { id: jobId, type, entity_id: documentEntityId, payload } = job;
 
+  const startedAt = new Date();
+  await logRun('started', job, startedAt);
+
   try {
     console.log(`🔧 Procesando job: ${jobId} (${type}) para entity: ${documentEntityId}`);
 
@@ -160,24 +195,42 @@ async function processJob(job: ExecutorJob): Promise<void> {
         locked_by: null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', jobId);
+      .eq('id', jobId)
+      .eq('locked_by', WORKER_ID);
+
+    await logRun('succeeded', job, startedAt, new Date());
 
     console.log(`✅ Job completado: ${jobId} para entity: ${documentEntityId}`);
 
   } catch (error) {
     console.error(`❌ Error procesando job ${jobId}:`, error);
 
-    // Marcar job como fallido
+    const finishedAt = new Date();
+    const message = error instanceof Error ? error.message : String(error);
+    await logRun('failed', job, startedAt, finishedAt, message);
+
+    const attempt = Number(job.attempts ?? 1);
+    const maxAttempts = Number(job.max_attempts ?? 10);
+    const shouldDeadLetter = attempt >= maxAttempts;
+    const nextRunAt = new Date(Date.now() + computeRetryDelayMs(type, attempt));
+
+    const updatePayload: Record<string, unknown> = {
+      status: shouldDeadLetter ? 'dead' : 'retry_scheduled',
+      last_error: message,
+      locked_at: null,
+      locked_by: null,
+      updated_at: finishedAt.toISOString(),
+    };
+    if (!shouldDeadLetter) {
+      updatePayload.run_at = nextRunAt.toISOString();
+    }
+
+    // Marcar job como retry_scheduled o dead (para permitir reintentos reales)
     await supabase
       .from('executor_jobs')
-      .update({
-        status: 'failed',
-        last_error: error instanceof Error ? error.message : String(error),
-        locked_at: null,
-        locked_by: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', jobId);
+      .update(updatePayload)
+      .eq('id', jobId)
+      .eq('locked_by', WORKER_ID);
 
     throw error;
   }
@@ -192,7 +245,7 @@ async function pollJobs(): Promise<void> {
     // Esto previene conflictos de concurrencia usando FOR UPDATE SKIP LOCKED
     const { data: jobs, error } = await supabase.rpc('claim_orchestrator_jobs', {
       p_limit: 10,
-      p_worker_id: 'orchestrator'
+      p_worker_id: WORKER_ID
     });
 
     if (error) {

@@ -45,12 +45,12 @@ interface LogEventRequest {
   metadata?: Record<string, any>;
 }
 
-serve(async (req) => {
-  if (Deno.env.get('FASE') !== '1') {
-    return new Response(null, { status: 204 });
-  }
-
+serve(async (req: Request) => {
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
+  if (Deno.env.get('FASE') !== '1') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -175,7 +175,7 @@ serve(async (req) => {
     if (error) {
       console.error('❌ Error inserting event:', error);
       return new Response(
-        JSON.stringify({ error: 'Failed to log event', details: error.message }),
+        JSON.stringify({ error: 'Failed to log event', details: error instanceof Error ? error.message : String(error) }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -189,8 +189,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Unexpected error:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', message: error.message }),
+      JSON.stringify({ error: 'Internal server error', message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

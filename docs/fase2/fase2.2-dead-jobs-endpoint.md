@@ -209,25 +209,42 @@ Dead jobs are classified by reason (deterministic derivation from last_error):
 
 A job is **dead** when:
 
-```sql
-status = 'dead'
+```typescript
+attempts >= max_attempts AND status IN ('dead', 'failed')
 ```
 
-**That's it.** In this codebase, `status='dead'` is a real state (not a "view"):
+**Dead is a derived view, not a persisted state.**
 
-- CHECK constraint allows it: `supabase/migrations/20260116090000_executor_jobs_and_outbox.sql:22`
-- `reclaim_stale_jobs()` sets it: `supabase/migrations/20260131171000_fix_executor_job_processing_status_refs.sql:66`
+### Why Dead is Derived (Not a Status)
+
+**Canonical rule**: Dead reflects a **diagnostic judgment**, not an operational state.
+
+- `status` = what's happening (operational)
+- `dead` = what it means (diagnostic)
+
+**Practical implications**:
+
+1. **Preserves operational truth**: status='failed' shows the job failed
+2. **Allows re-interpretation**: can change max_attempts and re-classify
+3. **Enables Fase 4**: manual intervention doesn't lose context
+
+### Legacy Status='dead'
+
+Some jobs may have `status='dead'` (set by old code):
 - Orchestrator sets it when `attempts >= max_attempts`
+- `reclaim_stale_jobs()` sets it for TTL-exceeded jobs
 
-### Not Dead
+**But the endpoint doesn't rely on it.** We derive dead from `attempts >= max_attempts`.
 
-Jobs with these statuses are **not dead** (they can recover):
+### Not Dead (Can Recover)
 
-- `queued`: waiting to run
-- `running`: currently executing
-- `retry_scheduled`: will retry automatically
-- `succeeded`: completed successfully
-- `failed`: failed but can be manually retried
+Jobs with these conditions are **not dead** (can still recover):
+
+- `status='running'` + TTL expired + `attempts < max_attempts` → **reclaimable** (will be requeued)
+- `status='failed'` + `attempts < max_attempts` → **retryable** (manual retry possible)
+- `status='retry_scheduled'` → **will retry** automatically
+- `status='queued'` → **waiting** to run
+- `status='succeeded'` → **completed** successfully
 
 ---
 
@@ -290,16 +307,22 @@ curl "/dead-jobs" | jq '.summary.by_reason'
 
 ### Query Strategy
 
-Simple SQL query (no JOIN overhead):
+Derived dead condition (no persisted state):
 
 ```sql
+-- Fetch candidates
 SELECT *
 FROM executor_jobs
-WHERE status = 'dead'
+WHERE status IN ('dead', 'failed')
   AND updated_at >= now() - interval 'X hours'
 ORDER BY updated_at DESC
-LIMIT N;
+LIMIT N * 2;
+
+-- Filter in TypeScript
+jobs.filter(job => job.attempts >= job.max_attempts)
 ```
+
+**Why not pure SQL?** Because `max_attempts` can vary per job. Filtering in TypeScript is fast and flexible.
 
 ### Index Usage
 

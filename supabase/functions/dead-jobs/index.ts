@@ -137,14 +137,17 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Build query
+    // Build query - derive dead condition instead of relying on status='dead'
+    // Dead = attempts >= max_attempts AND status IN ('dead', 'failed')
+    // Note: status='dead' is legacy (set by old code), 'failed' is canonical
+    // Running jobs with TTL exceeded are NOT dead - they're reclaimable
     let query = supabase
       .from('executor_jobs')
       .select('*')
-      .eq('status', 'dead')
+      .in('status', ['dead', 'failed'])  // Derive dead from attempts, not just status
       .gte('updated_at', new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString())
       .order('updated_at', { ascending: false })
-      .limit(limit);
+      .limit(limit * 2);  // Fetch 2x to filter by attempts >= max_attempts
 
     if (typeFilter) {
       query = query.eq('type', typeFilter);
@@ -154,13 +157,18 @@ Deno.serve(async (req) => {
       query = query.eq('correlation_id', correlationIdFilter);
     }
 
-    const { data: deadJobs, error: queryError } = await query;
+    const { data: candidateJobs, error: queryError } = await query;
 
     if (queryError) {
       throw new Error(`Database query failed: ${queryError.message}`);
     }
 
-    const jobs = (deadJobs || []) as DeadJob[];
+    // Filter to truly dead jobs: attempts >= max_attempts
+    const deadJobs = (candidateJobs || [])
+      .filter((job: DeadJob) => job.attempts >= job.max_attempts)
+      .slice(0, limit);  // Apply limit after filtering
+
+    const jobs = deadJobs as DeadJob[];
 
     // Build summary
     const byType: Record<string, number> = {};

@@ -1,5 +1,5 @@
 // tests/integration/full_system_flow.test.ts
-import { assertEquals, assertExists } from "https://deno.land/std@0.173.0/testing/asserts.ts";
+import { expect, test } from 'vitest';
 
 /**
  * Test de Integración del Flujo Completo del Sistema Canónico
@@ -15,8 +15,7 @@ import { assertEquals, assertExists } from "https://deno.land/std@0.173.0/testin
  * ExecutionEngine → Evento resultado → document_entities.events[]
  */
 
-Deno.test("Full System Flow Integration Test", async (t) => {
-  await t.step("complete canonical flow - document protection", async () => {
+test("Full System Flow Integration Test", () => {
     // 1. Simular evento inicial de usuario (documento protegido)
     const initialEvents = [
       {
@@ -30,14 +29,10 @@ Deno.test("Full System Flow Integration Test", async (t) => {
         _source: 'user_action'
       },
       {
-        kind: 'protection_enabled',
+        kind: 'document.protected.requested',
         at: '2026-01-27T16:00:01.000Z',
         payload: {
-          protection: {
-            methods: ['tsa', 'polygon', 'bitcoin'],
-            signature_type: 'none',
-            forensic_enabled: true
-          }
+          protection: ['tsa', 'polygon', 'bitcoin'],
         },
         _source: 'user_action'
       }
@@ -48,8 +43,9 @@ Deno.test("Full System Flow Integration Test", async (t) => {
     
     // Simular la lógica de decisiones
     const hasTsaRequested = initialEvents.some((e: any) => 
-      e.kind === 'protection_enabled' && 
-      e.payload?.protection?.methods?.includes('tsa')
+      e.kind === 'document.protected.requested' && 
+      Array.isArray(e.payload?.protection) &&
+      e.payload.protection.includes('tsa')
     );
     
     const hasTsaConfirmed = initialEvents.some((e: any) => 
@@ -74,9 +70,9 @@ Deno.test("Full System Flow Integration Test", async (t) => {
     }
     
     // 4. Verificar que DecisionAuthority creó el job correcto
-    assertEquals(createdJobs.length, 1, "DecisionAuthority should create 1 job for TSA");
-    assertEquals(createdJobs[0].type, 'run_tsa', "Job should be of type run_tsa");
-    assertEquals(createdJobs[0].status, 'queued', "Job should be queued initially");
+    expect(createdJobs).toHaveLength(1);
+    expect(createdJobs[0].type).toBe('run_tsa');
+    expect(createdJobs[0].status).toBe('queued');
     
     console.log("✅ DecisionAuthority correctly created run_tsa job");
 
@@ -110,9 +106,9 @@ Deno.test("Full System Flow Integration Test", async (t) => {
 
     // 7. Verificar que el evento resultado tiene la estructura correcta
     const tsaCompletedEvent = resultEvents.find((e: any) => e.kind === 'tsa.completed');
-    assertExists(tsaCompletedEvent, "TSA completion event should exist");
-    assertEquals(tsaCompletedEvent.payload.token_b64, mockTsaResult.token_b64, "TSA event should include token");
-    assertEquals(tsaCompletedEvent._source, 'execution_engine', "TSA event should come from execution engine");
+    expect(tsaCompletedEvent).toBeTruthy();
+    expect(tsaCompletedEvent.payload.token_b64).toBe(mockTsaResult.token_b64);
+    expect(tsaCompletedEvent._source).toBe('execution_engine');
 
     console.log("✅ ExecutionEngine correctly executed job and created result event");
 
@@ -122,26 +118,23 @@ Deno.test("Full System Flow Integration Test", async (t) => {
     );
 
     const protectionRequested = resultEvents.find((e: any) =>
-      e.kind === 'protection_enabled'
-    )?.payload?.protection?.methods || [];
+      e.kind === 'document.protected.requested'
+    )?.payload?.protection || [];
 
     const requiresPolygon = protectionRequested.includes('polygon');
     const requiresBitcoin = protectionRequested.includes('bitcoin');
 
-    const hasPolygonConfirmed = resultEvents.some((e: any) =>
+    const hasPolygonConfirmedAfterExecution = resultEvents.some((e: any) =>
       e.kind === 'anchor.confirmed' && e.payload?.network === 'polygon'
     );
 
-    const hasBitcoinConfirmed = resultEvents.some((e: any) =>
+    const hasBitcoinConfirmedAfterExecution = resultEvents.some((e: any) =>
       e.kind === 'anchor.confirmed' && e.payload?.network === 'bitcoin'
     );
 
     // DecisionAuthority decide si crear jobs para anclajes
-    const hasTsaConfirmedAfterExecution = resultEvents.some((e: any) =>
-      e.kind === 'tsa.completed'  // o 'tsa.confirmed' dependiendo del evento exacto
-    );
-    const shouldSubmitPolygon = hasTsaConfirmedAfterExecution && requiresPolygon && !hasPolygonConfirmed;
-    const shouldSubmitBitcoin = hasTsaConfirmedAfterExecution && requiresBitcoin && !hasBitcoinConfirmed;
+    const shouldSubmitPolygon = hasTsaConfirmedAfterExecution && requiresPolygon && !hasPolygonConfirmedAfterExecution;
+    const shouldSubmitBitcoin = hasTsaConfirmedAfterExecution && requiresBitcoin && !hasBitcoinConfirmedAfterExecution;
 
     // 9. DecisionAuthority crea jobs para anclajes
     const anchorJobs = [];
@@ -174,12 +167,12 @@ Deno.test("Full System Flow Integration Test", async (t) => {
     }
 
     // 10. Verificar que DecisionAuthority creó jobs para anclajes
-    assertEquals(anchorJobs.length, 2, "DecisionAuthority should create 2 anchor jobs (polygon + bitcoin)");
+    expect(anchorJobs).toHaveLength(2);
     const polygonJob = anchorJobs.find((j: any) => j.type === 'submit_anchor_polygon');
     const bitcoinJob = anchorJobs.find((j: any) => j.type === 'submit_anchor_bitcoin');
 
-    assertExists(polygonJob, "Polygon anchor job should exist");
-    assertExists(bitcoinJob, "Bitcoin anchor job should exist");
+    expect(polygonJob).toBeTruthy();
+    expect(bitcoinJob).toBeTruthy();
 
     console.log("✅ DecisionAuthority correctly created anchor jobs after TSA completion");
 
@@ -215,10 +208,10 @@ Deno.test("Full System Flow Integration Test", async (t) => {
     const polygonResult = anchorResults.find((e: any) => e.payload?.network === 'polygon');
     const bitcoinResult = anchorResults.find((e: any) => e.payload?.network === 'bitcoin');
 
-    assertExists(polygonResult, "Polygon anchor result should exist");
-    assertExists(bitcoinResult, "Bitcoin anchor result should exist");
-    assertEquals(polygonResult._source, 'execution_engine', "Polygon result should come from execution engine");
-    assertEquals(bitcoinResult._source, 'execution_engine', "Bitcoin result should come from execution engine");
+    expect(polygonResult).toBeTruthy();
+    expect(bitcoinResult).toBeTruthy();
+    expect(polygonResult._source).toBe('execution_engine');
+    expect(bitcoinResult._source).toBe('execution_engine');
 
     console.log("✅ ExecutionEngine correctly executed anchor jobs and created result events");
 
@@ -286,8 +279,8 @@ Deno.test("Full System Flow Integration Test", async (t) => {
     }
 
     // 16. Verificar que DecisionAuthority creó job para artifact
-    assertEquals(artifactJobs.length, 1, "DecisionAuthority should create 1 artifact job when all anchors confirmed");
-    assertEquals(artifactJobs[0].type, 'build_artifact', "Job should be of type build_artifact");
+    expect(artifactJobs).toHaveLength(1);
+    expect(artifactJobs[0].type).toBe('build_artifact');
 
     console.log("✅ DecisionAuthority correctly created artifact job after all anchors confirmed");
 
@@ -305,9 +298,9 @@ Deno.test("Full System Flow Integration Test", async (t) => {
     };
 
     // 18. Verificar que ExecutionEngine creó evento de artifact
-    assertEquals(artifactResult.kind, 'artifact.completed', "Result should be artifact.completed");
-    assertEquals(artifactResult._source, 'execution_engine', "Artifact result should come from execution engine");
-    assertExists(artifactResult.payload.storage_path, "Artifact result should include storage path");
+    expect(artifactResult.kind).toBe('artifact.completed');
+    expect(artifactResult._source).toBe('execution_engine');
+    expect(artifactResult.payload.storage_path).toBeTruthy();
 
     console.log("✅ ExecutionEngine correctly executed artifact job and created result event");
 
@@ -319,22 +312,22 @@ Deno.test("Full System Flow Integration Test", async (t) => {
 
     // Verificar que todos los pasos del flujo canónico ocurrieron
     const hasDocumentCreated = allEvents.some((e: any) => e.kind === 'document.created');
-    const hasProtectionEnabled = allEvents.some((e: any) => e.kind === 'protection_enabled');
+    const hasProtectionRequested = allEvents.some((e: any) => e.kind === 'document.protected.requested');
     const hasTsaCompleted = allEvents.some((e: any) => e.kind === 'tsa.completed');
     const hasPolygonConfirmed = allEvents.some((e: any) => e.kind === 'anchor.confirmed' && e.payload?.network === 'polygon');
     const hasBitcoinConfirmed = allEvents.some((e: any) => e.kind === 'anchor.confirmed' && e.payload?.network === 'bitcoin');
     const hasArtifactCompleted = allEvents.some((e: any) => e.kind === 'artifact.completed');
 
-    assertEquals(hasDocumentCreated, true, "Document should have been created");
-    assertEquals(hasProtectionEnabled, true, "Protection should have been enabled");
-    assertEquals(hasTsaCompleted, true, "TSA should have been completed");
-    assertEquals(hasPolygonConfirmed, true, "Polygon anchor should have been confirmed");
-    assertEquals(hasBitcoinConfirmed, true, "Bitcoin anchor should have been confirmed");
-    assertEquals(hasArtifactCompleted, true, "Artifact should have been completed");
+    expect(hasDocumentCreated).toBe(true);
+    expect(hasProtectionRequested).toBe(true);
+    expect(hasTsaCompleted).toBe(true);
+    expect(hasPolygonConfirmed).toBe(true);
+    expect(hasBitcoinConfirmed).toBe(true);
+    expect(hasArtifactCompleted).toBe(true);
 
     console.log("✅ Full canonical flow completed successfully:");
     console.log("   - Document created");
-    console.log("   - Protection enabled");
+    console.log("   - Protection requested");
     console.log("   - TSA executed");
     console.log("   - Anchors confirmed");
     console.log("   - Artifact built");
@@ -345,12 +338,9 @@ Deno.test("Full System Flow Integration Test", async (t) => {
     const artifactEvents = allEvents.filter((e: any) => e.kind.includes('artifact'));
 
     // Asegurar que no hay eventos duplicados (mismo tipo con mismo contexto)
-    assertEquals(tsaEvents.length, 2, "Should have exactly 2 TSA-related events (protection_enabled + tsa.completed)");
-    assertEquals(anchorEvents.length >= 4, true, "Should have anchor-related events (submitted + confirmed for each network)");
-    assertEquals(artifactEvents.length, 1, "Should have exactly 1 artifact event");
+    expect(tsaEvents).toHaveLength(1);
+    expect(anchorEvents.length >= 4).toBe(true);
+    expect(artifactEvents).toHaveLength(1);
 
     console.log("✅ No duplication of side-effects detected");
-  });
 });
-
-console.log("✅ Test de flujo completo del sistema canónico completado");

@@ -1,11 +1,11 @@
 /**
  * record-protection-event Edge Function
  *
- * Registra el evento 'protection_enabled' cuando se completa el flujo
- * del Centro Legal (firma + TSA + anclas solicitadas).
+ * Registra el evento canónico de inicio de protección:
+ * - document.protected.requested
  *
- * Este evento marca el momento en que la protección se HABILITÓ, no necesariamente
- * cuando se completó (los anchors blockchain se procesan async por workers).
+ * Este evento marca el momento en que se SOLICITA la protección y dispara el pipeline
+ * server-side (jobs) para TSA/anchors/artifact.
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -149,28 +149,7 @@ serve(withRateLimit('record', async (req) => {
       protectionMethods.push('bitcoin')
     }
 
-    const requestEventKind =
-      flowVersion === 'v2'
-        ? FASE1_EVENT_KINDS.DOCUMENT_PROTECTED_REQUESTED
-        : FASE1_EVENT_KINDS.DOCUMENT_PROTECTED
-
-    // Construct the protection_enabled event (legacy-compatible)
-    const protectionEvent = {
-      kind: 'protection_enabled',
-      at: new Date().toISOString(),
-      protection: {
-        methods: protectionMethods,
-        signature_type: protection_details.signature_type || 'none',
-        forensic_enabled: protection_details.forensic_enabled,
-        contract_hash: doc.eco_hash || doc.document_hash
-      },
-      forensic: {
-        tsa_requested: protection_details.tsa_requested || false,
-        polygon_requested: protection_details.polygon_requested || false,
-        bitcoin_requested: protection_details.bitcoin_requested || false,
-        protection_level: doc.protection_level || 'ACTIVE'
-      }
-    }
+    const requestEventKind = FASE1_EVENT_KINDS.DOCUMENT_PROTECTED_REQUESTED
 
     // Idempotency: if protection was already requested, treat this call as success.
     const { data: existingEvents } = await supabase
@@ -195,19 +174,6 @@ serve(withRateLimit('record', async (req) => {
       );
     }
 
-    // Append event to canonical ledger
-    const eventResult = await appendEvent(
-      supabase,
-      documentEntityId,
-      protectionEvent,
-      'record-protection-event'
-    )
-
-    if (!eventResult.success) {
-      console.error('Failed to append protection_enabled event:', eventResult.error)
-      throw new Error('Failed to record protection event: ' + eventResult.error)
-    }
-
     const documentProtectedEvent = {
       kind: requestEventKind,
       at: new Date().toISOString(),
@@ -216,7 +182,15 @@ serve(withRateLimit('record', async (req) => {
         document_id: userDocumentId,
         document_hash: doc.document_hash,
         witness_hash: effectiveWitnessHash,
-        protection: protectionMethods
+        protection: protectionMethods,
+        protection_details: {
+          signature_type: protection_details.signature_type || 'none',
+          forensic_enabled: protection_details.forensic_enabled,
+          tsa_requested: Boolean(protection_details.tsa_requested),
+          polygon_requested: Boolean(protection_details.polygon_requested),
+          bitcoin_requested: Boolean(protection_details.bitcoin_requested),
+          contract_hash: doc.eco_hash || doc.document_hash,
+        },
       }
     }
 
@@ -258,7 +232,7 @@ serve(withRateLimit('record', async (req) => {
       }
     }
 
-    console.log(`✅ protection_enabled + ${requestEventKind} recorded for document ${userDocumentId}`)
+    console.log(`✅ ${requestEventKind} recorded for document ${userDocumentId}`)
 
     return new Response(
       JSON.stringify({

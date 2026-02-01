@@ -251,7 +251,8 @@ serve(async (req) => {
         txid: anchorData.txid,
         block_height: anchorData.block_number || undefined,
         confirmed_at: anchorData.confirmed_at
-      }
+      },
+      'repair-missing-anchor-events'
     );
 
     if (!repairResult.success) {

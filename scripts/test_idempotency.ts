@@ -51,14 +51,10 @@ async function runIdempotencyTest(): Promise<boolean> {
             _source: 'idempotency_test'
           },
           {
-            kind: 'protection_enabled',
+            kind: 'document.protected.requested',
             at: new Date().toISOString(),
             payload: {
-              protection: {
-                methods: ['tsa'],
-                signature_type: 'none',
-                forensic_enabled: true
-              }
+              protection: ['tsa'],
             },
             _source: 'idempotency_test'
           }

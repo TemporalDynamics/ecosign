@@ -7,11 +7,10 @@
  * 3. El sistema mantiene la separación de responsabilidades
  */
 
-import { assertEquals, assertExists } from "https://deno.land/std@0.173.0/testing/asserts.ts";
+import { expect, test } from 'vitest';
 
 // Simular el flujo completo del sistema canónico
-Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
-  await t.step("flujo completo: documento protegido → TSA → anclajes → artifact", () => {
+test("End-to-End - Flujo Completo del Sistema Canónico", () => {
     // Simular el estado inicial de un documento
     const initialDocumentEntity = {
       id: 'test_entity_789',
@@ -29,14 +28,10 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
           _source: 'user_action'
         },
         {
-          kind: 'protection_enabled',
+          kind: 'document.protected.requested',
           at: '2026-01-27T17:00:01.000Z',
           payload: {
-            protection: {
-              methods: ['tsa', 'polygon', 'bitcoin'],
-              signature_type: 'none',
-              forensic_enabled: true
-            }
+            protection: ['tsa', 'polygon', 'bitcoin'],
           },
           _source: 'user_action'
         }
@@ -54,8 +49,8 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
     // Extraer información del estado
     const events = initialDocumentEntity.events;
     const protectionRequested = events.find((e: any) => 
-      e.kind === 'protection_enabled'
-    )?.payload?.protection?.methods || [];
+      e.kind === 'document.protected.requested'
+    )?.payload?.protection || [];
     
     const hasTsaRequested = protectionRequested.includes('tsa');
     const hasPolygonRequested = protectionRequested.includes('polygon');
@@ -65,11 +60,11 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
       e.kind === 'tsa.completed' || e.kind === 'tsa.confirmed'
     );
     
-    const hasPolygonConfirmed = events.some((e: any) => 
+    const hasPolygonConfirmedInitial = events.some((e: any) => 
       e.kind === 'anchor.confirmed' && e.payload?.network === 'polygon'
     );
     
-    const hasBitcoinConfirmed = events.some((e: any) => 
+    const hasBitcoinConfirmedInitial = events.some((e: any) => 
       e.kind === 'anchor.confirmed' && e.payload?.network === 'bitcoin'
     );
     
@@ -80,11 +75,11 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
     // DecisionAuthority toma decisiones basadas en packages/authority
     const decisions = {
       shouldRunTsa: hasTsaRequested && !hasTsaConfirmed,
-      shouldSubmitPolygon: hasTsaConfirmed && hasPolygonRequested && !hasPolygonConfirmed,
-      shouldSubmitBitcoin: hasTsaConfirmed && hasBitcoinRequested && !hasBitcoinConfirmed,
+      shouldSubmitPolygon: hasTsaConfirmed && hasPolygonRequested && !hasPolygonConfirmedInitial,
+      shouldSubmitBitcoin: hasTsaConfirmed && hasBitcoinRequested && !hasBitcoinConfirmedInitial,
       shouldBuildArtifact: hasTsaConfirmed && 
-                           (!hasPolygonRequested || hasPolygonConfirmed) && 
-                           (!hasBitcoinRequested || hasBitcoinConfirmed) && 
+                           (!hasPolygonRequested || hasPolygonConfirmedInitial) && 
+                           (!hasBitcoinRequested || hasBitcoinConfirmedInitial) && 
                            !hasArtifact
     };
 
@@ -154,8 +149,8 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
     }
 
     // En este punto, solo debería haber job de TSA (porque no hay tsa.confirmed aún)
-    assertEquals(jobsToCreate.length, 1, "Debe crear solo job de TSA inicialmente (no hay tsa.confirmed aún)");
-    assertEquals(jobsToCreate[0].type, 'run_tsa', "Primer job debe ser run_tsa");
+    expect(jobsToCreate).toHaveLength(1);
+    expect(jobsToCreate[0].type).toBe('run_tsa');
     
     console.log("   - Jobs creados:", jobsToCreate.length);
     console.log("   - Tipo de primer job:", jobsToCreate[0].type);
@@ -216,8 +211,8 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
     );
     
     const newProtectionRequested = newEvents.find((e: any) => 
-      e.kind === 'protection_enabled'
-    )?.payload?.protection?.methods || [];
+      e.kind === 'document.protected.requested'
+    )?.payload?.protection || [];
     
     const newHasPolygonRequested = newProtectionRequested.includes('polygon');
     const newHasBitcoinRequested = newProtectionRequested.includes('bitcoin');
@@ -273,13 +268,13 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
     }
 
     // Ahora debería crear jobs para ambos anclajes
-    assertEquals(newJobsToCreate.length, 2, "Debe crear jobs de anclaje después de TSA completado");
+    expect(newJobsToCreate).toHaveLength(2);
     
     const hasPolygonJob = newJobsToCreate.some((j: any) => j.type === 'submit_anchor_polygon');
     const hasBitcoinJob = newJobsToCreate.some((j: any) => j.type === 'submit_anchor_bitcoin');
     
-    assertEquals(hasPolygonJob, true, "Debe tener job de anclaje polygon");
-    assertEquals(hasBitcoinJob, true, "Debe tener job de anclaje bitcoin");
+    expect(hasPolygonJob).toBe(true);
+    expect(hasBitcoinJob).toBe(true);
     
     console.log("   - Jobs de anclaje creados:", newJobsToCreate.length);
     console.log("   - Tipos:", newJobsToCreate.map((j: any) => j.type).join(', '));
@@ -430,8 +425,8 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
       });
     }
 
-    assertEquals(finalJobsToCreate.length, 1, "Debe crear job de artifact cuando todos los anclajes están confirmados");
-    assertEquals(finalJobsToCreate[0].type, 'build_artifact', "Job final debe ser build_artifact");
+    expect(finalJobsToCreate).toHaveLength(1);
+    expect(finalJobsToCreate[0].type).toBe('build_artifact');
     
     console.log("   - Job de artifact creado:", finalJobsToCreate[0].type);
 
@@ -474,22 +469,22 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
 
     // Verificar que todos los pasos del flujo canónico ocurrieron
     const hasDocumentCreated = finalState.events.some((e: any) => e.kind === 'document.created');
-    const hasProtectionEnabled = finalState.events.some((e: any) => e.kind === 'protection_enabled');
+    const hasProtectionRequested = finalState.events.some((e: any) => e.kind === 'document.protected.requested');
     const hasTsaCompleted = finalState.events.some((e: any) => e.kind === 'tsa.completed');
     const hasPolygonConfirmed = finalState.events.some((e: any) => e.kind === 'anchor.confirmed' && e.payload?.network === 'polygon');
     const hasBitcoinConfirmed = finalState.events.some((e: any) => e.kind === 'anchor.confirmed' && e.payload?.network === 'bitcoin');
     const hasArtifactCompleted = finalState.events.some((e: any) => e.kind === 'artifact.completed');
 
-    assertEquals(hasDocumentCreated, true, "Documento debe haber sido creado");
-    assertEquals(hasProtectionEnabled, true, "Protección debe haber sido habilitada");
-    assertEquals(hasTsaCompleted, true, "TSA debe haber sido completado");
-    assertEquals(hasPolygonConfirmed, true, "Anclaje Polygon debe haber sido confirmado");
-    assertEquals(hasBitcoinConfirmed, true, "Anclaje Bitcoin debe haber sido confirmado");
-    assertEquals(hasArtifactCompleted, true, "Artifact debe haber sido completado");
+    expect(hasDocumentCreated).toBe(true);
+    expect(hasProtectionRequested).toBe(true);
+    expect(hasTsaCompleted).toBe(true);
+    expect(hasPolygonConfirmed).toBe(true);
+    expect(hasBitcoinConfirmed).toBe(true);
+    expect(hasArtifactCompleted).toBe(true);
 
     console.log("✅ Flujo completo verificado:");
     console.log("   - Document created: ✅");
-    console.log("   - Protection enabled: ✅");
+    console.log("   - Protection requested: ✅");
     console.log("   - TSA completed: ✅");
     console.log("   - Polygon confirmed: ✅");
     console.log("   - Bitcoin confirmed: ✅");
@@ -508,8 +503,8 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
       e._source === 'execution_engine' && (e.kind.includes('completed') || e.kind.includes('submitted'))
     );
     
-    assertEquals(decisionAuthorityOnlyDecides, true, "DecisionAuthority no debe ejecutar directamente");
-    assertEquals(executionEngineOnlyExecutes, true, "ExecutionEngine debe ejecutar y reportar resultados");
+    expect(decisionAuthorityOnlyDecides).toBe(true);
+    expect(executionEngineOnlyExecutes).toBe(true);
     
     console.log("   - DecisionAuthority solo decide: ✅");
     console.log("   - ExecutionEngine solo ejecuta: ✅");
@@ -519,7 +514,4 @@ Deno.test("End-to-End - Flujo Completo del Sistema Canónico", async (t) => {
     console.log("   - DecisionAuthority: Lee verdad → Usa autoridad → Escribe cola neutral");
     console.log("   - ExecutionEngine: Lee cola → Ejecuta → Escribe eventos resultado");
     console.log("   - Sistema operando según modelo canónico definido");
-  });
 });
-
-console.log("✅ Test end-to-end del sistema canónico completado");

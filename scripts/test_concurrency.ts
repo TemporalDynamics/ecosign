@@ -51,14 +51,10 @@ async function runConcurrencyTest(): Promise<boolean> {
             _source: 'concurrency_test'
           },
           {
-            kind: 'protection_enabled',
+            kind: 'document.protected.requested',
             at: new Date().toISOString(),
             payload: {
-              protection: {
-                methods: ['tsa', 'polygon'],
-                signature_type: 'none',
-                forensic_enabled: true
-              }
+              protection: ['tsa', 'polygon'],
             },
             _source: 'concurrency_test'
           }
@@ -430,8 +426,9 @@ async function simulateDecisionAuthorityRun(entityId: string, threadId: string) 
   // Simular lógica de decisión (esto normalmente usaría packages/authority)
   const events = Array.isArray(entity.events) ? entity.events : [];
   const hasTsaRequested = events.some((e: any) => 
-    e.kind === 'protection_enabled' && 
-    e.payload?.protection?.methods?.includes('tsa')
+    e.kind === 'document.protected.requested' && 
+    Array.isArray(e.payload?.protection) &&
+    e.payload.protection.includes('tsa')
   );
   
   const hasTsaConfirmed = events.some((e: any) => 

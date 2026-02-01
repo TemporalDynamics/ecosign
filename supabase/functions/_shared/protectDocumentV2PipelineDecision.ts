@@ -14,20 +14,16 @@ const hasEvent = (events: EventLike[], kind: string) => events.some((event) => e
 
 // Verifica si hay un anchor confirmado para una red específica
 const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin'): boolean => {
-  return events.some((event) => {
-    // Verificar que sea el tipo correcto de evento
-    if (event.kind !== 'anchor') {
-      return false;
-    }
+  return events.some((event: any) => {
+    const isCanonical = event.kind === 'anchor.confirmed';
+    const isLegacy = event.kind === 'anchor';
+    if (!isCanonical && !isLegacy) return false;
 
-    // Verificar que tenga la red correcta
-    const hasCorrectNetwork = (event as any).anchor?.network === network;
-    if (!hasCorrectNetwork) {
-      return false;
-    }
+    const anchorData = isCanonical ? event.payload : event.anchor;
+    const hasCorrectNetwork = anchorData?.network === network;
+    if (!hasCorrectNetwork) return false;
 
-    // Verificar que tenga confirmed_at
-    const confirmedAtValue = (event as any).anchor?.confirmed_at;
+    const confirmedAtValue = anchorData?.confirmed_at;
     if (!confirmedAtValue) {
       return false;
     }
@@ -35,10 +31,8 @@ const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin')
     // Verificar causalidad temporal: confirmed_at >= at
     try {
       const confirmedAt = new Date(confirmedAtValue);
-      const atValue = (event as any).at;
-      if (typeof atValue !== 'string' || !atValue) {
-        return false;
-      }
+      const atValue = event.at;
+      if (typeof atValue !== 'string' || !atValue) return false;
       const at = new Date(atValue);
       if (confirmedAt < at) {
         return false; // Rompe causalidad temporal
@@ -51,7 +45,7 @@ const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin')
   });
 };
 
-// Nota: hoy el evento canónico es 'anchor' con anchor.confirmed_at
+// Nota: hoy el evento canónico es 'anchor.confirmed' con payload.confirmed_at
 
 // Verifica si todos los anclajes requeridos están confirmados
 const hasRequiredAnchors = (events: EventLike[], protection: string[]): boolean => {

@@ -45,6 +45,16 @@ export const CANONICAL_AUTHORITY_FLAGS = {
   D5_NOTIFICATIONS_ENABLED: "ENABLE_D5_CANONICAL",
 } as const;
 
+const readEnv = (name: string): string | undefined => {
+  const denoValue = (globalThis as any).Deno?.env?.get?.(name);
+  if (typeof denoValue === 'string') return denoValue;
+
+  const nodeValue = (globalThis as any).process?.env?.[name];
+  if (typeof nodeValue === 'string') return nodeValue;
+
+  return undefined;
+};
+
 /**
  * Verifica si una decisión específica está bajo autoridad canónica
  * Lee directamente de las variables de entorno de Deno (rápido, sin RPC)
@@ -54,7 +64,7 @@ export function isDecisionUnderCanonicalAuthority(decisionId: keyof typeof CANON
   if (!envVarName) {
     return false;
   }
-  return Deno.env.get(envVarName) === "true";
+  return readEnv(envVarName) === "true";
 }
 
 /**

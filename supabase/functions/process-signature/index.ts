@@ -1,7 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
-import { appendTsaEventFromEdge } from '../_shared/tsaHelper.ts'
 import { appendEvent } from '../_shared/eventHelper.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { decryptToken } from '../_shared/cryptoHelper.ts'
@@ -381,21 +380,14 @@ serve(async (req) => {
         const { data: tsaData, error: tsaError } = await supabase.functions.invoke('legal-timestamp', {
           body: { hash_hex: currentVersion.document_hash }
         })
-        if (!tsaError && tsaData?.success) {
-          rfc3161Token = tsaData.token
-          timeAssurance = {
-            source: 'RFC3161',
-            confidence: 'high'
-          }
-          if (workflow.document_entity_id) {
-            const tsaAppend = await appendTsaEventFromEdge(supabase, workflow.document_entity_id, {
-              token_b64: tsaData.token,
-              witness_hash: currentVersion.document_hash
-            })
-            if (!tsaAppend.success) {
-              console.warn('TSA event append failed:', tsaAppend.error)
+          if (!tsaError && tsaData?.success) {
+            rfc3161Token = tsaData.token
+            timeAssurance = {
+              source: 'RFC3161',
+              confidence: 'high'
             }
-          }
+          // Canonical closure: do not append tsa.confirmed from process-signature.
+          // TSA evidence is produced via the job pipeline (run_tsa -> run-tsa) over witness_hash.
         } else {
           timeAssurance = {
             source: 'server_clock',

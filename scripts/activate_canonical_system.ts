@@ -26,20 +26,6 @@ async function activateCanonicalSystem() {
         witness_hash: testDocumentHash,
         events: [
           {
-            kind: 'protection_enabled',
-            at: new Date().toISOString(),
-            payload: {
-              protection: {
-                methods: ['tsa', 'polygon', 'bitcoin'],
-                signature_type: 'none',
-                forensic_enabled: true
-              },
-              document_id: 'test_doc_' + Date.now(),
-              user_id: 'test_user_' + Date.now()
-            },
-            _source: 'activation_script'
-          },
-          {
             kind: 'document.protected.requested',
             at: new Date().toISOString(),
             payload: {

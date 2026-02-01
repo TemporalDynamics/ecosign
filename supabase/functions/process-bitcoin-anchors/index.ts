@@ -796,7 +796,8 @@ serve(async (req) => {
                     txid: txid || 'unknown',
                     block_height: blockHeight ?? undefined,
                     confirmed_at: blockData.confirmedAt
-                  }
+                  },
+                  'process-bitcoin-anchors'
                 );
 
                 if (appendResult.success) {
@@ -977,7 +978,8 @@ serve(async (req) => {
                 txid: txid || 'unknown',
                 block_height: blockHeight ?? undefined,
                 confirmed_at: confirmedAt
-              }
+              },
+              'process-bitcoin-anchors'
             );
 
             if (appendResult.success) {

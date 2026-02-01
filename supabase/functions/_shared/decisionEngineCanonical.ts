@@ -79,19 +79,15 @@ export const isDocumentProtected = (events: EventLike[]): boolean => {
  */
 const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin'): boolean => {
   return events.some((event: any) => {
-    // Verificar que sea el tipo correcto de evento (canónico)
-    if (event.kind !== 'anchor') {
-      return false;
-    }
+    const isCanonical = event.kind === 'anchor.confirmed';
+    const isLegacy = event.kind === 'anchor';
+    if (!isCanonical && !isLegacy) return false;
 
-    // Verificar que tenga la red correcta
-    const hasCorrectNetwork = event.anchor?.network === network;
-    if (!hasCorrectNetwork) {
-      return false;
-    }
+    const anchorData = isCanonical ? event.payload : event.anchor;
+    const hasCorrectNetwork = anchorData?.network === network;
+    if (!hasCorrectNetwork) return false;
 
-    // Verificar que tenga confirmed_at
-    const confirmedAtValue = event.anchor?.confirmed_at;
+    const confirmedAtValue = anchorData?.confirmed_at;
     if (!confirmedAtValue) {
       return false;
     }
@@ -99,7 +95,9 @@ const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin')
     // Verificar causalidad temporal: confirmed_at >= at
     try {
       const confirmedAt = new Date(confirmedAtValue);
-      const at = new Date(event.at);
+      const atValue = event.at;
+      if (typeof atValue !== 'string' || !atValue) return false;
+      const at = new Date(atValue);
       if (confirmedAt < at) {
         return false; // Rompe causalidad temporal
       }

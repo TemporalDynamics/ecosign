@@ -31,11 +31,6 @@ function isUuid(v: unknown): v is string {
   return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
-const LEGACY_UNDERSCORE_EVENT_KINDS = new Set([
-  // Legacy (pre-dot-notation). Allowed temporarily.
-  'protection_enabled',
-]);
-
 // Clasificación formal de eventos
 export type EventClass = 'evidence' | 'tracking';
 
@@ -62,7 +57,7 @@ const AUTHORIZED_SOURCES: Record<string, string[]> = {
   // TSA evidence is emitted only by run-tsa (job-driven).
   'tsa.confirmed': ['run-tsa'],
   'anchor.pending': ['submit-anchor-polygon', 'submit-anchor-bitcoin'],
-  'anchor': ['process-polygon-anchors', 'process-bitcoin-anchors'],  // confirmación real
+  'anchor': ['process-polygon-anchors', 'process-bitcoin-anchors', 'repair-missing-anchor-events'],  // confirmación real
   'artifact.finalized': ['build-artifact'],
   'document.protected.requested': ['start-signature-workflow', 'record-protection-event'],
 
@@ -103,7 +98,7 @@ export async function appendEvent(
       return { success: false, error: 'Event must have an "at" ISO 8601 timestamp' };
     }
 
-    if (event.kind.includes('_') && !LEGACY_UNDERSCORE_EVENT_KINDS.has(event.kind)) {
+    if (event.kind.includes('_')) {
       return { success: false, error: `Event kind must not contain underscore: "${event.kind}"` };
     }
 

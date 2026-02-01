@@ -1,72 +1,73 @@
 import { decideProtectDocumentV2Pipeline } from '../../supabase/functions/_shared/protectDocumentV2PipelineDecision.ts';
+import { describe, expect, test } from 'vitest';
 
-Deno.test('protect_document_v2 pipeline: run_tsa when request exists and no tsa', () => {
-  const decision = decideProtectDocumentV2Pipeline(
-    [
-      { kind: 'document.signed' },
-      { kind: 'document.protected.requested' },
-    ],
-    [],
-  );
+describe('protect_document_v2 pipeline decision', () => {
+  test('run_tsa when request exists and no tsa', () => {
+    const decision = decideProtectDocumentV2Pipeline(
+      [
+        { kind: 'document.signed' },
+        { kind: 'document.protected.requested' },
+      ],
+      [],
+    );
 
-  const expected = ['run_tsa'];
-  if (JSON.stringify(decision.jobs) !== JSON.stringify(expected)) {
-    throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(decision.jobs)}`);
-  }
-});
+    expect(decision.jobs).toEqual(['run_tsa']);
+  });
 
-Deno.test('protect_document_v2 pipeline: build_artifact when tsa confirmed and no artifact', () => {
-  const decision = decideProtectDocumentV2Pipeline(
-    [
-      { kind: 'document.signed' },
-      { kind: 'document.protected.requested' },
-      { kind: 'tsa.confirmed' },
-    ],
-    ['polygon'],
-  );
+  test('submit_anchor_polygon when tsa confirmed and polygon requested without confirmation', () => {
+    const decision = decideProtectDocumentV2Pipeline(
+      [
+        { kind: 'document.signed' },
+        { kind: 'document.protected.requested' },
+        { kind: 'tsa.confirmed' },
+      ],
+      ['polygon'],
+    );
 
-  const expected = ['build_artifact'];
-  if (JSON.stringify(decision.jobs) !== JSON.stringify(expected)) {
-    throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(decision.jobs)}`);
-  }
-});
+    expect(decision.jobs).toEqual(['submit_anchor_polygon']);
+  });
 
-Deno.test('protect_document_v2 pipeline: submit anchors after artifact finalized', () => {
-  const decision = decideProtectDocumentV2Pipeline(
-    [
-      { kind: 'document.signed' },
-      { kind: 'document.protected.requested' },
-      { kind: 'tsa.confirmed' },
-      { kind: 'artifact.finalized' },
-    ],
-    ['polygon', 'bitcoin'],
-  );
+  test('build_artifact when tsa confirmed and required anchors are confirmed', () => {
+    const decision = decideProtectDocumentV2Pipeline(
+      [
+        { kind: 'document.signed' },
+        { kind: 'document.protected.requested' },
+        { kind: 'tsa.confirmed' },
+        {
+          kind: 'anchor.confirmed',
+          at: '2026-01-27T10:02:00.000Z',
+          payload: { network: 'polygon', confirmed_at: '2026-01-27T10:02:00.000Z' },
+        },
+        {
+          kind: 'anchor.confirmed',
+          at: '2026-01-27T10:03:00.000Z',
+          payload: { network: 'bitcoin', confirmed_at: '2026-01-27T10:03:00.000Z' },
+        },
+      ],
+      ['polygon', 'bitcoin'],
+    );
 
-  const expected = ['submit_anchor_polygon', 'submit_anchor_bitcoin'];
-  if (JSON.stringify(decision.jobs) !== JSON.stringify(expected)) {
-    throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(decision.jobs)}`);
-  }
-});
+    expect(decision.jobs).toEqual(['build_artifact']);
+  });
 
-Deno.test('protect_document_v2 pipeline: noop when request missing', () => {
-  const decision = decideProtectDocumentV2Pipeline([{ kind: 'document.signed' }], ['polygon']);
-  if (decision.jobs.length !== 0 || decision.reason !== 'noop_missing_request') {
-    throw new Error('Expected noop_missing_request with no jobs');
-  }
-});
+  test('noop when request missing', () => {
+    const decision = decideProtectDocumentV2Pipeline([{ kind: 'document.signed' }], ['polygon']);
+    expect(decision.jobs).toEqual([]);
+    expect(decision.reason).toBe('noop_missing_request');
+  });
 
-Deno.test('protect_document_v2 pipeline: noop when no anchors requested', () => {
-  const decision = decideProtectDocumentV2Pipeline(
-    [
-      { kind: 'document.signed' },
-      { kind: 'document.protected.requested' },
-      { kind: 'tsa.confirmed' },
-      { kind: 'artifact.finalized' },
-    ],
-    [],
-  );
+  test('noop_complete when artifact already finalized', () => {
+    const decision = decideProtectDocumentV2Pipeline(
+      [
+        { kind: 'document.signed' },
+        { kind: 'document.protected.requested' },
+        { kind: 'tsa.confirmed' },
+        { kind: 'artifact.finalized' },
+      ],
+      [],
+    );
 
-  if (decision.jobs.length !== 0 || decision.reason !== 'noop_complete') {
-    throw new Error('Expected noop_complete with no jobs');
-  }
+    expect(decision.jobs).toEqual([]);
+    expect(decision.reason).toBe('noop_complete');
+  });
 });

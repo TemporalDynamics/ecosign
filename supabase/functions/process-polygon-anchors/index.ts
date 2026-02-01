@@ -450,7 +450,8 @@ serve(async (req) => {
               txid: txHash,
               block_height: receipt.blockNumber ?? undefined,
               confirmed_at: confirmedAt
-            }
+            },
+            'process-polygon-anchors'
           )
 
           if (appendResult.success) {

@@ -1672,7 +1672,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           fileType: file.type
         });
 
-        // === PROBATORY EVENT: protection_enabled + document.protected.requested ===
+        // === PROBATORY EVENT: document.protected.requested ===
         // Canonical ledger write: if this fails, the document is NOT protected.
         const useProtectV2 = String(import.meta.env.VITE_USE_PROTECT_V2 ?? 'true').toLowerCase() === 'true';
         if (forensicEnabled) {

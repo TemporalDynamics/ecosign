@@ -17,7 +17,10 @@ CREATE INDEX executor_jobs_trace_id_idx
   WHERE trace_id IS NOT NULL;
 
 -- Update claim_orchestrator_jobs to return new fields
-CREATE OR REPLACE FUNCTION public.claim_orchestrator_jobs(
+-- Must DROP first because we're changing the return type
+DROP FUNCTION IF EXISTS public.claim_orchestrator_jobs(integer, text);
+
+CREATE FUNCTION public.claim_orchestrator_jobs(
   p_limit integer,
   p_worker_id text
 )
@@ -68,7 +71,10 @@ END;
 $$;
 
 -- Similarly update claim_initial_decision_jobs (used by fase1-executor)
-CREATE OR REPLACE FUNCTION public.claim_initial_decision_jobs(
+-- Must DROP first because we're changing the return type
+DROP FUNCTION IF EXISTS public.claim_initial_decision_jobs(integer, text);
+
+CREATE FUNCTION public.claim_initial_decision_jobs(
   p_limit integer,
   p_worker_id text
 )

@@ -172,63 +172,44 @@ const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promi
 // Función para llamar a funciones de Supabase
 async function callFunction(functionName: string, body: Record<string, unknown>): Promise<any> {
   const FUNCTIONS_URL = `${SUPABASE_URL.replace(/\/+$/, '')}/functions/v1`;
-  
-  const response = await fetch(`${FUNCTIONS_URL}/${functionName}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-    },
-    body: JSON.stringify(body),
-  });
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = (data as { error?: string }).error || `HTTP ${response.status}`;
-    throw new Error(message);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(`${FUNCTIONS_URL}/${functionName}`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = (data as { error?: string }).error || `HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    return data;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`callFunction:${functionName}:${message}`);
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return data;
 }
 
 // Procesar un job
 async function processJob(job: ExecutorJob): Promise<void> {
   const { id: jobId, type, entity_id: documentEntityId, payload, correlation_id } = job;
 
-  // Generate unique trace_id for this execution
-  const trace_id = `${RUN_INSTANCE_ID}-${jobId}-${job.attempts || 1}`;
-
-  // Update job with trace_id (with ownership guard to prevent race conditions)
-  const { count: traceUpdateCount } = await supabase
-    .from('executor_jobs')
-    .update({ trace_id })
-    .eq('id', jobId)
-    .eq('locked_by', WORKER_ID);
-
-  // If update affected 0 rows, job was stolen - abort processing
-  if (!traceUpdateCount || traceUpdateCount === 0) {
-    logger.warn('Job ownership lost before trace_id update', {
-      jobId,
-      type,
-      documentEntityId,
-      trace_id,
-    });
-    throw new Error('Job ownership lost - aborting processing');
-  }
-
   const startedAt = new Date();
-  await logRun('started', job, startedAt);
 
-  // Use structured logging with correlation_id and trace_id
-  logger.info('Job processing started', {
-    jobId,
-    type,
-    documentEntityId,
-    correlation_id: correlation_id || documentEntityId,
-    trace_id,
-    attempt: job.attempts || 1,
-  });
+  // Generate unique trace_id for this execution
+  const trace_id = `${RUN_WORKER_ID}-${jobId}-${job.attempts || 1}`;
 
   const isLongJob = type === 'run_tsa' || type === 'submit_anchor_polygon' || type === 'submit_anchor_bitcoin';
   let heartbeatTimer: number | null = null;
@@ -244,18 +225,49 @@ async function processJob(job: ExecutorJob): Promise<void> {
     if (heartbeatTimer !== null) return;
     heartbeatTimer = setInterval(async () => {
       try {
-        await supabase.rpc('update_job_heartbeat', {
+        const { error } = await supabase.rpc('update_job_heartbeat', {
           p_job_id: jobId,
           p_worker_id: WORKER_ID,
         });
+        if (error) {
+          logger.warn('Heartbeat update failed', { jobId, type, error: error.message, trace_id });
+        }
       } catch (e) {
         // Non-fatal: reclaim TTL is still the fallback.
-        console.warn(`[orchestrator] heartbeat update failed for job ${jobId}:`, e);
+        const message = e instanceof Error ? e.message : String(e);
+        logger.warn('Heartbeat update threw', { jobId, type, error: message, trace_id });
       }
     }, HEARTBEAT_INTERVAL_MS);
   };
 
   try {
+    // Update job with trace_id (with ownership guard)
+    const { data: traceRows, error: traceUpdateError } = await supabase
+      .from('executor_jobs')
+      .update({ trace_id })
+      .eq('id', jobId)
+      .eq('locked_by', WORKER_ID)
+      .select('id');
+
+    if (traceUpdateError) {
+      throw new Error(`trace_id_update_failed:${traceUpdateError.message}`);
+    }
+    if (!traceRows || traceRows.length === 0) {
+      throw new Error('ownership_lost_before_trace_id_update');
+    }
+
+    await logRun('started', job, startedAt);
+
+    // Use structured logging with correlation_id and trace_id
+    logger.info('Job processing started', {
+      jobId,
+      type,
+      documentEntityId,
+      correlation_id: correlation_id || documentEntityId,
+      trace_id,
+      attempt: job.attempts || 1,
+    });
+
     logger.info('Executing job handler', {
       jobId,
       type,
@@ -322,7 +334,12 @@ async function processJob(job: ExecutorJob): Promise<void> {
     stopHeartbeat();
 
     const finishedAt = new Date();
-    await logRun('failed', job, startedAt, finishedAt, message);
+    try {
+      await logRun('failed', job, startedAt, finishedAt, message);
+    } catch (e) {
+      const logMessage = e instanceof Error ? e.message : String(e);
+      logger.warn('Failed to persist executor_job_runs failed record', { jobId, type, error: logMessage, trace_id });
+    }
 
     const attempt = Number(job.attempts ?? 1);
     const maxAttempts = Number(job.max_attempts ?? 10);

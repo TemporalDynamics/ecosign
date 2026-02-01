@@ -252,8 +252,10 @@
         "npm:pdf-lib@^1.17.1",
         "npm:pdfjs-dist@3.11.174",
         "npm:supabase@^2.58.5",
+        "npm:ts-node@^10.9.2",
         "npm:typescript@^5.9.3",
-        "npm:vitest@^4.0.9"
+        "npm:vitest@^4.0.9",
+        "npm:yaml@^2.6.1"
       ]
     }
   }

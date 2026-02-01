@@ -319,6 +319,7 @@ function DocumentsPage() {
   const navigate = useNavigate();
   const { open: openLegalCenter } = useLegalCenter();
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [processingHintStartByEntityId, setProcessingHintStartByEntityId] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [planTier, setPlanTier] = useState<PlanTier>(null); // free | pro | business | enterprise
   const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
@@ -516,10 +517,12 @@ function DocumentsPage() {
     }
   };
 
-  const loadDocuments = useCallback(async () => {
+  const loadDocuments = useCallback(async (opts?: { silent?: boolean }) => {
     try {
       const supabase = getSupabase();
-      setLoading(true);
+      if (!opts?.silent) {
+        setLoading(true);
+      }
       const {
         data: { user },
         error: userError
@@ -576,8 +579,22 @@ function DocumentsPage() {
       console.error("Error in loadDocuments:", error);
       setDocuments([]);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) {
+        setLoading(false);
+      }
     }
+  }, []);
+
+  // UX: capture moment protection was requested, to (a) hide "Procesando" briefly and (b) start fast polling.
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ document_entity_id?: string }>).detail;
+      const entityId = String(detail?.document_entity_id ?? '');
+      if (!entityId) return;
+      setProcessingHintStartByEntityId((prev) => ({ ...prev, [entityId]: Date.now() }));
+    };
+    window.addEventListener('ecosign:protection-requested', handler as EventListener);
+    return () => window.removeEventListener('ecosign:protection-requested', handler as EventListener);
   }, []);
 
   const loadDrafts = useCallback(async () => {
@@ -652,6 +669,56 @@ function DocumentsPage() {
       supabase.removeChannel(channel);
     };
   }, [currentUserId]);
+
+  // Fallback: Realtime can fail (browser/WSS). While there are docs in "processing", poll quickly.
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const isProcessing = (doc: DocumentRecord) => {
+      const events = doc?.events ?? [];
+      if (!Array.isArray(events)) return false;
+      const hasRequest = events.some((e: any) => e?.kind === 'document.protected.requested');
+      const hasTsa = events.some((e: any) => e?.kind === 'tsa.confirmed');
+      const hasErr = events.some((e: any) => e?.kind === 'tsa.failed' || e?.kind === 'protection.failed' || e?.kind === 'anchor.failed');
+      return hasRequest && !hasTsa && !hasErr;
+    };
+
+    const processingDocs = documents.filter(isProcessing);
+    if (processingDocs.length === 0) return;
+
+    const pollInFlight = { current: false };
+    const computePollIntervalMs = () => {
+      const now = Date.now();
+      const freshestHint = Object.values(processingHintStartByEntityId).reduce((acc, t) => Math.max(acc, t), 0);
+      const isFresh = freshestHint > 0 && now - freshestHint < 30_000;
+      return isFresh ? 1_500 : 8_000;
+    };
+
+    let cancelled = false;
+    let timeoutId: number | null = null;
+
+    const tick = async () => {
+      if (cancelled) return;
+      if (pollInFlight.current) return;
+      pollInFlight.current = true;
+      try {
+        await loadDocuments({ silent: true });
+      } finally {
+        pollInFlight.current = false;
+      }
+      if (cancelled) return;
+      timeoutId = window.setTimeout(tick, computePollIntervalMs());
+    };
+
+    timeoutId = window.setTimeout(tick, computePollIntervalMs());
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [currentUserId, documents, loadDocuments, processingHintStartByEntityId]);
 
   const loadPlan = useCallback(async () => {
     try {
@@ -2165,6 +2232,7 @@ function DocumentsPage() {
                     <DocumentRow
                       document={doc}
                       context="documents"
+                      processingHintStartedAtMs={processingHintStartByEntityId[String(doc.document_entity_id ?? doc.id)]}
                       onOpen={(d) => setPreviewDoc(d)}
                       onShare={(d) => handleShareDoc(d)}
                       onDownloadEco={(d) => handleEcoDownload(d)}
@@ -2199,6 +2267,7 @@ function DocumentsPage() {
                         document={doc}
                         asRow
                         context="documents"
+                        processingHintStartedAtMs={processingHintStartByEntityId[String(doc.document_entity_id ?? doc.id)]}
                         onOpen={(d) => setPreviewDoc(d)}
                         onShare={(d) => handleShareDoc(d)}
                         onDownloadEco={(d) => handleEcoDownload(d)}

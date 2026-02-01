@@ -233,6 +233,40 @@ serve(withRateLimit('record', async (req) => {
       }
     }
 
+    // Best-effort: wake the execution engine immediately (so user doesn't wait for next cron tick).
+    // Keep it non-blocking (short timeouts) and ignore failures.
+    try {
+      const supabaseUrl = (Deno.env.get('SUPABASE_URL') || '').replace(/\/+$/, '');
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+      if (supabaseUrl && serviceRoleKey) {
+        const post = async (fnName: string, body: Record<string, unknown>) => {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 1_500);
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
+              method: 'POST',
+              signal: controller.signal,
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: serviceRoleKey,
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify(body),
+            });
+          } finally {
+            clearTimeout(timeout);
+          }
+        };
+
+        await Promise.allSettled([
+          post('fase1-executor', { source: 'record-protection-event', limit: 5 }),
+          post('orchestrator', { source: 'record-protection-event' }),
+        ]);
+      }
+    } catch (wakeErr) {
+      console.warn('[record-protection-event] wake execution engine failed (non-critical):', wakeErr);
+    }
+
     console.log(`✅ ${requestEventKind} recorded for document ${userDocumentId}`)
 
     return new Response(

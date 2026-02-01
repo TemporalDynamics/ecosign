@@ -1,183 +1,234 @@
-# Supabase CLI
+# 📚 EcoSign Documentation — README Canónico
 
-[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
-](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
+**Autoridad:** SOURCE OF TRUTH  
+**Estado:** CANONICAL — No refactorizar, solo referenciar  
+**Versión:** 1.0  
+**Fecha:** 2026-01-31  
 
-[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
+> **⚠️ REGLA SUPREMA:** Si algo contradice un contrato canónico, el contrato tiene razón aunque el código compile.
 
-This repository contains all the functionality for Supabase CLI.
+---
 
-- [x] Running Supabase locally
-- [x] Managing database migrations
-- [x] Creating and deploying Supabase Functions
-- [x] Generating types directly from your database schema
-- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
+## ⚡ TL;DR — Si solo vas a leer una cosa
 
-## Getting started
+**Sos desarrollador:** Empezá por [`contratos/README.md`](./contratos/README.md) → [`INDEX.md`](./INDEX.md)  
+**Sos legal/compliance:** [`contratos/verdad-canonica.md`](./contratos/verdad-canonica.md)  
+**Sos producto/UX:** [`contratos/IDENTITY_LEVELS_SUMMARY.md`](./contratos/IDENTITY_LEVELS_SUMMARY.md)  
+**Necesitás arreglar algo:** [`ops/RUNBOOK.md`](./ops/RUNBOOK.md)  
 
-### Install the CLI
+**TODO LO DEMÁS ES SECUNDARIO hasta que entiendas esto.**
 
-Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
+---
 
-```bash
-npm i supabase --save-dev
+## 🏛️ Axiomas de Autoridad (Constitución Operativa)
+
+Estos axiomas gobiernan toda la documentación de EcoSign. **Son inmutables.**
+
+**AXIOMA 1 — Verdad Canónica > Código**  
+Si un contrato dice X y el código hace Y, el código está mal. El contrato es la especificación.
+
+**AXIOMA 2 — N0–N5 son append-only**  
+Los contratos canónicos nunca se borran ni se reescriben. Solo se versionan (v1.0 → v1.1 → v2.0).
+
+**AXIOMA 3 — Exceso sin fricción es daño**  
+Documentar más de lo necesario es tan peligroso como documentar poco. El ruido histórico entierra la verdad.
+
+**AXIOMA 4 — Autoridad antes que prolijidad**  
+No automatizamos antes de fijar autoridad. No refactorizamos contratos cerrados.
+
+**AXIOMA 5 — Todo documento tiene un dueño**  
+Cada documento tiene un rol responsable. Si no tiene dueño, es huérfano y debe archivarse.
+
+---
+
+## 🎯 1. Qué documentos mandan (La Jerarquía Canónica)
+
+```
+Nivel 0: Constitución
+└── contratos/verdad-canonica.md              [NO TOCAR]
+
+Nivel 1: Entidad y Ledger  
+├── contratos/DOCUMENT_ENTITY_CONTRACT.md     [Schema canónico]
+└── contratos/HASH_CHAIN_RULES.md             [Cadena de hashes]
+
+Nivel 2: Eventos Probatorios
+├── contratos/TSA_EVENT_RULES.md              [Timestamping]
+├── contratos/ANCHOR_EVENT_RULES.md           [Blockchain]
+└── contratos/IDENTITY_ASSURANCE_RULES.md     [Identidad L0-L5]
+
+Nivel 3: Protección y Certificación
+├── contratos/PROTECTION_LEVEL_RULES.md       [Niveles de protección]
+├── contratos/ECO_FORMAT_CONTRACT.md          [Formato .ECO]
+├── contratos/WITNESS_PDF_CONTRACT.md         [Testigo visual]
+└── contratos/ECO_ECOX_MIN_SCHEMA.md          [Schema mínimo]
+
+Nivel 4: Flujos y Experiencia
+├── contratos/FLOW_MODES_CONTRACT.md          [Modos de firma]
+├── contratos/OPERACIONES_CONTRACT.md         [Carpetas lógicas]
+└── contratos/WORKFLOW_STATUS_SEMANTICS.md    [Estados semánticos]
+
+Nivel 5: Organización y Contexto
+├── contratos/OPERATIONS_RESPONSIBILITY.md    [Responsabilidades]
+└── contratos/CANONICAL_EVENTS_LIST.md        [Eventos mínimos]
 ```
 
-To install the beta release channel:
+**Regla de oro:** Si está en `contratos/`, es **append-only**. No se borra, no se reescribe. Solo se versiona.
 
-```bash
-npm i supabase@beta --save-dev
-```
+---
 
-When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
+## 📖 2. Cómo se lee EcoSign (Rutas por Rol)
 
-```
-NODE_OPTIONS=--no-experimental-fetch yarn add supabase
-```
+### 🧑‍💻 Para Backend Developers
 
-> **Note**
-For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
+**Obligatorio (en orden):**
+1. `contratos/DOCUMENT_ENTITY_CONTRACT.md` — Entender el modelo de datos
+2. `contratos/HASH_CHAIN_RULES.md` — Cómo se calculan los hashes
+3. `architecture/ARCHITECTURE.md` — Visión general del sistema
+4. `security/TRUST_BOUNDARIES.md` — Límites de confianza
+5. `INDEX.md` — Navegación completa
 
-<details>
-  <summary><b>macOS</b></summary>
+**Cuándo necesites implementar:**
+- TSA → `tsa/TSA_IMPLEMENTATION.md`
+- Anchoring → `anchoring/README_ANCHORING.md`
+- Firmas → `signatures/SIGNATURE_WORKFLOW_ARCHITECTURE.md`
 
-  Available via [Homebrew](https://brew.sh). To install:
+### 🎨 Para Frontend/UX Developers
 
-  ```sh
-  brew install supabase/tap/supabase
-  ```
+**Obligatorio (en orden):**
+1. `contratos/IDENTITY_LEVELS_SUMMARY.md` — Copy de identidad (1 min)
+2. `contratos/FLOW_MODES_CONTRACT.md` — UX de firma
+3. `contratos/OPERACIONES_CONTRACT.md` — Carpetas lógicas
+4. `ux/MATRIZ_EXPLOSIONES_UX.md` — Análisis de UX
+5. `design/DESIGN_SYSTEM.md` — Tokens y componentes
 
-  To install the beta release channel:
-  
-  ```sh
-  brew install supabase/tap/supabase-beta
-  brew link --overwrite supabase-beta
-  ```
-  
-  To upgrade:
+**Implementación específica:**
+- Centro Legal → `centro-legal/` (si existe)
+- Notificaciones → `communication/EMAIL_TEMPLATES_MAP.md`
 
-  ```sh
-  brew upgrade supabase
-  ```
-</details>
+### ⚖️ Para Legal/Compliance
 
-<details>
-  <summary><b>Windows</b></summary>
+**Obligatorio (en orden):**
+1. `contratos/verdad-canonica.md` — Posición legal base
+2. `contratos/IDENTITY_ASSURANCE_RULES.md` — Declaración de identidad
+3. `contratos/ECO_FORMAT_CONTRACT.md` — Estructura de certificados
+4. `security/TRUST_BOUNDARIES.md` — Modelo de amenaza
 
-  Available via [Scoop](https://scoop.sh). To install:
+### 📊 Para Producto/PM
 
-  ```powershell
-  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
-  scoop install supabase
-  ```
+**Obligatorio (en orden):**
+1. `contratos/IDENTITY_LEVELS_SUMMARY.md` — Casos de uso L0-L5
+2. `ANALISIS_INTEGRAL_ECOSIGN.md` — Análisis de mercado
+3. `strategy/OPEN_SOURCE_STRATEGY.md` — Estrategia open source
+4. `planning/` — Roadmaps y sprints
 
-  To upgrade:
+### 🔧 Para DevOps/Operaciones
 
-  ```powershell
-  scoop update supabase
-  ```
-</details>
+**Obligatorio (en orden):**
+1. `ops/RUNBOOK.md` — Runbook operativo
+2. `ops/DEPLOYMENT_GUIDE.md` — Guía de despliegue
+3. `ops/CRON_JOBS_MANAGEMENT.md` — Tareas programadas
+4. `ops/SENTRY_SETUP.md` — Trazabilidad
 
-<details>
-  <summary><b>Linux</b></summary>
+---
 
-  Available via [Homebrew](https://brew.sh) and Linux packages.
+## 🚫 3. Qué NO leer primero (Y por qué)
 
-  #### via Homebrew
+### ❌ NO leer todavía:
 
-  To install:
+**`deprecate/`** — 35% de la documentación está acá. Es ruido histórico valioso pero no es truth actual.  
+→ *Leer solo si estás debuggeando algo muy viejo o necesitás trazabilidad histórica.*
 
-  ```sh
-  brew install supabase/tap/supabase
-  ```
+**`archive/`** — Documentos archivados de versiones anteriores.  
+→ *Similar a deprecate, pero más organizado cronológicamente.*
 
-  To upgrade:
+**Archivos sueltos en raíz de `docs/`** — 30 archivos sin categoría clara.  
+→ *Algunos son válidos, otros son bugs de organización. Ver `INDEX.md` para filtrar.*
 
-  ```sh
-  brew upgrade supabase
-  ```
+**`docs/README.md` (actual)** — Bug conceptual. Ese archivo es de Supabase CLI, no de EcoSign.  
+→ *Ignorar completamente. Este archivo (`README_CANONICO.md` o el nuevo `README.md`) es la fuente.*
 
-  #### via Linux packages
+**`technical/` a profundidad** — Análisis técnico detallado.  
+→ *Útil para auditorías, no para entender el sistema.*
 
-  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
+**`log/`** — Notas operacionales informales.  
+→ *Diarios de desarrollo, no documentación canónica.*
 
-  ```sh
-  sudo apk add --allow-untrusted <...>.apk
-  ```
+### ⚠️ Leer con precaución:
 
-  ```sh
-  sudo dpkg -i <...>.deb
-  ```
+**Documentos duplicados** — Hay 4 `README.md` y 3 `INDEX.md` en diferentes carpetas.  
+→ *Siempre preferir el que está más cerca de `contratos/` en la jerarquía.*
 
-  ```sh
-  sudo rpm -i <...>.rpm
-  ```
+**Documentos en inglés/español mixto** — No hay política definida todavía.  
+→ *Los contratos canónicos están en español. El código suele estar en inglés.*
 
-  ```sh
-  sudo pacman -U <...>.pkg.tar.zst
-  ```
-</details>
+---
 
-<details>
-  <summary><b>Other Platforms</b></summary>
+## 🗺️ Mapa de Navegación Rápida
 
-  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
+### ¿Necesitás...?
 
-  ```sh
-  go install github.com/supabase/cli@latest
-  ```
+| Necesidad | Documento | Prioridad |
+|-----------|-----------|-----------|
+| Entender el modelo de datos | `contratos/DOCUMENT_ENTITY_CONTRACT.md` | 🔴 Crítica |
+| Saber qué es un documento | `contratos/verdad-canonica.md` | 🔴 Crítica |
+| Implementar firma digital | `signatures/SIGNATURE_WORKFLOW_ARCHITECTURE.md` | 🟠 Alta |
+| Configurar anchoring | `anchoring/README_ANCHORING.md` | 🟠 Alta |
+| Entender niveles de identidad | `contratos/IDENTITY_LEVELS_SUMMARY.md` | 🟡 Media |
+| Ver roadmap | `planning/` | 🟢 Baja |
+| Debuggear un bug viejo | `archive/` + `deprecate/` | ⚪ Depende |
 
-  Add a symlink to the binary in `$PATH` for easier access:
+---
 
-  ```sh
-  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
-  ```
+## 📋 Convenciones de este Repositorio
 
-  This works on other non-standard Linux distros.
-</details>
+### Nomenclatura de Archivos
 
-<details>
-  <summary><b>Community Maintained Packages</b></summary>
+- `UPPER_SNAKE_CASE.md` → Contratos canónicos (inmutables)
+- `CamelCase.md` → Documentación técnica
+- `lowercase-kebab.md` → Guías y procedimientos
 
-  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
-  To install in your working directory:
+### Estados de Documentos
 
-  ```bash
-  pkgx install supabase
-  ```
+- `[CANONICAL]` — Fuente de verdad, append-only
+- `[ACTIVE]` — Documentación viva, se actualiza
+- `[DEPRECATED]` — Obsoleto, no usar para nuevas implementaciones
+- `[ARCHIVED]` — Histórico, solo referencia
 
-  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
-</details>
+### Versionado
 
-### Run the CLI
+- Contratos canónicos: SemVer (v1.0, v1.1, v2.0)
+- Guías: Fecha de última actualización
+- Logs: Timestamp ISO
 
-```bash
-supabase bootstrap
-```
+---
 
-Or using npx:
+## 🔗 Referencias Cruzadas Mínimas
 
-```bash
-npx supabase bootstrap
-```
+**Para no perderte:**
+- Este README → Tu entry point
+- `contratos/README.md` → Índice de contratos canónicos
+- `INDEX.md` → Índice completo navegable
+- `architecture/ARCHITECTURE.md` → Visión de sistema
 
-The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
+**Regla:** Si un documento no está en estas 4 referencias, es secundario.
 
-## Docs
+---
 
-Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
+## 📝 Notas para el Mantenedor
 
-## Breaking changes
+Este README es **SOURCE OF TRUTH** para la navegación de documentación.  
+Cambios requieren:
+1. Consenso de Tech Lead
+2. Actualización de `INDEX.md` si es necesario
+3. NO romper links externos ( bookmarks, referencias en código)
 
-We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
+**Última actualización:** 2026-01-31  
+**Próxima revisión:** Post-implementación Centro Legal (Q1 2026)
 
-However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
+---
 
-## Developing
+**¿Encontraste un documento que no está referenciado acá?**  
+→ Es un bug. Reportarlo para incluirlo o moverlo a `archive/`.
 
-To run from source:
-
-```sh
-# Go >= 1.22
-go run . help
-```
+**¿No sabés por dónde empezar?**  
+→ Volvé a la sección "TL;DR — Si solo vas a leer una cosa" arriba.

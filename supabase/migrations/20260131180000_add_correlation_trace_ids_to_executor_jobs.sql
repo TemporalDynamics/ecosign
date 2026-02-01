@@ -47,7 +47,7 @@ BEGIN
     locked_by = p_worker_id,
     heartbeat_at = now(),
     updated_at = now()
-  WHERE id IN (
+  WHERE executor_jobs.id IN (
     SELECT j.id
     FROM executor_jobs j
     WHERE j.status IN ('queued', 'retry_scheduled')
@@ -101,7 +101,7 @@ BEGIN
     locked_by = p_worker_id,
     heartbeat_at = now(),
     updated_at = now()
-  WHERE id IN (
+  WHERE executor_jobs.id IN (
     SELECT j.id
     FROM executor_jobs j
     WHERE j.status IN ('queued', 'retry_scheduled')

@@ -6,6 +6,7 @@ import { validateEventAppend } from '../_shared/validateEventAppend.ts';
 type RunTsaRequest = {
   document_entity_id: string;
   witness_hash?: string;
+  correlation_id?: string;
 };
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -61,6 +62,16 @@ serve(async (req) => {
 
   const body = (await req.json().catch(() => ({}))) as Partial<RunTsaRequest>;
   const documentEntityId = String(body.document_entity_id ?? '');
+
+  // Validate correlation_id: canonical rule is correlation_id = document_entity_id
+  let correlationId = body.correlation_id || documentEntityId;
+  if (correlationId && correlationId !== documentEntityId) {
+    console.warn('[run-tsa] correlation_id mismatch - overriding to canonical', {
+      received_correlation_id: correlationId,
+      document_entity_id: documentEntityId,
+    });
+    correlationId = documentEntityId;
+  }
 
   if (!documentEntityId) {
     return jsonResponse({ error: 'document_entity_id required' }, 400);
@@ -118,6 +129,7 @@ serve(async (req) => {
     const tsaEvent = {
       kind: 'tsa.confirmed',
       at: new Date().toISOString(),
+      correlation_id: correlationId,  // NUEVO: heredado del job
       witness_hash: witnessHash,
       tsa: {
         token_b64: tsaResponse.token,

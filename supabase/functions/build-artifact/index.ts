@@ -8,6 +8,7 @@ type BuildArtifactRequest = {
   document_id?: string;
   artifact_format?: string;
   artifact_version?: string;
+  correlation_id?: string;
 };
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -42,6 +43,16 @@ serve(async (req) => {
 
   const body = (await req.json().catch(() => ({}))) as Partial<BuildArtifactRequest>;
   const documentEntityId = String(body.document_entity_id ?? '');
+
+  // Validate correlation_id: canonical rule is correlation_id = document_entity_id
+  let correlationId = body.correlation_id || documentEntityId;
+  if (correlationId && correlationId !== documentEntityId) {
+    console.warn('[build-artifact] correlation_id mismatch - overriding to canonical', {
+      received_correlation_id: correlationId,
+      document_entity_id: documentEntityId,
+    });
+    correlationId = documentEntityId;
+  }
 
   if (!documentEntityId) {
     return jsonResponse({ error: 'document_entity_id required' }, 400);
@@ -152,6 +163,7 @@ serve(async (req) => {
       {
         kind: 'artifact.finalized',
         at: new Date().toISOString(),
+        correlation_id: correlationId,  // NUEVO: heredado del job
         payload: {
           artifact_storage_path: artifactPath,
           artifact_hash: result.hash,

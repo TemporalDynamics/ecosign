@@ -10,8 +10,12 @@
  */
 
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
+import { createLogger } from '../_shared/logger.ts';
+
 // Orchestrator ejecuta jobs y marca estado en executor_jobs.
 // Los hechos canónicos (TSA/anchors/artifact) los emiten las funciones específicas.
+
+const logger = createLogger('orchestrator');
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -34,6 +38,8 @@ interface ExecutorJob {
   attempts: number;
   max_attempts?: number;
   created_at: string;
+  correlation_id?: string;
+  trace_id?: string;
 }
 
 function computeRetryDelayMs(type: JobType, attempts: number): number {
@@ -64,29 +70,41 @@ async function logRun(
 }
 
 // Handlers para cada tipo de job
-const jobHandlers: Record<JobType, (job: ExecutorJob) => Promise<any>> = {
-  'run_tsa': async (job) => {
+const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promise<any>> = {
+  'run_tsa': async (job, trace_id) => {
     const documentEntityId = String(job.payload?.document_entity_id ?? job.entity_id);
+    const correlationId = job.correlation_id || documentEntityId;
 
-    console.log(`🏃 Ejecutando TSA (canónico) para entity: ${documentEntityId}`);
+    logger.info('Calling run-tsa function', {
+      documentEntityId,
+      correlation_id: correlationId,
+      trace_id,
+    });
 
     // Use canonical TSA writer which is idempotent (noop if already confirmed)
     const tsaResponse = await callFunction('run-tsa', {
       document_entity_id: documentEntityId,
+      correlation_id: correlationId,  // NUEVO: pass to worker
     });
 
     return { success: true, result: tsaResponse };
   },
 
-  'submit_anchor_polygon': async (job) => {
+  'submit_anchor_polygon': async (job, trace_id) => {
     const { document_entity_id, witness_hash } = job.payload;
-    
-    console.log(`🏃 Ejecutando anclaje Polygon para entity: ${document_entity_id}`);
-    
+    const correlationId = job.correlation_id || String(document_entity_id);
+
+    logger.info('Calling submit-anchor-polygon function', {
+      documentEntityId: String(document_entity_id),
+      correlation_id: correlationId,
+      trace_id,
+    });
+
     // Llamar al worker de anclaje Polygon
     const anchorResponse = await callFunction('submit-anchor-polygon', {
       document_entity_id: String(document_entity_id),
       witness_hash: String(witness_hash),
+      correlation_id: correlationId,  // NUEVO: pass to worker
     });
 
     return {
@@ -98,15 +116,21 @@ const jobHandlers: Record<JobType, (job: ExecutorJob) => Promise<any>> = {
     };
   },
 
-  'submit_anchor_bitcoin': async (job) => {
+  'submit_anchor_bitcoin': async (job, trace_id) => {
     const { document_entity_id, witness_hash } = job.payload;
-    
-    console.log(`🏃 Ejecutando anclaje Bitcoin para entity: ${document_entity_id}`);
-    
+    const correlationId = job.correlation_id || String(document_entity_id);
+
+    logger.info('Calling submit-anchor-bitcoin function', {
+      documentEntityId: String(document_entity_id),
+      correlation_id: correlationId,
+      trace_id,
+    });
+
     // Llamar al worker de anclaje Bitcoin
     const anchorResponse = await callFunction('submit-anchor-bitcoin', {
       document_entity_id: String(document_entity_id),
       witness_hash: String(witness_hash),
+      correlation_id: correlationId,  // NUEVO: pass to worker
     });
 
     return {
@@ -118,15 +142,21 @@ const jobHandlers: Record<JobType, (job: ExecutorJob) => Promise<any>> = {
     };
   },
 
-  'build_artifact': async (job) => {
+  'build_artifact': async (job, trace_id) => {
     const { document_entity_id, user_document_id } = job.payload;
-    
-    console.log(`🏃 Construyendo artifact para entity: ${document_entity_id}`);
-    
+    const correlationId = job.correlation_id || String(document_entity_id);
+
+    logger.info('Calling build-artifact function', {
+      documentEntityId: String(document_entity_id),
+      correlation_id: correlationId,
+      trace_id,
+    });
+
     // Llamar al worker de construcción de artifact
     const artifactResponse = await callFunction('build-artifact', {
       document_entity_id: String(document_entity_id),
       document_id: String(user_document_id),
+      correlation_id: correlationId,  // NUEVO: pass to worker
     });
 
     return {
@@ -164,10 +194,41 @@ async function callFunction(functionName: string, body: Record<string, unknown>)
 
 // Procesar un job
 async function processJob(job: ExecutorJob): Promise<void> {
-  const { id: jobId, type, entity_id: documentEntityId, payload } = job;
+  const { id: jobId, type, entity_id: documentEntityId, payload, correlation_id } = job;
+
+  // Generate unique trace_id for this execution
+  const trace_id = `${RUN_INSTANCE_ID}-${jobId}-${job.attempts || 1}`;
+
+  // Update job with trace_id (with ownership guard to prevent race conditions)
+  const { count: traceUpdateCount } = await supabase
+    .from('executor_jobs')
+    .update({ trace_id })
+    .eq('id', jobId)
+    .eq('locked_by', WORKER_ID);
+
+  // If update affected 0 rows, job was stolen - abort processing
+  if (!traceUpdateCount || traceUpdateCount === 0) {
+    logger.warn('Job ownership lost before trace_id update', {
+      jobId,
+      type,
+      documentEntityId,
+      trace_id,
+    });
+    throw new Error('Job ownership lost - aborting processing');
+  }
 
   const startedAt = new Date();
   await logRun('started', job, startedAt);
+
+  // Use structured logging with correlation_id and trace_id
+  logger.info('Job processing started', {
+    jobId,
+    type,
+    documentEntityId,
+    correlation_id: correlation_id || documentEntityId,
+    trace_id,
+    attempt: job.attempts || 1,
+  });
 
   const isLongJob = type === 'run_tsa' || type === 'submit_anchor_polygon' || type === 'submit_anchor_bitcoin';
   let heartbeatTimer: number | null = null;
@@ -195,7 +256,13 @@ async function processJob(job: ExecutorJob): Promise<void> {
   };
 
   try {
-    console.log(`🔧 Procesando job: ${jobId} (${type}) para entity: ${documentEntityId}`);
+    logger.info('Executing job handler', {
+      jobId,
+      type,
+      documentEntityId,
+      correlation_id: correlation_id || documentEntityId,
+      trace_id,
+    });
 
     startHeartbeat();
 
@@ -209,7 +276,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
       throw new Error(`Handler no encontrado para job type: ${type}`);
     }
 
-    const result = await handler(job);
+    const result = await handler(job, trace_id);
 
     if (!result.success) {
       throw new Error(`Job falló: ${JSON.stringify(result.error)}`);
@@ -230,10 +297,27 @@ async function processJob(job: ExecutorJob): Promise<void> {
 
     await logRun('succeeded', job, startedAt, new Date());
 
-    console.log(`✅ Job completado: ${jobId} para entity: ${documentEntityId}`);
+    logger.info('Job completed successfully', {
+      jobId,
+      type,
+      documentEntityId,
+      correlation_id: correlation_id || documentEntityId,
+      trace_id,
+      duration_ms: new Date().getTime() - startedAt.getTime(),
+    });
 
   } catch (error) {
-    console.error(`❌ Error procesando job ${jobId}:`, error);
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error('Job processing failed', {
+      jobId,
+      type,
+      documentEntityId,
+      correlation_id: correlation_id || documentEntityId,
+      trace_id,
+      error: message,
+      attempt: job.attempts || 1,
+      willRetry: !((job.attempts || 1) >= (job.max_attempts || 10)),
+    });
 
     stopHeartbeat();
 

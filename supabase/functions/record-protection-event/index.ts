@@ -213,6 +213,7 @@ serve(withRateLimit('record', async (req) => {
         type: flowVersion === 'v2' ? 'protect_document_v2' : FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
         entity_type: 'document',
         entity_id: documentEntityId,
+        correlation_id: documentEntityId,  // NUEVO: canonical correlation
         dedupe_key: dedupeKey,
         payload: {
           document_entity_id: documentEntityId,

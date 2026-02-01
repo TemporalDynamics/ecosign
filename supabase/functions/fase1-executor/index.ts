@@ -17,6 +17,8 @@ type ExecutorJob = {
   type: string;
   payload: Record<string, unknown>;
   attempts: number;
+  correlation_id?: string;
+  trace_id?: string;
 };
 
 const V2_PROTECT_JOB_TYPE = 'protect_document_v2';
@@ -112,6 +114,7 @@ async function handleDocumentProtected(
   const payload = job.payload ?? {};
   const documentEntityId = String(payload['document_entity_id'] ?? '');
   const userDocumentId = payload['document_id'] ? String(payload['document_id']) : null;
+  const correlationId = job.correlation_id || documentEntityId;
 
   if (!documentEntityId) {
     throw new Error('document_entity_id missing in payload');
@@ -146,7 +149,8 @@ async function handleDocumentProtected(
         witness_hash: entity.witness_hash,
         document_entity_id: documentEntityId,
         user_document_id: userDocumentId
-      }
+      },
+      correlationId  // NUEVO: propagate correlation_id
     );
 
     console.log(`[fase1-executor] Job encolado para TSA: ${documentEntityId}`);
@@ -183,7 +187,8 @@ async function handleDocumentProtected(
         document_entity_id: documentEntityId,
         user_document_id: userDocumentId,
         witness_hash: entity.witness_hash
-      }
+      },
+      correlationId  // NUEVO: propagate correlation_id
     );
   }
 
@@ -200,7 +205,8 @@ async function handleDocumentProtected(
         document_entity_id: documentEntityId,
         user_document_id: userDocumentId,
         witness_hash: entity.witness_hash
-      }
+      },
+      correlationId  // NUEVO: propagate correlation_id
     );
   }
 
@@ -216,7 +222,8 @@ async function handleDocumentProtected(
       {
         document_entity_id: documentEntityId,
         user_document_id: userDocumentId
-      }
+      },
+      correlationId  // NUEVO: propagate correlation_id
     );
   }
 }
@@ -227,6 +234,7 @@ async function handleProtectDocumentV2(
 ): Promise<void> {
   const payload = job.payload ?? {};
   const documentEntityId = String(payload['document_entity_id'] ?? '');
+  const correlationId = job.correlation_id || documentEntityId;
 
   if (!documentEntityId) {
     console.log(`[fase1-executor] NOOP protect_document_v2 (missing document_entity_id) for job ${job.id}`);
@@ -362,6 +370,8 @@ async function handleProtectDocumentV2(
       documentEntityId,
       payload['document_id'] ? String(payload['document_id']) : null,
       `${documentEntityId}:${SUBMIT_ANCHOR_POLYGON_JOB_TYPE}`,
+      undefined,  // no custom payload
+      correlationId  // NUEVO: propagate correlation_id
     );
   }
 
@@ -401,6 +411,8 @@ async function handleProtectDocumentV2(
       documentEntityId,
       payload['document_id'] ? String(payload['document_id']) : null,
       `${documentEntityId}:${SUBMIT_ANCHOR_BITCOIN_JOB_TYPE}`,
+      undefined,  // no custom payload
+      correlationId  // NUEVO: propagate correlation_id
     );
   }
 
@@ -448,6 +460,8 @@ async function handleProtectDocumentV2(
       documentEntityId,
       payload['document_id'] ? String(payload['document_id']) : null,
       `${documentEntityId}:${BUILD_ARTIFACT_JOB_TYPE}`,
+      undefined,  // no custom payload
+      correlationId  // NUEVO: propagate correlation_id
     );
   }
 }
@@ -459,6 +473,7 @@ async function enqueueExecutorJob(
   documentId: string | null,
   dedupeKey: string,
   payload?: Record<string, unknown>,
+  correlationId?: string,
 ): Promise<void> {
   const jobPayload = payload ?? {
     document_entity_id: documentEntityId,
@@ -471,6 +486,7 @@ async function enqueueExecutorJob(
       type,
       entity_type: 'document',
       entity_id: documentEntityId,
+      correlation_id: correlationId || documentEntityId,  // NUEVO: propagate correlation_id
       dedupe_key: dedupeKey,
       payload: jobPayload,
       status: 'queued',
@@ -522,12 +538,15 @@ async function requeueMissingTsaJobs(
   });
 
   for (const entity of candidates) {
+    const entityId = String(entity.id);
     await enqueueExecutorJob(
       supabase,
       RUN_TSA_JOB_TYPE,
-      String(entity.id),
+      entityId,
       null,
-      `${entity.id}:${RUN_TSA_JOB_TYPE}`,
+      `${entityId}:${RUN_TSA_JOB_TYPE}`,
+      undefined,  // no custom payload
+      entityId  // NUEVO: correlation_id = entity_id for requeued jobs
     );
   }
 }

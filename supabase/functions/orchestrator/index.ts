@@ -322,7 +322,6 @@ async function processJob(job: ExecutorJob): Promise<void> {
     stopHeartbeat();
 
     const finishedAt = new Date();
-    const message = error instanceof Error ? error.message : String(error);
     await logRun('failed', job, startedAt, finishedAt, message);
 
     const attempt = Number(job.attempts ?? 1);

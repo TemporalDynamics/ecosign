@@ -214,6 +214,30 @@ Nivel 5: Organización y Contexto
 
 ---
 
+## 🎯 Work Markers — Trabajo Diferido Consciente
+
+**NO son TODOs.** Son áreas con trabajo planificado y diferido estratégicamente.
+
+### Áreas Activas
+
+| Área | Estado | Documentación | Prioridad |
+|------|--------|---------------|-----------|
+| **Migración Canónica** | En progreso | `docs/EDGE_CANON_MIGRATION_PLAN.md` | 🔴 Alta |
+| **Validaciones TSA A3** | En desarrollo | `contratos/TSA_EVENT_RULES.md` | 🟡 Media |
+| **Custodia Phase 2** | Planificado Q2 2026 | `docs/ops/` (roadmap) | 🟡 Media |
+| **Dashboard Legacy** | Coexistencia estable | `client/src/pages/DashboardPage.tsx` | 🟢 Baja |
+
+### Regla de Work Markers
+
+- **NO se enumeran TODOs individuales** en este README
+- **SÍ se referencia** dónde está el plan de cada área
+- **NO son incertidumbre** — son decisiones diferidas conscientemente
+- **SÍ tienen dueño** — cada área tiene responsable en `contratos/OPERATIONS_RESPONSIBILITY.md`
+
+**Consultar `docs/TODO_REPORT.md` para análisis técnico completo.**
+
+---
+
 ## 📝 Notas para el Mantenedor
 
 Este README es **SOURCE OF TRUTH** para la navegación de documentación.  

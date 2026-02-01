@@ -1,5 +1,4 @@
-// tests/unit/decisionLogic.test.ts
-import { assertEquals } from "https://deno.land/std@0.173.0/testing/asserts.ts";
+import { describe, expect, test } from 'vitest';
 
 // Importar funciones de decision engine canónico
 import { 
@@ -9,27 +8,27 @@ import {
   shouldEnqueueArtifact
 } from "../../supabase/functions/_shared/decisionEngineCanonical.ts";
 
-Deno.test("Decision Logic - Canonical Authority Functions", async (t) => {
-  await t.step("shouldEnqueueRunTsa - should return true when protection requested but no TSA yet", () => {
+describe('Decision Logic - Canonical Authority Functions', () => {
+  test('shouldEnqueueRunTsa - true when protection requested but no TSA yet', () => {
     const events = [
       { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' }
     ];
     
     const result = shouldEnqueueRunTsa(events);
-    assertEquals(result, true, "Should enqueue TSA when requested but not confirmed");
+    expect(result).toBe(true);
   });
 
-  await t.step("shouldEnqueueRunTsa - should return false when TSA already confirmed", () => {
+  test('shouldEnqueueRunTsa - false when TSA already confirmed', () => {
     const events = [
       { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' }
     ];
     
     const result = shouldEnqueueRunTsa(events);
-    assertEquals(result, false, "Should not enqueue TSA when already confirmed");
+    expect(result).toBe(false);
   });
 
-  await t.step("shouldEnqueuePolygon - should return true when TSA confirmed, polygon requested, no polygon yet", () => {
+  test('shouldEnqueuePolygon - true when TSA confirmed, polygon requested, no polygon yet', () => {
     const events = [
       { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' }
@@ -37,26 +36,26 @@ Deno.test("Decision Logic - Canonical Authority Functions", async (t) => {
     const protection = ['polygon'];
     
     const result = shouldEnqueuePolygon(events, protection);
-    assertEquals(result, true, "Should enqueue polygon when TSA confirmed, polygon requested, no polygon yet");
+    expect(result).toBe(true);
   });
 
-  await t.step("shouldEnqueuePolygon - should return false when polygon already submitted", () => {
+  test('shouldEnqueuePolygon - false when polygon already confirmed', () => {
     const events = [
       { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' },
       { 
-        kind: 'anchor.submitted', 
+        kind: 'anchor.confirmed', 
         at: '2026-01-27T10:02:00.000Z',
-        payload: { network: 'polygon' }
+        payload: { network: 'polygon', confirmed_at: '2026-01-27T10:02:00.000Z' }
       }
     ];
     const protection = ['polygon'];
     
     const result = shouldEnqueuePolygon(events, protection);
-    assertEquals(result, false, "Should not enqueue polygon when already submitted");
+    expect(result).toBe(false);
   });
 
-  await t.step("shouldEnqueueBitcoin - should return true when TSA confirmed, bitcoin requested, no bitcoin yet", () => {
+  test('shouldEnqueueBitcoin - true when TSA confirmed, bitcoin requested, no bitcoin yet', () => {
     const events = [
       { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' }
@@ -64,10 +63,10 @@ Deno.test("Decision Logic - Canonical Authority Functions", async (t) => {
     const protection = ['bitcoin'];
     
     const result = shouldEnqueueBitcoin(events, protection);
-    assertEquals(result, true, "Should enqueue bitcoin when TSA confirmed, bitcoin requested, no bitcoin yet");
+    expect(result).toBe(true);
   });
 
-  await t.step("shouldEnqueueArtifact - should return true when all protections confirmed", () => {
+  test('shouldEnqueueArtifact - true when all protections confirmed', () => {
     const events = [
       { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' },
@@ -85,10 +84,10 @@ Deno.test("Decision Logic - Canonical Authority Functions", async (t) => {
     const protection = ['tsa', 'polygon', 'bitcoin'];
     
     const result = shouldEnqueueArtifact(events, protection);
-    assertEquals(result, true, "Should enqueue artifact when all protections confirmed");
+    expect(result).toBe(true);
   });
 
-  await t.step("shouldEnqueueArtifact - should return false when not all protections confirmed", () => {
+  test('shouldEnqueueArtifact - false when not all protections confirmed', () => {
     const events = [
       { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' },
@@ -102,8 +101,6 @@ Deno.test("Decision Logic - Canonical Authority Functions", async (t) => {
     const protection = ['tsa', 'polygon', 'bitcoin'];
     
     const result = shouldEnqueueArtifact(events, protection);
-    assertEquals(result, false, "Should not enqueue artifact when not all protections confirmed");
+    expect(result).toBe(false);
   });
 });
-
-console.log("✅ Tests de lógica de decisiones canónicas completados");

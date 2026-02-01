@@ -1,160 +1,115 @@
-// tests/integration/decisionAuthority_integration.test.ts
-import { assertEquals, assertExists } from "https://deno.land/std@0.173.0/testing/asserts.ts";
+import { expect, test } from 'vitest';
 
-// Test de integración para el DecisionAuthority
-Deno.test("DecisionAuthority Integration Test", async (t) => {
-  await t.step("full decision cycle - document protection flow", async () => {
-    // Este test simula el flujo completo de protección de documento
-    // desde evento inicial hasta creación de jobs
-    
-    // 1. Simular un document_entity con eventos iniciales
-    const testEvents = [
-      {
-        kind: 'document.created',
-        at: '2026-01-27T15:00:00.000Z',
-        payload: {
-          filename: 'test_document.pdf',
-          file_size: 1024,
-          protection: ['tsa', 'polygon', 'bitcoin']
-        },
-        _source: 'integration_test'
-      },
-      {
-        kind: 'protection_enabled',
-        at: '2026-01-27T15:00:01.000Z',
-        payload: {
-          protection: {
-            methods: ['tsa', 'polygon', 'bitcoin'],
-            signature_type: 'none',
-            forensic_enabled: true
-          }
-        },
-        _source: 'integration_test'
-      }
-    ];
-
-    // 2. Simular la lectura por parte del DecisionAuthority
-    // (usando las funciones canónicas de packages/authority)
-    const hasTsaRequested = testEvents.some((e: any) => 
-      e.kind === 'protection_enabled' && 
-      e.payload?.protection?.methods?.includes('tsa')
-    );
-    
-    const hasTsaConfirmed = testEvents.some((e: any) => 
-      e.kind === 'tsa.confirmed'
-    );
-    
-    // 3. Aplicar lógica canónica (como lo haría DecisionAuthority)
-    const shouldRunTsa = !hasTsaConfirmed && hasTsaRequested;
-    
-    // 4. Verificar que la decisión es correcta
-    assertEquals(shouldRunTsa, true, "Should decide to run TSA when requested but not confirmed");
-    
-    // 5. Simular creación de job basado en decisión
-    const expectedJob = {
-      type: 'run_tsa',
-      entity_id: 'test_entity_id', // Este sería el ID real de la entidad
-      status: 'queued',
+test('DecisionAuthority Integration Test - document protection flow', async () => {
+  const testEvents = [
+    {
+      kind: 'document.created',
+      at: '2026-01-27T15:00:00.000Z',
       payload: {
-        witness_hash: 'test_witness_hash',
-        document_entity_id: 'test_entity_id'
-      }
-    };
-    
-    // 6. Verificar que el job se crearía con la información correcta
-    assertExists(expectedJob.type, "Job type should be defined");
-    assertExists(expectedJob.entity_id, "Entity ID should be linked to job");
-    assertEquals(expectedJob.status, 'queued', "Job should be queued initially");
-    
-    console.log("✅ Document protection flow decision validated");
-  });
-
-  await t.step("full decision cycle - anchor flow", async () => {
-    // Simular eventos con TSA confirmado pero anclajes pendientes
-    const testEvents = [
-      { kind: 'document.created', at: '2026-01-27T15:00:00.000Z', _source: 'integration_test' },
-      { kind: 'protection_enabled', at: '2026-01-27T15:00:01.000Z', payload: { protection: { methods: ['tsa', 'polygon', 'bitcoin'] }}, _source: 'integration_test' },
-      { kind: 'tsa.confirmed', at: '2026-01-27T15:01:00.000Z', payload: { witness_hash: 'test_hash', token_b64: 'test_token' }, _source: 'integration_test' }
-    ];
-    
-    const protectionRequested = testEvents.find((e: any) => 
-      e.kind === 'protection_enabled'
-    )?.payload?.protection?.methods || [];
-    
-    const hasTsaConfirmed = testEvents.some((e: any) => 
-      e.kind === 'tsa.confirmed'
-    );
-    
-    const hasPolygonConfirmed = testEvents.some((e: any) => 
-      e.kind === 'anchor.confirmed' && 
-      (e.payload?.network === 'polygon' || e.payload?.network === 'polygon')
-    );
-    
-    const hasBitcoinConfirmed = testEvents.some((e: any) => 
-      e.kind === 'anchor.confirmed' && 
-      (e.payload?.network === 'bitcoin' || e.payload?.network === 'bitcoin')
-    );
-    
-    const requiresPolygon = protectionRequested.includes('polygon');
-    const requiresBitcoin = protectionRequested.includes('bitcoin');
-    
-    // Decisiones según lógica canónica
-    const shouldSubmitPolygon = hasTsaConfirmed && requiresPolygon && !hasPolygonConfirmed;
-    const shouldSubmitBitcoin = hasTsaConfirmed && requiresBitcoin && !hasBitcoinConfirmed;
-    
-    // Verificar decisiones
-    assertEquals(shouldSubmitPolygon, true, "Should submit polygon anchor when TSA confirmed, requested, and not yet confirmed");
-    assertEquals(shouldSubmitBitcoin, true, "Should submit bitcoin anchor when TSA confirmed, requested, and not yet confirmed");
-    
-    console.log("✅ Anchor submission flow decisions validated");
-  });
-
-  await t.step("full decision cycle - artifact flow", async () => {
-    // Simular eventos con todo confirmado
-    const testEvents = [
-      { kind: 'document.created', at: '2026-01-27T15:00:00.000Z', _source: 'integration_test' },
-      { kind: 'protection_enabled', at: '2026-01-27T15:00:01.000Z', payload: { protection: { methods: ['tsa', 'polygon', 'bitcoin'] }}, _source: 'integration_test' },
-      { kind: 'tsa.confirmed', at: '2026-01-27T15:01:00.000Z', _source: 'integration_test' },
-      { 
-        kind: 'anchor.confirmed', 
-        at: '2026-01-27T15:02:00.000Z', 
-        payload: { network: 'polygon', confirmed_at: '2026-01-27T15:02:00.000Z' },
-        _source: 'integration_test'
+        filename: 'test_document.pdf',
+        file_size: 1024,
+        protection: ['tsa', 'polygon', 'bitcoin'],
       },
-      { 
-        kind: 'anchor.confirmed', 
-        at: '2026-01-27T15:03:00.000Z', 
-        payload: { network: 'bitcoin', confirmed_at: '2026-01-27T15:03:00.000Z' },
-        _source: 'integration_test'
-      }
-    ];
-    
-    const protectionRequested = testEvents.find((e: any) => 
-      e.kind === 'protection_enabled'
-    )?.payload?.protection?.methods || [];
-    
-    const hasTsaConfirmed = testEvents.some((e: any) => e.kind === 'tsa.confirmed');
-    const hasPolygonConfirmed = testEvents.some((e: any) => 
-      e.kind === 'anchor.confirmed' && e.payload?.network === 'polygon'
-    );
-    const hasBitcoinConfirmed = testEvents.some((e: any) => 
-      e.kind === 'anchor.confirmed' && e.payload?.network === 'bitcoin'
-    );
-    
-    // Verificar que todos los anclajes están confirmados
-    assertEquals(hasTsaConfirmed, true, "TSA should be confirmed");
-    assertEquals(hasPolygonConfirmed, true, "Polygon should be confirmed");
-    assertEquals(hasBitcoinConfirmed, true, "Bitcoin should be confirmed");
-    
-    // Decisión de artifact: cuando todo está listo
-    const hasArtifact = testEvents.some((e: any) => e.kind === 'artifact.completed');
-    const readyForArtifact = hasTsaConfirmed && hasPolygonConfirmed && hasBitcoinConfirmed;
-    const shouldBuildArtifact = readyForArtifact && !hasArtifact;
-    
-    assertEquals(shouldBuildArtifact, true, "Should build artifact when all protections confirmed and no artifact yet");
-    
-    console.log("✅ Artifact creation flow decision validated");
-  });
+      _source: 'integration_test',
+    },
+    {
+      kind: 'document.protected.requested',
+      at: '2026-01-27T15:00:01.000Z',
+      payload: {
+        protection: ['tsa', 'polygon', 'bitcoin'],
+      },
+      _source: 'integration_test',
+    },
+  ];
+
+  const hasTsaRequested = testEvents.some(
+    (e: any) =>
+      e.kind === 'document.protected.requested' &&
+      Array.isArray(e.payload?.protection) &&
+      e.payload.protection.includes('tsa'),
+  );
+
+  const hasTsaConfirmed = testEvents.some((e: any) => e.kind === 'tsa.confirmed');
+  const shouldRunTsa = !hasTsaConfirmed && hasTsaRequested;
+
+  expect(shouldRunTsa).toBe(true);
+
+  const expectedJob = {
+    type: 'run_tsa',
+    entity_id: 'test_entity_id',
+    status: 'queued',
+    payload: {
+      witness_hash: 'test_witness_hash',
+      document_entity_id: 'test_entity_id',
+    },
+  };
+
+  expect(expectedJob.type).toBeTruthy();
+  expect(expectedJob.entity_id).toBeTruthy();
+  expect(expectedJob.status).toBe('queued');
 });
 
-console.log("✅ Tests de integración de DecisionAuthority completados");
+test('DecisionAuthority Integration Test - anchor flow', async () => {
+  const testEvents = [
+    { kind: 'document.created', at: '2026-01-27T15:00:00.000Z', _source: 'integration_test' },
+    {
+      kind: 'document.protected.requested',
+      at: '2026-01-27T15:00:01.000Z',
+      payload: { protection: ['tsa', 'polygon', 'bitcoin'] },
+      _source: 'integration_test',
+    },
+    {
+      kind: 'tsa.confirmed',
+      at: '2026-01-27T15:01:00.000Z',
+      payload: { witness_hash: 'test_hash', token_b64: 'test_token' },
+      _source: 'integration_test',
+    },
+  ];
+
+  const protectionRequested =
+    testEvents.find((e: any) => e.kind === 'document.protected.requested')?.payload?.protection || [];
+
+  const hasPolygonRequested = protectionRequested.includes('polygon');
+  const hasBitcoinRequested = protectionRequested.includes('bitcoin');
+
+  const hasTsaConfirmed = testEvents.some((e: any) => e.kind === 'tsa.confirmed');
+
+  const hasPolygonConfirmed = testEvents.some(
+    (e: any) => e.kind === 'anchor.confirmed' && e.payload?.network === 'polygon',
+  );
+
+  const hasBitcoinConfirmed = testEvents.some(
+    (e: any) => e.kind === 'anchor.confirmed' && e.payload?.network === 'bitcoin',
+  );
+
+  const shouldSubmitPolygon = hasTsaConfirmed && hasPolygonRequested && !hasPolygonConfirmed;
+  const shouldSubmitBitcoin = hasTsaConfirmed && hasBitcoinRequested && !hasBitcoinConfirmed;
+
+  expect(shouldSubmitPolygon).toBe(true);
+  expect(shouldSubmitBitcoin).toBe(true);
+
+  const finalEvents = [
+    ...testEvents,
+    { kind: 'anchor.confirmed', payload: { network: 'polygon' }, _source: 'anchor_worker' },
+    { kind: 'anchor.confirmed', payload: { network: 'bitcoin' }, _source: 'anchor_worker' },
+  ];
+
+  const hasTsaConfirmedFinal = finalEvents.some((e: any) => e.kind === 'tsa.confirmed');
+  const hasPolygonConfirmedFinal = finalEvents.some(
+    (e: any) => e.kind === 'anchor.confirmed' && e.payload?.network === 'polygon',
+  );
+  const hasBitcoinConfirmedFinal = finalEvents.some(
+    (e: any) => e.kind === 'anchor.confirmed' && e.payload?.network === 'bitcoin',
+  );
+
+  expect(hasTsaConfirmedFinal).toBe(true);
+  expect(hasPolygonConfirmedFinal).toBe(true);
+  expect(hasBitcoinConfirmedFinal).toBe(true);
+
+  const hasArtifact = finalEvents.some((e: any) => e.kind === 'artifact.completed');
+  const readyForArtifact = hasTsaConfirmedFinal && hasPolygonConfirmedFinal && hasBitcoinConfirmedFinal;
+  const shouldBuildArtifact = readyForArtifact && !hasArtifact;
+
+  expect(shouldBuildArtifact).toBe(true);
+});
+

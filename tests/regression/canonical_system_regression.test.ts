@@ -5,11 +5,10 @@
  * en la arquitectura canónica del sistema.
  */
 
-import { assertEquals, assertExists } from "https://deno.land/std@0.173.0/testing/asserts.ts";
+import { expect, test } from 'vitest';
 
 // Test de regresión: DecisionAuthority no debe ejecutar side-effects directamente
-Deno.test("Regresión - DecisionAuthority no ejecuta side-effects", async (t) => {
-  await t.step("DecisionAuthority solo decide, no ejecuta", () => {
+test("Regresión - DecisionAuthority no ejecuta side-effects", () => {
     // Este test verifica que DecisionAuthority no llame directamente a:
     // - callFunction('legal-timestamp', ...)
     // - callFunction('submit-anchor-polygon', ...)
@@ -19,13 +18,14 @@ Deno.test("Regresión - DecisionAuthority no ejecuta side-effects", async (t) =>
     // Simular que DecisionAuthority lee eventos y decide
     const events = [
       { kind: 'document.created', at: '2026-01-27T15:00:00.000Z' },
-      { kind: 'protection_enabled', at: '2026-01-27T15:00:01.000Z', payload: { protection: { methods: ['tsa'] }}}
+      { kind: 'document.protected.requested', at: '2026-01-27T15:00:01.000Z', payload: { protection: ['tsa'] }}
     ];
     
     // Simular lógica de decisión (esto es lo que haría shouldEnqueueRunTsa)
     const hasTsaRequested = events.some((e: any) => 
-      e.kind === 'protection_enabled' && 
-      e.payload?.protection?.methods?.includes('tsa')
+      e.kind === 'document.protected.requested' && 
+      Array.isArray(e.payload?.protection) &&
+      e.payload.protection.includes('tsa')
     );
     
     const hasTsaConfirmed = events.some((e: any) => 
@@ -43,20 +43,18 @@ Deno.test("Regresión - DecisionAuthority no ejecuta side-effects", async (t) =>
     } : null;
     
     // Verificar que DecisionAuthority solo crea jobs, no ejecuta
-    assertEquals(jobToCreate?.type, 'run_tsa', "DecisionAuthority debe crear job de tipo run_tsa");
-    assertEquals(jobToCreate?.status, 'queued', "Job debe estar en cola, no ejecutado");
+    expect(jobToCreate?.type).toBe('run_tsa');
+    expect(jobToCreate?.status).toBe('queued');
     
     // Verificar que NO ejecuta directamente
     const hasDirectExecution = false; // DecisionAuthority NUNCA debe ejecutar directamente
-    assertEquals(hasDirectExecution, false, "DecisionAuthority NO debe ejecutar side-effects directamente");
+    expect(hasDirectExecution).toBe(false);
     
     console.log("✅ DecisionAuthority solo decide, no ejecuta directamente");
-  });
 });
 
 // Test de regresión: ExecutionEngine no debe tomar decisiones de negocio
-Deno.test("Regresión - ExecutionEngine no decide reglas de negocio", async (t) => {
-  await t.step("ExecutionEngine solo ejecuta, no decide", () => {
+test("Regresión - ExecutionEngine no decide reglas de negocio", () => {
     // Simular que ExecutionEngine recibe un job para ejecutar
     const job = {
       type: 'run_tsa',
@@ -89,19 +87,17 @@ Deno.test("Regresión - ExecutionEngine no decide reglas de negocio", async (t) 
     
     // Verificar que ExecutionEngine no evaluó reglas de negocio
     const evaluatedBusinessRules = false; // ExecutionEngine NO debe evaluar reglas de negocio
-    assertEquals(evaluatedBusinessRules, false, "ExecutionEngine NO debe evaluar reglas de negocio");
+    expect(evaluatedBusinessRules).toBe(false);
     
     // Verificar que solo ejecutó lo que le dijeron
     const executedWhatWasInstructed = true; // ExecutionEngine SI debe ejecutar lo que le indican
-    assertEquals(executedWhatWasInstructed, true, "ExecutionEngine debe ejecutar lo que le indican");
+    expect(executedWhatWasInstructed).toBe(true);
     
     console.log("✅ ExecutionEngine solo ejecuta, no decide reglas de negocio");
-  });
 });
 
 // Test de regresión: Separación de responsabilidades
-Deno.test("Regresión - Separación de responsabilidades mantenida", async (t) => {
-  await t.step("Decision vs Ejecución claramente separados", () => {
+test("Regresión - Separación de responsabilidades mantenida", () => {
     // Verificar que DecisionAuthority y ExecutionEngine no comparten responsabilidades
     
     // DecisionAuthority: Solo debe leer verdad, aplicar autoridad, escribir cola
@@ -125,23 +121,21 @@ Deno.test("Regresión - Separación de responsabilidades mantenida", async (t) =
       executionEngineResponsibilities.includes(resp)
     );
     
-    assertEquals(hasOverlap, false, "No debe haber superposición de responsabilidades");
+    expect(hasOverlap).toBe(false);
     
     // Verificar que cada uno tiene sus responsabilidades únicas
-    assertEquals(decisionAuthorityResponsibilities.includes('apply_authority_rules'), true, "DecisionAuthority debe aplicar reglas");
-    assertEquals(executionEngineResponsibilities.includes('execute_side_effects'), true, "ExecutionEngine debe ejecutar side-effects");
+    expect(decisionAuthorityResponsibilities.includes('apply_authority_rules')).toBe(true);
+    expect(executionEngineResponsibilities.includes('execute_side_effects')).toBe(true);
     
     console.log("✅ Separación de responsabilidades mantenida");
-  });
 });
 
 // Test de regresión: Eventos canónicos inmutables
-Deno.test("Regresión - Eventos canónicos son inmutables", async (t) => {
-  await t.step("document_entities.events[] es append-only", () => {
+test("Regresión - Eventos canónicos son inmutables", () => {
     // Simular un conjunto de eventos existentes
     const existingEvents = [
       { kind: 'document.created', at: '2026-01-27T15:00:00.000Z' },
-      { kind: 'protection_enabled', at: '2026-01-27T15:00:01.000Z' }
+      { kind: 'document.protected.requested', at: '2026-01-27T15:00:01.000Z' }
     ];
     
     // Simular la adición de un nuevo evento (append-only)
@@ -155,62 +149,56 @@ Deno.test("Regresión - Eventos canónicos son inmutables", async (t) => {
     const updatedEvents = [...existingEvents, newEvent];
     
     // Verificar que los eventos antiguos no se modificaron
-    assertEquals(updatedEvents[0], existingEvents[0], "Evento original no debe modificarse");
-    assertEquals(updatedEvents[1], existingEvents[1], "Evento original no debe modificarse");
+    expect(updatedEvents[0]).toEqual(existingEvents[0]);
+    expect(updatedEvents[1]).toEqual(existingEvents[1]);
     
     // Verificar que solo se agregaron nuevos eventos
-    assertEquals(updatedEvents.length, existingEvents.length + 1, "Solo se deben agregar nuevos eventos");
-    assertEquals(updatedEvents[updatedEvents.length - 1], newEvent, "Nuevo evento debe estar al final");
+    expect(updatedEvents).toHaveLength(existingEvents.length + 1);
+    expect(updatedEvents[updatedEvents.length - 1]).toEqual(newEvent);
     
     console.log("✅ Eventos canónicos son append-only (inmutables)");
-  });
 });
 
 // Test de regresión: Feature flags controlan autoridad
-Deno.test("Regresión - Feature flags controlan autoridad canónica", async (t) => {
-  await t.step("Flags determinan quién decide", () => {
+test("Regresión - Feature flags controlan autoridad canónica", () => {
     // Simular diferentes estados de flags
-    const originalD1 = Deno.env.get('ENABLE_D1_CANONICAL');
+    const originalD1 = process.env.ENABLE_D1_CANONICAL;
     
     try {
       // Con flag desactivado (modo legacy)
-      Deno.env.set('ENABLE_D1_CANONICAL', 'false');
+      process.env.ENABLE_D1_CANONICAL = 'false';
       const isD1CanonicalOff = isDecisionUnderCanonicalAuthority('D1_RUN_TSA_ENABLED');
-      assertEquals(isD1CanonicalOff, false, "D1 debe estar en modo legacy cuando flag está off");
+      expect(isD1CanonicalOff).toBe(false);
       
       // Con flag activado (modo canónico)
-      Deno.env.set('ENABLE_D1_CANONICAL', 'true');
+      process.env.ENABLE_D1_CANONICAL = 'true';
       const isD1CanonicalOn = isDecisionUnderCanonicalAuthority('D1_RUN_TSA_ENABLED');
-      assertEquals(isD1CanonicalOn, true, "D1 debe estar en modo canónico cuando flag está on");
+      expect(isD1CanonicalOn).toBe(true);
       
       console.log("✅ Feature flags controlan autoridad correctamente");
     } finally {
       // Restaurar valor original
-      if (originalD1) {
-        Deno.env.set('ENABLE_D1_CANONICAL', originalD1);
-      } else {
-        Deno.env.delete('ENABLE_D1_CANONICAL');
-      }
+      if (originalD1 !== undefined) process.env.ENABLE_D1_CANONICAL = originalD1;
+      else delete process.env.ENABLE_D1_CANONICAL;
     }
-  });
 });
 
 // Test de regresión: No duplicación de side-effects
-Deno.test("Regresión - No duplicación de side-effects", async (t) => {
-  await t.step("Verificar que no hay side-effects duplicados", () => {
+test("Regresión - No duplicación de side-effects", () => {
     // Simular que DecisionAuthority y ExecutionEngine no duplican trabajo
     
     // Si DecisionAuthority ya procesó un evento, no debe crear jobs duplicados
     const events = [
       { kind: 'document.created', at: '2026-01-27T15:00:00.000Z' },
-      { kind: 'protection_enabled', at: '2026-01-27T15:00:01.000Z', payload: { protection: { methods: ['tsa'] }}},
+      { kind: 'document.protected.requested', at: '2026-01-27T15:00:01.000Z', payload: { protection: ['tsa'] }},
       { kind: 'tsa.completed', at: '2026-01-27T15:01:00.000Z', payload: { token_b64: 'token_123' }, _source: 'execution_engine' }
     ];
     
     // DecisionAuthority debe detectar que TSA ya está completado
     const hasTsaRequested = events.some((e: any) => 
-      e.kind === 'protection_enabled' && 
-      e.payload?.protection?.methods?.includes('tsa')
+      e.kind === 'document.protected.requested' && 
+      Array.isArray(e.payload?.protection) &&
+      e.payload.protection.includes('tsa')
     );
     
     const hasTsaCompleted = events.some((e: any) => 
@@ -219,10 +207,9 @@ Deno.test("Regresión - No duplicación de side-effects", async (t) => {
     
     // Si TSA ya está completado, no debe crear job de run_tsa
     const shouldCreateTsaJob = hasTsaRequested && !hasTsaCompleted;
-    assertEquals(shouldCreateTsaJob, false, "No debe crear job de TSA si ya está completado");
+    expect(shouldCreateTsaJob).toBe(false);
     
     console.log("✅ No hay duplicación de side-effects");
-  });
 });
 
 // Función auxiliar para los tests (simulando la real)
@@ -237,13 +224,5 @@ function isDecisionUnderCanonicalAuthority(decisionId: string): boolean {
   const envVarName = flagMappings[decisionId];
   if (!envVarName) return false;
   
-  return Deno.env.get(envVarName) === 'true';
+  return process.env[envVarName] === 'true';
 }
-
-console.log("✅ Suite de tests de regresión completada");
-console.log("   - DecisionAuthority no ejecuta side-effects directamente");
-console.log("   - ExecutionEngine no decide reglas de negocio");
-console.log("   - Separación de responsabilidades mantenida");
-console.log("   - Eventos canónicos son inmutables");
-console.log("   - Feature flags controlan autoridad correctamente");
-console.log("   - No hay duplicación de side-effects");

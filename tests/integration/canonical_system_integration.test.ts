@@ -7,10 +7,9 @@
  * ExecutionEngine → Lee cola → Ejecuta → Escribe eventos resultado
  */
 
-import { assertEquals, assertExists } from "https://deno.land/std@0.173.0/testing/asserts.ts";
+import { expect, test } from 'vitest';
 
-Deno.test("Integración - Sistema Canónico Completo", async (t) => {
-  await t.step("flujo completo: evento → decisión → job → ejecución → resultado", () => {
+test("Integración - Sistema Canónico Completo", () => {
     // Simular un evento canónico entrando al sistema
     const canonicalEvent = {
       kind: 'document.protected.requested',
@@ -125,19 +124,19 @@ Deno.test("Integración - Sistema Canónico Completo", async (t) => {
     
     // DecisionAuthority no ejecutó nada
     const decisionAuthorityExecutedSideEffect = false; // DecisionAuthority NUNCA ejecuta
-    assertEquals(decisionAuthorityExecutedSideEffect, false, "DecisionAuthority no debe ejecutar side-effects");
+    expect(decisionAuthorityExecutedSideEffect).toBe(false);
     
     // ExecutionEngine no decidió nada
     const executionEngineMadeBusinessDecision = false; // ExecutionEngine NUNCA decide
-    assertEquals(executionEngineMadeBusinessDecision, false, "ExecutionEngine no debe decidir reglas de negocio");
+    expect(executionEngineMadeBusinessDecision).toBe(false);
     
     // DecisionAuthority solo decidió
     const decisionAuthorityMadeDecision = shouldRunTsa;
-    assertEquals(decisionAuthorityMadeDecision, true, "DecisionAuthority debe decidir basado en verdad");
+    expect(decisionAuthorityMadeDecision).toBe(true);
     
     // ExecutionEngine solo ejecutó
     const executionEngineExecutedJob = !!executionResult;
-    assertEquals(executionEngineExecutedJob, true, "ExecutionEngine debe ejecutar jobs que recibe");
+    expect(executionEngineExecutedJob).toBe(true);
     
     // 5. Verificar que el flujo es completo
     console.log("🔄 Verificando flujo completo...");
@@ -147,10 +146,10 @@ Deno.test("Integración - Sistema Canónico Completo", async (t) => {
     const hasExecutionResult = !!executionResult;
     const hasOutputEvent = !!resultEvent;
     
-    assertEquals(hasInputEvent, true, "Debe haber evento de entrada");
-    assertEquals(hasCreatedJob, true, "Debe haber job creado por DecisionAuthority");
-    assertEquals(hasExecutionResult, true, "Debe haber resultado de ejecución");
-    assertEquals(hasOutputEvent, true, "Debe haber evento de resultado");
+    expect(hasInputEvent).toBe(true);
+    expect(hasCreatedJob).toBe(true);
+    expect(hasExecutionResult).toBe(true);
+    expect(hasOutputEvent).toBe(true);
     
     // 6. Verificar que no hay duplicación
     console.log("🚫 Verificando no duplicación...");
@@ -167,9 +166,9 @@ Deno.test("Integración - Sistema Canónico Completo", async (t) => {
     const actualExecutions = executionResult ? 1 : 0;
     const actualResultEvents = resultEvent ? 1 : 0;
     
-    assertEquals(actualJobs, expectedJobs, "No debe haber jobs duplicados");
-    assertEquals(actualExecutions, expectedExecutions, "No debe haber ejecuciones duplicadas");
-    assertEquals(actualResultEvents, expectedResultEvents, "No debe haber eventos resultado duplicados");
+    expect(actualJobs).toBe(expectedJobs);
+    expect(actualExecutions).toBe(expectedExecutions);
+    expect(actualResultEvents).toBe(expectedResultEvents);
     
     console.log("✅ Flujo completo verificado:");
     console.log("   - Evento canónico entró al sistema");
@@ -181,21 +180,17 @@ Deno.test("Integración - Sistema Canónico Completo", async (t) => {
     console.log("   - Separación de responsabilidades mantenida");
   });
 
-  await t.step("múltiples decisiones en secuencia", () => {
+test("múltiples decisiones en secuencia", () => {
     // Simular una entidad con múltiples eventos que requieren múltiples decisiones
     const documentEntity = {
       id: 'multi_decision_entity_789',
       events: [
         { kind: 'document.created', at: '2026-01-27T16:00:00.000Z' },
         { 
-          kind: 'protection_enabled', 
+          kind: 'document.protected.requested', 
           at: '2026-01-27T16:00:01.000Z',
           payload: { 
-            protection: { 
-              methods: ['tsa', 'polygon', 'bitcoin'],
-              signature_type: 'none',
-              forensic_enabled: true
-            }
+            protection: ['tsa', 'polygon', 'bitcoin'],
           }
         },
         { 
@@ -211,9 +206,9 @@ Deno.test("Integración - Sistema Canónico Completo", async (t) => {
     const events = documentEntity.events;
     
     // Verificar si se requiere anclaje Polygon
-    const hasProtectionEnabled = events.some((e: any) => e.kind === 'protection_enabled');
-    const protectionMethods = hasProtectionEnabled 
-      ? events.find((e: any) => e.kind === 'protection_enabled')?.payload?.protection?.methods || []
+    const hasProtectionRequested = events.some((e: any) => e.kind === 'document.protected.requested');
+    const protectionMethods = hasProtectionRequested 
+      ? events.find((e: any) => e.kind === 'document.protected.requested')?.payload?.protection || []
       : [];
     
     const hasTsaCompleted = events.some((e: any) => e.kind === 'tsa.completed');
@@ -284,24 +279,17 @@ Deno.test("Integración - Sistema Canónico Completo", async (t) => {
     }
 
     // Verificar que DecisionAuthority creó los jobs correctos
-    assertEquals(jobsToCreate.length, 2, "Debe crear 2 jobs (polygon + bitcoin, artifact no porque no están confirmados)");
+    expect(jobsToCreate).toHaveLength(2);
     
     const hasPolygonJob = jobsToCreate.some((j: any) => j.type === 'submit_anchor_polygon');
     const hasBitcoinJob = jobsToCreate.some((j: any) => j.type === 'submit_anchor_bitcoin');
     const hasArtifactJob = jobsToCreate.some((j: any) => j.type === 'build_artifact');
     
-    assertEquals(hasPolygonJob, true, "Debe crear job de anclaje Polygon");
-    assertEquals(hasBitcoinJob, true, "Debe crear job de anclaje Bitcoin");
-    assertEquals(hasArtifactJob, false, "No debe crear job de artifact porque anclajes no están confirmados");
+    expect(hasPolygonJob).toBe(true);
+    expect(hasBitcoinJob).toBe(true);
+    expect(hasArtifactJob).toBe(false);
     
     console.log("✅ DecisionAuthority tomó múltiples decisiones correctamente");
     console.log("   - Creó jobs para anclajes pendientes");
     console.log("   - No creó job para artifact porque no estaban todos los anclajes");
-  });
 });
-
-console.log("✅ Test de integración del sistema canónico completado");
-console.log("   - Flujo completo verificado: evento → decisión → job → ejecución → resultado");
-console.log("   - Separación de responsabilidades confirmada");
-console.log("   - Múltiples decisiones manejadas correctamente");
-console.log("   - No duplicación de side-effects");

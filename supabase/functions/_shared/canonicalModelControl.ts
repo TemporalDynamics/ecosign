@@ -126,11 +126,12 @@ export class LegacyToCanonicalMigrationService {
       // Evento de protección
       if (legacyDoc.document_hash) {
         events.push({
-          kind: 'protection_enabled',
+          kind: 'document.protected.requested',
           at: legacyDoc.created_at || new Date().toISOString(),
           payload: {
+            document_hash: legacyDoc.document_hash,
+            witness_hash: legacyDoc.eco_hash || legacyDoc.document_hash,
             protection: this.extractProtectionMethods(legacyDoc),
-            document_hash: legacyDoc.document_hash
           },
           _source: 'migration_from_user_documents'
         });

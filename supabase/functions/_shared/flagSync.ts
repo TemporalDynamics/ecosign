@@ -5,6 +5,16 @@
  * unidireccional: Deno Env → SQL Table
  */
 export async function syncFlagsToDatabase(supabase: any): Promise<void> {
+  const readEnv = (name: string): string | undefined => {
+    const denoValue = (globalThis as any).Deno?.env?.get?.(name);
+    if (typeof denoValue === 'string') return denoValue;
+
+    const nodeValue = (globalThis as any).process?.env?.[name];
+    if (typeof nodeValue === 'string') return nodeValue;
+
+    return undefined;
+  };
+
   // Mapear variables de entorno a flag names
   const flagMappings = [
     { envVar: 'ENABLE_D1_CANONICAL', flagName: 'D1_RUN_TSA_ENABLED' },
@@ -15,7 +25,7 @@ export async function syncFlagsToDatabase(supabase: any): Promise<void> {
 
   // Recoger valores de las variables de entorno
   const updates = flagMappings.map(mapping => {
-    const envValue = Deno.env.get(mapping.envVar);
+    const envValue = readEnv(mapping.envVar);
     const enabled = envValue === 'true';
     return {
       flag_name: mapping.flagName,

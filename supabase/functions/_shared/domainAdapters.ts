@@ -150,8 +150,11 @@ function getProtectionMethods(events: any[]): string[] {
   
   // Buscar en eventos de protección
   for (const event of events) {
-    if (event.kind === 'protection_enabled' && event.payload?.protection?.methods) {
-      protectionMethods.push(...event.payload.protection.methods);
+    if (event.kind === 'document.protected.requested') {
+      const methods = event.payload?.protection;
+      if (Array.isArray(methods)) {
+        protectionMethods.push(...methods);
+      }
     }
     if (event.kind === 'document.created' && event.forensic) {
       if (event.forensic.tsa_requested) protectionMethods.push('tsa');

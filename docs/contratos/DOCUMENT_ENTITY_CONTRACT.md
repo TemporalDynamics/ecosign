@@ -154,7 +154,6 @@ interface DocumentEntity {
 
 ### Eventos de Protección:
 - `document.created` - Documento subido
-- `protection_enabled` - Protección solicitada
 - `document.protected.requested` - Protección iniciada
 - `tsa.confirmed` - Sello de tiempo legal completado
 - `anchor.submitted` - Anclaje enviado
@@ -175,7 +174,6 @@ interface DocumentEntity {
 ```
 Usuario sube documento
 → Evento: document.created
-→ Evento: protection_enabled
 → DecisionAuthority decide: run_tsa
 → ExecutionEngine ejecuta: TSA
 → Evento: tsa.confirmed

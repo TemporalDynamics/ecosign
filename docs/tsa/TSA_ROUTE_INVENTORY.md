@@ -199,18 +199,16 @@ UI: LegalCenterModalV2.tsx::handleCertifyDocument()
 │
 └─ Secuencial: supabase.functions.invoke('record-protection-event')
    │
-   ├─ Best effort: appendEvent('protection_enabled') - legacy event
+   ├─ CRÍTICO: appendEvent('document.protected.requested') - evento canónico
    │
-   ├─ CRÍTICO: appendEvent('document.protected') - evento canónico
-   │
-   └─ CRÍTICO: INSERT executor_jobs - Encola TSA
+   └─ CRÍTICO: INSERT executor_jobs - Encola decisión (protect_document_v2) y el pipeline server-side
 ```
 
 ### Edge functions llamadas:
 
 1. **record-protection-event** (IMPRESCINDIBLE)
-   - Crea evento `document.protected`
-   - Encola job en `executor_jobs`
+   - Crea evento `document.protected.requested`
+   - Encola job en `executor_jobs` (`protect_document_v2`)
    - **Sin esto:** TSA no se procesa
 
 2. **notify-document-certified** (OPCIONAL)

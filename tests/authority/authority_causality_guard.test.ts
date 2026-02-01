@@ -1,6 +1,11 @@
-import { walk } from 'https://deno.land/std@0.182.0/fs/walk.ts';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { test } from 'vitest';
 
-const ROOT = new URL('../..', import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT = path.resolve(__dirname, '..', '..');
 
 const patterns: Array<{ label: string; re: RegExp }> = [
   { label: 'anchor-polygon', re: /functions\.invoke\(['"]anchor-polygon['"]/ },
@@ -30,21 +35,41 @@ const guardTokens = [
 
 const usesGuard = (text: string) => guardTokens.some((token) => text.includes(token));
 
-Deno.test('authority: TSA/anchoring callers must be executor or guarded', async () => {
+const collectTsFiles = async (dir: string, out: string[]): Promise<void> => {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    const rel = path.relative(ROOT, fullPath).replaceAll(path.sep, '/');
+
+    if (entry.isDirectory()) {
+      if (rel.startsWith('node_modules/') || rel === 'node_modules') continue;
+      if (rel.startsWith('dist/') || rel === 'dist') continue;
+      if (rel.startsWith('supabase/functions/_legacy/')) continue;
+      await collectTsFiles(fullPath, out);
+      continue;
+    }
+
+    if (entry.isFile() && fullPath.endsWith('.ts')) {
+      out.push(fullPath);
+    }
+  }
+};
+
+test('authority: TSA/anchoring callers must be executor or guarded', async () => {
   const offenders: string[] = [];
 
-  for await (const entry of walk(ROOT, {
-    includeDirs: false,
-    exts: ['.ts'],
-    skip: [/node_modules/, /dist/, /supabase\/functions\/_legacy/],
-  })) {
-    const relPath = entry.path.replace(String(ROOT.pathname).replace(/\/$/, ''), '').replace(/^\/+/, '');
+  const files: string[] = [];
+  await collectTsFiles(ROOT, files);
+
+  for (const filePath of files) {
+    const relPath = path.relative(ROOT, filePath).replaceAll(path.sep, '/');
 
     if (!relPath.startsWith('supabase/functions') && !relPath.startsWith('client/src')) {
       continue;
     }
 
-    const content = await Deno.readTextFile(entry.path);
+    const content = await fs.readFile(filePath, 'utf8');
     const matches = patterns.filter((pattern) => pattern.re.test(content));
     if (matches.length === 0) continue;
 

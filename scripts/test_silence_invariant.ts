@@ -184,7 +184,7 @@ async function runSilenceInvariantTest(): Promise<boolean> {
           switch (job.type) {
             case 'run_tsa':
               hasCorrespondingEvent = events.some((e: any) => 
-                e.kind === 'document.protected.requested' || e.kind === 'protection_enabled'
+                e.kind === 'document.protected.requested'
               );
               break;
             case 'submit_anchor_polygon':

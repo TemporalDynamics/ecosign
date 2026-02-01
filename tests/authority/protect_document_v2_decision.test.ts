@@ -1,25 +1,22 @@
 import { decideProtectDocumentV2 } from '../../supabase/functions/_shared/protectDocumentV2Decision.ts';
+import { describe, expect, test } from 'vitest';
 
-Deno.test('protect_document_v2: noop when request missing', () => {
-  const decision = decideProtectDocumentV2([]);
-  if (decision !== 'noop_missing_request') {
-    throw new Error(`Expected noop_missing_request, got ${decision}`);
-  }
-});
+describe('protect_document_v2 decision', () => {
+  test('noop when request missing', () => {
+    const decision = decideProtectDocumentV2([]);
+    expect(decision).toBe('noop_missing_request');
+  });
 
-Deno.test('protect_document_v2: run_tsa when request present and no tsa', () => {
-  const decision = decideProtectDocumentV2([{ kind: 'document.protected.requested' }]);
-  if (decision !== 'run_tsa') {
-    throw new Error(`Expected run_tsa, got ${decision}`);
-  }
-});
+  test('run_tsa when request present and no tsa', () => {
+    const decision = decideProtectDocumentV2([{ kind: 'document.protected.requested' }]);
+    expect(decision).toBe('run_tsa');
+  });
 
-Deno.test('protect_document_v2: noop when tsa.confirmed exists', () => {
-  const decision = decideProtectDocumentV2([
-    { kind: 'document.protected.requested' },
-    { kind: 'tsa.confirmed' },
-  ]);
-  if (decision !== 'noop_already_tsa') {
-    throw new Error(`Expected noop_already_tsa, got ${decision}`);
-  }
+  test('noop when tsa.confirmed exists', () => {
+    const decision = decideProtectDocumentV2([
+      { kind: 'document.protected.requested' },
+      { kind: 'tsa.confirmed' },
+    ]);
+    expect(decision).toBe('noop_already_tsa');
+  });
 });

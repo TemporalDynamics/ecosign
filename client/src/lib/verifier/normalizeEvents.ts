@@ -12,7 +12,7 @@ const OPERATION_LABELS: Record<string, string> = {
 const DOCUMENT_LABELS: Record<string, string> = {
   created: 'Documento creado',
   'document.protected': 'Documento protegido',
-  protection_enabled: 'Protección legal habilitada',
+  'document.protected.requested': 'Protección solicitada',
   'tsa.confirmed': 'Sello de tiempo registrado',
   'tsa.failed': 'Sello de tiempo fallido',
   'anchor': 'Anclaje público confirmado',

@@ -8,6 +8,7 @@
  */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { appendEvent } from './eventHelper.ts';
 
 // Closed enum: only these networks are valid
 export type AnchorNetwork = 'polygon' | 'bitcoin';
@@ -41,9 +42,17 @@ export type AnchorEventPayload = {
 export async function appendAnchorEventFromEdge(
   supabase: SupabaseClient,
   documentId: string,
-  payload: AnchorEventPayload
+  payload: AnchorEventPayload,
+  source?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!source) {
+      return {
+        success: false,
+        error: 'Missing source for canonical anchor event (required)'
+      };
+    }
+
     // 1. Validate network (closed enum)
     if (!['polygon', 'bitcoin'].includes(payload.network)) {
       return {
@@ -104,14 +113,9 @@ export async function appendAnchorEventFromEdge(
       },
     };
 
-    const { error: rpcError } = await supabase.rpc('append_document_entity_event', {
-      p_document_entity_id: documentId,
-      p_event: event,
-      p_source: null,
-    });
-
-    if (rpcError) {
-      return { success: false, error: `Failed to append anchor event: ${rpcError.message}` };
+    const result = await appendEvent(supabase as any, documentId, event as any, source);
+    if (!result.success) {
+      return { success: false, error: result.error ?? 'Failed to append anchor event' };
     }
 
     return { success: true };

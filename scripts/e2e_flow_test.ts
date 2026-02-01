@@ -51,14 +51,10 @@ async function runEndToEndFlow(): Promise<boolean> {
             _source: 'e2e_test'
           },
           {
-            kind: 'protection_enabled',
+            kind: 'document.protected.requested',
             at: new Date().toISOString(),
             payload: {
-              protection: {
-                methods: ['tsa', 'polygon', 'bitcoin'],
-                signature_type: 'none',
-                forensic_enabled: true
-              }
+              protection: ['tsa', 'polygon', 'bitcoin'],
             },
             _source: 'e2e_test'
           }
@@ -236,7 +232,7 @@ async function runEndToEndFlow(): Promise<boolean> {
       throw new Error('Entidad de prueba no encontrada');
     }
 
-    const initialEventCount = 2; // document.created + protection_enabled
+    const initialEventCount = 2; // document.created + document.protected.requested
     const newEvents = updatedEntity.events.slice(initialEventCount);
     
     console.log(`   ✅ Eventos totales: ${updatedEntity.events.length}`);

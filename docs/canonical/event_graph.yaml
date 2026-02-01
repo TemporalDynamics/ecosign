@@ -1,14 +1,5 @@
 version: 1
 events:
-  protection_enabled:
-    sources:
-      - record-protection-event
-    triggers: []
-    jobs: []
-    ui:
-      status: "Protección habilitada"
-    depends_on: []
-
   document.protected.requested:
     sources:
       - record-protection-event
@@ -18,8 +9,7 @@ events:
       - run_tsa
     ui:
       status: "Procesando protección"
-    depends_on:
-      - protection_enabled
+    depends_on: []
 
   document.protected:
     sources:
@@ -35,8 +25,6 @@ events:
   tsa.confirmed:
     sources:
       - run-tsa
-      - fase1-executor
-      - legal-timestamp
     triggers:
       - on_document_entity_events_change
     jobs:
@@ -50,7 +38,6 @@ events:
   tsa.failed:
     sources:
       - run-tsa
-      - fase1-executor
     triggers: []
     jobs: []
     ui:

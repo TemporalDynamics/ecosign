@@ -5,11 +5,10 @@
  * y reporta resultados como eventos, sin tomar decisiones
  */
 
-import { assertEquals, assertExists } from "https://deno.land/std@0.173.0/testing/asserts.ts";
+import { describe, expect, test } from 'vitest';
 
-// Simular el flujo completo de ExecutionEngine
-Deno.test("ExecutionEngine - Full Execution Flow", async (t) => {
-  await t.step("should only execute jobs from queue", () => {
+describe('ExecutionEngine - Full Execution Flow', () => {
+  test('only executes jobs from queue', () => {
     // Simular jobs en la cola que ExecutionEngine debe procesar
     const jobsInQueue = [
       {
@@ -177,58 +176,35 @@ Deno.test("ExecutionEngine - Full Execution Flow", async (t) => {
     }
 
     // Verificar que se ejecutaron todos los jobs
-    assertEquals(executedJobs.length, jobsInQueue.length, "Should execute all jobs in queue");
+    expect(executedJobs).toHaveLength(jobsInQueue.length);
 
     // Verificar que se generaron eventos resultado
-    assertEquals(generatedEvents.length, jobsInQueue.length, "Should generate result events for all executed jobs");
+    expect(generatedEvents).toHaveLength(jobsInQueue.length);
 
     // Verificar que los eventos tienen la estructura correcta
     for (const event of generatedEvents) {
-      assertExists(event.kind, "Event should have kind");
-      assertExists(event.at, "Event should have timestamp");
-      assertExists(event.payload, "Event should have payload");
-      assertEquals(event._source, 'execution_engine', "Event should come from execution engine");
+      expect(event.kind).toBeTruthy();
+      expect(event.at).toBeTruthy();
+      expect(event.payload).toBeTruthy();
+      expect(event._source).toBe('execution_engine');
     }
 
-    console.log("✅ ExecutionEngine correctly executes all job types");
-    console.log("   - run_tsa: executes TSA service, generates tsa.completed event");
-    console.log("   - submit_anchor_polygon: executes anchor service, generates anchor.submitted event");
-    console.log("   - submit_anchor_bitcoin: executes anchor service, generates anchor.submitted event");
-    console.log("   - build_artifact: executes artifact service, generates artifact.completed event");
   });
 
-  await t.step("should never make business decisions", () => {
-    // Simular que ExecutionEngine recibe un job
-    const sampleJob = {
-      id: 'sample_job_123',
-      type: 'run_tsa',
-      entity_id: 'sample_entity_456',
-      payload: {
-        witness_hash: 'sample_hash_789',
-        document_entity_id: 'sample_entity_456'
-      },
-      status: 'queued'
-    };
-
+  test('never makes business decisions', () => {
     // ExecutionEngine no decide si debe o no ejecutar el job
     // Solo ejecuta lo que le llega a la cola
     const shouldExecuteBasedOnBusinessLogic = false; // ExecutionEngine NUNCA decide esto
-    const shouldExecuteBasedOnQueuePresence = true;  // ExecutionEngine SIEMPRE ejecuta si hay job en cola
 
     // Simular ejecución
     const executed = true; // Si el job está en cola, se ejecuta (sin decisión de negocio)
     
     // Verificar que no se toman decisiones de negocio
-    assertEquals(shouldExecuteBasedOnBusinessLogic, false, "ExecutionEngine should never make business decisions");
-    assertEquals(executed, true, "ExecutionEngine should execute any job in queue regardless of business logic");
-
-    console.log("✅ ExecutionEngine correctly avoids business decision making");
-    console.log("   - Never evaluates if job should be executed");
-    console.log("   - Always executes jobs from queue");
-    console.log("   - Maintains clean separation from authority");
+    expect(shouldExecuteBasedOnBusinessLogic).toBe(false);
+    expect(executed).toBe(true);
   });
 
-  await t.step("should report results as canonical events", () => {
+  test('reports results as canonical events', () => {
     // Simular que ExecutionEngine completó un job y reporta resultado
     const completedJob = {
       id: 'completed_job_123',
@@ -259,18 +235,13 @@ Deno.test("ExecutionEngine - Full Execution Flow", async (t) => {
     };
 
     // Verificar que el evento resultado tiene la estructura correcta
-    assertEquals(resultEvent.kind, 'tsa.completed', "Result event should have correct kind");
-    assertEquals(resultEvent._source, 'execution_engine', "Result event should identify source");
-    assertExists(resultEvent.payload.job_id, "Result event should reference original job");
-    assertExists(resultEvent.at, "Result event should have timestamp");
-
-    console.log("✅ ExecutionEngine correctly reports results as canonical events");
-    console.log("   - Events are append-only to document_entities");
-    console.log("   - Events include job reference for traceability");
-    console.log("   - Events identify execution engine as source");
+    expect(resultEvent.kind).toBe('tsa.completed');
+    expect(resultEvent._source).toBe('execution_engine');
+    expect(resultEvent.payload.job_id).toBe(completedJob.id);
+    expect(resultEvent.at).toBeTruthy();
   });
 
-  await t.step("should not read decision authority", () => {
+  test('does not read decision authority', () => {
     // ExecutionEngine no lee packages/authority ni toma decisiones
     const executionEngineBehaviors = [
       'reads jobs from executor_jobs queue',
@@ -282,15 +253,8 @@ Deno.test("ExecutionEngine - Full Execution Flow", async (t) => {
     ];
 
     // Verificar que ExecutionEngine no toma decisiones
-    assertEquals(executionEngineBehaviors.includes('does NOT read packages/authority'), true);
-    assertEquals(executionEngineBehaviors.includes('does NOT evaluate business rules'), true);
-    assertEquals(executionEngineBehaviors.includes('does NOT decide what should happen next'), true);
-
-    console.log("✅ ExecutionEngine correctly avoids reading decision authority");
-    console.log("   - Only consumes jobs from queue");
-    console.log("   - Never accesses business logic");
-    console.log("   - Maintains complete separation from DecisionAuthority");
+    expect(executionEngineBehaviors.includes('does NOT read packages/authority')).toBe(true);
+    expect(executionEngineBehaviors.includes('does NOT evaluate business rules')).toBe(true);
+    expect(executionEngineBehaviors.includes('does NOT decide what should happen next')).toBe(true);
   });
 });
-
-console.log("✅ Test de flujo completo de ExecutionEngine completado");

@@ -234,7 +234,7 @@ Nivel 5: Organización y Contexto
 - **NO son incertidumbre** — son decisiones diferidas conscientemente
 - **SÍ tienen dueño** — cada área tiene responsable en `contratos/OPERATIONS_RESPONSIBILITY.md`
 
-**Consultar `docs/TODO_REPORT.md` para análisis técnico completo.**
+**Consultar `technical/TODO_REPORT.md` para análisis técnico completo.**
 
 ---
 

@@ -20,23 +20,30 @@ const jsonResponse = (data: unknown, status = 200) =>
   });
 
 async function callFunction(name: string, body: Record<string, unknown>) {
-  const response = await fetch(`${FUNCTIONS_URL}/${name}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(`${FUNCTIONS_URL}/${name}`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+      },
+      body: JSON.stringify(body),
+    });
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = (data as { error?: string }).error || `HTTP ${response.status}`;
-    throw new Error(message);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = (data as { error?: string }).error || `HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    return data as Record<string, unknown>;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return data as Record<string, unknown>;
 }
 
 async function emitEvent(
@@ -76,6 +83,8 @@ serve(async (req) => {
   if (!documentEntityId) {
     return jsonResponse({ error: 'document_entity_id required' }, 400);
   }
+
+  console.log('[run-tsa] start', { document_entity_id: documentEntityId, correlation_id: correlationId });
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

@@ -1690,12 +1690,21 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             }
           });
 
-          if (error) {
-            throw new Error(`record-protection-event failed: ${error.message}`);
-          }
-          console.log('✅ protection events recorded:', data);
-        }
-      }
+	          if (error) {
+	            throw new Error(`record-protection-event failed: ${error.message}`);
+	          }
+	          console.log('✅ protection events recorded:', data);
+
+	          try {
+	            const entityId = String((data as any)?.document_entity_id ?? '');
+	            if (entityId) {
+	              window.dispatchEvent(new CustomEvent('ecosign:protection-requested', { detail: { document_entity_id: entityId } }));
+	            }
+	          } catch {
+	            // ignore
+	          }
+	        }
+	      }
 
       // 3. Registrar evento 'created' (ChainLog)
       if (savedDoc?.id) {

@@ -7,6 +7,7 @@ export default function DocumentRow({
   document,
   context = 'documents',
   asRow = false,
+  processingHintStartedAtMs,
   onOpen,
   onShare,
   onDownloadPdf,
@@ -22,6 +23,7 @@ export default function DocumentRow({
   document: any;
   context?: 'documents' | 'operation';
   asRow?: boolean;
+  processingHintStartedAtMs?: number;
   onOpen?: (doc: any) => void;
   onShare?: (doc: any) => void;
   onDownloadPdf?: (doc: any) => void;
@@ -61,10 +63,15 @@ export default function DocumentRow({
     (e: any) => e.kind === 'document.protected.requested'
   );
 
+  const shouldHideProcessingLabel =
+    typeof processingHintStartedAtMs === 'number' &&
+    Number.isFinite(processingHintStartedAtMs) &&
+    Date.now() - processingHintStartedAtMs < 800;
+
   // Simple status derivation
   type SimpleStatus = 'processing' | 'protected' | 'error';
   let simpleStatus: SimpleStatus = 'processing';
-  let statusLabel = '⏳ Procesando';
+  let statusLabel = shouldHideProcessingLabel ? '⏳ Confirmando…' : '⏳ Procesando';
   let statusBg = 'bg-amber-100';
   let statusColor = 'text-amber-700';
   let statusTooltip: string | undefined = undefined;
@@ -83,9 +90,13 @@ export default function DocumentRow({
   }
 
   if (simpleStatus === 'processing') {
+    if (shouldHideProcessingLabel) {
+      statusTooltip = 'Confirmando solicitud… En unos segundos el documento quedará protegido.';
+    } else {
     statusTooltip = hasProtectionRequested
       ? 'El sello de tiempo (TSA) se esta confirmando. En unos segundos este estado cambiara automaticamente (no hace falta refrescar).'
       : 'El documento se esta procesando. Este estado se actualiza automaticamente.';
+    }
   }
 
   if (asRow) {

@@ -91,6 +91,9 @@ serve(async (req) => {
       'mfa_challenged',
       'mfa_success',
       'mfa_failed',
+      // Canonical dot-notation (preferred)
+      'otp.sent',
+      'otp.verified',
       'document_decrypted',
       'document_viewed',
       'document_view_duration',
@@ -122,39 +125,39 @@ serve(async (req) => {
     const userAgent = payload.user_agent || req.headers.get('user-agent') || 'unknown'
 
     // 🌍 GEOLOCALIZACIÓN AUTOMÁTICA (solo si no se proveyó)
-    let geoLocation = payload.geolocation
+    let geoLocation: any = payload.geolocation
 
     try {
       if (!geoLocation && sourceIp && sourceIp !== 'unknown') {
         console.log(`🌍 Obteniendo geolocalización para IP: ${sourceIp}`)
         geoLocation = await getLocationFromIP(sourceIp)
-        console.log(`📍 Ubicación: ${formatLocation(geoLocation)}`)
+        console.log(`📍 Ubicación: ${formatLocation(geoLocation as any)}`)
       }
-    } catch (geoError) {
-      console.warn(`⚠️ Error obteniendo geolocalización: ${geoError.message}`)
-      // Continue without geolocation - it's optional
-    }
+     } catch (geoError: any) {
+       console.warn(`⚠️ Error obteniendo geolocalización: ${geoError?.message}`)
+       // Continue without geolocation - it's optional
+     }
 
     // Validar consistencia con timezone (si se proveyó)
     let locationValidation = null
     let securityFlags = []
 
-    try {
-      if (payload.timezone && geoLocation) {
-        locationValidation = validateLocationConsistency(geoLocation, payload.timezone)
+     try {
+       if (payload.timezone && geoLocation) {
+         locationValidation = validateLocationConsistency(geoLocation as any, payload.timezone)
 
         // Detectar posible uso de VPN
-        if (detectVPNUsage(locationValidation)) {
-          securityFlags.push('possible_vpn_detected')
-          console.warn(`⚠️ Posible VPN detectado: IP=${sourceIp}, Timezone=${payload.timezone}`)
-        }
+         if (detectVPNUsage(locationValidation)) {
+           securityFlags.push('possible_vpn_detected')
+           console.warn(`⚠️ Posible VPN detectado: IP=${sourceIp}, Timezone=${payload.timezone}`)
+         }
 
         console.log(`🔍 Validación de ubicación: ${locationValidation.confidence_level} confidence`)
-      }
-    } catch (validationError) {
-      console.warn(`⚠️ Error validando ubicación: ${validationError.message}`)
-      // Continue without validation - it's optional
-    }
+       }
+     } catch (validationError: any) {
+       console.warn(`⚠️ Error validando ubicación: ${validationError?.message}`)
+       // Continue without validation - it's optional
+     }
 
     // Agregar información de validación a los details
     const enrichedDetails = {

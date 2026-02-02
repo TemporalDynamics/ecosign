@@ -260,6 +260,11 @@ serve(async (req) => {
       return json({ error: `Cannot sign: signer status is ${signer.status}` }, 403)
     }
 
+    // Enforce sequential order: only the signer whose turn it is may sign.
+    if (signer.status !== 'ready_to_sign') {
+      return json({ error: `Cannot sign: signer is not ready_to_sign (status=${signer.status})` }, 403)
+    }
+
     if (!otpVerified) {
       return json({ error: 'OTP not verified for signer' }, 403)
     }
@@ -283,12 +288,20 @@ serve(async (req) => {
 
     if (!batches || batches.length === 0) {
       console.warn('apply-signer-signature: No batches assigned to signer', { signerId: signer.id })
-      // Allow workflow to continue even if no batches (legacy compatibility)
+      // Canonical contract: a signer may only sign if at least one batch is assigned.
+      // This is not a server error; it is an invalid state for signing.
+      return json(
+        {
+          error: 'missing_signature_batch',
+          message: 'Faltan campos asignados a este firmante. Pedile al creador que asigne los espacios de firma.'
+        },
+        409
+      )
     } else {
       // Apply signature to all batches
       for (const batch of batches) {
         try {
-          await captureAndApplySignature(supabase, {
+          await captureAndApplySignature(supabase as any, {
             workflow_id: signer.workflow_id,
             document_entity_id: workflow.document_entity_id,
             batch_id: batch.id,

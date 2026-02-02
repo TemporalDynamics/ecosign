@@ -264,8 +264,37 @@ async function handleBatchCreate(req: Request, supabase: ReturnType<typeof creat
     }
   }
 
-  // Generar batch_id para todos
-  const batchId = crypto.randomUUID()
+  // Decide batch_id (caller may provide it).
+  // Contract: this endpoint creates exactly ONE batch per request.
+  const provided = new Set(
+    body.fields
+      .map((f) => (typeof f.batch_id === 'string' ? f.batch_id : null))
+      .filter((v): v is string => !!v)
+  )
+
+  if (provided.size > 1) {
+    return jsonResponse({
+      error: 'All fields in /batch must share the same batch_id'
+    }, 400)
+  }
+
+  const batchId = provided.size === 1 ? Array.from(provided)[0] : crypto.randomUUID()
+
+  // Ensure a corresponding row exists in public.batches so other parts of the system
+  // can assign it to a signer.
+  const documentEntityId = body.fields[0].document_entity_id as string
+  const { error: batchRowError } = await supabase
+    .from('batches')
+    .upsert({
+      id: batchId,
+      document_entity_id: documentEntityId,
+      origin: 'user_created'
+    }, { onConflict: 'id' })
+
+  if (batchRowError) {
+    console.error('Error ensuring batches row:', batchRowError)
+    return jsonResponse({ error: batchRowError.message }, 500)
+  }
 
   // Preparar batch insert
   const fieldsData = body.fields.map(field => ({
@@ -318,7 +347,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey) as any
 
     // Autenticar usuario
     const authHeader = req.headers.get('Authorization')

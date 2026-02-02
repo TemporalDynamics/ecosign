@@ -27,6 +27,7 @@ const DOCUMENT_LABELS: Record<string, string> = {
   'share.created': 'Enlace compartido',
   'share.opened': 'Enlace abierto',
   'nda.accepted': 'NDA aceptado',
+  'otp.verified': 'Identidad verificada (OTP)',
   signature_applied: 'Firma aplicada',
   signature_completed: 'Firma completada',
   document_viewed: 'Documento visualizado',

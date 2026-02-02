@@ -183,14 +183,14 @@ serve(withRateLimit('generate', async (req) => {
     // Log the link creation event
     console.log(`Link created: ${link.id} for document ${resolvedDocumentId} to ${recipient_email}`)
 
-    // === PROBATORY EVENT: share_created ===
+    // === PROBATORY EVENT: share.created ===
     // Register that this document was shared (goes to .eco)
     if (documentEntityId) {
       const eventResult = await appendEvent(
         supabase,
         documentEntityId,
         {
-          kind: 'share_created',
+          kind: 'share.created',
           at: new Date().toISOString(),
           share: {
             link_id: link.id,
@@ -204,11 +204,11 @@ serve(withRateLimit('generate', async (req) => {
       );
 
       if (!eventResult.success) {
-        console.error('Failed to append share_created event:', eventResult.error);
+        console.error('Failed to append share.created event:', eventResult.error);
         // Don't fail the request, but log it
       }
     } else {
-      console.warn(`Could not get document_entity_id for document ${document_id}, share_created event not recorded`);
+      console.warn(`Could not get document_entity_id for document ${document_id}, share.created event not recorded`);
     }
 
     // --- Send Email Invitation ---

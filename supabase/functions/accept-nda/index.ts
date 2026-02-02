@@ -8,6 +8,7 @@ import { withRateLimit } from '../_shared/ratelimit.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { parseJsonBody } from '../_shared/validation.ts'
 import { AcceptNdaSchema } from '../_shared/schemas.ts'
+import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 
 serve(withRateLimit('accept', async (req) => {
   const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined)
@@ -34,19 +35,20 @@ serve(withRateLimit('accept', async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+    const body = parsed.data as any
     const {
       token,
       signer_name,
       signer_email,
       nda_version = '1.0',
       browser_fingerprint
-    } = parsed.data
+    } = body
 
     // Hash token to lookup link
     const tokenEncoder = new TextEncoder()
     const tokenData = tokenEncoder.encode(token)
-    const hashBuffer = await crypto.subtle.digest('SHA-256', tokenData)
-    const tokenHash = Array.from(new Uint8Array(hashBuffer))
+    const tokenHashBuffer = await crypto.subtle.digest('SHA-256', tokenData)
+    const tokenHash = Array.from(new Uint8Array(tokenHashBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
 
@@ -156,8 +158,8 @@ serve(withRateLimit('accept', async (req) => {
 
     const encoder = new TextEncoder()
     const data = encoder.encode(ndaContent)
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-    const ndaHash = Array.from(new Uint8Array(hashBuffer))
+    const ndaHashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const ndaHash = Array.from(new Uint8Array(ndaHashBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
 
@@ -204,6 +206,49 @@ serve(withRateLimit('accept', async (req) => {
 
     console.log(`NDA accepted: ${ndaAcceptance.id} by ${signer_email}`)
 
+    // === PROBATORY EVENT: nda.accepted ===
+    // Register NDA acceptance in canonical events ledger (goes to .eco)
+    try {
+      const documentEntityId = await getDocumentEntityId(supabase, recipient.document_id)
+      if (documentEntityId) {
+        const ipHash = ipAddress ? await hashIP(ipAddress) : null
+        const browserFamily = getBrowserFamily(userAgent)
+
+        const eventResult = await appendEvent(
+          supabase,
+          documentEntityId,
+          {
+            kind: 'nda.accepted',
+            at: ndaAcceptance.accepted_at || new Date().toISOString(),
+            nda: {
+              link_id: link.id,
+              acceptance_id: ndaAcceptance.id,
+              recipient_email: signer_email,
+              signer_name,
+              nda_hash: ndaHash,
+              nda_version,
+              acceptance_method: 'checkbox'
+            },
+            context: {
+              ip_hash: ipHash,
+              geo: null,
+              browser: browserFamily,
+              session_id: `nda-${ndaAcceptance.id}`
+            }
+          },
+          'accept-nda'
+        )
+
+        if (!eventResult.success) {
+          console.error('Failed to append nda.accepted event:', eventResult.error)
+        }
+      } else {
+        console.warn(`Could not get document_entity_id for document ${recipient.document_id}, nda.accepted event not recorded`)
+      }
+    } catch (e) {
+      console.warn('accept-nda probatory event recording failed', e)
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -217,12 +262,12 @@ serve(withRateLimit('accept', async (req) => {
         status: 200
       }
     )
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in accept-nda:', error)
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Internal server error'
+        error: error?.message || 'Internal server error'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

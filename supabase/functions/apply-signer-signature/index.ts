@@ -260,6 +260,11 @@ serve(async (req) => {
       return json({ error: `Cannot sign: signer status is ${signer.status}` }, 403)
     }
 
+    // Enforce sequential order: only the signer whose turn it is may sign.
+    if (signer.status !== 'ready_to_sign') {
+      return json({ error: `Cannot sign: signer is not ready_to_sign (status=${signer.status})` }, 403)
+    }
+
     if (!otpVerified) {
       return json({ error: 'OTP not verified for signer' }, 403)
     }
@@ -288,7 +293,7 @@ serve(async (req) => {
       // Apply signature to all batches
       for (const batch of batches) {
         try {
-          await captureAndApplySignature(supabase, {
+          await captureAndApplySignature(supabase as any, {
             workflow_id: signer.workflow_id,
             document_entity_id: workflow.document_entity_id,
             batch_id: batch.id,

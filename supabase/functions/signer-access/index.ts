@@ -230,24 +230,32 @@ serve(async (req) => {
     // GATE 2: Check if token has been explicitly revoked
     if (signer.token_revoked_at) {
       console.warn(`Signer access denied: token revoked. Signer ID: ${signer.id}`)
-      await appendCanonicalEvent(supabase, {
-        event_type: 'token.revoked',
-        workflow_id: signer.workflow_id,
-        signer_id: signer.id,
-        payload: { reason: 'Access attempt with revoked token' }
-      }, 'signer-access')
+      await appendCanonicalEvent(
+        supabase as any,
+        {
+          event_type: 'token.revoked',
+          workflow_id: signer.workflow_id,
+          signer_id: signer.id,
+          payload: { reason: 'Access attempt with revoked token' }
+        } as any,
+        'signer-access'
+      )
       return json({ error: 'Invalid or expired token' }, 404, corsHeaders)
     }
 
     // GATE 3: Check if token has expired
     if (new Date(signer.token_expires_at) < new Date()) {
       console.warn(`Signer access denied: token expired. Signer ID: ${signer.id}`)
-      await appendCanonicalEvent(supabase, {
-        event_type: 'token.expired',
-        workflow_id: signer.workflow_id,
-        signer_id: signer.id,
-        payload: { expired_at: signer.token_expires_at }
-      }, 'signer-access')
+      await appendCanonicalEvent(
+        supabase as any,
+        {
+          event_type: 'token.expired',
+          workflow_id: signer.workflow_id,
+          signer_id: signer.id,
+          payload: { expired_at: signer.token_expires_at }
+        } as any,
+        'signer-access'
+      )
       // Optionally update signer status to 'expired' here if not already handled by a cron job
       if (signer.status !== 'expired' && signer.status !== 'signed') {
         await supabase.from('workflow_signers').update({ status: 'expired' }).eq('id', signer.id)
@@ -262,9 +270,17 @@ serve(async (req) => {
       return json({ error: 'This signing link is no longer active.' }, 403, corsHeaders)
     }
 
+    // GATE 5: Enforce sequential signing order
+    // Contract: only a signer in 'ready_to_sign' may access the signing flow.
+    // This prevents future signers (status 'invited') from signing out of order.
+    if (signer.status !== 'ready_to_sign') {
+      console.warn(`Signer access denied: not ready_to_sign (status="${signer.status}"). Signer ID: ${signer.id}`)
+      return json({ error: 'Not your turn to sign yet.' }, 403, corsHeaders)
+    }
+
     // All gates passed. Log access event.
     await appendCanonicalEvent(
-      supabase,
+      supabase as any,
       {
         event_type: 'signer.accessed',
         workflow_id: signer.workflow_id,

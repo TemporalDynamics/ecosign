@@ -162,7 +162,7 @@ Fuentes de autoridad canonicamente relevantes:
 
 ### Huecos obvios (marcar)
 
-- ❌ Naming inconsistente en documento: `process-signature` emite `kind: 'signature'` (no dot-notation).
+- ✅ Naming de evidencia de firma en documento se normaliza a dot-notation (`signature.completed`).
 - ❌ Gating secuencial es punto de ruptura probable (emails a todos juntos). Requiere que la decision de notificar sea derivada de estado/evento, no de loops.
 - ⚠️ `stamp-pdf` es stateless y acepta PDF base64: requiere limites de tamano + rate-limit (hardening), pero no es parte del barrido micro de flujos.
 

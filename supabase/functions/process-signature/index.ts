@@ -469,14 +469,14 @@ serve(async (req) => {
       return jsonResponse({ error: 'Failed to save signature' }, 500)
     }
 
-    // === PROBATORY EVENT: signature ===
+    // === PROBATORY EVENT: signature.completed ===
     // Register that this document was signed (goes to .eco)
     if (workflow.document_entity_id) {
       const eventResult = await appendEvent(
         supabase,
         workflow.document_entity_id,
         {
-          kind: 'signature',
+          kind: 'signature.completed',
           at: signedAt,
           signer: {
             email: signer.email,
@@ -522,7 +522,7 @@ serve(async (req) => {
       .eq('id', signer.id)
 
     await appendCanonicalEvent(
-      supabase,
+      supabase as any,
       {
         event_type: 'signer.signed',
         workflow_id: signer.workflow_id,
@@ -549,7 +549,7 @@ serve(async (req) => {
 
     if (nextSigner) {
       await appendCanonicalEvent(
-        supabase,
+        supabase as any,
         {
           event_type: 'signer.ready_to_sign',
           workflow_id: signer.workflow_id,
@@ -563,7 +563,7 @@ serve(async (req) => {
       )
     } else {
       await appendCanonicalEvent(
-        supabase,
+        supabase as any,
         {
           event_type: 'workflow.completed',
           workflow_id: signer.workflow_id,
@@ -574,7 +574,7 @@ serve(async (req) => {
       )
 
       if (workflow.document_entity_id) {
-        await emitDocumentSigned(supabase, workflow.document_entity_id, 'internal')
+        await emitDocumentSigned(supabase as any, workflow.document_entity_id, 'internal')
       } else {
         console.warn('workflow.document_entity_id missing, document.signed not emitted')
       }
@@ -736,7 +736,7 @@ serve(async (req) => {
       }
     }
 
-    await triggerEmailDelivery(supabase)
+    await triggerEmailDelivery(supabase as any)
 
     return jsonResponse({
       success: true,

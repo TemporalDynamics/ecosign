@@ -28,6 +28,10 @@ const DOCUMENT_LABELS: Record<string, string> = {
   'share.opened': 'Enlace abierto',
   'nda.accepted': 'NDA aceptado',
   'otp.verified': 'Identidad verificada (OTP)',
+  // Legacy signature kind (pre dot-notation)
+  signature: 'Firma completada',
+  // Canonical signature kind
+  'signature.completed': 'Firma completada',
   signature_applied: 'Firma aplicada',
   signature_completed: 'Firma completada',
   document_viewed: 'Documento visualizado',

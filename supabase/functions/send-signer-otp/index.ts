@@ -169,14 +169,15 @@ serve(async (req) => {
       )
     }
 
-    // Audit
+    // Audit (best-effort)
+    // Map OTP send to an existing ECOX event type.
     try {
       await supabase.functions.invoke('log-ecox-event', {
         body: {
-          workflowId: signer.workflow.id,
-          signerId: signer.id,
-          eventType: 'otp_sent',
-          details: { expiresAt }
+          workflow_id: signer.workflow.id,
+          signer_id: signer.id,
+          event_type: 'otp.sent',
+          details: { method: 'email_otp', expires_at: expiresAt }
         }
       })
     } catch (err) {

@@ -36,15 +36,5 @@ export function resolveBatchAssignments<FieldType extends { id: string; batchId?
 
   const unassignedBatches = batches.filter((b) => !b.assignedSignerEmail);
 
-  // Heuristic: if number of batches equals number of signers, auto-assign in order
-  if (batches.length === signers.length) {
-    batches.forEach((b, idx) => {
-      const signer = signers[idx];
-      if (signer && !b.assignedSignerEmail) {
-        b.assignedSignerEmail = signer.email;
-      }
-    });
-  }
-
   return { batches, unassignedBatches };
 }

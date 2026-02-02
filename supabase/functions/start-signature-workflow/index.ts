@@ -93,7 +93,7 @@ serve(withRateLimit('workflow', async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey) as any
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -271,6 +271,12 @@ serve(withRateLimit('workflow', async (req) => {
       return jsonResponse({ error: 'Failed to create workflow version', details: versionError?.message }, 500)
     }
 
+    const cleanupWorkflow = async () => {
+      try { await supabase.from('workflow_signers').delete().eq('workflow_id', workflow.id) } catch {}
+      try { await supabase.from('workflow_versions').delete().eq('workflow_id', workflow.id) } catch {}
+      try { await supabase.from('signature_workflows').delete().eq('id', workflow.id) } catch {}
+    }
+
     const signersToInsert = []
     const accessTokens: Record<string, { token: string, tokenHash: string }> = {}
     const tokenLifetimeDays = 7
@@ -294,7 +300,8 @@ serve(withRateLimit('workflow', async (req) => {
         require_login: requireLogin,
         require_nda: requireNda,
         quick_access: quickAccess,
-        status: signer.signingOrder === 1 ? 'ready_to_sign' : 'invited',
+        // Status will be promoted to ready_to_sign only after batch binding succeeds.
+        status: 'invited',
         access_token_hash: tokenHash,
         access_token_ciphertext: ciphertext,
         access_token_nonce: nonce,
@@ -325,6 +332,128 @@ serve(withRateLimit('workflow', async (req) => {
     // ... (Canonical event logging remains the same)
 
     const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
+
+    // P1.3 — Bind workflow_fields (batch_id + assigned_to email) to batches.assigned_signer_id
+    // and enforce: each signer must have >= 1 assigned batch before we allow signing.
+    if (!workflow.document_entity_id) {
+      await cleanupWorkflow()
+      return jsonResponse({
+        error: 'missing_document_entity_id',
+        message: 'No se pudo iniciar el workflow sin document_entity_id.'
+      }, 409)
+    }
+
+    const { data: wfFields, error: wfFieldsErr } = await supabase
+      .from('workflow_fields')
+      .select('batch_id, assigned_to')
+      .eq('document_entity_id', workflow.document_entity_id)
+
+    if (wfFieldsErr) {
+      console.error('Failed to fetch workflow_fields for binding', wfFieldsErr)
+      await cleanupWorkflow()
+      return jsonResponse({ error: 'failed_to_bind_fields', details: wfFieldsErr.message }, 500)
+    }
+
+    const batchToEmail = new Map<string, string>()
+    const unassignedBatchIds = new Set<string>()
+
+    for (const row of (wfFields || []) as any[]) {
+      const bid = row.batch_id as string | null
+      if (!bid) continue
+      const email = (row.assigned_to as string | null)?.trim().toLowerCase() || null
+      if (!email) {
+        unassignedBatchIds.add(bid)
+        continue
+      }
+      const existing = batchToEmail.get(bid)
+      if (existing && existing !== email) {
+        await cleanupWorkflow()
+        return jsonResponse({
+          error: 'inconsistent_batch_assignment',
+          message: `Batch ${bid} tiene assigned_to inconsistente.`
+        }, 409)
+      }
+      batchToEmail.set(bid, email)
+    }
+
+    if (unassignedBatchIds.size > 0) {
+      await cleanupWorkflow()
+      return jsonResponse({
+        error: 'missing_signature_batch',
+        message: 'Hay batches sin asignar a un firmante.',
+        unassigned_batch_ids: Array.from(unassignedBatchIds)
+      }, 409)
+    }
+
+    const signerByEmail = new Map<string, any>()
+    for (const s of insertedSigners || []) {
+      const email = (s.email as string).trim().toLowerCase()
+      signerByEmail.set(email, s)
+    }
+
+    const batchUpdates: { id: string; assigned_signer_id: string }[] = []
+    const unknownEmails = new Set<string>()
+    for (const [bid, email] of batchToEmail.entries()) {
+      const signer = signerByEmail.get(email)
+      if (!signer) {
+        unknownEmails.add(email)
+        continue
+      }
+      batchUpdates.push({ id: bid, assigned_signer_id: signer.id })
+    }
+
+    if (unknownEmails.size > 0) {
+      await cleanupWorkflow()
+      return jsonResponse({
+        error: 'missing_signature_batch',
+        message: 'Hay batches asignados a emails que no existen en la lista de firmantes.',
+        unknown_emails: Array.from(unknownEmails)
+      }, 409)
+    }
+
+    if (batchUpdates.length === 0) {
+      await cleanupWorkflow()
+      return jsonResponse({
+        error: 'missing_signature_batch',
+        message: 'No hay batches asignados a firmantes.'
+      }, 409)
+    }
+
+    const { error: batchUpdErr } = await supabase
+      .from('batches')
+      .upsert(batchUpdates, { onConflict: 'id' })
+
+    if (batchUpdErr) {
+      console.error('Failed to update batch assignments', batchUpdErr)
+      await cleanupWorkflow()
+      return jsonResponse({ error: 'failed_to_bind_fields', details: batchUpdErr.message }, 500)
+    }
+
+    // Enforce: each signer must have >= 1 batch.
+    const signerIdsWithBatch = new Set(batchUpdates.map((b) => b.assigned_signer_id))
+    const missingSigners = (insertedSigners || []).filter((s: any) => !signerIdsWithBatch.has(s.id))
+    if (missingSigners.length > 0) {
+      await cleanupWorkflow()
+      return jsonResponse({
+        error: 'missing_signature_batch',
+        message: 'Faltan batches asignados para algunos firmantes.',
+        missing_signers: missingSigners.map((s: any) => ({ id: s.id, email: s.email }))
+      }, 409)
+    }
+
+    // Promote first signer to ready_to_sign only after binding succeeds.
+    const first = (insertedSigners || []).find((s: any) => s.signing_order === 1)
+    if (first) {
+      const { error: promoteErr } = await supabase
+        .from('workflow_signers')
+        .update({ status: 'ready_to_sign' })
+        .eq('id', first.id)
+      if (promoteErr) {
+        console.error('Failed to promote first signer to ready_to_sign', promoteErr)
+        await cleanupWorkflow()
+        return jsonResponse({ error: 'failed_to_start', details: promoteErr.message }, 500)
+      }
+    }
 
     // Create notification only for the first signer (sequential flow)
     const notifications = []
@@ -416,8 +545,8 @@ serve(withRateLimit('workflow', async (req) => {
       _debug: debugInfo
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in start-signature-workflow:', error)
-    return jsonResponse({ error: error.message, stack: error.stack }, 500)
+    return jsonResponse({ error: error?.message, stack: error?.stack }, 500)
   }
 }))

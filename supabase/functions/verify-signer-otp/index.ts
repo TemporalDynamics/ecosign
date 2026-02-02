@@ -90,7 +90,7 @@ serve(async (req) => {
       return json({ error: 'OTP inválido' }, 400, corsHeaders)
     }
 
-    // === PROBATORY EVENT: otp_verified ===
+    // === PROBATORY EVENT: otp.verified ===
     // Get signer email and workflow info for event
     try {
       const { data: signer } = await supabase
@@ -113,7 +113,7 @@ serve(async (req) => {
           supabase,
           workflow.document_entity_id,
           {
-            kind: 'otp_verified',
+            kind: 'otp.verified',
             at: new Date().toISOString(),
             otp: {
               signer_email: signer.email,
@@ -132,7 +132,7 @@ serve(async (req) => {
         )
 
         if (!eventResult.success) {
-          console.error('Failed to append otp_verified event:', eventResult.error)
+          console.error('Failed to append otp.verified event:', eventResult.error)
           // Don't fail the request, OTP was verified successfully
         }
       }
@@ -141,13 +141,15 @@ serve(async (req) => {
       // Don't fail the request
     }
 
-    // Log ECOX
+    // Log ECOX (best-effort)
+    // Map OTP verification to an existing ECOX event type.
     try {
       await supabase.functions.invoke('log-ecox-event', {
         body: {
-          workflowId: record.workflow_id,
-          signerId,
-          eventType: 'otp_verified'
+          workflow_id: record.workflow_id,
+          signer_id: signerId,
+          event_type: 'otp.verified',
+          details: { method: 'email_otp' }
         }
       })
     } catch (err) {
@@ -155,7 +157,8 @@ serve(async (req) => {
     }
 
     await appendCanonicalEvent(
-      supabase,
+      // Edge runtime uses a different supabase-js module URL; keep this call loosely typed.
+      supabase as any,
       {
         event_type: 'otp.verified',
         workflow_id: record.workflow_id,

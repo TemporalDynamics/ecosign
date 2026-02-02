@@ -247,6 +247,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
   const [isCanvasLocked, setIsCanvasLocked] = useState(false);
+
+  // P1 UX: explicit confirmation step for signer assignment (UI-only)
+  const [workflowAssignmentConfirmed, setWorkflowAssignmentConfirmed] = useState(false);
+  const workflowAssignmentCtaRef = useRef<HTMLDivElement | null>(null);
+  const workflowAssignmentSectionRef = useRef<HTMLDivElement | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<{ type: 'image' | 'text'; value: string } | null>(null);
   const [signaturePlacement, setSignaturePlacement] = useState({ x: 120, y: 180, width: 220, height: 80 });
   const [signaturePlacementPct, setSignaturePlacementPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -323,6 +328,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       document.documentElement.style.overflow = prevHtmlOverflow;
     };
   }, [isMobile, isOpen]);
+
+  // Any change to signers/fields invalidates the explicit confirmation.
+  useEffect(() => {
+    setWorkflowAssignmentConfirmed(false);
+  }, [workflowEnabled, emailInputs, signatureFields]);
 
   // Handlers para el modal de bienvenida
   const handleWelcomeAccept = () => {
@@ -936,6 +946,56 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       return;
     }
 
+    // P1 UX gate (no irreversible/progress UI before structural decisions are confirmed)
+    if (workflowEnabled) {
+      const validSigners = buildSignersList();
+      if (validSigners.length === 0) {
+        toast.error('Agregá al menos un email válido para enviar el documento a firmar');
+        return;
+      }
+
+      if (signatureFields.length === 0) {
+        toast.error('Agregá y asigná al menos un batch de campos antes de enviar a firmar');
+        return;
+      }
+
+      const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+      if (unassignedBatches.length > 0) {
+        toast('Asigná los grupos de campos a los firmantes antes de enviar', { position: 'top-right' });
+        setFlowPanelOpen(true);
+        setTimeout(() => {
+          workflowAssignmentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 0);
+        return;
+      }
+
+      const assignedEmails = new Set(
+        batches
+          .map((b) => (b.assignedSignerEmail || '').trim().toLowerCase())
+          .filter(Boolean)
+      );
+      const missingFor = validSigners
+        .map((s) => s.email.trim().toLowerCase())
+        .filter((email) => !assignedEmails.has(email));
+      if (missingFor.length > 0) {
+        toast(`Faltan campos asignados para: ${missingFor.join(', ')}`, { position: 'top-right' });
+        setFlowPanelOpen(true);
+        setTimeout(() => {
+          workflowAssignmentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 0);
+        return;
+      }
+
+      if (!workflowAssignmentConfirmed) {
+        toast('Confirmá la asignación de firmas en el panel de Flujo de Firmas', { position: 'top-right' });
+        setFlowPanelOpen(true);
+        setTimeout(() => {
+          workflowAssignmentCtaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 0);
+        return;
+      }
+    }
+
     setLoading(true);
 
     // FASE 3.C: Timeout tracking (P0.6)
@@ -1047,33 +1107,51 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           return;
         }
 
-        // P2.1 - Agrupar campos por batch y auto-asignar (usar helper central)
-        try {
-          const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+        // P1: Contract - no signing without explicit batch assignment.
+        if (signatureFields.length === 0) {
+          toast.error('Agregá y asigná al menos un batch de campos antes de enviar a firmar');
+          setLoading(false);
+          return;
+        }
 
-          // Si hay batches sin asignar y la cantidad de batches es igual a la cantidad de firmantes,
-          // hacer una asignación automática en orden (heurística útil para la mayoría de casos).
-          if (unassignedBatches.length > 0) {
-            if (batches.length === validSigners.length) {
-              batches.forEach((b, idx) => {
-                const signer = validSigners[idx];
-                if (signer && !b.assignedSignerEmail) {
-                  b.assignedSignerEmail = signer.email;
-                }
-              });
+        const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
 
-              // Nota: La asignación vive en batches (batch.assignedSignerEmail). No debemos
-              // propagar assignedTo a cada field (evita duplicar estado). Forzar re-render UI.
-              setSignatureFields((prev) => [...prev]);
-            } else {
-              // No se puede enviar si existen batches sin asignar y no hay una correspondencia obvia
-              toast('Asigná los grupos de campos a los firmantes antes de enviar', { position: 'top-right' });
-              setLoading(false);
-              return;
-            }
-          }
-        } catch (p2err) {
-          console.warn('P2.1 auto-assign falló, dejando flujo para asignación manual:', p2err);
+        // Block if any batch is not explicitly assigned.
+        if (unassignedBatches.length > 0) {
+          toast('Asigná los grupos de campos a los firmantes antes de enviar', { position: 'top-right' });
+          setLoading(false);
+          return;
+        }
+
+        // Block if any signer has no batch.
+        const assignedEmails = new Set(
+          batches
+            .map((b) => (b.assignedSignerEmail || '').trim().toLowerCase())
+            .filter(Boolean)
+        );
+
+        const missingFor = validSigners
+          .map((s) => s.email.trim().toLowerCase())
+          .filter((email) => !assignedEmails.has(email));
+
+        if (missingFor.length > 0) {
+          toast(
+            `Faltan campos asignados para: ${missingFor.join(', ')}`,
+            { position: 'top-right' }
+          );
+          setLoading(false);
+          return;
+        }
+
+        // UX gate: require explicit confirmation inside "Flujo de Firmas" panel.
+        if (!workflowAssignmentConfirmed) {
+          toast('Confirmá la asignación de firmas en el panel de Flujo de Firmas', { position: 'top-right' });
+          setFlowPanelOpen(true);
+          setTimeout(() => {
+            workflowAssignmentCtaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 0);
+          setLoading(false);
+          return;
         }
 
         // SPRINT 5: Si hay campos configurados, estamparlos en el PDF antes de enviar
@@ -1180,21 +1258,27 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           }
         }
 
-        // SPRINT 6: Guardar campos de workflow en DB antes de enviar
-        if (canonicalDocumentId && signatureFields.length > 0) {
-          try {
-            console.log('📋 Guardando campos de workflow en DB...');
-            const savedFields = await saveWorkflowFields(
-              signatureFields,
-              canonicalDocumentId,
-              VIRTUAL_PAGE_WIDTH,
-              VIRTUAL_PAGE_HEIGHT
-            );
-            console.log(`✅ ${savedFields.length} campos guardados en workflow_fields`);
-          } catch (fieldsError) {
-            console.warn('⚠️ Error guardando workflow fields, continuando sin persistencia:', fieldsError);
-            // No bloquear el workflow si falla el guardado de campos
-          }
+        // P1: Persisting workflow_fields is mandatory (source of truth for batch binding).
+        if (!canonicalDocumentId) {
+          showToast('No se pudo preparar el documento canónico para el flujo de firmas.', { type: 'error' });
+          setLoading(false);
+          return;
+        }
+
+        try {
+          console.log('📋 Guardando campos de workflow en DB...');
+          const savedFields = await saveWorkflowFields(
+            signatureFields,
+            canonicalDocumentId,
+            VIRTUAL_PAGE_WIDTH,
+            VIRTUAL_PAGE_HEIGHT
+          );
+          console.log(`✅ ${savedFields.length} campos guardados en workflow_fields`);
+        } catch (fieldsError) {
+          console.error('❌ Error guardando workflow fields (bloqueante):', fieldsError);
+          showToast('No se pudieron guardar los campos asignados. Intentá nuevamente.', { type: 'error' });
+          setLoading(false);
+          return;
         }
 
         // Iniciar workflow en backend (crea notificaciones y dispara send-pending-emails)
@@ -2146,8 +2230,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       actions.push('firmar');
     }
 
-    // Validar que haya al menos un email VÁLIDO (no solo no vacío)
-    if (workflowEnabled && emailInputs.some(e => isValidEmail(e.email.trim()).valid)) {
+    // Solo prometer envío si el flujo está estructuralmente confirmado.
+    if (workflowEnabled && workflowAssignmentConfirmed && emailInputs.some(e => isValidEmail(e.email.trim()).valid)) {
       actions.push('enviar mails');
     }
 
@@ -2175,8 +2259,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       if (!signatureType) return false;
     }
 
-    // Si "Flujo" activo: debe tener ≥1 mail VÁLIDO (no solo no vacío)
-    if (workflowEnabled && !emailInputs.some(e => isValidEmail(e.email.trim()).valid)) return false;
+    // Si "Flujo" activo: debe tener ≥1 mail VÁLIDO, ≥1 campo, y confirmación explícita.
+    if (workflowEnabled) {
+      if (!emailInputs.some(e => isValidEmail(e.email.trim()).valid)) return false;
+      if (signatureFields.length === 0) return false;
+      if (!workflowAssignmentConfirmed) return false;
+    }
 
     // NDA nunca bloquea
 
@@ -3621,7 +3709,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                   Seguridad obligatoria
                                 </p>
                                 <p className="text-xs text-gray-700 mt-1">
-                                  Todos los firmantes requieren login y aceptación de NDA antes de firmar
+                                  Podés exigir login y NDA por firmante antes de firmar
                                 </p>
                               </div>
                             </div>
@@ -3842,11 +3930,154 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       Seguridad obligatoria
                     </p>
                     <p className="text-xs text-gray-700 mt-1">
-                      Todos los firmantes requieren login y aceptación de NDA antes de firmar
+                      Podés exigir login y NDA por firmante antes de firmar
                     </p>
                   </div>
                 </div>
                 </div>
+
+              {/* CTA propio del Flujo de Firmas: confirmar asignación */}
+              {signatureFields.length > 0 && (
+                <div ref={workflowAssignmentCtaRef} className="mt-3">
+                  {(() => {
+                    const validSigners = buildSignersList();
+                    const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+
+                    const assignedEmails = new Set(
+                      batches
+                        .map((b) => (b.assignedSignerEmail || '').trim().toLowerCase())
+                        .filter(Boolean)
+                    );
+                    const missingFor = validSigners
+                      .map((s) => s.email.trim().toLowerCase())
+                      .filter((email) => !assignedEmails.has(email));
+
+                    const groupsCount = batches.length;
+                    const signersCount = validSigners.length;
+                    const isComplete = unassignedBatches.length === 0 && missingFor.length === 0 && groupsCount > 0 && signersCount > 0;
+
+                    const scrollToAssignment = () => {
+                      setFlowPanelOpen(true);
+                      setTimeout(() => {
+                        workflowAssignmentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 0);
+                    };
+
+                    if (!isComplete) {
+                      return (
+                        <div className="rounded-lg border border-gray-200 bg-white p-2">
+                          <button
+                            type="button"
+                            onClick={scrollToAssignment}
+                            className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                          >
+                            Asignar campos a firmantes
+                          </button>
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            Falta asignar {unassignedBatches.length} grupo(s) o hay firmantes sin campos.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    if (!workflowAssignmentConfirmed) {
+                      return (
+                        <div className="rounded-lg border border-gray-200 bg-white p-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setWorkflowAssignmentConfirmed(true);
+                              showToast('Asignación confirmada', { type: 'success', duration: 2000 });
+                            }}
+                            className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                          >
+                            Confirmar asignación de firmas
+                          </button>
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            {groupsCount} grupo(s) asignado(s) a {signersCount} firmante(s).
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-green-700" />
+                          <p className="text-sm font-medium text-green-900">Asignación confirmada</p>
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-green-800">
+                          {groupsCount} grupo(s) asignado(s) a {signersCount} firmante(s).
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* P1.1: Batch assignment (explicit) */}
+              {signatureFields.length > 0 && (
+                <div ref={workflowAssignmentSectionRef} className="mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-900">Asignación de campos</p>
+                    {(() => {
+                      const validSigners = buildSignersList();
+                      const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+                      const canSuggest = batches.length === validSigners.length && unassignedBatches.length > 0;
+                      if (!canSuggest) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const ok = window.confirm('¿Asignar automáticamente cada batch al firmante correspondiente por orden?');
+                            if (!ok) return;
+                            batches.forEach((b, idx) => {
+                              const signer = validSigners[idx];
+                              if (!signer) return;
+                              assignBatchToSignerEmail(b.id, signer.email);
+                            });
+                          }}
+                          className="text-xs text-gray-700 hover:text-gray-900 underline"
+                        >
+                          Asignar por orden
+                        </button>
+                      );
+                    })()}
+                  </div>
+
+                  {(() => {
+                    const validSigners = buildSignersList();
+                    const { batches } = resolveBatchAssignments(signatureFields, validSigners);
+                    if (batches.length === 0) return null;
+                    return (
+                      <div className="space-y-2">
+                        {batches.map((b, idx) => (
+                          <div key={b.id} className="border border-gray-200 rounded-lg p-2 bg-white">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-gray-900 truncate">Batch {idx + 1}</p>
+                                <p className="text-[11px] text-gray-500">{b.fields.length} campo(s)</p>
+                              </div>
+                              <select
+                                value={b.assignedSignerEmail ?? ''}
+                                onChange={(e) => assignBatchToSignerEmail(b.id, e.target.value || null)}
+                                className="text-xs px-2 py-1 border border-gray-300 rounded-md"
+                              >
+                                <option value="">Sin asignar</option>
+                                {validSigners.map((s) => (
+                                  <option key={s.email} value={s.email}>
+                                    {s.email}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
               </div>
               </div>
             ) : undefined

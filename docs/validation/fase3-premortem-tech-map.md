@@ -342,6 +342,40 @@ Entry points:
   - pérdida de `localStorage` ⇒ documentos inaccesibles (diseño explícito, pero necesita UX de “warning” y recuperación).
   - “force reinit” o regeneración de session secret puede invalidar wraps previos.
 
+### Custody: original cifrado vs Copia Fiel (witness)
+
+**Artefactos (no mezclar)**
+- **Original**: payload subido por el usuario. Si se guarda, se guarda **cifrado** en bucket `custody` (nunca plaintext).
+- **Copia Fiel / witness**: PDF “usable” para el usuario (y verificable), típicamente en `witness_current_storage_path` (bucket `user-documents`).
+- **Evidencia**: `document_entities.events[]` + hashes + TSA/anchors (nunca contienen el contenido).
+
+**Contrato de storage (DB)**
+- `document_entities.custody_mode` es **inmutable** por trigger (`enforce_document_entities_immutability`).
+- El constraint `document_entities_custody_storage_consistent` fue relajado para permitir `source_storage_path` incluso con `custody_mode='hash_only'` (esto rompe la semántica “custody_mode indica si hay original guardado”).
+
+**Dónde se implementa hoy**
+- UI elige “guardar original” en `client/src/components/LegalCenterModalV2.tsx` (`custodyModeChoice`) y sube el original cifrado con `storeEncryptedCustody(...)`.
+- Upload directo a Storage:
+  - `supabase/functions/create-custody-upload-url`
+  - `supabase/functions/register-custody-upload`
+  - bucket `custody` con policies “owner read/upload/delete” (`supabase/migrations/20260110100000_create_custody_storage_bucket.sql`).
+- Descarga “original” en UI:
+  - `client/src/pages/DocumentsPage.tsx` (`handleOriginalDownload`) crea signed URL en bucket `custody`, descarga ciphertext y descifra client-side.
+  - El botón está **gated** por: `custody_mode === 'encrypted_custody' && source_storage_path` (también en `client/src/components/DocumentRow.tsx`).
+
+**Punto de ruptura que explica el síntoma reportado (“marco guardar original pero nunca puedo descargarlo”)**
+- Si el sistema permite `source_storage_path` en `hash_only`, pero la UI exige `custody_mode='encrypted_custody'`, el original puede existir y aun así el botón queda deshabilitado o el flujo de download se corta temprano.
+- Si el “modo” se decide en UI pero el `custody_mode` es inmutable en DB, cualquier intento de “flip” post-creación es frágil o directamente imposible.
+
+**Decisión canónica necesaria antes de Canary (no se puede dejar ambiguo)**
+Elegir una y solo una:
+1) **Hash-only (honesto)**: no se promete ni se ofrece descargar original; “guardar original” se elimina o queda detrás de feature flag.
+2) **Custody recuperable (producto)**: si el usuario elige guardar original, se garantiza:
+   - `source_storage_path` presente,
+   - UI “Descargar original” siempre habilitado,
+   - key derivation/recovery definida (hoy: derivación débil por `user.id`, funcional pero no ideal).
+3) **Híbrido (por doc)**: el sistema soporta ambos, pero entonces `custody_mode` debe ser **fuente de verdad** o se introduce un campo explícito tipo `original_available` / `source_custody_status` para no inferir por heurística.
+
 ### Share link + NDA
 Existen dos líneas:
 - **Link legacy**: `links` + `recipients` + `nda_acceptances` + `access_events` (y eventos probatorios `share_*` en `document_entities`).
@@ -362,6 +396,15 @@ Existen dos líneas:
 5) `orchestrator` ejecuta `run-tsa`
 6) `tsa.confirmed` (events[])
 7) UI muestra “Protegido” sin refresh manual
+
+### Flujo A.1 — Guardar original cifrado (custody) + Proteger
+1) UI: usuario elige `encrypted_custody`
+2) Client-side: cifra el original y sube ciphertext a bucket `custody`
+3) DB: se persiste `document_entities.source_storage_path` (y se define semántica de `custody_mode`)
+4) Luego corre el flujo A (TSA) normalmente (independiente del custody)
+5) UI: “Descargar original” funciona siempre que el original exista (no debe depender de inferencias ambiguas)
+
+**Condición de cierre para Canary**: si el toggle existe, el original debe ser descargable; si no puede serlo, el toggle debe estar apagado/hidden y el contrato de producto debe declarar hash-only.
 
 **Estados UI esperados**
 - (opcional) “Confirmando…” < 800ms
@@ -402,18 +445,24 @@ Igual a A, más:
 2) **Riesgo**: `correlation_id` random por default en `appendEvent(...)` ⇒ trazabilidad “decorativa”, dead-jobs y auditoría por documento se vuelven inconsistentes.  
    **Fix**: default `correlation_id = documentEntityId` + opcional DB check (reject si correlation_id != entity_id).
 
-3) **Riesgo**: endpoints que usan service_role sin gate explícito (`service_role_used_no_gate`) ⇒ exposición si quedan públicos.  
+3) **Riesgo**: “Guardar original cifrado” existe en UI pero el usuario no puede descargarlo de forma confiable ⇒ ruptura del contrato mental/legal (custodia).  
+   **Fix**: decidir el contrato (hash-only vs custody recuperable vs híbrido) y alinear:
+   - DB (`custody_mode`/constraints),
+   - UI gating del botón (no inferir con reglas contradictorias),
+   - key derivation/recovery (documentar y testear).
+
+4) **Riesgo**: endpoints que usan service_role sin gate explícito (`service_role_used_no_gate`) ⇒ exposición si quedan públicos.  
    **Fix**: estandarizar `requireServiceRole` en endpoints internos + tests de CORS/auth.
 
 ### P1 — Riesgos de operación / latencia / UX
-4) **Riesgo**: drift de cron naming (jobs “viejos” no deshabilitados) ⇒ doble ejecución o colas raras.  
+5) **Riesgo**: drift de cron naming (jobs “viejos” no deshabilitados) ⇒ doble ejecución o colas raras.  
    **Fix**: script/consulta de auditoría de crons en prod + una sola fuente de verdad (runtime_tick + wrappers explícitos).
 
-5) **Riesgo**: Realtime inestable (WSS) ⇒ usuarios refrescan/ven “Procesando” demasiado.  
+6) **Riesgo**: Realtime inestable (WSS) ⇒ usuarios refrescan/ven “Procesando” demasiado.  
    **Fix**: polling adaptativo mientras “processing” (ya existe) + umbral de visibilidad (ya existe) + wake engine best‑effort (ya existe).
 
 ### P2 — Riesgos de producto/legales
-6) **Riesgo**: NDA “asociada” vs “incluir en share” ambiguo ⇒ inconsistencia legal y UX.  
+7) **Riesgo**: NDA “asociada” vs “incluir en share” ambiguo ⇒ inconsistencia legal y UX.  
    **Fix**: `nda.attached` (historia del doc) + `share.created(include_nda=bool)` (decisión del share).
 
 ---

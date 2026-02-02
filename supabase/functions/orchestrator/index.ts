@@ -27,6 +27,10 @@ const RUN_WORKER_ID = `${WORKER_ID}-${RUN_INSTANCE_ID}`;
 
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
+// Trace ID enforcement cutoff (Fase 2.1 start)
+// Jobs created after this timestamp MUST have trace_id when succeeded
+const TRACE_ENFORCEMENT_START = new Date('2026-02-01T00:00:00Z');
+
 // Tipos de jobs soportados
 type JobType = 'run_tsa' | 'submit_anchor_polygon' | 'submit_anchor_bitcoin' | 'build_artifact';
 
@@ -292,6 +296,23 @@ async function processJob(job: ExecutorJob): Promise<void> {
 
     if (!result.success) {
       throw new Error(`Job falló: ${JSON.stringify(result.error)}`);
+    }
+
+    // Validate trace_id policy (Fase 2.3)
+    // Jobs created after cutoff MUST have trace_id
+    const jobCreatedAt = new Date(job.created_at);
+    if (jobCreatedAt >= TRACE_ENFORCEMENT_START && !trace_id) {
+      logger.error('POLICY_VIOLATION: Job succeeded without trace_id', {
+        jobId,
+        type,
+        documentEntityId,
+        correlation_id: correlation_id || documentEntityId,
+        created_at: job.created_at,
+        trace_enforcement_start: TRACE_ENFORCEMENT_START.toISOString(),
+        severity: 'critical',
+      });
+      // Log only, don't block (gradual enforcement)
+      // In future: could throw error to enforce strictly
     }
 
     // Marcar job como completado

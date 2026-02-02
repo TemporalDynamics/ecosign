@@ -288,7 +288,15 @@ serve(async (req) => {
 
     if (!batches || batches.length === 0) {
       console.warn('apply-signer-signature: No batches assigned to signer', { signerId: signer.id })
-      // Allow workflow to continue even if no batches (legacy compatibility)
+      // Canonical contract: a signer may only sign if at least one batch is assigned.
+      // This is not a server error; it is an invalid state for signing.
+      return json(
+        {
+          error: 'missing_signature_batch',
+          message: 'Faltan campos asignados a este firmante. Pedile al creador que asigne los espacios de firma.'
+        },
+        409
+      )
     } else {
       // Apply signature to all batches
       for (const batch of batches) {

@@ -227,7 +227,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
       try {
         const { error } = await supabase.rpc('update_job_heartbeat', {
           p_job_id: jobId,
-          p_worker_id: WORKER_ID,
+          p_worker_id: RUN_WORKER_ID,
         });
         if (error) {
           logger.warn('Heartbeat update failed', { jobId, type, error: error.message, trace_id });
@@ -246,7 +246,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
       .from('executor_jobs')
       .update({ trace_id })
       .eq('id', jobId)
-      .eq('locked_by', WORKER_ID)
+      .eq('locked_by', RUN_WORKER_ID)
       .select('id');
 
     if (traceUpdateError) {
@@ -305,7 +305,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
         updated_at: new Date().toISOString(),
       })
       .eq('id', jobId)
-      .eq('locked_by', WORKER_ID);
+      .eq('locked_by', RUN_WORKER_ID);
 
     await logRun('succeeded', job, startedAt, new Date());
 
@@ -362,7 +362,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
       .from('executor_jobs')
       .update(updatePayload)
       .eq('id', jobId)
-      .eq('locked_by', WORKER_ID);
+      .eq('locked_by', RUN_WORKER_ID);
 
     throw error;
   }
@@ -377,7 +377,7 @@ async function pollJobs(): Promise<void> {
     // Esto previene conflictos de concurrencia usando FOR UPDATE SKIP LOCKED
     const { data: jobs, error } = await supabase.rpc('claim_orchestrator_jobs', {
       p_limit: 10,
-      p_worker_id: WORKER_ID
+      p_worker_id: RUN_WORKER_ID
     });
 
     if (error) {

@@ -327,6 +327,33 @@ Entry points:
 
 ---
 
+## Modelo: Documentos ↔ Operaciones (source‑of‑truth)
+
+### Source of truth (propuesta explícita para Canary)
+- **Documento canónico**: `document_entities` (identidad probatoria y técnica: hashes, witness, custody_mode, events[]).
+- **Documento “vista de usuario”**: `user_documents` (UX + storage path del PDF visible + metadata del usuario). No debe ser fuente de verdad probatoria.
+- **Operación**: `operations` (caso/carpeta lógica; no altera evidencia).
+- **Binding**: `operation_documents` (many‑to‑many entre operación y documento).
+  - En “draft”: `operation_documents.document_entity_id` puede ser `NULL` y se usa `draft_file_ref` + `draft_metadata` (contrato de preparación).
+  - Al “proteger” el draft: se llena `document_entity_id` y un trigger limpia `draft_*` (append‑only de decisión, no de evidencia).
+- **Audit de operación**: `operations_events` (append‑only audit log de eventos `operation.*`, separado de `document_entities.events[]`).
+
+### Invariantes (bloqueantes para Canary)
+1) **Mover a operación no cambia evidencia**: operación/binding no debe escribir ni mutar `document_entities.events[]`.
+2) **Identidad única por documento**: todo lo que el usuario percibe como “el mismo documento” debe estar anclado por `document_entity_id` (y `correlation_id`).
+3) **Operación es una vista**: en UI, “Documentos” y “Operaciones” son dos lenses sobre el mismo set de `document_entity_id`, no dos entidades duplicadas.
+
+### Punto de ruptura probable (lo que viste como “duplicación visual”)
+- Si el UI construye listados desde dos fuentes (ej. documentos sueltos + documentos dentro de operación) sin deduplicar por `document_entity_id`, el usuario ve “dos documentos”.
+- Eso no es solo UX: rompe modelo mental y abre riesgo legal (“¿cuál es el documento real?”).
+
+### Fix canónico (sin tocar evidencia)
+- Definir una regla de dedupe UI: *clave primaria de render = `document_entity_id`*.
+- En “vista operación”, mostrar el documento canónico + metadata del binding (ej. `added_at`, `draft_metadata.order`, notas).
+- Si se necesita “referencias múltiples” (mismo doc en varias operaciones), eso es **producto**: se representa como múltiples bindings, no múltiples documentos.
+
+---
+
 ## Puntos de seguridad (pre‑mortem)
 
 ### OTP de firmantes (workflow_signers / signer_otps)
@@ -386,7 +413,49 @@ Existen dos líneas:
 
 ---
 
+## Hardening bloqueante (antes de Canary)
+
+### Decisión 1 — Clasificación de endpoints (no dejar “unknown”)
+Antes de Canary, cada Edge Function debe caer en una sola de estas categorías:
+1) **Internal (service role only)**: solo invocable por cron/engine/backend. Debe exigir `service_role` (guard explícito).
+2) **User-auth (JWT)**: invocable por el navegador, requiere usuario autenticado y RLS aplica.
+3) **Public stateless**: no toca DB ni secretos; si es público, debe tener rate limit y límites de payload (para evitar abuso).
+
+### Decisión 2 — Política mínima de auth
+Bloqueante Canary:
+- Todo endpoint “internal” debe tener guard explícito estilo `requireServiceRole(...)` (no solo “usa service role key”).
+- Todo endpoint “user-auth” debe validar JWT y fallar 401 si falta.
+- Todo endpoint “public stateless” debe tener:
+  - CORS allowlist consistente
+  - rate limiting (edge)
+  - límites de tamaño (PDF base64, fields)
+
+### “Unknown” actuales que hay que cerrar (ejemplos relevantes)
+- `stamp-pdf`: hoy es **stateless** (no DB). Decidir: `public stateless` + rate limit + límites de tamaño (recomendado).
+- `legal-timestamp`: hace fetch externo (TSA). Decidir: `internal service_role only` (recomendado) o agregar rate limit fuerte + anti-abuse si quedara público.
+- `send-share-otp`: envía email (external). Decidir: `user-auth` o `internal`. Hoy no valida usuario ni service role → riesgo de abuso/spam.
+
+### Checklist de hardening (DoD Canary)
+- [ ] No quedan endpoints “unknown” en esta clasificación.
+- [ ] Todos los endpoints “internal” fallan sin `service_role` (403/401).
+- [ ] Todos los endpoints que hacen fetch externo tienen timeout (AbortController) y logs estructurados.
+- [ ] Se define qué endpoints pueden ser invocados por cron (`pg_cron`) y cuáles por UI.
+
+---
+
 ## Matriz de flujos (happy paths)
+
+### Flow Matrix (end‑to‑end)
+
+| Flujo | Entrada | Eventos esperados (canónicos) | Jobs / workers | Bloqueos conocidos |
+|---|---|---|---|---|
+| Documento → Protección → Share (sin NDA) | `record-protection-event` + `generate-link` | `document.protected.requested` → `tsa.confirmed` → `share.created` → `share.opened` | `protect_document_v2` → `run_tsa` (+ opcional anchors) | Naming drift underscore en `share_*`; correlation_id default random si el writer omite |
+| Documento → NDA → Share (con NDA) | `generate-link(require_nda=true)` + `accept-nda` + `verify-access` | `share.created(include_nda=true)` → `nda.accepted` → `share.opened` | (sin jobs) | Naming drift underscore en `nda_accepted`; decisión canónica include_nda (share vs historia) |
+| Documento protegido → Operación → Firma secuencial → Certificado | `addDocumentToOperation` + `start-signature-workflow` + `process-signature` + `build-final-artifact` | `signature` (→ `document.signed`) + `workflow.artifact_finalized` | workflow pipeline + email queue | Gating de invitaciones (secuencialidad); modelo docs vs operaciones (duplicación UI) |
+| Draft → Documento legal → Flujo de firmas → Anchor | `save-draft` → proteger → workflow | `document.protected.requested` → `tsa.confirmed` → `anchor.pending` → `anchor.confirmed` | runtime_tick + orchestrator + process-anchors | Draft dual-write (server+IndexedDB) y “load draft file server-side” pendiente |
+| Custody (guardar original cifrado) | toggle `encrypted_custody` + upload custody | (no necesita evento; es storage contract) | — | Semántica rota: `source_storage_path` permitido en `hash_only` + UI gating por `custody_mode` |
+
+> Nota: el Flow Matrix de arriba define *expectativas canónicas*. Los flujos detallados abajo sirven para ver rápidamente: **pasos**, **eventos**, **jobs**, **artefactos** y **estado UI** esperado. Si un evento “esperado” hoy no existe, eso es una brecha (P0) a cerrar antes de Canary.
 
 ### Flujo A — Proteger documento (TSA)
 1) UI → `record-protection-event`
@@ -396,6 +465,15 @@ Existen dos líneas:
 5) `orchestrator` ejecuta `run-tsa`
 6) `tsa.confirmed` (events[])
 7) UI muestra “Protegido” sin refresh manual
+
+**Artefactos**
+- Copia Fiel / witness: PDF canónico descargable por el usuario (storage en `user_documents` / artifact pipeline).
+- Evidencia: `document_entities.events[]` (TSA token + hashes).
+
+**Estados UI esperados**
+- “Confirmando…” (si el umbral de visibilidad evita mostrar “Procesando” cuando el TSA es rápido).
+- “Procesando” mientras exista `document.protected.requested` sin `tsa.confirmed`.
+- “Protegido” al entrar `tsa.confirmed`.
 
 ### Flujo A.1 — Guardar original cifrado (custody) + Proteger
 1) UI: usuario elige `encrypted_custody`
@@ -417,22 +495,107 @@ Igual a A, más:
 - crons `process-*-anchors` → `anchor`/`anchor.confirmed`
 - UI sube nivel probatorio (reinforced/total)
 
-### Flujo C — Share (link) + NDA
-1) UI → `generate-link` (crea `recipients` + `links`)
-2) Acceso → `verify-access` (logs `access_events`, chequea `nda_acceptances`)
-3) (si `require_nda`) NDA → `accept-nda` (escribe `nda_acceptances`)
-4) UI/recipient accede a PDF/eco según permisos
+### Flujo C — Documento → NDA → Protección → Share (con/sin NDA)
+**Objetivo**: cerrar el flujo de producto “core” (uso legal) sin depender de anchors.
+
+**Pasos (visión usuario)**
+1) Usuario decide si el documento tendrá NDA asociada (historia) y si un share incluirá NDA (decisión del share).
+2) Usuario protege el documento (TSA).
+3) Usuario crea share link (con/sin NDA) y lo envía.
+4) Receptor abre el link; si `require_nda`, acepta NDA antes de acceder.
+
+**Pasos (técnico)**
+1) Protección: ver Flujo A (TSA).
+2) Share: `generate-link` crea `links`, `recipients` (y/o `document_shares` según implementación).
+3) Acceso: `verify-access` valida link, registra `access_events` y checa `nda_acceptances`.
+4) NDA: `accept-nda` / `accept-share-nda` escribe `nda_acceptances` y habilita el acceso.
+
+**Eventos canónicos esperados (bloqueante Canary)**
+- `share.created` (incluye `include_nda` + `require_nda` si aplica)
+- `nda.accepted` (si aplica)
+- `share.opened`
+
+**Artefactos**
+- PDF witness (descargable por receptor según permisos).
+- (Opcional) NDA PDF (si el share incluye NDA).
+
+**Estados UI esperados**
+- En UI del owner: “Link creado”, “Abierto”, “NDA aceptada” (si aplica).
+- En UI del receptor: antes de aceptar NDA: “Debes aceptar NDA”; luego: acceso a PDF.
 
 **Evento probatorio esperado** (pero hoy con drift):
 - `share.created` / `share.opened` (propuesto) en `document_entities.events[]`
 
-### Flujo D — OTP signer (firma)
+### Flujo D — Documento protegido → Operación → Firma secuencial → Estampa → Certificado
+**Objetivo**: cerrar el “happy path” de firma en orden determinista y con evidencia consistente.
+
+**Pasos (visión usuario)**
+1) Owner mueve/agrega el documento protegido a una operación (case/folder).
+2) Owner inicia workflow de firma con N firmantes en orden.
+3) Se envía OTP al firmante 1; solo cuando firma 1 termina, se habilita y se contacta al firmante 2, etc.
+4) Al completar firmas: se genera estampa visible y certificado (artifact final).
+
+**Pasos (técnico)**
+1) Operación:
+   - `operations` (creación)
+   - `operation_documents` (binding al `document_entity_id`)
+2) Workflow:
+   - `start-signature-workflow` crea `signature_workflows`, `workflow_signers`, `workflow_versions` y notificaciones
+   - `send-signer-otp` / `verify-signer-otp` controla acceso a firma (tablas `signer_otps`, `workflow_signers`)
+3) Firma:
+   - `store-signer-signature` / `apply-signer-signature` guarda y aplica firma (tablas `workflow_signers`, `workflow_events`, `workflow_signatures`)
+4) Artifact:
+   - `build-final-artifact` genera PDF final con estampa + anexos (tablas `workflow_artifacts`, `workflow_events`)
+
+**Eventos canónicos esperados (mínimo para Canary)**
+- Documento: `document.signed` (cuando el workflow se completa y el documento tiene evidencia de firma).
+- Workflow: `workflow.artifact_finalized` (o evento equivalente en workflow_events) para cert/stamp.
+
+**Artefactos**
+- PDF final (con estampa de firmas): storage path en `workflow_artifacts` o equivalente.
+- Certificado: derivado del workflow artifact o PDF separado.
+
+**Estados UI esperados**
+- “En operación” (binding)
+- “En firma” (workflow started)
+- “Esperando a firmante X” (gating secuencial)
+- “Firmado” (workflow complete)
+- “Certificado listo” (artifact finalized)
+
+**Punto de ruptura probable (ya observado)**: emails/invitaciones salen todos juntos → falta gating determinista por evento (“firma anterior completada”).
+
+#### Subflujo D.1 — OTP de firmantes (acceso a firma)
 1) `send-signer-otp` crea/renueva OTP hash en `signer_otps`
 2) `verify-signer-otp` valida + marca `verified_at`
-3) Se habilita siguiente paso del workflow / firma
+3) La UI habilita el paso de firma (y el engine puede encolar/activar el siguiente firmante cuando corresponda)
 
 **Evento probatorio esperado** (pero hoy con drift):
 - `otp.verified` (propuesto) en `document_entities.events[]`
+
+### Flujo E — Draft → Documento legal → Flujo de firmas → Anchor (opcional)
+**Objetivo**: soportar preparación (draft) sin perder material y sin duplicar identidades.
+
+**Pasos (técnico)**
+1) Draft:
+   - `save-draft` persiste en `operation_documents` con `draft_file_ref` / metadata (y potencialmente espejo en IndexedDB).
+2) Convertir a documento legal:
+   - Se crea `document_entities` (hash/witness) y se rellena `operation_documents.document_entity_id`.
+3) Protección: Flujo A (TSA).
+4) Firma: Flujo D (workflow).
+5) Anchor (opcional):
+   - `submit-anchor-*` → `anchor.pending`
+   - `process-*-anchors` → `anchor.confirmed`
+
+**Eventos canónicos esperados**
+- `document.protected.requested` → `tsa.confirmed`
+- `document.signed`
+- (si anchors activados) `anchor.pending` → `anchor.confirmed`
+
+**Estados UI esperados**
+- “Borrador” (hasta que exista `document_entity_id`)
+- “Procesando/Protegido”
+- “En firma / Firmado”
+- “Anclado” (si aplica)
 
 ---
 
@@ -453,6 +616,9 @@ Igual a A, más:
 
 4) **Riesgo**: endpoints que usan service_role sin gate explícito (`service_role_used_no_gate`) ⇒ exposición si quedan públicos.  
    **Fix**: estandarizar `requireServiceRole` en endpoints internos + tests de CORS/auth.
+
+5) **Riesgo**: jobs en `running` con `heartbeat_at` estancado (ej. `run_tsa`) ⇒ el usuario queda “Procesando” y no hay logs en el worker.  
+   **Fix**: (a) timeouts obligatorios en *todos* los fetch externos (AbortController), (b) heartbeat independiente del handler (timer garantizado), (c) reclaim basado en TTL + heartbeat.
 
 ### P1 — Riesgos de operación / latencia / UX
 5) **Riesgo**: drift de cron naming (jobs “viejos” no deshabilitados) ⇒ doble ejecución o colas raras.  

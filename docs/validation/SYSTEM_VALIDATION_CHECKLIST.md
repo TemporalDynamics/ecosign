@@ -1,5 +1,10 @@
 # 🎯 Sistema Canónico Ecosign - Estado Actual y Validación
 
+> Nota: este checklist valida "plomeria" operativa (DB/jobs/runs/cron).  
+> La preparacion de Canary (contratos + happy paths + autoridad) se ejecuta con:
+> - `docs/validation/fase3-premortem-tech-map.md`
+> - `docs/validation/canary/README.md`
+
 ## 📊 Resumen del Sistema
 
 ### Componentes Activos

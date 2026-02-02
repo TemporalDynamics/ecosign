@@ -4,6 +4,122 @@
 **Objetivo**: congelar contratos + mapear el sistema completo (DB/cron/edge/UI) para anticipar puntos de ruptura antes de Canary.  
 **Regla de oro**: *en Canary no “parcheamos micro”; primero cerramos contratos, naming y happy paths medibles*.
 
+---
+
+## Cómo leer este documento (marco mental correcto)
+
+Esto **no** es una lista de bugs ni tareas sueltas. Es un **pre‑mortem de sistema**.
+
+**Objetivo**: cerrar contratos y eliminar ambigüedades **antes** de Canary.
+
+### Tres reglas (no negociables)
+
+1) **No se arregla nada fuera de happy paths** (solo flujos verdes).  
+2) **No se parchea comportamiento sin cerrar contrato** (sin contrato no hay fix).  
+3) **Nada entra a Canary si no puede explicarse solo con este documento**.
+
+Si no se acepta este marco, el sistema deriva a:
+- “arreglo lo roto que veo”
+- `if` defensivos
+- excepciones
+
+Eso es exactamente lo que este pre‑mortem evita.
+
+---
+
+## Orden recomendado de trabajo (por capas, no por features)
+
+### Fase A — Contratos canónicos (bloqueante)
+
+Nada de código todavía.
+
+Checklist que debe validarse en frío:
+- Naming de eventos: `.` vs `_` (kinds canónicos)
+- Quién puede escribir `document_entities.events[]` (writer único)
+- Qué significa exactamente `correlation_id`
+- Qué promete `custody_mode`
+- Qué es **evidencia** y qué es **UX**
+
+**Output esperado (A):** un mini‑doc (1–2 páginas) que diga:
+"Estos son los contratos que asumimos como verdad antes de Canary".
+
+### Fase B — Happy paths explícitos (solo verdes)
+
+Usar la Flow Matrix como autoridad.
+
+Para cada flujo A–E:
+- entrada
+- eventos canónicos esperados
+- jobs que deberían dispararse
+- estado UI esperado
+- qué cosa **NO** debería pasar
+
+**Output esperado (B):** una tabla por flujo con:
+- ✔️ esto ya pasa
+- ⚠️ esto pasa pero con drift
+- ❌ esto no pasa
+
+Sin proponer soluciones todavía.
+
+### Fase C — Mapa de autoridad real (no el teórico)
+
+Para cada actor:
+- triggers
+- crons
+- edge functions
+- executor / orchestrator
+
+Responder:
+"¿Esto decide o solo ejecuta?"
+
+Y marcar los que hoy:
+- deciden y ejecutan (mezcla peligrosa)
+- ejecutan sin guard
+- escriben evidencia sin pasar por el writer canónico
+
+**Output esperado (C):** lista corta (máx 10):
+"estos puntos rompen el modelo de autoridad".
+
+---
+
+## Cómo convertir esto en tareas (sin micro‑patching)
+
+Regla: las tareas se formulan como **cierres de contrato**, no como “fixes”.
+
+Template obligatorio:
+
+Título: Cerrar contrato de X
+
+Contrato esperado:
+- ...
+- ...
+- ...
+
+Estado actual:
+- ...
+- ...
+
+Riesgo si no se corrige:
+- ...
+
+Criterio de Done:
+- ...
+
+Si una tarea no puede escribirse así → **no entra**.
+
+---
+
+## NO TOCAR ahora (para ahorrar semanas)
+
+- No optimizar performance
+- No refactorizar UI por estética
+- No mover lógica “porque queda más lindo”
+- No agregar features
+- No “ya que estamos...”
+
+Canary no es para mejorar el sistema.
+Canary es para verificar que el sistema que decimos tener realmente existe.
+
 > Nota: algunas tablas (“Edge functions → auth → tablas tocadas”) se derivan **heurísticamente** de código (`.from(...)`, `.rpc(...)`, `SUPABASE_SERVICE_ROLE_KEY`, etc.). Sirve para pre‑mortem y revisión humana; el source‑of‑truth final es el schema en prod.
 
 ---

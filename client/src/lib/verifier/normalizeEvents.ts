@@ -19,8 +19,14 @@ const DOCUMENT_LABELS: Record<string, string> = {
   'anchor.confirmed': 'Anclaje público confirmado',
   'anchor.failed': 'Anclaje público fallido',
   'anchor.pending': 'Anclaje público pendiente',
+  // Legacy keys (kept for backwards compatibility in UI-only logs)
   nda_accepted: 'NDA aceptado',
   otp_verified: 'Identidad verificada (OTP)',
+
+  // Canonical probatory events (dot-notation)
+  'share.created': 'Enlace compartido',
+  'share.opened': 'Enlace abierto',
+  'nda.accepted': 'NDA aceptado',
   signature_applied: 'Firma aplicada',
   signature_completed: 'Firma completada',
   document_viewed: 'Documento visualizado',

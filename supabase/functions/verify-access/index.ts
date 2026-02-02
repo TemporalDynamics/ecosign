@@ -208,7 +208,7 @@ serve(withRateLimit('verify', async (req) => {
 
     const documentEntityId = await getDocumentEntityId(supabase, link.document_id);
 
-    // === PROBATORY EVENT: share_opened ===
+    // === PROBATORY EVENT: share.opened ===
     // Register that someone opened this share link (goes to .eco)
     if (documentEntityId) {
       const ipHash = metadata.ip_address ? await hashIP(metadata.ip_address) : null;
@@ -218,7 +218,7 @@ serve(withRateLimit('verify', async (req) => {
         supabase,
         documentEntityId,
         {
-          kind: 'share_opened',
+          kind: 'share.opened',
           at: new Date().toISOString(),
           share: {
             link_id: link.id,
@@ -237,11 +237,11 @@ serve(withRateLimit('verify', async (req) => {
       );
 
       if (!eventResult.success) {
-        console.error('Failed to append share_opened event:', eventResult.error);
+        console.error('Failed to append share.opened event:', eventResult.error);
         // Don't fail the request, but log it
       }
     } else {
-      console.warn(`Could not get document_entity_id for document ${link.document_id}, share_opened event not recorded`);
+      console.warn(`Could not get document_entity_id for document ${link.document_id}, share.opened event not recorded`);
     }
 
     // Check if NDA was already accepted

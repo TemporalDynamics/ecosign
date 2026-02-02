@@ -186,7 +186,7 @@ serve(withRateLimit('accept', async (req) => {
 
     console.log(`NDA accepted for share ${share_id} by ${signer_email}`)
 
-    // === PROBATORY EVENT: nda_accepted ===
+    // === PROBATORY EVENT: nda.accepted ===
     // Register NDA acceptance in canonical events ledger
     const documentEntityId = await getDocumentEntityId(supabase, share.document_id);
     if (documentEntityId) {
@@ -197,7 +197,7 @@ serve(withRateLimit('accept', async (req) => {
         supabase,
         documentEntityId,
         {
-          kind: 'nda_accepted',
+          kind: 'nda.accepted',
           at: timestamp,
           nda: {
             share_id: share_id,
@@ -216,11 +216,11 @@ serve(withRateLimit('accept', async (req) => {
       );
 
       if (!eventResult.success) {
-        console.error('Failed to append nda_accepted event:', eventResult.error);
+        console.error('Failed to append nda.accepted event:', eventResult.error);
         // Don't fail the request, NDA was accepted successfully
       }
     } else {
-      console.warn(`Could not get document_entity_id for document ${share.document_id}, nda_accepted event not recorded`);
+      console.warn(`Could not get document_entity_id for document ${share.document_id}, nda.accepted event not recorded`);
     }
 
     return new Response(

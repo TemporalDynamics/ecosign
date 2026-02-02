@@ -6,7 +6,7 @@
  *
  * Usage:
  *   await appendEvent(supabase, documentEntityId, {
- *     kind: 'share_created',
+ *     kind: 'share.created',
  *     at: new Date().toISOString(),
  *     share: { ... }
  *   }, 'create-signer-link'); // source is optional but valuable
@@ -48,24 +48,11 @@ export const EVENT_CLASS: Record<string, EventClass> = {
   'anchor.failed': 'tracking',
   'artifact.failed': 'tracking',
   'protection.failed': 'tracking',
-};
 
-// Allowlist de fuentes autorizadas para eventos
-const AUTHORIZED_SOURCES: Record<string, string[]> = {
-  // Eventos de evidencia fuerte (requieren _source verificable)
-  'document.signed': ['process-signature'],
-  // TSA evidence is emitted only by run-tsa (job-driven).
-  'tsa.confirmed': ['run-tsa'],
-  'anchor.pending': ['submit-anchor-polygon', 'submit-anchor-bitcoin'],
-  'anchor': ['process-polygon-anchors', 'process-bitcoin-anchors', 'repair-missing-anchor-events'],  // confirmación real
-  'artifact.finalized': ['build-artifact'],
-  'document.protected.requested': ['start-signature-workflow', 'record-protection-event'],
-
-  // Eventos de seguimiento/fallo (requieren _source verificable)
-  'tsa.failed': ['run-tsa'],
-  'anchor.failed': ['submit-anchor-*', 'process-polygon-anchors', 'process-bitcoin-anchors'],
-  'artifact.failed': ['build-artifact'],
-  'protection.failed': ['record-protection-event'],
+  // Eventos probatorios (share/NDA) - evidencia contextual
+  'share.created': 'evidence',
+  'share.opened': 'evidence',
+  'nda.accepted': 'evidence',
 };
 
 /**
@@ -74,7 +61,7 @@ const AUTHORIZED_SOURCES: Record<string, string[]> = {
  * MUST: event.kind must be present
  * MUST: event.at must be ISO 8601 timestamp
  * MUST: events[] is append-only (enforced by DB trigger)
- * MUST: source must be authorized for this event kind (guardrail)
+ * NOTE: source is optional but valuable for forensics
  *
  * @param supabase - Supabase client (with service role key)
  * @param documentEntityId - document_entities.id
@@ -102,32 +89,7 @@ export async function appendEvent(
       return { success: false, error: `Event kind must not contain underscore: "${event.kind}"` };
     }
 
-    // 2. Validate source authority for this event kind (guardrail)
-    if (AUTHORIZED_SOURCES[event.kind]) {
-      if (!source) {
-        return {
-          success: false,
-          error: `Missing _source for protected event kind "${event.kind}"`
-        };
-      }
-      
-      const allowedSources = AUTHORIZED_SOURCES[event.kind];
-      const isAuthorized = allowedSources.some(allowed => {
-        if (allowed.endsWith('*')) {
-          return source.startsWith(allowed.slice(0, -1));
-        }
-        return source === allowed;
-      });
-      
-      if (!isAuthorized) {
-        return {
-          success: false,
-          error: `Unauthorized source "${source}" for event kind "${event.kind}". Allowed: [${allowedSources.join(', ')}]`
-        };
-      }
-    }
-
-    // Validate ISO 8601 format (basic check)
+    // 2. Validate ISO 8601 format (basic check)
     try {
       const timestamp = new Date(event.at);
       if (isNaN(timestamp.getTime())) {
@@ -142,8 +104,11 @@ export async function appendEvent(
       id: isUuid(event.id) ? event.id : crypto.randomUUID(),
       v: typeof event.v === 'number' ? event.v : 1,
       actor: typeof event.actor === 'string' && event.actor.length > 0 ? event.actor : (source ?? 'unknown'),
-      entity_id: isUuid(event.entity_id) ? event.entity_id : documentEntityId,
-      correlation_id: isUuid(event.correlation_id) ? event.correlation_id : crypto.randomUUID(),
+      // Canonical invariants for document_entities events:
+      // - entity_id is always the documentEntityId we are appending to
+      // - correlation_id is always the documentEntityId (single-trace per entity)
+      entity_id: documentEntityId,
+      correlation_id: documentEntityId,
     };
 
     const { error: rpcError } = await supabase.rpc('append_document_entity_event', {

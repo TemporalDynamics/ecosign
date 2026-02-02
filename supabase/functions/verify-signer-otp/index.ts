@@ -141,13 +141,15 @@ serve(async (req) => {
       // Don't fail the request
     }
 
-    // Log ECOX
+    // Log ECOX (best-effort)
+    // Map OTP verification to an existing ECOX event type.
     try {
       await supabase.functions.invoke('log-ecox-event', {
         body: {
-          workflowId: record.workflow_id,
-          signerId,
-          eventType: 'otp_verified'
+          workflow_id: record.workflow_id,
+          signer_id: signerId,
+          event_type: 'otp.verified',
+          details: { method: 'email_otp' }
         }
       })
     } catch (err) {

@@ -139,28 +139,43 @@ export async function saveWorkflowFields(
     return [];
   }
 
-  // Convertir a formato DB
-  const workflowFields = fields.map(field =>
-    signatureFieldToWorkflowField(field, documentEntityId, previewWidth, previewHeight)
-  );
-
-  // Llamar a Edge Function (batch create)
-  const { data, error } = await supabase.functions.invoke('workflow-fields/batch', {
-    body: {
-      fields: workflowFields
-    }
+  // Convertir a formato DB y preservar batch_id.
+  // Contract (P1): a signer can only sign if their batches are assigned.
+  // We therefore persist fields grouped by batchId.
+  const byBatch = new Map<string, SignatureField[]>();
+  fields.forEach((f) => {
+    const bid = f.batchId || f.id;
+    if (!byBatch.has(bid)) byBatch.set(bid, []);
+    byBatch.get(bid)!.push(f);
   });
 
-  if (error) {
-    console.error('Error saving workflow fields:', error);
-    throw new Error(`Failed to save workflow fields: ${error.message}`);
+  const saved: WorkflowField[] = [];
+
+  for (const [batchId, batchFields] of byBatch.entries()) {
+    const workflowFields = batchFields.map((field) => {
+      const wf = signatureFieldToWorkflowField(field, documentEntityId, previewWidth, previewHeight);
+      // Ensure we persist the caller batch id.
+      wf.batch_id = batchId;
+      return wf;
+    });
+
+    const { data, error } = await supabase.functions.invoke('workflow-fields/batch', {
+      body: { fields: workflowFields }
+    });
+
+    if (error) {
+      console.error('Error saving workflow fields (batch):', error);
+      throw new Error(`Failed to save workflow fields: ${error.message}`);
+    }
+
+    if (!data || !data.success) {
+      throw new Error('Failed to save workflow fields');
+    }
+
+    saved.push(...(data.fields || []));
   }
 
-  if (!data || !data.success) {
-    throw new Error('Failed to save workflow fields');
-  }
-
-  return data.fields;
+  return saved;
 }
 
 /**

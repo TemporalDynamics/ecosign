@@ -4,6 +4,21 @@ import { captureAndApplySignature } from '../_shared/signatureCapture.ts'
 import { shouldApplySignerSignature } from '../../../packages/authority/src/decisions/applySignerSignature.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 
+async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
+  try {
+    const cronSecret = Deno.env.get('CRON_SECRET')
+    if (!cronSecret) {
+      console.warn('send-pending-emails skipped: missing CRON_SECRET')
+      return
+    }
+    await supabase.functions.invoke('send-pending-emails', {
+      headers: { 'x-cron-secret': cronSecret }
+    })
+  } catch (error) {
+    console.warn('send-pending-emails invoke failed', error)
+  }
+}
+
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
     return new Response('disabled', { status: 204 });
@@ -385,6 +400,17 @@ serve(async (req) => {
         .eq('id', signer.workflow_id)
       if (wfErr) console.warn('could not update workflow status', wfErr)
     }
+
+    // Advance sequential flow (best-effort): promote next signer to ready_to_sign.
+    // This MUST NOT block the successful signature record.
+    try {
+      await supabase.rpc('advance_workflow', { p_workflow_id: signer.workflow_id })
+    } catch (advanceErr) {
+      console.warn('advance_workflow failed', advanceErr)
+    }
+
+    // Trigger email delivery for any newly created pending notifications (best-effort).
+    await triggerEmailDelivery(supabase as any)
 
     return json({ success: true })
 

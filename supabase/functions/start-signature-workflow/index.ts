@@ -391,7 +391,7 @@ serve(withRateLimit('workflow', async (req) => {
       signerByEmail.set(email, s)
     }
 
-    const batchUpdates: { id: string; assigned_signer_id: string }[] = []
+    const batchUpdates: { id: string; document_entity_id: string; assigned_signer_id: string }[] = []
     const unknownEmails = new Set<string>()
     for (const [bid, email] of batchToEmail.entries()) {
       const signer = signerByEmail.get(email)
@@ -399,7 +399,12 @@ serve(withRateLimit('workflow', async (req) => {
         unknownEmails.add(email)
         continue
       }
-      batchUpdates.push({ id: bid, assigned_signer_id: signer.id })
+      // Upsert must include document_entity_id in case the batches row does not exist yet.
+      batchUpdates.push({
+        id: bid,
+        document_entity_id: workflow.document_entity_id,
+        assigned_signer_id: signer.id
+      })
     }
 
     if (unknownEmails.size > 0) {

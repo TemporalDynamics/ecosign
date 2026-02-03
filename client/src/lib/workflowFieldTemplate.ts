@@ -222,3 +222,93 @@ export function generateWorkflowFieldsFromWizard(
 
   return fields;
 }
+
+export function reorderFieldsBySignerBatches(
+  fields: SignatureField[],
+  options: {
+    virtualWidth: number;
+    virtualHeight: number;
+  }
+): SignatureField[] {
+  const { virtualWidth, virtualHeight } = options;
+
+  type Group = {
+    batchId: string;
+    ids: string[];
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  };
+
+  const groupsById = new Map<string, Group>();
+  for (const field of fields) {
+    const batchId = field.batchId || field.id;
+    let group = groupsById.get(batchId);
+    if (!group) {
+      group = {
+        batchId,
+        ids: [],
+        minX: field.x,
+        minY: field.y,
+        maxX: field.x + field.width,
+        maxY: field.y + field.height
+      };
+      groupsById.set(batchId, group);
+    }
+
+    group.ids.push(field.id);
+    group.minX = Math.min(group.minX, field.x);
+    group.minY = Math.min(group.minY, field.y);
+    group.maxX = Math.max(group.maxX, field.x + field.width);
+    group.maxY = Math.max(group.maxY, field.y + field.height);
+  }
+
+  const groups = Array.from(groupsById.values());
+  if (groups.length === 0) return fields;
+
+  const maxBlockWidth = Math.max(...groups.map((g) => g.maxX - g.minX));
+  const maxBlockHeight = Math.max(...groups.map((g) => g.maxY - g.minY));
+
+  const paddingX = 24;
+  const paddingY = 64;
+  const colGap = 56;
+  const rowGap = 28;
+
+  const usableWidth = Math.max(1, virtualWidth - paddingX * 2);
+  const cols = Math.max(1, Math.floor((usableWidth + colGap) / (maxBlockWidth + colGap)));
+
+  const deltasByBatch = new Map<string, { dx: number; dy: number }>();
+  for (let idx = 0; idx < groups.length; idx += 1) {
+    const group = groups[idx];
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const targetX = paddingX + col * (maxBlockWidth + colGap);
+    const targetY = paddingY + row * (maxBlockHeight + rowGap);
+    deltasByBatch.set(group.batchId, { dx: targetX - group.minX, dy: targetY - group.minY });
+  }
+
+  const clamp = (v: number, min: number, max: number) => Math.min(Math.max(min, v), max);
+
+  return fields.map((field) => {
+    const batchId = field.batchId || field.id;
+    const delta = deltasByBatch.get(batchId);
+    if (!delta) return field;
+    const nextX = clamp(field.x + delta.dx, 0, virtualWidth - field.width);
+    const nextY = clamp(field.y + delta.dy, 0, virtualHeight - field.height);
+    return {
+      ...field,
+      x: nextX,
+      y: nextY,
+      metadata: {
+        ...field.metadata,
+        normalized: {
+          x: nextX / virtualWidth,
+          y: nextY / virtualHeight,
+          width: field.width / virtualWidth,
+          height: field.height / virtualHeight
+        }
+      }
+    };
+  });
+}

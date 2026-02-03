@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { X, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Lock, Maximize2, Minimize2, PlusSquare, Shield, Type, Unlock, Upload, Users, RefreshCw, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -263,6 +263,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [isSignatureDragging, setIsSignatureDragging] = useState(false);
   const [pdfEditError, setPdfEditError] = useState(false);
   const [virtualScale, setVirtualScale] = useState(1);
+
+  const handlePdfMetrics = useCallback((metrics: PdfPageMetrics[]) => {
+    setPdfPageMetrics(metrics);
+    setPdfEditError(false);
+  }, []);
+
+  const handlePdfError = useCallback(() => {
+    setPdfEditError(true);
+  }, []);
 
   // Firma digital
   const [signatureType, setSignatureType] = useState<SignatureType>(null); // 'legal' | 'certified' | null
@@ -3254,21 +3263,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                           {documentPreview && isPdfPreview && (
                             <>
                               {(
-                                <PdfEditViewer
-                                  src={documentPreview}
-                                  locked={isViewerLocked}
-                                  virtualWidth={VIRTUAL_PAGE_WIDTH}
-                                  scale={virtualScale}
-                                  scrollRef={pdfScrollRef}
-                                  onError={() => setPdfEditError(true)}
-                                  onMetrics={(metrics) => {
-                                    setPdfPageMetrics(metrics);
-                                    setPdfEditError(false);
-                                  }}
-                                  renderPageOverlay={(pageNumber: number, metrics: PdfPageMetrics) => {
-                                    const locked = isViewerLocked;
-                                    return (
-                                      <div className="absolute inset-0 pointer-events-auto">
+                                  <PdfEditViewer
+                                    src={documentPreview}
+                                    locked={isViewerLocked}
+                                    virtualWidth={VIRTUAL_PAGE_WIDTH}
+                                    scale={virtualScale}
+                                    scrollRef={pdfScrollRef}
+                                    onError={handlePdfError}
+                                    onMetrics={handlePdfMetrics}
+                                    renderPageOverlay={(pageNumber: number, metrics: PdfPageMetrics) => {
+                                      const locked = isViewerLocked;
+                                      return (
+                                        <div className="absolute inset-0 pointer-events-auto">
                                         {pageNumber === 1 && mySignature && signaturePreview && (
                                           <div
                                             className="absolute pointer-events-auto group"

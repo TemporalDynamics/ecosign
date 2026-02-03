@@ -360,6 +360,78 @@ serve(async (req) => {
 
     const otpVerified = !!otpRecord?.verified_at;
 
+    // Fetch prior signatures (for rendering a derived/stamped viewing PDF)
+    // Canon: evidence lives in events + instances; UI may derive a visual preview.
+    let priorSignatureStamps: any[] = [];
+    try {
+      const { data: priorSigners, error: priorErr } = await supabase
+        .from('workflow_signers')
+        .select('id, email, name, signing_order, signed_at')
+        .eq('workflow_id', signer.workflow_id)
+        .eq('status', 'signed')
+        .lt('signing_order', signer.signing_order)
+        .order('signing_order', { ascending: true });
+
+      if (priorErr) {
+        console.warn('signer-access: failed to fetch prior signers', priorErr);
+      } else if (priorSigners && priorSigners.length > 0) {
+        const priorSignerIds = priorSigners.map((s: any) => s.id);
+        const signerById = new Map(priorSigners.map((s: any) => [s.id, s]));
+
+        const { data: instances, error: instErr } = await supabase
+          .from('signature_instances')
+          .select('id, signer_id, batch_id, signature_payload, created_at')
+          .eq('workflow_id', signer.workflow_id)
+          .in('signer_id', priorSignerIds)
+          .order('created_at', { ascending: true });
+
+        if (instErr) {
+          console.warn('signer-access: failed to fetch signature instances', instErr);
+        } else if (instances && instances.length > 0) {
+          const batchIds = Array.from(new Set(instances.map((i: any) => i.batch_id).filter(Boolean)));
+          const { data: sigFields, error: sigFieldsErr } = await supabase
+            .from('workflow_fields')
+            .select('id, batch_id, field_type, position, apply_to_all_pages')
+            .in('batch_id', batchIds)
+            .eq('field_type', 'signature');
+
+          if (sigFieldsErr) {
+            console.warn('signer-access: failed to fetch signature fields for stamps', sigFieldsErr);
+          } else {
+            const fieldsByBatch = new Map<string, any[]>();
+            for (const f of (sigFields ?? [])) {
+              const bid = f.batch_id;
+              if (!bid) continue;
+              if (!fieldsByBatch.has(bid)) fieldsByBatch.set(bid, []);
+              fieldsByBatch.get(bid)!.push(f);
+            }
+
+            for (const inst of instances) {
+              const s = signerById.get((inst as any).signer_id);
+              const batchFields = fieldsByBatch.get((inst as any).batch_id) ?? [];
+
+              for (const field of batchFields) {
+                priorSignatureStamps.push({
+                  signer: {
+                    id: s?.id ?? null,
+                    email: s?.email ?? null,
+                    name: s?.name ?? null,
+                    signing_order: s?.signing_order ?? null,
+                    signed_at: s?.signed_at ?? (inst as any).created_at ?? null,
+                  },
+                  signature_payload: (inst as any).signature_payload ?? null,
+                  position: field.position,
+                  apply_to_all_pages: Boolean(field.apply_to_all_pages),
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('signer-access: prior signature stamps failed (best-effort)', err);
+    }
+
     // Provide a signed URL for the encrypted PDF for unauthenticated signer flows.
     // The signer app cannot rely on a Supabase auth session to read from Storage.
     let encryptedPdfUrl: string | null = signer.encrypted_pdf_url ?? null;
@@ -410,6 +482,7 @@ serve(async (req) => {
           signer.workflow?.signnow_embed_url ?? null,
         encrypted_pdf_url: encryptedPdfUrl,
         otp_verified: otpVerified,
+        prior_signature_stamps: priorSignatureStamps,
         workflow: signer.workflow ?? null,
       },
       200,

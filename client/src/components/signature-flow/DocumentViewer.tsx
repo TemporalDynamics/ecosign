@@ -21,6 +21,12 @@ interface DocumentViewerProps {
   workflowId?: string
   signerId?: string
   signedUrl?: string | null
+  stamps?: Array<{
+    signer?: { id?: string | null; email?: string | null; name?: string | null; signing_order?: number | null; signed_at?: string | null }
+    signature_payload: any
+    position: { page: number; x: number; y: number; width: number; height: number }
+    apply_to_all_pages: boolean
+  }>
   onContinue: () => void
   mode?: 'dashboard' | 'signer'
 }
@@ -31,6 +37,7 @@ export default function DocumentViewer({
   workflowId,
   signerId,
   signedUrl,
+  stamps,
   onContinue,
   mode = 'dashboard'
 }: DocumentViewerProps) {
@@ -99,7 +106,54 @@ export default function DocumentViewer({
 
           const decrypted = await decryptFile(encryptedBlob, encryptionKey)
           const buffer = await decrypted.arrayBuffer()
-          const pdfBlob = new Blob([buffer], { type: 'application/pdf' })
+          let pdfBlob = new Blob([buffer], { type: 'application/pdf' })
+
+          // Derived view: apply prior signature stamps (best-effort)
+          if (stamps && stamps.length > 0) {
+            try {
+              const { PDFDocument } = await import('pdf-lib')
+              const pdfDoc = await PDFDocument.load(await pdfBlob.arrayBuffer())
+              const pages = pdfDoc.getPages()
+
+              for (const stamp of stamps) {
+                const payload = stamp?.signature_payload ?? {}
+                const dataUrl = payload?.dataUrl
+                if (!dataUrl || typeof dataUrl !== 'string') continue
+
+                const imgBytes = await fetch(dataUrl).then((res) => res.arrayBuffer())
+                const img = await pdfDoc.embedPng(imgBytes)
+
+                const placeOnPage = (pageIndex: number) => {
+                  const page = pages[pageIndex]
+                  if (!page) return
+                  const { width: pageW, height: pageH } = page.getSize()
+
+                  const pos = stamp.position
+                  const w = pos.width * pageW
+                  const h = pos.height * pageH
+                  const x = pos.x * pageW
+                  // UI coords are top-left; PDF coords are bottom-left
+                  const yTop = pos.y * pageH
+                  const y = pageH - yTop - h
+
+                  page.drawImage(img, { x, y, width: w, height: h })
+                }
+
+                const basePage = Math.max(0, (stamp.position?.page ?? 1) - 1)
+                if (stamp.apply_to_all_pages) {
+                  for (let i = 0; i < pages.length; i += 1) placeOnPage(i)
+                } else {
+                  placeOnPage(Math.min(basePage, pages.length - 1))
+                }
+              }
+
+              const stampedBytes = await pdfDoc.save()
+              pdfBlob = new Blob([new Uint8Array(stampedBytes)], { type: 'application/pdf' })
+            } catch (err) {
+              console.warn('[DocumentViewer] failed to apply signature stamps (best-effort)', err)
+            }
+          }
+
           newObjectUrl = URL.createObjectURL(pdfBlob)
           objectUrlRef.current = newObjectUrl
 

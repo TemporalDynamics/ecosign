@@ -57,6 +57,12 @@ interface SignerData {
   signnow_embed_url?: string | null
   encrypted_pdf_url?: string | null
   otp_verified?: boolean
+  prior_signature_stamps?: Array<{
+    signer: { id?: string | null; email?: string | null; name?: string | null; signing_order?: number | null; signed_at?: string | null }
+    signature_payload: any
+    position: { page: number; x: number; y: number; width: number; height: number }
+    apply_to_all_pages: boolean
+  }>
   workflow: {
     title: string
     document_path: string | null
@@ -646,6 +652,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             workflowId={signerData.workflow_id}
             signerId={signerData.signer_id}
             signedUrl={signerData.encrypted_pdf_url}
+            stamps={signerData.prior_signature_stamps}
             onContinue={handleDocumentViewed}
             mode={mode}
           />

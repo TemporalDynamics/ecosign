@@ -17,6 +17,54 @@
 
 import { getSupabase } from './supabaseClient';
 import type { SignatureField } from '../types/signature-fields';
+import { validateEnvironment } from './envValidation';
+
+async function invokeWorkflowFieldsBatch(payload: { fields: WorkflowField[] }) {
+  const supabase = getSupabase();
+  const env = validateEnvironment();
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session) {
+    throw new Error('No hay sesión activa');
+  }
+
+  const url = `${env.VITE_SUPABASE_URL}/functions/v1/workflow-fields/batch`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: env.VITE_SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const text = await res.text();
+
+  // Edge Functions should always return JSON for POST; if not, surface a helpful error.
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    const contentType = res.headers.get('content-type') || 'unknown';
+    throw new Error(
+      `workflow-fields/batch respondió ${res.status} (${contentType}) y no devolvió JSON. ` +
+        `URL=${url}. Body=${text.slice(0, 220)}`
+    );
+  }
+
+  if (!res.ok) {
+    const message = typeof json?.error === 'string'
+      ? json.error
+      : typeof json?.message === 'string'
+        ? json.message
+        : `HTTP ${res.status}`;
+    throw new Error(`workflow-fields/batch falló: ${message}`);
+  }
+
+  return json;
+}
 
 /**
  * Workflow Field (DB format)
@@ -159,17 +207,10 @@ export async function saveWorkflowFields(
       return wf;
     });
 
-    const { data, error } = await supabase.functions.invoke('workflow-fields/batch', {
-      body: { fields: workflowFields }
-    });
-
-    if (error) {
-      console.error('Error saving workflow fields (batch):', error);
-      throw new Error(`Failed to save workflow fields: ${error.message}`);
-    }
+    const data = await invokeWorkflowFieldsBatch({ fields: workflowFields });
 
     if (!data || !data.success) {
-      throw new Error('Failed to save workflow fields');
+      throw new Error(data?.error || 'Failed to save workflow fields');
     }
 
     saved.push(...(data.fields || []));

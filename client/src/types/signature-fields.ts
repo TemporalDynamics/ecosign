@@ -9,6 +9,13 @@
 
 export type FieldType = 'signature' | 'text' | 'date';
 
+export type LogicalFieldKind = 'signature' | 'name' | 'id_number' | 'date' | 'text';
+
+export type RepetitionRule =
+  | { kind: 'once' }
+  | { kind: 'all_pages' }
+  | { kind: 'pages'; pages: number[] };
+
 export interface SignatureField {
   /** ID único del campo (UUID v4) */
   id: string;
@@ -48,9 +55,16 @@ export interface SignatureField {
   
   /** Metadata adicional */
   metadata?: {
+    // Existing DB + frontend mapping helpers
+    db_id?: string;
+    frontend_id?: string;
     label?: string;
     placeholder?: string;
     format?: string; // Para date: 'DD/MM/YYYY', 'MM-DD-YYYY', etc.
+    // Contract (Flow D wizard): stable logical field identifiers and repetition intent.
+    logical_field_kind?: LogicalFieldKind;
+    logical_field_id?: string;
+    repetition_rule?: RepetitionRule;
     normalized?: {
       x: number;
       y: number;

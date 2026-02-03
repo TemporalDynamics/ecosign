@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { X, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Lock, Maximize2, Minimize2, PlusSquare, Shield, Type, Unlock, Upload, Users, RefreshCw, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -53,6 +53,7 @@ import { MySignatureToggle, SignatureModal } from '../centro-legal/modules/signa
 import { SignatureFlowToggle } from '../centro-legal/modules/flow';
 import { SignerFieldsWizard } from '../centro-legal/modules/flow/SignerFieldsWizard';
 import { NdaToggle, NdaPanel } from '../centro-legal/modules/nda';
+import { reorderFieldsBySignerBatches } from '../lib/workflowFieldTemplate';
 
 // PASO 3.3: Layout y scenes
 import { LegalCenterShell } from './centro-legal/layout/LegalCenterShell';
@@ -333,10 +334,38 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     };
   }, [isMobile, isOpen]);
 
-  // Any change to signers/fields invalidates the explicit confirmation.
+  const assignmentFingerprint = useMemo(() => {
+    const byBatch = new Map<string, { assignedTo: string; count: number; types: Record<string, number> }>();
+    for (const f of signatureFields) {
+      const bid = f.batchId || f.id;
+      const assigned = (f.assignedTo ?? '').trim().toLowerCase();
+      const current = byBatch.get(bid) || { assignedTo: assigned, count: 0, types: {} };
+      current.assignedTo = assigned;
+      current.count += 1;
+      current.types[f.type] = (current.types[f.type] || 0) + 1;
+      byBatch.set(bid, current);
+    }
+
+    return Array.from(byBatch.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([bid, v]) => {
+        const typeKey = Object.entries(v.types)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([t, n]) => `${t}:${n}`)
+          .join(',');
+        return `${bid}:${v.assignedTo}:${v.count}:${typeKey}`;
+      })
+      .join('|');
+  }, [signatureFields]);
+
+  // Confirmation is about assignment+structure, not pixel movement.
   useEffect(() => {
     setWorkflowAssignmentConfirmed(false);
-  }, [workflowEnabled, emailInputs, signatureFields]);
+  }, [workflowEnabled, emailInputs]);
+
+  useEffect(() => {
+    setWorkflowAssignmentConfirmed(false);
+  }, [assignmentFingerprint]);
 
   const openSignerFieldsWizard = () => {
     setFlowPanelOpen(true);
@@ -4127,6 +4156,28 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 <p className="mt-1 text-[11px] text-gray-500">
                   Define qué completará cada firmante y dónde se reflejará en el PDF.
                 </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (signatureFields.length === 0) {
+                      openSignerFieldsWizard();
+                      return;
+                    }
+
+                    setSignatureFields((prev) =>
+                      reorderFieldsBySignerBatches(prev, {
+                        virtualWidth: VIRTUAL_PAGE_WIDTH,
+                        virtualHeight: VIRTUAL_PAGE_HEIGHT
+                      })
+                    );
+                    showToast('Campos reordenados.', { type: 'success', duration: 1500, position: 'top-right' });
+                  }}
+                  disabled={signatureFields.length === 0}
+                  className="mt-2 w-full bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-900 rounded-lg px-3 py-2 text-sm font-medium transition-colors border border-gray-200"
+                >
+                  Reordenar automáticamente
+                </button>
               </div>
 
               {/* Firmantes (email) + asignación contextual de campos */}

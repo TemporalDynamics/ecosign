@@ -406,6 +406,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [focusView, setFocusView] = useState<'document' | 'nda' | null>(null);
   const [isFieldDragging, setIsFieldDragging] = useState(false);
   const fieldDragRef = useRef<{ id: string; page: number; startX: number; startY: number; originX: number; originY: number; width: number; height: number } | null>(null);
+  const [isGroupDragging, setIsGroupDragging] = useState(false);
+  const groupDragRef = useRef<{
+    batchId: string;
+    startX: number;
+    startY: number;
+    originById: Record<string, { x: number; y: number; width: number; height: number; page: number }>;
+  } | null>(null);
   const [isFieldResizing, setIsFieldResizing] = useState(false);
   const fieldResizeRef = useRef<{ id: string; startX: number; startY: number; originWidth: number; originHeight: number } | null>(null);
   const signatureDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
@@ -2467,6 +2474,45 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     );
   };
 
+  const updateGroupDragPosition = (clientX: number, clientY: number) => {
+    if (!groupDragRef.current) return;
+    const { startX, startY, batchId, originById } = groupDragRef.current;
+
+    const scrollContainer = pdfScrollRef.current;
+    const container = scrollContainer?.getBoundingClientRect();
+    if (!container) return;
+
+    const currentX = clientX - container.left + (scrollContainer?.scrollLeft ?? 0);
+    const currentY = clientY - container.top + (scrollContainer?.scrollTop ?? 0);
+    const startLocalX = startX - container.left + (scrollContainer?.scrollLeft ?? 0);
+    const startLocalY = startY - container.top + (scrollContainer?.scrollTop ?? 0);
+    const dxPx = currentX - startLocalX;
+    const dyPx = currentY - startLocalY;
+    const { scaleX, scaleY } = getPageScale();
+    const dx = dxPx / scaleX;
+    const dy = dyPx / scaleY;
+
+    maybeAutoScroll(clientY);
+
+    setSignatureFields((prev) =>
+      prev.map((field) => {
+        const bid = field.batchId || field.id;
+        if (bid !== batchId) return field;
+        const origin = originById[field.id];
+        if (!origin) return field;
+        const nextX = Math.min(Math.max(0, origin.x + dx), VIRTUAL_PAGE_WIDTH - origin.width);
+        const nextY = Math.min(Math.max(0, origin.y + dy), VIRTUAL_PAGE_HEIGHT - origin.height);
+        return {
+          ...field,
+          x: nextX,
+          y: nextY,
+          width: origin.width,
+          height: origin.height
+        };
+      })
+    );
+  };
+
   const updateFieldResize = (clientX: number, clientY: number) => {
     if (!fieldResizeRef.current) return;
     const { id, startX, startY, originWidth, originHeight } = fieldResizeRef.current;
@@ -2518,6 +2564,33 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     setIsFieldDragging(false);
   };
 
+  const stopGroupDrag = () => {
+    const current = groupDragRef.current;
+    if (current) {
+      const batchId = current.batchId;
+      setSignatureFields((prev) =>
+        prev.map((field) => {
+          const bid = field.batchId || field.id;
+          if (bid !== batchId) return field;
+          return {
+            ...field,
+            metadata: {
+              ...field.metadata,
+              normalized: {
+                x: field.x / VIRTUAL_PAGE_WIDTH,
+                y: field.y / VIRTUAL_PAGE_HEIGHT,
+                width: field.width / VIRTUAL_PAGE_WIDTH,
+                height: field.height / VIRTUAL_PAGE_HEIGHT
+              }
+            }
+          };
+        })
+      );
+    }
+    groupDragRef.current = null;
+    setIsGroupDragging(false);
+  };
+
   const startGlobalDragListeners = () => {
     window.addEventListener('mousemove', handleGlobalMouseMove);
     window.addEventListener('mouseup', handleGlobalMouseUp);
@@ -2531,6 +2604,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const handleGlobalMouseMove = (event: MouseEvent) => {
     if (fieldResizeRef.current) {
       updateFieldResize(event.clientX, event.clientY);
+      return;
+    }
+    if (groupDragRef.current) {
+      updateGroupDragPosition(event.clientX, event.clientY);
       return;
     }
     if (fieldDragRef.current) {
@@ -2566,6 +2643,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       setIsFieldResizing(false);
     }
     if (fieldDragRef.current) stopFieldDrag();
+    if (groupDragRef.current) stopGroupDrag();
     if (signatureDragRef.current) stopSignatureDrag();
     stopGlobalDragListeners();
   };
@@ -2795,12 +2873,52 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     startGlobalDragListeners();
   };
 
+  const startGroupDrag = (e: React.MouseEvent, batchId: string) => {
+    if (isCanvasLocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const originById: Record<string, { x: number; y: number; width: number; height: number; page: number }> = {};
+    for (const field of signatureFields) {
+      const bid = field.batchId || field.id;
+      if (bid !== batchId) continue;
+      originById[field.id] = {
+        x: field.x,
+        y: field.y,
+        width: field.width,
+        height: field.height,
+        page: field.page
+      };
+    }
+
+    if (Object.keys(originById).length === 0) return;
+
+    groupDragRef.current = {
+      batchId,
+      startX: e.clientX,
+      startY: e.clientY,
+      originById
+    };
+    setIsGroupDragging(true);
+    startGlobalDragListeners();
+  };
+
   const startFieldDrag = (e: React.MouseEvent, id: string) => {
     if (isCanvasLocked) return;
     e.preventDefault();
     e.stopPropagation();
     const field = signatureFields.find((item) => item.id === id);
     if (!field) return;
+
+    const batchId = field.batchId || field.id;
+    setActiveBatchId(batchId);
+
+    // Default: move the whole batch/group. Advanced: hold Alt to move a single field.
+    if (!e.altKey) {
+      startGroupDrag(e, batchId);
+      return;
+    }
+
     fieldDragRef.current = {
       id,
       page: field.page,

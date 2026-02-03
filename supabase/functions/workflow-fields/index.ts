@@ -24,9 +24,12 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
+  // Allow both https://ecosign.app and https://www.ecosign.app without env mismatch issues.
+  // This endpoint uses Authorization header (no cookies/credentials), so '*' is acceptable.
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Vary': 'Origin'
 }
 
 const jsonResponse = (data: unknown, status = 200) =>
@@ -337,8 +340,10 @@ async function handleBatchCreate(req: Request, supabase: ReturnType<typeof creat
 // ========================================
 
 serve(async (req) => {
-  if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
+  const fase = Deno.env.get('FASE')
+  // Only disable when explicitly configured.
+  if (fase && fase !== '1') {
+    return jsonResponse({ error: 'disabled' }, 503)
   }
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })

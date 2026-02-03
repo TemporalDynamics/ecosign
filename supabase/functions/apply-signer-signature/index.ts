@@ -274,6 +274,22 @@ serve(async (req) => {
       return json({ error: 'Workflow not found' }, 404)
     }
 
+    if (!workflow.document_entity_id) {
+      // Contract: signature flow must be bound to a document_entity_id.
+      // Without it we cannot resolve signer batches or record signature instances.
+      console.error('apply-signer-signature: Missing document_entity_id on workflow', {
+        workflowId: workflow.id,
+        signerId: signer.id
+      })
+      return json(
+        {
+          error: 'missing_document_entity_id',
+          message: 'No se pudo aplicar la firma: el workflow no está asociado a un document_entity_id.'
+        },
+        409
+      )
+    }
+
     // Get all batches assigned to this signer
     const { data: batches, error: batchError } = await supabase
       .from('batches')

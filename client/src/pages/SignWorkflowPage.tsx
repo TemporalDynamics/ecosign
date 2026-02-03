@@ -57,6 +57,18 @@ interface SignerData {
   signnow_embed_url?: string | null
   encrypted_pdf_url?: string | null
   otp_verified?: boolean
+  workflow_fields?: Array<{
+    id: string
+    field_type: 'signature' | 'text' | 'date'
+    label?: string | null
+    placeholder?: string | null
+    position: { page: number; x: number; y: number; width: number; height: number }
+    required: boolean
+    value?: string | null
+    metadata?: any
+    batch_id?: string | null
+    apply_to_all_pages?: boolean | null
+  }>
   prior_signature_stamps?: Array<{
     signer: { id?: string | null; email?: string | null; name?: string | null; signing_order?: number | null; signed_at?: string | null }
     signature_payload: any
@@ -110,6 +122,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const [embedError, setEmbedError] = useState(false)
   const [embedTimeout, setEmbedTimeout] = useState<ReturnType<typeof setTimeout> | null>(null)
   const [preAccessSubmitting, setPreAccessSubmitting] = useState(false)
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
 
   const getInitialNameParts = (name?: string | null) => {
     if (!name) return { firstName: '', lastName: '' }
@@ -271,6 +284,18 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       }
 
       setSignerData(signer as any)
+      // Initialize signer field values
+      const initialValues: Record<string, string> = {}
+      for (const f of (signer as any)?.workflow_fields ?? []) {
+        if (!f?.id) continue
+        if (f.field_type === 'signature') continue
+        if (typeof f.value === 'string' && f.value.length > 0) {
+          initialValues[f.id] = f.value
+        } else {
+          initialValues[f.id] = ''
+        }
+      }
+      setFieldValues(initialValues)
       setOtpSent(!!signer.otp_verified)
       setOtpCode('')
 
@@ -425,7 +450,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           witness_pdf_hash: signerData.workflow.document_hash,
           applied_at: new Date().toISOString(),
           identity_level: signerData.otp_verified ? 'otp' : 'unknown',
-          signatureData: signatureData
+          signatureData: signatureData,
+          fieldValues
         }
       })
 
@@ -714,12 +740,64 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
               </div>
             </div>
           ) : (
-            <SignaturePad
-              signerName={signerData.name || signerData.email}
-              workflowId={signerData.workflow_id}
-              signerId={signerData.signer_id}
-              onSign={handleSignatureApplied}
-            />
+            <div className="min-h-screen bg-gray-50 px-4 py-8">
+              <div className="mx-auto max-w-4xl space-y-6">
+                {(() => {
+                  const fields = (signerData.workflow_fields ?? []).filter((f) => f.field_type !== 'signature')
+                  const signatureAllPages = (signerData.workflow_fields ?? []).some((f) => f.field_type === 'signature' && Boolean(f.apply_to_all_pages))
+                  if (fields.length === 0 && !signatureAllPages) return null
+
+                  return (
+                    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                      <h2 className="text-lg font-semibold text-gray-900">Completá para firmar</h2>
+                      {signatureAllPages && (
+                        <p className="mt-1 text-sm text-gray-600">
+                          Tu firma se aplicará automáticamente en todas las páginas.
+                        </p>
+                      )}
+
+                      {fields.length > 0 && (
+                        <div className="mt-4 grid gap-3">
+                          {fields.map((f) => {
+                            const label = (f.label || (f.field_type === 'date' ? 'Fecha' : 'Texto')) as string
+                            const placeholder = (f.placeholder || '') as string
+                            const required = Boolean(f.required)
+                            return (
+                              <label key={f.id} className="grid gap-1">
+                                <span className="text-sm font-medium text-gray-800">
+                                  {label}{required ? ' *' : ''}
+                                </span>
+                                <input
+                                  type={f.field_type === 'date' ? 'date' : 'text'}
+                                  value={fieldValues[f.id] ?? ''}
+                                  onChange={(e) => setFieldValues((prev) => ({ ...prev, [f.id]: e.target.value }))}
+                                  placeholder={f.field_type === 'date' ? undefined : placeholder}
+                                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                />
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                <SignaturePad
+                  signerName={signerData.name || signerData.email}
+                  workflowId={signerData.workflow_id}
+                  signerId={signerData.signer_id}
+                  validate={() => {
+                    const missing = (signerData.workflow_fields ?? [])
+                      .filter((f) => f.field_type !== 'signature' && Boolean(f.required))
+                      .filter((f) => !(fieldValues[f.id] ?? '').trim())
+                    if (missing.length > 0) return 'Completá los campos requeridos antes de firmar'
+                    return null
+                  }}
+                  onSign={handleSignatureApplied}
+                />
+              </div>
+            </div>
           )
         )}
 

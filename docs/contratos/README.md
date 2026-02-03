@@ -36,6 +36,7 @@
 17. **`CONTRATO_AUTORIDAD_EJECUTOR.md`** — Autoridad unica del executor
 18. **`CONTRATO_MAPEO_EJECUTOR.md`** — Mapeo CTA -> Intent -> Job
 19. **`LISTA_IMPLEMENTACION_AUTORIDAD_EJECUTOR.md`** — Checklist minima de autoridad
+19.1. **`CONTRATO_CAMPOS_Y_ANCLAS_POR_FIRMANTE.md`** — Wizard de campos/anclas por firmante (Flow D)
 
 ### Nivel 5: Organización y Contexto
 20. **`OPERACIONES_CONTRACT.md`** ⭐ — Carpetas lógicas y operaciones
@@ -80,6 +81,7 @@
 - `PROTECTION_LEVEL_RULES.md` — Copy de protección
 - `IDENTITY_LEVELS_SUMMARY.md` — Copy de identidad
 - `FLOW_MODES_CONTRACT.md` — UX de firma
+- `CONTRATO_CAMPOS_Y_ANCLAS_POR_FIRMANTE.md` — Wizard campos/anclas (Flow D)
 - `IDENTITY_OTP_DECRYPTION_CONTRACT.md` — Pre-acceso + OTP
 - `WITNESS_PDF_CONTRACT.md` — Generación PDFs
 - `OPERACIONES_CONTRACT.md` — UX de operaciones

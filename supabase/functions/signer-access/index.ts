@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.182.0/http/server.ts";
 import { createClient } from "https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js";
-import { encode as base64Encode } from "https://deno.land/std@0.182.0/encoding/base64.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 import { appendEvent as appendCanonicalEvent } from "../_shared/canonicalEventHelper.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -217,15 +216,19 @@ serve(async (req) => {
     req.headers.get("origin") ?? undefined,
   );
 
-  if (Deno.env.get("FASE") !== "1") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-
   if (req.method === "OPTIONS") {
     if (!isAllowed) {
       return new Response("Forbidden", { status: 403, headers: corsHeaders });
     }
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (Deno.env.get("FASE") !== "1") {
+    return json(
+      { error: "disabled", message: "Function disabled (FASE != 1)" },
+      503,
+      corsHeaders,
+    );
   }
 
   if (!isAllowed) {
@@ -241,7 +244,8 @@ serve(async (req) => {
     const { token } = (await req.json()) as RequestBody;
     if (!token) return json({ error: "token is required" }, 400, corsHeaders);
 
-    const tokenHash = await createTokenHash(token);
+    const isTokenHash = (value: string) => /^[a-f0-9]{64}$/i.test(value);
+    const tokenHash = isTokenHash(token) ? token : await createTokenHash(token);
 
     const { data: signer, error: signerError } = await supabase
       .from("workflow_signers")

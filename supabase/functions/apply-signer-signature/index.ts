@@ -3,6 +3,8 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { captureAndApplySignature } from '../_shared/signatureCapture.ts'
 import { shouldApplySignerSignature } from '../../../packages/authority/src/decisions/applySignerSignature.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { appendEvent } from '../_shared/eventHelper.ts'
+import { decryptToken } from '../_shared/cryptoHelper.ts'
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
@@ -20,10 +22,6 @@ async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
 }
 
 serve(async (req) => {
-  if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
-  }
-
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
 
   const json = (data: unknown, status = 200) =>
@@ -37,6 +35,10 @@ serve(async (req) => {
       return new Response('Forbidden', { status: 403, headers: corsHeaders })
     }
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (Deno.env.get('FASE') !== '1') {
+    return json({ error: 'disabled', message: 'Function disabled (FASE != 1)' }, 503)
   }
 
   if (!isAllowed) {
@@ -73,7 +75,11 @@ serve(async (req) => {
         .select(`
           id,
           workflow_id,
+          email,
+          name,
+          signing_order,
           status,
+          access_token_hash,
           token_expires_at,
           token_revoked_at,
           signer_otps!inner(verified_at)
@@ -112,7 +118,11 @@ serve(async (req) => {
         .select(`
           id,
           workflow_id,
+          email,
+          name,
+          signing_order,
           status,
+          access_token_hash,
           token_expires_at,
           token_revoked_at,
           signer_otps!inner(verified_at)
@@ -149,7 +159,7 @@ serve(async (req) => {
     // Fetch workflow early for canonical decision and batching
     const { data: workflow, error: wfError } = await supabase
       .from('signature_workflows')
-      .select('id, document_entity_id, status')
+      .select('id, document_entity_id, status, delivery_mode, original_filename')
       .eq('id', signer.workflow_id)
       .single()
 
@@ -370,6 +380,36 @@ serve(async (req) => {
       return json({ error: 'Could not insert event', details: insertErr.message }, 500)
     }
 
+    // Probatario (document_entities.events[]) - best effort; must not block.
+    try {
+      await appendEvent(
+        supabase as any,
+        workflow.document_entity_id,
+        {
+          kind: 'signature.completed',
+          at: applied_at || new Date().toISOString(),
+          signer: {
+            id: signer.id,
+            email: signer.email ?? null,
+            name: signer.name ?? null,
+            order: signer.signing_order ?? null
+          },
+          workflow: {
+            id: signer.workflow_id,
+            document_entity_id: workflow.document_entity_id
+          },
+          evidence: {
+            witness_pdf_hash: witness_pdf_hash || null,
+            identity_level: identity_level || null,
+            batches_signed: batches.map((b: any) => b.id)
+          }
+        },
+        'apply-signer-signature'
+      )
+    } catch (eventErr) {
+      console.warn('apply-signer-signature: signature.completed append failed (best-effort)', eventErr)
+    }
+
     // Update signer status and persist signature data
     const { error: signerUpdErr } = await supabase
       .from('workflow_signers')
@@ -381,25 +421,8 @@ serve(async (req) => {
       return json({ error: 'Could not update signer', details: signerUpdErr.message }, 500)
     }
 
-    // Determine if workflow is fully signed
-    const { data: remaining, error: remErr } = await supabase
-      .from('workflow_signers')
-      .select('id')
-      .eq('workflow_id', signer.workflow_id)
-      .neq('status', 'signed')
-
-    if (remErr) {
-      console.warn('could not check remaining signers', remErr)
-    }
-
-    if (Array.isArray(remaining)) {
-      const newStatus = remaining.length === 0 ? 'completed' : 'partially_signed'
-      const { error: wfErr } = await supabase
-        .from('signature_workflows')
-        .update({ status: newStatus })
-        .eq('id', signer.workflow_id)
-      if (wfErr) console.warn('could not update workflow status', wfErr)
-    }
+    // NOTE: do not update signature_workflows.status here.
+    // The allowed states are enforced by DB constraint and the sequential flow is advanced via advance_workflow().
 
     // Advance sequential flow (best-effort): promote next signer to ready_to_sign.
     // This MUST NOT block the successful signature record.
@@ -407,6 +430,81 @@ serve(async (req) => {
       await supabase.rpc('advance_workflow', { p_workflow_id: signer.workflow_id })
     } catch (advanceErr) {
       console.warn('advance_workflow failed', advanceErr)
+    }
+
+    // Create next signer notification (idempotent) if delivery_mode=email.
+    try {
+      const deliveryMode = (workflow as any)?.delivery_mode || 'email'
+      if (deliveryMode === 'email') {
+        const { data: nextSigner } = await supabase
+          .from('workflow_signers')
+          .select('id, email, name, signing_order, access_token_hash, access_token_ciphertext, access_token_nonce, status')
+          .eq('workflow_id', signer.workflow_id)
+          .eq('status', 'ready_to_sign')
+          .single()
+
+        if (nextSigner) {
+          const { data: existingNotif } = await supabase
+            .from('workflow_notifications')
+            .select('id')
+            .eq('workflow_id', signer.workflow_id)
+            .eq('signer_id', nextSigner.id)
+            .eq('notification_type', 'your_turn_to_sign')
+            .limit(1)
+            .maybeSingle()
+
+          if (!existingNotif) {
+            const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
+            let tokenOrHash: string | null = nextSigner.access_token_hash
+            if (nextSigner.access_token_ciphertext && nextSigner.access_token_nonce) {
+              try {
+                tokenOrHash = await decryptToken({
+                  ciphertext: nextSigner.access_token_ciphertext,
+                  nonce: nextSigner.access_token_nonce,
+                })
+              } catch (err) {
+                console.warn('apply-signer-signature: failed to decrypt next signer token; falling back to hash', err)
+              }
+            }
+            const nextSignerUrl = tokenOrHash ? `${appUrl}/sign/${tokenOrHash}` : null
+            const originalFilename = (workflow as any)?.original_filename || 'Documento'
+            const displayName = (nextSigner.name || nextSigner.email || '').split('@')[0]
+
+            if (nextSignerUrl) {
+              await supabase
+                .from('workflow_notifications')
+                .insert({
+                  workflow_id: signer.workflow_id,
+                  recipient_email: nextSigner.email,
+                  recipient_type: 'signer',
+                  signer_id: nextSigner.id,
+                  notification_type: 'your_turn_to_sign',
+                  subject: `Tenés un documento para firmar — ${originalFilename}`,
+                  body_html: `<html><body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; color: #0f172a;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
+    <p style="margin:0 0 12px;color:#0f172a;">Hola ${displayName},</p>
+    <p style="margin:0 0 12px;color:#334155;">Es tu turno de firmar:</p>
+    <p style="margin:0 0 16px;font-weight:600;color:#0f172a;">${originalFilename}</p>
+    <p style="margin:16px 0;">
+      <a href="${nextSignerUrl}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Ver y Firmar Documento</a>
+    </p>
+    <p style="margin:16px 0 0;color:#0f172a;font-weight:600;">EcoSign. Transparencia que acompaña.</p>
+    <p style="margin:8px 0 0;color:#94a3b8;font-size:12px;">Este enlace es personal e intransferible.</p>
+  </div>
+</body></html>`,
+                  delivery_status: 'pending'
+                })
+            } else {
+              console.warn('apply-signer-signature: next signer has no access_token_hash; skipping notification', {
+                workflowId: signer.workflow_id,
+                nextSignerId: nextSigner.id
+              })
+            }
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.warn('apply-signer-signature: next signer notification failed (best-effort)', notifErr)
     }
 
     // Trigger email delivery for any newly created pending notifications (best-effort).

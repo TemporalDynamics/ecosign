@@ -114,7 +114,7 @@ serve(async (req) => {
     }
 
     // GATE 2: Verify workflow is active
-    const activeStatuses = ['active', 'partially_signed'];
+    const activeStatuses = ['active'];
     if (!activeStatuses.includes(workflow.status)) {
       console.warn('[reissue-signer-token] Workflow not active:', workflow.status);
       return json({
@@ -176,7 +176,7 @@ serve(async (req) => {
     }
 
     // Log canonical events
-    await appendCanonicalEvent(supabase, {
+    await appendCanonicalEvent(supabase as any, {
       event_type: 'signer.invited', // Re-invited with new token
       workflow_id: workflowId,
       signer_id: signerId,

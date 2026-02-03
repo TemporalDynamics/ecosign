@@ -367,14 +367,75 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       .join('|');
   }, [signatureFields]);
 
-  // Confirmation is about assignment+structure, not pixel movement.
-  useEffect(() => {
-    setWorkflowAssignmentConfirmed(false);
-  }, [workflowEnabled, emailInputs]);
+  const workflowAssignmentStatus = useMemo(() => {
+    if (!workflowEnabled) {
+      return {
+        isComplete: false,
+        groupsCount: 0,
+        signersCount: 0
+      };
+    }
 
+    // Silent (no toasts): this is used for UI gating/derived state.
+    const normalizeEmailLocal = (email: string | null | undefined) => (email ?? '').trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    const commonTypos = ['gmial.com', 'gmai.com', 'yahooo.com', 'hotmial.com'];
+    const isValidEmailLocal = (email: string) => {
+      const trimmed = email.trim();
+      if (!emailRegex.test(trimmed)) return false;
+      const domain = trimmed.split('@')[1];
+      if (commonTypos.includes(domain)) return false;
+      return true;
+    };
+
+    const validSigners: { email: string }[] = [];
+    const seen = new Set<string>();
+    for (const input of emailInputs) {
+      const trimmed = input.email.trim();
+      if (!trimmed) continue;
+      if (!isValidEmailLocal(trimmed)) continue;
+      if (seen.has(trimmed)) continue;
+      seen.add(trimmed);
+      validSigners.push({ email: trimmed });
+    }
+
+    const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+
+    const signerEmailSet = new Set(validSigners.map((s) => normalizeEmailLocal(s.email)));
+    const invalidAssignedCount = batches.filter((b) => {
+      const assigned = normalizeEmailLocal(b.assignedSignerEmail);
+      return Boolean(assigned) && !signerEmailSet.has(assigned);
+    }).length;
+
+    const assignedEmails = new Set(
+      batches
+        .map((b) => normalizeEmailLocal(b.assignedSignerEmail))
+        .filter((email) => Boolean(email) && signerEmailSet.has(email))
+    );
+    const missingFor = validSigners
+      .map((s) => s.email.trim().toLowerCase())
+      .filter((email) => !assignedEmails.has(email));
+
+    const groupsCount = batches.length;
+    const signersCount = validSigners.length;
+    const isComplete =
+      invalidAssignedCount === 0 &&
+      unassignedBatches.length === 0 &&
+      missingFor.length === 0 &&
+      groupsCount > 0 &&
+      signersCount > 0;
+
+    return { isComplete, groupsCount, signersCount };
+  }, [workflowEnabled, emailInputs, signatureFields, assignmentFingerprint]);
+
+  // Auto-confirmation: confirmation is derived from structure, not a manual click.
   useEffect(() => {
-    setWorkflowAssignmentConfirmed(false);
-  }, [assignmentFingerprint]);
+    if (!workflowEnabled) {
+      setWorkflowAssignmentConfirmed(false);
+      return;
+    }
+    setWorkflowAssignmentConfirmed(workflowAssignmentStatus.isComplete);
+  }, [workflowEnabled, workflowAssignmentStatus.isComplete]);
 
   const openSignerFieldsWizard = () => {
     setFlowPanelOpen(true);
@@ -968,6 +1029,58 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   // Sprint 4: Wrapper para mostrar custody modal antes de proteger
   const handleProtectClick = () => {
     if (!file) return;
+
+    // UX hard-stop: si hay Flujo de Firmas activo, no abrir modales de custody/progreso
+    // hasta que la asignacion estructural este completa.
+    if (workflowEnabled) {
+      const validSigners = buildSignersList();
+      if (validSigners.length === 0) {
+        toast.error('Agregá al menos un email válido para enviar el documento a firmar');
+        setFlowPanelOpen(true);
+        return;
+      }
+
+      if (signatureFields.length === 0) {
+        openSignerFieldsWizard();
+        return;
+      }
+
+      const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+
+      const signerEmailSet = new Set(validSigners.map((s) => normalizeEmail(s.email)));
+      const invalidAssignedBatches = batches.filter((b) => {
+        const assigned = normalizeEmail(b.assignedSignerEmail);
+        return Boolean(assigned) && !signerEmailSet.has(assigned);
+      });
+
+      if (invalidAssignedBatches.length > 0) {
+        toast('Hay grupos asignados a emails que ya no están en la lista. Reasigná esos grupos.', { position: 'top-right' });
+        openSignerFieldsWizard();
+        return;
+      }
+
+      if (unassignedBatches.length > 0) {
+        toast('Asigná los grupos de campos a los firmantes antes de enviar', { position: 'top-right' });
+        openSignerFieldsWizard();
+        return;
+      }
+
+      const assignedEmails = new Set(
+        batches
+          .map((b) => normalizeEmail(b.assignedSignerEmail))
+          .filter((email) => Boolean(email) && signerEmailSet.has(email))
+      );
+      const missingFor = validSigners
+        .map((s) => s.email.trim().toLowerCase())
+        .filter((email) => !assignedEmails.has(email));
+      if (missingFor.length > 0) {
+        toast(`Faltan campos asignados para: ${missingFor.join(', ')}`, { position: 'top-right' });
+        openSignerFieldsWizard();
+        return;
+      }
+
+    }
+
     // Mostrar modal de custody para que usuario elija el modo
     setShowCustodyModal(true);
   };
@@ -1050,14 +1163,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         return;
       }
 
-      if (!workflowAssignmentConfirmed) {
-        toast('Confirmá la asignación de firmas en el panel de Flujo de Firmas', { position: 'top-right' });
-        setFlowPanelOpen(true);
-        setTimeout(() => {
-          workflowAssignmentCtaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 0);
-        return;
-      }
+      // Auto-confirmation: if structure is complete, we can proceed.
     }
 
     setLoading(true);
@@ -1222,16 +1328,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           return;
         }
 
-        // UX gate: require explicit confirmation inside "Flujo de Firmas" panel.
-        if (!workflowAssignmentConfirmed) {
-          toast('Confirmá la asignación de firmas en el panel de Flujo de Firmas', { position: 'top-right' });
-          setFlowPanelOpen(true);
-          setTimeout(() => {
-            workflowAssignmentCtaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 0);
-          setLoading(false);
-          return;
-        }
+        // Auto-confirmation: if structure is complete, we can proceed.
 
         // SPRINT 5: Si hay campos configurados, estamparlos en el PDF antes de enviar
         let fileToSend = file;
@@ -4418,31 +4515,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       );
                     }
 
-                    if (!workflowAssignmentConfirmed) {
-                      return (
-                        <div className="rounded-lg border border-gray-200 bg-white p-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setWorkflowAssignmentConfirmed(true);
-                              showToast('Asignación confirmada', { type: 'success', duration: 2000 });
-                            }}
-                            className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-                          >
-                            Confirmar asignación de firmas
-                          </button>
-                          <p className="mt-1 text-[11px] text-gray-500">
-                            {groupsCount} grupo(s) asignado(s) a {signersCount} firmante(s).
-                          </p>
-                        </div>
-                      );
-                    }
-
                     return (
                       <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2">
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-green-700" />
-                          <p className="text-sm font-medium text-green-900">Asignación confirmada</p>
+                          <p className="text-sm font-medium text-green-900">Asignación lista</p>
                         </div>
                         <p className="mt-0.5 text-[11px] text-green-800">
                           {groupsCount} grupo(s) asignado(s) a {signersCount} firmante(s).

@@ -5,7 +5,7 @@
  * Zero Server-Side Knowledge Architecture.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { X, Shield } from 'lucide-react';
 import { accessSharedDocument } from '../lib/storage';
 import type { AccessSharedDocumentOptions } from '../lib/storage';
@@ -32,6 +32,7 @@ export function OTPAccessModal({
   const [progress, setProgress] = useState(0);
   const [successUrl, setSuccessUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState('documento.pdf');
+  const progressIntervalRef = useRef<number | undefined>(undefined);
 
   if (!isOpen) return null;
 
@@ -48,14 +49,20 @@ export function OTPAccessModal({
     setLoading(true);
     setProgress(0);
 
-    let progressInterval: ReturnType<typeof setInterval> | undefined;
-
     try {
       // Simulate progress for UX
-      progressInterval = setInterval(() => {
+      if (progressIntervalRef.current) {
+        // If an interval is already running, clear it to avoid duplicates
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = undefined;
+      }
+      progressIntervalRef.current = window.setInterval(() => {
         setProgress((prev) => {
           if (prev >= 90) {
-            if (progressInterval) clearInterval(progressInterval);
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = undefined;
+            }
             return 90;
           }
           return prev + 10;
@@ -68,7 +75,10 @@ export function OTPAccessModal({
         recipientEmail: `access-${Date.now()}@ecosign.local`, // Placeholder
       });
 
-      if (progressInterval) clearInterval(progressInterval);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = undefined;
+      }
       setProgress(100);
 
       const url = URL.createObjectURL(result.blob);
@@ -76,7 +86,10 @@ export function OTPAccessModal({
       setDownloadName(result.filename);
       setLoading(false);
     } catch (err) {
-      if (progressInterval) clearInterval(progressInterval);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = undefined;
+      }
       
       // Mensajes de error humanos (no técnicos)
       let errorMessage = 'No pudimos abrir el documento todavía';

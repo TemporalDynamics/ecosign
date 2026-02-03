@@ -360,6 +360,36 @@ serve(async (req) => {
 
     const otpVerified = !!otpRecord?.verified_at;
 
+    // Fetch signer fields (for the signer UI to render required inputs)
+    let signerFields: any[] = [];
+    const documentEntityId = (signer.workflow as any)?.document_entity_id ?? null;
+    if (documentEntityId) {
+      const { data: batchRows, error: batchErr } = await supabase
+        .from('batches')
+        .select('id')
+        .eq('document_entity_id', documentEntityId)
+        .eq('assigned_signer_id', signer.id);
+
+      if (batchErr) {
+        console.warn('signer-access: failed to fetch signer batches', batchErr);
+      } else {
+        const batchIds = (batchRows ?? []).map((b: any) => b.id).filter(Boolean);
+        if (batchIds.length > 0) {
+          const { data: fieldRows, error: fieldErr } = await supabase
+            .from('workflow_fields')
+            .select('id, field_type, label, placeholder, position, required, value, metadata, batch_id, apply_to_all_pages')
+            .in('batch_id', batchIds)
+            .order('created_at', { ascending: true });
+
+          if (fieldErr) {
+            console.warn('signer-access: failed to fetch signer fields', fieldErr);
+          } else {
+            signerFields = fieldRows ?? [];
+          }
+        }
+      }
+    }
+
     // Fetch prior signatures (for rendering a derived/stamped viewing PDF)
     // Canon: evidence lives in events + instances; UI may derive a visual preview.
     let priorSignatureStamps: any[] = [];
@@ -482,6 +512,7 @@ serve(async (req) => {
           signer.workflow?.signnow_embed_url ?? null,
         encrypted_pdf_url: encryptedPdfUrl,
         otp_verified: otpVerified,
+        workflow_fields: signerFields,
         prior_signature_stamps: priorSignatureStamps,
         workflow: signer.workflow ?? null,
       },

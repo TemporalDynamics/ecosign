@@ -55,7 +55,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const body = await req.json()
-    const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level, signatureData } = body
+    const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level, signatureData, fieldValues } = body
 
     if (!signerId && !accessToken) {
       return json({ error: 'Missing signerId or accessToken' }, 400)
@@ -339,6 +339,55 @@ serve(async (req) => {
         409
       )
     } else {
+      // Persist non-signature field values for this signer (required before signing)
+      try {
+        const batchIds = batches.map((b: any) => b.id).filter(Boolean)
+        const values = (fieldValues && typeof fieldValues === 'object') ? fieldValues as Record<string, string> : {}
+
+        const { data: wfFields, error: wfFieldsErr } = await supabase
+          .from('workflow_fields')
+          .select('id, field_type, required')
+          .in('batch_id', batchIds)
+
+        if (wfFieldsErr) {
+          console.warn('apply-signer-signature: failed to load workflow_fields for value persistence', wfFieldsErr)
+        } else {
+          const allowed = new Map((wfFields ?? []).map((f: any) => [f.id, f]))
+          const missingRequired: string[] = []
+          for (const f of (wfFields ?? [])) {
+            if (!f.required) continue
+            if (f.field_type === 'signature') continue
+            const v = values[f.id]
+            if (!v || String(v).trim().length === 0) {
+              missingRequired.push(f.id)
+            }
+          }
+
+          if (missingRequired.length > 0) {
+            return json(
+              {
+                error: 'missing_required_fields',
+                message: 'Completá los campos requeridos antes de firmar.',
+                field_ids: missingRequired,
+              },
+              409,
+            )
+          }
+
+          for (const [fieldId, value] of Object.entries(values)) {
+            const f = allowed.get(fieldId)
+            if (!f) continue
+            if (f.field_type === 'signature') continue
+            await supabase
+              .from('workflow_fields')
+              .update({ value: String(value ?? '') })
+              .eq('id', fieldId)
+          }
+        }
+      } catch (fieldErr) {
+        console.warn('apply-signer-signature: field value persistence failed (best-effort)', fieldErr)
+      }
+
       // Apply signature to all batches
       for (const batch of batches) {
         try {

@@ -18,6 +18,7 @@ interface SignaturePadProps {
   signerName: string
   workflowId?: string
   signerId?: string
+  validate?: () => string | null
   onSign: (payload: { type: SignatureMode, dataUrl: string }) => Promise<void> | void
 }
 
@@ -25,6 +26,7 @@ export default function SignaturePad({
   signerName,
   workflowId,
   signerId,
+  validate,
   onSign
 }: SignaturePadProps) {
   const { canvasRef, hasSignature, clearCanvas, getSignatureData, handlers } = useSignatureCanvas()
@@ -109,6 +111,12 @@ export default function SignaturePad({
   }
 
   const handleConfirm = async () => {
+    const validationError = validate?.() ?? null
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
     const signature = resolveSignature()
     if (!signature) return
 

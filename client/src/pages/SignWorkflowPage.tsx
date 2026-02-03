@@ -423,9 +423,9 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         }
       })
 
-      if (error || (data && data.error)) {
+      if (error || !data?.success || (data && (data as any).error)) {
         console.error('apply-signer-signature failed', error || data.error)
-        throw new Error(error?.message || data?.error || 'apply_failed')
+        throw new Error(error?.message || (data as any)?.error || 'apply_failed')
       }
 
       // Success: mark completed in UI

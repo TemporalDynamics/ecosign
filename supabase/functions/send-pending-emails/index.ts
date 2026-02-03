@@ -1,6 +1,12 @@
 // send-pending-emails robust version (TypeScript)
 // Reemplazar en supabase/functions/send-pending-emails
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+//
+// EMAIL DISPATCH CANON (v1)
+// - A single workflow may emit at most ONE email per throttle window.
+// - Priority emails (your_turn_to_sign) preempt all others.
+// - Provider rate limits are absorbed by semantic throttling/cooldowns.
+// - Edge functions should enqueue notifications; this dispatcher is the one that sends.
+import { serve } from "https://deno.land/std@0.182.0/http/server.ts";
 import { createClient } from "https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js";
 import { buildFounderWelcomeEmail, sendResendEmail } from "../_shared/email.ts";
 
@@ -25,6 +31,15 @@ serve(async (req: Request) => {
   const MAX_RETRIES = 10;
   const BATCH_LIMIT = 5;
   const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
+  // Canon: prevent burst per workflow (1 immediate email per signature).
+  const WORKFLOW_THROTTLE_MS = 30 * 1000;
+
+  const NOTIFICATION_PRIORITY: Record<string, number> = {
+    your_turn_to_sign: 0,
+    workflow_completed: 5,
+    signature_completed: 10,
+    creator_detailed_notification: 20,
+  };
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
   console.log("🟢 send-pending-emails: start");
@@ -196,7 +211,62 @@ serve(async (req: Request) => {
     } else if (!workflowRows || workflowRows.length === 0) {
       console.info("✅ No hay emails pendientes en workflow_notifications");
     } else {
-      for (const r of workflowRows) {
+      // Only attempt ONE email per workflow per run (avoid bursts).
+      // Priority: your_turn_to_sign first, then the rest.
+      const priority = (type: string | null | undefined) => {
+        if (!type) return 100;
+        return NOTIFICATION_PRIORITY[type] ?? 50;
+      };
+
+      const candidatesByWorkflow = new Map<string, any>();
+      for (const row of workflowRows) {
+        const wfId = (row as any).workflow_id;
+        if (!wfId) continue;
+        const existing = candidatesByWorkflow.get(wfId);
+        if (!existing) {
+          candidatesByWorkflow.set(wfId, row);
+          continue;
+        }
+        const a = existing;
+        const b = row;
+        const pa = priority((a as any).notification_type);
+        const pb = priority((b as any).notification_type);
+        if (pb < pa) {
+          candidatesByWorkflow.set(wfId, row);
+          continue;
+        }
+        if (pb === pa) {
+          const ca = new Date((a as any).created_at ?? 0).getTime();
+          const cb = new Date((b as any).created_at ?? 0).getTime();
+          if (cb < ca) candidatesByWorkflow.set(wfId, row);
+        }
+      }
+
+      const candidates = Array.from(candidatesByWorkflow.values()).sort((a: any, b: any) => {
+        const pa = priority(a.notification_type);
+        const pb = priority(b.notification_type);
+        if (pa !== pb) return pa - pb;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
+
+      const isWorkflowThrottled = async (workflowId: string) => {
+        const { data: lastSent, error: lastSentError } = await supabase
+          .from("workflow_notifications")
+          .select("sent_at")
+          .eq("workflow_id", workflowId)
+          .eq("delivery_status", "sent")
+          .order("sent_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastSentError) return false;
+        const sentAt = (lastSent as any)?.sent_at;
+        if (!sentAt) return false;
+        const ageMs = Date.now() - new Date(sentAt).getTime();
+        return Number.isFinite(ageMs) && ageMs >= 0 && ageMs < WORKFLOW_THROTTLE_MS;
+      };
+
+      for (const r of candidates) {
         try {
           const cooldownUntil = parseCooldownUntil((r as any).error_message);
           if (isInCooldown(cooldownUntil)) {
@@ -204,6 +274,15 @@ serve(async (req: Request) => {
               "⏳ workflow_notifications cooldown active, skipping",
               { id: r.id, until: cooldownUntil },
             );
+            continue;
+          }
+
+          // Per-workflow throttle to avoid 429 bursts.
+          if ((r as any).workflow_id && await isWorkflowThrottled((r as any).workflow_id)) {
+            console.info("⏳ workflow throttled, skipping", {
+              workflow_id: (r as any).workflow_id,
+              notification_id: r.id,
+            });
             continue;
           }
 
@@ -267,10 +346,11 @@ serve(async (req: Request) => {
                 error: result.error,
               });
 
-              // Apply the same cooldown to the whole batch so we don't hammer Resend.
-              const batchIds = workflowRows.map((row: any) => row.id).filter(
-                Boolean,
-              );
+              // Apply cooldown only to this workflow (avoid poisoning other workflows).
+              const batchIds = workflowRows
+                .filter((row: any) => row.workflow_id === (r as any).workflow_id)
+                .map((row: any) => row.id)
+                .filter(Boolean);
               await supabase
                 .from("workflow_notifications")
                 .update({

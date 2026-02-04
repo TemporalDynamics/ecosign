@@ -95,7 +95,7 @@ export function SignerFieldsWizard({
                   type="checkbox"
                   checked
                   disabled
-                  className="w-3 h-3 accent-gray-900 cursor-not-allowed"
+                  className="eco-checkbox rounded border-gray-300 text-gray-400 focus:ring-0 cursor-not-allowed"
                 />
                 <span className="text-xs">Firma (obligatoria)</span>
               </label>
@@ -105,7 +105,7 @@ export function SignerFieldsWizard({
                   type="checkbox"
                   checked={includeName}
                   onChange={(e) => setIncludeName(e.target.checked)}
-                  className="w-3 h-3 accent-gray-900 cursor-pointer"
+                  className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 />
                 <span className="text-xs">Nombre</span>
               </label>
@@ -115,7 +115,7 @@ export function SignerFieldsWizard({
                   type="checkbox"
                   checked={includeId}
                   onChange={(e) => setIncludeId(e.target.checked)}
-                  className="w-3 h-3 accent-gray-900 cursor-pointer"
+                  className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 />
                 <span className="text-xs">Documento</span>
               </label>
@@ -125,7 +125,7 @@ export function SignerFieldsWizard({
                   type="checkbox"
                   checked={includeDate}
                   onChange={(e) => setIncludeDate(e.target.checked)}
-                  className="w-3 h-3 accent-gray-900 cursor-pointer"
+                  className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 />
                 <span className="text-xs">Fecha</span>
               </label>
@@ -175,7 +175,7 @@ export function SignerFieldsWizard({
                 name="position"
                 checked
                 disabled
-                className="w-3 h-3 accent-gray-900 cursor-not-allowed"
+                className="w-[12px] h-[12px] scale-[1.2] origin-left border-gray-300 text-gray-400 focus:ring-0 cursor-not-allowed"
               />
               <span className="text-xs">Al final del documento</span>
             </label>
@@ -204,7 +204,7 @@ export function SignerFieldsWizard({
               });
               onApply({ fields: generated, template });
             }}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             Aplicar
           </button>

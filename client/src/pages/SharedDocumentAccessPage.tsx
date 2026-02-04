@@ -36,22 +36,37 @@ export default function SharedDocumentAccessPage() {
     const fetchShareData = async () => {
       try {
         const supabase = getSupabase();
-        const { data, error } = await supabase
-          .from('document_shares')
-          .select('nda_enabled, nda_text, recipient_email, user_documents!inner(document_name)')
-          .eq('id', shareId)
-          .eq('status', 'pending')
-          .single();
+        const { data, error } = await supabase.functions.invoke('get-share-metadata', {
+          body: { share_id: shareId }
+        })
 
         if (error || !data) {
           setError('Enlace inválido o expirado');
           return;
         }
 
-        setNdaEnabled(data.nda_enabled || false);
+        if (!data.success) {
+          setError('Enlace inválido o expirado');
+          return;
+        }
+
+        setNdaEnabled(Boolean(data.nda_enabled));
         setNdaText(data.nda_text || '');
-        setRecipientEmail(data.recipient_email || '');
-        setDocumentName(data.user_documents?.document_name || 'Documento');
+        // Capability share: identity is not enforced
+        setRecipientEmail('guest@ecosign.local');
+        setDocumentName(data.document_name || 'Documento');
+
+        // Canon (P1): registrar share.opened en events[] (best-effort)
+        try {
+          await supabase.functions.invoke('log-share-event', {
+            body: {
+              share_id: shareId,
+              event_kind: 'share.opened',
+            },
+          })
+        } catch (logError) {
+          console.warn('⚠️ Failed to log share.opened (best-effort):', logError)
+        }
       } catch (err) {
         console.error('Error fetching share:', err);
         setError('Error al cargar el documento compartido');

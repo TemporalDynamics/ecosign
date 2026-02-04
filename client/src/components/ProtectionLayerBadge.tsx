@@ -100,7 +100,7 @@ export function ProtectionLayerBadge({
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .protection-layer-badge {
           display: inline-flex;
           flex-direction: column;

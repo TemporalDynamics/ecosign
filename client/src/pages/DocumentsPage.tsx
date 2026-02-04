@@ -4,7 +4,7 @@ import { getSupabase } from "../lib/supabaseClient";
 import { emitEcoVNext } from "../lib/documentEntityService";
 import { getLatestTsaEvent, formatTsaTimestamp } from "../lib/events/tsa";
 import { deriveProtectionLevel, getAnchorEvent } from "../lib/protectionLevel";
-import { AlertCircle, ArrowRightCircle, CheckCircle, Copy, Download, Eye, FilePlus, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
+import { AlertCircle, ArrowRightCircle, CheckCircle, Clock, Copy, Download, Eye, FilePlus, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
 import VerifierTimeline from "../components/VerifierTimeline";
@@ -1843,7 +1843,7 @@ function DocumentsPage() {
                                   <span className="text-sm font-semibold text-gray-900">{draft.name}</span>
                                 </div>
                                 <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-gray-600 bg-gray-50 border border-gray-200 rounded px-2 py-0.5">
-                                  <FileClock className="w-3 h-3" />
+                                  <Clock className="w-3 h-3" />
                                   Borrador
                                 </span>
                               </div>

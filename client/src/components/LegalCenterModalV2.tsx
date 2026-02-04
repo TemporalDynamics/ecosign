@@ -1670,7 +1670,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               from_hash: canonicalSourceHash || stampedHash,
               to_hash: stampedHash,
               method: 'client',
-              reason: 'signature_applied',
+              reason: 'visualization',  // Changed from 'signature_applied' which is not a valid enum value
               executed_at: new Date().toISOString(),
               metadata: {
                 overlay_spec: overlaySpec,

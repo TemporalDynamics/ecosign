@@ -56,6 +56,11 @@ interface DraftDocument {
     positions?: unknown
     order?: number
     notes?: string
+    type?: string
+    lastModified?: number
+    overlay_spec?: unknown[]
+    signature_preview?: string
+    nda_applied?: boolean
   }
 }
 
@@ -69,12 +74,13 @@ interface SaveDraftRequest {
 }
 
 serve(async (req) => {
-  if (Deno.env.get('FASE') !== '1') {
-    return new Response('disabled', { status: 204 });
-  }
   const { headers: corsHeaders } = getCorsHeaders(req.headers.get('Origin') ?? undefined)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (Deno.env.get('FASE') !== '1') {
+    return jsonResponse({ error: 'disabled', message: 'Function disabled (FASE != 1)' }, 503, corsHeaders)
   }
 
   if (req.method !== 'POST') {
@@ -144,15 +150,35 @@ serve(async (req) => {
       //   draft_file_ref = storeTemporary(doc.file_data, user.id)
       // }
 
-      // PHASE 1: Guardar metadata sin cifrado real
-      // Cliente guarda archivo en IndexedDB como antes, pero también registra en server
-      const draft_file_ref = `draft:${user.id}:${operationId}:${crypto.randomUUID()}`
+      // PHASE 1: Store draft file in Storage (private, owner-scoped path)
+      const draftId = crypto.randomUUID()
+      const safeName = doc.filename.replace(/[^a-zA-Z0-9._-]+/g, '_')
+      const storagePath = `${user.id}/drafts/${operationId}/${draftId}/${safeName}`
+
+      // Decode base64 to bytes
+      const raw = atob(doc.file_data)
+      const bytes = new Uint8Array(raw.length)
+      for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i)
+
+      const contentType = doc.metadata?.type || 'application/pdf'
+      const { error: uploadError } = await supabase.storage
+        .from('user-documents')
+        .upload(storagePath, bytes, { contentType, upsert: false })
+
+      if (uploadError) {
+        console.error('Error uploading draft file:', uploadError)
+        continue
+      }
+
+      const draft_file_ref = `server:${storagePath}`
 
       const draft_metadata = {
         filename: doc.filename,
         size: doc.size,
         saved_at: new Date().toISOString(),
         custody_mode,
+        type: doc.metadata?.type || null,
+        lastModified: doc.metadata?.lastModified || null,
         ...doc.metadata
       }
 

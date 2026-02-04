@@ -247,7 +247,7 @@ export function HealthPanel() {
         <small>Auto-refreshes every 30 seconds</small>
       </footer>
 
-      <style jsx>{`
+      <style>{`
         .health-panel {
           max-width: 1200px;
           margin: 0 auto;

@@ -213,6 +213,8 @@ export async function hasAcceptedNda(
   id: string
 ): Promise<boolean> {
   try {
+    const supabase = getSupabase();
+    
     if (context === 'share-link') {
       const { data, error } = await supabase
         .from('nda_acceptances')

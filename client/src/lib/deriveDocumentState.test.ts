@@ -4,14 +4,14 @@
 
 import { describe, it, expect } from 'vitest';
 import { deriveDocumentState, formatSignersForTooltip } from './deriveDocumentState';
-import type { DocumentEntity } from '../types/operations';
+import type { DocumentEntityRow } from './eco/v2';
 import type { SimpleWorkflow, SimpleSigner } from './deriveDocumentState';
 
 // ========================================
 // Helpers
 // ========================================
 
-function createDocument(overrides?: Partial<DocumentEntity>): DocumentEntity {
+function createDocument(overrides?: Partial<DocumentEntityRow>): DocumentEntityRow {
   return {
     id: 'doc-1',
     user_id: 'user-1',
@@ -21,7 +21,7 @@ function createDocument(overrides?: Partial<DocumentEntity>): DocumentEntity {
     events: [],
     created_at: new Date().toISOString(),
     ...overrides
-  } as DocumentEntity;
+  } as DocumentEntityRow;
 }
 
 function createWorkflow(overrides?: Partial<SimpleWorkflow>): SimpleWorkflow {

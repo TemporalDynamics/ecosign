@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Eye, Share2, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { hasTsaConfirmed } from '../lib/protectionLevel';
+import { deriveDocumentState } from '../lib/deriveDocumentState';
+import StatusBadge from './StatusBadge';
 
 export default function DocumentRow({
   document,
@@ -51,53 +52,9 @@ export default function DocumentRow({
 
   const name = document.document_name || document.source_name || document.id;
 
-  // Derive simple status: Procesando | Protegido | Error
-  const isProtected = hasTsaConfirmed(document.events);
-
-  // Check for error events
-  const hasError = Array.isArray(document.events) && document.events.some(
-    (e: any) => e.kind === 'anchor.failed' || e.kind === 'tsa.failed' || e.kind === 'protection.failed'
-  );
-
-  const hasProtectionRequested = Array.isArray(document.events) && document.events.some(
-    (e: any) => e.kind === 'document.protected.requested'
-  );
-
-  const shouldHideProcessingLabel =
-    typeof processingHintStartedAtMs === 'number' &&
-    Number.isFinite(processingHintStartedAtMs) &&
-    Date.now() - processingHintStartedAtMs < 800;
-
-  // Simple status derivation
-  type SimpleStatus = 'processing' | 'protected' | 'error';
-  let simpleStatus: SimpleStatus = 'processing';
-  let statusLabel = shouldHideProcessingLabel ? '⏳ Confirmando…' : '⏳ Procesando';
-  let statusBg = 'bg-amber-100';
-  let statusColor = 'text-amber-700';
-  let statusTooltip: string | undefined = undefined;
-
-  if (hasError) {
-    simpleStatus = 'error';
-    statusLabel = '❌ Error';
-    statusBg = 'bg-red-100';
-    statusColor = 'text-red-700';
-  } else if (isProtected) {
-    // Has TSA = protected
-    simpleStatus = 'protected';
-    statusLabel = '✅ Protegido';
-    statusBg = 'bg-emerald-100';
-    statusColor = 'text-emerald-700';
-  }
-
-  if (simpleStatus === 'processing') {
-    if (shouldHideProcessingLabel) {
-      statusTooltip = 'Confirmando solicitud… En unos segundos el documento quedará protegido.';
-    } else {
-    statusTooltip = hasProtectionRequested
-      ? 'El sello de tiempo (TSA) se esta confirmando. En unos segundos este estado cambiara automaticamente (no hace falta refrescar).'
-      : 'El documento se esta procesando. Este estado se actualiza automaticamente.';
-    }
-  }
+  // Derivar estado usando la función canónica
+  // TODO: pasar workflows y signers cuando estén disponibles
+  const state = deriveDocumentState(document);
 
   if (asRow) {
     return (
@@ -117,13 +74,8 @@ export default function DocumentRow({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span
-            className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${statusBg} ${statusColor}`}
-            title={statusTooltip}
-          >
-            {statusLabel}
-          </span>
+        <div className="flex items-center gap-2">
+          <StatusBadge label={state.label} phase={state.phase} />
         </div>
 
         <div className="flex items-center justify-end gap-3" data-row-actions>
@@ -186,10 +138,8 @@ export default function DocumentRow({
         )}
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
-          <div className="text-xs text-gray-500 mt-1">
-            <span className={`text-xs px-2 py-1 rounded ${statusBg} ${statusColor}`}>
-              {statusLabel}
-            </span>
+          <div className="mt-1">
+            <StatusBadge label={state.label} phase={state.phase} />
           </div>
         </div>
       </div>

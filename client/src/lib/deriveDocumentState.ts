@@ -3,8 +3,8 @@
 // Contrato: docs/ui/DOCUMENT_STATES_CONTRACT.md
 // ========================================
 
-import type { DocumentEntity } from '../types/operations';
-import { deriveProtectionLevel, type ProtectionLevel } from './protectionLevel';
+import { deriveProtectionLevel, type ProtectionLevel, type Event } from './protectionLevel';
+import type { DocumentEntityRow } from './eco/v2';
 
 // ========================================
 // Types
@@ -56,7 +56,7 @@ export interface SimpleSigner {
  * @returns Estado con label y phase
  */
 export function deriveDocumentState(
-  document: DocumentEntity,
+  document: DocumentEntityRow,
   workflows?: SimpleWorkflow[],
   signers?: SimpleSigner[]
 ): DocumentState {
@@ -111,7 +111,7 @@ export function deriveDocumentState(
   // 3. NIVEL DE PROTECCIÓN
   // ========================================
 
-  const protectionLevel: ProtectionLevel = deriveProtectionLevel(document.events || []);
+  const protectionLevel: ProtectionLevel = deriveProtectionLevel((document.events ?? []) as Event[]);
 
   // 3a. Protección TOTAL → GRIS (final)
   if (protectionLevel === 'TOTAL') {

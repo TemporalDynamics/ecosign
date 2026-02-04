@@ -4341,7 +4341,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 {/* Header colapsable del panel */}
             <div className="px-2 py-1.5 border-b border-gray-200 bg-white">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Acciones</h3>
                 <button
                   onClick={() => setFlowPanelOpen(false)}
                   className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
@@ -4354,62 +4354,26 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
             {/* Contenido del panel */}
             <div className="px-3 py-2 overflow-y-auto flex-1">
-              <p className="text-xs text-gray-500 mb-4">
-                Agregá un email por firmante. Las personas firmarán en el orden que los agregues.
-              </p>
-
-              <div className="mb-3">
+              {/* Botón varita mágica */}
+              <div className="mb-4">
                 <button
                   type="button"
                   onClick={openSignerFieldsWizard}
                   disabled={buildSignersList().length === 0}
-                  className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  title="Definí qué completa cada firmante y dónde aparece en el documento"
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-3 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2"
                 >
-                  Configurar campos (recomendado)
-                </button>
-                <p className="mt-1 text-[11px] text-gray-500">
-                  Define qué completará cada firmante y dónde se reflejará en el PDF.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (signatureFields.length === 0) {
-                      openSignerFieldsWizard();
-                      return;
-                    }
-
-                    setSignatureFields((prev) =>
-                      reorderFieldsBySignerBatches(prev, {
-                        virtualWidth: VIRTUAL_PAGE_WIDTH,
-                        virtualHeight: VIRTUAL_PAGE_HEIGHT
-                      })
-                    );
-                    showToast('Campos reordenados.', { type: 'success', duration: 1500, position: 'top-right' });
-                  }}
-                  disabled={signatureFields.length === 0}
-                  className="mt-2 w-full bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-900 rounded-lg px-3 py-2 text-sm font-medium transition-colors border border-gray-200"
-                >
-                  Reordenar automáticamente
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+                  </svg>
+                  Configurar firmas
                 </button>
               </div>
 
-              {/* Firmantes (email) + asignación contextual de campos */}
+              {/* Firmantes (email) - versión simplificada */}
               {(() => {
                 const validSigners = buildSignersList();
                 const { batches } = resolveBatchAssignments(signatureFields, validSigners);
-                const signerEmailSet = new Set(validSigners.map((s) => normalizeEmail(s.email)));
-
-                const getBatchLabel = (batchId: string) => {
-                  const idx = batches.findIndex((b) => b.id === batchId);
-                  return idx >= 0 ? `Grupo ${idx + 1}` : 'Grupo';
-                };
-
-                const unassignedOrUnknownBatches = batches.filter((b) => {
-                  const assigned = normalizeEmail(b.assignedSignerEmail);
-                  if (!assigned) return true;
-                  return !signerEmailSet.has(assigned);
-                });
 
                 return (
                   <div ref={workflowAssignmentSectionRef} className="space-y-2 mb-4">
@@ -4422,8 +4386,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                         ? batches.filter((b) => normalizeEmail(b.assignedSignerEmail) === emailNorm)
                         : [];
 
-                      const isExpanded = expandedSignerIndex === index;
-                      const assignedCount = signerBatches.reduce((acc, b) => acc + b.fields.length, 0);
+                      const hasAssignedFields = signerBatches.length > 0 && signerBatches.some((b) => b.fields.length > 0);
+
+                      const isManualAssigning = expandedSignerIndex === index;
 
                       return (
                         <div key={index} className="bg-white border border-gray-200 rounded-lg p-2 space-y-2">
@@ -4440,6 +4405,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               placeholder="email@ejemplo.com"
                               className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
                             />
+                            {hasAssignedFields && (
+                              <div className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500" title="Tiene campos asignados" />
+                            )}
                             {emailInputs.length > 1 && (
                               <button
                                 onClick={() => handleRemoveEmailField(index)}
@@ -4451,94 +4419,36 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             )}
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => setExpandedSignerIndex((prev) => (prev === index ? null : index))}
-                            className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                            disabled={!emailOk}
-                            title={!emailOk ? 'Ingresá un email válido para asignar campos' : 'Ver / asignar campos'}
-                          >
-                            <div className="min-w-0 text-left">
-                              <p className="text-xs font-semibold text-gray-900">Campos de este firmante</p>
-                              <p className={`text-[11px] ${assignedCount > 0 ? 'text-gray-600' : 'text-gray-500'}`}>
-                                {assignedCount > 0 ? `${assignedCount} campo(s) asignado(s)` : 'Sin campos asignados'}
-                              </p>
-                            </div>
-                            {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
-                          </button>
+                          {/* Toggle para asignación manual */}
+                          {emailOk && signatureFields.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isManualAssigning) {
+                                  setExpandedSignerIndex(null);
+                                  setActiveBatchId(null);
+                                } else {
+                                  setExpandedSignerIndex(index);
+                                  // Activar el primer batch del firmante o crear uno nuevo
+                                  if (signerBatches.length > 0) {
+                                    setActiveBatchId(signerBatches[0].id);
+                                  } else {
+                                    createTextBatchForSigner(rawEmail);
+                                  }
+                                }
+                              }}
+                              className="text-xs text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1"
+                            >
+                              <span>{isManualAssigning ? '▾' : '▸'}</span>
+                              <span>Asignar campos</span>
+                            </button>
+                          )}
 
-                          {emailOk && isExpanded && (
-                            <div className="rounded-lg border border-gray-200 bg-gray-50 p-2 space-y-2">
-                              {signerBatches.length > 0 ? (
-                                <div className="space-y-2">
-                                  {signerBatches.map((b) => (
-                                    <div key={b.id} className="flex items-center justify-between gap-2 bg-white border border-gray-200 rounded-lg px-2 py-1.5">
-                                      <div className="min-w-0">
-                                        <p className="text-xs font-medium text-gray-900 truncate">{getBatchLabel(b.id)}</p>
-                                        <p className="text-[11px] text-gray-500">{b.fields.length} campo(s)</p>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => setActiveBatchId(b.id)}
-                                          className="text-xs text-gray-700 hover:text-gray-900 underline"
-                                        >
-                                          Activar
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => assignBatchToSignerEmail(b.id, null)}
-                                          className="text-xs text-gray-500 hover:text-gray-900 underline"
-                                        >
-                                          Quitar
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-[11px] text-gray-600">Todavía no hay grupos asignados a este firmante.</p>
-                              )}
-
-                              {unassignedOrUnknownBatches.length > 0 && (
-                                <div className="flex items-center gap-2">
-                                  <select
-                                    value=""
-                                    onChange={(e) => {
-                                      const batchId = e.target.value;
-                                      if (!batchId) return;
-                                      assignBatchToSignerEmail(batchId, rawEmail);
-                                      setActiveBatchId(batchId);
-                                    }}
-                                    className="flex-1 text-xs px-2 py-2 border border-gray-300 rounded-md bg-white"
-                                  >
-                                    <option value="">Asignar un grupo existente…</option>
-                                    {unassignedOrUnknownBatches.map((b) => (
-                                      <option key={b.id} value={b.id}>
-                                        {getBatchLabel(b.id)} ({b.fields.length} campo(s))
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    type="button"
-                                    onClick={() => createTextBatchForSigner(rawEmail)}
-                                    className="text-xs bg-gray-900 hover:bg-gray-800 text-white rounded-md px-3 py-2 font-medium"
-                                  >
-                                    Nuevo grupo
-                                  </button>
-                                </div>
-                              )}
-
-                              {unassignedOrUnknownBatches.length === 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => createTextBatchForSigner(rawEmail)}
-                                  className="w-full text-xs bg-gray-900 hover:bg-gray-800 text-white rounded-md px-3 py-2 font-medium"
-                                >
-                                  Nuevo grupo
-                                </button>
-                              )}
-                            </div>
+                          {/* Hint cuando está en modo asignación */}
+                          {isManualAssigning && (
+                            <p className="text-[10px] text-blue-600 pl-4">
+                              Tocá campos en el documento para asignarlos a este firmante
+                            </p>
                           )}
                         </div>
                       );
@@ -4569,77 +4479,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     </p>
                   </div>
                 </div>
-                </div>
-
-              {/* CTA propio del Flujo de Firmas: confirmar asignación */}
-              {signatureFields.length > 0 && (
-                <div ref={workflowAssignmentCtaRef} className="mt-3">
-                  {(() => {
-                    const validSigners = buildSignersList();
-                    const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
-
-                    const signerEmailSet = new Set(validSigners.map((s) => normalizeEmail(s.email)));
-                    const invalidAssignedCount = batches.filter((b) => {
-                      const assigned = normalizeEmail(b.assignedSignerEmail);
-                      return Boolean(assigned) && !signerEmailSet.has(assigned);
-                    }).length;
-
-                    const assignedEmails = new Set(
-                      batches
-                        .map((b) => normalizeEmail(b.assignedSignerEmail))
-                        .filter((email) => Boolean(email) && signerEmailSet.has(email))
-                    );
-                    const missingFor = validSigners
-                      .map((s) => s.email.trim().toLowerCase())
-                      .filter((email) => !assignedEmails.has(email));
-
-                    const groupsCount = batches.length;
-                    const signersCount = validSigners.length;
-                    const isComplete =
-                      invalidAssignedCount === 0 &&
-                      unassignedBatches.length === 0 &&
-                      missingFor.length === 0 &&
-                      groupsCount > 0 &&
-                      signersCount > 0;
-
-                    const scrollToAssignment = () => {
-                      setFlowPanelOpen(true);
-                      setTimeout(() => {
-                        workflowAssignmentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }, 0);
-                    };
-
-                    if (!isComplete) {
-                      return (
-                        <div className="rounded-lg border border-gray-200 bg-white p-2">
-                          <button
-                            type="button"
-                            onClick={scrollToAssignment}
-                            className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-                          >
-                            Asignar campos a firmantes
-                          </button>
-                          <p className="mt-1 text-[11px] text-gray-500">
-                            Falta asignar grupos o hay firmantes sin campos.
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-green-700" />
-                          <p className="text-sm font-medium text-green-900">Asignación lista</p>
-                        </div>
-                        <p className="mt-0.5 text-[11px] text-green-800">
-                          {groupsCount} grupo(s) asignado(s) a {signersCount} firmante(s).
-                        </p>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
+              </div>
 
               </div>
               </div>

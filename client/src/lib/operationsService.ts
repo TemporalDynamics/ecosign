@@ -108,6 +108,8 @@ export async function getOperationWithDocuments(
       id,
       document_entity_id,
       added_at,
+      draft_file_ref,
+      draft_metadata,
       document_entities (
         id,
         source_name,
@@ -126,17 +128,19 @@ export async function getOperationWithDocuments(
     console.error('Error fetching operation documents:', docsError);
   }
 
-  const documents = (docs || []).map((doc: any) => ({
-    id: doc.document_entities.id,
-    source_name: doc.document_entities.source_name,
-    source_hash: doc.document_entities.source_hash,
-    created_at: doc.document_entities.created_at,
-    signed_hash: doc.document_entities.signed_hash,
-    signed_authority: doc.document_entities.signed_authority,
-    witness_current_hash: doc.document_entities.witness_current_hash,
-    witness_current_storage_path: doc.document_entities.witness_current_storage_path,
-    added_at: doc.added_at,
-  }));
+  const documents = (docs || [])
+    .filter((doc: any) => doc?.document_entities?.id)
+    .map((doc: any) => ({
+      id: doc.document_entities.id,
+      source_name: doc.document_entities.source_name,
+      source_hash: doc.document_entities.source_hash,
+      created_at: doc.document_entities.created_at,
+      signed_hash: doc.document_entities.signed_hash,
+      signed_authority: doc.document_entities.signed_authority,
+      witness_current_hash: doc.document_entities.witness_current_hash,
+      witness_current_storage_path: doc.document_entities.witness_current_storage_path,
+      added_at: doc.added_at,
+    }));
 
   return {
     ...operation,

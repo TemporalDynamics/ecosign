@@ -14,6 +14,7 @@ import InhackeableTooltip from "../components/InhackeableTooltip";
 import ShareDocumentModal from "../components/ShareDocumentModal";
 import CreateOperationModal from "../components/CreateOperationModal";
 import MoveToOperationModal from "../components/MoveToOperationModal";
+import MoveDraftToOperationModal from "../components/MoveDraftToOperationModal";
 import SectionToggle from "../components/SectionToggle";
 import OperationRow from "../components/OperationRow";
 import DocumentRow from "../components/DocumentRow";
@@ -24,7 +25,7 @@ import { addDocumentToOperation, countDocumentsInOperation, getOperations, getOp
 import { getDocumentEntity } from "../lib/documentEntityService";
 import type { Operation } from "../types/operations";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
-import { deleteDraftOperation, loadDraftFile, loadDraftOperations } from "../lib/draftOperationsService";
+import { deleteDraftDocument, loadDraftFile, loadDraftOperations } from "../lib/draftOperationsService";
 import { useLegalCenter } from "../contexts/LegalCenterContext";
 import { decryptFile, ensureCryptoSession, getSessionUnwrapKey, unwrapDocumentKey } from "../lib/e2e";
 import { decryptFile as decryptCustodyFile } from "../lib/encryptionService";
@@ -87,6 +88,7 @@ type DraftRow = DraftMeta & {
   operationId?: string;
   draftFileRef?: string;
   source?: "server" | "local";
+  draftMetadata?: any;
 };
 
 type PlanTier = "guest" | "free" | "pro" | "business" | "enterprise" | null | string;
@@ -330,6 +332,7 @@ function DocumentsPage() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewOperation, setPreviewOperation] = useState<Operation | null>(null);
   const [previewOperationDocs, setPreviewOperationDocs] = useState<DocumentRecord[]>([]);
+  const [previewOperationDrafts, setPreviewOperationDrafts] = useState<DraftRow[]>([]);
   const [previewOperationLoading, setPreviewOperationLoading] = useState(false);
   const [previewDraft, setPreviewDraft] = useState<DraftRow | null>(null);
   const [previewDraftUrl, setPreviewDraftUrl] = useState<string | null>(null);
@@ -353,6 +356,7 @@ function DocumentsPage() {
   const [operationsOpenSignal, setOperationsOpenSignal] = useState(0);
   const [expandedOperationId, setExpandedOperationId] = useState<string | null>(null);
   const [moveDoc, setMoveDoc] = useState<DocumentRecord | null>(null);
+  const [moveDraft, setMoveDraft] = useState<DraftRow | null>(null);
   const [isCreatingOperationForMove, setIsCreatingOperationForMove] = useState(false);
   const [editingOperation, setEditingOperation] = useState<Operation | null>(null);
   const [operationDraftName, setOperationDraftName] = useState("");
@@ -573,7 +577,33 @@ function DocumentsPage() {
       }
 
       const mapped = (entityData as DocumentEntityRow[] | null)?.map(mapDocumentEntityToRecord) || [];
-      setDocuments(mapped);
+
+      // UX rule: Documents list shows only documents not assigned to any operation.
+      // If a document is in an operation, it is accessed from that operation.
+      try {
+        const { data: assigned, error: assignedError } = await supabase
+          .from('operation_documents')
+          .select('document_entity_id, operations!inner(owner_id, status)')
+          .eq('operations.owner_id', user.id)
+          .not('document_entity_id', 'is', null)
+          .neq('operations.status', 'archived');
+
+        if (assignedError) {
+          console.warn('Skipping operation assignment filter:', assignedError);
+          setDocuments(mapped);
+          return;
+        }
+
+        const assignedIds = new Set(
+          (assigned || [])
+            .map((row: any) => row.document_entity_id)
+            .filter(Boolean)
+        );
+        setDocuments(mapped.filter((doc) => !assignedIds.has(doc.document_entity_id ?? doc.id)));
+      } catch (err) {
+        console.warn('Skipping operation assignment filter (exception):', err);
+        setDocuments(mapped);
+      }
       return;
     } catch (error) {
       console.error("Error in loadDocuments:", error);
@@ -609,12 +639,13 @@ function DocumentsPage() {
             ? doc.draft_file_ref.replace('local:', '')
             : doc.draft_file_ref,
           name: doc.filename,
-          createdAt: op.created_at,
+          createdAt: doc.added_at || op.updated_at || op.created_at,
           size: doc.size,
           type: doc.metadata?.type || 'application/pdf',
           operationId: op.operation_id,
           draftFileRef: doc.draft_file_ref,
-          source: doc.draft_file_ref.startsWith('local:') ? 'local' : 'server'
+          source: doc.draft_file_ref.startsWith('local:') ? 'local' : 'server',
+          draftMetadata: doc.metadata,
         }))
       );
 
@@ -932,11 +963,12 @@ function DocumentsPage() {
     try {
       setOperationsLoading(true);
       const ops = await getOperations(currentUserId);
-      setOperations(ops);
+      // Draft operations are internal containers for drafts; not shown as user operations.
+      setOperations((ops || []).filter((op) => op.status !== 'draft'));
 
       // Contar documentos por operación
       const counts: Record<string, number> = {};
-      for (const op of ops) {
+      for (const op of (ops || []).filter((o) => o.status !== 'draft')) {
         const count = await countDocumentsInOperation(op.id);
         counts[op.id] = count;
       }
@@ -1485,13 +1517,42 @@ function DocumentsPage() {
   const handleOpenOperationDetail = async (operation: Operation) => {
     setPreviewOperation(operation);
     setPreviewOperationDocs([]);
+    setPreviewOperationDrafts([]);
     setPreviewOperationLoading(true);
     try {
-      const { documents } = await getOperationWithDocuments(operation.id);
-      const mapped = (documents || []).map((doc: any) =>
+      const supabase = getSupabase();
+
+      const [opWithDocs, draftDocsResult] = await Promise.all([
+        getOperationWithDocuments(operation.id),
+        supabase
+          .from('operation_documents')
+          .select('draft_file_ref, draft_metadata, added_at')
+          .eq('operation_id', operation.id)
+          .not('draft_file_ref', 'is', null)
+          .order('added_at', { ascending: false }),
+      ]);
+
+      const mapped = (opWithDocs?.documents || []).map((doc: any) =>
         mapDocumentEntityToRecord(doc.document_entities ?? doc)
       );
       setPreviewOperationDocs(mapped);
+
+      if (!draftDocsResult.error) {
+        const rows = draftDocsResult.data || [];
+        setPreviewOperationDrafts(
+          rows.map((row: any) => ({
+            id: row.draft_file_ref,
+            name: row.draft_metadata?.filename || 'Borrador',
+            createdAt: row.added_at || operation.created_at,
+            size: row.draft_metadata?.size || 0,
+            type: row.draft_metadata?.type || 'application/pdf',
+            operationId: operation.id,
+            draftFileRef: row.draft_file_ref,
+            source: row.draft_file_ref?.startsWith('local:') ? 'local' : 'server',
+            draftMetadata: row.draft_metadata,
+          }))
+        );
+      }
     } catch (err) {
       console.error("Error loading operation detail:", err);
       toast.error("No se pudo cargar la operación", { position: "top-right" });
@@ -1502,12 +1563,12 @@ function DocumentsPage() {
 
   const handleDeleteDraft = async (draft: DraftRow) => {
     try {
-      if (draft.operationId) {
-        await deleteDraftOperation(draft.operationId);
-      } else {
-        await deleteDraftOperation(`local-${draft.id}`);
-      }
+      const operationId = draft.operationId || `local-${draft.id}`;
+      const ref = draft.draftFileRef || `local:${draft.id}`;
+      await deleteDraftDocument(operationId, ref);
       loadDrafts();
+      loadOperations();
+      setPreviewOperationDrafts((prev) => prev.filter((d) => d.id !== draft.id));
       setPreviewDraft(null);
       toast.success('Borrador eliminado', { position: 'top-right' });
     } catch (err) {
@@ -2403,7 +2464,23 @@ function DocumentsPage() {
                               <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1">
                                 <button
                                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                  onClick={() => {
+                                    setOpenDraftMenuId(null);
+                                    const ref = draft.draftFileRef || `local:${draft.id}`;
+                                    if (ref.startsWith('local:')) {
+                                      toast.error('Este borrador es local. Abrilo y guardalo para sincronizarlo antes de moverlo a una operación.', { position: 'top-right' });
+                                      return;
+                                    }
+                                    setMoveDraft(draft);
+                                  }}
+                                  type="button"
+                                >
+                                  Mover a operación
+                                </button>
+                                <button
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
                                   onClick={() => handleDeleteDraft(draft)}
+                                  type="button"
                                 >
                                   Eliminar
                                 </button>
@@ -2597,28 +2674,78 @@ function DocumentsPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-              <div className="border border-gray-200 rounded-xl p-4 bg-white">
-                <div className="text-sm font-semibold text-gray-900 mb-3">Documentos</div>
-                {previewOperationLoading ? (
-                  <div className="text-sm text-gray-500">Cargando documentos…</div>
-                ) : previewOperationDocs.length === 0 ? (
-                  <div className="text-sm text-gray-500">No hay documentos en esta operación.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {previewOperationDocs.map((doc) => (
-                      <DocumentRow
-                        key={doc.id}
-                        document={doc}
-                        context="operation"
-                        onOpen={(d) => {
-                          setPreviewOperation(null);
-                          setPreviewDoc(d);
-                        }}
-                        onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
-                      />
-                    ))}
-                  </div>
-                )}
+              <div className="space-y-4">
+                <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                  <div className="text-sm font-semibold text-gray-900 mb-3">Documentos</div>
+                  {previewOperationLoading ? (
+                    <div className="text-sm text-gray-500">Cargando documentos…</div>
+                  ) : previewOperationDocs.length === 0 ? (
+                    <div className="text-sm text-gray-500">No hay documentos en esta operación.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {previewOperationDocs.map((doc) => (
+                        <DocumentRow
+                          key={doc.id}
+                          document={doc}
+                          context="operation"
+                          onOpen={(d) => {
+                            setPreviewOperation(null);
+                            setPreviewDoc(d);
+                          }}
+                          onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border border-gray-200 rounded-xl p-4 bg-white">
+                  <div className="text-sm font-semibold text-gray-900 mb-3">Borradores</div>
+                  {previewOperationLoading ? (
+                    <div className="text-sm text-gray-500">Cargando borradores…</div>
+                  ) : previewOperationDrafts.length === 0 ? (
+                    <div className="text-sm text-gray-500">No hay borradores en esta operación.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {previewOperationDrafts.map((draft) => (
+                        <div
+                          key={draft.id}
+                          className={`grid ${GRID_TOKENS.documents.columns} ${GRID_TOKENS.documents.gapX} items-center px-3 py-2 bg-white border border-gray-200 rounded-lg`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate" title={draft.name}>
+                                {draft.name}
+                              </div>
+                              <div className="text-xs text-amber-700">Borrador</div>
+                            </div>
+                          </div>
+                          <div />
+                          <div className="text-sm text-gray-500">{formatDate(draft.createdAt)}</div>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setPreviewDraft(draft)}
+                              className="text-black hover:text-gray-600"
+                              title="Ver detalle"
+                              type="button"
+                            >
+                              <Eye className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleResumeDraft(draft)}
+                              className="text-black hover:text-gray-600"
+                              title="Continuar"
+                              type="button"
+                            >
+                              <ArrowRightCircle className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -3011,6 +3138,43 @@ function DocumentsPage() {
           }}
           onCreateNew={() => {
             setIsCreatingOperationForMove(true);
+            setShowCreateOperationModal(true);
+          }}
+        />
+      )}
+
+      {/* Modal Mover Borrador a Operación */}
+      {moveDraft && currentUserId && moveDraft.operationId && moveDraft.draftFileRef && (
+        <MoveDraftToOperationModal
+          fromOperationId={moveDraft.operationId}
+          draftFileRef={moveDraft.draftFileRef}
+          draftMetadata={moveDraft.draftMetadata}
+          draftName={moveDraft.name}
+          userId={currentUserId}
+          onClose={() => setMoveDraft(null)}
+          onSuccess={async (operationId) => {
+            loadDrafts();
+            loadOperations();
+            try {
+              const supabase = getSupabase();
+              const { data: op } = await supabase
+                .from('operations')
+                .select('*')
+                .eq('id', operationId)
+                .single();
+              if (op?.id) {
+                await handleOpenOperationDetail(op as any);
+                return;
+              }
+            } catch (err) {
+              console.warn('Failed to open operation detail after move:', err);
+            }
+
+            setExpandedOperationId(operationId);
+            setOperationsOpenSignal((signal) => signal + 1);
+            operationsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          onCreateNew={() => {
             setShowCreateOperationModal(true);
           }}
         />

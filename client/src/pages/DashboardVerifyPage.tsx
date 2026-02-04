@@ -4,9 +4,11 @@ import { ArrowLeft, Info } from 'lucide-react';
 import VerificationComponent from '../components/VerificationComponent';
 import Header from '../components/Header';
 import FooterInternal from '../components/FooterInternal';
+import { useLegalCenter } from '../contexts/LegalCenterContext';
 
 function DashboardVerifyPage() {
   const navigate = useNavigate();
+  const { open: openLegalCenter } = useLegalCenter();
 
   const handleLogout = () => {
     navigate('/');
@@ -14,7 +16,7 @@ function DashboardVerifyPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-cyan-50">
-      <Header variant="private" onLogout={handleLogout} />
+      <Header variant="private" onLogout={handleLogout} openLegalCenter={openLegalCenter} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}

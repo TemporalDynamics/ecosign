@@ -745,14 +745,34 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     if (file) return;
     if (initialAction !== 'certify') return;
 
-    const draftRef = localStorage.getItem('ecosign_draft_to_open');
-    if (!draftRef) return;
+    const raw = localStorage.getItem('ecosign_draft_to_open');
+    if (!raw) return;
     localStorage.removeItem('ecosign_draft_to_open');
+
+    const opRaw = localStorage.getItem('ecosign_draft_operation_id');
+    localStorage.removeItem('ecosign_draft_operation_id');
+
+    let draftFileRef: string | null = null;
+    let operationId: string | null = opRaw || null;
+    try {
+      // Back-compat: some builds stored a JSON payload in this key.
+      if (raw.trim().startsWith('{')) {
+        const parsed = JSON.parse(raw);
+        draftFileRef = typeof parsed?.draftFileRef === 'string' ? parsed.draftFileRef : null;
+        operationId = typeof parsed?.operationId === 'string' ? parsed.operationId : operationId;
+      } else {
+        draftFileRef = raw;
+      }
+    } catch {
+      draftFileRef = raw;
+    }
+
+    if (!draftFileRef) return;
 
     let active = true;
     (async () => {
       try {
-        const file = await loadDraftFile(draftRef);
+        const file = await loadDraftFile(draftFileRef);
         if (!active) return;
         if (!file) {
           showToast('Este borrador no está disponible para continuar todavía.', { type: 'error' });
@@ -761,6 +781,41 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         const ok = await applySelectedFile(file);
         if (ok) {
           runPostFileSelectionEffects(file);
+        }
+
+        // Best-effort state restore (server drafts)
+        if (operationId && draftFileRef.startsWith('server:')) {
+          try {
+            const supabase = getSupabase();
+            const { data: row, error: rowError } = await supabase
+              .from('operation_documents')
+              .select('draft_metadata')
+              .eq('operation_id', operationId)
+              .eq('draft_file_ref', draftFileRef)
+              .maybeSingle();
+
+            if (rowError) {
+              console.warn('Failed to load draft metadata', rowError);
+            } else {
+              const draftState = (row as any)?.draft_metadata?.draft_state;
+              if (draftState && typeof draftState === 'object') {
+                if (typeof (draftState as any).ndaEnabled === 'boolean') setNdaEnabled((draftState as any).ndaEnabled);
+                if (typeof (draftState as any).ndaText === 'string') setNdaText((draftState as any).ndaText);
+                if (typeof (draftState as any).workflowEnabled === 'boolean') setWorkflowEnabled((draftState as any).workflowEnabled);
+                if (Array.isArray((draftState as any).emailInputs)) setEmailInputs((draftState as any).emailInputs);
+                if (Array.isArray((draftState as any).signatureFields)) setSignatureFields((draftState as any).signatureFields);
+                if ((draftState as any).signaturePreview) setSignaturePreview((draftState as any).signaturePreview);
+                if (typeof (draftState as any).custodyModeChoice === 'string') setCustodyModeChoice((draftState as any).custodyModeChoice);
+                if (typeof (draftState as any).forensicEnabled === 'boolean') setForensicEnabled((draftState as any).forensicEnabled);
+                if ((draftState as any).forensicConfig) setForensicConfig((draftState as any).forensicConfig);
+                if (typeof (draftState as any).mySignature === 'boolean') setMySignature((draftState as any).mySignature);
+                if ((draftState as any).signatureType) setSignatureType((draftState as any).signatureType);
+                setWorkflowAssignmentConfirmed(false);
+              }
+            }
+          } catch (err) {
+            console.warn('Draft state restore skipped', err);
+          }
         }
       } catch (err) {
         console.error('Failed to resume draft', err);

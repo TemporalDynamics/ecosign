@@ -1470,15 +1470,14 @@ function DocumentsPage() {
   };
 
   const handleResumeDraft = (draft: DraftRow) => {
-    // Draft resume payload: prefer including operationId to restore UI state from draft_metadata.
+    // Back-compat: always store draft ref as a string.
+    // Extra state (operationId) is stored separately so older bundles still work.
     const ref = draft.draftFileRef ?? `local:${draft.id}`;
+    localStorage.setItem('ecosign_draft_to_open', ref);
     if (draft.operationId) {
-      localStorage.setItem('ecosign_draft_to_open', JSON.stringify({
-        draftFileRef: ref,
-        operationId: draft.operationId,
-      }));
+      localStorage.setItem('ecosign_draft_operation_id', draft.operationId);
     } else {
-      localStorage.setItem('ecosign_draft_to_open', ref);
+      localStorage.removeItem('ecosign_draft_operation_id');
     }
     openLegalCenter('certify');
   };

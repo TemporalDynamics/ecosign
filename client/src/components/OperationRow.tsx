@@ -90,8 +90,10 @@ export default function OperationRow({
       if (!open) return;
       setLoadingDocs(true);
       try {
-        const { documents } = await import('../lib/operationsService').then(m => m.getOperationWithDocuments(operation.id));
-        if (mounted) setDocs(documents || []);
+        const opWithDocs = await import('../lib/operationsService').then((m) =>
+          m.getOperationWithDocuments(operation.id)
+        );
+        if (mounted) setDocs(opWithDocs?.documents || []);
       } catch (err) {
         console.error('Error loading operation documents:', err);
         if (mounted) setDocs([]);

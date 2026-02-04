@@ -120,24 +120,50 @@ serve(async (req) => {
       }
     }
 
-    // 4. Crear operación con status='draft'
-    const { data: operationData, error: operationError } = await supabase
-      .from('operations')
-      .insert({
-        owner_id: user.id,
-        name: operation.name,
-        description: operation.description || null,
-        status: 'draft'
-      })
-      .select()
-      .single()
+    // 4. Resolve system drafts container (single per user)
+    // Drafts are not operations from the user's perspective; this is a backend container.
+    const DRAFTS_CONTAINER_NAME = '__DRAFTS__'
+    let operationId: string | null = null
+    {
+      const { data: existing, error: existingError } = await supabase
+        .from('operations')
+        .select('id')
+        .eq('owner_id', user.id)
+        .eq('status', 'draft')
+        .eq('name', DRAFTS_CONTAINER_NAME)
+        .maybeSingle()
 
-    if (operationError) {
-      console.error('Error creating draft operation:', operationError)
-      return jsonResponse({ error: 'Failed to create draft operation' }, 500, corsHeaders)
+      if (existingError) {
+        console.error('Error resolving drafts container:', existingError)
+        return jsonResponse({ error: 'Failed to resolve drafts container' }, 500, corsHeaders)
+      }
+
+      if (existing?.id) {
+        operationId = existing.id
+      } else {
+        const { data: created, error: createError } = await supabase
+          .from('operations')
+          .insert({
+            owner_id: user.id,
+            name: DRAFTS_CONTAINER_NAME,
+            description: 'system: drafts container',
+            status: 'draft'
+          })
+          .select('id')
+          .single()
+
+        if (createError || !created?.id) {
+          console.error('Error creating drafts container:', createError)
+          return jsonResponse({ error: 'Failed to create drafts container' }, 500, corsHeaders)
+        }
+
+        operationId = created.id
+      }
     }
 
-    const operationId = operationData.id
+    if (!operationId) {
+      return jsonResponse({ error: 'Failed to resolve drafts container' }, 500, corsHeaders)
+    }
 
     // 5. Guardar documentos draft
     const savedDocuments: { filename: string }[] = []
@@ -214,7 +240,7 @@ serve(async (req) => {
       success: true,
       operation_id: operationId,
       documents: savedDocuments,
-      message: `Draft operation "${operation.name}" created with ${savedDocuments.length} document(s)`
+      message: `Draft saved (${savedDocuments.length} document(s))`
     }, 200, corsHeaders)
 
   } catch (error) {

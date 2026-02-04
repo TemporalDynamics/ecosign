@@ -29,6 +29,8 @@ export interface DraftDocument {
     order?: number
     notes?: string
     custody_mode?: 'hash_only' | 'encrypted_custody'
+    type?: string
+    lastModified?: number
     overlay_spec?: unknown[] // Sprint 5: Coordenadas normalizadas para stamping
     signature_preview?: string // Sprint 5: Base64 de la firma (si aplica)
     nda_applied?: boolean
@@ -283,6 +285,89 @@ export async function deleteDraftOperation(operation_id: string): Promise<void> 
     console.error('Error deleting draft operation:', error)
     throw error
   }
+}
+
+/**
+ * Eliminar un documento borrador puntual (sin borrar el contenedor)
+ */
+export async function deleteDraftDocument(operation_id: string, draft_file_ref: string): Promise<void> {
+  const supabase = getSupabase()
+
+  // Local
+  if (draft_file_ref.startsWith('local:')) {
+    const localId = draft_file_ref.replace('local:', '')
+    await removeDraftLocal(localId)
+    return
+  }
+
+  // Server: remove file + row
+  if (draft_file_ref.startsWith('server:')) {
+    const storagePath = draft_file_ref.replace('server:', '')
+    const { error: rowError } = await supabase
+      .from('operation_documents')
+      .delete()
+      .eq('operation_id', operation_id)
+      .eq('draft_file_ref', draft_file_ref)
+
+    if (rowError) {
+      console.warn('Failed to delete operation_documents draft row', rowError)
+    }
+
+    if (storagePath) {
+      const { error: storageError } = await supabase.storage
+        .from('user-documents')
+        .remove([storagePath])
+      if (storageError) {
+        console.warn('Failed to delete draft storage object', storageError)
+      }
+    }
+    return
+  }
+
+  // Legacy refs: only delete row
+  const { error: legacyError } = await supabase
+    .from('operation_documents')
+    .delete()
+    .eq('operation_id', operation_id)
+    .eq('draft_file_ref', draft_file_ref)
+
+  if (legacyError) {
+    throw legacyError
+  }
+}
+
+/**
+ * Mover un borrador a una operación activa (delete+insert)
+ */
+export async function moveDraftToOperation(params: {
+  from_operation_id: string
+  to_operation_id: string
+  draft_file_ref: string
+  draft_metadata?: any
+}): Promise<void> {
+  const supabase = getSupabase()
+  const { from_operation_id, to_operation_id, draft_file_ref, draft_metadata } = params
+
+  // Insert into target
+  const { error: insertError } = await supabase
+    .from('operation_documents')
+    .insert({
+      operation_id: to_operation_id,
+      document_entity_id: null,
+      draft_file_ref,
+      draft_metadata: draft_metadata ?? {},
+    })
+
+  if (insertError) throw insertError
+
+  // Remove from source
+  const { error: deleteError } = await supabase
+    .from('operation_documents')
+    .delete()
+    .eq('operation_id', from_operation_id)
+    .eq('draft_file_ref', draft_file_ref)
+
+  if (deleteError) throw deleteError
 }
 
 /**

@@ -46,7 +46,7 @@ Este acceso quedará registrado con fines de auditoría.`;
 
 export default function ShareDocumentModal({ document, userId, onClose }: ShareDocumentModalProps) {
   // Estado del panel fijo (inmutable)
-  const [selectedFormats, setSelectedFormats] = useState<Set<'pdf' | 'eco'>>(new Set(['pdf']));
+  const [selectedFormats] = useState<Set<'pdf' | 'eco'>>(new Set(['pdf']));
   const [expiresInDays, setExpiresInDays] = useState(7);
   const [ndaEnabled, setNdaEnabled] = useState(false);
   
@@ -110,28 +110,8 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
   const hasPdf = !!document.pdf_storage_path;
   const hasEco = !!(document.eco_storage_path || document.eco_file_data);
 
-  const canShare = useMemo(() => {
-    if (selectedFormats.size === 0) return false;
-
-    for (const format of selectedFormats) {
-      if (format === 'pdf' && !hasPdf) return false;
-      if (format === 'eco' && !hasEco) return false;
-    }
-
-    return true;
-  }, [selectedFormats, hasPdf, hasEco]);
-  
-  const toggleFormat = (format: 'pdf' | 'eco') => {
-    setSelectedFormats(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(format)) {
-        newSet.delete(format);
-      } else {
-        newSet.add(format);
-      }
-      return newSet;
-    });
-  };
+  // Share OTP (Flow C) es un capability manual: hoy solo habilita acceso al PDF cifrado.
+  const canShare = useMemo(() => hasPdf, [hasPdf]);
 
   const handleGenerate = async () => {
     if (!canShare) {
@@ -160,7 +140,9 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
       // Llamar a shareDocument (genera OTP en cliente)
       const result = await shareDocument({
         documentId: document.id,
-        recipientEmail: `share-${Date.now()}@ecosign.local`, // Placeholder (no se usa email)
+        // NOTE: Share OTP es un capability (no se ata a una identidad).
+        // recipientEmail existe solo por constraints legacy (unique_pending_share). No usar para decisiones de identidad.
+        recipientEmail: 'share@ecosign.local',
         expiresInDays,
         ndaEnabled,
         ndaText: ndaEnabled ? ndaText : undefined,
@@ -692,8 +674,7 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => toggleFormat('pdf')}
-                  disabled={!hasPdf}
+                  disabled={true}
                   className={`px-4 py-3 rounded-lg text-sm font-medium transition ${
                     selectedFormats.has('pdf')
                       ? 'border-2 border-blue-600 text-blue-900 bg-white'
@@ -709,38 +690,25 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
                 
                 <button
                   type="button"
-                  onClick={() => toggleFormat('eco')}
-                  disabled={!hasEco}
+                  disabled={true}
                   className={`px-4 py-3 rounded-lg text-sm font-medium transition ${
-                    selectedFormats.has('eco')
-                      ? 'border-2 border-blue-600 text-blue-900 bg-white'
-                      : hasEco
-                      ? 'border border-gray-300 text-gray-700 hover:border-gray-400 bg-white'
-                      : 'border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
+                    'border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
                   }`}
-                  title="Evidencia criptográfica"
+                  title="Próximamente"
                 >
                   <Shield className="w-5 h-5 mx-auto mb-1.5" />
                   <div className="text-xs">.ECO</div>
-                  {!hasEco && <div className="text-[10px] text-gray-400 mt-0.5">No disponible</div>}
+                  <div className="text-[10px] text-gray-400 mt-0.5">Próximamente</div>
                 </button>
               </div>
               
               {/* Indicador de selección */}
               <div className="mt-3 text-xs text-gray-500">
-                {selectedFormats.size === 0 && (
-                  <span>Seleccioná al menos un formato</span>
-                )}
-                {selectedFormats.size === 1 && selectedFormats.has('pdf') && (
-                  <span>• Compartiendo PDF</span>
-                )}
-                {selectedFormats.size === 1 && selectedFormats.has('eco') && (
-                  <span>• Compartiendo evidencia criptográfica (.ECO)</span>
-                )}
-                {selectedFormats.size === 2 && (
-                  <span>• Compartiendo PDF + evidencia criptográfica (.ECO)</span>
-                )}
+                <span>• Compartiendo PDF</span>
               </div>
+              <p className="mt-2 text-[11px] text-gray-500">
+                El acceso por OTP aplica al PDF cifrado. El archivo .ECO se descarga desde Documentos.
+              </p>
             </div>
 
             {/* Acuerdo de confidencialidad */}

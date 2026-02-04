@@ -56,12 +56,7 @@ serve(withRateLimit('accept', async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-    const {
-      share_id,
-      signer_email,
-      signer_name,
-      browser_fingerprint
-    } = parsed.data
+    const { share_id, signer_email, signer_name, browser_fingerprint } = parsed.data as any
 
     // Get share data
     const { data: share, error: shareError } = await supabase
@@ -74,10 +69,10 @@ serve(withRateLimit('accept', async (req) => {
       throw new Error('Share not found')
     }
 
-    // Validate email matches
-    const emailMatches = share.recipient_email.toLowerCase() === signer_email.toLowerCase()
-    const legacyDecision = Boolean(emailMatches && share.nda_enabled && !share.nda_accepted_at)
-    const canonicalDecision = Boolean(emailMatches && share.nda_enabled && !share.nda_accepted_at)
+    // Share es un capability: no se ata a una identidad.
+    // El email/nombre que se registra es declarativo (self-reported) y NO se valida contra el share.
+    const legacyDecision = Boolean(share.nda_enabled && !share.nda_accepted_at)
+    const canonicalDecision = Boolean(share.nda_enabled && !share.nda_accepted_at)
 
     try {
       await supabase.from('shadow_decision_logs').insert({
@@ -91,16 +86,12 @@ serve(withRateLimit('accept', async (req) => {
           share_id,
           nda_enabled: share.nda_enabled,
           nda_accepted_at: share.nda_accepted_at,
-          email_matches: emailMatches,
+          email_matches: null,
           phase: 'PASO_2_SHADOW_MODE_D19'
         }
       })
     } catch (logError) {
       console.warn('[D19 SHADOW] Log insert failed', logError)
-    }
-
-    if (!emailMatches) {
-      throw new Error('Email mismatch')
     }
 
     // Check if NDA is required
@@ -238,10 +229,11 @@ serve(withRateLimit('accept', async (req) => {
     )
   } catch (error) {
     console.error('Error in accept-share-nda:', error)
+    const message = error instanceof Error ? error.message : 'Internal server error'
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Internal server error'
+        error: message
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

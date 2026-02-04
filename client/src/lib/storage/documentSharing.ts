@@ -62,14 +62,31 @@ export async function shareDocument(
     }
 
     // 1. Get document metadata
-    const { data: doc, error: docError } = await supabase
-      .from('user_documents')
-      .select('id, document_name, encrypted, wrapped_key, wrap_iv, user_id')
-      .eq('id', documentId)
-      .single();
+    // NOTE: DocumentsPage is canonical and uses document_entities ids.
+    // For sharing we need the legacy user_documents row (E2E wrapped key + encrypted_path).
+    let doc: any = null;
+    {
+      const { data: byId, error: byIdError } = await supabase
+        .from('user_documents')
+        .select('id, document_entity_id, document_name, encrypted, wrapped_key, wrap_iv, user_id')
+        .eq('id', documentId)
+        .maybeSingle();
 
-    if (docError || !doc) {
-      throw new Error('Document not found');
+      if (!byIdError && byId) {
+        doc = byId;
+      } else {
+        const { data: byEntity, error: byEntityError } = await supabase
+          .from('user_documents')
+          .select('id, document_entity_id, document_name, encrypted, wrapped_key, wrap_iv, user_id')
+          .eq('document_entity_id', documentId)
+          .maybeSingle();
+
+        if (byEntityError || !byEntity) {
+          console.error('Share: user_document not found', { documentId, byIdError, byEntityError });
+          throw new Error('Este documento no está disponible para compartir con OTP.');
+        }
+        doc = byEntity;
+      }
     }
 
     if (!doc.encrypted) {
@@ -124,9 +141,12 @@ export async function shareDocument(
 
     // 7. Create share record
     const shareId = crypto.randomUUID();
+    const resolvedDocumentId = doc.id as string;
     const { error: shareError } = await supabase.from('document_shares').insert({
       id: shareId,
-      document_id: documentId,
+      document_id: resolvedDocumentId,
+      // NOTE: Share OTP es un capability; recipient_email no representa identidad.
+      // Se mantiene por constraints legacy y trazabilidad interna.
       recipient_email: recipientEmail,
       wrapped_key: wrappedKey,
       wrap_iv: wrapIv,
@@ -147,22 +167,19 @@ export async function shareDocument(
     const appUrl = window.location.origin;
     const shareUrl = `${appUrl}/shared/${shareId}`;
 
-    // 9. Send OTP via email (call edge function)
+    // Canon (P1): registrar share.created en events[] (best-effort)
     try {
-      await supabase.functions.invoke('send-share-otp', {
+      await supabase.functions.invoke('log-share-event', {
         body: {
-          recipientEmail,
-          otp,
-          shareUrl,
-          documentName: doc.document_name,
-          senderName: user.email,
-          message,
+          share_id: shareId,
+          event_kind: 'share.created',
         },
-      });
-    } catch (emailError) {
-      console.warn('⚠️ Failed to send email, but share created:', emailError);
-      // Don't fail the whole operation if email fails
+      })
+    } catch (logError) {
+      console.warn('⚠️ Failed to log share.created (best-effort):', logError)
     }
+
+    // NOTE: Share con OTP es manual (sin envío de mail) por diseño.
 
     return {
       shareId,
@@ -195,66 +212,42 @@ export async function accessSharedDocument(
   const supabase = getSupabase();
 
   try {
-    // 1. Verify OTP and get share
-    const otpHash = await hashOTP(otp);
+    // 1. Verify OTP server-side (no direct table access from anon)
+    const { data, error } = await supabase.functions.invoke('verify-share-otp', {
+      body: {
+        share_id: shareId,
+        otp,
+      }
+    })
 
-    // Build query - email validation is optional
-    let query = supabase
-      .from('document_shares')
-      .select('*, user_documents!inner(document_name, encrypted_path)')
-      .eq('id', shareId)
-      .eq('otp_hash', otpHash)
-      .eq('status', 'pending')
-      .gt('expires_at', new Date().toISOString());
-    
-    // Only validate email if it's not a placeholder
-    if (recipientEmail && !recipientEmail.includes('@ecosign.local')) {
-      query = query.eq('recipient_email', recipientEmail);
-    }
-    
-    const { data: share, error: shareError } = await query.single();
-
-    if (shareError || !share) {
-      console.error('Share query error:', shareError);
-      throw new Error('Invalid or expired OTP');
+    if (error || !data?.success) {
+      throw new Error(data?.error || error?.message || 'Invalid or expired OTP')
     }
 
     // 2. Derive recipient key from OTP
-    const recipientSalt = hexToBytes(share.recipient_salt);
+    const recipientSalt = hexToBytes(data.recipient_salt);
     const recipientKey = await deriveKeyFromOTP(otp, recipientSalt);
 
     // 3. Unwrap document key
     const documentKey = await unwrapDocumentKey(
-      share.wrapped_key,
-      share.wrap_iv,
+      data.wrapped_key,
+      data.wrap_iv,
       recipientKey
     );
 
-    // 4. Download encrypted file
-    const { data: encryptedBlob, error: downloadError } = await supabase.storage
-      .from('user-documents')
-      .download(share.user_documents.encrypted_path);
-
-    if (downloadError || !encryptedBlob) {
-      throw new Error('Failed to download file');
+    // 4. Download encrypted file via signed URL
+    const response = await fetch(data.encrypted_signed_url)
+    if (!response.ok) {
+      throw new Error('Failed to download file')
     }
+    const encryptedBlob = await response.blob()
 
     // 5. Decrypt file
     const decryptedBlob = await decryptFile(encryptedBlob, documentKey);
 
-    // 6. Mark as accessed (but keep status 'pending' for reusability)
-    //    The share link can be opened multiple times with the same OTP
-    await supabase
-      .from('document_shares')
-      .update({
-        accessed_at: new Date().toISOString(),
-        // Keep status as 'pending' to allow multiple accesses
-      })
-      .eq('id', shareId);
-
     return {
       blob: decryptedBlob,
-      filename: share.user_documents.document_name,
+      filename: data.document_name,
     };
   } catch (error) {
     console.error('❌ Access error:', error);

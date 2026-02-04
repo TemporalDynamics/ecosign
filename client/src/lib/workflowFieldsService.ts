@@ -261,7 +261,7 @@ export async function loadWorkflowFields(
   }
 
   // Convertir a formato frontend
-  return fieldsData.map(field =>
+  return fieldsData.map((field: any) =>
     workflowFieldToSignatureField(field, previewWidth, previewHeight)
   );
 }

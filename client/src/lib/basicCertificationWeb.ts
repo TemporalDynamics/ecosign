@@ -430,18 +430,8 @@ export async function certifyFile(file: File, options: CertificationOptions = {}
         algorithm: 'Ed25519',
         timestamp: timestamp,
         // Legal timestamp certification (if requested)
-        ...(tsaResponse && tsaResponse.success ? {
-          legalTimestamp: {
-            standard: 'Legal Certification',
-            tsa: tsaResponse.tsaName || tsaResponse.tsaUrl,
-            tsaUrl: tsaResponse.tsaUrl || 'https://freetsa.org/tsr',
-            token: tsaResponse.token,
-            tokenSize: tsaResponse.tokenSize,
-            algorithm: tsaResponse.algorithm,
-            verified: tsaResponse.verified,
-            note: tsaResponse.note
-          }
-        } : {})
+        // NOTE: TSA is deprecated, always use local timestamp
+        // Server-side job pipeline handles TSA if needed
       }
     ];
 
@@ -453,8 +443,8 @@ export async function certifyFile(file: File, options: CertificationOptions = {}
       metadata: {
         createdWith: 'EcoSign Web Client',
         browserVersion: navigator.userAgent,
-        hasLegalTimestamp: tsaResponse && tsaResponse.success,
-        timestampType: tsaResponse && tsaResponse.success ? 'Legal Certification' : 'Local (Informational)',
+        hasLegalTimestamp: false,  // TSA deprecated
+        timestampType: 'Local (Informational)',  // TSA deprecated
         certifiedAt: timestamp,
         identity_assurance: identityAssurance,
         policy_snapshot_id: POLICY_SNAPSHOT_ID
@@ -465,10 +455,7 @@ export async function certifyFile(file: File, options: CertificationOptions = {}
         intent_confirmed: true,
         intent_method: 'explicit_acceptance'
       },
-      time_assurance: tsaResponse && tsaResponse.success ? {
-        source: 'RFC3161',
-        confidence: 'high'
-      } : {
+      time_assurance: {
         source: 'local_clock',
         confidence: 'informational'
       },
@@ -506,15 +493,10 @@ export async function certifyFile(file: File, options: CertificationOptions = {}
       ecoxBuffer: ecoxBuffer,
       ecoxSize: ecoxBuffer.byteLength,
       ecoData: ecoData,  // Structured data for DB storage
-      // Legal timestamp info (if requested)
-      legalTimestamp: tsaResponse && tsaResponse.success ? {
-        enabled: true,
-        standard: 'Legal Certification',
-        tsa: tsaResponse.tsaName || tsaResponse.tsaUrl,
-        tokenSize: tsaResponse.tokenSize
-      } : {
+      // Legal timestamp info (deprecated - TSA handled server-side)
+      legalTimestamp: {
         enabled: false,
-        note: 'Local timestamp only (informational)'
+        note: 'Local timestamp only (TSA deprecated, use server-side job pipeline)'
       }
     };
 

@@ -411,7 +411,7 @@ function DocumentsPage() {
   };
 
   const updateSectionPref = (section: keyof typeof sectionPrefs, isOpen: boolean) => {
-    setSectionPrefs((prev) => {
+    setSectionPrefs((prev: any) => {
       const next = { ...prev, [section]: isOpen };
       persistSectionPrefs(next);
       return next;

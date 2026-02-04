@@ -97,7 +97,7 @@ export default function DocumentViewer({
             if (!resp.ok) throw new Error('No se pudo descargar el documento')
             encryptedBlob = await resp.blob()
           } else {
-            const { success, data, error: downloadError } = await downloadDocument(documentPath)
+            const { success, data, error: downloadError } = await downloadDocument(documentPath || '')
             if (!success || !data) {
               throw new Error(downloadError || 'No se pudo descargar el documento')
             }

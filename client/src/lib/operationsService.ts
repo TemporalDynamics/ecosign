@@ -396,7 +396,7 @@ export async function getOperationsSummary(
     total_documents: 0,
   };
 
-  (operations || []).forEach((op) => {
+  (operations || []).forEach((op: Operation) => {
     if (op.status === 'draft') summary.draft_count++;
     else if (op.status === 'active') summary.active_count++;
     else if (op.status === 'closed') summary.closed_count++;

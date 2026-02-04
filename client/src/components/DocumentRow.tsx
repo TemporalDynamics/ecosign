@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Eye, Share2, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { deriveDocumentState } from '../lib/deriveDocumentState';
+import { deriveDocumentTooltip } from '../lib/deriveDocumentTooltip';
 import StatusBadge from './StatusBadge';
 
 export default function DocumentRow({
@@ -52,9 +53,10 @@ export default function DocumentRow({
 
   const name = document.document_name || document.source_name || document.id;
 
-  // Derivar estado usando la función canónica
+  // Derivar estado y tooltip usando funciones canónicas
   // TODO: pasar workflows y signers cuando estén disponibles
   const state = deriveDocumentState(document);
+  const tooltip = deriveDocumentTooltip(document);
 
   if (asRow) {
     return (
@@ -75,7 +77,7 @@ export default function DocumentRow({
         </div>
 
         <div className="flex items-center gap-2">
-          <StatusBadge label={state.label} phase={state.phase} />
+          <StatusBadge label={state.label} phase={state.phase} tooltip={tooltip} />
         </div>
 
         <div className="flex items-center justify-end gap-3" data-row-actions>
@@ -139,7 +141,7 @@ export default function DocumentRow({
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
           <div className="mt-1">
-            <StatusBadge label={state.label} phase={state.phase} />
+            <StatusBadge label={state.label} phase={state.phase} tooltip={tooltip} />
           </div>
         </div>
       </div>

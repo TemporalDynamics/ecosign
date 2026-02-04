@@ -18,6 +18,7 @@ import MoveDraftToOperationModal from "../components/MoveDraftToOperationModal";
 import SectionToggle from "../components/SectionToggle";
 import OperationRow from "../components/OperationRow";
 import DocumentRow from "../components/DocumentRow";
+import DocumentStateInfo from "../components/DocumentStateInfo";
 import { GRID_TOKENS } from "../config/gridTokens";
 import { deriveFlowStatus, FLOW_STATUS } from "../lib/flowStatus";
 import { ProtectedBadge } from "../components/ProtectedBadge";
@@ -2556,16 +2557,7 @@ function DocumentsPage() {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <PreviewBadges doc={previewDoc} planTier={planTier} />
-                </div>
-
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
-                  <div className="font-semibold text-gray-800">Estado probatorio</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    {deriveProbativeState(previewDoc, planTier).config.tooltip}
-                  </div>
-                </div>
+                <DocumentStateInfo document={previewDoc} />
 
                 {/* Evidencias del documento */}
                 <div className="grid gap-2">
@@ -2629,10 +2621,6 @@ function DocumentsPage() {
                   >
                     Agregar a operación
                   </button>
-                </div>
-
-                <div className="pt-2">
-                  <ProbativeTimeline doc={previewDoc} />
                 </div>
               </div>
             </div>
@@ -3259,127 +3247,8 @@ function DocumentsPage() {
   );
 }
 
-function PreviewBadges({ doc, planTier }: { doc: DocumentRecord; planTier: PlanTier }) {
-  const { config } = deriveProbativeState(doc, planTier);
-  const flowStatus = deriveFlowStatus(doc);
-  const flowConfig = FLOW_STATUS[flowStatus.key];
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span
-        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${flowConfig.bg} ${flowConfig.color}`}
-        title="Estado del flujo"
-      >
-        {flowConfig.label}
-        {flowStatus.detail ? ` — ${flowStatus.detail}` : ""}
-      </span>
-      <span
-        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${config.bg} ${config.color} whitespace-pre-line text-center cursor-help`}
-        title={config.tooltip}
-      >
-        {config.label}
-      </span>
-    </div>
-  );
-}
-
-function ProbativeTimeline({ doc }: { doc: DocumentRecord }) {
-  // ✅ CANONICAL: Read ALL protection data from events[] (no legacy fields)
-  const events = doc.events || [];
-
-  // TSA: canonical from events[]
-  const tsa = getLatestTsaEvent(events);
-  const hasTsa = tsa.present;
-
-  // Polygon: canonical from events[] ONLY
-  const polygonAnchor = getAnchorEvent(events, 'polygon');
-  const hasPolygon = polygonAnchor !== null;
-
-  // Bitcoin: canonical from events[] ONLY
-  const bitcoinAnchor = getAnchorEvent(events, 'bitcoin');
-  const hasBitcoin = bitcoinAnchor !== null;
-
-  const hasIntegrity = !!(doc.content_hash || doc.eco_hash);
-  const timelineItems = [];
-
-  if (doc.signed_authority === "internal") {
-    timelineItems.push({
-      label: "Firma interna registrada",
-      description: "La firma fue registrada por la autoridad emisora.",
-      status: "ok"
-    });
-  }
-
-  if (doc.signed_authority === "external") {
-    timelineItems.push({
-      label: "Firma externa registrada",
-      description: "La firma fue registrada por una autoridad externa.",
-      status: "ok"
-    });
-  }
-
-  if (hasTsa) {
-    const formattedTime = formatTsaTimestamp(tsa);
-    timelineItems.push({
-      label: "Evidencia temporal presente",
-      description: formattedTime ? `Timestamp: ${formattedTime}` : "Timestamp registrado",
-      status: "ok"
-    });
-  }
-
-  if (hasPolygon) {
-    const polygonTime = polygonAnchor?.anchor?.confirmed_at;
-    timelineItems.push({
-      label: "Registro Polygon confirmado",
-      description: polygonTime
-        ? `Confirmado: ${formatDate(polygonTime)}`
-        : "Huella publicada en blockchain Polygon.",
-      status: "ok"
-    });
-  }
-
-  if (hasBitcoin) {
-    const bitcoinTime = bitcoinAnchor?.anchor?.confirmed_at;
-    timelineItems.push({
-      label: "Registro Bitcoin confirmado",
-      description: bitcoinTime
-        ? `Confirmado: ${formatDate(bitcoinTime)}`
-        : "Huella anclada en Bitcoin.",
-      status: "ok"
-    });
-  }
-
-  if (timelineItems.length === 0) {
-    timelineItems.push({
-      label: hasIntegrity ? "Integridad verificada" : "Sin evidencia registrada",
-      description: hasIntegrity
-        ? "La integridad criptográfica del documento está verificada."
-        : "No hay evidencia probatoria registrada para este documento.",
-      status: "empty"
-    });
-  }
-
-  return (
-    <div>
-      <label className="text-xs font-medium text-gray-500 uppercase mb-3 block">
-        Timeline de blindaje <InhackeableTooltip className="font-semibold" />
-      </label>
-      <div className="space-y-3">
-        {timelineItems.map((item) => (
-          <div key={item.label} className="flex items-center gap-3">
-            {item.status === "ok" ? (
-              <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-gray-300 flex-shrink-0" />
-            )}
-            <div className="flex-1">
-              <div className="text-sm font-medium text-gray-900">{item.label}</div>
-              <div className="text-xs text-gray-500">{item.description}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+// Funciones legacy eliminadas:
+// - PreviewBadges: Reemplazado por DocumentStateInfo
+// - ProbativeTimeline: Timeline de blindaje "Inhackeable" eliminado
 
 export default DocumentsPage;

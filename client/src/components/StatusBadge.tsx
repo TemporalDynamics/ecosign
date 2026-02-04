@@ -19,6 +19,7 @@ interface StatusBadgeProps {
  * - Solo 3 fases: green, blue, gray
  * - Sin amarillo, sin rojo, sin error
  * - Colores suaves, sin estrés
+ * - Tooltips minimalistas: sin timestamps, sin urgencia
  */
 export default function StatusBadge({ label, phase, tooltip }: StatusBadgeProps) {
 
@@ -31,10 +32,14 @@ export default function StatusBadge({ label, phase, tooltip }: StatusBadgeProps)
 
   const classes = colorClasses[phase];
 
+  // Convertir saltos de línea \n en espacios para el atributo title
+  // El navegador no renderiza \n en tooltips nativos, pero lo dejamos para consistencia
+  const tooltipText = tooltip?.replace(/\n/g, ' ');
+
   return (
     <span
       className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded border ${classes}`}
-      title={tooltip}
+      title={tooltipText}
     >
       {label}
     </span>

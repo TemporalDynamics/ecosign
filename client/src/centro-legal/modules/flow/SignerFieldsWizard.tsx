@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus, Trash2 } from 'lucide-react';
 import type { SignatureField } from '../../../types/signature-fields';
 import { generateWorkflowFieldsFromWizard, type RepetitionRule, type WizardTemplate } from '../../../lib/workflowFieldTemplate';
 
@@ -11,6 +11,11 @@ type Props = {
   virtualHeight: number;
   totalPages: number | null;
   onApply: (result: { fields: SignatureField[]; template: WizardTemplate }) => void;
+};
+
+type CustomField = {
+  id: string;
+  label: string;
 };
 
 export function SignerFieldsWizard({
@@ -25,11 +30,7 @@ export function SignerFieldsWizard({
   const [includeName, setIncludeName] = useState(true);
   const [includeId, setIncludeId] = useState(false);
   const [includeDate, setIncludeDate] = useState(true);
-  const [includeText, setIncludeText] = useState(false);
-  const [customTextLabel, setCustomTextLabel] = useState('Texto');
-
-  const [repetitionKind, setRepetitionKind] = useState<RepetitionRule['kind']>('once');
-  const [pagesRaw, setPagesRaw] = useState('');
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
 
   const validSigners = useMemo(
     () =>
@@ -40,41 +41,31 @@ export function SignerFieldsWizard({
     [signers]
   );
 
-  const repetitionRule: RepetitionRule = useMemo(() => {
-    if (repetitionKind === 'pages') {
-      const pages = pagesRaw
-        .split(/[ ,]+/)
-        .map((v) => Number(v))
-        .filter((n) => Number.isFinite(n) && n >= 1);
-      return { kind: 'pages', pages };
-    }
-    if (repetitionKind === 'all_pages') return { kind: 'all_pages' };
-    return { kind: 'once' };
-  }, [repetitionKind, pagesRaw]);
+  // Siempre usamos "once" (al final del documento)
+  const repetitionRule: RepetitionRule = { kind: 'once' };
 
   const template: WizardTemplate = useMemo(() => {
     const fields: WizardTemplate['fields'] = [{ kind: 'signature' }];
     if (includeName) fields.push({ kind: 'name', required: true });
     if (includeId) fields.push({ kind: 'id_number', required: true });
     if (includeDate) fields.push({ kind: 'date', required: true });
-    if (includeText) fields.push({ kind: 'text', required: false, label: customTextLabel || 'Texto' });
+    customFields.forEach((cf) => {
+      fields.push({ kind: 'text', required: false, label: cf.label || 'Texto' });
+    });
     return { fields, repetitionRule };
-  }, [includeName, includeId, includeDate, includeText, customTextLabel, repetitionRule]);
+  }, [includeName, includeId, includeDate, customFields]);
 
-  const previewSummary = useMemo(() => {
-    const extras = template.fields.filter((f) => f.kind !== 'signature').map((f) => f.kind);
-    const where =
-      repetitionRule.kind === 'once'
-        ? 'una vez'
-        : repetitionRule.kind === 'all_pages'
-          ? totalPages
-            ? `en todas las paginas (${totalPages})`
-            : 'en todas las paginas'
-          : repetitionRule.pages.length > 0
-            ? `en paginas: ${repetitionRule.pages.join(', ')}`
-            : 'en paginas seleccionadas';
-    return { extras, where };
-  }, [template.fields, repetitionRule, totalPages]);
+  const addCustomField = () => {
+    setCustomFields([...customFields, { id: Date.now().toString(), label: '' }]);
+  };
+
+  const removeCustomField = (id: string) => {
+    setCustomFields(customFields.filter((f) => f.id !== id));
+  };
+
+  const updateCustomFieldLabel = (id: string, label: string) => {
+    setCustomFields(customFields.map((f) => (f.id === id ? { ...f, label } : f)));
+  };
 
   if (!isOpen) return null;
 
@@ -82,12 +73,7 @@ export function SignerFieldsWizard({
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
       <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">Configurar campos por firmante</h3>
-            <p className="mt-0.5 text-xs text-gray-500">
-              La firma es obligatoria y se incluye automaticamente.
-            </p>
-          </div>
+          <h3 className="text-base font-semibold text-gray-900">Configurar firmas</h3>
           <button
             type="button"
             onClick={onClose}
@@ -99,98 +85,102 @@ export function SignerFieldsWizard({
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs font-semibold text-gray-900">1) Que completara cada firmante</p>
+          {/* Columna izquierda: Campos */}
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-3">¿Qué completa cada firmante?</p>
 
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
-              <input type="checkbox" checked disabled className="accent-gray-900" />
-              Firma (obligatoria)
-            </label>
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
-              <input type="checkbox" checked={includeName} onChange={(e) => setIncludeName(e.target.checked)} className="accent-gray-900" />
-              Nombre
-            </label>
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
-              <input type="checkbox" checked={includeId} onChange={(e) => setIncludeId(e.target.checked)} className="accent-gray-900" />
-              Documento
-            </label>
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
-              <input type="checkbox" checked={includeDate} onChange={(e) => setIncludeDate(e.target.checked)} className="accent-gray-900" />
-              Fecha
-            </label>
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
-              <input type="checkbox" checked={includeText} onChange={(e) => setIncludeText(e.target.checked)} className="accent-gray-900" />
-              Texto personalizado
-            </label>
-
-            {includeText && (
-              <div className="mt-2">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-not-allowed opacity-60">
                 <input
-                  value={customTextLabel}
-                  onChange={(e) => setCustomTextLabel(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  placeholder="Etiqueta del texto"
+                  type="checkbox"
+                  checked
+                  disabled
+                  className="w-3.5 h-3.5 accent-gray-900 cursor-not-allowed"
                 />
-                <p className="mt-1 text-[11px] text-gray-500">Este campo es declarado por el firmante (no verificado).</p>
+                <span className="text-xs">Firma (obligatoria)</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeName}
+                  onChange={(e) => setIncludeName(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-gray-900 cursor-pointer"
+                />
+                <span className="text-xs">Nombre</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeId}
+                  onChange={(e) => setIncludeId(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-gray-900 cursor-pointer"
+                />
+                <span className="text-xs">Documento</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeDate}
+                  onChange={(e) => setIncludeDate(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-gray-900 cursor-pointer"
+                />
+                <span className="text-xs">Fecha</span>
+              </label>
+            </div>
+
+            {/* Campos personalizados */}
+            {customFields.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {customFields.map((field) => (
+                  <div key={field.id} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={field.label}
+                      onChange={(e) => updateCustomFieldLabel(field.id, e.target.value)}
+                      placeholder="Nombre del campo"
+                      className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeCustomField(field.id)}
+                      className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                      title="Eliminar campo"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
+
+            <button
+              type="button"
+              onClick={addCustomField}
+              className="mt-3 flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Agregar campo personalizado
+            </button>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs font-semibold text-gray-900">2) Donde se refleja la firma en el PDF</p>
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
+          {/* Columna derecha: Posición */}
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-3">¿Dónde aparece en el documento?</p>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-not-allowed opacity-60">
               <input
                 type="radio"
-                name="repeat"
-                checked={repetitionKind === 'once'}
-                onChange={() => setRepetitionKind('once')}
-                className="accent-gray-900"
+                name="position"
+                checked
+                disabled
+                className="w-3.5 h-3.5 accent-gray-900 cursor-not-allowed"
               />
-              Una sola vez
+              <span className="text-xs">Al final del documento</span>
             </label>
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
-              <input
-                type="radio"
-                name="repeat"
-                checked={repetitionKind === 'all_pages'}
-                onChange={() => setRepetitionKind('all_pages')}
-                className="accent-gray-900"
-              />
-              En todas las paginas
-            </label>
-            <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
-              <input
-                type="radio"
-                name="repeat"
-                checked={repetitionKind === 'pages'}
-                onChange={() => setRepetitionKind('pages')}
-                className="accent-gray-900"
-              />
-              Elegir paginas
-            </label>
-            {repetitionKind === 'pages' && (
-              <div className="mt-2">
-                <input
-                  value={pagesRaw}
-                  onChange={(e) => setPagesRaw(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  placeholder="Ej: 1, 3, 5"
-                />
-                <p className="mt-1 text-[11px] text-gray-500">Separar con comas o espacios. Paginas empezando en 1.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-lg border border-gray-200 bg-white p-3">
-            <p className="text-xs font-semibold text-gray-900">Revision</p>
-            <p className="mt-1 text-xs text-gray-700">
-              Firmantes: <span className="font-medium">{validSigners.length}</span>
-            </p>
-            <p className="mt-1 text-xs text-gray-700">
-              Campos extra: <span className="font-medium">{previewSummary.extras.length > 0 ? previewSummary.extras.join(', ') : 'ninguno'}</span>
-            </p>
-            <p className="mt-1 text-xs text-gray-700">
-              Firma: <span className="font-medium">{previewSummary.where}</span>
+            <p className="mt-2 text-[10px] text-gray-500">
+              Los campos se agregan al final. Si no hay espacio, el documento se extiende.
             </p>
           </div>
         </div>
@@ -216,7 +206,7 @@ export function SignerFieldsWizard({
             }}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
-            Crear automaticamente
+            Aplicar
           </button>
         </div>
       </div>

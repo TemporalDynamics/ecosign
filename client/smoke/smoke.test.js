@@ -1,3 +1,4 @@
+/* global process */
 import test from 'node:test';
 import assert from 'node:assert';
 import { createHash, webcrypto } from 'node:crypto';

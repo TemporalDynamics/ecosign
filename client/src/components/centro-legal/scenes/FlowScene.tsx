@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, User, Shield } from 'lucide-react';
+import { Mail, Users, Shield } from 'lucide-react';
 
 interface FlowSceneProps {
   file: File | null;

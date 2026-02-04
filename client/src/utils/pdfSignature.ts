@@ -165,6 +165,12 @@ export async function applyOverlaySpecToPdf(
       overlay.h
     );
 
+    // Declare variables at the start to avoid block scope issues
+    const label = overlay.label || (overlay.kind === 'field_signature' ? 'Firma' : 'Campo');
+    const labelSize = 8;
+    const valueSize = 12;
+    const padding = 6;
+
     if (overlay.kind === 'signature') {
       if (overlay.imageDataUrl) {
         const image = await embedDataUrlImage(pdfDoc, overlay.imageDataUrl);
@@ -189,11 +195,6 @@ export async function applyOverlaySpecToPdf(
         continue;
       }
     }
-
-    const label = overlay.label || (overlay.kind === 'field_signature' ? 'Firma' : 'Campo');
-    const labelSize = 8;
-    const valueSize = 12;
-    const padding = 6;
 
     page.drawRectangle({
       x: left,

@@ -126,7 +126,7 @@ interface CertificateData {
   [key: string]: unknown;
 }
 
-type ToastKind = 'success' | 'error' | 'default';
+type ToastKind = 'success' | 'error' | 'default' | 'info' | 'warning';
 type ToastConfig = HotToastOptions & { type?: ToastKind };
 
 interface LegalCenterModalProps {

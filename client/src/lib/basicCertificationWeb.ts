@@ -329,19 +329,10 @@ export async function certifyFile(file: File, options: CertificationOptions = {}
     if (options.useLegalTimestamp) {
       console.log('🕐 Requesting legal timestamp certification...');
       try {
-        const response = await requestLegalTimestamp(hash);
-        if (response.success) {
-          tsaResponse = response;
-          timestamp = tsaResponse.timestamp!; // Asserting non-null as success implies timestamp
-          console.log('✅ Legal timestamp received from TSA');
-          console.log('  TSA:', tsaResponse.tsaUrl);
-          console.log('  Standard:', tsaResponse.standard);
-        } else {
-          console.log('⚠️ TSA request failed, using local timestamp');
-        }
+        await requestLegalTimestamp(hash);
+        // requestLegalTimestamp is deprecated and always throws
       } catch (error: unknown) {
-        console.error('⚠️ TSA error:', error);
-        console.log('  Falling back to local timestamp');
+        console.log('⚠️ TSA request not available (deprecated), using local timestamp');
       }
     } else {
       console.log('✅ Local timestamp:', timestamp);

@@ -72,6 +72,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // Register service worker
 // TEMPORARILY DISABLED - debugging CORS issue with Origin: null
 // TODO: Re-enable after fixing SW CORS issue
+// eslint-disable-next-line no-constant-condition, no-constant-binary-expression
 if (false && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')

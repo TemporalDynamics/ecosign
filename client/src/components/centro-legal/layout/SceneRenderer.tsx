@@ -7,7 +7,7 @@ import {
   ReviewScene
 } from '../scenes';
 import type { SceneType } from '../orchestration/resolveActiveScene';
-import type { SignatureField } from '../../signature/types';
+import type { SignatureField } from '@/types/signature-fields';
 
 interface SceneRendererProps {
   scene: SceneType;

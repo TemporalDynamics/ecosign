@@ -4,7 +4,7 @@ import { getSupabase } from "../lib/supabaseClient";
 import { emitEcoVNext } from "../lib/documentEntityService";
 import { getLatestTsaEvent, formatTsaTimestamp } from "../lib/events/tsa";
 import { deriveProtectionLevel, getAnchorEvent } from "../lib/protectionLevel";
-import { AlertCircle, CheckCircle, Copy, Download, Eye, FilePlus, FileText, Folder, FolderPlus, MoreVertical, Play, Search, Share2, Shield, X } from "lucide-react";
+import { AlertCircle, ArrowRightCircle, CheckCircle, Copy, Download, Eye, FilePlus, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
 import VerifierTimeline from "../components/VerifierTimeline";
@@ -1470,7 +1470,16 @@ function DocumentsPage() {
   };
 
   const handleResumeDraft = (draft: DraftRow) => {
-    localStorage.setItem('ecosign_draft_to_open', draft.id);
+    // Draft resume payload: prefer including operationId to restore UI state from draft_metadata.
+    const ref = draft.draftFileRef ?? `local:${draft.id}`;
+    if (draft.operationId) {
+      localStorage.setItem('ecosign_draft_to_open', JSON.stringify({
+        draftFileRef: ref,
+        operationId: draft.operationId,
+      }));
+    } else {
+      localStorage.setItem('ecosign_draft_to_open', ref);
+    }
     openLegalCenter('certify');
   };
 
@@ -2310,7 +2319,7 @@ function DocumentsPage() {
                       className="p-2 rounded hover:bg-gray-100 text-black hover:text-gray-600"
                       title="Continuar borrador"
                     >
-                      <Play className="w-4 h-4" />
+                      <ArrowRightCircle className="w-4 h-4" />
                     </button>
                     <div className="relative" data-directory-menu>
                       <button
@@ -2380,7 +2389,7 @@ function DocumentsPage() {
                             title="Continuar"
                             type="button"
                           >
-                            <Play className="h-5 w-5" />
+                            <ArrowRightCircle className="h-5 w-5" />
                           </button>
                           <div className="relative">
                             <button

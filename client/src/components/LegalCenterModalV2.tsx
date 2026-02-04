@@ -39,7 +39,7 @@ import { PdfEditViewer, type PdfPageMetrics } from './pdf/PdfEditViewer';
 import { storeEncryptedCustody } from '../lib/custodyStorageService';
 import type { CustodyMode } from '../lib/documentEntityService';
 import { convertToOverlaySpec } from '../utils/overlaySpecConverter';
-import { saveDraftOperation } from '../lib/draftOperationsService';
+import { loadDraftFile, saveDraftOperation } from '../lib/draftOperationsService';
 import { saveWorkflowFields, loadWorkflowFields } from '../lib/workflowFieldsService';
 import { resolveBatchAssignments } from '../lib/batches';
 
@@ -585,6 +585,194 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
   if (!isOpen) return null;
 
+  const runPostFileSelectionEffects = useCallback((selectedFile: File) => {
+    // BLOQUE 1: Toast inicial si protección está activa
+    if (forensicEnabled) {
+      toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
+        duration: 3000,
+        position: 'top-right'
+      });
+    }
+
+    // Track analytics
+    trackEvent('uploaded_doc', {
+      fileType: selectedFile.type,
+      fileSize: selectedFile.size,
+      fileName: selectedFile.name.split('.').pop() || 'unknown' // solo extensión
+    });
+
+    // Generar preview según el tipo de archivo
+    if (selectedFile.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event: ProgressEvent<FileReader>) => {
+        const result = event?.target?.result;
+        if (typeof result === 'string') {
+          setDocumentPreview(result);
+        }
+      };
+      reader.readAsDataURL(selectedFile);
+    } else if (selectedFile.type === 'application/pdf') {
+      // Para PDFs, usar el URL directo
+      const url = URL.createObjectURL(selectedFile);
+      setDocumentPreview(url);
+    } else {
+      // Para otros tipos, mostrar icono genérico
+      setDocumentPreview(null);
+    }
+
+    // CONSTITUCIÓN: Toast unificado "Documento listo"
+    showToast('Documento listo.\nEcoSign no ve tu documento.\nLa certificación está activada por defecto.', {
+      icon: '✓',
+      position: 'top-right',
+      duration: 4000
+    });
+
+    // CONSTITUCIÓN: Abrir modal de firma automáticamente si corresponde
+    if (initialAction === 'sign' || mySignature) {
+      setIsCanvasLocked(false);
+      setShowSignatureOnPreview(true);
+
+      showToast('Vas a poder firmar directamente sobre el documento.', {
+        icon: '✍️',
+        position: 'top-right',
+        duration: 3000
+      });
+    }
+  }, [forensicEnabled, initialAction, mySignature, showToast]);
+
+  const applySelectedFile = useCallback(async (selectedFile: File, opts?: { resetInput?: () => void }) => {
+    // Detectar si es un PDF encriptado
+    if (selectedFile.type === 'application/pdf') {
+      const isEncrypted = await isPDFEncrypted(selectedFile);
+      if (isEncrypted) {
+        toast.error(
+          'Documento bloqueado\n\nEste archivo tiene una contraseña.\n\nLos documentos protegidos no pueden usarse para generar evidencia digital verificable.\n\nSubí una versión sin contraseña para continuar.',
+          {
+            duration: 8000,
+            position: 'bottom-right',
+            style: {
+              whiteSpace: 'pre-line',
+              maxWidth: '500px'
+            }
+          }
+        );
+        opts?.resetInput?.();
+        return false;
+      }
+
+      // P0.1: Validar estructura PDF (antes de continuar)
+      const isPDFValid = await validatePDFStructure(selectedFile);
+      if (!isPDFValid) {
+        toast.error(
+          'Este PDF está dañado o tiene una estructura inválida.\n\nProbá abrirlo en un lector de PDF (Adobe Reader, Foxit) y volvé a guardarlo.',
+          {
+            duration: 8000,
+            position: 'bottom-right',
+            style: {
+              whiteSpace: 'pre-line',
+              maxWidth: '500px'
+            }
+          }
+        );
+        opts?.resetInput?.();
+        return false;
+      }
+
+      // P0.2: Advertir sobre permisos PDF (warning, no bloqueante)
+      const permissions = await checkPDFPermissions(selectedFile);
+      if (permissions.restricted) {
+        toast(
+          'Este PDF tiene restricciones de edición.\n\nSi tenés problemas al certificar, pedí al creador que quite las restricciones.',
+          {
+            icon: '⚠️',
+            duration: 8000,
+            position: 'bottom-right',
+            style: {
+              whiteSpace: 'pre-line',
+              maxWidth: '500px',
+              background: '#FEF3C7',
+              color: '#92400E'
+            }
+          }
+        );
+      }
+    }
+
+    setFile(selectedFile);
+    setDocumentLoaded(true); // CONSTITUCIÓN: Controlar visibilidad de acciones
+    setPreviewError(false);
+    console.log('Archivo seleccionado:', selectedFile.name);
+
+    // Early warning: same filename already exists (do not block).
+    try {
+      if (!isGuestMode()) {
+        const supabase = getSupabase();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: existing } = await supabase
+            .from('document_entities')
+            .select('id, created_at, events')
+            .eq('owner_id', user.id)
+            .eq('source_name', selectedFile.name)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (existing?.id) {
+            const eventsArr = Array.isArray((existing as any).events) ? (existing as any).events : [];
+            const hasProtectionStarted = eventsArr.some((ev: any) =>
+              ev?.kind === 'document.protected.requested' || ev?.kind === 'tsa.confirmed'
+            );
+
+            setDuplicateNamePrompt({
+              entityId: existing.id,
+              fileName: selectedFile.name,
+              createdAt: existing.created_at,
+              hasProtectionStarted,
+            });
+          }
+        }
+      }
+    } catch (dupErr) {
+      console.warn('Duplicate name check skipped:', dupErr);
+    }
+
+    return true;
+  }, [setFile, setDocumentLoaded, setPreviewError, setDuplicateNamePrompt]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (file) return;
+    if (initialAction !== 'certify') return;
+
+    const draftRef = localStorage.getItem('ecosign_draft_to_open');
+    if (!draftRef) return;
+    localStorage.removeItem('ecosign_draft_to_open');
+
+    let active = true;
+    (async () => {
+      try {
+        const file = await loadDraftFile(draftRef);
+        if (!active) return;
+        if (!file) {
+          showToast('Este borrador no está disponible para continuar todavía.', { type: 'error' });
+          return;
+        }
+        const ok = await applySelectedFile(file);
+        if (ok) {
+          runPostFileSelectionEffects(file);
+        }
+      } catch (err) {
+        console.error('Failed to resume draft', err);
+        showToast('No se pudo abrir el borrador.', { type: 'error' });
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, file, initialAction, applySelectedFile]);
+
   const openExistingDocumentEntity = (entityId: string) => {
     try {
       sessionStorage.setItem('ecosign_open_document_entity_id', entityId);
@@ -599,156 +787,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      // Detectar si es un PDF encriptado
-      if (selectedFile.type === 'application/pdf') {
-        const isEncrypted = await isPDFEncrypted(selectedFile);
-        if (isEncrypted) {
-          // Mostrar toast con el mensaje
-          toast.error(
-            'Documento bloqueado\n\nEste archivo tiene una contraseña.\n\nLos documentos protegidos no pueden usarse para generar evidencia digital verificable.\n\nSubí una versión sin contraseña para continuar.',
-            {
-              duration: 8000,
-              position: 'bottom-right',
-              style: {
-                whiteSpace: 'pre-line',
-                maxWidth: '500px'
-              }
-            }
-          );
-          // Reset file input
-          e.target.value = '';
-          return;
-        }
-
-        // P0.1: Validar estructura PDF (antes de continuar)
-        const isPDFValid = await validatePDFStructure(selectedFile);
-        if (!isPDFValid) {
-          toast.error(
-            'Este PDF está dañado o tiene una estructura inválida.\n\nProbá abrirlo en un lector de PDF (Adobe Reader, Foxit) y volvé a guardarlo.',
-            {
-              duration: 8000,
-              position: 'bottom-right',
-              style: {
-                whiteSpace: 'pre-line',
-                maxWidth: '500px'
-              }
-            }
-          );
-          // Reset file input
-          e.target.value = '';
-          return;
-        }
-
-        // P0.2: Advertir sobre permisos PDF (warning, no bloqueante)
-        const permissions = await checkPDFPermissions(selectedFile);
-        if (permissions.restricted) {
-          toast(
-            'Este PDF tiene restricciones de edición.\n\nSi tenés problemas al certificar, pedí al creador que quite las restricciones.',
-            {
-              icon: '⚠️',
-              duration: 8000,
-              position: 'bottom-right',
-              style: {
-                whiteSpace: 'pre-line',
-                maxWidth: '500px',
-                background: '#FEF3C7',
-                color: '#92400E'
-              }
-            }
-          );
-        }
-      }
-      
-      setFile(selectedFile);
-      setDocumentLoaded(true); // CONSTITUCIÓN: Controlar visibilidad de acciones
-      setPreviewError(false);
-      console.log('Archivo seleccionado:', selectedFile.name);
-
-      // Early warning: same filename already exists (do not block).
-      try {
-        if (!isGuestMode()) {
-          const supabase = getSupabase();
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data: existing } = await supabase
-              .from('document_entities')
-              .select('id, created_at, events')
-              .eq('owner_id', user.id)
-              .eq('source_name', selectedFile.name)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            if (existing?.id) {
-              const eventsArr = Array.isArray((existing as any).events) ? (existing as any).events : [];
-              const hasProtectionStarted = eventsArr.some((ev: any) =>
-                ev?.kind === 'document.protected.requested' || ev?.kind === 'tsa.confirmed'
-              );
-
-              setDuplicateNamePrompt({
-                entityId: existing.id,
-                fileName: selectedFile.name,
-                createdAt: existing.created_at,
-                hasProtectionStarted,
-              });
-            }
-          }
-        }
-      } catch (dupErr) {
-        console.warn('Duplicate name check skipped:', dupErr);
-      }
-
-      // BLOQUE 1: Toast inicial si protección está activa
-      if (forensicEnabled) {
-        toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
-          duration: 3000,
-          position: 'top-right'
-        });
-      }
-
-      // Track analytics
-      trackEvent('uploaded_doc', {
-        fileType: selectedFile.type,
-        fileSize: selectedFile.size,
-        fileName: selectedFile.name.split('.').pop() || 'unknown' // solo extensión
-      });
-
-      // Generar preview según el tipo de archivo
-      if (selectedFile.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event: ProgressEvent<FileReader>) => {
-          const result = event?.target?.result;
-          if (typeof result === 'string') {
-            setDocumentPreview(result);
-          }
-        };
-        reader.readAsDataURL(selectedFile);
-      } else if (selectedFile.type === 'application/pdf') {
-        // Para PDFs, usar el URL directo
-        const url = URL.createObjectURL(selectedFile);
-        setDocumentPreview(url);
-      } else {
-        // Para otros tipos, mostrar icono genérico
-        setDocumentPreview(null);
-      }
-
-      // CONSTITUCIÓN: Toast unificado "Documento listo"
-      showToast('Documento listo.\nEcoSign no ve tu documento.\nLa certificación está activada por defecto.', {
-        icon: '✓',
-        position: 'top-right',
-        duration: 4000
-      });
-
-      // CONSTITUCIÓN: Abrir modal de firma automáticamente si corresponde
-      if (initialAction === 'sign' || mySignature) {
-        setIsCanvasLocked(false);
-        setShowSignatureOnPreview(true);
-
-        showToast('Vas a poder firmar directamente sobre el documento.', {
-          icon: '✍️',
-          position: 'top-right',
-          duration: 3000
-        });
+      const ok = await applySelectedFile(selectedFile, { resetInput: () => { e.target.value = ''; } });
+      if (ok) {
+        runPostFileSelectionEffects(selectedFile);
       }
     }
   };
@@ -2535,13 +2576,28 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         : [];
       const signaturePreviewValue = signaturePreview?.value;
 
+      const draftState = {
+        ndaEnabled,
+        ndaText,
+        mySignature,
+        signatureType,
+        workflowEnabled,
+        emailInputs,
+        signatureFields,
+        signaturePreview,
+        custodyModeChoice,
+        forensicEnabled,
+        forensicConfig,
+      };
+
       await saveDraftOperation(
         { name: file.name },
         [file],
         custodyModeChoice,
         overlaySpec,
         signaturePreviewValue,
-        ndaEnabled
+        ndaEnabled,
+        draftState
       );
 
       showToast('Borrador guardado.', { type: 'success', duration: 2000 });

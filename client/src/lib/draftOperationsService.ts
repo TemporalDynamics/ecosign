@@ -53,7 +53,8 @@ export async function saveDraftOperation(
   custody_mode: 'hash_only' | 'encrypted_custody' = 'hash_only',
   overlay_spec?: unknown[],
   signature_preview?: string,
-  nda_applied?: boolean
+  nda_applied?: boolean,
+  draft_state?: unknown
 ): Promise<{ operation_id: string; documents: { filename: string }[] }> {
   try {
     const supabase = getSupabase()
@@ -86,6 +87,7 @@ export async function saveDraftOperation(
             ...(overlay_spec && overlay_spec.length > 0 ? { overlay_spec } : {}),
             ...(signature_preview ? { signature_preview } : {}),
             ...(nda_applied !== undefined ? { nda_applied } : {}),
+            ...(draft_state !== undefined ? { draft_state } : {}),
           }
         }
       })
@@ -209,8 +211,42 @@ export async function loadDraftFile(draft_file_ref: string): Promise<File | null
     return await getDraftFileLocal(localId)
   }
 
-  // TODO (Sprint 4): Implementar descarga desde server con decryption
-  console.warn('Server-side draft file loading not implemented yet')
+  // Server-side draft reference (stored in Supabase Storage)
+  // Format: server:<storage_path>
+  if (draft_file_ref.startsWith('server:')) {
+    const storagePath = draft_file_ref.replace('server:', '')
+    if (!storagePath) return null
+
+    try {
+      const supabase = getSupabase()
+      const { data, error } = await supabase.storage
+        .from('user-documents')
+        .download(storagePath)
+
+      if (error || !data) {
+        console.error('Failed to download server draft', error)
+        return null
+      }
+
+      // Best-effort filename inference from path
+      const fallbackName = storagePath.split('/').pop() || 'draft.pdf'
+      const fileName = fallbackName
+      const mime = (data as any).type || 'application/pdf'
+
+      return new File([data], fileName, { type: mime })
+    } catch (err) {
+      console.error('Server-side draft download failed', err)
+      return null
+    }
+  }
+
+  // Legacy placeholder refs were never backed by storage.
+  if (draft_file_ref.startsWith('draft:')) {
+    console.warn('Legacy draft reference has no backing file', draft_file_ref)
+    return null
+  }
+
+  console.warn('Unknown draft_file_ref format', draft_file_ref)
   return null
 }
 

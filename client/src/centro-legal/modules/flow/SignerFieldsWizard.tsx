@@ -95,7 +95,7 @@ export function SignerFieldsWizard({
                   type="checkbox"
                   checked
                   disabled
-                  className="w-3.5 h-3.5 accent-gray-900 cursor-not-allowed"
+                  className="w-3 h-3 accent-gray-900 cursor-not-allowed"
                 />
                 <span className="text-xs">Firma (obligatoria)</span>
               </label>
@@ -105,7 +105,7 @@ export function SignerFieldsWizard({
                   type="checkbox"
                   checked={includeName}
                   onChange={(e) => setIncludeName(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-gray-900 cursor-pointer"
+                  className="w-3 h-3 accent-gray-900 cursor-pointer"
                 />
                 <span className="text-xs">Nombre</span>
               </label>
@@ -115,7 +115,7 @@ export function SignerFieldsWizard({
                   type="checkbox"
                   checked={includeId}
                   onChange={(e) => setIncludeId(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-gray-900 cursor-pointer"
+                  className="w-3 h-3 accent-gray-900 cursor-pointer"
                 />
                 <span className="text-xs">Documento</span>
               </label>
@@ -125,7 +125,7 @@ export function SignerFieldsWizard({
                   type="checkbox"
                   checked={includeDate}
                   onChange={(e) => setIncludeDate(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-gray-900 cursor-pointer"
+                  className="w-3 h-3 accent-gray-900 cursor-pointer"
                 />
                 <span className="text-xs">Fecha</span>
               </label>
@@ -149,7 +149,7 @@ export function SignerFieldsWizard({
                       className="text-gray-400 hover:text-red-600 transition-colors p-1"
                       title="Eliminar campo"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
@@ -161,7 +161,7 @@ export function SignerFieldsWizard({
               onClick={addCustomField}
               className="mt-3 flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 transition-colors"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3 h-3" />
               Agregar campo personalizado
             </button>
           </div>
@@ -175,7 +175,7 @@ export function SignerFieldsWizard({
                 name="position"
                 checked
                 disabled
-                className="w-3.5 h-3.5 accent-gray-900 cursor-not-allowed"
+                className="w-3 h-3 accent-gray-900 cursor-not-allowed"
               />
               <span className="text-xs">Al final del documento</span>
             </label>
@@ -204,7 +204,7 @@ export function SignerFieldsWizard({
               });
               onApply({ fields: generated, template });
             }}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             Aplicar
           </button>

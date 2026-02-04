@@ -1742,19 +1742,7 @@ function DocumentsPage() {
               />
             </div>
 
-            <button
-              onClick={() => {
-                if (isGuestMode()) {
-                  toast("Modo invitado: operaciones disponibles solo con cuenta.", { position: "top-right" });
-                  return;
-                }
-                setShowCreateOperationModal(true);
-              }}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#0E4B8B] text-white rounded-lg hover:bg-[#0A3D73] transition text-sm font-semibold whitespace-nowrap"
-            >
-              <FolderPlus className="w-4 h-4" />
-              Nueva operación
-            </button>
+
           </section>
 
           {loading ? (

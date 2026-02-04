@@ -177,7 +177,6 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const fetchSignerData = async (accessToken: string) => {
     try {
       const supabase = getSupabase();
-      const supabase = getSupabase();
       setStep('validating')
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL

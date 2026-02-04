@@ -363,6 +363,9 @@ serve(async (req) => {
     // Fetch signer fields (for the signer UI to render required inputs)
     let signerFields: any[] = [];
     const documentEntityId = (signer.workflow as any)?.document_entity_id ?? null;
+    console.log('🔍 [signer-access] documentEntityId:', documentEntityId);
+    console.log('🔍 [signer-access] signer.id:', signer.id);
+
     if (documentEntityId) {
       const { data: batchRows, error: batchErr } = await supabase
         .from('batches')
@@ -370,10 +373,15 @@ serve(async (req) => {
         .eq('document_entity_id', documentEntityId)
         .eq('assigned_signer_id', signer.id);
 
+      console.log('🔍 [signer-access] batchRows:', batchRows);
+      console.log('🔍 [signer-access] batchErr:', batchErr);
+
       if (batchErr) {
         console.warn('signer-access: failed to fetch signer batches', batchErr);
       } else {
         const batchIds = (batchRows ?? []).map((b: any) => b.id).filter(Boolean);
+        console.log('🔍 [signer-access] batchIds:', batchIds);
+
         if (batchIds.length > 0) {
           const { data: fieldRows, error: fieldErr } = await supabase
             .from('workflow_fields')
@@ -381,13 +389,22 @@ serve(async (req) => {
             .in('batch_id', batchIds)
             .order('created_at', { ascending: true });
 
+          console.log('🔍 [signer-access] fieldRows:', fieldRows);
+          console.log('🔍 [signer-access] fieldRows.length:', fieldRows?.length ?? 0);
+          console.log('🔍 [signer-access] field_types:', fieldRows?.map((f: any) => f.field_type));
+          console.log('🔍 [signer-access] fieldErr:', fieldErr);
+
           if (fieldErr) {
             console.warn('signer-access: failed to fetch signer fields', fieldErr);
           } else {
             signerFields = fieldRows ?? [];
           }
+        } else {
+          console.warn('⚠️ [signer-access] No se encontraron batches para este signer');
         }
       }
+    } else {
+      console.warn('⚠️ [signer-access] documentEntityId es null - no se pueden buscar campos');
     }
 
     // Fetch prior signatures (for rendering a derived/stamped viewing PDF)
@@ -491,6 +508,8 @@ serve(async (req) => {
     }
 
     // ... (The rest of the original file's logic for preparing the response)
+
+    console.log('✅ [signer-access] Devolviendo respuesta con workflow_fields:', signerFields.length, 'campos');
 
     return json(
       {

@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ChangeEvent } from 'react';
 import { X, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Lock, Maximize2, Minimize2, PlusSquare, Shield, Type, Unlock, Upload, Users, RefreshCw, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -163,6 +164,9 @@ interface LegalCenterModalProps {
  * - Contrato con backend (estados, tipos)
  */
 const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, initialAction = null }) => {
+  // Router navigation (soft navigation without page reload)
+  const navigate = useNavigate();
+  
   // Estados del flujo
   const [step, setStep] = useState<number>(1); // 1: Elegir y Configurar, 2: Guardar/Descargar
   const [file, setFile] = useState<File | null>(null);
@@ -829,14 +833,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   }, [isOpen, file, initialAction, applySelectedFile]);
 
   const openExistingDocumentEntity = (entityId: string) => {
+    // 1. Store flag in sessionStorage for DocumentsPage to detect
     try {
       sessionStorage.setItem('ecosign_open_document_entity_id', entityId);
     } catch {
-      // ignore
+      // ignore if sessionStorage unavailable
     }
+    
+    // 2. Close modal and context
     resetAndClose();
     if (onClose) onClose();
-    window.location.assign('/documents');
+    
+    // 3. Soft navigate using React Router (maintains session)
+    // DocumentsPage will detect sessionStorage flag in useEffect and scroll/focus
+    navigate('/documents');
   };
 
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {

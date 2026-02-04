@@ -283,6 +283,11 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         }
       }
 
+      // 🔍 DEBUG: Ver qué llega en workflow_fields
+      console.log('🔍 [DEBUG] signerData.workflow_fields:', (signer as any)?.workflow_fields)
+      console.log('🔍 [DEBUG] Total campos:', (signer as any)?.workflow_fields?.length ?? 0)
+      console.log('🔍 [DEBUG] Tipos de campos:', (signer as any)?.workflow_fields?.map((f: any) => f.field_type))
+
       setSignerData(signer as any)
       // Initialize signer field values
       const initialValues: Record<string, string> = {}
@@ -296,6 +301,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         }
       }
       setFieldValues(initialValues)
+
+      console.log('🔍 [DEBUG] initialValues:', initialValues)
       setOtpSent(!!signer.otp_verified)
       setOtpCode('')
 
@@ -745,7 +752,18 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 {(() => {
                   const fields = (signerData.workflow_fields ?? []).filter((f) => f.field_type !== 'signature')
                   const signatureAllPages = (signerData.workflow_fields ?? []).some((f) => f.field_type === 'signature' && Boolean(f.apply_to_all_pages))
-                  if (fields.length === 0 && !signatureAllPages) return null
+
+                  // 🔍 DEBUG: Ver por qué no se muestran los campos
+                  console.log('🔍 [RENDER] Total workflow_fields:', signerData.workflow_fields?.length ?? 0)
+                  console.log('🔍 [RENDER] Campos filtrados (sin signature):', fields.length)
+                  console.log('🔍 [RENDER] Campos filtrados:', fields)
+                  console.log('🔍 [RENDER] signatureAllPages:', signatureAllPages)
+                  console.log('🔍 [RENDER] ¿Se mostrará sección?', fields.length > 0 || signatureAllPages)
+
+                  if (fields.length === 0 && !signatureAllPages) {
+                    console.log('⚠️ [RENDER] No se muestran campos: fields.length === 0 && !signatureAllPages')
+                    return null
+                  }
 
                   return (
                     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

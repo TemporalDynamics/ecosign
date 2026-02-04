@@ -27,7 +27,7 @@ export function SignatureScene({
 
   return (
     <div className="space-y-4">
-      <SignatureFieldsEditor
+      <FieldPlacer
         pdfUrl={filePreviewUrl}
         fields={signatureFields}
         onFieldsChange={onFieldsChange}

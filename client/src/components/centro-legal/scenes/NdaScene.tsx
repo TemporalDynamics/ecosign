@@ -1,5 +1,5 @@
 import React from 'react';
-import { NdaPanel } from '../modules/nda';
+import { NdaPanel } from '@/centro-legal/modules/nda';
 
 interface NdaSceneProps {
   file: File | null;

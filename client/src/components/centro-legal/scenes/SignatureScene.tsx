@@ -1,6 +1,6 @@
 import React from 'react';
-import { SignatureFieldsEditor } from '../../signature/SignatureFieldsEditor';
-import type { SignatureField } from '../../signature/types';
+import { FieldPlacer } from '@/components/signature/FieldPlacer';
+import type { SignatureField } from '@/types/signature-fields';
 
 interface SignatureSceneProps {
   file: File | null;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { PenLine, Type, Calendar } from 'lucide-react';
-import type { FieldType } from '../../../types/signature-fields';
+import type { FieldType } from '@/types/signature-fields';
 
 interface FieldToolbarProps {
   onFieldSelect: (type: FieldType) => void;

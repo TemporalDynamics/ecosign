@@ -4341,7 +4341,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 {/* Header colapsable del panel */}
             <div className="px-2 py-1.5 border-b border-gray-200 bg-white">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Acciones</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
                 <button
                   onClick={() => setFlowPanelOpen(false)}
                   className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
@@ -4353,22 +4353,87 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             </div>
 
             {/* Contenido del panel */}
-            <div className="px-3 py-2 overflow-y-auto flex-1">
-              {/* Botón varita mágica */}
-              <div className="mb-4">
-                <button
-                  type="button"
-                  onClick={openSignerFieldsWizard}
-                  disabled={buildSignersList().length === 0}
-                  title="Definí qué completa cada firmante y dónde aparece en el documento"
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-3 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
-                  </svg>
-                  Configurar firmas
-                </button>
-              </div>
+            <div className="flex-1 overflow-hidden p-2 flex flex-col gap-2">
+
+              {/* Barra de Acciones - similar a "Vista previa" del NDA */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="px-2 py-1 bg-white border-b border-gray-200 text-xs text-gray-600 flex items-center justify-between">
+                  <span>Acciones</span>
+                  <div className="flex items-center gap-1.5">
+                    {/* Wizard */}
+                    <button
+                      type="button"
+                      onClick={openSignerFieldsWizard}
+                      disabled={buildSignersList().length === 0}
+                      title="Asignar campos automáticamente por cantidad de usuarios"
+                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+                      </svg>
+                    </button>
+
+                    {/* Asignar campos manualmente */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // TODO: Activar modo asignación manual
+                        showToast('Seleccioná el firmante que quieras', { type: 'info', duration: 2000, position: 'top-right' });
+                      }}
+                      title="Asignar campos manualmente"
+                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                      </svg>
+                    </button>
+
+                    {/* Agregar campo */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // TODO: Implementar agregar campo
+                      }}
+                      title="Agregar campo"
+                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+
+                    {/* Duplicar campos */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // TODO: Implementar duplicar campos
+                      }}
+                      title="Duplicar campos"
+                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+
+                    {/* Crear nuevo grupo */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // TODO: Implementar crear nuevo grupo
+                      }}
+                      title="Crear nuevo grupo de campos"
+                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Contenido scrolleable - Firmantes */}
+                <div className="px-2 py-2 max-h-[400px] overflow-y-auto">
 
               {/* Firmantes (email) - versión simplificada */}
               {(() => {
@@ -4418,38 +4483,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               </button>
                             )}
                           </div>
-
-                          {/* Toggle para asignación manual */}
-                          {emailOk && signatureFields.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (isManualAssigning) {
-                                  setExpandedSignerIndex(null);
-                                  setActiveBatchId(null);
-                                } else {
-                                  setExpandedSignerIndex(index);
-                                  // Activar el primer batch del firmante o crear uno nuevo
-                                  if (signerBatches.length > 0) {
-                                    setActiveBatchId(signerBatches[0].id);
-                                  } else {
-                                    createTextBatchForSigner(rawEmail);
-                                  }
-                                }
-                              }}
-                              className="text-xs text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1"
-                            >
-                              <span>{isManualAssigning ? '▾' : '▸'}</span>
-                              <span>Asignar campos</span>
-                            </button>
-                          )}
-
-                          {/* Hint cuando está en modo asignación */}
-                          {isManualAssigning && (
-                            <p className="text-[10px] text-blue-600 pl-4">
-                              Tocá campos en el documento para asignarlos a este firmante
-                            </p>
-                          )}
                         </div>
                       );
                     })}
@@ -4457,29 +4490,75 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 );
               })()}
 
-              {/* Botón para agregar más firmantes */}
-              <button
-                onClick={handleAddEmailField}
-                className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 mb-4"
-              >
-                <Users className="w-4 h-4" />
-                Agregar otro firmante
-              </button>
+                  {/* Botón para agregar más firmantes */}
+                  <button
+                    onClick={handleAddEmailField}
+                    className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Users className="w-4 h-4" />
+                    Agregar otro firmante
+                  </button>
+                </div>
+              </div>
 
               {/* Info de seguridad */}
-              <div className="p-2 bg-gray-100 border border-gray-200 rounded-lg">
+              <div className="p-2 bg-gray-100 border border-gray-200 rounded-lg text-xs">
                 <div className="flex gap-2">
-                  <Shield className="w-4 h-4 text-gray-900 flex-shrink-0 mt-0.5" />
+                  <Shield className="w-3.5 h-3.5 text-gray-900 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-medium text-gray-900">
-                      Seguridad obligatoria
-                    </p>
-                    <p className="text-xs text-gray-700 mt-1">
+                    <p className="font-medium text-gray-900">Seguridad obligatoria</p>
+                    <p className="text-gray-700 mt-0.5">
                       Podés exigir login y NDA por firmante antes de firmar
                     </p>
                   </div>
                 </div>
               </div>
+
+              {/* CTA: Confirmar asignación */}
+              {(() => {
+                const validSigners = buildSignersList();
+                const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+                const signerEmailSet = new Set(validSigners.map((s) => normalizeEmail(s.email)));
+
+                const assignedEmails = new Set(
+                  batches
+                    .map((b) => normalizeEmail(b.assignedSignerEmail))
+                    .filter((email) => Boolean(email) && signerEmailSet.has(email))
+                );
+                const missingFor = validSigners
+                  .map((s) => s.email.trim().toLowerCase())
+                  .filter((email) => !assignedEmails.has(email));
+
+                const isComplete =
+                  workflowAssignmentConfirmed ||
+                  (unassignedBatches.length === 0 &&
+                    missingFor.length === 0 &&
+                    batches.length > 0 &&
+                    validSigners.length > 0);
+
+                if (signatureFields.length === 0) return null;
+
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isComplete) {
+                        showToast('Asignación confirmada', { type: 'success', duration: 1500, position: 'top-right' });
+                      } else {
+                        showToast('Asigná campos a todos los firmantes primero', { type: 'warning', duration: 2000, position: 'top-right' });
+                      }
+                    }}
+                    disabled={!isComplete}
+                    className={`w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                      isComplete
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Confirmar asignación de campos
+                  </button>
+                );
+              })()}
 
               </div>
               </div>

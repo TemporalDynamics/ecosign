@@ -2429,11 +2429,13 @@ function DocumentsPage() {
                             <div className="text-sm font-medium text-gray-900 truncate" title={draft.name}>
                               {draft.name}
                             </div>
-                            <div className="text-xs text-amber-700">Borrador</div>
                           </div>
                         </div>
-                        <div />
-                        <div className="text-sm text-gray-500">{formatDate(draft.createdAt)}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded bg-amber-100 text-amber-700">
+                            Borrador
+                          </span>
+                        </div>
                         <div className="flex items-center justify-end gap-2" data-draft-menu>
                           <button
                             onClick={() => setPreviewDraft(draft)}
@@ -2718,11 +2720,13 @@ function DocumentsPage() {
                               <div className="text-sm font-medium text-gray-900 truncate" title={draft.name}>
                                 {draft.name}
                               </div>
-                              <div className="text-xs text-amber-700">Borrador</div>
                             </div>
                           </div>
-                          <div />
-                          <div className="text-sm text-gray-500">{formatDate(draft.createdAt)}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded bg-amber-100 text-amber-700">
+                              Borrador
+                            </span>
+                          </div>
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => setPreviewDraft(draft)}

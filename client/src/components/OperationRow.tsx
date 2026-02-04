@@ -157,7 +157,7 @@ export default function OperationRow({
     return (
       <div>
         <div
-          className={`grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-3 bg-sky-50 rounded-lg ${isSelectionMode ? 'cursor-pointer' : ''}`}
+          className={`grid grid-cols-[5fr_1fr_2fr] gap-x-4 items-center px-6 py-3 bg-sky-50 rounded-lg ${isSelectionMode ? 'cursor-pointer' : ''}`}
           onClick={handleRowClick}
         >
           <div className="flex items-center gap-3">
@@ -203,8 +203,6 @@ export default function OperationRow({
           <div><span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded ${getHumanStateColor(humanStateOp.severity)}`}>
                     {humanStateOp.label}
                   </span></div>
-
-          <div className="text-sm text-gray-500">{formatOperationDate((operation as any).created_at)}</div>
 
           <div className="flex items-center justify-end gap-2" data-row-actions>
             <button
@@ -380,7 +378,7 @@ export default function OperationRow({
                   return (
                     <div
                       key={mapped.id}
-                      className={`grid grid-cols-[5fr_1fr_2fr_2fr] gap-x-4 items-center px-6 py-1.5 ${docSelectMode ? 'cursor-pointer' : ''}`}
+                      className={`grid grid-cols-[5fr_1fr_2fr] gap-x-4 items-center px-6 py-1.5 ${docSelectMode ? 'cursor-pointer' : ''}`}
                       onClick={handleDocRowClick(mapped.id)}
                     >
                       <DocumentRow

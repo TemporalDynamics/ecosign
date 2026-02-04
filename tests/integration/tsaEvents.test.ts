@@ -40,9 +40,11 @@ beforeAll(async () => {
   testUserId = userData.user.id;
 
   // Create test document entity
-  const { data: docData, error: docError } = await supabase
+  const docId = crypto.randomUUID();
+  const { error: docError } = await supabase
     .from('document_entities')
     .insert({
+      id: docId,
       owner_id: testUserId,
       source_name: 'tsa-test.pdf',
       source_mime: 'application/pdf',
@@ -60,13 +62,10 @@ beforeAll(async () => {
         witness_hash: 'b'.repeat(64),
       },
       events: [],
-    })
-    .select('id')
-    .single();
+    });
 
   if (docError) throw docError;
-  if (!docData) throw new Error('Document creation failed (RLS policy may be blocking)');
-  testDocId = docData.id;
+  testDocId = docId;
 });
 
 afterAll(async () => {

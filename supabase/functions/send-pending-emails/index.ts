@@ -23,8 +23,14 @@ serve(async (req: Request) => {
   if (Deno.env.get("FASE") !== "1") {
     return new Response("disabled", { status: 204 });
   }
-  const authError = requireCronSecret(req);
-  if (authError) return authError;
+  const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const hasServiceRole = authHeader === `Bearer ${serviceRole}`;
+
+  if (!hasServiceRole) {
+    const authError = requireCronSecret(req);
+    if (authError) return authError;
+  }
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
   const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";

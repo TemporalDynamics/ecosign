@@ -11,7 +11,7 @@
  */
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { PDFDocument } from 'https://cdn.skypack.dev/pdf-lib@1.17.1';
+import { PDFDocument, StandardFonts, rgb } from 'https://cdn.skypack.dev/pdf-lib@1.17.1';
 
 export interface ArtifactBuildResult {
   success: boolean;
@@ -222,13 +222,11 @@ async function fetchSignatures(
         applied_at,
         workflow_fields (
           id,
-          page,
-          x,
-          y,
-          width,
-          height,
-          type,
-          label
+          field_type,
+          label,
+          value,
+          position,
+          apply_to_all_pages
         )
       )
     `)
@@ -255,6 +253,8 @@ async function applySignaturesToPDF(
 ): Promise<{ success: boolean; pdfBytes?: Uint8Array; error?: string }> {
   try {
     const pdfDoc = await PDFDocument.load(basePDFBytes);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
     for (const sigInstance of signatures) {
       const { signature_payload, signature_application_events } = sigInstance;
@@ -267,9 +267,12 @@ async function applySignaturesToPDF(
       // Assuming signature_payload.dataUrl contains base64 image
       let signatureImage;
       try {
-        if (signature_payload.type === 'drawn' && signature_payload.dataUrl) {
-          const imageBytes = Uint8Array.from(atob(signature_payload.dataUrl.split(',')[1]), c => c.charCodeAt(0));
-          signatureImage = await pdfDoc.embedPng(imageBytes);
+        if (signature_payload?.dataUrl) {
+          const dataUrl = String(signature_payload.dataUrl);
+          const base64 = dataUrl.split(',')[1];
+          const imageBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+          const isPng = dataUrl.includes('png');
+          signatureImage = isPng ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
         }
       } catch (imgError) {
         console.warn(`[applySignatures] Failed to embed signature image: ${imgError}`);
@@ -280,17 +283,49 @@ async function applySignaturesToPDF(
       for (const appEvent of signature_application_events) {
         const field = appEvent.workflow_fields;
         if (!field) continue;
+        const pos = field.position;
+        if (!pos) continue;
 
-        const page = pdfDoc.getPage(field.page);
-        const { x, y, width, height } = field;
+        const applyOnPage = async (pageIndex: number) => {
+          const page = pdfDoc.getPage(pageIndex);
+          if (!page) return;
+          const { width: pageW, height: pageH } = page.getSize();
+          const w = pos.width * pageW;
+          const h = pos.height * pageH;
+          const x = pos.x * pageW;
+          const yTop = pos.y * pageH;
+          const y = pageH - yTop - h;
 
-        if (signatureImage) {
-          page.drawImage(signatureImage, {
-            x,
-            y,
-            width,
-            height,
+          if (field.field_type === 'signature') {
+            if (signatureImage) {
+              page.drawImage(signatureImage, { x, y, width: w, height: h });
+            }
+            return;
+          }
+
+          const value = typeof field.value === 'string' ? field.value.trim() : '';
+          if (!value) return;
+
+          const padding = 6;
+          const fontSize = Math.max(10, Math.min(14, h - padding * 2));
+          page.drawRectangle({ x, y, width: w, height: h, color: rgb(1, 1, 1), opacity: 1 });
+          page.drawText(value, {
+            x: x + padding,
+            y: y + Math.max(padding, (h - fontSize) / 2),
+            size: fontSize,
+            font: field.field_type === 'date' ? boldFont : font,
+            color: rgb(0.12, 0.12, 0.12),
+            maxWidth: Math.max(0, w - padding * 2)
           });
+        };
+
+        const basePage = Math.max(0, (pos.page ?? 1) - 1);
+        if (field.apply_to_all_pages) {
+          for (let i = 0; i < pdfDoc.getPageCount(); i += 1) {
+            await applyOnPage(i);
+          }
+        } else {
+          await applyOnPage(Math.min(basePage, pdfDoc.getPageCount() - 1));
         }
       }
     }

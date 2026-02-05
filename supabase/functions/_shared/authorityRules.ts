@@ -10,11 +10,11 @@ export const DocumentEntityRules: Record<string, EventRule> = {
   'tsa': {
     requireWitnessHash: true,
     requireTokenB64: true,
-    unique: true,
+    unique: false,
   },
   'tsa.confirmed': {
     requireWitnessHash: true,
     requireTokenB64: true,
-    unique: true,
+    unique: false,
   },
 };

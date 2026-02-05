@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { captureAndApplySignature } from '../_shared/signatureCapture.ts'
+import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1'
 import { shouldApplySignerSignature } from '../../../packages/authority/src/decisions/applySignerSignature.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { appendEvent } from '../_shared/eventHelper.ts'
@@ -19,6 +20,140 @@ async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   } catch (error) {
     console.warn('send-pending-emails invoke failed', error)
   }
+}
+
+async function loadWorkflowPdf(
+  supabase: ReturnType<typeof createClient>,
+  documentPath: string
+): Promise<Uint8Array> {
+  if (/^https?:\/\//i.test(documentPath)) {
+    const resp = await fetch(documentPath)
+    if (!resp.ok) throw new Error('No se pudo descargar el documento del workflow')
+    const ab = await resp.arrayBuffer()
+    return new Uint8Array(ab)
+  }
+
+  const { data: fileResp, error: fileErr } = await supabase.storage
+    .from('user-documents')
+    .download(documentPath)
+
+  if (fileErr || !fileResp) {
+    throw new Error(`No se pudo descargar el documento (${fileErr?.message || 'storage error'})`)
+  }
+
+  const ab = await fileResp.arrayBuffer()
+  return new Uint8Array(ab)
+}
+
+async function uploadWorkflowPdf(
+  supabase: ReturnType<typeof createClient>,
+  documentPath: string,
+  pdfBytes: Uint8Array
+): Promise<void> {
+  const { error: uploadErr } = await supabase.storage
+    .from('user-documents')
+    .upload(documentPath, pdfBytes, {
+      contentType: 'application/pdf',
+      upsert: true
+    })
+
+  if (uploadErr) {
+    throw new Error(`No se pudo subir el PDF firmado: ${uploadErr.message}`)
+  }
+}
+
+function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; isPng: boolean } {
+  const [meta, b64] = dataUrl.split(',')
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+  const isPng = Boolean(meta && meta.includes('png')) || (bytes[0] === 0x89 && bytes[1] === 0x50)
+  return { bytes, isPng }
+}
+
+async function stampSignerOnPdf(params: {
+  supabase: ReturnType<typeof createClient>
+  documentPath: string
+  signatureData: { dataUrl?: string }
+  fields: Array<{
+    id: string
+    field_type: 'signature' | 'text' | 'date'
+    value: string | null
+    position: { page: number; x: number; y: number; width: number; height: number }
+    apply_to_all_pages?: boolean | null
+  }>
+}): Promise<Uint8Array> {
+  const { supabase, documentPath, signatureData, fields } = params
+  const pdfBytes = await loadWorkflowPdf(supabase, documentPath)
+  const pdfDoc = await PDFDocument.load(pdfBytes)
+
+  const pages = pdfDoc.getPages()
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+
+  let signatureImage: any = null
+  const signatureUrl = signatureData?.dataUrl
+  if (signatureUrl && typeof signatureUrl === 'string') {
+    try {
+      const { bytes, isPng } = decodeDataUrl(signatureUrl)
+      signatureImage = isPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes)
+    } catch (err) {
+      console.warn('apply-signer-signature: failed to decode signature image', err)
+    }
+  }
+
+  const drawOnPage = (pageIndex: number, field: any) => {
+    const page = pages[pageIndex]
+    if (!page) return
+    const { width: pageW, height: pageH } = page.getSize()
+    const pos = field.position
+    if (!pos) return
+
+    const w = pos.width * pageW
+    const h = pos.height * pageH
+    const x = pos.x * pageW
+    const yTop = pos.y * pageH
+    const y = pageH - yTop - h
+
+    if (field.field_type === 'signature') {
+      if (!signatureImage) return
+      page.drawImage(signatureImage, { x, y, width: w, height: h })
+      return
+    }
+
+    const value = typeof field.value === 'string' ? field.value.trim() : ''
+    if (!value) return
+    const padding = 6
+    const fontSize = Math.max(10, Math.min(14, h - padding * 2))
+    page.drawRectangle({
+      x,
+      y,
+      width: w,
+      height: h,
+      color: rgb(1, 1, 1),
+      opacity: 1
+    })
+    page.drawText(value, {
+      x: x + padding,
+      y: y + Math.max(padding, (h - fontSize) / 2),
+      size: fontSize,
+      font: field.field_type === 'date' ? boldFont : font,
+      color: rgb(0.12, 0.12, 0.12),
+      maxWidth: Math.max(0, w - padding * 2)
+    })
+  }
+
+  for (const field of fields) {
+    const basePage = Math.max(0, (field.position?.page ?? 1) - 1)
+    if (field.apply_to_all_pages) {
+      for (let i = 0; i < pages.length; i += 1) {
+        drawOnPage(i, field)
+      }
+    } else {
+      drawOnPage(Math.min(basePage, pages.length - 1), field)
+    }
+  }
+
+  const stampedBytes = await pdfDoc.save()
+  return new Uint8Array(stampedBytes)
 }
 
 serve(async (req) => {
@@ -56,6 +191,7 @@ serve(async (req) => {
 
     const body = await req.json()
     const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level, signatureData, fieldValues } = body
+    let witnessHashForEvent: string | null = witness_pdf_hash || null
 
     if (!signerId && !accessToken) {
       return json({ error: 'Missing signerId or accessToken' }, 400)
@@ -159,7 +295,7 @@ serve(async (req) => {
     // Fetch workflow early for canonical decision and batching
     const { data: workflow, error: wfError } = await supabase
       .from('signature_workflows')
-      .select('id, document_entity_id, status, delivery_mode, original_filename')
+      .select('id, document_entity_id, status, delivery_mode, original_filename, document_path, document_hash, forensic_config')
       .eq('id', signer.workflow_id)
       .single()
 
@@ -339,9 +475,9 @@ serve(async (req) => {
         409
       )
     } else {
+      const batchIds = batches.map((b: any) => b.id).filter(Boolean)
       // Persist non-signature field values for this signer (required before signing)
       try {
-        const batchIds = batches.map((b: any) => b.id).filter(Boolean)
         const values = (fieldValues && typeof fieldValues === 'object') ? fieldValues as Record<string, string> : {}
 
         const { data: wfFields, error: wfFieldsErr } = await supabase
@@ -406,11 +542,170 @@ serve(async (req) => {
           return json({ error: 'Could not apply signature to batch', details: captureError.message }, 500)
         }
       }
+
+      // Stamp signer fields and signature onto the workflow PDF (required).
+      if (!workflow.document_path) {
+        return json(
+          {
+            error: 'missing_document_path',
+            message: 'No se pudo estampar la firma: el workflow no tiene document_path.'
+          },
+          409
+        )
+      }
+
+      const { data: signerFields, error: signerFieldsErr } = await supabase
+        .from('workflow_fields')
+        .select('id, field_type, value, position, apply_to_all_pages')
+        .in('batch_id', batchIds)
+
+      if (signerFieldsErr) {
+        console.error('apply-signer-signature: failed to fetch signer fields for stamping', signerFieldsErr)
+        return json({ error: 'Could not stamp fields', details: signerFieldsErr.message }, 500)
+      }
+
+      const stampedBytes = await stampSignerOnPdf({
+        supabase,
+        documentPath: workflow.document_path,
+        signatureData: signatureData || {},
+        fields: (signerFields ?? []) as any
+      })
+
+      await uploadWorkflowPdf(supabase, workflow.document_path, stampedBytes)
+
+      const hashBuf = await crypto.subtle.digest('SHA-256', stampedBytes)
+      const hashHex = Array.from(new Uint8Array(hashBuf))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+
+      // Update workflow hash so downstream consumers use the stamped PDF hash.
+      const { error: wfHashErr } = await supabase
+        .from('signature_workflows')
+        .update({ document_hash: hashHex, updated_at: new Date().toISOString() })
+        .eq('id', signer.workflow_id)
+
+      if (wfHashErr) {
+        console.warn('apply-signer-signature: failed to update workflow document_hash', wfHashErr)
+      }
+
+      // Update document_entities witness hash (canonical reference for TSA/anchors).
+      if (workflow.document_entity_id) {
+        try {
+          const nowIso = new Date().toISOString()
+          const { data: entity } = await supabase
+            .from('document_entities')
+            .select('witness_history')
+            .eq('id', workflow.document_entity_id)
+            .single()
+
+          const history = Array.isArray((entity as any)?.witness_history)
+            ? (entity as any).witness_history
+            : []
+
+          history.push({
+            at: nowIso,
+            hash: hashHex,
+            source: 'signature_flow',
+            workflow_id: signer.workflow_id,
+            signer_id: signer.id
+          })
+
+          const { error: entityErr } = await supabase
+            .from('document_entities')
+            .update({
+              witness_hash: hashHex,
+              witness_current_hash: hashHex,
+              witness_current_status: 'signed',
+              witness_current_mime: 'application/pdf',
+              witness_current_generated_at: nowIso,
+              witness_history: history
+            })
+            .eq('id', workflow.document_entity_id)
+
+          if (entityErr) {
+            console.warn('apply-signer-signature: failed to update document_entities witness hash', entityErr)
+          }
+        } catch (entityUpdateErr) {
+          console.warn('apply-signer-signature: witness hash update failed', entityUpdateErr)
+        }
+      }
+
+      // Ensure document.protected.requested exists for TSA pipeline (idempotent).
+      if (workflow.document_entity_id) {
+        try {
+          const { data: existingEntity } = await supabase
+            .from('document_entities')
+            .select('events')
+            .eq('id', workflow.document_entity_id)
+            .single()
+
+          const eventsArr = Array.isArray((existingEntity as any)?.events) ? (existingEntity as any).events : []
+          const alreadyRequested = eventsArr.some((e: any) => e?.kind === 'document.protected.requested')
+          if (!alreadyRequested) {
+            const cfg = (workflow as any)?.forensic_config ?? {}
+            await appendEvent(
+              supabase as any,
+              workflow.document_entity_id,
+              {
+                kind: 'document.protected.requested',
+                at: new Date().toISOString(),
+                payload: {
+                  document_entity_id: workflow.document_entity_id,
+                  workflow_id: workflow.id,
+                  protection: [
+                    'tsa',
+                    ...(cfg?.polygon ? ['polygon'] : []),
+                    ...(cfg?.bitcoin ? ['bitcoin'] : []),
+                  ],
+                  protection_details: {
+                    signature_type: 'legal',
+                    forensic_enabled: true,
+                    tsa_requested: true,
+                    polygon_requested: Boolean(cfg?.polygon),
+                    bitcoin_requested: Boolean(cfg?.bitcoin)
+                  }
+                }
+              },
+              'apply-signer-signature'
+            )
+          }
+        } catch (protectErr) {
+          console.warn('apply-signer-signature: document.protected.requested append failed', protectErr)
+        }
+      }
+
+      // Enqueue TSA job for this witness hash (always, per signer).
+      if (workflow.document_entity_id) {
+        try {
+          await supabase
+            .from('executor_jobs')
+            .insert({
+              type: 'run_tsa',
+              entity_type: 'document',
+              entity_id: workflow.document_entity_id,
+              correlation_id: workflow.document_entity_id,
+              dedupe_key: `${workflow.document_entity_id}:run_tsa:${hashHex}`,
+              payload: {
+                document_entity_id: workflow.document_entity_id,
+                witness_hash: hashHex,
+                workflow_id: workflow.id,
+                signer_id: signer.id
+              },
+              status: 'queued',
+              run_at: new Date().toISOString()
+            })
+        } catch (tsaErr) {
+          console.warn('apply-signer-signature: failed to enqueue run_tsa', tsaErr)
+        }
+      }
+
+      // Override witness hash for downstream events.
+      witnessHashForEvent = hashHex
     }
 
     // Insert canonical event: use existing event_type allowed by DB
     const eventPayload = {
-      witness_pdf_hash: witness_pdf_hash || null,
+      witness_pdf_hash: witnessHashForEvent,
       applied_at: applied_at || new Date().toISOString(),
       identity_level: identity_level || null
     }
@@ -448,7 +743,7 @@ serve(async (req) => {
             document_entity_id: workflow.document_entity_id
           },
           evidence: {
-            witness_pdf_hash: witness_pdf_hash || null,
+            witness_pdf_hash: eventPayload.witness_pdf_hash || null,
             identity_level: identity_level || null,
             batches_signed: batches.map((b: any) => b.id)
           }

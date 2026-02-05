@@ -210,7 +210,7 @@ serve(async (req: Request) => {
       .eq("delivery_status", "pending")
       .lt("retry_count", MAX_RETRIES)
       .limit(WORKFLOW_SCAN_LIMIT)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false });
 
     if (workflowError) {
       console.error(
@@ -250,7 +250,7 @@ serve(async (req: Request) => {
         if (pb === pa) {
           const ca = new Date((a as any).created_at ?? 0).getTime();
           const cb = new Date((b as any).created_at ?? 0).getTime();
-          if (cb < ca) candidatesByWorkflow.set(wfId, row);
+          if (cb > ca) candidatesByWorkflow.set(wfId, row);
         }
       }
 
@@ -258,7 +258,7 @@ serve(async (req: Request) => {
         const pa = priority(a.notification_type);
         const pb = priority(b.notification_type);
         if (pa !== pb) return pa - pb;
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
 
       const workflowIds = Array.from(

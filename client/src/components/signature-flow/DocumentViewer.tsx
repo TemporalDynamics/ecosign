@@ -22,10 +22,12 @@ interface DocumentViewerProps {
   signerId?: string
   signedUrl?: string | null
   stamps?: Array<{
+    kind?: 'signature' | 'text' | 'date'
     signer?: { id?: string | null; email?: string | null; name?: string | null; signing_order?: number | null; signed_at?: string | null }
-    signature_payload: any
+    signature_payload?: any
+    value?: string | null
     position: { page: number; x: number; y: number; width: number; height: number }
-    apply_to_all_pages: boolean
+    apply_to_all_pages?: boolean
   }>
   onContinue: () => void
   mode?: 'dashboard' | 'signer'
@@ -111,18 +113,13 @@ export default function DocumentViewer({
           // Derived view: apply prior signature stamps (best-effort)
           if (stamps && stamps.length > 0) {
             try {
-              const { PDFDocument } = await import('pdf-lib')
+              const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
               const pdfDoc = await PDFDocument.load(await pdfBlob.arrayBuffer())
               const pages = pdfDoc.getPages()
+              const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+              const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
               for (const stamp of stamps) {
-                const payload = stamp?.signature_payload ?? {}
-                const dataUrl = payload?.dataUrl
-                if (!dataUrl || typeof dataUrl !== 'string') continue
-
-                const imgBytes = await fetch(dataUrl).then((res) => res.arrayBuffer())
-                const img = await pdfDoc.embedPng(imgBytes)
-
                 const placeOnPage = (pageIndex: number) => {
                   const page = pages[pageIndex]
                   if (!page) return
@@ -135,8 +132,28 @@ export default function DocumentViewer({
                   // UI coords are top-left; PDF coords are bottom-left
                   const yTop = pos.y * pageH
                   const y = pageH - yTop - h
+                  if (stamp.kind === 'signature') {
+                    const payload = stamp?.signature_payload ?? {}
+                    const dataUrl = payload?.dataUrl
+                    if (!dataUrl || typeof dataUrl !== 'string') return
+                    const imgBytes = await fetch(dataUrl).then((res) => res.arrayBuffer())
+                    const img = await pdfDoc.embedPng(imgBytes)
+                    page.drawImage(img, { x, y, width: w, height: h })
+                    return
+                  }
 
-                  page.drawImage(img, { x, y, width: w, height: h })
+                  const value = typeof stamp.value === 'string' ? stamp.value : ''
+                  if (!value.trim()) return
+                  const padding = 6
+                  const fontSize = Math.max(10, Math.min(14, h - padding * 2))
+                  page.drawText(value, {
+                    x: x + padding,
+                    y: y + Math.max(padding, (h - fontSize) / 2),
+                    size: fontSize,
+                    font: stamp.kind === 'date' ? boldFont : font,
+                    color: rgb(0.12, 0.12, 0.12),
+                    maxWidth: Math.max(0, w - padding * 2),
+                  })
                 }
 
                 const basePage = Math.max(0, (stamp.position?.page ?? 1) - 1)
@@ -213,7 +230,7 @@ export default function DocumentViewer({
         objectUrlRef.current = null
       }
     }
-  }, [documentPath, encryptionKey, logEvent, signerId, workflowId, signedUrl])
+  }, [documentPath, encryptionKey, logEvent, signerId, workflowId, signedUrl, stamps])
 
   if (loading) {
     return (

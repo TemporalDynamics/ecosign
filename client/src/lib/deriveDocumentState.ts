@@ -81,30 +81,30 @@ export function deriveDocumentState(
     w => w.status === 'active' || w.status === 'completed'
   );
 
-  if (activeWorkflow && signers && signers.length > 0) {
-    const signedCount = signers.filter(s => s.status === 'signed').length;
-    const totalCount = signers.length;
+  if (activeWorkflow) {
+    const signedCount = signers?.filter(s => s.status === 'signed').length ?? 0;
+    const totalCount = signers?.length ?? 0;
 
-    // 2a. Todas las firmas completadas → GRIS (final)
-    if (signedCount === totalCount) {
+    // 2a. Todas las firmas completadas → AZUL (finalizado)
+    if (activeWorkflow.status === 'completed' || (totalCount > 0 && signedCount === totalCount)) {
       return {
-        label: totalCount > 1 ? 'Firmas completadas' : 'Firmado',
-        phase: 'gray'
+        label: totalCount > 1 ? 'Firmado' : 'Firmado',
+        phase: 'blue'
       };
     }
 
-    // 2b. Faltan firmas → VERDE (esperando)
-    if (totalCount === 1) {
+    // 2b. Faltan firmas → VERDE (en proceso)
+    if (totalCount > 0) {
       return {
-        label: 'Esperando firma',
-        phase: 'green'
-      };
-    } else {
-      return {
-        label: `Esperando firma (${signedCount}/${totalCount})`,
+        label: `Firmando ${signedCount}/${totalCount}`,
         phase: 'green'
       };
     }
+
+    return {
+      label: 'Firmando',
+      phase: 'green'
+    };
   }
 
   // ========================================

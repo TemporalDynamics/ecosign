@@ -55,7 +55,7 @@ export default function DocumentRow({
 
   // Derivar estado y tooltip usando funciones canónicas
   // TODO: pasar workflows y signers cuando estén disponibles
-  const state = deriveDocumentState(document);
+  const state = deriveDocumentState(document, document.workflows, document.signers);
   const tooltip = deriveDocumentTooltip(document);
 
   if (asRow) {

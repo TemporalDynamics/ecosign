@@ -35,6 +35,8 @@ export type HumanWorkflowState = {
  */
 export function deriveHumanState(workflow: Workflow | null, signers: Signer[] = []): HumanWorkflowState {
   const wfStatus = workflow?.status ?? 'draft';
+  const total = signers.length;
+  const signedCount = signers.filter(s => s && s.status === 'signed').length;
 
   // 1) Cancelled / rejected / archived — strong negative
   if (['cancelled', 'rejected', 'archived'].includes(wfStatus)) {
@@ -43,7 +45,7 @@ export function deriveHumanState(workflow: Workflow | null, signers: Signer[] = 
 
   // 2) Completed — success
   if (wfStatus === 'completed') {
-    return { key: 'completed', label: 'Todos completaron', severity: 'success' };
+    return { key: 'completed', label: 'Firmado', severity: 'info' };
   }
 
   // 3) Waiting for next signer — find next by signing_order not signed/cancelled/expired
@@ -53,10 +55,9 @@ export function deriveHumanState(workflow: Workflow | null, signers: Signer[] = 
 
   const next = pending.length > 0 ? pending[0] : undefined;
   if (next && ['created', 'invited', 'accessed', 'verified', 'ready_to_sign'].includes(next.status ?? '')) {
-    const display = next.name || next.email || 'Firmante';
     return {
       key: 'waiting_for_signer',
-      label: `Esperando firma de ${display}`,
+      label: total > 0 ? `Firmando ${signedCount}/${total}` : 'Firmando',
       blocking_actor: { type: 'signer', id: next.id ?? null, display_name: next.name ?? next.email ?? null },
       severity: 'action'
     };
@@ -65,7 +66,7 @@ export function deriveHumanState(workflow: Workflow | null, signers: Signer[] = 
   // 4) Some signers have signed but not all — signer_completed
   const anySigned = (signers || []).some(s => s && s.status === 'signed');
   if (anySigned && wfStatus !== 'completed') {
-    return { key: 'signer_completed', label: 'Firma recibida', severity: 'info' };
+    return { key: 'signer_completed', label: total > 0 ? `Firmando ${signedCount}/${total}` : 'Firmando', severity: 'action' };
   }
 
   // 5) Draft
@@ -112,5 +113,4 @@ export function getHumanStateIconName(severity: HumanWorkflowState['severity']):
   };
   return map[severity] || 'Info';
 }
-
 

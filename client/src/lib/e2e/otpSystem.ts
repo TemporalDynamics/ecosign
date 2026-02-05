@@ -52,13 +52,15 @@ export async function deriveKeyFromOTP(
   );
   
   // Derive key
+  const derivationParams: Pbkdf2Params = {
+    name: CRYPTO_CONFIG.OTP_KEY_DERIVATION.algorithm,
+    salt,
+    iterations: CRYPTO_CONFIG.OTP_KEY_DERIVATION.iterations,
+    hash: CRYPTO_CONFIG.OTP_KEY_DERIVATION.hash,
+  };
+
   const derivedKey = await crypto.subtle.deriveKey(
-    {
-      name: CRYPTO_CONFIG.OTP_KEY_DERIVATION.algorithm,
-      salt,
-      iterations: CRYPTO_CONFIG.OTP_KEY_DERIVATION.iterations,
-      hash: CRYPTO_CONFIG.OTP_KEY_DERIVATION.hash,
-    },
+    derivationParams,
     keyMaterial,
     {
       name: CRYPTO_CONFIG.KEY_WRAPPING.algorithm,

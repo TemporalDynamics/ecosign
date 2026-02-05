@@ -1365,8 +1365,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       if (canonicalDocumentId) {
         console.debug('Canonical document_entities created:', canonicalDocumentId);
       }
+      const hasWorkflowIntent =
+        workflowEnabled ||
+        emailInputs.some((input) => isValidEmail(input.email.trim()).valid);
+
       // FLUJO 1: Firmas Múltiples (Caso B) - Enviar emails y terminar
-      if (workflowEnabled) {
+      if (hasWorkflowIntent) {
         // Validar que haya al menos un email
         const validSigners = buildSignersList();
         if (validSigners.length === 0) {
@@ -1672,11 +1676,6 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               method: 'client',
               reason: 'visualization',  // Changed from 'signature_applied' which is not a valid enum value
               executed_at: new Date().toISOString(),
-              metadata: {
-                overlay_spec: overlaySpec,
-                actor: 'owner',
-                signature_type: signatureType
-              }
             });
 
             console.log('✅ Transform log: signature.applied registrado');
@@ -2099,7 +2098,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       // - NO más triggers frontend - confiabilidad server-side garantizada
 
       // 4. Enviar notificación por email (no bloqueante)
-      if (savedDoc?.id) {
+      if (savedDoc?.id && !hasWorkflowIntent) {
         console.log('📧 Enviando notificación por email...');
         supabase.functions.invoke('notify-document-certified', {
           body: { documentId: savedDoc.id }
@@ -2119,7 +2118,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       const rawEcoBuffer = certResult.ecoxBuffer ?? new Uint8Array();
       const ecoBuffer: Uint8Array = rawEcoBuffer instanceof Uint8Array
         ? rawEcoBuffer
-        : new Uint8Array(rawEcoBuffer as ArrayBuffer);
+        : rawEcoBuffer instanceof ArrayBuffer
+        ? new Uint8Array(rawEcoBuffer)
+        : new Uint8Array();
       const ecoFileName = (certResult.fileName || 'document.pdf').replace(/\.[^/.]+$/, '.eco');
       setCertificateData({
         ...certResult,

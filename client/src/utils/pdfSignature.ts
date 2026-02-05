@@ -29,6 +29,8 @@ export type OverlaySpecItem = {
   value?: string;
   imageDataUrl?: string;
   label?: string;
+  actor?: string;
+  required?: boolean;
 };
 
 const normalizedToPdf = (

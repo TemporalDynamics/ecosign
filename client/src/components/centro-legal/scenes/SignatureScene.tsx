@@ -31,6 +31,7 @@ export function SignatureScene({
         pdfUrl={filePreviewUrl}
         fields={signatureFields}
         onFieldsChange={onFieldsChange}
+        signers={[]}
       />
     </div>
   );

@@ -75,7 +75,8 @@ const persistSignedPdf = async (
   userId: string
 ): Promise<PersistSignedPdfResult> => {
   const supabase = getSupabase();
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const normalized: Uint8Array = pdfBytes instanceof ArrayBuffer ? new Uint8Array(pdfBytes) : pdfBytes;
+  const blob = new Blob([normalized], { type: 'application/pdf' });
   const storagePath = `signed/${userId}/${crypto.randomUUID()}.pdf`;
 
   const { error } = await supabase.storage

@@ -5,13 +5,13 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { SignatureField } from '../../lib/pdf-stamper';
+import type { SignatureField } from '../../types/signature-fields';
 
 interface FieldPlacerProps {
   pdfUrl: string;
   fields: SignatureField[];
   onFieldsChange: (fields: SignatureField[]) => void;
-  signers: Array<{ id: string; name: string; email: string }>;
+  signers?: Array<{ name?: string; email: string }>;
 }
 
 type FieldType = 'signature' | 'text' | 'date';
@@ -22,8 +22,9 @@ export function FieldPlacer({
   onFieldsChange,
   signers,
 }: FieldPlacerProps) {
+  const signerOptions = signers ?? [];
   const [draggedField, setDraggedField] = useState<FieldType | null>(null);
-  const [selectedSigner, setSelectedSigner] = useState<string>(signers[0]?.id || '');
+  const [selectedSigner, setSelectedSigner] = useState<string>(signerOptions[0]?.email || '');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleDragStart = (fieldType: FieldType) => {
@@ -42,12 +43,13 @@ export function FieldPlacer({
     const newField: SignatureField = {
       id: `field-${Date.now()}`,
       type: draggedField,
-      signerId: selectedSigner,
-      page: 0, // TODO: detectar página actual
+      assignedTo: selectedSigner || undefined,
+      page: 1, // TODO: detectar página actual
       x,
       y,
       width: draggedField === 'signature' ? 200 : 150,
       height: draggedField === 'signature' ? 60 : 30,
+      required: true,
     };
 
     onFieldsChange([...fields, newField]);
@@ -82,10 +84,14 @@ export function FieldPlacer({
             value={selectedSigner}
             onChange={(e) => setSelectedSigner(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-md"
+            disabled={signerOptions.length === 0}
           >
-            {signers.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.email})
+            {signerOptions.length === 0 && (
+              <option value="">Sin firmantes</option>
+            )}
+            {signerOptions.map((s) => (
+              <option key={s.email} value={s.email}>
+                {s.name || s.email} ({s.email})
               </option>
             ))}
           </select>

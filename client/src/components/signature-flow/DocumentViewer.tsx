@@ -120,7 +120,7 @@ export default function DocumentViewer({
               const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
               for (const stamp of stamps) {
-                const placeOnPage = (pageIndex: number) => {
+                const placeOnPage = async (pageIndex: number) => {
                   const page = pages[pageIndex]
                   if (!page) return
                   const { width: pageW, height: pageH } = page.getSize()
@@ -158,9 +158,11 @@ export default function DocumentViewer({
 
                 const basePage = Math.max(0, (stamp.position?.page ?? 1) - 1)
                 if (stamp.apply_to_all_pages) {
-                  for (let i = 0; i < pages.length; i += 1) placeOnPage(i)
+                  for (let i = 0; i < pages.length; i += 1) {
+                    await placeOnPage(i)
+                  }
                 } else {
-                  placeOnPage(Math.min(basePage, pages.length - 1))
+                  await placeOnPage(Math.min(basePage, pages.length - 1))
                 }
               }
 

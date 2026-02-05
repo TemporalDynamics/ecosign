@@ -88,7 +88,8 @@ export async function encryptFile(
   // 4. Prepend IV to ciphertext (needed for decryption)
   const result = new Uint8Array(iv.length + encryptedBuffer.byteLength);
   result.set(iv, 0);
-  result.set(new Uint8Array(encryptedBuffer), iv.length);
+  const encryptedArr = new Uint8Array(encryptedBuffer);
+  result.set(encryptedArr, iv.length);
   
   return new Blob([result], { type: 'application/octet-stream' });
 }
@@ -125,7 +126,7 @@ export async function decryptFile(
     
     // CRITICAL: Return Blob with correct MIME type for PDF
     // Without this, browsers render the decrypted bytes as raw binary ("figuritas")
-    return new Blob([decryptedBuffer], { type: 'application/pdf' });
+    return new Blob([new Uint8Array(decryptedBuffer)], { type: 'application/pdf' });
   } catch (error) {
     console.error('Decryption error:', error);
     throw new Error(CRYPTO_ERRORS.DECRYPTION_FAILED);

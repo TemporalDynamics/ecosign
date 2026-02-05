@@ -169,13 +169,15 @@ async function deriveUnwrapKey(
   );
   
   // Derive unwrap key
+  const derivationParams: Pbkdf2Params = {
+    name: CRYPTO_CONFIG.SESSION_KEY_DERIVATION.algorithm,
+    salt,
+    iterations: CRYPTO_CONFIG.SESSION_KEY_DERIVATION.iterations,
+    hash: CRYPTO_CONFIG.SESSION_KEY_DERIVATION.hash,
+  };
+
   const unwrapKey = await crypto.subtle.deriveKey(
-    {
-      name: CRYPTO_CONFIG.SESSION_KEY_DERIVATION.algorithm,
-      salt,
-      iterations: CRYPTO_CONFIG.SESSION_KEY_DERIVATION.iterations,
-      hash: CRYPTO_CONFIG.SESSION_KEY_DERIVATION.hash,
-    },
+    derivationParams,
     keyMaterial,
     {
       name: CRYPTO_CONFIG.KEY_WRAPPING.algorithm,

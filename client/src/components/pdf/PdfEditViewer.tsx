@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/build/pdf';
+import type { PDFDocumentProxy, PDFPageProxy, PageViewport, RenderTask } from 'pdfjs-dist/build/pdf';
 
 GlobalWorkerOptions.workerSrc =
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
@@ -50,7 +51,7 @@ export const PdfEditViewer = ({
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const canvasRefs = useRef<HTMLCanvasElement[]>([]);
-  const renderTasksRef = useRef<Array<{ cancel: () => void; promise?: Promise<unknown> }>>([]);
+  const renderTasksRef = useRef<RenderTask[]>([]);
 
   useEffect(() => {
     let cancelled = false;

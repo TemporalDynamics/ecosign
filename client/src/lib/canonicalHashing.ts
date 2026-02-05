@@ -12,7 +12,13 @@ const toArrayBuffer = async (
   }
 
   if (input instanceof Uint8Array) {
-    return input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+    const slice = input.buffer.slice(input.byteOffset, input.byteOffset + input.byteLength);
+    if (slice instanceof ArrayBuffer) {
+      return slice;
+    }
+    const copy = new Uint8Array(input.byteLength);
+    copy.set(input);
+    return copy.buffer;
   }
 
   return await input.arrayBuffer();

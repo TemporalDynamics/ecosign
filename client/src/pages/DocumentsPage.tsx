@@ -66,6 +66,8 @@ type DocumentRecord = {
   signer_links?: any[];
   source_storage_path?: string | null;
   custody_mode?: 'hash_only' | 'encrypted_custody' | null;
+  workflows?: { id: string; status: 'draft' | 'active' | 'paused' | 'completed' | 'cancelled' }[];
+  signers?: { id: string; status: 'pending' | 'ready' | 'signed' | 'requested_changes' | 'skipped'; order: number; name?: string | null; email: string }[];
 };
 
 type DocumentEntityRow = {
@@ -578,6 +580,73 @@ function DocumentsPage() {
       }
 
       const mapped = (entityData as DocumentEntityRow[] | null)?.map(mapDocumentEntityToRecord) || [];
+
+      // Enriquecer con workflows y firmantes (para estado "Firmando x/y")
+      try {
+        const entityIds = mapped
+          .map((doc) => doc.document_entity_id ?? doc.id)
+          .filter((id) => typeof id === 'string' && id.length > 0);
+
+        if (entityIds.length > 0) {
+          const { data: wfRows, error: wfError } = await supabase
+            .from('signature_workflows')
+            .select('id, document_entity_id, status')
+            .in('document_entity_id', entityIds)
+            .in('status', ['active', 'completed']);
+
+          if (!wfError && wfRows && wfRows.length > 0) {
+            const workflowByEntity = new Map<string, { id: string; status: any }[]>();
+            for (const wf of wfRows as any[]) {
+              const list = workflowByEntity.get(wf.document_entity_id) ?? [];
+              list.push({ id: wf.id, status: wf.status });
+              workflowByEntity.set(wf.document_entity_id, list);
+            }
+
+            const workflowIds = wfRows.map((w: any) => w.id).filter(Boolean);
+            const signersByWorkflow = new Map<string, any[]>();
+            if (workflowIds.length > 0) {
+              const { data: signerRows, error: signerError } = await supabase
+                .from('workflow_signers')
+                .select('id, workflow_id, status, signing_order, name, email')
+                .in('workflow_id', workflowIds);
+
+              if (!signerError && signerRows) {
+                for (const s of signerRows as any[]) {
+                  const list = signersByWorkflow.get(s.workflow_id) ?? [];
+                  list.push({
+                    id: s.id,
+                    status: s.status,
+                    order: s.signing_order ?? 0,
+                    name: s.name,
+                    email: s.email,
+                  });
+                  signersByWorkflow.set(s.workflow_id, list);
+                }
+              }
+            }
+
+            mapped.forEach((doc) => {
+              const entityId = doc.document_entity_id ?? doc.id;
+              const workflows = workflowByEntity.get(entityId);
+              if (workflows) {
+                const sorted = [...workflows].sort((a, b) => {
+                  if (a.status === b.status) return 0;
+                  if (a.status === 'active') return -1;
+                  if (b.status === 'active') return 1;
+                  return 0;
+                });
+                doc.workflows = sorted as any;
+                const workflowId = sorted[0]?.id;
+                if (workflowId) {
+                  doc.signers = (signersByWorkflow.get(workflowId) ?? []) as any;
+                }
+              }
+            });
+          }
+        }
+      } catch (workflowJoinErr) {
+        console.warn('Skipping workflow enrichment:', workflowJoinErr);
+      }
 
       // UX rule: Documents list shows only documents not assigned to any operation.
       // If a document is in an operation, it is accessed from that operation.

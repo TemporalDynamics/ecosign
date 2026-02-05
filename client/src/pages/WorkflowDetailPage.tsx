@@ -23,6 +23,7 @@ type Signer = {
   name: string | null
   status: string
   signed_at: string | null
+  signing_order?: number | null
 }
 
 type AuditEvent = {
@@ -81,30 +82,43 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function SignersList({ signers }: { signers: Signer[] }) {
+  const ordered = [...signers].sort((a, b) => (a.signing_order ?? 999) - (b.signing_order ?? 999))
+  const nextSigner = ordered.find((s) => !['signed', 'cancelled', 'expired', 'skipped'].includes(s.status))
   return (
     <div className="space-y-2">
-      {signers.map((s) => (
+      {ordered.map((s) => {
+        const isNext = nextSigner?.id === s.id
+        let badgeLabel = signerStatusLabels[s.status] || s.status
+        if (s.status === 'signed') badgeLabel = 'Firmado'
+        if (isNext && s.status !== 'signed') badgeLabel = 'Siguiente en la lista'
+        if (!isNext && !['signed', 'cancelled', 'expired', 'skipped'].includes(s.status)) {
+          badgeLabel = 'Esperando firma'
+        }
+        const badgeClass =
+          s.status === 'signed'
+            ? 'bg-blue-100 text-blue-800'
+            : isNext
+            ? 'bg-green-100 text-green-800'
+            : ['cancelled', 'expired', 'skipped'].includes(s.status)
+            ? 'bg-gray-100 text-gray-700'
+            : 'bg-green-50 text-green-700'
+
+        return (
         <div key={s.id} className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
           <div>
             <div className="text-sm font-semibold text-gray-900">{s.name || s.email}</div>
             <div className="text-xs text-gray-600">{s.email}</div>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              s.status === 'signed'
-                ? 'bg-green-100 text-green-800'
-                : s.status === 'cancelled' || s.status === 'expired'
-                ? 'bg-red-100 text-red-800'
-                : 'bg-yellow-100 text-yellow-800'
-            }`}>
-              {signerStatusLabels[s.status] || s.status}
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
+              {badgeLabel}
             </span>
             {s.signed_at && (
               <span className="text-gray-500">{new Date(s.signed_at).toLocaleString()}</span>
             )}
           </div>
         </div>
-      ))}
+      )})}
       {signers.length === 0 && (
         <p className="text-sm text-gray-600">No hay firmantes.</p>
       )}
@@ -210,11 +224,11 @@ export default function WorkflowDetailPage() {
       if (wfError) throw wfError
       setWorkflow(wf as Workflow)
 
-      const { data: signerData, error: signerError } = await supabase
+        const { data: signerData, error: signerError } = await supabase
         .from('workflow_signers')
-        .select('id, email, name, status, signed_at')
+        .select('id, email, name, status, signed_at, signing_order')
         .eq('workflow_id', workflowId)
-        .order('signed_at', { ascending: true })
+        .order('signing_order', { ascending: true })
 
       if (signerError) throw signerError
       setSigners((signerData || []) as Signer[])

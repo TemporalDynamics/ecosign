@@ -36,6 +36,7 @@ serve(async (req: Request) => {
   const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const MAX_RETRIES = 10;
   const BATCH_LIMIT = 5;
+  const WORKFLOW_SCAN_LIMIT = 200;
   const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
   // Canon: prevent burst per workflow (1 immediate email per signature).
   const WORKFLOW_THROTTLE_MS = 30 * 1000;
@@ -206,7 +207,7 @@ serve(async (req: Request) => {
       .select("*")
       .eq("delivery_status", "pending")
       .lt("retry_count", MAX_RETRIES)
-      .limit(BATCH_LIMIT)
+      .limit(WORKFLOW_SCAN_LIMIT)
       .order("created_at", { ascending: true });
 
     if (workflowError) {
@@ -217,6 +218,9 @@ serve(async (req: Request) => {
     } else if (!workflowRows || workflowRows.length === 0) {
       console.info("✅ No hay emails pendientes en workflow_notifications");
     } else {
+      // Scan a wider window so priority emails are not starved by old rows.
+      const rows = workflowRows ?? [];
+
       // Only attempt ONE email per workflow per run (avoid bursts).
       // Priority: your_turn_to_sign first, then the rest.
       const priority = (type: string | null | undefined) => {
@@ -225,7 +229,7 @@ serve(async (req: Request) => {
       };
 
       const candidatesByWorkflow = new Map<string, any>();
-      for (const row of workflowRows) {
+      for (const row of rows) {
         const wfId = (row as any).workflow_id;
         if (!wfId) continue;
         const existing = candidatesByWorkflow.get(wfId);
@@ -272,7 +276,7 @@ serve(async (req: Request) => {
         return Number.isFinite(ageMs) && ageMs >= 0 && ageMs < WORKFLOW_THROTTLE_MS;
       };
 
-      for (const r of candidates) {
+      for (const r of candidates.slice(0, BATCH_LIMIT)) {
         try {
           const cooldownUntil = parseCooldownUntil((r as any).error_message);
           if (isInCooldown(cooldownUntil)) {

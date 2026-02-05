@@ -672,7 +672,7 @@ function DocumentsPage() {
     const channel = supabase
       .channel(`document-entities-${currentUserId}`)
       .on(
-        "postgres_changes",
+        ("postgres_changes" as any),
         {
           event: "UPDATE",
           schema: "public",
@@ -899,6 +899,7 @@ function DocumentsPage() {
     if (isGuestMode()) return;
     if (
       showVerifyModal &&
+      verifyDoc &&
       getPdfStoragePath(verifyDoc) &&
       !autoVerifyAttempted &&
       verificationMode !== "source"

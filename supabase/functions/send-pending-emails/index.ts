@@ -48,6 +48,8 @@ serve(async (req: Request) => {
     creator_detailed_notification: 20,
   };
 
+  const ALLOWED_TYPES = new Set(["your_turn_to_sign", "workflow_completed"]);
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
   console.log("🟢 send-pending-emails: start");
 
@@ -259,6 +261,30 @@ serve(async (req: Request) => {
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       });
 
+      const workflowIds = Array.from(
+        new Set(
+          candidates
+            .map((c: any) => c.workflow_id)
+            .filter((id: any) => typeof id === "string" && id.length > 0),
+        ),
+      );
+
+      const workflowById = new Map<string, any>();
+      if (workflowIds.length > 0) {
+        const { data: workflows, error: wfErr } = await supabase
+          .from("signature_workflows")
+          .select("id, status")
+          .in("id", workflowIds);
+
+        if (wfErr) {
+          console.warn("send-pending-emails: failed to load workflow statuses", wfErr);
+        } else {
+          for (const wf of workflows ?? []) {
+            workflowById.set(wf.id, wf);
+          }
+        }
+      }
+
       const isWorkflowThrottled = async (workflowId: string) => {
         const { data: lastSent, error: lastSentError } = await supabase
           .from("workflow_notifications")
@@ -278,6 +304,14 @@ serve(async (req: Request) => {
 
       for (const r of candidates.slice(0, BATCH_LIMIT)) {
         try {
+          if (!ALLOWED_TYPES.has(r.notification_type)) {
+            console.info("Skipping non-canonical notification type", {
+              id: r.id,
+              type: r.notification_type,
+            });
+            continue;
+          }
+
           const cooldownUntil = parseCooldownUntil((r as any).error_message);
           if (isInCooldown(cooldownUntil)) {
             console.info(
@@ -285,6 +319,37 @@ serve(async (req: Request) => {
               { id: r.id, until: cooldownUntil },
             );
             continue;
+          }
+
+          const workflow = r.workflow_id ? workflowById.get(r.workflow_id) : null;
+          if (!workflow) {
+            console.info("Skipping notification with missing workflow", {
+              id: r.id,
+              workflow_id: r.workflow_id,
+            });
+            continue;
+          }
+
+          if (r.notification_type === "your_turn_to_sign") {
+            if (workflow.status !== "active") {
+              console.info("Email omitido: workflow no activo", {
+                workflow_id: r.workflow_id,
+                status: workflow.status,
+                notification_id: r.id,
+              });
+              continue;
+            }
+          }
+
+          if (r.notification_type === "workflow_completed") {
+            if (workflow.status !== "completed") {
+              console.info("Email omitido: workflow no completado", {
+                workflow_id: r.workflow_id,
+                status: workflow.status,
+                notification_id: r.id,
+              });
+              continue;
+            }
           }
 
           // Per-workflow throttle to avoid 429 bursts.

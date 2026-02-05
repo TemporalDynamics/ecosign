@@ -18,6 +18,16 @@ interface SignaturePadProps {
   signerName: string
   workflowId?: string
   signerId?: string
+  fields?: Array<{
+    id: string
+    field_type: 'signature' | 'text' | 'date'
+    label?: string | null
+    placeholder?: string | null
+    required?: boolean
+  }>
+  fieldValues?: Record<string, string>
+  onFieldValueChange?: (fieldId: string, value: string) => void
+  signatureAllPages?: boolean
   validate?: () => string | null
   onSign: (payload: { type: SignatureMode, dataUrl: string }) => Promise<void> | void
 }
@@ -26,6 +36,10 @@ export default function SignaturePad({
   signerName,
   workflowId,
   signerId,
+  fields,
+  fieldValues,
+  onFieldValueChange,
+  signatureAllPages,
   validate,
   onSign
 }: SignaturePadProps) {
@@ -148,6 +162,41 @@ export default function SignaturePad({
             </p>
           </div>
         </div>
+
+        {/* Fields */}
+        {(fields && fields.length > 0) || signatureAllPages ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">Completá para firmar</h2>
+            {signatureAllPages && (
+              <p className="mt-1 text-sm text-gray-600">
+                Tu firma se aplicará automáticamente en todas las páginas.
+              </p>
+            )}
+            {fields && fields.length > 0 && (
+              <div className="mt-4 grid gap-3">
+                {fields.map((f) => {
+                  const label = (f.label || (f.field_type === 'date' ? 'Fecha' : 'Texto')) as string
+                  const placeholder = (f.placeholder || '') as string
+                  const required = Boolean(f.required)
+                  return (
+                    <label key={f.id} className="grid gap-1">
+                      <span className="text-sm font-medium text-gray-800">
+                        {label}{required ? ' *' : ''}
+                      </span>
+                      <input
+                        type={f.field_type === 'date' ? 'date' : 'text'}
+                        value={fieldValues?.[f.id] ?? ''}
+                        onChange={(e) => onFieldValueChange?.(f.id, e.target.value)}
+                        placeholder={f.field_type === 'date' ? undefined : placeholder}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {/* Tabs */}
         <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">

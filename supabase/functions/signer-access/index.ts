@@ -363,9 +363,6 @@ serve(async (req) => {
     // Fetch signer fields (for the signer UI to render required inputs)
     let signerFields: any[] = [];
     const documentEntityId = (signer.workflow as any)?.document_entity_id ?? null;
-    console.log('🔍 [signer-access] documentEntityId:', documentEntityId);
-    console.log('🔍 [signer-access] signer.id:', signer.id);
-
     if (documentEntityId) {
       const { data: batchRows, error: batchErr } = await supabase
         .from('batches')
@@ -373,14 +370,10 @@ serve(async (req) => {
         .eq('document_entity_id', documentEntityId)
         .eq('assigned_signer_id', signer.id);
 
-      console.log('🔍 [signer-access] batchRows:', batchRows);
-      console.log('🔍 [signer-access] batchErr:', batchErr);
-
       if (batchErr) {
         console.warn('signer-access: failed to fetch signer batches', batchErr);
       } else {
         const batchIds = (batchRows ?? []).map((b: any) => b.id).filter(Boolean);
-        console.log('🔍 [signer-access] batchIds:', batchIds);
 
         if (batchIds.length > 0) {
           const { data: fieldRows, error: fieldErr } = await supabase
@@ -388,11 +381,6 @@ serve(async (req) => {
             .select('id, field_type, label, placeholder, position, required, value, metadata, batch_id, apply_to_all_pages')
             .in('batch_id', batchIds)
             .order('created_at', { ascending: true });
-
-          console.log('🔍 [signer-access] fieldRows:', fieldRows);
-          console.log('🔍 [signer-access] fieldRows.length:', fieldRows?.length ?? 0);
-          console.log('🔍 [signer-access] field_types:', fieldRows?.map((f: any) => f.field_type));
-          console.log('🔍 [signer-access] fieldErr:', fieldErr);
 
           if (fieldErr) {
             console.warn('signer-access: failed to fetch signer fields', fieldErr);
@@ -424,6 +412,21 @@ serve(async (req) => {
       } else if (priorSigners && priorSigners.length > 0) {
         const priorSignerIds = priorSigners.map((s: any) => s.id);
         const signerById = new Map(priorSigners.map((s: any) => [s.id, s]));
+
+        let priorBatchIds: string[] = [];
+        if (documentEntityId) {
+          const { data: priorBatches, error: priorBatchErr } = await supabase
+            .from('batches')
+            .select('id, assigned_signer_id')
+            .eq('document_entity_id', documentEntityId)
+            .in('assigned_signer_id', priorSignerIds);
+
+          if (priorBatchErr) {
+            console.warn('signer-access: failed to fetch prior signer batches', priorBatchErr);
+          }
+
+          priorBatchIds = Array.from(new Set((priorBatches ?? []).map((b: any) => b.id).filter(Boolean)));
+        }
 
         const { data: instances, error: instErr } = await supabase
           .from('signature_instances')
@@ -459,6 +462,7 @@ serve(async (req) => {
 
               for (const field of batchFields) {
                 priorSignatureStamps.push({
+                  kind: 'signature',
                   signer: {
                     id: s?.id ?? null,
                     email: s?.email ?? null,
@@ -471,6 +475,29 @@ serve(async (req) => {
                   apply_to_all_pages: Boolean(field.apply_to_all_pages),
                 });
               }
+            }
+          }
+        }
+
+        if (priorBatchIds.length > 0) {
+          const { data: priorFields, error: priorFieldsErr } = await supabase
+            .from('workflow_fields')
+            .select('id, batch_id, field_type, position, value, apply_to_all_pages')
+            .in('batch_id', priorBatchIds)
+            .neq('field_type', 'signature');
+
+          if (priorFieldsErr) {
+            console.warn('signer-access: failed to fetch prior text/date fields', priorFieldsErr);
+          } else {
+            for (const field of (priorFields ?? [])) {
+              const value = typeof field.value === 'string' ? field.value : '';
+              if (!value.trim()) continue;
+              priorSignatureStamps.push({
+                kind: field.field_type === 'date' ? 'date' : 'text',
+                position: field.position,
+                value,
+                apply_to_all_pages: Boolean(field.apply_to_all_pages),
+              });
             }
           }
         }
@@ -508,8 +535,6 @@ serve(async (req) => {
     }
 
     // ... (The rest of the original file's logic for preparing the response)
-
-    console.log('✅ [signer-access] Devolviendo respuesta con workflow_fields:', signerFields.length, 'campos');
 
     return json(
       {

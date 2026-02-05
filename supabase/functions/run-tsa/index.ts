@@ -99,7 +99,24 @@ serve(async (req) => {
   }
 
   const events = Array.isArray(entity.events) ? entity.events : [];
-  if (events.some((event: { kind?: string }) => event.kind === 'tsa.confirmed')) {
+  const witnessHash = String(entity.witness_hash ?? '');
+  if (!witnessHash) {
+    await emitEvent(
+      supabase,
+      documentEntityId,
+      {
+        kind: 'tsa.failed',
+        at: new Date().toISOString(),
+      },
+      'run-tsa',
+    );
+    return jsonResponse({ error: 'witness_hash missing' }, 400);
+  }
+
+  const hasTsaForHash = events.some((event: { kind?: string; witness_hash?: string }) =>
+    event.kind === 'tsa.confirmed' && event.witness_hash === witnessHash
+  );
+  if (hasTsaForHash) {
     return jsonResponse({ success: true, noop: true });
   }
 
@@ -114,20 +131,6 @@ serve(async (req) => {
       },
       409,
     );
-  }
-
-  const witnessHash = String(entity.witness_hash ?? '');
-  if (!witnessHash) {
-    await emitEvent(
-      supabase,
-      documentEntityId,
-      {
-        kind: 'tsa.failed',
-        at: new Date().toISOString(),
-      },
-      'run-tsa',
-    );
-    return jsonResponse({ error: 'witness_hash missing' }, 400);
   }
 
   try {

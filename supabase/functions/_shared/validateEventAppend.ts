@@ -14,6 +14,15 @@ export function validateEventAppend(documentEntity: any, event: any) {
     return { ok: false, reason: 'event_kind_duplicate', contract: CONTRACT_ECO_ECOX };
   }
 
+  if ((event?.kind === 'tsa.confirmed' || event?.kind === 'tsa') && event?.witness_hash) {
+    const duplicateHash = events.some((e: any) =>
+      e.kind === event.kind && e.witness_hash === event.witness_hash
+    );
+    if (duplicateHash) {
+      return { ok: false, reason: 'event_witness_hash_duplicate', contract: CONTRACT_ECO_ECOX };
+    }
+  }
+
   if (rule.requireWitnessHash && !event.witness_hash) {
     return { ok: false, reason: 'event_witness_hash_required', contract: CONTRACT_ECO_ECOX };
   }

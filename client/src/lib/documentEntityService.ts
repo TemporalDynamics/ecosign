@@ -137,6 +137,20 @@ const assertCustodyConsistency = (input: SourceTruthInput) => {
   }
 };
 
+const isDuplicateError = (error: any) => {
+  if (!error) return false;
+  const code = String(error.code || '').trim();
+  if (code === '23505') return true;
+  const message = String(error.message || '');
+  const details = String(error.details || '');
+  return (
+    message.includes('duplicate key') ||
+    message.includes('23505') ||
+    details.includes('duplicate key') ||
+    details.includes('23505')
+  );
+};
+
 export const getDocumentEntity = async (id: string) => {
   const supabase = getSupabase();
   const { data, error } = await supabase
@@ -231,7 +245,7 @@ export const createSourceTruth = async (input: SourceTruthInput) => {
     .single();
 
   if (error) {
-    if (error.code === '23505') {
+    if (isDuplicateError(error)) {
       const { data: existing, error: existingError } = await supabase
         .from('document_entities')
         .select('*')

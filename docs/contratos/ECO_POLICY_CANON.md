@@ -86,4 +86,4 @@
 - EcoSign publica su clave pública Ed25519 para verificación de proofs en Sigstore Rekor.
 - Uso exclusivo: firma de statements `ecosign.proof.v1`.
 - **Public Key (Ed25519, base64):**
-  - `REPLACE_WITH_PUBLIC_KEY_B64`
+  - `HeJ9QDRHyJfcX03pdX39AvBiLiIl3OElaxJLOit+1q0=`

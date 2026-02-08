@@ -220,62 +220,41 @@ serve(async (req) => {
     }
 
     // Notifications
-    const displaySigner = signers?.[0]?.name || signers?.[0]?.email || 'Un firmante'
+    const workflowTitle = workflow.original_filename || 'Documento'
     const ownerEmail = ownerUser?.email
 
-    if (ownerEmail) {
-      await supabase
-        .from('workflow_notifications')
-        .insert({
-          workflow_id: workflow.id,
-          recipient_email: ownerEmail,
-          recipient_type: 'owner',
-          notification_type: 'owner_document_signed',
-          subject: `${displaySigner} firmó ${workflow.original_filename || 'tu documento'}`,
-          body_html: `
-            <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">${displaySigner} firmó tu documento</h2>
-            <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
-              ${displaySigner} firmó <strong>${workflow.original_filename || 'Documento'}</strong>.
-            </p>
-            <p style="font-family:Arial,sans-serif;margin:16px 0;">
-              <a href="${appUrl}/workflows/${workflow.id}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Ver documento firmado</a>
-            </p>
-            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
-          `,
-          delivery_status: 'pending'
-        })
-    }
+    if (ownerEmail || (signers && signers.length > 0)) {
+      const recipients = new Map<string, { email: string; signer_id?: string | null; recipient_type: 'owner' | 'signer' }>()
+      if (ownerEmail) {
+        recipients.set(ownerEmail, { email: ownerEmail, recipient_type: 'owner' })
+      }
+      for (const s of signers ?? []) {
+        if (!s?.email) continue
+        if (!recipients.has(s.email)) {
+          recipients.set(s.email, { email: s.email, recipient_type: 'signer', signer_id: s.id })
+        }
+      }
 
-    if (signers && signers.length > 0) {
-      for (const signer of signers) {
-        const signUrl = `${appUrl}/sign/${signer.access_token_hash}`
-        await supabase
-          .from('workflow_notifications')
-          .insert({
-            workflow_id: workflow.id,
-            recipient_email: signer.email,
-            recipient_type: 'signer',
-            signer_id: signer.id,
-            notification_type: 'signer_copy_ready',
-            subject: 'Tu copia firmada ya está lista',
-            body_html: `
-              <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Tu firma fue aplicada correctamente</h2>
-              <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
-                El documento <strong>${workflow.original_filename || 'Documento'}</strong> ya está certificado.
-              </p>
-              <p style="font-family:Arial,sans-serif;margin:12px 0 8px;">
-                <a href="${signUrl}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar PDF firmado</a>
-              </p>
-              <p style="font-family:Arial,sans-serif;margin:8px 0 16px;">
-                <a href="${signUrl}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar archivo ECO</a>
-              </p>
-              <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:12px 0 0;">Firmaste con la misma evidencia que recibe el remitente.</p>
-              <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:4px 0 12px;">Tu firma te pertenece. Tu evidencia también.</p>
-              <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:12px 0 0;">EcoSign. Transparencia que acompaña.</p>
-              <p style="font-family:Arial,sans-serif;color:#94a3b8;font-size:12px;margin:8px 0 0;">Guardá este correo para tener tus copias cuando las necesites.</p>
-            `,
-            delivery_status: 'pending'
-          })
+      const notifications = Array.from(recipients.values()).map((r) => ({
+        workflow_id: workflow.id,
+        recipient_email: r.email,
+        recipient_type: r.recipient_type,
+        signer_id: r.signer_id ?? null,
+        notification_type: 'workflow_completed_simple',
+        step: 'completion_notice',
+        subject: '✅ Proceso de firmas completado',
+        body_html: `
+          <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Proceso completado</h2>
+          <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
+            El documento <strong>${workflowTitle}</strong> ha sido firmado por todos los participantes.
+          </p>
+          <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
+        `,
+        delivery_status: 'pending'
+      }))
+
+      if (notifications.length > 0) {
+        await supabase.from('workflow_notifications').insert(notifications)
       }
     }
 

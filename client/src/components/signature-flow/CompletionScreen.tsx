@@ -61,10 +61,9 @@ export default function CompletionScreen({
         </div>
 
         <div className="mt-6 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-700">
-          En unos minutos vas a recibir un correo con la evidencia de esta firma.
-          Nosotros no accedemos al contenido del documento.
+          Guardá tu PDF firmado y tu archivo .ECO ahora. Son tu evidencia oficial.
           <span className="mt-2 block text-gray-800">
-            Si no tenés una cuenta en EcoSign, descargá ahora tu PDF firmado. Luego vas a necesitar pedírselo al creador del flujo.
+            Si no tenés una cuenta en EcoSign, descargalos ahora. Luego vas a necesitar pedírselos al creador del flujo.
           </span>
         </div>
       </div>

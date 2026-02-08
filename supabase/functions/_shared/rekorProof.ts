@@ -10,6 +10,10 @@ export type RekorProofResult = {
   reason?: string;
   statement_hash?: string;
   statement_type?: string;
+  public_key_b64?: string;
+  log_index?: number;
+  integrated_time?: number;
+  inclusion_proof?: Record<string, unknown>;
 };
 
 type RekorStatement = {
@@ -93,6 +97,7 @@ export async function attemptRekorProof(params: {
 
     const signature = await sign(statementHashBytes, priv);
     const pubkey = await getPublicKey(priv);
+    const pubkeyB64 = bytesToBase64(pubkey);
 
     const rekorPayload = {
       apiVersion: '0.0.1',
@@ -101,7 +106,7 @@ export async function attemptRekorProof(params: {
         data: { hash: { algorithm: 'sha256', value: statementHash } },
         signature: {
           content: bytesToBase64(signature),
-          publicKey: { content: bytesToBase64(pubkey) }
+          publicKey: { content: pubkeyB64 }
         }
       }
     };
@@ -130,6 +135,18 @@ export async function attemptRekorProof(params: {
 
     const data = await resp.json().catch(() => ({}));
     const uuid = data && typeof data === 'object' ? Object.keys(data)[0] : null;
+    const entry = uuid ? (data as any)[uuid] : null;
+    const body = entry?.body ? (() => {
+      try {
+        const raw = typeof entry.body === 'string' ? atob(entry.body) : null;
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    })() : null;
+    const logIndex = typeof entry?.logIndex === 'number' ? entry.logIndex : null;
+    const integratedTime = typeof entry?.integratedTime === 'number' ? entry.integratedTime : null;
+    const inclusionProof = body?.verification || null;
     return {
       kind: 'rekor',
       status: uuid ? 'confirmed' : 'failed',
@@ -137,7 +154,11 @@ export async function attemptRekorProof(params: {
       ref: uuid,
       attempted_at: attemptedAt,
       statement_hash: statementHash,
-      statement_type: statement.type
+      statement_type: statement.type,
+      public_key_b64: pubkeyB64,
+      log_index: logIndex ?? undefined,
+      integrated_time: integratedTime ?? undefined,
+      inclusion_proof: inclusionProof ?? undefined
     };
   } catch (_err) {
     return { kind: 'rekor', status: 'timeout', provider, ref: null, attempted_at: attemptedAt };

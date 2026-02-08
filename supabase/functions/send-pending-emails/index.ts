@@ -47,14 +47,12 @@ serve(async (req: Request) => {
 
   const NOTIFICATION_PRIORITY: Record<string, number> = {
     your_turn_to_sign: 0,
-    signature_evidence_ready: 3,
     workflow_completed_simple: 5,
     creator_detailed_notification: 20,
   };
 
   const ALLOWED_TYPES = new Set([
     "your_turn_to_sign",
-    "signature_evidence_ready",
     "workflow_completed_simple",
   ]);
 
@@ -253,23 +251,6 @@ serve(async (req: Request) => {
     } else {
       // Scan a wider window so priority emails are not starved by old rows.
       const rows = workflowRows ?? [];
-      const evidenceRows = rows.filter((row: any) => row.notification_type === "signature_evidence_ready");
-      const nonEvidenceRows = rows.filter((row: any) => row.notification_type !== "signature_evidence_ready");
-
-      const evidenceCandidatesByWorkflow = new Map<string, any>();
-      for (const row of evidenceRows) {
-        const wfId = (row as any).workflow_id;
-        if (!wfId) continue;
-        const existing = evidenceCandidatesByWorkflow.get(wfId);
-        if (!existing) {
-          evidenceCandidatesByWorkflow.set(wfId, row);
-          continue;
-        }
-        const ca = new Date((existing as any).created_at ?? 0).getTime();
-        const cb = new Date((row as any).created_at ?? 0).getTime();
-        if (cb > ca) evidenceCandidatesByWorkflow.set(wfId, row);
-      }
-
       // Only attempt ONE email per workflow per run (avoid bursts).
       // Priority: your_turn_to_sign first, then the rest.
       const priority = (type: string | null | undefined) => {
@@ -278,7 +259,7 @@ serve(async (req: Request) => {
       };
 
       const candidatesByWorkflow = new Map<string, any>();
-      for (const row of nonEvidenceRows) {
+      for (const row of rows) {
         const wfId = (row as any).workflow_id;
         if (!wfId) continue;
         const existing = candidatesByWorkflow.get(wfId);
@@ -301,11 +282,7 @@ serve(async (req: Request) => {
         }
       }
 
-      const evidenceCandidates = Array.from(evidenceCandidatesByWorkflow.values());
-      const candidates = [
-        ...evidenceCandidates,
-        ...Array.from(candidatesByWorkflow.values()),
-      ].sort((a: any, b: any) => {
+      const candidates = Array.from(candidatesByWorkflow.values()).sort((a: any, b: any) => {
         const pa = priority(a.notification_type);
         const pb = priority(b.notification_type);
         if (pa !== pb) return pa - pb;
@@ -361,67 +338,6 @@ serve(async (req: Request) => {
         }
         return btoa(binary);
       };
-      const encodeBytesBase64 = (bytes: Uint8Array) => {
-        let binary = '';
-        for (const b of bytes) {
-          binary += String.fromCharCode(b);
-        }
-        return btoa(binary);
-      };
-
-      const documentCache = new Map<string, any>();
-
-      const getDocumentEntity = async (documentEntityId: string) => {
-        if (documentCache.has(documentEntityId)) return documentCache.get(documentEntityId);
-        const { data, error } = await supabase
-          .from("document_entities")
-          .select("id, owner_id, source_hash, witness_current_hash, signed_hash, composite_hash, lifecycle_status, created_at, updated_at, metadata, events")
-          .eq("id", documentEntityId)
-          .maybeSingle();
-        if (error || !data) return null;
-        documentCache.set(documentEntityId, data);
-        return data;
-      };
-
-      const getExpectedWitnessHash = (doc: any) =>
-        doc?.witness_current_hash ||
-        doc?.witness_hash ||
-        doc?.signed_hash ||
-        doc?.composite_hash ||
-        doc?.source_hash ||
-        null;
-
-      const findSignerSignatureEvent = (
-        events: any[] | null | undefined,
-        signerId: string | null,
-        signerEmail: string,
-      ) => {
-        if (!Array.isArray(events)) return null;
-        return (
-          events.find((e: any) =>
-            e?.kind === "signature.completed" &&
-            signerId &&
-            e?.signer?.id &&
-            e.signer.id === signerId
-          ) ||
-          events.find((e: any) =>
-            e?.kind === "signature.completed" &&
-            e?.signer?.email === signerEmail
-          ) ||
-          null
-        );
-      };
-
-      const hasTsaConfirmedForHash = (events: any[] | null | undefined, expectedHash: string | null) => {
-        if (!expectedHash) return false;
-        if (!Array.isArray(events)) return false;
-        return events.some((e: any) => {
-          if (e?.kind !== "tsa.confirmed") return false;
-          const witnessHash = e?.witness_hash || e?.tsa?.witness_hash || null;
-          return witnessHash === expectedHash;
-        });
-      };
-
       for (const r of candidates.slice(0, BATCH_LIMIT)) {
         try {
           if (isPrecanonical(r.created_at)) {
@@ -501,18 +417,8 @@ serve(async (req: Request) => {
             }
           }
 
-          if (r.notification_type === "signature_completed") {
-            await cancelWorkflowNotification(r.id, "signature_completed_disabled");
-            continue;
-          }
-
-          if (r.notification_type === "signature_evidence_ready") {
-            await cancelWorkflowNotification(r.id, "signature_evidence_ready_disabled");
-            continue;
-          }
-
           // Per-workflow throttle to avoid 429 bursts.
-          if (r.notification_type !== "workflow_completed_simple" && r.notification_type !== "signature_evidence_ready") {
+          if (r.notification_type !== "workflow_completed_simple") {
             if ((r as any).workflow_id && await isWorkflowThrottled((r as any).workflow_id)) {
               console.info("⏳ workflow throttled, skipping", {
                 workflow_id: (r as any).workflow_id,
@@ -564,116 +470,20 @@ serve(async (req: Request) => {
               .eq("delivery_status", "pending")
               .order("created_at", { ascending: true });
 
-            const item = (pendingAll ?? [])[0];
-            if (!item) continue;
-
-            const result = await sendResendEmail({
-              from,
-              to: item.recipient_email,
-              subject: item.subject || subject,
-              html: item.body_html || html,
-            });
-
-            if (result.ok) {
-              await supabase
-                .from("workflow_notifications")
-                .update({
-                  delivery_status: "sent",
-                  sent_at: new Date().toISOString(),
-                  error_message: null,
-                  resend_email_id: result.id ?? null,
-                })
-                .eq("id", item.id);
-            } else if (result.statusCode === 429) {
-              const payload = rateLimitPayload({
-                source: "workflow_notifications",
-                error: result.error,
-              });
-
-              const batchIds = (pendingAll ?? [])
-                .map((row: any) => row.id)
-                .filter(Boolean);
-              await supabase
-                .from("workflow_notifications")
-                .update({
-                  delivery_status: "pending",
-                  error_message: payload,
-                })
-                .in("id", batchIds);
-            } else {
-              const retry = (item.retry_count ?? 0) + 1;
-              const new_status = retry >= MAX_RETRIES ? "failed" : "pending";
-              await supabase
-                .from("workflow_notifications")
-                .update({
-                  delivery_status: new_status,
-                  error_message: JSON.stringify(
-                    result.error ?? result.body ?? "Unknown error",
-                  ),
-                  retry_count: retry,
-                })
-                .eq("id", item.id);
-            }
-
-            continue;
-          }
-
-          if (r.notification_type === "signature_evidence_ready") {
-            const { data: pendingAll } = await supabase
-              .from("workflow_notifications")
-              .select("*")
-              .eq("workflow_id", r.workflow_id)
-              .eq("notification_type", "signature_evidence_ready")
-              .eq("delivery_status", "pending")
-              .order("created_at", { ascending: true });
-
             for (const item of pendingAll ?? []) {
-              const payload = (item as any)?.payload || {};
-              const artifactPath = payload?.artifact_path as string | undefined;
-              if (!artifactPath) {
-                await supabase
-                  .from("workflow_notifications")
-                  .update({
-                    delivery_status: "failed",
-                    error_message: JSON.stringify({ reason: "missing_artifact_path" }),
-                  })
-                  .eq("id", item.id);
-                continue;
-              }
-
-              const download = await supabase.storage
-                .from("artifacts")
-                .download(artifactPath);
-              if (download.error || !download.data) {
-                await supabase
-                  .from("workflow_notifications")
-                  .update({
-                    delivery_status: "failed",
-                    error_message: JSON.stringify({
-                      reason: "artifact_download_failed",
-                      details: download.error?.message ?? null,
-                    }),
-                  })
-                  .eq("id", item.id);
-                continue;
-              }
-
-              const buffer = new Uint8Array(await download.data.arrayBuffer());
-              const attachmentName = `evidence-${item.workflow_id}-${item.signer_id ?? "signer"}.eco.json`;
-              const attachments = [
-                {
-                  filename: attachmentName,
-                  content: encodeBytesBase64(buffer),
-                  contentType: "application/json",
-                },
-              ];
-
               const result = await sendResendEmail({
                 from,
                 to: item.recipient_email,
-                subject: item.subject || "Tu evidencia de firma está lista",
-                html: item.body_html || "<p>Adjuntamos tu evidencia de firma.</p>",
-                attachments,
+                subject: item.subject || subject,
+                html: item.body_html || html,
+              });
+
+              console.log("workflow_completed_simple send", {
+                id: item.id,
+                workflow_id: item.workflow_id,
+                recipient: item.recipient_email,
+                ok: result.ok,
+                status: result.statusCode ?? null,
               });
 
               if (result.ok) {
@@ -686,6 +496,23 @@ serve(async (req: Request) => {
                     resend_email_id: result.id ?? null,
                   })
                   .eq("id", item.id);
+              } else if (result.statusCode === 429) {
+                const payload = rateLimitPayload({
+                  source: "workflow_notifications",
+                  error: result.error,
+                });
+
+                const batchIds = (pendingAll ?? [])
+                  .map((row: any) => row.id)
+                  .filter(Boolean);
+                await supabase
+                  .from("workflow_notifications")
+                  .update({
+                    delivery_status: "pending",
+                    error_message: payload,
+                  })
+                  .in("id", batchIds);
+                break;
               } else {
                 const retry = (item.retry_count ?? 0) + 1;
                 const new_status = retry >= MAX_RETRIES ? "failed" : "pending";
@@ -706,6 +533,15 @@ serve(async (req: Request) => {
           }
 
           const result = await sendResendEmail({ from, to, subject, html, attachments });
+
+          console.log("workflow_notification send", {
+            id: r.id,
+            type: r.notification_type,
+            workflow_id: r.workflow_id,
+            recipient: r.recipient_email,
+            ok: result.ok,
+            status: result.statusCode ?? null,
+          });
 
           if (result.ok) {
             const upd = await supabase

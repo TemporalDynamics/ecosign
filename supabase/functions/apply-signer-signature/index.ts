@@ -118,7 +118,7 @@ async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: num
 async function attemptTsaProof(params: {
   witness_hash: string;
   timeout_ms: number;
-}): Promise<{ kind: string; status: string; provider: string; ref: string | null; attempted_at: string }> {
+}): Promise<{ kind: string; status: string; provider: string; ref: string | null; attempted_at: string; token_b64?: string; witness_hash?: string }> {
   const attemptedAt = new Date().toISOString();
   if (!params.witness_hash) {
     return { kind: 'tsa', status: 'failed', provider: 'freetsa', ref: null, attempted_at: attemptedAt };
@@ -156,33 +156,22 @@ async function attemptTsaProof(params: {
       };
     }
 
+    const tokenB64 = String(data.token);
+    const tokenHash = await sha256Hex(tokenB64);
     return {
       kind: 'tsa',
       status: 'confirmed',
       provider: data?.tsa_url || 'freetsa',
-      ref: data?.token ? String(data.token).slice(0, 64) : null,
+      ref: tokenHash,
       attempted_at: attemptedAt,
+      token_b64: tokenB64,
+      witness_hash: params.witness_hash,
     };
   } catch (_err) {
     return { kind: 'tsa', status: 'timeout', provider: 'freetsa', ref: null, attempted_at: attemptedAt };
   }
 }
 
-async function attemptRoughtimeProof(params: {
-  witness_hash: string;
-  timeout_ms: number;
-}): Promise<{ kind: string; status: string; provider: string; ref: string | null; attempted_at: string; reason?: string }> {
-  const attemptedAt = new Date().toISOString();
-  const provider = 'roughtime.cloudflare.com';
-  return {
-    kind: 'roughtime',
-    status: 'unsupported',
-    provider,
-    ref: null,
-    attempted_at: attemptedAt,
-    reason: 'udp_not_implemented'
-  };
-}
 
 async function stampSignerOnPdf(params: {
   supabase: ReturnType<typeof createClient>
@@ -414,7 +403,7 @@ serve(async (req) => {
     // Fetch workflow early for canonical decision and batching
     const { data: workflow, error: wfError } = await supabase
       .from('signature_workflows')
-      .select('id, document_entity_id, status, delivery_mode, original_filename, document_path, document_hash, forensic_config, fields_schema_hash, fields_schema_version')
+      .select('id, owner_id, document_entity_id, status, delivery_mode, original_filename, document_path, document_hash, forensic_config, fields_schema_hash, fields_schema_version')
       .eq('id', signer.workflow_id)
       .single()
 
@@ -825,8 +814,7 @@ serve(async (req) => {
             workflow_id: signer.workflow_id,
             signer_id: signer.id,
             timeout_ms: 3000
-          }),
-          attemptRoughtimeProof({ witness_hash: witnessHash || '', timeout_ms: 3000 })
+          })
         ])
 
         let sourceHash: string | null = null
@@ -1052,6 +1040,7 @@ serve(async (req) => {
       console.warn('advance_workflow failed', advanceErr)
     }
 
+    let nextSignerRecord: any | null = null
     // Create next signer notification (idempotent) if delivery_mode=email.
     try {
       const deliveryMode = (workflow as any)?.delivery_mode || 'email'
@@ -1064,6 +1053,7 @@ serve(async (req) => {
           .single()
 
         if (nextSigner) {
+          nextSignerRecord = nextSigner
           const { data: existingNotif } = await supabase
             .from('workflow_notifications')
             .select('id')
@@ -1125,6 +1115,58 @@ serve(async (req) => {
       }
     } catch (notifErr) {
       console.warn('apply-signer-signature: next signer notification failed (best-effort)', notifErr)
+    }
+
+    // If there is no next signer, enqueue workflow_completed_simple for owner + signers.
+    if (!nextSignerRecord) {
+      try {
+        const workflowTitle = workflow.original_filename || 'Documento'
+        const { data: owner } = await supabase
+          .from('auth.users')
+          .select('email')
+          .eq('id', workflow.owner_id)
+          .maybeSingle()
+
+        const { data: allSigners } = await supabase
+          .from('workflow_signers')
+          .select('id, email')
+          .eq('workflow_id', signer.workflow_id)
+
+        const recipients = new Map<string, { email: string; signer_id?: string | null; recipient_type: 'owner' | 'signer' }>()
+        if (owner?.email) {
+          recipients.set(owner.email, { email: owner.email, recipient_type: 'owner' })
+        }
+        for (const s of allSigners ?? []) {
+          if (!s?.email) continue
+          if (!recipients.has(s.email)) {
+            recipients.set(s.email, { email: s.email, recipient_type: 'signer', signer_id: s.id })
+          }
+        }
+
+        const notifications = Array.from(recipients.values()).map((r) => ({
+          workflow_id: signer.workflow_id,
+          recipient_email: r.email,
+          recipient_type: r.recipient_type,
+          signer_id: r.signer_id ?? null,
+          notification_type: 'workflow_completed_simple',
+          step: 'completion_notice',
+          subject: '✅ Proceso de firmas completado',
+          body_html: `
+            <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Proceso completado</h2>
+            <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
+              El documento <strong>${workflowTitle}</strong> ha sido firmado por todos los participantes.
+            </p>
+            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
+          `,
+          delivery_status: 'pending'
+        }))
+
+        if (notifications.length > 0) {
+          await supabase.from('workflow_notifications').insert(notifications)
+        }
+      } catch (completionErr) {
+        console.warn('apply-signer-signature: workflow_completed_simple enqueue failed (best-effort)', completionErr)
+      }
     }
 
     // Trigger email delivery for any newly created pending notifications (best-effort).

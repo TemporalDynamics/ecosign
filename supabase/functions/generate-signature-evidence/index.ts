@@ -130,31 +130,7 @@ serve(async (req) => {
     workflow_id: workflowId || null,
     format: 'eco.json',
   };
-
-  const { error: notifErr } = await supabase
-    .from('workflow_notifications')
-    .insert({
-      workflow_id: workflowId,
-      signer_id: signerId,
-      recipient_email: signer.email,
-      recipient_type: 'signer',
-      notification_type: 'signature_evidence_ready',
-      step: 'primary',
-      subject: 'Tu evidencia de firma está lista',
-      body_html: `<html><body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; color: #0f172a;">
-        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
-          <h2 style="margin:0 0 12px;color:#0f172a;">Evidencia disponible</h2>
-          <p style="margin:0 0 12px;color:#334155;">Adjuntamos la evidencia de tu firma. Guardala junto a tu PDF firmado.</p>
-          <p style="margin:0;color:#94a3b8;font-size:12px;">EcoSign no accede al contenido del documento.</p>
-        </div>
-      </body></html>`,
-      delivery_status: 'pending',
-      payload: notificationPayload,
-    });
-
-  if (notifErr) {
-    return jsonResponse({ error: 'notification_insert_failed' }, 500);
-  }
+  // ECO is delivered immediately in the UI. We no longer send signature_evidence_ready emails.
 
   await appendEvent(
     supabase as any,

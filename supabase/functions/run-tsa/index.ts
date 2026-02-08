@@ -6,6 +6,8 @@ import { validateEventAppend } from '../_shared/validateEventAppend.ts';
 type RunTsaRequest = {
   document_entity_id: string;
   witness_hash?: string;
+  signer_id?: string;
+  workflow_id?: string;
   correlation_id?: string;
 };
 
@@ -99,7 +101,7 @@ serve(async (req) => {
   }
 
   const events = Array.isArray(entity.events) ? entity.events : [];
-  const witnessHash = String(entity.witness_hash ?? '');
+  const witnessHash = String(body.witness_hash ?? entity.witness_hash ?? '');
   if (!witnessHash) {
     await emitEvent(
       supabase,
@@ -155,8 +157,36 @@ serve(async (req) => {
 
     await emitEvent(supabase, documentEntityId, tsaEvent, 'run-tsa');
 
-    // Evidence email is disabled in precanonical reset.
-    // Re-enable by setting ENABLE_SIGNATURE_EVIDENCE=1 and restoring this block.
+    // Enqueue signature evidence generation (per signer, post-TSA).
+    if (body.signer_id) {
+      const dedupeKey = `${documentEntityId}:signature_evidence:${witnessHash}:${body.signer_id}`;
+      const { error: jobErr } = await supabase
+        .from('executor_jobs')
+        .insert({
+          type: 'generate_signature_evidence',
+          entity_type: 'document',
+          entity_id: documentEntityId,
+          correlation_id: documentEntityId,
+          dedupe_key: dedupeKey,
+          payload: {
+            document_entity_id: documentEntityId,
+            signer_id: body.signer_id,
+            workflow_id: body.workflow_id ?? null,
+            witness_hash: witnessHash,
+          },
+          status: 'queued',
+          run_at: new Date().toISOString(),
+        });
+
+      if (jobErr) {
+        console.warn('[run-tsa] failed to enqueue generate_signature_evidence', jobErr);
+      }
+    } else {
+      console.info('[run-tsa] TSA confirmed without signer_id; evidence not enqueued', {
+        document_entity_id: documentEntityId,
+        witness_hash: witnessHash,
+      });
+    }
 
     return jsonResponse({ success: true });
   } catch (error) {

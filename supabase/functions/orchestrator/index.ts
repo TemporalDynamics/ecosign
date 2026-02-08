@@ -32,7 +32,12 @@ const HEARTBEAT_INTERVAL_MS = 15_000;
 const TRACE_ENFORCEMENT_START = new Date('2026-02-01T00:00:00Z');
 
 // Tipos de jobs soportados
-type JobType = 'run_tsa' | 'submit_anchor_polygon' | 'submit_anchor_bitcoin' | 'build_artifact';
+type JobType =
+  | 'run_tsa'
+  | 'submit_anchor_polygon'
+  | 'submit_anchor_bitcoin'
+  | 'build_artifact'
+  | 'generate_signature_evidence';
 
 interface ExecutorJob {
   id: string;
@@ -78,16 +83,25 @@ const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promi
   'run_tsa': async (job, trace_id) => {
     const documentEntityId = String(job.payload?.document_entity_id ?? job.entity_id);
     const correlationId = job.correlation_id || documentEntityId;
+    const witnessHash = job.payload?.witness_hash ?? null;
+    const signerId = job.payload?.signer_id ?? null;
+    const workflowId = job.payload?.workflow_id ?? null;
 
     logger.info('Calling run-tsa function', {
       documentEntityId,
       correlation_id: correlationId,
+      witness_hash: witnessHash,
+      signer_id: signerId,
+      workflow_id: workflowId,
       trace_id,
     });
 
     // Use canonical TSA writer which is idempotent (noop if already confirmed)
     const tsaResponse = await callFunction('run-tsa', {
       document_entity_id: documentEntityId,
+      witness_hash: witnessHash ?? undefined,
+      signer_id: signerId ?? undefined,
+      workflow_id: workflowId ?? undefined,
       correlation_id: correlationId,  // NUEVO: pass to worker
     });
 
@@ -170,7 +184,32 @@ const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promi
         ...artifactResponse
       }
     };
-  }
+  },
+
+  'generate_signature_evidence': async (job, trace_id) => {
+    const { document_entity_id, signer_id, workflow_id, witness_hash } = job.payload;
+    const documentEntityId = String(document_entity_id ?? job.entity_id);
+    const correlationId = job.correlation_id || documentEntityId;
+
+    logger.info('Calling generate-signature-evidence function', {
+      documentEntityId,
+      signer_id: signer_id ?? null,
+      workflow_id: workflow_id ?? null,
+      witness_hash: witness_hash ?? null,
+      correlation_id: correlationId,
+      trace_id,
+    });
+
+    const response = await callFunction('generate-signature-evidence', {
+      document_entity_id: documentEntityId,
+      signer_id,
+      workflow_id,
+      witness_hash,
+      correlation_id: correlationId,
+    });
+
+    return { success: true, result: response };
+  },
 };
 
 // Función para llamar a funciones de Supabase
@@ -215,7 +254,10 @@ async function processJob(job: ExecutorJob): Promise<void> {
   // Generate unique trace_id for this execution
   const trace_id = `${RUN_WORKER_ID}-${jobId}-${job.attempts || 1}`;
 
-  const isLongJob = type === 'run_tsa' || type === 'submit_anchor_polygon' || type === 'submit_anchor_bitcoin';
+  const isLongJob = type === 'run_tsa' ||
+    type === 'submit_anchor_polygon' ||
+    type === 'submit_anchor_bitcoin' ||
+    type === 'generate_signature_evidence';
   let heartbeatTimer: number | null = null;
   const stopHeartbeat = () => {
     if (heartbeatTimer !== null) {

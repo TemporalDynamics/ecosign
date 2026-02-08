@@ -127,6 +127,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const [preAccessSubmitting, setPreAccessSubmitting] = useState(false)
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
   const [ecoUrl, setEcoUrl] = useState<string | null>(null)
+  const [ecoPath, setEcoPath] = useState<string | null>(null)
+  const [isLastSigner, setIsLastSigner] = useState(false)
 
   const getInitialNameParts = (name?: string | null) => {
     if (!name) return { firstName: '', lastName: '' }
@@ -495,6 +497,12 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       if (data?.eco_url) {
         setEcoUrl(String(data.eco_url))
       }
+      if (data?.eco_path) {
+        setEcoPath(String(data.eco_path))
+      }
+      if (typeof data?.is_last_signer === 'boolean') {
+        setIsLastSigner(Boolean(data.is_last_signer))
+      }
 
       // Success: mark completed in UI
       setStep('completed')
@@ -590,9 +598,28 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   }
 
   const handleDownloadEco = async () => {
-    if (!ecoUrl) return
     try {
-      const resp = await fetch(ecoUrl)
+      let url = ecoUrl
+      if (!url && ecoPath && signerData) {
+        const supabase = getSupabase()
+        const { data, error } = await supabase.functions.invoke('get-eco-url', {
+          body: {
+            path: ecoPath,
+            workflowId: signerData.workflow_id,
+            signerId: signerData.signer_id
+          }
+        })
+        if (error || !data?.success || !data?.signed_url) {
+          throw new Error(error?.message || 'No se pudo generar la URL del ECO')
+        }
+        url = String(data.signed_url)
+      }
+
+      if (!url) {
+        throw new Error('No se pudo descargar el ECO')
+      }
+
+      const resp = await fetch(url)
       if (!resp.ok) throw new Error('No se pudo descargar el ECO')
       const blob = await resp.blob()
       const url = URL.createObjectURL(blob)
@@ -862,7 +889,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           <CompletionScreen
             workflowTitle={signerData.workflow.title}
             onDownloadPdf={handleDownloadSignedPdf}
-            onDownloadEco={ecoUrl ? handleDownloadEco : undefined}
+            onDownloadEco={(ecoUrl || ecoPath) ? handleDownloadEco : undefined}
+            isLastSigner={isLastSigner}
             onClose={() => navigate('/')}
           />
         )}

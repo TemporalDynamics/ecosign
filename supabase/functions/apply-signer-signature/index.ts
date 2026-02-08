@@ -1040,6 +1040,18 @@ serve(async (req) => {
       console.warn('advance_workflow failed', advanceErr)
     }
 
+    // Determine if this was the last signer (independent of delivery mode).
+    try {
+      const { data: remainingSigners } = await supabase
+        .from('workflow_signers')
+        .select('id')
+        .eq('workflow_id', signer.workflow_id)
+        .in('status', ['created', 'invited', 'accessed', 'verified', 'ready_to_sign'])
+      isLastSigner = !remainingSigners || remainingSigners.length === 0
+    } catch (lastErr) {
+      console.warn('apply-signer-signature: failed to resolve last signer flag', lastErr)
+    }
+
     let nextSignerRecord: any | null = null
     let isLastSigner = false
     // Create next signer notification (idempotent) if delivery_mode=email.

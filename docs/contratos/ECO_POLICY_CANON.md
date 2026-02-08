@@ -82,3 +82,8 @@
 - Si proofs rápidas fallan, igual hay ECO + **firma técnica de integridad del sistema EcoSign**.
 - **No reemplaza autoridades externas**; garantiza consistencia e integridad del artefacto.
 
+## 11) Rekor Proof Identity
+- EcoSign publica su clave pública Ed25519 para verificación de proofs en Sigstore Rekor.
+- Uso exclusivo: firma de statements `ecosign.proof.v1`.
+- **Public Key (Ed25519, base64):**
+  - `REPLACE_WITH_PUBLIC_KEY_B64`

@@ -622,16 +622,16 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       const resp = await fetch(url)
       if (!resp.ok) throw new Error('No se pudo descargar el ECO')
       const blob = await resp.blob()
-      const url = URL.createObjectURL(blob)
+      const blobUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = url
+      link.href = blobUrl
       link.download = 'evidencia.ECO'
       link.target = '_self'
       link.rel = 'noopener'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(blobUrl)
     } catch (err) {
       console.error('Error downloading ECO:', err)
       window.alert('No se pudo descargar el ECO. Intentá nuevamente.')

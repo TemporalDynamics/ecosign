@@ -592,67 +592,7 @@ serve(async (req) => {
 
     const ownerEmail = owner?.email
 
-    const ownerSubject = `${signer.name || signer.email} firmó ${workflow.original_filename || 'tu documento'}`
-    const signerSubject = 'Tu copia firmada ya está lista'
-
-    if (ownerEmail) {
-      await supabase
-        .from('workflow_notifications')
-        .insert({
-          workflow_id: signer.workflow_id,
-          recipient_email: ownerEmail,
-          recipient_type: 'owner',
-          notification_type: 'owner_document_signed',
-          subject: ownerSubject,
-          body_html: `
-            <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">${signer.name || signer.email} firmó tu documento</h2>
-            <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
-              ${signer.name || signer.email} firmó <strong>${workflow.original_filename}</strong>.
-            </p>
-            <p style="font-family:Arial,sans-serif;margin:16px 0;">
-              <a href="${appUrl}/workflows/${signer.workflow_id}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Ver documento firmado</a>
-            </p>
-            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
-          `,
-          delivery_status: 'pending'
-        })
-    }
-
-    const signerToken = await resolveSignerToken(signer, accessToken)
-    const signerLink = signerToken ? `${appUrl}/sign/${signerToken}` : null
-
-    await supabase
-      .from('workflow_notifications')
-      .insert({
-        workflow_id: signer.workflow_id,
-        recipient_email: signer.email,
-        recipient_type: 'signer',
-        signer_id: signer.id,
-        notification_type: 'signer_copy_ready',
-        subject: signerSubject,
-        body_html: `
-          <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Tu firma fue aplicada correctamente</h2>
-          <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
-            El documento <strong>${workflow.original_filename}</strong> ya está certificado.
-          </p>
-          ${signerLink ? `
-            <p style="font-family:Arial,sans-serif;margin:12px 0 8px;">
-              <a href="${signerLink}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar PDF firmado</a>
-            </p>
-            <p style="font-family:Arial,sans-serif;margin:8px 0 16px;">
-              <a href="${signerLink}" style="display:inline-block;padding:12px 20px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Descargar archivo ECO</a>
-            </p>
-          ` : `
-            <p style="font-family:Arial,sans-serif;margin:12px 0 16px;color:#334155;">
-              Tu evidencia está lista. Si necesitás el link de descarga, respondé a este mail y te lo reenviamos.
-            </p>
-          `}
-          <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:12px 0 0;">Firmaste con la misma evidencia que recibe el remitente.</p>
-          <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:4px 0 12px;">Tu firma te pertenece. Tu evidencia también.</p>
-          <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:12px 0 0;">EcoSign. Transparencia que acompaña.</p>
-        `,
-        delivery_status: 'pending'
-      })
+    const workflowTitle = workflow.original_filename || 'Documento'
 
     // Notificar al siguiente firmante (si existe y delivery_mode es 'email')
     // Si delivery_mode='link', el creador comparte el link manualmente
@@ -710,27 +650,44 @@ serve(async (req) => {
       })
     }
 
-    // 11. Si no hay más firmantes, notificar a todos
+    // 11. Si no hay más firmantes, notificar a owner + firmantes
     if (!nextSigner) {
+      const { data: allSigners } = await supabase
+        .from('workflow_signers')
+        .select('id, email')
+        .eq('workflow_id', signer.workflow_id)
+
+      const recipients = new Map<string, { email: string; signer_id?: string | null; recipient_type: 'owner' | 'signer' }>()
       if (ownerEmail) {
-        await supabase
-          .from('workflow_notifications')
-          .insert({
-            workflow_id: signer.workflow_id,
-            recipient_email: ownerEmail,
-            recipient_type: 'owner',
-            notification_type: 'workflow_completed_simple',
-            step: 'completion_notice',
-            subject: '✅ Proceso de firmas completado',
-            body_html: `
-              <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Proceso completado</h2>
-              <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
-                El documento ha sido firmado por todos los participantes.
-              </p>
-              <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
-            `,
-            delivery_status: 'pending'
-          })
+        recipients.set(ownerEmail, { email: ownerEmail, recipient_type: 'owner' })
+      }
+      for (const s of allSigners ?? []) {
+        if (!s?.email) continue
+        if (!recipients.has(s.email)) {
+          recipients.set(s.email, { email: s.email, recipient_type: 'signer', signer_id: s.id })
+        }
+      }
+
+      const notifications = Array.from(recipients.values()).map((r) => ({
+        workflow_id: signer.workflow_id,
+        recipient_email: r.email,
+        recipient_type: r.recipient_type,
+        signer_id: r.signer_id ?? null,
+        notification_type: 'workflow_completed_simple',
+        step: 'completion_notice',
+        subject: '✅ Proceso de firmas completado',
+        body_html: `
+          <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Proceso completado</h2>
+          <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
+            El documento <strong>${workflowTitle}</strong> ha sido firmado por todos los participantes.
+          </p>
+          <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
+        `,
+        delivery_status: 'pending'
+      }))
+
+      if (notifications.length > 0) {
+        await supabase.from('workflow_notifications').insert(notifications)
       }
     }
 

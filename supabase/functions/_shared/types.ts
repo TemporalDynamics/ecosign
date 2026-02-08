@@ -58,6 +58,9 @@ export const CANONICAL_EVENT_TYPES = [
   'document.change_resolved',
   'document.decrypted',
   'signature.applied',
+  'fields.schema.committed',
+  'signature.state.committed',
+  'eco.snapshot.issued',
   'notification.skipped', // Added for F0.3 observability
   'token.expired',        // Added for F0.4 lifecycle
   'token.revoked',        // Added for F0.4 lifecycle

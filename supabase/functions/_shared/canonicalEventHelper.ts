@@ -17,7 +17,10 @@ const CANONICAL_EVENT_TYPES = new Set([
   'document.change_requested',
   'document.change_resolved',
   'document.decrypted',
-  'signature.applied'
+  'signature.applied',
+  'fields.schema.committed',
+  'signature.state.committed',
+  'eco.snapshot.issued'
 ]);
 
 export type CanonicalEventType =
@@ -37,7 +40,10 @@ export type CanonicalEventType =
   | 'document.change_requested'
   | 'document.change_resolved'
   | 'document.decrypted'
-  | 'signature.applied';
+  | 'signature.applied'
+  | 'fields.schema.committed'
+  | 'signature.state.committed'
+  | 'eco.snapshot.issued';
 
 type AppendEventParams = {
   event_type: CanonicalEventType;

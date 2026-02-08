@@ -11,12 +11,14 @@ import { CheckCircle, Home, FileText } from 'lucide-react'
 interface CompletionScreenProps {
   workflowTitle?: string | null
   onDownloadPdf: () => void
+  onDownloadEco?: () => void
   onClose: () => void
 }
 
 export default function CompletionScreen({
   workflowTitle,
   onDownloadPdf,
+  onDownloadEco,
   onClose
 }: CompletionScreenProps) {
   return (
@@ -40,6 +42,15 @@ export default function CompletionScreen({
             <FileText className="h-5 w-5" />
             Descargar PDF firmado
           </button>
+          {onDownloadEco && (
+            <button
+              onClick={onDownloadEco}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+            >
+              <FileText className="h-5 w-5" />
+              Descargar .ECO
+            </button>
+          )}
           <button
             onClick={onClose}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"

@@ -126,6 +126,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const [embedTimeout, setEmbedTimeout] = useState<ReturnType<typeof setTimeout> | null>(null)
   const [preAccessSubmitting, setPreAccessSubmitting] = useState(false)
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
+  const [ecoUrl, setEcoUrl] = useState<string | null>(null)
 
   const getInitialNameParts = (name?: string | null) => {
     if (!name) return { firstName: '', lastName: '' }
@@ -491,6 +492,10 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         throw new Error(errorCode)
       }
 
+      if (data?.eco_url) {
+        setEcoUrl(String(data.eco_url))
+      }
+
       // Success: mark completed in UI
       setStep('completed')
 
@@ -581,6 +586,28 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     } catch (err) {
       console.error('Error downloading signed PDF:', err)
       window.alert('No se pudo descargar el PDF firmado. Intentá nuevamente.')
+    }
+  }
+
+  const handleDownloadEco = async () => {
+    if (!ecoUrl) return
+    try {
+      const resp = await fetch(ecoUrl)
+      if (!resp.ok) throw new Error('No se pudo descargar el ECO')
+      const blob = await resp.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'evidencia.ECO'
+      link.target = '_self'
+      link.rel = 'noopener'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error downloading ECO:', err)
+      window.alert('No se pudo descargar el ECO. Intentá nuevamente.')
     }
   }
 
@@ -835,6 +862,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           <CompletionScreen
             workflowTitle={signerData.workflow.title}
             onDownloadPdf={handleDownloadSignedPdf}
+            onDownloadEco={ecoUrl ? handleDownloadEco : undefined}
             onClose={() => navigate('/')}
           />
         )}

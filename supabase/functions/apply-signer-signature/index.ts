@@ -1041,6 +1041,7 @@ serve(async (req) => {
     }
 
     let nextSignerRecord: any | null = null
+    let isLastSigner = false
     // Create next signer notification (idempotent) if delivery_mode=email.
     try {
       const deliveryMode = (workflow as any)?.delivery_mode || 'email'
@@ -1119,6 +1120,7 @@ serve(async (req) => {
 
     // If there is no next signer, enqueue workflow_completed_simple for owner + signers.
     if (!nextSignerRecord) {
+      isLastSigner = true
       try {
         const workflowTitle = workflow.original_filename || 'Documento'
         const { data: owner } = await supabase
@@ -1193,7 +1195,8 @@ serve(async (req) => {
       success: true,
       pdf_url: pdfUrl,
       eco_url: ecoSnapshotUrl,
-      eco_path: ecoSnapshotPath
+      eco_path: ecoSnapshotPath,
+      is_last_signer: isLastSigner
     })
 
   } catch (err: any) {

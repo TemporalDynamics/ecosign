@@ -12,6 +12,7 @@ interface CompletionScreenProps {
   workflowTitle?: string | null
   onDownloadPdf: () => void
   onDownloadEco?: () => void
+  isLastSigner?: boolean
   onClose: () => void
 }
 
@@ -19,6 +20,7 @@ export default function CompletionScreen({
   workflowTitle,
   onDownloadPdf,
   onDownloadEco,
+  isLastSigner,
   onClose
 }: CompletionScreenProps) {
   return (
@@ -31,7 +33,10 @@ export default function CompletionScreen({
           ¡Firma completada!
         </h1>
         <p className="mb-4 text-center text-gray-600">
-          El documento {workflowTitle ? <strong>{workflowTitle}</strong> : 'solicitado'} fue firmado correctamente.
+          {isLastSigner
+            ? <>Con tu firma se completó el flujo de firmas{workflowTitle ? <> de <strong>{workflowTitle}</strong></> : ''}.</>
+            : <>El documento {workflowTitle ? <strong>{workflowTitle}</strong> : 'solicitado'} fue firmado correctamente.</>
+          }
         </p>
 
         <div className="space-y-3">

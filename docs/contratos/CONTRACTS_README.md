@@ -12,6 +12,7 @@ Regla de uso
 Estructura
 ----------
 - HAPPY_PATH_SIGNATURE_WORKFLOW_CONTRACT.md — Contrato maestro (v1) con reglas, acceptance criteria y tests recomendados.
+- ECO_POLICY_CANON.md — Contrato canónico de evidencia (ECO/ECOX), proofs, naming, entrega y compatibilidad CAI.
 - diagrams/ — Diagramas de estados y secuencia (Mermaid) que ilustran los contratos.
 - NOTAS.md — Ajustes menores y recomendaciones de implementación (no bloqueantes).
 

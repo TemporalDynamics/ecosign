@@ -33,6 +33,13 @@ export type OverlaySpecItem = {
   required?: boolean;
 };
 
+export type SignaturePageMode = 'document' | 'a4' | 'oficio';
+
+export const PAGE_SIZE_PRESETS = {
+  a4: { width: 595, height: 842 },
+  oficio: { width: 612, height: 1008 }
+} as const;
+
 const normalizedToPdf = (
   pageWidth: number,
   pageHeight: number,
@@ -58,6 +65,32 @@ const embedDataUrlImage = async (
   }
   return pdfDoc.embedPng(bytes);
 };
+
+export async function appendSignaturePage(
+  pdfFile: File,
+  mode: SignaturePageMode
+): Promise<{ blob: Blob; pageSize: { width: number; height: number } }> {
+  const { PDFDocument } = await loadPdfLib();
+  const pdfBytes = await pdfFile.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  const pages = pdfDoc.getPages();
+  const lastPage = pages[pages.length - 1];
+  const lastSize = lastPage.getSize();
+
+  const pageSize =
+    mode === 'a4'
+      ? PAGE_SIZE_PRESETS.a4
+      : mode === 'oficio'
+      ? PAGE_SIZE_PRESETS.oficio
+      : { width: lastSize.width, height: lastSize.height };
+
+  pdfDoc.addPage([pageSize.width, pageSize.height]);
+  const modifiedPdfBytes = await pdfDoc.save();
+  return {
+    blob: new Blob([new Uint8Array(modifiedPdfBytes)], { type: 'application/pdf' }),
+    pageSize
+  };
+}
 
 export interface ForensicData {
   signerName?: string;

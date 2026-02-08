@@ -50,6 +50,7 @@ export default function SignaturePad({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { logEvent } = useEcoxLogger()
+  const validationError = validate?.() ?? null
 
   // Log when the signer lands on the signature step
   useEffect(() => {
@@ -173,11 +174,29 @@ export default function SignaturePad({
               </p>
             )}
             {fields && fields.length > 0 && (
+              <p className="mt-1 text-sm text-gray-600">
+                Todos los campos son obligatorios.
+              </p>
+            )}
+            {fields && fields.length > 0 && (
               <div className="mt-4 grid gap-3">
                 {fields.map((f) => {
-                  const label = (f.label || (f.field_type === 'date' ? 'Fecha' : 'Texto')) as string
+                  const logicalKind =
+                    (f as any).logical_field_kind ||
+                    (f as any).logical_field_id ||
+                    f.metadata?.logical_field_kind ||
+                    f.metadata?.logical_field_id ||
+                    null
+                  const fallbackLabel = f.field_type === 'date' ? 'Fecha' : 'Texto'
+                  const rawLabel = (f.label || fallbackLabel) as string
+                  const label =
+                    logicalKind === 'name'
+                      ? 'Nombre completo'
+                      : rawLabel === 'Nombre'
+                        ? 'Nombre completo'
+                        : rawLabel
                   const placeholder = (f.placeholder || '') as string
-                  const required = Boolean(f.required)
+                  const required = f.required ?? true
                   return (
                     <label key={f.id} className="grid gap-1">
                       <span className="text-sm font-medium text-gray-800">
@@ -186,9 +205,14 @@ export default function SignaturePad({
                       <input
                         type={f.field_type === 'date' ? 'date' : 'text'}
                         value={fieldValues?.[f.id] ?? ''}
-                        onChange={(e) => onFieldValueChange?.(f.id, e.target.value)}
+                        onChange={
+                          f.field_type === 'date'
+                            ? undefined
+                            : (e) => onFieldValueChange?.(f.id, e.target.value)
+                        }
                         placeholder={f.field_type === 'date' ? undefined : placeholder}
-                        className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        disabled={f.field_type === 'date'}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-700 disabled:cursor-not-allowed"
                       />
                     </label>
                   )
@@ -304,23 +328,34 @@ export default function SignaturePad({
 
         {/* Actions */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            Firmá solo si revisaste el documento completo. La evidencia se guarda en el ECOX.
+          <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            Firmá solo si revisaste el documento completo.
           </div>
-          <button
-            onClick={handleConfirm}
-            disabled={submitting}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-70"
-          >
-            {submitting ? (
-              <LoadingSpinner size="sm" message="" />
-            ) : (
-              <>
-                <CheckCircle2 className="h-4 w-4" />
-                Confirmar firma
-              </>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleConfirm}
+              disabled={submitting || Boolean(validationError)}
+              className="inline-flex min-w-[180px] items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {submitting ? (
+                <>
+                  <LoadingSpinner size="sm" message="" />
+                  Confirmando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Confirmar firma
+                </>
+              )}
+            </button>
+            {submitting && (
+              <span className="text-xs text-gray-500">Estamos guardando tu firma.</span>
             )}
-          </button>
+            {validationError && (
+              <span className="text-xs text-gray-500">{validationError}</span>
+            )}
+          </div>
         </div>
       </div>
     </div>

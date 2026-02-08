@@ -2,7 +2,7 @@
 // Este archivo es solo para pruebas, no se usa en producción
 
 import { appendEvent } from './eventHelper.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.42.0';
 
 // Este test verifica que solo funciones autorizadas puedan emitir eventos de evidencia fuerte
 async function testAuthorityGuardrail() {

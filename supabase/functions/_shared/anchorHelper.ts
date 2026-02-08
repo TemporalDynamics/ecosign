@@ -7,7 +7,7 @@
  * Contract: docs/contratos/ANCHOR_EVENT_RULES.md
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { SupabaseClient } from 'npm:@supabase/supabase-js@2.42.0';
 import { appendEvent } from './eventHelper.ts';
 
 // Closed enum: only these networks are valid

@@ -590,7 +590,7 @@ function DocumentsPage() {
         if (entityIds.length > 0) {
           const { data: wfRows, error: wfError } = await supabase
             .from('signature_workflows')
-            .select('id, document_entity_id, status')
+            .select('id, document_entity_id, status, created_at')
             .in('document_entity_id', entityIds)
             .in('status', ['active', 'completed']);
 
@@ -598,7 +598,7 @@ function DocumentsPage() {
             const workflowByEntity = new Map<string, { id: string; status: any }[]>();
             for (const wf of wfRows as any[]) {
               const list = workflowByEntity.get(wf.document_entity_id) ?? [];
-              list.push({ id: wf.id, status: wf.status });
+              list.push({ id: wf.id, status: wf.status, created_at: wf.created_at });
               workflowByEntity.set(wf.document_entity_id, list);
             }
 
@@ -630,6 +630,9 @@ function DocumentsPage() {
               const workflows = workflowByEntity.get(entityId);
               if (workflows) {
                 const sorted = [...workflows].sort((a, b) => {
+                  const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+                  const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+                  if (aTime !== bTime) return bTime - aTime;
                   if (a.status === b.status) return 0;
                   if (a.status === 'active') return -1;
                   if (b.status === 'active') return 1;

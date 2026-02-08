@@ -27,11 +27,13 @@ export async function sendResendEmail({
   to,
   subject,
   html,
+  attachments,
 }: {
   from: string;
   to: string | string[];
   subject: string;
   html: string;
+  attachments?: Array<{ filename: string; content: string; contentType?: string }>;
 }): Promise<{ ok: boolean; id?: string | null; statusCode?: number; body?: any; error?: string }> {
   const API_KEY = Deno.env.get('RESEND_API_KEY');
   if (!API_KEY) {
@@ -49,6 +51,7 @@ export async function sendResendEmail({
         to: Array.isArray(to) ? to : [to],
         subject,
         html,
+        attachments,
       }),
     });
     const text = await res.text();

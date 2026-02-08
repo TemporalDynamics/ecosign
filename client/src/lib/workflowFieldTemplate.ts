@@ -32,7 +32,14 @@ function uniqNumbers(values: number[]) {
 }
 
 function createId() {
-  return crypto.randomUUID();
+  try {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // fall through
+  }
+  return `wf-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
 function resolvePages(repetitionRule: RepetitionRule, totalPages: number | null): number[] {
@@ -51,9 +58,10 @@ export function generateWorkflowFieldsFromWizard(
     virtualWidth: number;
     virtualHeight: number;
     totalPages: number | null;
+    targetPage?: number;
   }
 ): SignatureField[] {
-  const { virtualWidth, virtualHeight, totalPages } = options;
+  const { virtualWidth, virtualHeight, totalPages, targetPage } = options;
   const fields: SignatureField[] = [];
 
   const sortedSigners = [...signers]
@@ -62,9 +70,10 @@ export function generateWorkflowFieldsFromWizard(
     .sort((a, b) => a.signingOrder - b.signingOrder);
 
   const repetitionRule = template.repetitionRule;
-  const pagesForSignature = resolvePages(repetitionRule, totalPages);
+  const pagesForSignature = targetPage ? [targetPage] : resolvePages(repetitionRule, totalPages);
+  const extrasPage = targetPage ?? 1;
 
-  // Layout: place each signer block in a simple grid to avoid overlaps.
+  // Layout: horizontal rows, no overlap.
   // P1: deterministic, no drag required.
   const gap = 10;
 
@@ -76,28 +85,36 @@ export function generateWorkflowFieldsFromWizard(
   const extrasCount = extras.length;
   const extrasHeight = extrasCount > 0 ? extrasCount * (textSize.h + gap) : 0;
   const blockHeight = signatureSize.h + (extrasCount > 0 ? gap + extrasHeight : 0);
+  const blockWidth = Math.max(signatureSize.w, textSize.w, dateSize.w);
 
   const paddingX = 24;
   const paddingY = 64;
-  const colGap = 56;
+  const colGap = 40;
   const rowGap = 28;
 
-  const usableHeight = Math.max(1, virtualHeight - paddingY * 2);
-  const rowsPerColumn = Math.max(1, Math.floor((usableHeight + rowGap) / (blockHeight + rowGap)));
+  const usableWidth = Math.max(1, virtualWidth - paddingX * 2);
+  const cols = Math.max(
+    1,
+    Math.min(sortedSigners.length, Math.floor((usableWidth + colGap) / (blockWidth + colGap)))
+  );
+  const startY = virtualHeight - paddingY - blockHeight;
+
+  const placeBlock = (index: number) => {
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    const x = paddingX + col * (blockWidth + colGap);
+    const y = startY - row * (blockHeight + rowGap);
+    return { x, y };
+  };
 
   for (let signerIndex = 0; signerIndex < sortedSigners.length; signerIndex += 1) {
     const signer = sortedSigners[signerIndex];
     const batchId = createId();
     const assignedTo = signer.email;
 
-    const colIndex = Math.floor(signerIndex / rowsPerColumn);
-    const rowIndex = signerIndex % rowsPerColumn;
-
-    const baseX = paddingX + colIndex * (signatureSize.w + colGap);
-    const baseY = paddingY + rowIndex * (blockHeight + rowGap);
-
-    const resolvedX = Math.min(baseX, virtualWidth - signatureSize.w - paddingX);
-    const resolvedY = Math.min(baseY, virtualHeight - signatureSize.h - paddingY);
+    const block = placeBlock(signerIndex);
+    const baseX = Math.min(block.x, virtualWidth - blockWidth - paddingX);
+    const baseY = Math.max(paddingY, Math.min(block.y, virtualHeight - blockHeight - paddingY));
 
     // Ensure signature logical field is always included.
     for (const page of pagesForSignature) {
@@ -107,8 +124,8 @@ export function generateWorkflowFieldsFromWizard(
         assignedTo,
         type: 'signature',
         page,
-        x: resolvedX,
-        y: resolvedY,
+        x: baseX,
+        y: baseY,
         width: signatureSize.w,
         height: signatureSize.h,
         required: true,
@@ -121,8 +138,8 @@ export function generateWorkflowFieldsFromWizard(
       });
     }
 
-    // Extras are anchored once (P1 default): use page 1.
-    let cursorY = Math.min(resolvedY + signatureSize.h + gap, virtualHeight - paddingY - textSize.h);
+    // Extras stacked vertically under signature.
+    let cursorExtraY = baseY + signatureSize.h + gap;
     for (const extra of extras) {
       if (extra.kind === 'date') {
         fields.push({
@@ -130,9 +147,9 @@ export function generateWorkflowFieldsFromWizard(
           batchId,
           assignedTo,
           type: 'date',
-          page: 1,
-          x: Math.min(resolvedX, virtualWidth - dateSize.w - paddingX),
-          y: cursorY,
+          page: extrasPage,
+          x: baseX,
+          y: cursorExtraY,
           width: dateSize.w,
           height: dateSize.h,
           required: extra.required,
@@ -143,7 +160,7 @@ export function generateWorkflowFieldsFromWizard(
             repetition_rule: { kind: 'once' }
           }
         });
-        cursorY = Math.min(cursorY + dateSize.h + gap, virtualHeight - paddingY - textSize.h);
+        cursorExtraY = cursorExtraY + dateSize.h + gap;
         continue;
       }
 
@@ -153,21 +170,21 @@ export function generateWorkflowFieldsFromWizard(
           batchId,
           assignedTo,
           type: 'text',
-          page: 1,
-          x: Math.min(resolvedX, virtualWidth - textSize.w - paddingX),
-          y: cursorY,
+          page: extrasPage,
+          x: baseX,
+          y: cursorExtraY,
           width: textSize.w,
           height: textSize.h,
           required: extra.required,
           metadata: {
-            label: 'Nombre',
+            label: 'Nombre completo',
             placeholder: 'Nombre y apellido',
             logical_field_kind: 'name',
             logical_field_id: 'name',
             repetition_rule: { kind: 'once' }
           }
         });
-        cursorY = Math.min(cursorY + textSize.h + gap, virtualHeight - paddingY - textSize.h);
+        cursorExtraY = cursorExtraY + textSize.h + gap;
         continue;
       }
 
@@ -177,9 +194,9 @@ export function generateWorkflowFieldsFromWizard(
           batchId,
           assignedTo,
           type: 'text',
-          page: 1,
-          x: Math.min(resolvedX, virtualWidth - textSize.w - paddingX),
-          y: cursorY,
+          page: extrasPage,
+          x: baseX,
+          y: cursorExtraY,
           width: textSize.w,
           height: textSize.h,
           required: extra.required,
@@ -191,7 +208,7 @@ export function generateWorkflowFieldsFromWizard(
             repetition_rule: { kind: 'once' }
           }
         });
-        cursorY = Math.min(cursorY + textSize.h + gap, virtualHeight - paddingY - textSize.h);
+        cursorExtraY = cursorExtraY + textSize.h + gap;
         continue;
       }
 
@@ -201,9 +218,9 @@ export function generateWorkflowFieldsFromWizard(
           batchId,
           assignedTo,
           type: 'text',
-          page: 1,
-          x: Math.min(resolvedX, virtualWidth - textSize.w - paddingX),
-          y: cursorY,
+          page: extrasPage,
+          x: baseX,
+          y: cursorExtraY,
           width: textSize.w,
           height: textSize.h,
           required: extra.required,
@@ -215,7 +232,7 @@ export function generateWorkflowFieldsFromWizard(
             repetition_rule: { kind: 'once' }
           }
         });
-        cursorY = Math.min(cursorY + textSize.h + gap, virtualHeight - paddingY - textSize.h);
+        cursorExtraY = cursorExtraY + textSize.h + gap;
       }
     }
   }

@@ -11,7 +11,14 @@ async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
     const cronSecret = Deno.env.get('CRON_SECRET')
     if (!cronSecret) {
-      console.warn('send-pending-emails skipped: missing CRON_SECRET')
+      const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      if (!serviceRole) {
+        console.warn('send-pending-emails skipped: missing CRON_SECRET and service role')
+        return
+      }
+      await supabase.functions.invoke('send-pending-emails', {
+        headers: { Authorization: `Bearer ${serviceRole}` }
+      })
       return
     }
     await supabase.functions.invoke('send-pending-emails', {
@@ -618,6 +625,7 @@ serve(async (req) => {
               witness_current_status: 'signed',
               witness_current_mime: 'application/pdf',
               witness_current_generated_at: nowIso,
+              witness_current_storage_path: workflow.document_path,
               witness_history: history
             })
             .eq('id', workflow.document_entity_id)

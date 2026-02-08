@@ -719,20 +719,18 @@ serve(async (req) => {
             workflow_id: signer.workflow_id,
             recipient_email: ownerEmail,
             recipient_type: 'owner',
-            notification_type: 'workflow_completed',
-            subject: 'Todas las firmas completadas',
+            notification_type: 'workflow_completed_simple',
+            step: 'completion_notice',
+            subject: '✅ Proceso de firmas completado',
             body_html: `
-              <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Documento completado</h2>
+              <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Proceso completado</h2>
               <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
                 El documento ha sido firmado por todos los participantes.
               </p>
-              <p style="font-family:Arial,sans-serif;margin:16px 0;">
-              <a href="${appUrl}/workflows/${signer.workflow_id}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Ver certificado</a>
-            </p>
-            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
-          `,
-          delivery_status: 'pending'
-        })
+              <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
+            `,
+            delivery_status: 'pending'
+          })
       }
     }
 

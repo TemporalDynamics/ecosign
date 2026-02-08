@@ -8,9 +8,19 @@ type Props = {
   onClose: () => void;
   signers: { email: string; signingOrder: number }[];
   virtualWidth: number;
-  virtualHeight: number;
+  detectedVirtualHeight: number;
   totalPages: number | null;
-  onApply: (result: { fields: SignatureField[]; template: WizardTemplate }) => void;
+  detectedPageLabel: string;
+  previewUrl?: string | null;
+  previewIsPdf?: boolean;
+  previewPage?: number | null;
+  onApply: (result: {
+    fields: SignatureField[];
+    template: WizardTemplate;
+    pageSizeMode: PageSizeMode;
+    virtualWidth: number;
+    virtualHeight: number;
+  }) => void;
 };
 
 type CustomField = {
@@ -18,19 +28,31 @@ type CustomField = {
   label: string;
 };
 
+type PageSizeMode = 'document' | 'a4' | 'oficio';
+
+const PAGE_RATIOS = {
+  a4: 842 / 595,
+  oficio: 1008 / 612
+};
+
 export function SignerFieldsWizard({
   isOpen,
   onClose,
   signers,
   virtualWidth,
-  virtualHeight,
+  detectedVirtualHeight,
   totalPages,
+  detectedPageLabel,
+  previewUrl,
+  previewIsPdf = false,
+  previewPage,
   onApply
 }: Props) {
   const [includeName, setIncludeName] = useState(true);
   const [includeId, setIncludeId] = useState(false);
   const [includeDate, setIncludeDate] = useState(true);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [pageSizeMode, setPageSizeMode] = useState<PageSizeMode>('document');
 
   const validSigners = useMemo(
     () =>
@@ -44,13 +66,19 @@ export function SignerFieldsWizard({
   // Siempre usamos "once" (al final del documento)
   const repetitionRule: RepetitionRule = { kind: 'once' };
 
+  const targetPage = (totalPages ?? 1) + 1;
+  const resolvedVirtualHeight =
+    pageSizeMode === 'document'
+      ? detectedVirtualHeight
+      : Math.round(virtualWidth * PAGE_RATIOS[pageSizeMode]);
+
   const template: WizardTemplate = useMemo(() => {
     const fields: WizardTemplate['fields'] = [{ kind: 'signature' }];
     if (includeName) fields.push({ kind: 'name', required: true });
     if (includeId) fields.push({ kind: 'id_number', required: true });
     if (includeDate) fields.push({ kind: 'date', required: true });
     customFields.forEach((cf) => {
-      fields.push({ kind: 'text', required: false, label: cf.label || 'Texto' });
+      fields.push({ kind: 'text', required: true, label: cf.label || 'Texto' });
     });
     return { fields, repetitionRule };
   }, [includeName, includeId, includeDate, customFields]);
@@ -68,6 +96,24 @@ export function SignerFieldsWizard({
   };
 
   if (!isOpen) return null;
+
+  const previewFields = generateWorkflowFieldsFromWizard(validSigners, template, {
+    virtualWidth,
+    virtualHeight: resolvedVirtualHeight,
+    totalPages,
+    targetPage
+  });
+
+  const previewItems = previewFields;
+
+  const previewWidth = 220;
+  const previewHeight = Math.round((previewWidth * resolvedVirtualHeight) / virtualWidth);
+  const previewScale = previewWidth / virtualWidth;
+
+  const pdfPreviewSrc =
+    previewIsPdf && previewUrl
+      ? `${previewUrl}#page=${previewPage ?? 1}&view=fitH`
+      : null;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
@@ -107,7 +153,7 @@ export function SignerFieldsWizard({
                   onChange={(e) => setIncludeName(e.target.checked)}
                   className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 />
-                <span className="text-xs">Nombre</span>
+                  <span className="text-xs">Nombre completo</span>
               </label>
 
               <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
@@ -171,17 +217,138 @@ export function SignerFieldsWizard({
             <p className="text-xs font-semibold text-gray-700 mb-3">¿Dónde aparece en el documento?</p>
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-not-allowed opacity-60">
               <input
-                type="radio"
+                type="checkbox"
                 name="position"
                 checked
                 disabled
-                className="w-[12px] h-[12px] scale-[1.2] origin-left border-gray-300 text-gray-400 focus:ring-0 cursor-not-allowed"
+                className="eco-checkbox rounded border-gray-300 text-gray-400 focus:ring-0 cursor-not-allowed"
               />
               <span className="text-xs">Al final del documento</span>
             </label>
             <p className="mt-2 text-[10px] text-gray-500">
               Los campos se agregan al final. Si no hay espacio, el documento se extiende.
             </p>
+          </div>
+
+          {/* Tamaño de página */}
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-3">Tamaño de página</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="page-size"
+                  checked={pageSizeMode === 'document'}
+                  onChange={() => setPageSizeMode('document')}
+                  className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                />
+                <span>Usar tamaño del documento (detectado: {detectedPageLabel})</span>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="page-size"
+                  checked={pageSizeMode === 'a4'}
+                  onChange={() => setPageSizeMode('a4')}
+                  className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                />
+                <span>Forzar A4</span>
+              </label>
+              <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="page-size"
+                  checked={pageSizeMode === 'oficio'}
+                  onChange={() => setPageSizeMode('oficio')}
+                  className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                />
+                <span>Forzar Oficio</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Preview layout */}
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-3">Previsualización</p>
+            <div className="flex items-start gap-3">
+              <div
+                className="relative border border-gray-200 rounded-md bg-gray-50 overflow-hidden"
+                style={{ width: previewWidth, height: previewHeight }}
+              >
+                {previewIsPdf && pdfPreviewSrc ? (
+                  <>
+                    <iframe
+                      src={pdfPreviewSrc}
+                      className="absolute inset-0 w-full h-full"
+                      style={{ pointerEvents: 'none' }}
+                      title="Preview PDF"
+                    />
+                    {previewItems.map((field) => {
+                      const scaleX = previewWidth / virtualWidth;
+                      const scaleY = previewHeight / resolvedVirtualHeight;
+                      return (
+                        <div
+                          key={field.id}
+                          className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
+                          style={{
+                            left: field.x * scaleX,
+                            top: field.y * scaleY,
+                            width: field.width * scaleX,
+                            height: field.height * scaleY
+                          }}
+                        >
+                          {field.metadata?.label || 'Campo'}
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : previewUrl && !previewIsPdf ? (
+                  <>
+                    <img src={previewUrl} alt="Preview" className="absolute inset-0 w-full h-full object-contain" />
+                    {previewItems.map((field) => {
+                      const scaleX = previewWidth / virtualWidth;
+                      const scaleY = previewHeight / resolvedVirtualHeight;
+                      return (
+                        <div
+                          key={field.id}
+                          className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
+                          style={{
+                            left: field.x * scaleX,
+                            top: field.y * scaleY,
+                            width: field.width * scaleX,
+                            height: field.height * scaleY
+                          }}
+                        >
+                          {field.metadata?.label || 'Campo'}
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : (
+                  previewItems.map((field) => {
+                    const scaleX = previewWidth / virtualWidth;
+                    const scaleY = previewHeight / resolvedVirtualHeight;
+                    return (
+                      <div
+                        key={field.id}
+                        className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
+                        style={{
+                          left: field.x * scaleX,
+                          top: field.y * scaleY,
+                          width: field.width * scaleX,
+                          height: field.height * scaleY
+                        }}
+                      >
+                        {field.metadata?.label || 'Campo'}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="text-[10px] text-gray-500 leading-relaxed max-w-[180px]">
+                Esta vista muestra cómo quedaría la hoja de firmas generada. Podés ajustar el layout luego si necesitás.
+              </div>
+            </div>
           </div>
         </div>
 
@@ -199,10 +366,17 @@ export function SignerFieldsWizard({
             onClick={() => {
               const generated = generateWorkflowFieldsFromWizard(validSigners, template, {
                 virtualWidth,
-                virtualHeight,
-                totalPages
+                virtualHeight: resolvedVirtualHeight,
+                totalPages,
+                targetPage
               });
-              onApply({ fields: generated, template });
+              onApply({
+                fields: generated,
+                template,
+                pageSizeMode,
+                virtualWidth,
+                virtualHeight: resolvedVirtualHeight
+              });
             }}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >

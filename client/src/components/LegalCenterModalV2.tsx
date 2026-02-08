@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ChangeEvent } from 'react';
-import { X, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Lock, Maximize2, Minimize2, PlusSquare, Shield, Type, Unlock, Upload, Users, RefreshCw, MoreVertical } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Lock, Maximize2, Minimize2, PlusSquare, Shield, Type, Unlock, Upload, Users, RefreshCw, MoreVertical, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ToastOptions as HotToastOptions } from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
@@ -9,7 +9,7 @@ import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { persistSignedPdfToStorage, saveUserDocument } from '../utils/documentStorage';
 import { startSignatureWorkflow } from '../lib/signatureWorkflowService';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
-import { applySignatureToPDF, blobToFile, addSignatureSheet, applyOverlaySpecToPdf } from '../utils/pdfSignature';
+import { applySignatureToPDF, blobToFile, addSignatureSheet, applyOverlaySpecToPdf, appendSignaturePage, type SignaturePageMode } from '../utils/pdfSignature';
 import type { ForensicData } from '../utils/pdfSignature';
 import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
@@ -253,6 +253,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
   const [isCanvasLocked, setIsCanvasLocked] = useState(false);
+  const [workflowPageSizeMode, setWorkflowPageSizeMode] = useState<SignaturePageMode>('document');
+  const [workflowVirtualSize, setWorkflowVirtualSize] = useState({ width: 1000, height: 1414 });
 
   // P1 UX: explicit confirmation step for signer assignment (UI-only)
   const [workflowAssignmentConfirmed, setWorkflowAssignmentConfirmed] = useState(false);
@@ -503,6 +505,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const PREVIEW_BASE_HEIGHT = 'h-[400px]';
   const previewBaseHeight = isMobile ? 'h-[40vh]' : PREVIEW_BASE_HEIGHT;
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
+  const [workflowPreviewUrl, setWorkflowPreviewUrl] = useState<string | null>(null);
+  const workflowPreviewKeyRef = useRef<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('compact'); // 'compact' | 'expanded' | 'fullscreen'
   const [showSignatureOnPreview, setShowSignatureOnPreview] = useState(false);
@@ -867,6 +871,66 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     };
   }, [documentPreview]);
 
+  // Preview con página de firmas (solo para editar campos en workflow)
+  useEffect(() => {
+    let cancelled = false;
+
+    const revoke = (url: string | null) => {
+      if (url && url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    };
+
+    const shouldBuildPreview = Boolean(
+      file &&
+      file.type === 'application/pdf' &&
+      workflowEnabled &&
+      signatureFields.length > 0
+    );
+
+    if (!shouldBuildPreview) {
+      revoke(workflowPreviewUrl);
+      setWorkflowPreviewUrl(null);
+      workflowPreviewKeyRef.current = null;
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const key = [
+      file?.name,
+      file?.size,
+      file?.lastModified,
+      workflowPageSizeMode
+    ].join('|');
+
+    if (workflowPreviewKeyRef.current === key && workflowPreviewUrl) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    (async () => {
+      try {
+        const signaturePage = await appendSignaturePage(file, workflowPageSizeMode);
+        if (cancelled) return;
+        const url = URL.createObjectURL(signaturePage.blob);
+        revoke(workflowPreviewUrl);
+        workflowPreviewKeyRef.current = key;
+        setWorkflowPreviewUrl(url);
+      } catch (err) {
+        console.warn('No se pudo generar preview con página de firmas:', err);
+        revoke(workflowPreviewUrl);
+        setWorkflowPreviewUrl(null);
+        workflowPreviewKeyRef.current = null;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file, workflowEnabled, signatureFields.length, workflowPageSizeMode]);
+
   useEffect(() => {
     if (!previewContainerRef.current) return;
     const observer = new ResizeObserver((entries) => {
@@ -888,10 +952,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   }, []);
 
   useEffect(() => {
-    if (documentPreview) {
+    if (documentPreview || workflowPreviewUrl) {
       setPdfEditError(false);
     }
-  }, [documentPreview]);
+  }, [documentPreview, workflowPreviewUrl]);
 
   useEffect(() => {
     setNdaPanelOpen(ndaEnabled);
@@ -963,10 +1027,26 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   }, [certificateData?.documentId, step]);
 
   const handleAddEmailField = () => {
+    if (workflowAssignmentConfirmed) {
+      showToast('Para agregar firmantes, reiniciá la asignación de campos.', {
+        type: 'warning',
+        duration: 2500,
+        position: 'top-right'
+      });
+      return;
+    }
     setEmailInputs([...emailInputs, { email: '', name: '', requireLogin: true, requireNda: true }]);
   };
 
   const handleRemoveEmailField = (index: number) => {
+    if (workflowAssignmentConfirmed) {
+      showToast('La asignación ya está confirmada. Reiniciá para editar firmantes.', {
+        type: 'warning',
+        duration: 2500,
+        position: 'top-right'
+      });
+      return;
+    }
     if (emailInputs.length <= 1) return; // Mantener al menos 1 campo
     
     // Si hay más de 3 firmantes, pedir confirmación
@@ -1082,7 +1162,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     return { valid: true };
   };
 
-  const buildSignersList = (): Signer[] => {
+  const buildSignersList = (options?: { showErrors?: boolean }): Signer[] => {
+    const showErrors = options?.showErrors ?? false;
     // Construir lista de firmantes desde los campos con email
     const validSigners: Signer[] = [];
     const seen = new Set<string>();
@@ -1116,7 +1197,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     });
 
     // Mostrar errores si hay (posición abajo para errores)
-    if (errors.length > 0) {
+    if (showErrors && errors.length > 0) {
       toast.error(errors[0], { duration: 4000, position: 'bottom-right' });
     }
 
@@ -1139,7 +1220,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     // UX hard-stop: si hay Flujo de Firmas activo, no abrir modales de custody/progreso
     // hasta que la asignacion estructural este completa.
     if (workflowEnabled) {
-      const validSigners = buildSignersList();
+      const validSigners = buildSignersList({ showErrors: true });
       if (validSigners.length === 0) {
         toast.error('Agregá al menos un email válido para enviar el documento a firmar');
         setFlowPanelOpen(true);
@@ -1440,8 +1521,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         // Auto-confirmation: if structure is complete, we can proceed.
 
-        // SPRINT 5: Si hay campos configurados, estamparlos en el PDF antes de enviar
+        // SPRINT 6: Agregar página de firmas + estampar campos antes de enviar
         let fileToSend = file;
+        try {
+          const signaturePage = await appendSignaturePage(fileToSend, workflowPageSizeMode);
+          fileToSend = new File([signaturePage.blob], file.name, { type: 'application/pdf' });
+        } catch (err) {
+          console.error('❌ Error agregando página de firmas:', err);
+          showToast('No se pudo agregar la página de firmas. Intentá nuevamente.', { type: 'error' });
+          setLoading(false);
+          return;
+        }
         if (signatureFields.length > 0) {
           try {
             console.log('📋 Estampando campos preparados para firmantes...');
@@ -1449,8 +1539,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             const overlaySpec = convertToOverlaySpec(
               signatureFields,
               null, // No incluir firma del owner en workflow
-              VIRTUAL_PAGE_WIDTH,
-              VIRTUAL_PAGE_HEIGHT,
+              workflowVirtualSize.width,
+              workflowVirtualSize.height,
               'owner'
             );
 
@@ -1556,8 +1646,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           const savedFields = await saveWorkflowFields(
             signatureFields,
             canonicalDocumentId,
-            VIRTUAL_PAGE_WIDTH,
-            VIRTUAL_PAGE_HEIGHT
+            workflowVirtualSize.width,
+            workflowVirtualSize.height
           );
           console.log(`✅ ${savedFields.length} campos guardados en workflow_fields`);
         } catch (fieldsError) {
@@ -2342,6 +2432,19 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         });
         return;
       }
+      if (workflowEnabled && signatureFields.length === 0) {
+        toast.error('Asigná los campos a los firmantes antes de enviar.', {
+          position: 'bottom-right'
+        });
+        openSignerFieldsWizard();
+        return;
+      }
+      if (workflowEnabled && !workflowAssignmentConfirmed) {
+        toast.error('Confirmá la asignación de campos antes de enviar.', {
+          position: 'bottom-right'
+        });
+        return;
+      }
       return;
     }
 
@@ -2617,17 +2720,34 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const isFocusMode = focusView !== null;
   const isDocumentFocus = focusView === 'document';
   const isViewerLocked = isCanvasLocked && !isDocumentFocus;
+  const activePreviewUrl = workflowPreviewUrl ?? documentPreview;
   const isPdfPreview =
-    !!documentPreview &&
+    !!activePreviewUrl &&
     (file?.type?.toLowerCase().includes('pdf') ||
       (file?.name?.toLowerCase().endsWith('.pdf') ?? false) ||
-      documentPreview.startsWith('blob:') ||
-      documentPreview.toLowerCase().includes('.pdf'));
+      activePreviewUrl.startsWith('blob:') ||
+      activePreviewUrl.toLowerCase().includes('.pdf'));
   const usePdfEditMode = isPdfPreview && !pdfEditError;
 
   const createFieldId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `field-${Date.now()}`);
   const VIRTUAL_PAGE_WIDTH = 1000;
-  const VIRTUAL_PAGE_HEIGHT = 1414;
+  const detectedVirtualHeight =
+    pdfPageMetrics.length > 0 ? pdfPageMetrics[pdfPageMetrics.length - 1].height : 1414;
+  const VIRTUAL_PAGE_HEIGHT = Math.round(detectedVirtualHeight || 1414);
+
+  const detectedPageLabel = (() => {
+    const ratio = VIRTUAL_PAGE_HEIGHT / VIRTUAL_PAGE_WIDTH;
+    if (Math.abs(ratio - 842 / 595) < 0.04) return 'A4';
+    if (Math.abs(ratio - 1008 / 612) < 0.05) return 'Oficio';
+    return 'Personalizado';
+  })();
+
+  useEffect(() => {
+    if (signatureFields.length === 0) {
+      setWorkflowVirtualSize({ width: VIRTUAL_PAGE_WIDTH, height: VIRTUAL_PAGE_HEIGHT });
+      setWorkflowPageSizeMode('document');
+    }
+  }, [VIRTUAL_PAGE_HEIGHT, VIRTUAL_PAGE_WIDTH, signatureFields.length]);
 
   const handleSaveDraft = async () => {
     setHeaderMenuOpen(false);
@@ -3479,11 +3599,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             />
                           )}
                           
-                          {documentPreview && isPdfPreview && (
+                          {activePreviewUrl && isPdfPreview && (
                             <>
                               {(
                                   <PdfEditViewer
-                                    src={documentPreview}
+                                    src={activePreviewUrl}
                                     locked={isViewerLocked}
                                     virtualWidth={VIRTUAL_PAGE_WIDTH}
                                     scale={virtualScale}
@@ -3641,7 +3761,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             </>
                           )}
                           
-                          {!documentPreview && (
+                          {!activePreviewUrl && (
                             <div className="absolute inset-0 flex items-center justify-center text-gray-500">
                               <div className="text-center">
                                 <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />
@@ -3651,7 +3771,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             </div>
                           )}
 
-                          {documentPreview && !usePdfEditMode && isPdfPreview && (signatureFields.length > 0 || (mySignature && signaturePreview)) && (
+                          {activePreviewUrl && !usePdfEditMode && isPdfPreview && (signatureFields.length > 0 || (mySignature && signaturePreview)) && (
                             <div
                               className={`absolute inset-0 ${showSignatureOnPreview || isCanvasLocked ? 'z-0 pointer-events-none' : 'z-20 pointer-events-none'}`}
                             >
@@ -4166,12 +4286,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                     onPaste={(e) => handleEmailPaste(index, e)}
                                     onBlur={() => handleEmailBlur(index)}
                                     placeholder="email@ejemplo.com"
-                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                    disabled={workflowAssignmentConfirmed}
+                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:bg-gray-100 disabled:text-gray-500"
                                   />
                                   {emailInputs.length > 1 && (
                                     <button
                                       onClick={() => handleRemoveEmailField(index)}
-                                      className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                                      disabled={workflowAssignmentConfirmed}
+                                      className="text-gray-400 hover:text-red-600 transition-colors p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                       title="Eliminar firmante"
                                     >
                                       <X className="w-4 h-4" />
@@ -4184,7 +4306,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                                     value={input.name}
                                     onChange={(e) => handleNameChange(index, e.target.value)}
                                     placeholder="Juan Pérez (opcional)"
-                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                    disabled={workflowAssignmentConfirmed}
+                                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:bg-gray-100 disabled:text-gray-500"
                                   />
                                 </div>
                               </div>
@@ -4193,7 +4316,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
                           <button
                             onClick={handleAddEmailField}
-                            className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 mb-4"
+                            disabled={workflowAssignmentConfirmed}
+                            className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Users className="w-4 h-4" />
                             Agregar otro firmante
@@ -4204,10 +4328,23 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               <Shield className="w-4 h-4 text-gray-900 flex-shrink-0 mt-0.5" />
                               <div>
                                 <p className="text-xs font-medium text-gray-900">
-                                  Seguridad obligatoria
+                                  Orden de firmantes
                                 </p>
                                 <p className="text-xs text-gray-700 mt-1">
-                                  Podés exigir login y NDA por firmante antes de firmar
+                                  El flujo respeta el orden de los mails que agregás.
+                                </p>
+                                <p className="text-[11px] text-gray-600 mt-2">
+                                  Tip: podés pegar varios correos juntos con{' '}
+                                  <span className="inline-flex items-center gap-1 font-medium text-gray-900 group relative">
+                                    Smart Paste
+                                    <span className="text-[10px] leading-none text-gray-500 border border-gray-300 rounded-full w-3 h-3 inline-flex items-center justify-center">
+                                      ?
+                                    </span>
+                                    <span className="invisible group-hover:visible absolute left-0 top-full mt-2 w-64 rounded-md bg-gray-900 px-2 py-1 text-[10px] text-white shadow-lg z-50">
+                                      Copiá todos los correos juntos. Al pegarlos en el primer campo, EcoSign los separa y respeta el orden.
+                                    </span>
+                                  </span>
+                                  , o usar la varita mágica para crear los campos.
                                 </p>
                               </div>
                             </div>
@@ -4374,14 +4511,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     {/* Wizard */}
                     <button
                       type="button"
-                      onClick={openSignerFieldsWizard}
+                      onClick={() => {
+                        openSignerFieldsWizard();
+                        showToast('Asigná campos automáticamente con el Wizard', { type: 'info', duration: 2000, position: 'top-right' });
+                      }}
                       disabled={buildSignersList().length === 0}
                       title="Asignar campos automáticamente por cantidad de usuarios"
                       className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
-                      </svg>
+                      <Wand2 className="w-3.5 h-3.5" />
                     </button>
 
                     {/* Asignar campos manualmente */}
@@ -4479,7 +4617,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                               onPaste={(e) => handleEmailPaste(index, e)}
                               onBlur={() => handleEmailBlur(index)}
                               placeholder="email@ejemplo.com"
-                              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                              disabled={workflowAssignmentConfirmed}
+                              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:bg-gray-100 disabled:text-gray-500"
                             />
                             {hasAssignedFields && (
                               <div className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500" title="Tiene campos asignados" />
@@ -4487,7 +4626,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             {emailInputs.length > 1 && (
                               <button
                                 onClick={() => handleRemoveEmailField(index)}
-                                className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                                disabled={workflowAssignmentConfirmed}
+                                className="text-gray-400 hover:text-red-600 transition-colors p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Eliminar firmante"
                               >
                                 <X className="w-4 h-4" />
@@ -4504,72 +4644,93 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   {/* Botón para agregar más firmantes */}
                   <button
                     onClick={handleAddEmailField}
-                    className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2"
+                    disabled={workflowAssignmentConfirmed}
+                    className="w-full py-2 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Users className="w-4 h-4" />
                     Agregar otro firmante
                   </button>
+
+                  {/* CTA: Confirmar asignación (en panel Flujo de Firmas) */}
+                  {(() => {
+                    const validSigners = buildSignersList();
+                    const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+                    const signerEmailSet = new Set(validSigners.map((s) => normalizeEmail(s.email)));
+
+                    const assignedEmails = new Set(
+                      batches
+                        .map((b) => normalizeEmail(b.assignedSignerEmail))
+                        .filter((email) => Boolean(email) && signerEmailSet.has(email))
+                    );
+                    const missingFor = validSigners
+                      .map((s) => s.email.trim().toLowerCase())
+                      .filter((email) => !assignedEmails.has(email));
+
+                    const isComplete =
+                      workflowAssignmentConfirmed ||
+                      (unassignedBatches.length === 0 &&
+                        missingFor.length === 0 &&
+                        batches.length > 0 &&
+                        validSigners.length > 0);
+                    const isLocked = workflowAssignmentConfirmed;
+                    const canConfirm = !isLocked && isComplete;
+
+                    if (signatureFields.length === 0) return null;
+
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isLocked) {
+                            showToast('Asignación ya confirmada', { type: 'success', duration: 1500, position: 'top-right' });
+                            return;
+                          }
+                          if (canConfirm) {
+                            setWorkflowAssignmentConfirmed(true);
+                            showToast('Asignación correcta por firmante', { type: 'success', duration: 2000, position: 'top-right' });
+                            return;
+                          }
+                          showToast('Asigná campos a todos los firmantes primero', { type: 'warning', duration: 2000, position: 'top-right' });
+                        }}
+                        disabled={!canConfirm}
+                        className={`w-full mt-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                          canConfirm
+                            ? 'bg-gray-900 hover:bg-gray-800 text-white'
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        {isLocked ? 'Asignación confirmada' : 'Confirmar asignación de campos'}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
 
-              {/* Info de seguridad */}
+              {/* Info flujo */}
               <div className="p-2 bg-gray-100 border border-gray-200 rounded-lg text-xs">
                 <div className="flex gap-2">
                   <Shield className="w-3.5 h-3.5 text-gray-900 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-medium text-gray-900">Seguridad obligatoria</p>
+                    <p className="font-medium text-gray-900">Orden de firmantes</p>
                     <p className="text-gray-700 mt-0.5">
-                      Podés exigir login y NDA por firmante antes de firmar
+                      El flujo respeta el orden de los mails que agregás.
+                    </p>
+                    <p className="text-[11px] text-gray-600 mt-1">
+                      Tip: pegá varios correos juntos con{' '}
+                      <span className="inline-flex items-center gap-1 font-medium text-gray-900 group relative">
+                        Smart Paste
+                        <span className="text-[10px] leading-none text-gray-500 border border-gray-300 rounded-full w-3 h-3 inline-flex items-center justify-center">
+                          ?
+                        </span>
+                        <span className="invisible group-hover:visible absolute left-0 top-full mt-2 w-64 rounded-md bg-gray-900 px-2 py-1 text-[10px] text-white shadow-lg z-50">
+                          Copiá todos los correos juntos. Al pegarlos en el primer campo, EcoSign los separa y respeta el orden.
+                        </span>
+                      </span>
+                      , o usá la varita mágica para crear los campos.
                     </p>
                   </div>
                 </div>
               </div>
-
-              {/* CTA: Confirmar asignación */}
-              {(() => {
-                const validSigners = buildSignersList();
-                const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
-                const signerEmailSet = new Set(validSigners.map((s) => normalizeEmail(s.email)));
-
-                const assignedEmails = new Set(
-                  batches
-                    .map((b) => normalizeEmail(b.assignedSignerEmail))
-                    .filter((email) => Boolean(email) && signerEmailSet.has(email))
-                );
-                const missingFor = validSigners
-                  .map((s) => s.email.trim().toLowerCase())
-                  .filter((email) => !assignedEmails.has(email));
-
-                const isComplete =
-                  workflowAssignmentConfirmed ||
-                  (unassignedBatches.length === 0 &&
-                    missingFor.length === 0 &&
-                    batches.length > 0 &&
-                    validSigners.length > 0);
-
-                if (signatureFields.length === 0) return null;
-
-                return (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isComplete) {
-                        showToast('Asignación confirmada', { type: 'success', duration: 1500, position: 'top-right' });
-                      } else {
-                        showToast('Asigná campos a todos los firmantes primero', { type: 'warning', duration: 2000, position: 'top-right' });
-                      }
-                    }}
-                    disabled={!isComplete}
-                    className={`w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
-                      isComplete
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    Confirmar asignación de campos
-                  </button>
-                );
-              })()}
 
               </div>
               </div>
@@ -4616,8 +4777,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       onClose={() => setShowSignerFieldsWizard(false)}
       signers={buildSignersList().map((s) => ({ email: s.email, signingOrder: s.signingOrder }))}
       virtualWidth={VIRTUAL_PAGE_WIDTH}
-      virtualHeight={VIRTUAL_PAGE_HEIGHT}
+      detectedVirtualHeight={VIRTUAL_PAGE_HEIGHT}
       totalPages={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}
+      detectedPageLabel={detectedPageLabel}
+      previewUrl={documentPreview}
+      previewIsPdf={Boolean(documentPreview && file?.type === 'application/pdf')}
+      previewPage={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}
       onApply={(result) => {
         const fields = result.fields;
         if (signatureFields.length > 0) {
@@ -4626,6 +4791,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         }
 
         setSignatureFields(fields);
+        setWorkflowVirtualSize({ width: result.virtualWidth, height: result.virtualHeight });
+        setWorkflowPageSizeMode(result.pageSizeMode);
         const firstBatch = fields.find((f: SignatureField) => f.batchId)?.batchId ?? null;
         setActiveBatchId(firstBatch);
         setWorkflowAssignmentConfirmed(true);

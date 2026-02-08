@@ -40,15 +40,21 @@ serve(async (req: Request) => {
   const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
   // Canon: prevent burst per workflow (1 immediate email per signature).
   const WORKFLOW_THROTTLE_MS = 30 * 1000;
+  // Canonical cutoff: ignore precanonical notifications
+  const PRECANONICAL_CUTOFF = Deno.env.get("PRECANONICAL_CUTOFF") ??
+    "2026-02-05T00:00:00.000Z";
+  const PRECANONICAL_CUTOFF_MS = new Date(PRECANONICAL_CUTOFF).getTime();
 
   const NOTIFICATION_PRIORITY: Record<string, number> = {
     your_turn_to_sign: 0,
-    workflow_completed: 5,
-    signature_completed: 10,
+    workflow_completed_simple: 5,
     creator_detailed_notification: 20,
   };
 
-  const ALLOWED_TYPES = new Set(["your_turn_to_sign", "workflow_completed"]);
+  const ALLOWED_TYPES = new Set([
+    "your_turn_to_sign",
+    "workflow_completed_simple",
+  ]);
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
   console.log("🟢 send-pending-emails: start");
@@ -82,6 +88,29 @@ serve(async (req: Request) => {
       at: nowIso(),
       ...details,
     });
+  const isPrecanonical = (createdAt: string | null | undefined) => {
+    if (!createdAt) return false;
+    if (!Number.isFinite(PRECANONICAL_CUTOFF_MS)) return false;
+    const ts = new Date(createdAt).getTime();
+    return Number.isFinite(ts) && ts < PRECANONICAL_CUTOFF_MS;
+  };
+
+  const cancelWorkflowNotification = async (
+    id: string,
+    reason: string,
+    extra?: Record<string, unknown>,
+  ) => {
+    const payload = JSON.stringify({
+      reason,
+      at: nowIso(),
+      ...extra,
+    });
+    await supabase
+      .from("workflow_notifications")
+      .update({ delivery_status: "cancelled", error_message: payload })
+      .eq("id", id);
+  };
+
   try {
     const { data: rows, error } = await supabase
       .from("system_emails")
@@ -273,7 +302,7 @@ serve(async (req: Request) => {
       if (workflowIds.length > 0) {
         const { data: workflows, error: wfErr } = await supabase
           .from("signature_workflows")
-          .select("id, status")
+          .select("id, status, document_entity_id, original_filename")
           .in("id", workflowIds);
 
         if (wfErr) {
@@ -302,11 +331,88 @@ serve(async (req: Request) => {
         return Number.isFinite(ageMs) && ageMs >= 0 && ageMs < WORKFLOW_THROTTLE_MS;
       };
 
+      const encodeBase64 = (content: string) => {
+        const bytes = new TextEncoder().encode(content);
+        let binary = '';
+        for (const b of bytes) {
+          binary += String.fromCharCode(b);
+        }
+        return btoa(binary);
+      };
+
+      const documentCache = new Map<string, any>();
+
+      const getDocumentEntity = async (documentEntityId: string) => {
+        if (documentCache.has(documentEntityId)) return documentCache.get(documentEntityId);
+        const { data, error } = await supabase
+          .from("document_entities")
+          .select("id, owner_id, source_hash, witness_current_hash, signed_hash, composite_hash, lifecycle_status, created_at, updated_at, metadata, events")
+          .eq("id", documentEntityId)
+          .maybeSingle();
+        if (error || !data) return null;
+        documentCache.set(documentEntityId, data);
+        return data;
+      };
+
+      const getExpectedWitnessHash = (doc: any) =>
+        doc?.witness_current_hash ||
+        doc?.witness_hash ||
+        doc?.signed_hash ||
+        doc?.composite_hash ||
+        doc?.source_hash ||
+        null;
+
+      const findSignerSignatureEvent = (
+        events: any[] | null | undefined,
+        signerId: string | null,
+        signerEmail: string,
+      ) => {
+        if (!Array.isArray(events)) return null;
+        return (
+          events.find((e: any) =>
+            e?.kind === "signature.completed" &&
+            signerId &&
+            e?.signer?.id &&
+            e.signer.id === signerId
+          ) ||
+          events.find((e: any) =>
+            e?.kind === "signature.completed" &&
+            e?.signer?.email === signerEmail
+          ) ||
+          null
+        );
+      };
+
+      const hasTsaConfirmedForHash = (events: any[] | null | undefined, expectedHash: string | null) => {
+        if (!expectedHash) return false;
+        if (!Array.isArray(events)) return false;
+        return events.some((e: any) => {
+          if (e?.kind !== "tsa.confirmed") return false;
+          const witnessHash = e?.witness_hash || e?.tsa?.witness_hash || null;
+          return witnessHash === expectedHash;
+        });
+      };
+
       for (const r of candidates.slice(0, BATCH_LIMIT)) {
         try {
-          if (!ALLOWED_TYPES.has(r.notification_type)) {
-            console.info("Skipping non-canonical notification type", {
+          if (isPrecanonical(r.created_at)) {
+            console.info("Cancelling precanonical notification", {
               id: r.id,
+              created_at: r.created_at,
+              type: r.notification_type,
+            });
+            await cancelWorkflowNotification(r.id, "precanonical_reset", {
+              created_at: r.created_at,
+            });
+            continue;
+          }
+
+          if (!ALLOWED_TYPES.has(r.notification_type)) {
+            console.info("Cancelling non-canonical notification type", {
+              id: r.id,
+              type: r.notification_type,
+            });
+            await cancelWorkflowNotification(r.id, "unsupported_type", {
               type: r.notification_type,
             });
             continue;
@@ -323,8 +429,11 @@ serve(async (req: Request) => {
 
           const workflow = r.workflow_id ? workflowById.get(r.workflow_id) : null;
           if (!workflow) {
-            console.info("Skipping notification with missing workflow", {
+            console.info("Cancelling notification with missing workflow", {
               id: r.id,
+              workflow_id: r.workflow_id,
+            });
+            await cancelWorkflowNotification(r.id, "workflow_missing", {
               workflow_id: r.workflow_id,
             });
             continue;
@@ -332,33 +441,56 @@ serve(async (req: Request) => {
 
           if (r.notification_type === "your_turn_to_sign") {
             if (workflow.status !== "active") {
-              console.info("Email omitido: workflow no activo", {
+              console.info("Cancelling: workflow no activo", {
                 workflow_id: r.workflow_id,
                 status: workflow.status,
                 notification_id: r.id,
+              });
+              await cancelWorkflowNotification(r.id, "workflow_not_active", {
+                workflow_status: workflow.status,
               });
               continue;
             }
           }
 
           if (r.notification_type === "workflow_completed") {
+            await cancelWorkflowNotification(r.id, "workflow_completed_disabled");
+            continue;
+          }
+
+          if (r.notification_type === "workflow_completed_simple") {
             if (workflow.status !== "completed") {
-              console.info("Email omitido: workflow no completado", {
+              console.info("Cancelling: workflow no completado", {
                 workflow_id: r.workflow_id,
                 status: workflow.status,
                 notification_id: r.id,
+              });
+              await cancelWorkflowNotification(r.id, "workflow_not_completed", {
+                workflow_status: workflow.status,
               });
               continue;
             }
           }
 
-          // Per-workflow throttle to avoid 429 bursts.
-          if ((r as any).workflow_id && await isWorkflowThrottled((r as any).workflow_id)) {
-            console.info("⏳ workflow throttled, skipping", {
-              workflow_id: (r as any).workflow_id,
-              notification_id: r.id,
-            });
+          if (r.notification_type === "signature_completed") {
+            await cancelWorkflowNotification(r.id, "signature_completed_disabled");
             continue;
+          }
+
+          if (r.notification_type === "signature_evidence_ready") {
+            await cancelWorkflowNotification(r.id, "signature_evidence_ready_disabled");
+            continue;
+          }
+
+          // Per-workflow throttle to avoid 429 bursts.
+          if (r.notification_type !== "workflow_completed_simple") {
+            if ((r as any).workflow_id && await isWorkflowThrottled((r as any).workflow_id)) {
+              console.info("⏳ workflow throttled, skipping", {
+                workflow_id: (r as any).workflow_id,
+                notification_id: r.id,
+              });
+              continue;
+            }
           }
 
           if (r.notification_type === "your_turn_to_sign" && r.signer_id) {
@@ -390,10 +522,62 @@ serve(async (req: Request) => {
           const from = Deno.env.get("DEFAULT_FROM") ??
             "EcoSign <no-reply@email.ecosign.app>";
           const to = r.recipient_email;
-          const subject = r.subject || "Notificación EcoSign";
-          const html = r.body_html || "<p>Notificación</p>";
+          let subject = r.subject || "Notificación EcoSign";
+          let html = r.body_html || "<p>Notificación</p>";
+          let attachments: Array<{ filename: string; content: string; contentType?: string }> | undefined;
 
-          const result = await sendResendEmail({ from, to, subject, html });
+          if (r.notification_type === "workflow_completed_simple") {
+            const { data: pendingAll } = await supabase
+              .from("workflow_notifications")
+              .select("*")
+              .eq("workflow_id", r.workflow_id)
+              .eq("notification_type", "workflow_completed_simple")
+              .eq("delivery_status", "pending")
+              .order("created_at", { ascending: true });
+
+            for (const item of pendingAll ?? []) {
+              const result = await sendResendEmail({
+                from,
+                to: item.recipient_email,
+                subject: item.subject || subject,
+                html: item.body_html || html,
+              });
+
+              if (result.ok) {
+                await supabase
+                  .from("workflow_notifications")
+                  .update({
+                    delivery_status: "sent",
+                    sent_at: new Date().toISOString(),
+                    error_message: null,
+                    resend_email_id: result.id ?? null,
+                  })
+                  .eq("id", item.id);
+              } else {
+                const retry = (item.retry_count ?? 0) + 1;
+                const new_status = retry >= MAX_RETRIES ? "failed" : "pending";
+                await supabase
+                  .from("workflow_notifications")
+                  .update({
+                    delivery_status: new_status,
+                    error_message: JSON.stringify(
+                      result.error ?? result.body ?? "Unknown error",
+                    ),
+                    retry_count: retry,
+                  })
+                  .eq("id", item.id);
+              }
+            }
+
+            continue;
+          }
+
+          if (r.notification_type === "signature_evidence_ready") {
+            await cancelWorkflowNotification(r.id, "signature_evidence_ready_disabled");
+            continue;
+          }
+
+          const result = await sendResendEmail({ from, to, subject, html, attachments });
 
           if (result.ok) {
             const upd = await supabase

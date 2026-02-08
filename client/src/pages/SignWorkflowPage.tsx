@@ -22,7 +22,7 @@ import { downloadDocument } from '@/utils/documentStorage'
 import { decryptFile } from '@/utils/encryption'
 import { encryptFile, generateEncryptionKey } from '@/utils/encryption'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 
 // Step components
 import TokenValidator from '@/components/signature-flow/TokenValidator'
@@ -120,6 +120,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const [user, setUser] = useState<any>(null)
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
+  const [verifyingOtp, setVerifyingOtp] = useState(false)
   const [accessMeta, setAccessMeta] = useState<any>(null)
   const [embedError, setEmbedError] = useState(false)
   const [embedTimeout, setEmbedTimeout] = useState<ReturnType<typeof setTimeout> | null>(null)
@@ -286,6 +287,14 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       }
 
       setSignerData(signer as any)
+      const getLocalDateInputValue = () => {
+        const now = new Date()
+        const yyyy = now.getFullYear()
+        const mm = String(now.getMonth() + 1).padStart(2, '0')
+        const dd = String(now.getDate()).padStart(2, '0')
+        return `${yyyy}-${mm}-${dd}`
+      }
+
       // Initialize signer field values
       const initialValues: Record<string, string> = {}
       for (const f of (signer as any)?.workflow_fields ?? []) {
@@ -294,7 +303,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         if (typeof f.value === 'string' && f.value.length > 0) {
           initialValues[f.id] = f.value
         } else {
-          initialValues[f.id] = ''
+          initialValues[f.id] = f.field_type === 'date' ? getLocalDateInputValue() : ''
         }
       }
       setFieldValues(initialValues)
@@ -406,22 +415,31 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
   const verifyOtp = async () => {
     if (!signerData || !otpCode.trim()) return
+    if (verifyingOtp) return
     const supabase = getSupabase();
-    setError(null)
-    const { data, error } = await supabase.functions.invoke('verify-signer-otp', {
-      body: { signerId: signerData.signer_id, otp: otpCode.trim() }
-    })
-    if (error || !data?.success) {
-      setError(error?.message || 'OTP inválido')
-      return
-    }
-    if (token) {
-      const refreshed = await fetchSignerData(token)
-      if (refreshed) {
-        setSignerData(refreshed as any)
+    try {
+      setVerifyingOtp(true)
+      setError(null)
+      const { data, error } = await supabase.functions.invoke('verify-signer-otp', {
+        body: { signerId: signerData.signer_id, otp: otpCode.trim() }
+      })
+      if (error || !data?.success) {
+        setError(error?.message || 'OTP inválido')
+        return
       }
+      if (token) {
+        const refreshed = await fetchSignerData(token)
+        if (refreshed) {
+          setSignerData(refreshed as any)
+        }
+      }
+      setStep('viewing')
+    } catch (err) {
+      console.error('verifyOtp error', err)
+      setError('Error verificando el código')
+    } finally {
+      setVerifyingOtp(false)
     }
-    setStep('viewing')
   }
 
   const handleDocumentViewed = async () => {
@@ -458,9 +476,19 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         }
       })
 
-      if (error || !data?.success || (data && (data as any).error)) {
-        console.error('apply-signer-signature failed', error || data.error)
-        throw new Error(error?.message || (data as any)?.error || 'apply_failed')
+      const dataError = (data as any)?.error
+      if (error || !data?.success || dataError) {
+        console.error('apply-signer-signature failed', error || dataError)
+        const errorCode = error?.message || dataError || 'apply_failed'
+        if (errorCode === 'missing_required_fields') {
+          setError('Completá todos los campos antes de firmar')
+          return
+        }
+        if (errorCode === 'missing_signature_batch') {
+          setError('Faltan campos asignados. Pedile al creador que asigne los espacios de firma.')
+          return
+        }
+        throw new Error(errorCode)
       }
 
       // Success: mark completed in UI
@@ -469,7 +497,6 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     } catch (err) {
       console.error('Error applying signature:', err)
       setError('Error al guardar la firma. Por favor, intentá nuevamente.')
-      setStep('error')
     }
   }
 
@@ -502,39 +529,59 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     } as any)
   }
 
-  const handleDownloadECO = async () => {
+  const handleDownloadSignedPdf = async () => {
     if (!signerData) return
-    const supabase = getSupabase();
+    const workflow = signerData.workflow
+    const baseName = workflow.original_filename || workflow.title || 'documento'
+    const fileName = baseName.toLowerCase().endsWith('.pdf') ? baseName : `${baseName}.pdf`
 
-    // Log ECOX event
-    await logEvent({
-      workflowId: signerData.workflow_id,
-      signerId: signerData.signer_id,
-      eventType: 'eco_downloaded'
-    })
+    try {
+      let pdfBlob: Blob | null = null
 
-    // Call generate_ecox_certificate function
-    const { data, error } = await supabase.rpc('generate_ecox_certificate', {
-      p_workflow_id: signerData.workflow_id
-    })
+      if (workflow.encryption_key) {
+        let encryptedBlob: Blob | null = null
+        if (signerData.encrypted_pdf_url) {
+          const resp = await fetch(signerData.encrypted_pdf_url)
+          if (!resp.ok) throw new Error('No se pudo descargar el documento')
+          encryptedBlob = await resp.blob()
+        } else if (workflow.document_path) {
+          const { success, data, error: downloadError } = await downloadDocument(workflow.document_path)
+          if (!success || !data) {
+            throw new Error(downloadError || 'No se pudo descargar el documento')
+          }
+          encryptedBlob = data
+        }
 
-    if (error) {
-      console.error('Error generating ECO certificate:', error)
-      return
+        if (!encryptedBlob) {
+          throw new Error('No se pudo acceder al documento')
+        }
+
+        const decrypted = await decryptFile(encryptedBlob, workflow.encryption_key)
+        pdfBlob = new Blob([await decrypted.arrayBuffer()], { type: 'application/pdf' })
+      } else {
+        const directUrl = signerData.encrypted_pdf_url || workflow.document_path
+        if (!directUrl) {
+          throw new Error('No se pudo acceder al documento')
+        }
+        const resp = await fetch(directUrl)
+        if (!resp.ok) throw new Error('No se pudo descargar el documento')
+        pdfBlob = await resp.blob()
+      }
+
+      const url = URL.createObjectURL(pdfBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      link.target = '_self'
+      link.rel = 'noopener'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error downloading signed PDF:', err)
+      window.alert('No se pudo descargar el PDF firmado. Intentá nuevamente.')
     }
-
-    // Trigger download
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json'
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${signerData.workflow.title || 'document'}.eco.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
   }
 
   // Render based on step
@@ -647,14 +694,27 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                       inputMode="numeric"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          verifyOtp()
+                        }
+                      }}
                       placeholder="Código de 6 dígitos"
                       className="w-full rounded-lg border px-4 py-3 text-sm"
                     />
                     <button
                       onClick={verifyOtp}
-                      className="w-full rounded-lg border border-blue-600 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                      disabled={verifyingOtp}
+                      className="w-full rounded-lg border border-blue-600 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Verificar código
+                      {verifyingOtp ? (
+                        <span className="inline-flex items-center justify-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Verificando...
+                        </span>
+                      ) : (
+                        'Verificar código'
+                      )}
                     </button>
                     <button
                       onClick={sendOtp}
@@ -752,10 +812,18 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
               fieldValues={fieldValues}
               onFieldValueChange={(fieldId, value) => setFieldValues((prev) => ({ ...prev, [fieldId]: value }))}
               validate={() => {
-                const missing = (signerData.workflow_fields ?? [])
-                  .filter((f) => f.field_type !== 'signature' && Boolean(f.required))
-                  .filter((f) => !(fieldValues[f.id] ?? '').trim())
-                if (missing.length > 0) return 'Completá los campos requeridos antes de firmar'
+                const fields = (signerData.workflow_fields ?? []).filter((f) => f.field_type !== 'signature')
+                for (const f of fields) {
+                  const raw = (fieldValues[f.id] ?? '').trim()
+                  if (!raw) return 'Completá todos los campos antes de firmar'
+                  if (f.field_type === 'date') {
+                    const isValidFormat = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+                    const dateValue = new Date(raw)
+                    if (!isValidFormat || Number.isNaN(dateValue.getTime())) {
+                      return 'Ingresá una fecha válida'
+                    }
+                  }
+                }
                 return null
               }}
               onSign={handleSignatureApplied}
@@ -766,8 +834,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         {step === 'completed' && signerData && (
           <CompletionScreen
             workflowTitle={signerData.workflow.title}
-            userDocumentId={null}
-            onDownloadECO={handleDownloadECO}
+            onDownloadPdf={handleDownloadSignedPdf}
             onClose={() => navigate('/')}
           />
         )}

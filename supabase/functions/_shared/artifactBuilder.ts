@@ -10,7 +10,7 @@
  * 3. Identity Layer: Hash + unique identifiers
  */
 
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2.42.0';
 import { PDFDocument, StandardFonts, rgb } from 'https://cdn.skypack.dev/pdf-lib@1.17.1';
 
 export interface ArtifactBuildResult {

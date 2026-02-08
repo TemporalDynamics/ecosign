@@ -154,6 +154,10 @@ serve(async (req) => {
     }
 
     await emitEvent(supabase, documentEntityId, tsaEvent, 'run-tsa');
+
+    // Evidence email is disabled in precanonical reset.
+    // Re-enable by setting ENABLE_SIGNATURE_EVIDENCE=1 and restoring this block.
+
     return jsonResponse({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

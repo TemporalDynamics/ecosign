@@ -5,7 +5,7 @@
  * to document_entities.events[] following the canonical pattern.
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { SupabaseClient } from 'npm:@supabase/supabase-js@2.42.0';
 import { appendEvent } from './eventHelper.ts';
 
 export type TsaEventPayload = {

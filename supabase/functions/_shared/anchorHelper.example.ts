@@ -7,7 +7,7 @@
  * DO NOT import this file. It's documentation only.
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.42.0';
 import { appendAnchorEventFromEdge } from './anchorHelper.ts';
 
 // =============================================================================

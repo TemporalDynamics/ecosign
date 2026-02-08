@@ -7,6 +7,7 @@ import { getCorsHeaders } from '../_shared/cors.ts'
 import { appendEvent } from '../_shared/eventHelper.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts'
+import { attemptRekorProof } from '../_shared/rekorProof.ts'
 import { decryptToken } from '../_shared/cryptoHelper.ts'
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
@@ -164,45 +165,6 @@ async function attemptTsaProof(params: {
     };
   } catch (_err) {
     return { kind: 'tsa', status: 'timeout', provider: 'freetsa', ref: null, attempted_at: attemptedAt };
-  }
-}
-
-async function attemptRekorProof(params: {
-  witness_hash: string;
-  timeout_ms: number;
-}): Promise<{ kind: string; status: string; provider: string; ref: string | null; attempted_at: string; reason?: string }> {
-  const attemptedAt = new Date().toISOString();
-  const provider = 'rekor.sigstore.dev';
-  if (!params.witness_hash) {
-    return { kind: 'rekor', status: 'attempted', provider, ref: null, attempted_at: attemptedAt, reason: 'no_witness_hash' };
-  }
-  try {
-    const url = `https://${provider}/api/v1/log/entries`;
-    const payload = {
-      apiVersion: '0.0.1',
-      kind: 'hashedrekord',
-      spec: {
-        data: { hash: { algorithm: 'sha256', value: params.witness_hash } },
-        signature: { content: '', publicKey: { content: '' } }
-      }
-    };
-    const resp = await fetchWithTimeout(
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      },
-      params.timeout_ms
-    );
-    if (!resp.ok) {
-      return { kind: 'rekor', status: 'attempted', provider, ref: null, attempted_at: attemptedAt, reason: 'no_signature_material' };
-    }
-    const data = await resp.json().catch(() => ({}));
-    const uuid = data && typeof data === 'object' ? Object.keys(data)[0] : null;
-    return { kind: 'rekor', status: uuid ? 'confirmed' : 'attempted', provider, ref: uuid, attempted_at: attemptedAt, reason: uuid ? undefined : 'no_signature_material' };
-  } catch (_err) {
-    return { kind: 'rekor', status: 'timeout', provider, ref: null, attempted_at: attemptedAt };
   }
 }
 
@@ -858,7 +820,12 @@ serve(async (req) => {
         const witnessHash = witnessHashForEvent || null
         const proofs = await Promise.all([
           attemptTsaProof({ witness_hash: witnessHash || '', timeout_ms: 3000 }),
-          attemptRekorProof({ witness_hash: witnessHash || '', timeout_ms: 3000 }),
+          attemptRekorProof({
+            witness_hash: witnessHash || '',
+            workflow_id: signer.workflow_id,
+            signer_id: signer.id,
+            timeout_ms: 3000
+          }),
           attemptRoughtimeProof({ witness_hash: witnessHash || '', timeout_ms: 3000 })
         ])
 

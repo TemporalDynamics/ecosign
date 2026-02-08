@@ -47,6 +47,7 @@ const jsonResponse = (data: unknown, status = 200) =>
 
 interface WorkflowField {
   id?: string
+  external_field_id?: string
   document_entity_id: string
   field_type: 'signature' | 'text' | 'date'
   label?: string
@@ -59,6 +60,7 @@ interface WorkflowField {
     height: number
   }
   assigned_to?: string
+  assigned_signer_id?: string | null
   required: boolean
   value?: string
   metadata?: Record<string, unknown>
@@ -153,12 +155,14 @@ async function handleCreateField(req: Request, supabase: ReturnType<typeof creat
 
   // Preparar datos para insert
   const fieldData = {
+    external_field_id: body.external_field_id || (body.metadata as any)?.frontend_id || crypto.randomUUID(),
     document_entity_id: body.document_entity_id,
     field_type: body.field_type,
     label: body.label || null,
     placeholder: body.placeholder || null,
     position: body.position,
     assigned_to: body.assigned_to || null,
+    assigned_signer_id: body.assigned_signer_id || null,
     required: body.required,
     value: body.value || null,
     metadata: body.metadata || null,
@@ -301,12 +305,14 @@ async function handleBatchCreate(req: Request, supabase: ReturnType<typeof creat
 
   // Preparar batch insert
   const fieldsData = body.fields.map(field => ({
+    external_field_id: field.external_field_id || (field.metadata as any)?.frontend_id || crypto.randomUUID(),
     document_entity_id: field.document_entity_id,
     field_type: field.field_type,
     label: field.label || null,
     placeholder: field.placeholder || null,
     position: field.position,
     assigned_to: field.assigned_to || null,
+    assigned_signer_id: field.assigned_signer_id || null,
     required: field.required,
     value: field.value || null,
     metadata: field.metadata || null,
@@ -318,7 +324,7 @@ async function handleBatchCreate(req: Request, supabase: ReturnType<typeof creat
   // RLS enforced: Solo owner puede crear
   const { data, error } = await supabase
     .from('workflow_fields')
-    .insert(fieldsData)
+    .upsert(fieldsData, { onConflict: 'external_field_id' })
     .select()
 
   if (error) {

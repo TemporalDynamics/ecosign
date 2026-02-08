@@ -71,6 +71,7 @@ async function invokeWorkflowFieldsBatch(payload: { fields: WorkflowField[] }) {
  */
 export interface WorkflowField {
   id?: string;
+  external_field_id?: string;
   document_entity_id: string;
   field_type: 'signature' | 'text' | 'date';
   label?: string;
@@ -83,6 +84,7 @@ export interface WorkflowField {
     height: number;
   };
   assigned_to?: string;
+  assigned_signer_id?: string | null;
   required: boolean;
   value?: string;
   metadata?: Record<string, unknown>;
@@ -108,6 +110,7 @@ export function signatureFieldToWorkflowField(
   previewHeight: number
 ): WorkflowField {
   return {
+    external_field_id: field.id,
     document_entity_id: documentEntityId,
     field_type: field.type,
     label: field.metadata?.label,
@@ -124,7 +127,7 @@ export function signatureFieldToWorkflowField(
     value: field.value,
     metadata: {
       ...field.metadata,
-      frontend_id: field.id // Guardar ID del frontend para mapping
+      frontend_id: field.id // Legacy mapping (kept for back-compat)
     },
     batch_id: field.batchId,
     apply_to_all_pages: field.applyToAllPages || false
@@ -145,7 +148,7 @@ export function workflowFieldToSignatureField(
   previewHeight: number
 ): SignatureField {
   return {
-    id: dbField.metadata?.frontend_id as string || crypto.randomUUID(),
+    id: dbField.external_field_id || (dbField.metadata?.frontend_id as string) || crypto.randomUUID(),
     type: dbField.field_type,
     page: dbField.position.page,
     x: dbField.position.x * previewWidth,

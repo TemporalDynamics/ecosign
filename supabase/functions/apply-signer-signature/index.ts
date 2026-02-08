@@ -5,6 +5,8 @@ import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1'
 import { shouldApplySignerSignature } from '../../../packages/authority/src/decisions/applySignerSignature.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { appendEvent } from '../_shared/eventHelper.ts'
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
+import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts'
 import { decryptToken } from '../_shared/cryptoHelper.ts'
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
@@ -74,6 +76,150 @@ function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; isPng: boolean } {
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
   const isPng = Boolean(meta && meta.includes('png')) || (bytes[0] === 0x89 && bytes[1] === 0x50)
   return { bytes, isPng }
+}
+
+function normalizeText(value: string): string {
+  return value
+    .normalize('NFC')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeDate(value: string): string {
+  const raw = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return parsed.toISOString().slice(0, 10);
+}
+
+async function hashSignatureCapture(signatureData: any): Promise<string | null> {
+  if (!signatureData) return null;
+  if (typeof signatureData === 'string') {
+    return sha256Hex(signatureData);
+  }
+  if (typeof signatureData?.dataUrl === 'string') {
+    return sha256Hex(signatureData.dataUrl);
+  }
+  return sha256Hex(canonicalize(signatureData));
+}
+
+async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function attemptTsaProof(params: {
+  witness_hash: string;
+  timeout_ms: number;
+}): Promise<{ kind: string; status: string; provider: string; ref: string | null; attempted_at: string }> {
+  const attemptedAt = new Date().toISOString();
+  if (!params.witness_hash) {
+    return { kind: 'tsa', status: 'failed', provider: 'freetsa', ref: null, attempted_at: attemptedAt };
+  }
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  if (!supabaseUrl || !serviceRole) {
+    return { kind: 'tsa', status: 'failed', provider: 'freetsa', ref: null, attempted_at: attemptedAt };
+  }
+
+  try {
+    const url = `${supabaseUrl}/functions/v1/legal-timestamp`;
+    const resp = await fetchWithTimeout(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: serviceRole,
+          Authorization: `Bearer ${serviceRole}`,
+        },
+        body: JSON.stringify({ hash_hex: params.witness_hash }),
+      },
+      params.timeout_ms
+    );
+
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data?.success || !data?.token) {
+      return {
+        kind: 'tsa',
+        status: resp.ok ? 'failed' : 'timeout',
+        provider: data?.tsa_url || 'freetsa',
+        ref: null,
+        attempted_at: attemptedAt,
+      };
+    }
+
+    return {
+      kind: 'tsa',
+      status: 'confirmed',
+      provider: data?.tsa_url || 'freetsa',
+      ref: data?.token ? String(data.token).slice(0, 64) : null,
+      attempted_at: attemptedAt,
+    };
+  } catch (_err) {
+    return { kind: 'tsa', status: 'timeout', provider: 'freetsa', ref: null, attempted_at: attemptedAt };
+  }
+}
+
+async function attemptRekorProof(params: {
+  witness_hash: string;
+  timeout_ms: number;
+}): Promise<{ kind: string; status: string; provider: string; ref: string | null; attempted_at: string; reason?: string }> {
+  const attemptedAt = new Date().toISOString();
+  const provider = 'rekor.sigstore.dev';
+  if (!params.witness_hash) {
+    return { kind: 'rekor', status: 'attempted', provider, ref: null, attempted_at: attemptedAt, reason: 'no_witness_hash' };
+  }
+  try {
+    const url = `https://${provider}/api/v1/log/entries`;
+    const payload = {
+      apiVersion: '0.0.1',
+      kind: 'hashedrekord',
+      spec: {
+        data: { hash: { algorithm: 'sha256', value: params.witness_hash } },
+        signature: { content: '', publicKey: { content: '' } }
+      }
+    };
+    const resp = await fetchWithTimeout(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      params.timeout_ms
+    );
+    if (!resp.ok) {
+      return { kind: 'rekor', status: 'attempted', provider, ref: null, attempted_at: attemptedAt, reason: 'no_signature_material' };
+    }
+    const data = await resp.json().catch(() => ({}));
+    const uuid = data && typeof data === 'object' ? Object.keys(data)[0] : null;
+    return { kind: 'rekor', status: uuid ? 'confirmed' : 'attempted', provider, ref: uuid, attempted_at: attemptedAt, reason: uuid ? undefined : 'no_signature_material' };
+  } catch (_err) {
+    return { kind: 'rekor', status: 'timeout', provider, ref: null, attempted_at: attemptedAt };
+  }
+}
+
+async function attemptRoughtimeProof(params: {
+  witness_hash: string;
+  timeout_ms: number;
+}): Promise<{ kind: string; status: string; provider: string; ref: string | null; attempted_at: string; reason?: string }> {
+  const attemptedAt = new Date().toISOString();
+  const provider = 'roughtime.cloudflare.com';
+  return {
+    kind: 'roughtime',
+    status: 'unsupported',
+    provider,
+    ref: null,
+    attempted_at: attemptedAt,
+    reason: 'udp_not_implemented'
+  };
 }
 
 async function stampSignerOnPdf(params: {
@@ -199,6 +345,10 @@ serve(async (req) => {
     const body = await req.json()
     const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level, signatureData, fieldValues } = body
     let witnessHashForEvent: string | null = witness_pdf_hash || null
+    let signerStateHash: string | null = null
+    let signatureCaptureHash: string | null = null
+    let ecoSnapshotPath: string | null = null
+    let ecoSnapshotUrl: string | null = null
 
     if (!signerId && !accessToken) {
       return json({ error: 'Missing signerId or accessToken' }, 400)
@@ -302,7 +452,7 @@ serve(async (req) => {
     // Fetch workflow early for canonical decision and batching
     const { data: workflow, error: wfError } = await supabase
       .from('signature_workflows')
-      .select('id, document_entity_id, status, delivery_mode, original_filename, document_path, document_hash, forensic_config')
+      .select('id, document_entity_id, status, delivery_mode, original_filename, document_path, document_hash, forensic_config, fields_schema_hash, fields_schema_version')
       .eq('id', signer.workflow_id)
       .single()
 
@@ -638,6 +788,157 @@ serve(async (req) => {
         }
       }
 
+      // Canonical signer_state_hash (best-effort, must not block)
+      try {
+        const { data: signerFieldsForHash, error: signerFieldsErr } = await supabase
+          .from('workflow_fields')
+          .select('external_field_id, field_type, value, assigned_signer_id')
+          .in('batch_id', batchIds)
+          .eq('assigned_signer_id', signer.id)
+
+        if (signerFieldsErr) {
+          console.warn('signer_state_hash: failed to load workflow_fields', signerFieldsErr)
+        } else {
+          const values = (signerFieldsForHash || [])
+            .filter((f: any) => f?.external_field_id && f?.field_type !== 'signature')
+            .map((f: any) => {
+              const raw = typeof f.value === 'string' ? f.value : ''
+              const normalized =
+                f.field_type === 'date' ? normalizeDate(raw) : normalizeText(raw);
+              return {
+                field_id: f.external_field_id as string,
+                value: normalized
+              };
+            })
+            .sort((a: any, b: any) => a.field_id.localeCompare(b.field_id));
+
+          signatureCaptureHash = await hashSignatureCapture(signatureData);
+          const signerState = {
+            version: 'signer_state.v1',
+            fields_schema_hash: (workflow as any)?.fields_schema_hash ?? null,
+            signer_id: signer.id,
+            values,
+            signature_capture_hash: signatureCaptureHash
+          };
+
+          signerStateHash = await sha256Hex(canonicalize(signerState));
+          const committedAt = new Date().toISOString();
+
+          await supabase
+            .from('workflow_signers')
+            .update({
+              signer_state_hash: signerStateHash,
+              signer_state_version: 1,
+              signer_state_committed_at: committedAt,
+              signature_capture_hash: signatureCaptureHash
+            })
+            .eq('id', signer.id);
+
+          await appendCanonicalEvent(
+            supabase as any,
+            {
+              event_type: 'signature.state.committed',
+              workflow_id: signer.workflow_id,
+              signer_id: signer.id,
+              payload: {
+              signer_state_hash: signerStateHash,
+              schema_hash: (workflow as any)?.fields_schema_hash ?? null,
+              schema_version: (workflow as any)?.fields_schema_version ?? 1
+            }
+          },
+            'apply-signer-signature'
+          );
+        }
+      } catch (stateErr) {
+        console.warn('signer_state_hash: compute failed (best-effort)', stateErr)
+      }
+
+      // ECO snapshot (immediate) + proofs rápidas (best-effort, never block)
+      try {
+        const witnessHash = witnessHashForEvent || null
+        const proofs = await Promise.all([
+          attemptTsaProof({ witness_hash: witnessHash || '', timeout_ms: 3000 }),
+          attemptRekorProof({ witness_hash: witnessHash || '', timeout_ms: 3000 }),
+          attemptRoughtimeProof({ witness_hash: witnessHash || '', timeout_ms: 3000 })
+        ])
+
+        let sourceHash: string | null = null
+        let witnessCurrent: string | null = witnessHash
+        if (workflow.document_entity_id) {
+          const { data: entityRow } = await supabase
+            .from('document_entities')
+            .select('source_hash, witness_hash, witness_current_hash')
+            .eq('id', workflow.document_entity_id)
+            .single()
+          sourceHash = (entityRow as any)?.source_hash ?? null
+          witnessCurrent = (entityRow as any)?.witness_current_hash ?? (entityRow as any)?.witness_hash ?? witnessHash
+        }
+
+        const ecoSnapshot = {
+          version: 'eco.v2',
+          issued_at: new Date().toISOString(),
+          document: {
+            id: workflow.document_entity_id ?? null,
+            name: workflow.original_filename || null,
+            mime: 'application/pdf',
+            source_hash: sourceHash,
+            witness_hash: witnessCurrent
+          },
+          signer: {
+            id: signer.id,
+            email: signer.email ?? null,
+            name: signer.name ?? null
+          },
+          fields: {
+            schema_hash: (workflow as any)?.fields_schema_hash ?? null,
+            schema_version: (workflow as any)?.fields_schema_version ?? 1,
+            signer_state_hash: signerStateHash,
+            signer_state_version: 1
+          },
+          proofs,
+          system: {
+            signature_capture_hash: signatureCaptureHash
+          }
+        }
+
+        const ecoJson = JSON.stringify(ecoSnapshot, null, 2)
+        const witnessKey = witnessCurrent || witnessHash || 'unknown'
+        ecoSnapshotPath = `evidence/${workflow.id}/${signer.id}/${witnessKey}.eco.json`
+
+        const { error: ecoUploadErr } = await supabase.storage
+          .from('artifacts')
+          .upload(ecoSnapshotPath, new Blob([ecoJson], { type: 'application/json' }), {
+            upsert: true,
+            contentType: 'application/json'
+          })
+
+        if (ecoUploadErr) {
+          console.warn('ECO snapshot upload failed', ecoUploadErr)
+          ecoSnapshotPath = null
+        } else {
+          const { data: signedEco } = await supabase.storage
+            .from('artifacts')
+            .createSignedUrl(ecoSnapshotPath, 60 * 60)
+          ecoSnapshotUrl = signedEco?.signedUrl ?? null
+
+          await appendCanonicalEvent(
+            supabase as any,
+            {
+              event_type: 'eco.snapshot.issued',
+              workflow_id: signer.workflow_id,
+              signer_id: signer.id,
+              payload: {
+                eco_path: ecoSnapshotPath,
+                witness_hash: witnessCurrent || witnessHash || null
+              }
+            },
+            'apply-signer-signature'
+          )
+        }
+      } catch (ecoErr) {
+        console.warn('ECO snapshot generation failed (best-effort)', ecoErr)
+      }
+
       // Ensure document.protected.requested exists for TSA pipeline (idempotent).
       if (workflow.document_entity_id) {
         try {
@@ -862,7 +1163,29 @@ serve(async (req) => {
     // Trigger email delivery for any newly created pending notifications (best-effort).
     await triggerEmailDelivery(supabase as any)
 
-    return json({ success: true })
+    // Signed PDF download URL (best-effort)
+    let pdfUrl: string | null = null
+    try {
+      if (workflow.document_path) {
+        if (/^https?:\/\//i.test(workflow.document_path)) {
+          pdfUrl = workflow.document_path
+        } else {
+          const { data: signedPdf } = await supabase.storage
+            .from('user-documents')
+            .createSignedUrl(workflow.document_path, 60 * 60)
+          pdfUrl = signedPdf?.signedUrl ?? null
+        }
+      }
+    } catch (pdfUrlErr) {
+      console.warn('apply-signer-signature: failed to create PDF signed url', pdfUrlErr)
+    }
+
+    return json({
+      success: true,
+      pdf_url: pdfUrl,
+      eco_url: ecoSnapshotUrl,
+      eco_path: ecoSnapshotPath
+    })
 
   } catch (err: any) {
     console.error('apply-signer-signature error', err)

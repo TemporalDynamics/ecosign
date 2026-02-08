@@ -1,7 +1,8 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
+import { appendEvent } from '../_shared/canonicalEventHelper.ts'
+import { buildCanonicalFieldSchemaV1, hashCanonicalFieldSchemaV1 } from '../_shared/fieldSchema.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
-import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import {
   generateSecretToken,
   createTokenHash,
@@ -432,6 +433,71 @@ serve(withRateLimit('workflow', async (req) => {
       console.error('Failed to update batch assignments', batchUpdErr)
       await cleanupWorkflow()
       return jsonResponse({ error: 'failed_to_bind_fields', details: batchUpdErr.message }, 500)
+    }
+
+    // Canonical assignment: persist signer UUID on workflow_fields for hashing.
+    const fieldAssignmentResults = await Promise.all(
+      batchUpdates.map((b) =>
+        supabase
+          .from('workflow_fields')
+          .update({ assigned_signer_id: b.assigned_signer_id })
+          .eq('document_entity_id', b.document_entity_id)
+          .eq('batch_id', b.id)
+      )
+    )
+
+    const fieldAssignmentError = fieldAssignmentResults.find((r) => r.error)?.error
+    if (fieldAssignmentError) {
+      console.error('Failed to update workflow_fields assigned_signer_id', fieldAssignmentError)
+      await cleanupWorkflow()
+      return jsonResponse({ error: 'failed_to_bind_fields', details: fieldAssignmentError.message }, 500)
+    }
+
+    // Canonical: compute fields_schema_hash after assignment is resolved.
+    try {
+      const { data: schemaFields, error: schemaErr } = await supabase
+        .from('workflow_fields')
+        .select('external_field_id, field_type, position, required, assigned_signer_id, metadata')
+        .eq('document_entity_id', workflow.document_entity_id)
+
+      if (schemaErr) {
+        console.warn('fields_schema_hash: failed to load workflow_fields', schemaErr)
+      } else {
+        const schema = buildCanonicalFieldSchemaV1({
+          workflow_id: workflow.id,
+          document_entity_id: workflow.document_entity_id,
+          fields: (schemaFields || []) as any
+        })
+        const schemaHash = await hashCanonicalFieldSchemaV1(schema)
+        const committedAt = new Date().toISOString()
+
+        await supabase
+          .from('signature_workflows')
+          .update({
+            fields_schema_hash: schemaHash,
+            fields_schema_version: 1,
+            fields_schema_committed_at: committedAt
+          })
+          .eq('id', workflow.id)
+
+        await appendEvent(
+          supabase as any,
+          {
+            event_type: 'fields.schema.committed',
+            workflow_id: workflow.id,
+            signer_id: null,
+            payload: {
+              document_entity_id: workflow.document_entity_id,
+              fields_schema_hash: schemaHash,
+              schema_version: 1,
+              fields_count: schema.fields.length
+            }
+          },
+          'start-signature-workflow'
+        )
+      }
+    } catch (schemaHashErr) {
+      console.warn('fields_schema_hash: compute failed (best-effort)', schemaHashErr)
     }
 
     // Enforce: each signer must have >= 1 batch.

@@ -24,6 +24,12 @@
   - Disponible solo por planes altos o bajo solicitud.
   - Existe para auditoría total, no para UX.
 
+## 1.1) Definición canónica de ECO (sin interpretación)
+- Un ECO es evidencia autocontenida de un **acto de firma** emitida en un momento específico del flujo.
+- Cada ECO corresponde a **un firmante** y captura **su acto**, no el estado final.
+- **ECO.v2** es el formato (schema). **ECO #1, #2, #3...** son instancias por firmante.
+- EcoSign **no interpreta** el documento (no declara tipo, rol ni contenido).
+
 ## 2) Naming (externo e interno)
 - Usuario siempre ve `.ECO`.
 - Versiones/estadios son internos (`eco.v2`, `stage`, `proofs[]`).

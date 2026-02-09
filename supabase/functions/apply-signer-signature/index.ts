@@ -856,7 +856,7 @@ serve(async (req) => {
           witness_hash: canonicalWitnessHash || null
         }))
 
-        // CAI invariant: proofs must seal the same witness hash as the ECO document.
+        // CAI-INV-001 / CAI-INV-002: ECO witness integrity + proofs seal same artifact.
         if (!canonicalWitnessHash) {
           throw new Error('cai_invariant_failed:missing_witness_hash')
         }

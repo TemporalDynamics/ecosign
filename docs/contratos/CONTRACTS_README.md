@@ -16,6 +16,7 @@ Estructura
 - ECO_SCHEMA_V2.md — Especificación canónica del formato ECO.v2 y distinción entre instancias por firmante.
 - CAI_INVARIANTS.md — Invariantes canónicos (ECO/PDF/CAI). Leyes del sistema y criterio de invalidez.
 - LEGACY_PATHS_MAP.md — Mapa canónico de rutas legacy bloqueadas por invariants CAI.
+- LEGACY_MIGRATION_PLAN_LEVEL2.md — Plan canónico para eliminar dual-write en anchors (Nivel 2).
 - diagrams/ — Diagramas de estados y secuencia (Mermaid) que ilustran los contratos.
 - NOTAS.md — Ajustes menores y recomendaciones de implementación (no bloqueantes).
 

@@ -250,7 +250,35 @@ serve(async (req: Request) => {
       console.info("✅ No hay emails pendientes en workflow_notifications");
     } else {
       // Scan a wider window so priority emails are not starved by old rows.
-      const rows = workflowRows ?? [];
+      let rows = workflowRows ?? [];
+
+      // BLOCKER 1.3: Hard cutoff - cancel notifications older than 30 days
+      const HARD_CUTOFF_MS = 30 * 24 * 60 * 60 * 1000; // 30 días
+      const now = Date.now();
+      const ancientNotifications = rows.filter((r: any) => {
+        const ageMs = now - new Date(r.created_at).getTime();
+        return ageMs > HARD_CUTOFF_MS;
+      });
+
+      for (const ancient of ancientNotifications) {
+        const ageMS = now - new Date(ancient.created_at).getTime();
+        const ageDays = Math.floor(ageMS / (24 * 60 * 60 * 1000));
+        console.info("🧹 Cancelling ancient notification (>30 days)", {
+          id: ancient.id,
+          age_days: ageDays,
+          type: ancient.notification_type,
+          created_at: ancient.created_at
+        });
+        await cancelWorkflowNotification(ancient.id, "ancient_notification", {
+          age_days: ageDays
+        });
+      }
+
+      // Filter out ancient notifications for processing
+      rows = rows.filter((r: any) => {
+        const ageMs = now - new Date(r.created_at).getTime();
+        return ageMs <= HARD_CUTOFF_MS;
+      });
       // Only attempt ONE email per workflow per run (avoid bursts).
       // Priority: your_turn_to_sign first, then the rest.
       const priority = (type: string | null | undefined) => {
@@ -516,16 +544,60 @@ serve(async (req: Request) => {
               } else {
                 const retry = (item.retry_count ?? 0) + 1;
                 const new_status = retry >= MAX_RETRIES ? "failed" : "pending";
-                await supabase
-                  .from("workflow_notifications")
-                  .update({
-                    delivery_status: new_status,
-                    error_message: JSON.stringify(
-                      result.error ?? result.body ?? "Unknown error",
-                    ),
-                    retry_count: retry,
-                  })
-                  .eq("id", item.id);
+
+                // BLOCKER 1.2: DLQ on max retries (workflow_completed_simple)
+                if (retry >= MAX_RETRIES) {
+                  console.error("📧 Moving notification to DLQ (max retries)", {
+                    notification_id: item.id,
+                    workflow_id: item.workflow_id,
+                    attempts: retry,
+                    error: result.error ?? result.body
+                  });
+
+                  try {
+                    await supabase.from('workflow_notifications_dlq').insert({
+                      original_notification_id: item.id,
+                      workflow_id: item.workflow_id,
+                      recipient_email: item.recipient_email,
+                      notification_type: item.notification_type,
+                      subject: item.subject,
+                      body_html: item.body_html,
+                      delivery_status: new_status,
+                      retry_count: retry,
+                      error_message: JSON.stringify(result.error ?? result.body ?? "Unknown error"),
+                      created_at: item.created_at,
+                      move_reason: "max_retries_exceeded"
+                    });
+
+                    // Delete from main table
+                    await supabase
+                      .from("workflow_notifications")
+                      .delete()
+                      .eq("id", item.id);
+                  } catch (dlqErr) {
+                    console.error("Failed to move notification to DLQ", dlqErr);
+                    // Fallback: update with failed status
+                    await supabase
+                      .from("workflow_notifications")
+                      .update({
+                        delivery_status: "failed",
+                        retry_count: retry,
+                        error_message: JSON.stringify(result.error ?? result.body ?? "Unknown error")
+                      })
+                      .eq("id", item.id);
+                  }
+                } else {
+                  await supabase
+                    .from("workflow_notifications")
+                    .update({
+                      delivery_status: new_status,
+                      error_message: JSON.stringify(
+                        result.error ?? result.body ?? "Unknown error",
+                      ),
+                      retry_count: retry,
+                    })
+                    .eq("id", item.id);
+                }
               }
             }
 
@@ -590,26 +662,79 @@ serve(async (req: Request) => {
 
             const retry = (r.retry_count ?? 0) + 1;
             const new_status = retry >= MAX_RETRIES ? "failed" : "pending";
-            const upd = await supabase
-              .from("workflow_notifications")
-              .update({
-                delivery_status: new_status,
-                error_message: JSON.stringify(
-                  result.error ?? result.body ?? "Unknown error",
-                ),
-                retry_count: retry,
-              })
-              .eq("id", r.id);
 
             console.error(
               `Error enviando workflow email fila ${r.id}:`,
               result.error ?? result.body,
             );
-            if (upd.error) {
-              console.error(
-                "Error actualizando workflow_notifications error:",
-                upd.error,
-              );
+
+            // BLOCKER 1.2: DLQ on max retries (other types)
+            if (retry >= MAX_RETRIES) {
+              console.error("📧 Moving notification to DLQ (max retries)", {
+                notification_id: r.id,
+                workflow_id: r.workflow_id,
+                type: r.notification_type,
+                attempts: retry,
+                error: result.error ?? result.body
+              });
+
+              try {
+                await supabase.from('workflow_notifications_dlq').insert({
+                  original_notification_id: r.id,
+                  workflow_id: r.workflow_id,
+                  recipient_email: r.recipient_email,
+                  notification_type: r.notification_type,
+                  subject: r.subject,
+                  body_html: r.body_html,
+                  delivery_status: new_status,
+                  retry_count: retry,
+                  error_message: JSON.stringify(result.error ?? result.body ?? "Unknown error"),
+                  created_at: r.created_at,
+                  move_reason: "max_retries_exceeded"
+                });
+
+                // Delete from main table
+                await supabase
+                  .from("workflow_notifications")
+                  .delete()
+                  .eq("id", r.id);
+              } catch (dlqErr) {
+                console.error("Failed to move notification to DLQ", dlqErr);
+                // Fallback: update with failed status
+                const upd = await supabase
+                  .from("workflow_notifications")
+                  .update({
+                    delivery_status: "failed",
+                    retry_count: retry,
+                    error_message: JSON.stringify(result.error ?? result.body ?? "Unknown error")
+                  })
+                  .eq("id", r.id);
+
+                if (upd.error) {
+                  console.error(
+                    "Error actualizando workflow_notifications error:",
+                    upd.error,
+                  );
+                }
+              }
+            } else {
+              const upd = await supabase
+                .from("workflow_notifications")
+                .update({
+                  delivery_status: new_status,
+                  error_message: JSON.stringify(
+                    result.error ?? result.body ?? "Unknown error",
+                  ),
+                  retry_count: retry,
+                })
+                .eq("id", r.id);
+
+              if (upd.error) {
+                console.error(
+                  "Error actualizando workflow_notifications error:",
+                  upd.error,
+                );
+              }
             }
           }
         } catch (innerErr) {

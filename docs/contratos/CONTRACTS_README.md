@@ -14,6 +14,7 @@ Estructura
 - HAPPY_PATH_SIGNATURE_WORKFLOW_CONTRACT.md — Contrato maestro (v1) con reglas, acceptance criteria y tests recomendados.
 - ECO_POLICY_CANON.md — Contrato canónico de evidencia (ECO/ECOX), proofs, naming, entrega y compatibilidad CAI.
 - ECO_SCHEMA_V2.md — Especificación canónica del formato ECO.v2 y distinción entre instancias por firmante.
+- CAI_INVARIANTS.md — Invariantes canónicos (ECO/PDF/CAI). Leyes del sistema y criterio de invalidez.
 - diagrams/ — Diagramas de estados y secuencia (Mermaid) que ilustran los contratos.
 - NOTAS.md — Ajustes menores y recomendaciones de implementación (no bloqueantes).
 

@@ -129,6 +129,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const [ecoUrl, setEcoUrl] = useState<string | null>(null)
   const [ecoPath, setEcoPath] = useState<string | null>(null)
   const [isLastSigner, setIsLastSigner] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
   const getInitialNameParts = (name?: string | null) => {
     if (!name) return { firstName: '', lastName: '' }
@@ -500,6 +501,9 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       if (data?.eco_path) {
         setEcoPath(String(data.eco_path))
       }
+      if (data?.pdf_url) {
+        setPdfUrl(String(data.pdf_url))
+      }
       if (typeof data?.is_last_signer === 'boolean') {
         setIsLastSigner(Boolean(data.is_last_signer))
       }
@@ -549,6 +553,23 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     const fileName = baseName.toLowerCase().endsWith('.pdf') ? baseName : `${baseName}.pdf`
 
     try {
+      if (pdfUrl) {
+        const resp = await fetch(pdfUrl)
+        if (!resp.ok) throw new Error('No se pudo descargar el documento')
+        const pdfBlob = await resp.blob()
+        const blobUrl = URL.createObjectURL(pdfBlob)
+        const link = document.createElement('a')
+        link.href = blobUrl
+        link.download = fileName
+        link.target = '_self'
+        link.rel = 'noopener'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(blobUrl)
+        return
+      }
+
       let pdfBlob: Blob | null = null
 
       if (workflow.encryption_key) {

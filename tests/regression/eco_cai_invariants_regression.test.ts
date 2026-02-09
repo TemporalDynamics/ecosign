@@ -19,7 +19,7 @@ function assertWitnessConsistency(eco: EcoSnapshot) {
 }
 
 describe('CAI ECO invariants (regression)', () => {
-  test('ECO signer 2 seals post-sign PDF and proofs match witness hash', () => {
+  test('CAI-INV-001 / CAI-INV-002 / CAI-INV-004: witness and proofs consistency across signers', () => {
     const eco1: EcoSnapshot = {
       document: {
         source_hash: 'source_hash_abc',
@@ -52,7 +52,7 @@ describe('CAI ECO invariants (regression)', () => {
     assertWitnessConsistency(eco2);
   });
 
-  test('ECO with proof mismatch is invalid', () => {
+  test('CAI-INV-002: ECO with proof mismatch is invalid', () => {
     const badEco: EcoSnapshot = {
       document: {
         source_hash: 'source_hash_abc',

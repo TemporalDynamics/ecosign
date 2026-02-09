@@ -9,49 +9,65 @@ No es marketing. Son invariants técnicos y auditables.
 
 ## 1) Invariantes de ECO (acto por firmante)
 
-### 1.1 ECO Witness Integrity
+### CAI-INV-001 — ECO Witness Integrity
 Para todo ECO emitido:
 - `document.witness_hash` **MUST** existir.
-- Para cada `proofs[*]`: `proofs[*].witness_hash` **MUST** ser **igual** a `document.witness_hash`.
-- Si no hay proofs, el ECO sigue siendo válido; si hay proof, **debe sellar el mismo artifact**.
 
 **Violación:** El ECO es inválido y no debe emitirse.
 
-### 1.2 ECO Instance Semantics
+**Enforced by**
+- Runtime assert: `supabase/functions/apply-signer-signature/index.ts`
+- Regression test: `tests/regression/eco_cai_invariants_regression.test.ts`
+
+### CAI-INV-002 — Proofs Seal Same Artifact
+Para cada `proofs[*]`:
+- `proofs[*].witness_hash` **MUST** ser igual a `document.witness_hash`.
+
+**Violación:** El ECO es inválido y no debe emitirse.
+
+**Enforced by**
+- Runtime assert: `supabase/functions/apply-signer-signature/index.ts`
+- Regression test: `tests/regression/eco_cai_invariants_regression.test.ts`
+
+### CAI-INV-003 — ECO Instance Semantics
 - ECO #n representa **el estado del documento post‑acto** del firmante n.
 - ECO #n **no** representa el estado final del flujo.
 - ECO #n **no** interpreta contenido.
 
-### 1.3 ECO Across Signers
+### CAI-INV-004 — ECO Across Signers
 Entre firmantes distintos, con documento base idéntico:
 - `document.source_hash` **MUST** ser igual.
 - `fields.schema_hash` **MUST** ser igual.
 - `document.witness_hash` **MUST** ser distinto por firmante (estado post‑acto).
 
-### 1.4 Proofs No‑Block
+**Enforced by**
+- Regression test: `tests/regression/eco_cai_invariants_regression.test.ts`
+
+### CAI-INV-005 — Proofs No‑Block
 - Las proofs rápidas son **best‑effort**.
 - Una proof fallida **no** bloquea ECO.
 - Una proof confirmada **debe** referenciar el mismo witness hash del ECO.
+- Si no hay proofs, el ECO sigue siendo válido.
 
 ## 2) Invariantes de PDF (pipeline post‑acto)
 
-### 2.1 PDF Post‑Acto
+### CAI-INV-006 — PDF Post‑Acto
 Para cada firmante n:
 - El PDF entregado **debe** ser el PDF **posterior** a su firma.
 - El hash de ese PDF **debe** ser `document.witness_hash` del ECO del firmante n.
 
-### 2.2 PDF Accumulation
+### CAI-INV-007 — PDF Accumulation
 Para un flujo con N firmantes:
 - El PDF del firmante n debe contener todas las firmas 1..n.
 - No se entrega un PDF pre‑firma al firmante n.
 
 ## 3) Invariantes de Hash Estructural (CAI‑ready)
 
-### 3.1 Schema Hash
+### CAI-INV-008 — Schema Hash Stability
 - `fields.schema_hash` representa el contrato de layout y asignaciones.
 - Debe ser estable aunque el owner re‑guarde.
 
-### 3.2 Signer State Hash
+### CAI-INV-009 — Signer State Hash Isolation
 - `signer_state_hash` incluye solo los campos del firmante.
 - No incluye la firma como valor literal; usa `signature_capture_hash` separado.
 

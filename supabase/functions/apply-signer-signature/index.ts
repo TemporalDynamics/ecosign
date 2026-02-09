@@ -856,6 +856,15 @@ serve(async (req) => {
           witness_hash: canonicalWitnessHash || null
         }))
 
+        // CAI invariant: proofs must seal the same witness hash as the ECO document.
+        if (!canonicalWitnessHash) {
+          throw new Error('cai_invariant_failed:missing_witness_hash')
+        }
+        const mismatch = normalizedProofs.find((p: any) => p?.witness_hash && p.witness_hash !== canonicalWitnessHash)
+        if (mismatch) {
+          throw new Error('cai_invariant_failed:proof_witness_mismatch')
+        }
+
         const issuedAt = new Date().toISOString()
         let stepTotal: number | null = null
         try {

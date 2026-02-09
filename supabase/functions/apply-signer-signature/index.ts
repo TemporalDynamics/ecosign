@@ -296,6 +296,7 @@ serve(async (req) => {
     const body = await req.json()
     const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level, signatureData, fieldValues } = body
     let witnessHashForEvent: string | null = witness_pdf_hash || null
+    let signedPdfPath: string | null = null
     let signerStateHash: string | null = null
     let signatureCaptureHash: string | null = null
     let ecoSnapshotPath: string | null = null
@@ -679,12 +680,22 @@ serve(async (req) => {
         fields: (signerFields ?? []) as any
       })
 
+      // Always overwrite workflow.document_path so the next signer sees the latest witness PDF.
       await uploadWorkflowPdf(supabase, workflow.document_path, stampedBytes)
 
       const hashBuf = await crypto.subtle.digest('SHA-256', stampedBytes)
       const hashHex = Array.from(new Uint8Array(hashBuf))
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('')
+
+      // Also store a per-signer witness PDF (immutable path) for delivery + audit.
+      signedPdfPath = `signed/${workflow.id}/${signer.id}/${hashHex}.pdf`
+      try {
+        await uploadWorkflowPdf(supabase, signedPdfPath, stampedBytes)
+      } catch (signedUploadErr) {
+        console.warn('apply-signer-signature: failed to upload signed witness PDF', signedUploadErr)
+        signedPdfPath = null
+      }
 
       // Update workflow hash so downstream consumers use the stamped PDF hash.
       const { error: wfHashErr } = await supabase
@@ -726,7 +737,7 @@ serve(async (req) => {
               witness_current_status: 'signed',
               witness_current_mime: 'application/pdf',
               witness_current_generated_at: nowIso,
-              witness_current_storage_path: workflow.document_path,
+              witness_current_storage_path: signedPdfPath || workflow.document_path,
               witness_history: history
             })
             .eq('id', workflow.document_entity_id)
@@ -829,15 +840,73 @@ serve(async (req) => {
           witnessCurrent = (entityRow as any)?.witness_current_hash ?? (entityRow as any)?.witness_hash ?? witnessHash
         }
 
+        const issuedAt = new Date().toISOString()
+        let stepTotal: number | null = null
+        try {
+          const { count } = await supabase
+            .from('workflow_signers')
+            .select('id', { count: 'exact', head: true })
+            .eq('workflow_id', signer.workflow_id)
+          stepTotal = typeof count === 'number' ? count : null
+        } catch (countErr) {
+          console.warn('apply-signer-signature: failed to count workflow signers', countErr)
+        }
+
+        let signatureCaptureKind: string | null = null
+        let signatureRenderHash: string | null = null
+        if (signatureData && typeof signatureData === 'object') {
+          signatureCaptureKind = typeof signatureData.type === 'string' ? signatureData.type : null
+          if (typeof signatureData.dataUrl === 'string') {
+            signatureRenderHash = await sha256Hex(signatureData.dataUrl)
+          }
+        } else if (typeof signatureData === 'string') {
+          signatureCaptureKind = 'typed'
+          signatureRenderHash = await sha256Hex(signatureData)
+        }
+
         const ecoSnapshot = {
+          format: 'eco',
+          format_version: '2.0',
           version: 'eco.v2',
-          issued_at: new Date().toISOString(),
+          issued_at: issuedAt,
+          evidence_declaration: {
+            type: 'digital_signature_evidence',
+            document_name: workflow.original_filename || null,
+            signer_email: signer.email ?? null,
+            signer_name: signer.name ?? null,
+            signing_step: signer.signing_order ?? null,
+            total_steps: stepTotal,
+            signed_at: issuedAt,
+            identity_assurance_level: identity_level || null,
+            summary: [
+              'Document integrity preserved',
+              'Signature recorded',
+              'Evidence is self-contained',
+              'Independent verification possible'
+            ]
+          },
+          trust_summary: {
+            checks: [
+              'Document integrity preserved',
+              'Signature recorded',
+              'Timestamped (TSA) when available',
+              'Evidence is self-contained'
+            ]
+          },
           document: {
             id: workflow.document_entity_id ?? null,
             name: workflow.original_filename || null,
             mime: 'application/pdf',
             source_hash: sourceHash,
             witness_hash: witnessCurrent
+          },
+          signing_act: {
+            signer_id: signer.id,
+            signer_email: signer.email ?? null,
+            signer_display_name: signer.name ?? null,
+            step_index: signer.signing_order ?? null,
+            step_total: stepTotal,
+            signed_at: issuedAt
           },
           signer: {
             id: signer.id,
@@ -849,6 +918,15 @@ serve(async (req) => {
             schema_version: (workflow as any)?.fields_schema_version ?? 1,
             signer_state_hash: signerStateHash,
             signer_state_version: 1
+          },
+          signature_capture: {
+            present: Boolean(signatureData),
+            stored: false,
+            consent: true,
+            capture_kind: signatureCaptureKind,
+            render_hash: signatureRenderHash,
+            strokes_hash: null,
+            ciphertext_hash: null
           },
           proofs,
           system: {
@@ -1040,6 +1118,8 @@ serve(async (req) => {
       console.warn('advance_workflow failed', advanceErr)
     }
 
+    let nextSignerRecord: any | null = null
+    let isLastSigner = false
     // Determine if this was the last signer (independent of delivery mode).
     try {
       const { data: remainingSigners } = await supabase
@@ -1051,9 +1131,6 @@ serve(async (req) => {
     } catch (lastErr) {
       console.warn('apply-signer-signature: failed to resolve last signer flag', lastErr)
     }
-
-    let nextSignerRecord: any | null = null
-    let isLastSigner = false
     // Create next signer notification (idempotent) if delivery_mode=email.
     try {
       const deliveryMode = (workflow as any)?.delivery_mode || 'email'
@@ -1189,13 +1266,14 @@ serve(async (req) => {
     // Signed PDF download URL (best-effort)
     let pdfUrl: string | null = null
     try {
-      if (workflow.document_path) {
-        if (/^https?:\/\//i.test(workflow.document_path)) {
-          pdfUrl = workflow.document_path
+      const pdfPath = signedPdfPath || workflow.document_path
+      if (pdfPath) {
+        if (/^https?:\/\//i.test(pdfPath)) {
+          pdfUrl = pdfPath
         } else {
           const { data: signedPdf } = await supabase.storage
             .from('user-documents')
-            .createSignedUrl(workflow.document_path, 60 * 60)
+            .createSignedUrl(pdfPath, 60 * 60)
           pdfUrl = signedPdf?.signedUrl ?? null
         }
       }

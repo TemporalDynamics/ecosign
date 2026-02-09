@@ -25,6 +25,32 @@ Un ECO es evidencia autocontenida de un acto de firma, emitida en un momento esp
 
   "issued_at": "2026-02-09T03:47:04.392Z",
 
+  "evidence_declaration": {
+    "type": "digital_signature_evidence",
+    "document_name": "Contrato_NDA.pdf",
+    "signer_email": "email",
+    "signer_name": "string",
+    "signing_step": 1,
+    "total_steps": 2,
+    "signed_at": "2026-02-09T03:47:04.392Z",
+    "identity_assurance_level": "remote_otp",
+    "summary": [
+      "Document integrity preserved",
+      "Signature recorded",
+      "Evidence is self-contained",
+      "Independent verification possible"
+    ]
+  },
+
+  "trust_summary": {
+    "checks": [
+      "Document integrity preserved",
+      "Signature recorded",
+      "Timestamped (TSA) when available",
+      "Evidence is self-contained"
+    ]
+  },
+
   "document": {
     "id": "uuid",
     "name": "Contrato_NDA.pdf",
@@ -70,7 +96,7 @@ Un ECO es evidencia autocontenida de un acto de firma, emitida en un momento esp
 
   "signature_capture": {
     "present": true,
-    "stored": true,
+    "stored": false,
     "consent": true,
     "render_hash": "hex",
     "strokes_hash": "hex",

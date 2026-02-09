@@ -828,16 +828,6 @@ serve(async (req) => {
       // ECO snapshot (immediate) + proofs rápidas (best-effort, never block)
       try {
         const witnessHash = witnessHashForEvent || null
-        const proofs = await Promise.all([
-          attemptTsaProof({ witness_hash: witnessHash || '', timeout_ms: 3000 }),
-          attemptRekorProof({
-            witness_hash: witnessHash || '',
-            workflow_id: signer.workflow_id,
-            signer_id: signer.id,
-            timeout_ms: 3000
-          })
-        ])
-
         let sourceHash: string | null = null
         let witnessCurrent: string | null = witnessHash
         if (workflow.document_entity_id) {
@@ -849,6 +839,22 @@ serve(async (req) => {
           sourceHash = (entityRow as any)?.source_hash ?? null
           witnessCurrent = (entityRow as any)?.witness_current_hash ?? (entityRow as any)?.witness_hash ?? witnessHash
         }
+
+        const canonicalWitnessHash = witnessHashForEvent || witnessCurrent || null
+        const proofs = await Promise.all([
+          attemptTsaProof({ witness_hash: canonicalWitnessHash || '', timeout_ms: 3000 }),
+          attemptRekorProof({
+            witness_hash: canonicalWitnessHash || '',
+            workflow_id: signer.workflow_id,
+            signer_id: signer.id,
+            timeout_ms: 3000
+          })
+        ])
+
+        const normalizedProofs = proofs.map((proof: any) => ({
+          ...proof,
+          witness_hash: canonicalWitnessHash || null
+        }))
 
         const issuedAt = new Date().toISOString()
         let stepTotal: number | null = null
@@ -908,7 +914,7 @@ serve(async (req) => {
             name: workflow.original_filename || null,
             mime: 'application/pdf',
             source_hash: sourceHash,
-            witness_hash: witnessCurrent
+            witness_hash: canonicalWitnessHash
           },
           signing_act: {
             signer_id: signer.id,
@@ -938,14 +944,14 @@ serve(async (req) => {
             strokes_hash: null,
             ciphertext_hash: null
           },
-          proofs,
+          proofs: normalizedProofs,
           system: {
             signature_capture_hash: signatureCaptureHash
           }
         }
 
         const ecoJson = JSON.stringify(ecoSnapshot, null, 2)
-        const witnessKey = witnessCurrent || witnessHash || 'unknown'
+        const witnessKey = canonicalWitnessHash || witnessHash || 'unknown'
         ecoSnapshotPath = `evidence/${workflow.id}/${signer.id}/${witnessKey}.eco.json`
 
         const { error: ecoUploadErr } = await supabase.storage
@@ -972,7 +978,7 @@ serve(async (req) => {
               signer_id: signer.id,
               payload: {
                 eco_path: ecoSnapshotPath,
-                witness_hash: witnessCurrent || witnessHash || null
+                witness_hash: canonicalWitnessHash || null
               }
             },
             'apply-signer-signature'

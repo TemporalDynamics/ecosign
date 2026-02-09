@@ -27,6 +27,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react'
 // Step components
 import TokenValidator from '@/components/signature-flow/TokenValidator'
 import PreAccess from '@/components/signature-flow/PreAccess'
+import NDAAcceptance from '@/components/signature-flow/NDAAcceptance'  // BLOCKER 2
 import DocumentViewer from '@/components/signature-flow/DocumentViewer'
 import SignaturePad from '@/components/signature-flow/SignaturePad'
 import CompletionScreen from '@/components/signature-flow/CompletionScreen'
@@ -35,6 +36,7 @@ type SignatureStep =
   | 'validating'
   | 'preaccess'
   | 'otp'
+  | 'nda'           // BLOCKER 2: NDA acceptance required between OTP and viewing
   | 'viewing'
   | 'signing'
   | 'completed'
@@ -332,6 +334,12 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         return
       }
 
+      // BLOCKER 2: If NDA is required and not yet accepted, show NDA step
+      if (signer.require_nda && !signer.nda_accepted) {
+        setStep('nda')
+        return
+      }
+
       setStep('viewing')
 
     } catch (err) {
@@ -435,6 +443,11 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         const refreshed = await fetchSignerData(token)
         if (refreshed) {
           setSignerData(refreshed as any)
+          // BLOCKER 2: Check if NDA is required after OTP verification
+          if ((refreshed as any).require_nda && !(refreshed as any).nda_accepted) {
+            setStep('nda')
+            return
+          }
         }
       }
       setStep('viewing')
@@ -443,6 +456,54 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       setError('Error verificando el código')
     } finally {
       setVerifyingOtp(false)
+    }
+  }
+
+  // BLOCKER 2: Handle NDA acceptance
+  const handleNDAAccept = async () => {
+    if (!signerData) return
+    const supabase = getSupabase()
+    setError(null)
+
+    try {
+      // Persist NDA acceptance in database
+      const { error } = await supabase
+        .from('workflow_signers')
+        .update({
+          nda_accepted: true,
+          nda_accepted_at: new Date().toISOString()
+        })
+        .eq('id', signerData.signer_id)
+
+      if (error) {
+        console.error('Error accepting NDA:', error)
+        setError('No pudimos guardar tu aceptación del NDA. Por favor, intentá de nuevo.')
+        return
+      }
+
+      // Update local state
+      setSignerData({
+        ...signerData,
+        nda_accepted: true,
+        nda_accepted_at: new Date().toISOString()
+      })
+
+      // Log ECOX event
+      try {
+        await logEvent({
+          workflowId: signerData.workflow_id,
+          signerId: signerData.signer_id,
+          eventType: 'nda_accepted'
+        })
+      } catch (err) {
+        console.warn('log-ecox-event (nda_accepted) failed', err)
+      }
+
+      // Move to document viewing
+      setStep('viewing')
+    } catch (err) {
+      console.error('Error in handleNDAAccept:', err)
+      setError('Error procesando la aceptación del NDA')
     }
   }
 
@@ -807,6 +868,14 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
               </div>
             </div>
           </div>
+        )}
+
+        {/* BLOCKER 2: NDA acceptance step */}
+        {step === 'nda' && signerData && (
+          <NDAAcceptance
+            workflow={signerData.workflow}
+            onAccept={handleNDAAccept}
+          />
         )}
 
         {step === 'viewing' && signerData && (

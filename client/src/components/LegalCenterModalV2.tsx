@@ -2633,7 +2633,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
    * CONSTITUCIÓN:
    * - Solo certificar → siempre activo
    * - Mi Firma → requiere firma aplicada + tipo elegido
-   * - Flujo → requiere ≥1 mail válido (con formato correcto)
+   * - Flujo → requiere ≥1 mail válido, ≥1 campo, confirmación, Y cada signer con campos asignados
+   *
+   * BLOCKER 3: Validación granular para workflows
    */
   const isCTAEnabled = () => {
     // Solo certificar: siempre activo
@@ -2647,14 +2649,97 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
     // Si "Flujo" activo: debe tener ≥1 mail VÁLIDO, ≥1 campo, y confirmación explícita.
     if (workflowEnabled) {
+      // 1. Al menos 1 email válido
       if (!emailInputs.some(e => isValidEmail(e.email.trim()).valid)) return false;
+
+      // 2. Al menos 1 campo asignado
       if (signatureFields.length === 0) return false;
+
+      // 3. Asignación estructural confirmada
       if (!workflowAssignmentConfirmed) return false;
+
+      // BLOCKER 3: 4. Cada signer debe tener campos asignados
+      const validSigners = buildSignersList({ showErrors: false });
+      if (validSigners.length > 0) {
+        const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+
+        // Si hay batches sin asignar, CTA inactivo
+        if (unassignedBatches.length > 0) return false;
+
+        // Si hay signers sin campos, CTA inactivo
+        const assignedEmails = new Set(
+          batches
+            .map((b) => normalizeEmail(b.assignedSignerEmail))
+            .filter((email) => Boolean(email))
+        );
+        const signerEmailSet = new Set(validSigners.map((s) => normalizeEmail(s.email)));
+        const missingFor = Array.from(signerEmailSet).filter((email) => !assignedEmails.has(email));
+        if (missingFor.length > 0) return false;
+      }
     }
 
     // NDA nunca bloquea
 
     return true;
+  };
+
+  // BLOCKER 3: Función helper para mostrar por qué está deshabilitado el CTA
+  const getCTADisabledReason = (): string | null => {
+    if (!file) return null; // Controlado por UI, no mostrar mensaje
+
+    if (workflowEnabled) {
+      // Validaciones de flujo en orden
+      if (!emailInputs.some(e => isValidEmail(e.email.trim()).valid)) {
+        return 'Agregá al menos un email válido';
+      }
+
+      if (signatureFields.length === 0) {
+        return 'Asigná campos de firma antes de enviar';
+      }
+
+      if (!workflowAssignmentConfirmed) {
+        return 'Confirmá la asignación de campos';
+      }
+
+      // Validación de batch assignment
+      const validSigners = buildSignersList({ showErrors: false });
+      if (validSigners.length > 0) {
+        const { unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
+        if (unassignedBatches.length > 0) {
+          return 'Asigná todos los campos a los firmantes';
+        }
+
+        const assignedEmails = new Set(
+          signatureFields
+            .filter((f) => f.batch_id)
+            .map((f) => {
+              const signer = validSigners.find((s) =>
+                signatureFields
+                  .filter((sf) => sf.batch_id === f.batch_id)
+                  .length > 0
+              );
+              return signer ? normalizeEmail(signer.email) : null;
+            })
+            .filter((email) => Boolean(email))
+        );
+        const signerEmailSet = new Set(validSigners.map((s) => normalizeEmail(s.email)));
+        const missingFor = Array.from(signerEmailSet).filter((email) => !assignedEmails.has(email));
+        if (missingFor.length > 0) {
+          return `Faltan campos asignados para: ${missingFor.join(', ')}`;
+        }
+      }
+    }
+
+    if (mySignature) {
+      if (!userHasSignature) {
+        return 'Aplicá tu firma antes de certificar';
+      }
+      if (!signatureType) {
+        return 'Elegí el tipo de firma';
+      }
+    }
+
+    return null;
   };
 
   const signerCount = emailInputs.filter((input) => input.email.trim()).length;
@@ -4442,10 +4527,17 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     getCTAText()
                   )}
                 </button>
+                {/* BLOCKER 3: Mensaje de feedback cuando CTA está deshabilitado */}
+                {!isCTAEnabled() && getCTADisabledReason() && (
+                  <div className="mt-2 text-sm text-amber-600 flex items-start gap-2 px-2">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>{getCTADisabledReason()}</span>
+                  </div>
+                )}
               </div>
               )}
               {!isFocusMode && (
-              <div className="md:hidden sticky bottom-0 bg-white pt-2 pb-3 border-t border-gray-200">
+              <div className="md:hidden sticky bottom-0 bg-white pt-2 pb-3 border-t border-gray-200 px-3">
                 <button
                   onClick={handleProtectClick}
                   disabled={!file || loading || !isCTAEnabled()}
@@ -4460,6 +4552,13 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     getCTAText()
                   )}
                 </button>
+                {/* BLOCKER 3: Mensaje de feedback cuando CTA está deshabilitado (mobile) */}
+                {!isCTAEnabled() && getCTADisabledReason() && (
+                  <div className="mt-2 text-sm text-amber-600 flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>{getCTADisabledReason()}</span>
+                  </div>
+                )}
               </div>
               )}
             </div>

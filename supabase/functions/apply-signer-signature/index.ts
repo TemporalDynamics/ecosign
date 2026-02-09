@@ -168,7 +168,14 @@ async function attemptTsaProof(params: {
       witness_hash: params.witness_hash,
     };
   } catch (_err) {
-    return { kind: 'tsa', status: 'timeout', provider: 'freetsa', ref: null, attempted_at: attemptedAt };
+    return {
+      kind: 'tsa',
+      status: 'timeout',
+      provider: 'freetsa',
+      ref: null,
+      attempted_at: attemptedAt,
+      witness_hash: params.witness_hash
+    };
   }
 }
 
@@ -687,6 +694,9 @@ serve(async (req) => {
       const hashHex = Array.from(new Uint8Array(hashBuf))
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('')
+
+      // Canonical witness hash for this act.
+      witnessHashForEvent = hashHex
 
       // Also store a per-signer witness PDF (immutable path) for delivery + audit.
       signedPdfPath = `signed/${workflow.id}/${signer.id}/${hashHex}.pdf`

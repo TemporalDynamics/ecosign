@@ -20,6 +20,7 @@ interface SignatureField {
 }
 
 serve(async (req) => {
+  throw new Error('Legacy path disabled by CAI invariants')
   if (Deno.env.get('FASE') !== '1') {
     return new Response('disabled', { status: 204 });
   }

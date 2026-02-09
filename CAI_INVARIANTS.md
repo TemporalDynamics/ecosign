@@ -101,6 +101,9 @@ Si cualquier invariant de secciones 1 o 2 falla:
 - **No** se persiste evidencia válida.
 - Debe quedar trazado en logs con motivo explícito.
 
+## 6.1) Legacy Enforcement
+Rutas legacy que pueden violar invariants están **bloqueadas** por contrato.\nVer: `docs/contratos/LEGACY_PATHS_MAP.md`.
+
 ## 7) Cierre
 CAI no "razona"; **verifica invariants**.
 Si el sistema respeta estos invariants, la evidencia es sólida incluso sin EcoSign vivo.

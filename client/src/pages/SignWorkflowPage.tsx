@@ -30,10 +30,12 @@ import PreAccess from '@/components/signature-flow/PreAccess'
 import DocumentViewer from '@/components/signature-flow/DocumentViewer'
 import SignaturePad from '@/components/signature-flow/SignaturePad'
 import CompletionScreen from '@/components/signature-flow/CompletionScreen'
+import NDAAcceptance from '@/components/signature-flow/NDAAcceptance'
 
 type SignatureStep =
   | 'validating'
   | 'preaccess'
+  | 'nda'
   | 'otp'
   | 'viewing'
   | 'signing'
@@ -326,9 +328,14 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         console.warn('log-ecox-event failed', err)
       }
 
-      // Determine next step based on requirements
+      // Determine next step based on requirements (PreAccess → NDA → OTP → Viewing)
       if (!signer.otp_verified) {
         setStep('preaccess')
+        return
+      }
+
+      if (signer.require_nda && !signer.nda_accepted) {
+        setStep('nda')
         return
       }
 
@@ -366,6 +373,12 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
       if (error) {
         setError(error.message)
+        return
+      }
+
+      // NDA must be accepted before OTP (legal order)
+      if (signerData.require_nda && !signerData.nda_accepted) {
+        setStep('nda')
         return
       }
 
@@ -435,6 +448,10 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         const refreshed = await fetchSignerData(token)
         if (refreshed) {
           setSignerData(refreshed as any)
+          if ((refreshed as any).require_nda && !(refreshed as any).nda_accepted) {
+            setStep('nda')
+            return
+          }
         }
       }
       setStep('viewing')
@@ -458,6 +475,40 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
     // Move to signature step
     setStep('signing')
+  }
+
+  const handleNDAAccept = async () => {
+    if (!signerData) return
+    const supabase = getSupabase();
+    setError(null)
+    try {
+      const { data, error } = await supabase.functions.invoke('accept-workflow-nda', {
+        body: {
+          signer_id: signerData.signer_id,
+          signer_email: signerData.email,
+          nda_version: 'v1'
+        }
+      })
+
+      if (error || !data?.success) {
+        console.error('Error accepting NDA:', error || data?.error)
+        setError('No pudimos guardar tu aceptación del NDA. Por favor, intentá de nuevo.')
+        return
+      }
+
+      setSignerData({
+        ...signerData,
+        nda_accepted: true,
+        nda_accepted_at: data?.accepted_at || new Date().toISOString()
+      })
+
+      // After NDA, proceed to OTP
+      setStep('otp')
+      await sendOtp()
+    } catch (err) {
+      console.error('Error in handleNDAAccept:', err)
+      setError('Error procesando la aceptación del NDA')
+    }
   }
 
   const handleSignatureApplied = async (signatureData: any) => {
@@ -741,6 +792,13 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             errorMessage={error}
             onConfirm={handlePreAccessConfirm}
             onReject={handleRejectSignature}
+          />
+        )}
+
+        {step === 'nda' && signerData && (
+          <NDAAcceptance
+            workflow={signerData.workflow}
+            onAccept={handleNDAAccept}
           />
         )}
 

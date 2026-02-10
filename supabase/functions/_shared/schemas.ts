@@ -50,4 +50,5 @@ export const AcceptShareNdaSchema = z.object({
 export const AcceptWorkflowNdaSchema = z.object({
   signer_id: z.string().uuid(),
   signer_email: z.string().email(),
+  nda_version: z.string().max(50).optional(),
 });

@@ -165,6 +165,9 @@ generator/
 *.pdf
 *.docx
 legal/
+!docs/legal/
+!docs/legal/nda/
+!docs/legal/nda/v1.txt
 patents/
 npa/
 ppa/

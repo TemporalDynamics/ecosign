@@ -88,6 +88,7 @@ serve(async (req) => {
     const validEventTypes = [
       'access_link_opened',
       'nda_accepted',
+      'nda.accepted',
       'mfa_challenged',
       'mfa_success',
       'mfa_failed',

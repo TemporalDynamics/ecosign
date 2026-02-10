@@ -3,10 +3,7 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { parseJsonBody } from '../_shared/validation.ts'
 import { AcceptWorkflowNdaSchema } from '../_shared/schemas.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
-
-const NDA_VERSION = 'v1';
-const NDA_TEXT_URL_PRIMARY = new URL('../../../../docs/legal/nda/v1.txt', import.meta.url);
-const NDA_TEXT_URL_FALLBACK = new URL('../_shared/nda/v1.txt', import.meta.url);
+import { NDA_VERSION, NDA_V1_TEXT } from '../_shared/nda/text.ts'
 
 const computeSha256 = async (input: string): Promise<string> => {
   const data = new TextEncoder().encode(input);
@@ -56,20 +53,11 @@ serve(async (req) => {
     }
     const { signer_id, signer_email } = parsed.data
 
-    // Load canonical NDA text (v1) and compute hash
-    let ndaText = '';
-    try {
-      ndaText = await Deno.readTextFile(NDA_TEXT_URL_PRIMARY);
-    } catch (err) {
-      console.warn('Primary NDA text not found, using fallback copy:', err);
-      try {
-        ndaText = await Deno.readTextFile(NDA_TEXT_URL_FALLBACK);
-      } catch (fallbackErr) {
-        console.error('Failed to read NDA canonical text (fallback also missing):', fallbackErr);
-        return json({ error: 'NDA canonical text not found' }, 500);
-      }
+    // Load canonical NDA text (embedded) and compute hash
+    const canonicalText = NDA_V1_TEXT.replace(/\r\n/g, '\n');
+    if (!canonicalText.trim()) {
+      return json({ error: 'NDA canonical text not found' }, 500);
     }
-    const canonicalText = ndaText.replace(/\r\n/g, '\n');
     const ndaHash = await computeSha256(canonicalText);
 
     const { data: signer, error } = await supabase
@@ -126,29 +114,35 @@ serve(async (req) => {
       return json({ error: 'Failed to record NDA acceptance' }, 500)
     }
 
-    // === ECOx Audit-grade event ===
-    try {
-      const { error: eventError } = await supabase.rpc('log_ecox_event', {
-        p_workflow_id: signer.workflow_id,
-        p_signer_id: signer.id,
-        p_event_type: 'nda.accepted',
-        p_source_ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown',
-        p_user_agent: req.headers.get('user-agent') || 'unknown',
-        p_geolocation: null,
-        p_details: {
-          nda_version: NDA_VERSION,
-          nda_hash: ndaHash,
-          nda_source: 'docs/legal/nda/v1.txt',
-          accepted_at: acceptedAt
-        },
-        p_document_hash_snapshot: null
-      });
+    // === ECOx Audit-grade event (FAIL-HARD) ===
+    const { error: eventError } = await supabase.rpc('log_ecox_event', {
+      p_workflow_id: signer.workflow_id,
+      p_signer_id: signer.id,
+      p_event_type: 'nda.accepted',
+      p_source_ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown',
+      p_user_agent: req.headers.get('user-agent') || 'unknown',
+      p_geolocation: null,
+      p_details: {
+        nda_version: NDA_VERSION,
+        nda_hash: ndaHash,
+        nda_source: 'embedded',
+        accepted_at: acceptedAt
+      },
+      p_document_hash_snapshot: null
+    });
 
-      if (eventError) {
-        console.error('Failed to log nda.accepted ecox event:', eventError);
+    if (eventError) {
+      console.error('Failed to log nda.accepted ecox event:', eventError);
+      // Attempt rollback (best-effort) to avoid accepting NDA without audit-grade event
+      try {
+        await supabase
+          .from('workflow_signers')
+          .update({ nda_accepted: false, nda_accepted_at: null })
+          .eq('id', signer_id);
+      } catch (rollbackError) {
+        console.error('Failed to rollback NDA acceptance after ecox error', rollbackError);
       }
-    } catch (eventErr) {
-      console.warn('ECOx event logging failed:', eventErr);
+      return json({ error: 'Failed to register NDA acceptance event' }, 500);
     }
 
     return json({

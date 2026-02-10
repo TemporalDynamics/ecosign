@@ -74,13 +74,28 @@ serve(async (req) => {
     // Parsear el body
     const payload: LogEventRequest = await req.json()
 
+    const isHardEvent = payload?.event_type === 'nda.accepted' || payload?.event_type === 'nda_accepted'
+    const isUuid = (value: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value)
+
     // Validaciones
     if (!payload.workflow_id || !payload.signer_id || !payload.event_type) {
       return new Response(
         JSON.stringify({
           error: 'Missing required fields: workflow_id, signer_id, event_type'
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: isHardEvent ? 400 : 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!isUuid(payload.workflow_id) || !isUuid(payload.signer_id)) {
+      console.warn('Invalid UUIDs in log-ecox-event payload', {
+        workflow_id: payload.workflow_id,
+        signer_id: payload.signer_id,
+        event_type: payload.event_type
+      })
+      return new Response(
+        JSON.stringify({ error: 'Invalid workflow_id or signer_id' }),
+        { status: isHardEvent ? 400 : 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -110,7 +125,7 @@ serve(async (req) => {
         JSON.stringify({
           error: `Invalid event_type. Must be one of: ${validEventTypes.join(', ')}`
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: isHardEvent ? 400 : 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -182,9 +197,15 @@ serve(async (req) => {
 
     if (error) {
       console.error('Error al registrar evento ECOX:', error)
+      if (isHardEvent) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to log event', details: error.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
       return new Response(
-        JSON.stringify({ error: 'Failed to log event', details: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Failed to log event', details: error.message }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 

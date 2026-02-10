@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { Check, Shield } from 'lucide-react'
+import { NDA_COPY } from '@/centro-legal/modules/nda'
 
 interface NDAAcceptanceProps {
   workflow: {
@@ -54,36 +55,9 @@ export default function NDAAcceptance({ workflow, onAccept }: NDAAcceptanceProps
             className="prose max-h-96 overflow-y-auto pr-4"
             onScroll={handleScroll}
           >
-            <h2 className="text-xl font-bold text-gray-900">Acuerdo de Confidencialidad (NDA)</h2>
-            <p className="text-gray-700">
-              Antes de ver el documento, necesitamos tu consentimiento para proteger la confidencialidad y registrar evidencia forense.
-            </p>
-
-            <ul className="text-gray-700">
-              <li>Mantener en confidencialidad todo el contenido del documento.</li>
-              <li>Usar la información sólo para revisar y firmar este documento.</li>
-              <li>
-                EcoSign registra datos técnicos (IP, agente de navegador, sellos de tiempo, interacciones) exclusivamente
-                para certificar autenticidad, integridad y trazabilidad de la firma.
-              </li>
-              <li>EcoSign no analiza el contenido; sólo procesa huellas criptográficas para verificación.</li>
-              <li>La evidencia (PDF + ECO) queda disponible para todas las partes, protegida y verificable.</li>
-              <li>El objetivo es prevenir repudio, asegurar transparencia y proteger a todas las partes.</li>
-            </ul>
-
-            <h3 className="text-lg font-semibold text-gray-900">Duración</h3>
-            <p className="text-gray-700">
-              Las obligaciones de confidencialidad permanecen vigentes por 5 años o hasta que la información deje de ser confidencial por medios legítimos.
-            </p>
-
-            <h3 className="text-lg font-semibold text-gray-900">Registro Forense</h3>
-            <p className="text-gray-700">
-              Tu aceptación queda registrada con evidencia forense (timestamp, IP, dispositivo) como parte del certificado ECOX.
-            </p>
-
-            <p className="mt-4 text-sm font-semibold text-gray-900">
-              EcoSign. Transparencia que acompaña.
-            </p>
+            <pre className="whitespace-pre-wrap text-sm text-gray-800">
+              {NDA_COPY.DEFAULT_TEMPLATE}
+            </pre>
 
             {!scrolledToBottom && (
               <div className="mt-4 text-center text-sm text-gray-500">

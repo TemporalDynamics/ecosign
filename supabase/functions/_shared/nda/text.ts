@@ -1,48 +1,6 @@
-/**
- * MÓDULO NDA — COPY
- * 
- * Copy para el módulo de NDA
- */
+export const NDA_VERSION = 'v1';
 
-export const NDA_COPY = {
-  // Toggle
-  toggleLabel: 'NDA',
-  
-  // Panel
-  PANEL_TITLE: 'Acuerdo de Confidencialidad',
-  PANEL_DESCRIPTION: 'El NDA se mostrará antes de que el destinatario pueda acceder al documento.',
-  expandButton: 'Ver completo',
-  collapseButton: 'Minimizar',
-  
-  // Acciones
-  editButton: 'Editar',
-  uploadButton: 'Subir archivo',
-  pasteButton: 'Pegar texto',
-  SAVE_BUTTON: 'Guardar NDA',
-  cancelButton: 'Cancelar',
-  clearButton: 'Limpiar',
-  
-  // Estados
-  ndaConfigured: 'NDA configurado',
-  ndaNotConfigured: 'Configurar NDA',
-  
-  // Visor
-  viewerTitle: 'Vista previa del NDA',
-  
-  // Receptor
-  acceptButton: 'Acepto',
-  rejectButton: 'Rechazar',
-  scrollPrompt: 'Desplázate para continuar',
-  
-  // Validación
-  emptyNda: 'El NDA no puede estar vacío',
-  invalidFile: 'Formato de archivo no válido',
-  
-  // Orden inmutable (R6)
-  ORDER_INFO: 'Orden de acceso: NDA → OTP → Documento → Firma',
-  
-  // Template default (NDA canónico v1)
-  DEFAULT_TEMPLATE: `ACUERDO DE CONFIDENCIALIDAD (NDA)
+export const NDA_V1_TEXT = `ACUERDO DE CONFIDENCIALIDAD (NDA)
 
 Al aceptar este acuerdo, la persona firmante (“Receptor”) reconoce y acepta que:
 
@@ -71,5 +29,4 @@ La aceptación de este acuerdo queda registrada de forma verificable como un
 evento independiente del documento firmado.
 
 Fecha de versión: 2026-02-10
-Versión: v1`,
-} as const;
+Versión: v1`;

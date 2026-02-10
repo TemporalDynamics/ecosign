@@ -16,6 +16,8 @@ export interface ApplySignerSignatureInput {
     token_expires_at: string | null;
     token_revoked_at: string | null;
     otp_verified: boolean;
+    require_login?: boolean | null;
+    quick_access?: boolean | null;
   } | null;
   workflow: {
     id: string;
@@ -46,7 +48,8 @@ export function shouldApplySignerSignature(input: ApplySignerSignatureInput): bo
 
   if (input.signer.status !== 'ready_to_sign') return false;
 
-  if (!input.signer.otp_verified) return false;
+  const otpRequired = !(input.signer.quick_access || input.signer.require_login === false);
+  if (otpRequired && !input.signer.otp_verified) return false;
 
   if (input.signer.token_revoked_at) return false;
   if (input.signer.token_expires_at && new Date(input.signer.token_expires_at) < new Date()) {

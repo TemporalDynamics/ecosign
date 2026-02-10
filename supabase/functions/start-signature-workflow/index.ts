@@ -25,6 +25,7 @@ interface StartWorkflowRequest {
   documentHash: string
   originalFilename: string
   documentEntityId?: string
+  signatureType?: 'ECOSIGN' | 'SIGNNOW'
   signers: Signer[]
   forensicConfig: {
     rfc3161: boolean
@@ -118,6 +119,7 @@ serve(withRateLimit('workflow', async (req) => {
       documentHash,
       originalFilename,
       documentEntityId,
+      signatureType,
       signers,
       forensicConfig,
       deliveryMode = 'email' // Default to email for backwards compatibility
@@ -132,6 +134,7 @@ serve(withRateLimit('workflow', async (req) => {
           documentHash,
           originalFilename,
           documentEntityId,
+          signatureType,
           signers,
           forensicConfig,
           deliveryMode
@@ -170,6 +173,7 @@ serve(withRateLimit('workflow', async (req) => {
           documentHash,
           originalFilename,
           documentEntityId,
+          signatureType,
           signers,
           forensicConfig,
           deliveryMode
@@ -208,7 +212,8 @@ serve(withRateLimit('workflow', async (req) => {
         documentEntityId,
         signers,
         forensicConfig,
-        deliveryMode
+        deliveryMode,
+        signatureType
       }
     })
 
@@ -242,6 +247,7 @@ serve(withRateLimit('workflow', async (req) => {
       status: 'active',
       forensic_config: forensicConfig,
       delivery_mode: deliveryMode, // 'email' or 'link' - immutable after creation
+      ...(signatureType ? { signature_type: signatureType } : {}),
       ...(documentEntityId ? { document_entity_id: documentEntityId } : {})
     }
 

@@ -30,6 +30,8 @@ type StartWorkflowParams = {
   documentHash: string;
   originalFilename: string;
   documentEntityId?: string;
+  signatureType?: 'ECOSIGN' | 'SIGNNOW';
+  deliveryMode?: 'email' | 'link';
   signers: WorkflowSigner[];
   forensicConfig?: ForensicConfig;
 };
@@ -40,6 +42,8 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
     documentHash,
     originalFilename,
     documentEntityId,
+    signatureType,
+    deliveryMode,
     signers,
     forensicConfig = {
       rfc3161: true,
@@ -83,6 +87,8 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
         documentHash,
         originalFilename,
         documentEntityId,
+        signatureType,
+        deliveryMode,
         signers,
         forensicConfig
       }

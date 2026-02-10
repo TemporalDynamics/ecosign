@@ -133,6 +133,11 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const [isLastSigner, setIsLastSigner] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
+  const isOtpRequired = (signer?: SignerData | null) => {
+    if (!signer) return true
+    return !(signer.quick_access || signer.require_login === false)
+  }
+
   const getInitialNameParts = (name?: string | null) => {
     if (!name) return { firstName: '', lastName: '' }
     const parts = name.trim().split(/\s+/)
@@ -329,7 +334,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       }
 
       // Determine next step based on requirements (PreAccess → NDA → OTP → Viewing)
-      if (!signer.otp_verified) {
+      const otpRequired = isOtpRequired(signer as any)
+      if (otpRequired && !signer.otp_verified) {
         setStep('preaccess')
         return
       }
@@ -382,9 +388,14 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         return
       }
 
-      setOtpSent(true)
-      setStep('otp')
-      await sendOtp()
+      const otpRequired = isOtpRequired(signerData)
+      if (otpRequired) {
+        setOtpSent(true)
+        setStep('otp')
+        await sendOtp()
+      } else {
+        setStep('viewing')
+      }
     } catch (err: any) {
       console.error('Error confirmando identidad', err)
       setError(err?.message || 'No pudimos confirmar tu identidad')
@@ -502,9 +513,16 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         nda_accepted_at: data?.accepted_at || new Date().toISOString()
       })
 
-      // After NDA, proceed to OTP
-      setStep('otp')
-      await sendOtp()
+      const otpRequired = isOtpRequired({
+        ...signerData,
+        nda_accepted: true
+      } as any)
+      if (otpRequired) {
+        setStep('otp')
+        await sendOtp()
+      } else {
+        setStep('viewing')
+      }
     } catch (err) {
       console.error('Error in handleNDAAccept:', err)
       setError('Error procesando la aceptación del NDA')
@@ -525,7 +543,9 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
           workflowId: signerData.workflow_id,
           witness_pdf_hash: signerData.workflow.document_hash,
           applied_at: new Date().toISOString(),
-          identity_level: signerData.otp_verified ? 'otp' : 'unknown',
+          identity_level: isOtpRequired(signerData)
+            ? (signerData.otp_verified ? 'otp' : 'unknown')
+            : 'none',
           signatureData: signatureData,
           fieldValues
         }

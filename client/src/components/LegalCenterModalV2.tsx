@@ -220,6 +220,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   
   // Estado interno para saber si ya se dibujó/aplicó firma
   const [userHasSignature, setUserHasSignature] = useState(false);
+  const [ownerEmail, setOwnerEmail] = useState<string | null>(null);
   
   // Confirmación de modo (aparece temporalmente en el header)
   const [modeConfirmation, setModeConfirmation] = useState('');
@@ -329,6 +330,19 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       setShowWelcomeModal(true);
     }
   }, [initialAction, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (isGuestMode()) return;
+    const supabase = getSupabase();
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (error) {
+        console.warn('Failed to load owner email:', error);
+        return;
+      }
+      setOwnerEmail(data?.user?.email ?? null);
+    });
+  }, [isOpen]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -1217,6 +1231,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const handleProtectClick = () => {
     if (!file) return;
 
+    // Mi firma: requiere owner y al menos un campo
+    if (mySignature && !workflowEnabled) {
+      if (!ownerEmail) {
+        toast.error('Necesitás iniciar sesión para firmar este documento.');
+        return;
+      }
+      if (signatureFields.length === 0) {
+        openSignerFieldsWizard();
+        return;
+      }
+    }
+
     // UX hard-stop: si hay Flujo de Firmas activo, no abrir modales de custody/progreso
     // hasta que la asignacion estructural este completa.
     if (workflowEnabled) {
@@ -1446,6 +1472,210 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       if (canonicalDocumentId) {
         console.debug('Canonical document_entities created:', canonicalDocumentId);
       }
+
+      // FLUJO 1B: Mi firma (workflow con 1 signer, sin mails, sin OTP)
+      if (mySignature && !workflowEnabled) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          showToast('Necesitás iniciar sesión para firmar este documento', { type: 'error' });
+          setLoading(false);
+          return;
+        }
+
+        const ownerEmailValue = user.email || ownerEmail;
+        if (!ownerEmailValue) {
+          showToast('No pudimos determinar tu email. Iniciá sesión nuevamente.', { type: 'error' });
+          setLoading(false);
+          return;
+        }
+
+        if (signatureFields.length === 0) {
+          openSignerFieldsWizard();
+          setLoading(false);
+          return;
+        }
+
+        const ownerName = (user.user_metadata as any)?.full_name || user.email || 'Owner';
+        const selfSigner = {
+          email: ownerEmailValue,
+          name: ownerName,
+          signingOrder: 1,
+          quickAccess: true,
+          requireLogin: false,
+          requireNda: false
+        };
+
+        const selfFields = signatureFields.map((f) => ({
+          ...f,
+          assignedTo: ownerEmailValue,
+          batchId: f.batchId || f.id
+        }));
+
+        // Reusar pipeline de workflow para generar PDF con campos
+        let fileToSend = file;
+        try {
+          const signaturePage = await appendSignaturePage(fileToSend, workflowPageSizeMode);
+          fileToSend = new File([signaturePage.blob], file.name, { type: 'application/pdf' });
+        } catch (err) {
+          console.error('❌ Error agregando página de firmas:', err);
+          showToast('No se pudo agregar la página de firmas. Intentá nuevamente.', { type: 'error' });
+          setLoading(false);
+          return;
+        }
+
+        if (selfFields.length > 0) {
+          try {
+            console.log('📋 Estampando campos preparados para Mi firma...');
+
+            const overlaySpec = convertToOverlaySpec(
+              selfFields,
+              null, // No incluir firma del owner en workflow
+              workflowVirtualSize.width,
+              workflowVirtualSize.height,
+              'owner'
+            );
+
+            if (overlaySpec.length > 0) {
+              const { validateOverlaySpec } = await import('../utils/overlaySpecConverter');
+              if (validateOverlaySpec(overlaySpec)) {
+                const stampedBlob = await applyOverlaySpecToPdf(file, overlaySpec);
+                fileToSend = new File([stampedBlob], file.name, { type: 'application/pdf' });
+                console.log('✅ Campos estampados en PDF para Mi firma');
+              }
+            }
+          } catch (err) {
+            console.warn('⚠️ Error estampando campos para Mi firma, enviando PDF sin campos:', err);
+            // Continuar sin campos estampados
+          }
+        }
+
+        const arrayBuffer = await fileToSend.arrayBuffer();
+        const documentHash = await hashWitness(arrayBuffer);
+
+        const sanitizedWorkflowFilename = file.name
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-zA-Z0-9.-]/g, '_')
+          .replace(/__+/g, '_');
+
+        const storagePath = `${user.id}/${Date.now()}-${sanitizedWorkflowFilename}`;
+        const { error: uploadError } = await supabase.storage
+          .from('user-documents')
+          .upload(storagePath, fileToSend, {
+            contentType: fileToSend.type || 'application/pdf',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Error subiendo archivo para workflow (Mi firma):', uploadError);
+          showToast('No se pudo subir el archivo para iniciar la firma', { type: 'error' });
+          setLoading(false);
+          return;
+        }
+
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('user-documents')
+          .createSignedUrl(storagePath, 60 * 60 * 24 * 30);
+
+        if (signedUrlError || !signedUrlData?.signedUrl) {
+          console.error('Error generando signed URL (Mi firma):', signedUrlError);
+          showToast('No se pudo generar el enlace del documento', { type: 'error' });
+          setLoading(false);
+          return;
+        }
+
+        if (canonicalDocumentId) {
+          try {
+            storeEncryptedCustody(
+              fileToSend,
+              canonicalDocumentId,
+              'witness'
+            ).catch(err => console.warn('Custody backup skipped:', err));
+
+            await ensureWitnessCurrent(canonicalDocumentId, {
+              hash: documentHash,
+              mime_type: 'application/pdf',
+              storage_path: storagePath,
+              status: 'generated'
+            });
+
+            await advanceLifecycle(canonicalDocumentId, 'witness_ready');
+          } catch (err) {
+            console.error('❌ Canonical witness preparation failed (Mi firma):', err);
+            showToast('No se pudo preparar la copia fiel (PDF witness).', { type: 'error' });
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (!canonicalDocumentId) {
+          showToast('No se pudo preparar el documento canónico para la firma.', { type: 'error' });
+          setLoading(false);
+          return;
+        }
+
+        try {
+          console.log('📋 Guardando campos de Mi firma en DB...');
+          const savedFields = await saveWorkflowFields(
+            selfFields,
+            canonicalDocumentId,
+            workflowVirtualSize.width,
+            workflowVirtualSize.height
+          );
+          console.log(`✅ ${savedFields.length} campos guardados en workflow_fields`);
+        } catch (fieldsError) {
+          console.error('❌ Error guardando workflow fields (Mi firma):', fieldsError);
+          showToast('No se pudieron guardar los campos asignados. Intentá nuevamente.', { type: 'error' });
+          setLoading(false);
+          return;
+        }
+
+        try {
+          setIsCanvasLocked(true);
+          const workflowResult = await startSignatureWorkflow({
+            documentUrl: signedUrlData.signedUrl,
+            documentHash,
+            originalFilename: file.name,
+            documentEntityId: canonicalDocumentId || undefined,
+            signatureType: signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN',
+            deliveryMode: 'link',
+            signers: [selfSigner],
+            forensicConfig: {
+              rfc3161: forensicEnabled && forensicConfig.useLegalTimestamp,
+              polygon: forensicEnabled && forensicConfig.usePolygonAnchor,
+              bitcoin: forensicEnabled && forensicConfig.useBitcoinAnchor
+            }
+          });
+
+          const signUrl = workflowResult?.firstSignerUrl as string | null;
+          if (signUrl) {
+            const tokenPart = signUrl.split('/sign/')[1] || '';
+            const tokenOnly = tokenPart.split('?')[0];
+            if (tokenOnly) {
+              resetAndClose();
+              onClose();
+              setLoading(false);
+              navigate(`/sign/${tokenOnly}`);
+              return;
+            }
+          }
+
+          showToast('No se pudo abrir el flujo de firma. Intentá nuevamente.', { type: 'error' });
+        } catch (workflowError) {
+          console.error('❌ Error al iniciar workflow (Mi firma):', workflowError);
+          const errorMessage =
+            workflowError instanceof Error
+              ? workflowError.message
+              : typeof workflowError === 'string'
+              ? workflowError
+              : 'No se pudo iniciar la firma. Verificá los datos e intentá de nuevo.';
+          showToast(errorMessage, { type: 'error' });
+        }
+
+        setLoading(false);
+        return;
+      }
+
       const hasWorkflowIntent =
         workflowEnabled ||
         emailInputs.some((input) => isValidEmail(input.email.trim()).valid);
@@ -1666,6 +1896,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             documentHash,
             originalFilename: file.name,
             documentEntityId: canonicalDocumentId || undefined,
+            signatureType: signatureType
+              ? (signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN')
+              : undefined,
             signers: validSigners,
             forensicConfig: {
               rfc3161: forensicEnabled && forensicConfig.useLegalTimestamp,
@@ -2643,6 +2876,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     if (mySignature) {
       if (!userHasSignature) return false;
       if (!signatureType) return false;
+      if (signatureFields.length === 0) return false;
     }
 
     // Si "Flujo" activo: debe tener ≥1 mail VÁLIDO, ≥1 campo, y confirmación explícita.
@@ -4775,7 +5009,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     <SignerFieldsWizard
       isOpen={showSignerFieldsWizard}
       onClose={() => setShowSignerFieldsWizard(false)}
-      signers={buildSignersList().map((s) => ({ email: s.email, signingOrder: s.signingOrder }))}
+      signers={
+        mySignature && !workflowEnabled
+          ? (ownerEmail ? [{ email: ownerEmail, signingOrder: 1 }] : [])
+          : buildSignersList().map((s) => ({ email: s.email, signingOrder: s.signingOrder }))
+      }
       virtualWidth={VIRTUAL_PAGE_WIDTH}
       detectedVirtualHeight={VIRTUAL_PAGE_HEIGHT}
       totalPages={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}

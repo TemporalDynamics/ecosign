@@ -334,7 +334,9 @@ serve(async (req) => {
           access_token_hash,
           token_expires_at,
           token_revoked_at,
-          signer_otps!inner(verified_at)
+          require_login,
+          quick_access,
+          signer_otps(verified_at)
         `)
         .eq('id', signerId)
         .single()
@@ -377,7 +379,9 @@ serve(async (req) => {
           access_token_hash,
           token_expires_at,
           token_revoked_at,
-          signer_otps!inner(verified_at)
+          require_login,
+          quick_access,
+          signer_otps(verified_at)
         `)
         .eq('access_token_hash', tokenHash)
         .single()
@@ -445,15 +449,17 @@ serve(async (req) => {
       })
     }
 
-    // Validate OTP confirmed
+    // Validate OTP confirmed (unless quick_access or require_login=false)
+    const otpRequired = !(signer.quick_access || signer.require_login === false)
     console.log('apply-signer-signature: Validating OTP', {
       signerId: signer.id,
       otpVerified: signer.otp_verified,
-      otpVerifiedAt: signer.signer_otps?.verified_at
+      otpVerifiedAt: signer.signer_otps?.verified_at,
+      otpRequired
     })
 
     const otpVerified = Boolean(signer.otp_verified)
-    if (!otpVerified) {
+    if (otpRequired && !otpVerified) {
       console.error('apply-signer-signature: OTP not verified', {
         signerId: signer.id,
         otpVerifiedAt: signer.signer_otps?.verified_at
@@ -479,7 +485,9 @@ serve(async (req) => {
         status: signer.status,
         token_expires_at: signer.token_expires_at ?? null,
         token_revoked_at: signer.token_revoked_at ?? null,
-        otp_verified: otpVerified
+        otp_verified: otpRequired ? otpVerified : true,
+        require_login: signer.require_login ?? null,
+        quick_access: signer.quick_access ?? null
       } : null,
       workflow: workflow ? {
         id: workflow.id,

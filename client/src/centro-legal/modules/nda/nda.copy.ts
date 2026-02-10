@@ -41,19 +41,35 @@ export const NDA_COPY = {
   // Orden inmutable (R6)
   ORDER_INFO: 'Orden de acceso: NDA → OTP → Documento → Firma',
   
-  // Template default
-  DEFAULT_TEMPLATE: `ACUERDO DE CONFIDENCIALIDAD
+  // Template default (NDA canónico v1)
+  DEFAULT_TEMPLATE: `ACUERDO DE CONFIDENCIALIDAD (NDA)
 
-Este documento contiene información confidencial y de propiedad exclusiva.
+Al aceptar este acuerdo, la persona firmante (“Receptor”) reconoce y acepta que:
 
-Al acceder a este documento, usted acepta:
+1. Información Confidencial
+Se considera Información Confidencial toda información, documento o contenido
+al que el Receptor acceda en el marco del flujo de firma, incluyendo pero no
+limitado a documentos, datos, metadatos y evidencias.
 
-1. Mantener la confidencialidad de toda la información contenida
-2. No divulgar, copiar ni distribuir este documento sin autorización
-3. Usar la información únicamente para los fines acordados
-4. Devolver o destruir cualquier copia al finalizar el propósito
+2. Obligación de Confidencialidad
+El Receptor se compromete a no divulgar, compartir ni utilizar la Información
+Confidencial para fines distintos a la finalidad del acto de firma, salvo
+autorización expresa del titular o requerimiento legal válido.
 
-Este acuerdo permanece vigente por 5 años desde la fecha de aceptación.
+3. Alcance
+Este acuerdo aplica desde el momento de su aceptación y se mantiene vigente
+independientemente de que el proceso de firma se complete o no.
 
-El incumplimiento puede resultar en acciones legales según las leyes aplicables.`,
+4. Exclusiones
+No se considerará Información Confidencial aquella que:
+a) Sea de dominio público sin violación de este acuerdo.
+b) Haya sido obtenida legítimamente por el Receptor con anterioridad.
+c) Deba divulgarse por mandato legal o judicial.
+
+5. Aceptación
+La aceptación de este acuerdo queda registrada de forma verificable como un
+evento independiente del documento firmado.
+
+Fecha de versión: 2026-02-10
+Versión: v1`,
 } as const;

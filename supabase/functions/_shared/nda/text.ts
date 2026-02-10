@@ -1,4 +1,6 @@
-ACUERDO DE CONFIDENCIALIDAD (NDA)
+export const NDA_VERSION = 'v1';
+
+export const NDA_V1_TEXT = `ACUERDO DE CONFIDENCIALIDAD (NDA)
 
 Al aceptar este acuerdo, la persona firmante (“Receptor”) reconoce y acepta que:
 
@@ -27,4 +29,4 @@ La aceptación de este acuerdo queda registrada de forma verificable como un
 evento independiente del documento firmado.
 
 Fecha de versión: 2026-02-10
-Versión: v1
+Versión: v1`;

@@ -36,7 +36,7 @@ type SignatureStep =
   | 'validating'
   | 'preaccess'
   | 'otp'
-  | 'nda'           // BLOCKER 2: NDA acceptance required between OTP and viewing
+  | 'nda'           // BLOCKER 2: NDA acceptance required before OTP (legal order)
   | 'viewing'
   | 'signing'
   | 'completed'
@@ -334,7 +334,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         return
       }
 
-      // BLOCKER 2: If NDA is required and not yet accepted, show NDA step
+      // BLOCKER 2: If NDA is required and not yet accepted, show NDA before viewing
       if (signer.require_nda && !signer.nda_accepted) {
         setStep('nda')
         return
@@ -374,6 +374,13 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
       if (error) {
         setError(error.message)
+        return
+      }
+
+      // BLOCKER 2: NDA must happen before OTP if required
+      if (signerData.require_nda && !signerData.nda_accepted) {
+        setOtpSent(false)
+        setStep('nda')
         return
       }
 
@@ -443,11 +450,6 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         const refreshed = await fetchSignerData(token)
         if (refreshed) {
           setSignerData(refreshed as any)
-          // BLOCKER 2: Check if NDA is required after OTP verification
-          if ((refreshed as any).require_nda && !(refreshed as any).nda_accepted) {
-            setStep('nda')
-            return
-          }
         }
       }
       setStep('viewing')
@@ -499,8 +501,13 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         console.warn('log-ecox-event (nda_accepted) failed', err)
       }
 
-      // Move to document viewing
-      setStep('viewing')
+      // BLOCKER 2: NDA precedes OTP. If OTP not verified yet, go to OTP step.
+      if (signerData.otp_verified) {
+        setStep('viewing')
+      } else {
+        setStep('otp')
+        await sendOtp()
+      }
     } catch (err) {
       console.error('Error in handleNDAAccept:', err)
       setError('Error procesando la aceptación del NDA')

@@ -1,5 +1,16 @@
 -- Fix log_ecox_event return type to BIGINT (matches ecox_audit_trail.id)
 
+DROP FUNCTION IF EXISTS public.log_ecox_event(
+    UUID,
+    UUID,
+    TEXT,
+    INET,
+    TEXT,
+    JSONB,
+    JSONB,
+    TEXT
+);
+
 CREATE OR REPLACE FUNCTION public.log_ecox_event(
     p_workflow_id UUID,
     p_signer_id UUID,

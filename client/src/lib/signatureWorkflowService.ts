@@ -32,6 +32,8 @@ type StartWorkflowParams = {
   documentEntityId?: string;
   signatureType?: 'ECOSIGN' | 'SIGNNOW';
   deliveryMode?: 'email' | 'link';
+  ndaText?: string | null;
+  ndaEnabled?: boolean;
   signers: WorkflowSigner[];
   forensicConfig?: ForensicConfig;
 };
@@ -89,6 +91,8 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
         documentEntityId,
         signatureType,
         deliveryMode,
+        ndaText,
+        ndaEnabled,
         signers,
         forensicConfig
       }

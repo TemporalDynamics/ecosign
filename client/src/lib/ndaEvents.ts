@@ -26,7 +26,6 @@ export interface NdaAcceptanceMetadata {
   signerId?: string;            // Para signature-flow
   context: NdaContext;
   ndaText: string;
-  ndaVersion?: string;
   signerName: string;
   signerEmail: string;
   browserFingerprint?: string;
@@ -108,7 +107,6 @@ export async function acceptShareLinkNda(
           token: metadata.token,
           signer_name: metadata.signerName,
           signer_email: metadata.signerEmail,
-          nda_version: metadata.ndaVersion || '1.0',
           browser_fingerprint: metadata.browserFingerprint,
         },
       });
@@ -251,7 +249,6 @@ export function generateNdaContent(metadata: NdaAcceptanceMetadata): string {
     signer_name: metadata.signerName,
     signer_email: metadata.signerEmail,
     nda_text: metadata.ndaText,
-    nda_version: metadata.ndaVersion || '1.0',
     context: metadata.context,
     timestamp: new Date().toISOString(),
   });

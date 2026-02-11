@@ -26,6 +26,8 @@ interface StartWorkflowRequest {
   originalFilename: string
   documentEntityId?: string
   signatureType?: 'ECOSIGN' | 'SIGNNOW'
+  ndaText?: string | null
+  ndaEnabled?: boolean
   signers: Signer[]
   forensicConfig: {
     rfc3161: boolean
@@ -120,6 +122,8 @@ serve(withRateLimit('workflow', async (req) => {
       originalFilename,
       documentEntityId,
       signatureType,
+      ndaText,
+      ndaEnabled,
       signers,
       forensicConfig,
       deliveryMode = 'email' // Default to email for backwards compatibility
@@ -236,6 +240,26 @@ serve(withRateLimit('workflow', async (req) => {
       console.warn('shadow log insert failed (D13)', logError)
     }
 
+    const requiresNda = ndaEnabled === true
+      ? true
+      : ndaEnabled === false
+      ? false
+      : signers.some((s) => s.requireNda === true);
+    const trimmedNda = typeof ndaText === 'string' ? ndaText.trim() : '';
+    if (requiresNda && !trimmedNda) {
+      return jsonResponse(
+        { error: 'NDA required but missing ndaText' },
+        400
+      )
+    }
+
+    if (trimmedNda.length > 10000) {
+      return jsonResponse(
+        { error: 'NDA text too long (max 10000 chars)' },
+        400
+      )
+    }
+
     const documentPath = extractStoragePath(documentUrl)
 
     const workflowPayload = {
@@ -246,6 +270,7 @@ serve(withRateLimit('workflow', async (req) => {
       document_hash: documentHash,
       status: 'active',
       forensic_config: forensicConfig,
+      nda_text: trimmedNda || null,
       delivery_mode: deliveryMode, // 'email' or 'link' - immutable after creation
       ...(signatureType ? { signature_type: signatureType } : {}),
       ...(documentEntityId ? { document_entity_id: documentEntityId } : {})
@@ -297,7 +322,7 @@ serve(withRateLimit('workflow', async (req) => {
 
       const quickAccess = signer.quickAccess ?? false
       const requireLogin = quickAccess ? false : (signer.requireLogin ?? true)
-      const requireNda = quickAccess ? false : (signer.requireNda ?? true)
+      const requireNda = quickAccess ? false : (signer.requireNda === true)
 
       const signerRecord = {
         workflow_id: workflow.id,

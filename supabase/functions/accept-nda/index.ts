@@ -9,6 +9,7 @@ import { getCorsHeaders } from '../_shared/cors.ts'
 import { parseJsonBody } from '../_shared/validation.ts'
 import { AcceptNdaSchema } from '../_shared/schemas.ts'
 import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
+import { resolveNdaTemplateMetadata } from '../_shared/nda/text.ts'
 
 serve(withRateLimit('accept', async (req) => {
   const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined)
@@ -40,7 +41,6 @@ serve(withRateLimit('accept', async (req) => {
       token,
       signer_name,
       signer_email,
-      nda_version = '1.0',
       browser_fingerprint
     } = body
 
@@ -149,7 +149,6 @@ serve(withRateLimit('accept', async (req) => {
       recipient_id: recipient.id,
       signer_name,
       signer_email,
-      nda_version,
       nda_text: ndaText || null,
       timestamp: new Date().toISOString(),
       ip_address: ipAddress,
@@ -164,15 +163,18 @@ serve(withRateLimit('accept', async (req) => {
       .join('')
 
     // Create signature data object (for legal audit trail)
+    const templateMeta = resolveNdaTemplateMetadata(ndaText || '')
     const signatureData = {
       signer_name,
       signer_email,
-      nda_version,
       acceptance_timestamp: new Date().toISOString(),
       browser_fingerprint: browser_fingerprint || null,
       consent_text: 'I acknowledge that I have read and agree to be bound by the terms of this Non-Disclosure Agreement.',
       legal_text_hash: ndaHash,
-      nda_text: ndaText || null
+      nda_text: ndaText || null,
+      nda_source: templateMeta.nda_source,
+      template_id: templateMeta.template_id,
+      template_version: templateMeta.template_version
     }
 
     // Insert NDA acceptance record
@@ -226,7 +228,9 @@ serve(withRateLimit('accept', async (req) => {
               recipient_email: signer_email,
               signer_name,
               nda_hash: ndaHash,
-              nda_version,
+              nda_source: templateMeta.nda_source,
+              template_id: templateMeta.template_id,
+              template_version: templateMeta.template_version,
               acceptance_method: 'checkbox'
             },
             context: {

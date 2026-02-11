@@ -91,6 +91,7 @@ interface SignerData {
     signnow_embed_url?: string | null
     owner_email?: string | null
     owner_name?: string | null
+    nda_text?: string | null
   }
 }
 
@@ -496,8 +497,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       const { data, error } = await supabase.functions.invoke('accept-workflow-nda', {
         body: {
           signer_id: signerData.signer_id,
-          signer_email: signerData.email,
-          nda_version: 'v1'
+          signer_email: signerData.email
         }
       })
 
@@ -818,6 +818,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         {step === 'nda' && signerData && (
           <NDAAcceptance
             workflow={signerData.workflow}
+            ndaText={signerData.workflow.nda_text || ''}
             onAccept={handleNDAAccept}
           />
         )}

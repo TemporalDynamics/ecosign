@@ -140,14 +140,18 @@ const assertCustodyConsistency = (input: SourceTruthInput) => {
 const isDuplicateError = (error: any) => {
   if (!error) return false;
   const code = String(error.code || '').trim();
+  const status = Number(error.status || error.statusCode || 0);
   if (code === '23505') return true;
+  if (code === '409' || status === 409) return true;
   const message = String(error.message || '');
   const details = String(error.details || '');
   return (
     message.includes('duplicate key') ||
     message.includes('23505') ||
+    message.toLowerCase().includes('conflict') ||
     details.includes('duplicate key') ||
-    details.includes('23505')
+    details.includes('23505') ||
+    details.toLowerCase().includes('conflict')
   );
 };
 
@@ -238,6 +242,20 @@ export const createSourceTruth = async (input: SourceTruthInput) => {
     witness_history: [],
   };
 
+  const { data: existing, error: existingError, status: existingStatus } = await supabase
+    .from('document_entities')
+    .select('*')
+    .eq('owner_id', authData.user.id)
+    .eq('source_hash', input.hash)
+    .maybeSingle();
+
+  if (!existingError && existing) {
+    return existing;
+  }
+  if (existingError && existingStatus !== 406) {
+    throw new Error(existingError.message || 'Failed to lookup document_entities');
+  }
+
   const { data, error } = await supabase
     .from('document_entities')
     .insert(payload)
@@ -246,15 +264,18 @@ export const createSourceTruth = async (input: SourceTruthInput) => {
 
   if (error) {
     if (isDuplicateError(error)) {
-      const { data: existing, error: existingError } = await supabase
+      const { data: duplicateExisting, error: duplicateError, status: duplicateStatus } = await supabase
         .from('document_entities')
         .select('*')
         .eq('owner_id', authData.user.id)
         .eq('source_hash', input.hash)
-        .single();
+        .maybeSingle();
 
-      if (!existingError && existing) {
-        return existing;
+      if (!duplicateError && duplicateExisting) {
+        return duplicateExisting;
+      }
+      if (duplicateError && duplicateStatus !== 406) {
+        throw new Error(duplicateError.message || 'Failed to lookup document_entities');
       }
     }
     throw new Error(error.message || 'Failed to create document_entities');

@@ -50,10 +50,10 @@ import {
   ProtectionInfoModal,
   ProtectionWarningModal
 } from '../centro-legal/modules/protection';
-import { MySignatureToggle, SignatureModal } from '../centro-legal/modules/signature';
+import { MySignatureToggle } from '../centro-legal/modules/signature';
 import { SignatureFlowToggle } from '../centro-legal/modules/flow';
 import { SignerFieldsWizard } from '../centro-legal/modules/flow/SignerFieldsWizard';
-import { NdaToggle, NdaPanel } from '../centro-legal/modules/nda';
+import { NdaToggle, NdaPanel, NDA_COPY } from '../centro-legal/modules/nda';
 import { reorderFieldsBySignerBatches } from '../lib/workflowFieldTemplate';
 
 // PASO 3.3: Layout y scenes
@@ -226,24 +226,10 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [modeConfirmation, setModeConfirmation] = useState('');
   
   // NDA editable (panel izquierdo)
-  const [ndaText, setNdaText] = useState<string>(`ACUERDO DE CONFIDENCIALIDAD (NDA)
-
-Este documento contiene información confidencial. Al acceder, usted acepta:
-
-1. CONFIDENCIALIDAD
-Mantener la información en estricta confidencialidad y no divulgarla a terceros sin autorización previa por escrito.
-
-2. USO LIMITADO
-Utilizar la información únicamente para los fines acordados.
-
-3. PROTECCIÓN
-Implementar medidas de seguridad razonables para proteger la información confidencial.
-
-4. DEVOLUCIÓN
-Devolver o destruir toda la información confidencial cuando se solicite.
-
-5. DURACIÓN
-Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
+  const [ndaText, setNdaText] = useState<string>(NDA_COPY.EMPTY_MESSAGE);
+  const [ndaDefined, setNdaDefined] = useState(false);
+  const [ndaDirty, setNdaDirty] = useState(false);
+  const [ndaSavedText, setNdaSavedText] = useState<string | null>(null);
   
   const [emailInputs, setEmailInputs] = useState<EmailInput[]>([
     { email: '', name: '', requireLogin: true, requireNda: true }
@@ -465,6 +451,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     }, 0);
   };
 
+  const openMySignatureWizard = () => {
+    if (!ownerEmail) {
+      showToast('Necesitás iniciar sesión para firmar tu documento.', { type: 'error' });
+      return;
+    }
+    setShowSignerFieldsWizard(true);
+  };
+
   // Handlers para el modal de bienvenida
   const handleWelcomeAccept = () => {
     setShowWelcomeModal(false);
@@ -649,18 +643,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       duration: 4000
     });
 
-    // CONSTITUCIÓN: Abrir modal de firma automáticamente si corresponde
+    // CONSTITUCIÓN: Abrir wizard de campos si corresponde (Mi firma)
     if (initialAction === 'sign' || mySignature) {
       setIsCanvasLocked(false);
-      setShowSignatureOnPreview(true);
+      openMySignatureWizard();
 
-      showToast('Vas a poder firmar directamente sobre el documento.', {
+      showToast('Configurá los campos antes de firmar.', {
         icon: '✍️',
         position: 'top-right',
         duration: 3000
       });
     }
-  }, [forensicEnabled, initialAction, mySignature, showToast]);
+  }, [forensicEnabled, initialAction, mySignature, showToast, openMySignatureWizard]);
 
   const applySelectedFile = useCallback(async (selectedFile: File, opts?: { resetInput?: () => void }) => {
     // Detectar si es un PDF encriptado
@@ -1205,7 +1199,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         name: input.name?.trim() || undefined,
         signingOrder: validSigners.length + 1,
         requireLogin: input.requireLogin,
-        requireNda: input.requireNda,
+        requireNda: ndaEnabled ? true : false,
         quickAccess: false
       });
     });
@@ -1238,7 +1232,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         return;
       }
       if (signatureFields.length === 0) {
-        openSignerFieldsWizard();
+        openMySignatureWizard();
         return;
       }
     }
@@ -1304,6 +1298,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
     handleCertify();
   };
 
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`${label} timeout`));
+      }, ms);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
+
   const handleCertify = async () => {
     if (!file) return;
     if (!file.type?.toLowerCase().includes('pdf')) {
@@ -1313,16 +1321,16 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       return;
     }
 
-    // Validar que si "Mi Firma" está activa, debe existir firma
-    if (mySignature && !userHasSignature) {
-      toast.error('Debés aplicar tu firma antes de certificar el documento. Hacé clic en "Mi Firma" y dibujá tu firma.', {
+    // Validar que si "Mi Firma" está activa, debe existir configuración de campos
+    if (mySignature && signatureFields.length === 0) {
+      toast.error('Debés configurar los campos antes de firmar. Hacé clic en "Mi Firma" y usá el wizard.', {
         position: 'bottom-right'
       });
       return;
     }
 
     // Validar que si "Mi Firma" está activa, debe elegir tipo de firma
-    if (mySignature && userHasSignature && !signatureType) {
+    if (mySignature && signatureFields.length > 0 && !signatureType) {
       toast.error('Elegí el tipo de firma para continuar.', {
         position: 'bottom-right'
       });
@@ -1383,12 +1391,21 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
     // FASE 3.C: Timeout tracking (P0.6)
     let timeoutWarning: ReturnType<typeof setTimeout> | null = null;
+    let watchdog: ReturnType<typeof setTimeout> | null = null;
 
     // FASE 3.A: Show progress (P0.5)
     setCertifyProgress({
       stage: 'preparing',
-      message: ''
+      message: 'Iniciando protección...'
     });
+    watchdog = setTimeout(() => {
+      setCertifyProgress({
+        stage: 'preparing',
+        message: '',
+        error: 'La operación tardó demasiado. Por favor, reintentá.',
+        workSaved: false
+      });
+    }, 25000);
 
     try {
       if (isGuestMode()) {
@@ -1413,14 +1430,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         const sourceHash = await hashSource(file);
         canonicalSourceHash = sourceHash;
 
-        const tempCreated = await createSourceTruth({
+        setCertifyProgress({ stage: 'preparing', message: 'Creando entidad canónica...' });
+        const tempCreated = await withTimeout(createSourceTruth({
           name: file.name,
           mime_type: file.type || 'application/pdf',
           size_bytes: file.size,
           hash: sourceHash,
           custody_mode: 'hash_only',
           storage_path: null
-        });
+        }), 20000, 'createSourceTruth');
         canonicalDocumentId = tempCreated.id as string;
 
         if (!canonicalDocumentId) {
@@ -1435,7 +1453,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             stage: 'preparing',
             message: 'Cifrando archivo original...'
           });
-          const storagePath = await storeEncryptedCustody(file, canonicalDocumentId);
+          setCertifyProgress({ stage: 'preparing', message: 'Cifrando archivo original...' });
+          const storagePath = await withTimeout(
+            storeEncryptedCustody(file, canonicalDocumentId),
+            20000,
+            'storeEncryptedCustody'
+          );
 
           const { error: updateError } = await supabase
             .from('document_entities')
@@ -1490,7 +1513,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         }
 
         if (signatureFields.length === 0) {
-          openSignerFieldsWizard();
+          openMySignatureWizard();
           setLoading(false);
           return;
         }
@@ -1502,7 +1525,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           signingOrder: 1,
           quickAccess: true,
           requireLogin: false,
-          requireNda: false
+          requireNda: ndaEnabled
         };
 
         const selfFields = signatureFields.map((f) => ({
@@ -1573,9 +1596,14 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           return;
         }
 
-        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        setCertifyProgress({ stage: 'preparing', message: 'Generando enlace seguro...' });
+        const { data: signedUrlData, error: signedUrlError } = await withTimeout(
+          supabase.storage
           .from('user-documents')
-          .createSignedUrl(storagePath, 60 * 60 * 24 * 30);
+          .createSignedUrl(storagePath, 60 * 60 * 24 * 30),
+          20000,
+          'createSignedUrl'
+        );
 
         if (signedUrlError || !signedUrlData?.signedUrl) {
           console.error('Error generando signed URL (Mi firma):', signedUrlError);
@@ -1632,20 +1660,23 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
         try {
           setIsCanvasLocked(true);
-          const workflowResult = await startSignatureWorkflow({
+          setCertifyProgress({ stage: 'preparing', message: 'Iniciando flujo de firma...' });
+          const workflowResult = await withTimeout(startSignatureWorkflow({
             documentUrl: signedUrlData.signedUrl,
             documentHash,
             originalFilename: file.name,
             documentEntityId: canonicalDocumentId || undefined,
             signatureType: signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN',
             deliveryMode: 'link',
+            ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
+            ndaEnabled,
             signers: [selfSigner],
             forensicConfig: {
               rfc3161: forensicEnabled && forensicConfig.useLegalTimestamp,
               polygon: forensicEnabled && forensicConfig.usePolygonAnchor,
               bitcoin: forensicEnabled && forensicConfig.useBitcoinAnchor
             }
-          });
+          }), 20000, 'startSignatureWorkflow');
 
           const signUrl = workflowResult?.firstSignerUrl as string | null;
           if (signUrl) {
@@ -1661,6 +1692,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
           }
 
           showToast('No se pudo abrir el flujo de firma. Intentá nuevamente.', { type: 'error' });
+          throw new Error('missing_first_signer_url');
         } catch (workflowError) {
           console.error('❌ Error al iniciar workflow (Mi firma):', workflowError);
           const errorMessage =
@@ -1891,7 +1923,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
         try {
           // P2.1 - bloquear canvas para evitar mutaciones mientras se inicia el workflow
           setIsCanvasLocked(true);
-          const workflowResult = await startSignatureWorkflow({
+          setCertifyProgress({ stage: 'preparing', message: 'Iniciando flujo de firma...' });
+          const workflowResult = await withTimeout(startSignatureWorkflow({
             documentUrl: signedUrlData.signedUrl,
             documentHash,
             originalFilename: file.name,
@@ -1899,13 +1932,15 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
             signatureType: signatureType
               ? (signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN')
               : undefined,
+            ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
+            ndaEnabled,
             signers: validSigners,
             forensicConfig: {
               rfc3161: forensicEnabled && forensicConfig.useLegalTimestamp,
               polygon: forensicEnabled && forensicConfig.usePolygonAnchor,
               bitcoin: forensicEnabled && forensicConfig.useBitcoinAnchor
             }
-          });
+          }), 20000, 'startSignatureWorkflow');
 
           console.log('✅ Workflow iniciado:', workflowResult);
           showToast(`Invitaciones enviadas a ${validSigners.length} firmante(s). Revisá tu email para el seguimiento.`, {
@@ -2504,6 +2539,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       // Note: Error display now handled by CertifyProgress component
       // which will show error, work saved status, and retry button (FASE 3.C)
     } finally {
+      if (watchdog) clearTimeout(watchdog);
       setLoading(false);
       // Note: Don't reset certifyProgress here if there's an error
       // The modal needs to stay visible to show the error state
@@ -2845,7 +2881,7 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
   const getCTAText = () => {
     const actions = ['Proteger']; // Siempre presente (certificación default)
 
-    if (mySignature && userHasSignature && signatureType) {
+    if (mySignature && signatureFields.length > 0 && signatureType) {
       actions.push('firmar');
     }
 
@@ -2874,9 +2910,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
 
     // Si "Mi Firma" activa: debe tener firma Y tipo elegido
     if (mySignature) {
-      if (!userHasSignature) return false;
-      if (!signatureType) return false;
       if (signatureFields.length === 0) return false;
+      if (!signatureType) return false;
     }
 
     // Si "Flujo" activo: debe tener ≥1 mail VÁLIDO, ≥1 campo, y confirmación explícita.
@@ -2886,7 +2921,12 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
       if (!workflowAssignmentConfirmed) return false;
     }
 
-    // NDA nunca bloquea
+    // NDA: requiere NDA guardado explícitamente
+    if (ndaEnabled) {
+      const trimmed = ndaText.trim();
+      if (!trimmed || trimmed === NDA_COPY.EMPTY_MESSAGE.trim()) return false;
+      if (!ndaDefined || ndaDirty) return false;
+    }
 
     return true;
   };
@@ -3716,10 +3756,10 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                             <p className="text-sm font-medium text-gray-900 truncate">
                               {file.name}
                             </p>
-                            {userHasSignature && (
+                            {signatureFields.length > 0 && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                 <CheckCircle2 className="w-3 h-3" />
-                                Firmado
+                                Campos listos
                               </span>
                             )}
                           </div>
@@ -4353,7 +4393,11 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                     <div className="flex-1 overflow-y-auto p-6">
                       <textarea
                         value={ndaText}
-                        onChange={(e) => setNdaText(e.target.value)}
+                        onChange={(e) => {
+                          setNdaText(e.target.value);
+                          setNdaDefined(false);
+                          setNdaDirty(true);
+                        }}
                         className="w-full h-full min-h-[60vh] p-4 text-sm text-gray-800 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-gray-900"
                         placeholder="Escribí aquí el texto del NDA..."
                       />
@@ -4373,6 +4417,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       setNdaEnabled(next);
                       if (next) {
                         setNdaPanelOpen(true);
+                        const hasSaved = ndaSavedText !== null && ndaSavedText === ndaText;
+                        setNdaDefined(hasSaved);
+                        setNdaDirty(!hasSaved);
                       } else {
                         setNdaPanelOpen(false);
                       }
@@ -4426,11 +4473,20 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                   <MySignatureToggle
                     enabled={mySignature}
                     onToggle={(newState) => {
-                      setMySignature(newState);
-                      if (newState && file) {
+                      if (newState) {
+                        if (!ownerEmail) {
+                          showToast('Necesitás iniciar sesión para firmar tu documento.', { type: 'error' });
+                          setMySignature(false);
+                          return;
+                        }
+                        setMySignature(true);
+                        setWorkflowEnabled(false);
+                        setFlowPanelOpen(false);
                         setIsCanvasLocked(false);
-                        setShowSignatureOnPreview(true);
+                        openMySignatureWizard();
+                        return;
                       }
+                      setMySignature(false);
                     }}
                     disabled={!file}
                     hasFile={!!file}
@@ -4463,7 +4519,9 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                       >
                         <span>NDA</span>
                         <span className="flex items-center gap-2 text-xs text-gray-500">
-                          {!ndaAccordionOpen && <span className="text-green-700">NDA aceptado ✓</span>}
+                          {!ndaAccordionOpen && ndaDefined && !ndaDirty && (
+                            <span className="text-green-700">NDA guardado ✓</span>
+                          )}
                           {ndaAccordionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </span>
                       </button>
@@ -4474,10 +4532,36 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                           </p>
                           <textarea
                             value={ndaText}
-                            onChange={(e) => setNdaText(e.target.value)}
+                            onChange={(e) => {
+                              setNdaText(e.target.value);
+                              setNdaDefined(false);
+                              setNdaDirty(true);
+                            }}
                             className="w-full h-64 px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none font-mono"
                             placeholder="Escribí aquí el texto del NDA..."
                           />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const trimmed = ndaText.trim();
+                              if (!trimmed || trimmed === NDA_COPY.EMPTY_MESSAGE.trim()) {
+                                showToast('El NDA no puede estar vacío.', { type: 'error' });
+                                return;
+                              }
+                              setNdaSavedText(ndaText);
+                              setNdaDefined(true);
+                              setNdaDirty(false);
+                              showToast('NDA guardado.', { type: 'success', duration: 2000 });
+                            }}
+                            disabled={!ndaDirty || !ndaText.trim() || ndaText.trim() === NDA_COPY.EMPTY_MESSAGE.trim()}
+                            className={`mt-3 w-full py-2 px-3 rounded text-xs font-medium transition ${
+                              !ndaDirty || !ndaText.trim() || ndaText.trim() === NDA_COPY.EMPTY_MESSAGE.trim()
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : 'bg-gray-900 text-white hover:bg-gray-800'
+                            }`}
+                          >
+                            Guardar NDA
+                          </button>
                         </div>
                       )}
                     </div>
@@ -4590,8 +4674,8 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
                 </div>
               )}
 
-              {/* Tipo de Firma - Solo si hay firma aplicada o workflow SIN mi firma */}
-              {documentLoaded && ((mySignature && userHasSignature) || (workflowEnabled && !mySignature)) && !isFocusMode && (
+              {/* Tipo de Firma - Solo si hay campos listos (Mi firma) o workflow SIN mi firma */}
+              {documentLoaded && ((mySignature && signatureFields.length > 0) || (workflowEnabled && !mySignature)) && !isFocusMode && (
               <div className="space-y-2 animate-fadeScaleIn">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* Firma Legal */}
@@ -4708,10 +4792,19 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               <NdaPanel
                 isOpen={ndaPanelOpen}
                 documentId={undefined}
+                content={ndaText}
+                onContentChange={(next) => {
+                  setNdaText(next);
+                  setNdaDefined(false);
+                  setNdaDirty(true);
+                }}
                 onFocus={() => setFocusView('nda')}
                 onClose={() => setNdaPanelOpen(false)}
                 onSave={(ndaData) => {
                   setNdaText(ndaData.content);
+                  setNdaSavedText(ndaData.content);
+                  setNdaDefined(true);
+                  setNdaDirty(false);
                   console.log('NDA saved:', ndaData);
                 }}
               />
@@ -4982,9 +5075,18 @@ Este acuerdo permanece vigente por 5 años desde la fecha de firma.`);
               <NdaPanel
                 isOpen={ndaEnabled}
                 documentId={undefined}
+                content={ndaText}
+                onContentChange={(next) => {
+                  setNdaText(next);
+                  setNdaDefined(false);
+                  setNdaDirty(true);
+                }}
                 onClose={() => setNdaEnabled(false)}
                 onSave={(ndaData) => {
                   setNdaText(ndaData.content);
+                  setNdaSavedText(ndaData.content);
+                  setNdaDefined(true);
+                  setNdaDirty(false);
                   console.log('NDA saved:', ndaData);
                 }}
               />

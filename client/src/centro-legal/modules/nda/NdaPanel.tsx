@@ -19,7 +19,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, FileText, Maximize2, Upload } from 'lucide-react';
+import { ChevronLeft, FileText, Maximize2, Upload, X } from 'lucide-react';
 import { NDA_COPY } from './nda.copy';
 
 type NdaSource = 'template' | 'pasted' | 'uploaded';
@@ -47,10 +47,11 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
   onFocus,
   onSave,
 }) => {
-  const [content, setContent] = useState(controlledContent ?? NDA_COPY.DEFAULT_TEMPLATE);
+  const [content, setContent] = useState(controlledContent ?? NDA_COPY.EMPTY_MESSAGE);
   const [source, setSource] = useState<NdaSource>('template');
   const [fileName, setFileName] = useState<string | undefined>();
   const [isDirty, setIsDirty] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   useEffect(() => {
     if (controlledContent !== undefined) {
@@ -90,16 +91,20 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
     if (file.type === 'text/plain') {
       reader.readAsText(file);
     } else {
-      // Para PDF/DOC, por ahora guardamos el nombre
-      // En una implementación completa, usaríamos una librería de parsing
+      // Para PDF/DOC, mostramos referencia del archivo en el canvas
+      const placeholder = `ARCHIVO NDA CARGADO: ${file.name}
+
+Este acuerdo fue cargado como archivo. Si querés editarlo o pegar el texto,
+podés reemplazar este contenido.`;
+      applyContentChange(placeholder);
       setFileName(file.name);
       setSource('uploaded');
-      setIsDirty(true);
     }
   };
 
   const handleSave = () => {
-    if (!content.trim()) {
+    const trimmed = content.trim();
+    if (!trimmed || trimmed === NDA_COPY.EMPTY_MESSAGE.trim()) {
       alert('El NDA no puede estar vacío');
       return;
     }
@@ -147,11 +152,10 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
                 )}
                 <button
                   onClick={() => {
-                    applyContentChange(NDA_COPY.DEFAULT_TEMPLATE);
-                    setSource('template');
+                    setShowTemplatePicker(true);
                   }}
                   className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
-                  title="Usar template"
+                  title="Elegir template"
                 >
                   <FileText className="w-3.5 h-3.5" />
                 </button>
@@ -205,6 +209,43 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
           </div>
         )}
       </div>
+
+      {showTemplatePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-xl border border-gray-200">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <p className="text-sm font-semibold text-gray-900">Elegí un template</p>
+              <button
+                onClick={() => setShowTemplatePicker(false)}
+                className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition"
+                title="Cerrar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-3 space-y-2">
+              {NDA_COPY.TEMPLATES.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  onClick={() => {
+                    applyContentChange(template.content);
+                    setSource('template');
+                    setFileName(undefined);
+                    setShowTemplatePicker(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-lg border border-gray-200 hover:border-gray-900 hover:bg-gray-50 transition text-sm text-gray-900"
+                >
+                  {template.title}
+                </button>
+              ))}
+            </div>
+            <div className="px-4 pb-4 text-xs text-gray-600">
+              Podés elegir un template o escribir tu propio acuerdo.
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -17,6 +17,7 @@ import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_
 import { parseJsonBody } from '../_shared/validation.ts'
 import { AcceptShareNdaSchema } from '../_shared/schemas.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { resolveNdaTemplateMetadata } from '../_shared/nda/text.ts'
 
 async function generateNdaHash(content: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -147,6 +148,7 @@ serve(withRateLimit('accept', async (req) => {
     })
 
     const ndaHash = await generateNdaHash(ndaContent)
+    const templateMeta = resolveNdaTemplateMetadata(share.nda_text || '')
 
     // Prepare acceptance metadata
     const acceptanceMetadata = {
@@ -158,7 +160,9 @@ serve(withRateLimit('accept', async (req) => {
       user_agent: userAgent,
       browser_fingerprint: browser_fingerprint || null,
       consent_text: 'I acknowledge that I have read and agree to be bound by the terms of this Non-Disclosure Agreement.',
-      nda_version: '1.0'
+      nda_source: templateMeta.nda_source,
+      template_id: templateMeta.template_id,
+      template_version: templateMeta.template_version
     }
 
     // Update share with NDA acceptance
@@ -194,6 +198,9 @@ serve(withRateLimit('accept', async (req) => {
             share_id: share_id,
             recipient_email: signer_email,
             nda_hash: ndaHash,
+            nda_source: templateMeta.nda_source,
+            template_id: templateMeta.template_id,
+            template_version: templateMeta.template_version,
             acceptance_method: 'checkbox'
           },
           context: {

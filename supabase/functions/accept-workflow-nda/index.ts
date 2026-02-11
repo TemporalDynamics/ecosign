@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { parseJsonBody } from '../_shared/validation.ts'
 import { AcceptWorkflowNdaSchema } from '../_shared/schemas.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
-import { NDA_VERSION, NDA_V1_TEXT } from '../_shared/nda/text.ts'
+import { NDA_VERSION, normalizeNdaText, resolveNdaTemplateMetadata } from '../_shared/nda/text.ts'
 
 const computeSha256 = async (input: string): Promise<string> => {
   const data = new TextEncoder().encode(input);
@@ -53,12 +53,23 @@ serve(async (req) => {
     }
     const { signer_id, signer_email } = parsed.data
 
-    // Load canonical NDA text (embedded) and compute hash
-    const canonicalText = NDA_V1_TEXT.replace(/\r\n/g, '\n');
-    if (!canonicalText.trim()) {
-      return json({ error: 'NDA canonical text not found' }, 500);
+    const { data: workflow, error: workflowError } = await supabase
+      .from('signature_workflows')
+      .select('id, nda_text')
+      .eq('id', signer.workflow_id)
+      .single()
+
+    if (workflowError || !workflow) {
+      return json({ error: 'Workflow not found' }, 404)
     }
-    const ndaHash = await computeSha256(canonicalText);
+
+    const ndaText = normalizeNdaText(workflow.nda_text || '')
+    if (!ndaText) {
+      return json({ error: 'NDA text missing for workflow' }, 400)
+    }
+
+    const ndaHash = await computeSha256(ndaText);
+    const templateMeta = resolveNdaTemplateMetadata(ndaText);
 
     const { data: signer, error } = await supabase
       .from('workflow_signers')
@@ -97,7 +108,12 @@ serve(async (req) => {
     }
 
     if (signer.nda_accepted) {
-      return json({ success: true, alreadyAccepted: true, nda_hash: ndaHash, nda_version: NDA_VERSION })
+      return json({
+        success: true,
+        alreadyAccepted: true,
+        nda_hash: ndaHash,
+        nda_version: templateMeta.template_version ?? NDA_VERSION
+      })
     }
 
     const acceptedAt = new Date().toISOString();
@@ -123,9 +139,10 @@ serve(async (req) => {
       p_user_agent: req.headers.get('user-agent') || 'unknown',
       p_geolocation: null,
       p_details: {
-        nda_version: NDA_VERSION,
         nda_hash: ndaHash,
-        nda_source: 'embedded',
+        nda_source: templateMeta.nda_source,
+        template_id: templateMeta.template_id,
+        template_version: templateMeta.template_version,
         accepted_at: acceptedAt
       },
       p_document_hash_snapshot: null
@@ -148,7 +165,7 @@ serve(async (req) => {
     return json({
       success: true,
       nda_hash: ndaHash,
-      nda_version: NDA_VERSION,
+      nda_version: templateMeta.template_version ?? NDA_VERSION,
       accepted_at: acceptedAt
     })
   } catch (error) {

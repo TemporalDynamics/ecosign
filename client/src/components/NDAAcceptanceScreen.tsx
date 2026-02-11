@@ -55,7 +55,6 @@ export function NDAAcceptanceScreen({
         signerId,
         context,
         ndaText,
-        ndaVersion: '1.0',
         signerName,
         signerEmail,
         linkId,

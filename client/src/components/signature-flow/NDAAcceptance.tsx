@@ -6,18 +6,19 @@
 
 import { useState } from 'react'
 import { Check, Shield } from 'lucide-react'
-import { NDA_COPY } from '@/centro-legal/modules/nda'
 
 interface NDAAcceptanceProps {
   workflow: {
     title: string
   }
+  ndaText: string
   onAccept: () => void
 }
 
-export default function NDAAcceptance({ workflow, onAccept }: NDAAcceptanceProps) {
+export default function NDAAcceptance({ workflow, ndaText, onAccept }: NDAAcceptanceProps) {
   const [accepted, setAccepted] = useState(false)
   const [scrolledToBottom, setScrolledToBottom] = useState(false)
+  const ndaContent = ndaText
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement
@@ -51,20 +52,26 @@ export default function NDAAcceptance({ workflow, onAccept }: NDAAcceptanceProps
 
         {/* NDA Content */}
         <div className="mb-8 rounded-lg bg-white p-8 shadow-md">
-          <div
-            className="prose max-h-96 overflow-y-auto pr-4"
-            onScroll={handleScroll}
-          >
-            <pre className="whitespace-pre-wrap text-sm text-gray-800">
-              {NDA_COPY.DEFAULT_TEMPLATE}
-            </pre>
+          {!ndaContent.trim() ? (
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+              No se encontró el texto del NDA para este flujo. No podés continuar.
+            </div>
+          ) : (
+            <div
+              className="prose max-h-96 overflow-y-auto pr-4"
+              onScroll={handleScroll}
+            >
+              <pre className="whitespace-pre-wrap text-sm text-gray-800">
+                {ndaContent}
+              </pre>
 
-            {!scrolledToBottom && (
-              <div className="mt-4 text-center text-sm text-gray-500">
-                ↓ Desplázate hasta el final para continuar ↓
-              </div>
-            )}
-          </div>
+              {!scrolledToBottom && (
+                <div className="mt-4 text-center text-sm text-gray-500">
+                  ↓ Desplázate hasta el final para continuar ↓
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Acceptance Checkbox */}
@@ -87,7 +94,7 @@ export default function NDAAcceptance({ workflow, onAccept }: NDAAcceptanceProps
         {/* Continue Button */}
         <button
           onClick={handleAccept}
-          disabled={!accepted || !scrolledToBottom}
+          disabled={!accepted || !scrolledToBottom || !ndaContent.trim()}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-4 text-lg font-semibold text-white shadow-md transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           {accepted && scrolledToBottom ? (

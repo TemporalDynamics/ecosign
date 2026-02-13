@@ -585,8 +585,9 @@ serve(withRateLimit('workflow', async (req) => {
               <p style="margin:0 0 16px;font-weight:600;color:#0f172a;">${originalFilename}</p>
               <p style="margin:0 0 16px;color:#334155;">EcoSign certifica tu firma con trazabilidad completa y te entrega una copia segura, para que siempre tengas tu propia evidencia.</p>
               <p style="margin:16px 0;">
-                <a href="${signLink}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Ver y Firmar Documento</a>
+                <a href="${signLink}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Ver Documento</a>
               </p>
+              <p style="margin:8px 0 0;color:#64748b;font-size:12px;">Al ingresar podés elegir firmar o rechazar el documento.</p>
               <p style="margin:0 0 12px;color:#64748b;font-size:12px;">Link válido hasta: ${expiresDate.toLocaleDateString('es-AR')}</p>
               <p style="margin:16px 0 0;color:#0f172a;font-weight:600;">EcoSign. Transparencia que acompaña.</p>
               <p style="margin:8px 0 0;color:#94a3b8;font-size:12px;">Este enlace es personal e intransferible. Todas las acciones quedan registradas por seguridad.</p>

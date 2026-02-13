@@ -639,7 +639,8 @@ serve(async (req) => {
               <p>Es tu turno de firmar el documento: <strong>${workflow.original_filename}</strong></p>
               <p>Firmantes anteriores: ${signer.signing_order}/${workflow.signers_count || 'varios'}</p>
               <p>Este documento cuenta con certificación forense completa.</p>
-              <p><a href="${nextSignerUrl}">Ver y Firmar Documento</a></p>
+              <p><a href="${nextSignerUrl}">Ver Documento</a></p>
+              <p>Al ingresar podés elegir firmar o rechazar el documento.</p>
             `,
             delivery_status: 'pending'
           })

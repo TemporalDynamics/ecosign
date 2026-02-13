@@ -45,10 +45,10 @@ type WorkflowArtifact = {
 const statusStyles: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',
   ready: 'bg-slate-100 text-slate-800',
-  active: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
-  rejected: 'bg-amber-100 text-amber-800',
+  active: 'bg-green-100 text-green-800',
+  completed: 'bg-gray-100 text-gray-800',
+  cancelled: 'bg-gray-100 text-gray-800',
+  rejected: 'bg-gray-100 text-gray-800',
   archived: 'bg-gray-100 text-gray-700'
 }
 

@@ -18,6 +18,7 @@ const CANONICAL_EVENT_TYPES = new Set([
   'document.change_resolved',
   'document.decrypted',
   'signature.applied',
+  'signature.capture.consent',
   'fields.schema.committed',
   'signature.state.committed',
   'eco.snapshot.issued'
@@ -41,6 +42,7 @@ export type CanonicalEventType =
   | 'document.change_resolved'
   | 'document.decrypted'
   | 'signature.applied'
+  | 'signature.capture.consent'
   | 'fields.schema.committed'
   | 'signature.state.committed'
   | 'eco.snapshot.issued';

@@ -58,6 +58,7 @@ export const CANONICAL_EVENT_TYPES = [
   'document.change_resolved',
   'document.decrypted',
   'signature.applied',
+  'signature.capture.consent',
   'fields.schema.committed',
   'signature.state.committed',
   'eco.snapshot.issued',

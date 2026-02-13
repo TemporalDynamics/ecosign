@@ -7,6 +7,8 @@ Objetivo: validar coherencia semántica antes de Canary.
 - `signer.rejected` y `workflow_signers.status='rejected'` deben coincidir.
 - No puede existir más de un `workflow.completed` por workflow.
 - Si `workflow.status != active`, no se permite acceso/firma de signers.
+- `workflow.cancelled` solo puede emitirse desde `workflow.status='active'`.
+- No se permite transición `completed -> cancelled` ni `completed -> rejected`.
 
 ## Escenario 1: Firma simple 1/1
 1. Crear workflow con 1 firmante.

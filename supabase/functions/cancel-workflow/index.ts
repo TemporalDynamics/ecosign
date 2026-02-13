@@ -63,7 +63,7 @@ serve(async (req) => {
     const legacyDecision = Boolean(
       workflow &&
       workflow.owner_id === user.id &&
-      !['completed', 'cancelled', 'archived'].includes(workflow.status)
+      workflow.status === 'active'
     )
     const canonicalDecision = shouldCancelWorkflow({
       actor_id: user.id,
@@ -101,8 +101,8 @@ serve(async (req) => {
       return jsonResponse({ error: 'Forbidden' }, 403, corsHeaders)
     }
 
-    if (['completed', 'cancelled', 'archived'].includes(workflow.status)) {
-      return jsonResponse({ error: 'Workflow cannot be cancelled' }, 400, corsHeaders)
+    if (workflow.status !== 'active') {
+      return jsonResponse({ error: `Workflow cannot be cancelled from status=${workflow.status}` }, 400, corsHeaders)
     }
 
     const { error: updateError } = await supabase

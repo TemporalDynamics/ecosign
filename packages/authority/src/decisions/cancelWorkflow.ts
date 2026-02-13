@@ -20,7 +20,7 @@ export interface CancelWorkflowInput {
  * - Actor debe existir
  * - Workflow debe existir
  * - Actor debe ser owner
- * - Workflow no debe estar en estado terminal
+ * - Workflow debe estar en estado `active`
  *
  * @param input - Parámetros de la decisión
  * @returns true si se puede cancelar, false en caso contrario
@@ -29,7 +29,7 @@ export function shouldCancelWorkflow(input: CancelWorkflowInput): boolean {
   if (!input.actor_id) return false;
   if (!input.workflow) return false;
   if (input.workflow.owner_id !== input.actor_id) return false;
-  if (['completed', 'cancelled', 'archived', 'expired'].includes(input.workflow.status)) {
+  if (input.workflow.status !== 'active') {
     return false;
   }
   return true;

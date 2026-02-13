@@ -1383,9 +1383,61 @@ serve(async (req) => {
       console.warn('apply-signer-signature: next signer notification failed (best-effort)', notifErr)
     }
 
-    // If there is no next signer, enqueue workflow_completed_simple for owner + signers.
+    // If there is no next signer, force terminal workflow status (defensive)
+    // and enqueue workflow_completed_simple for owner + signers.
     if (!nextSignerRecord) {
       isLastSigner = true
+      const completedAt = new Date().toISOString()
+      try {
+        // Defensive completion: advance_workflow() is best-effort above; this guarantees
+        // workflow.status does not remain "active" after the final signer.
+        const { data: wfAfterAdvance, error: wfAfterAdvanceErr } = await supabase
+          .from('signature_workflows')
+          .select('status, owner_id')
+          .eq('id', signer.workflow_id)
+          .maybeSingle()
+
+        if (!wfAfterAdvanceErr && wfAfterAdvance && wfAfterAdvance.status !== 'completed') {
+          const { error: forceCompleteErr } = await supabase
+            .from('signature_workflows')
+            .update({
+              status: 'completed',
+              completed_at: completedAt,
+              updated_at: completedAt
+            })
+            .eq('id', signer.workflow_id)
+            .in('status', ['active', 'ready'])
+
+          if (forceCompleteErr) {
+            console.warn('apply-signer-signature: force-complete failed', forceCompleteErr)
+          }
+        }
+
+        // Canonical event for workflow terminal completion (idempotent best-effort).
+        const { data: existingCompletedEvent } = await supabase
+          .from('workflow_events')
+          .select('id')
+          .eq('workflow_id', signer.workflow_id)
+          .eq('event_type', 'workflow.completed')
+          .limit(1)
+          .maybeSingle()
+
+        if (!existingCompletedEvent) {
+          await appendCanonicalEvent(
+            supabase as any,
+            {
+              event_type: 'workflow.completed',
+              workflow_id: signer.workflow_id,
+              payload: { completed_at: completedAt },
+              actor_id: workflow.owner_id ?? null
+            },
+            'apply-signer-signature'
+          )
+        }
+      } catch (completionStatusErr) {
+        console.warn('apply-signer-signature: completion status/event hardening failed (best-effort)', completionStatusErr)
+      }
+
       try {
         const workflowTitle = workflow.original_filename || 'Documento'
         const { data: owner } = await supabase

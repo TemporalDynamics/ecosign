@@ -320,6 +320,19 @@ serve(async (req) => {
       );
     }
 
+    // GATE 4.5: Workflow must remain active for signer access.
+    // Prevents signing access after owner cancellation/rejection/completion.
+    if (signer.workflow?.status !== "active") {
+      console.warn(
+        `Signer access denied: workflow status "${signer.workflow?.status}". Signer ID: ${signer.id}`,
+      );
+      return json(
+        { error: "This signing flow is no longer active." },
+        403,
+        corsHeaders,
+      );
+    }
+
     // GATE 5: Enforce sequential signing order
     // Contract: only a signer in 'ready_to_sign' may access the signing flow.
     // This prevents future signers (status 'invited') from signing out of order.

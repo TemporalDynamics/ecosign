@@ -24,6 +24,7 @@ Definir la lista minima de eventos canonicos que deben existir.
 - signer.identity_confirmed
 - signer.ready_to_sign
 - signer.signed
+- signature.capture.consent
 - signer.cancelled
 - signer.rejected
 - otp.sent

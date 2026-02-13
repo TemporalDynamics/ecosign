@@ -25,7 +25,7 @@ interface Workflow {
 interface WorkflowSigner {
   id: string
   workflow_id: string
-  status: 'created' | 'invited' | 'accessed' | 'verified' | 'ready_to_sign' | 'signed' | 'cancelled' | 'expired'
+  status: 'created' | 'invited' | 'accessed' | 'verified' | 'ready_to_sign' | 'signed' | 'cancelled' | 'rejected' | 'expired'
 }
 
 export default function WorkflowsPage() {

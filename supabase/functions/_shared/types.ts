@@ -27,6 +27,7 @@ export const SIGNER_STATUSES = [
   'ready_to_sign',
   'signed',
   'cancelled',
+  'rejected',
   'expired',
 ] as const;
 

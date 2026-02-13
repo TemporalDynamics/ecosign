@@ -10,7 +10,7 @@
  *
  * Rules:
  * - Reissue ONLY if workflow is active
- * - Reissue ONLY if signer NOT in terminal state (signed, cancelled, expired)
+ * - Reissue ONLY if signer NOT in terminal state (signed, cancelled, rejected, expired)
  * - Requester MUST be workflow owner
  *
  * Effects:
@@ -137,12 +137,12 @@ serve(async (req) => {
     }
 
     // GATE 4: Verify signer is not in terminal state
-    const terminalStates = ['signed', 'cancelled'];
+    const terminalStates = ['signed', 'cancelled', 'rejected'];
     if (terminalStates.includes(signer.status)) {
       console.warn('[reissue-signer-token] Signer in terminal state:', signer.status);
       return json({
         error: `Cannot reissue token: signer has already "${signer.status}"`,
-        hint: 'Tokens cannot be reissued for signers who have completed or cancelled',
+        hint: 'Tokens cannot be reissued for signers who have completed, cancelled, or rejected',
       }, 400);
     }
 

@@ -83,7 +83,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function SignersList({ signers }: { signers: Signer[] }) {
   const ordered = [...signers].sort((a, b) => (a.signing_order ?? 999) - (b.signing_order ?? 999))
-  const nextSigner = ordered.find((s) => !['signed', 'cancelled', 'expired', 'skipped'].includes(s.status))
+  const nextSigner = ordered.find((s) => !['signed', 'cancelled', 'rejected', 'expired', 'skipped'].includes(s.status))
   return (
     <div className="space-y-2">
       {ordered.map((s) => {
@@ -91,7 +91,7 @@ function SignersList({ signers }: { signers: Signer[] }) {
         let badgeLabel = signerStatusLabels[s.status] || s.status
         if (s.status === 'signed') badgeLabel = 'Firmado'
         if (isNext && s.status !== 'signed') badgeLabel = 'Siguiente en la lista'
-        if (!isNext && !['signed', 'cancelled', 'expired', 'skipped'].includes(s.status)) {
+        if (!isNext && !['signed', 'cancelled', 'rejected', 'expired', 'skipped'].includes(s.status)) {
           badgeLabel = 'Esperando firma'
         }
         const badgeClass =
@@ -99,7 +99,7 @@ function SignersList({ signers }: { signers: Signer[] }) {
             ? 'bg-blue-100 text-blue-800'
             : isNext
             ? 'bg-green-100 text-green-800'
-            : ['cancelled', 'expired', 'skipped'].includes(s.status)
+            : ['cancelled', 'rejected', 'expired', 'skipped'].includes(s.status)
             ? 'bg-gray-100 text-gray-700'
             : 'bg-green-50 text-green-700'
 

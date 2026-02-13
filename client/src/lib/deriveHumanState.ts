@@ -50,7 +50,7 @@ export function deriveHumanState(workflow: Workflow | null, signers: Signer[] = 
 
   // 3) Waiting for next signer — find next by signing_order not signed/cancelled/expired
   const pending = (signers || [])
-    .filter(s => s && !['signed', 'cancelled', 'expired'].includes(s.status ?? ''))
+    .filter(s => s && !['signed', 'cancelled', 'rejected', 'expired'].includes(s.status ?? ''))
     .sort((a, b) => ( (a.signing_order ?? Number.POSITIVE_INFINITY) - (b.signing_order ?? Number.POSITIVE_INFINITY) ));
 
   const next = pending.length > 0 ? pending[0] : undefined;
@@ -113,4 +113,3 @@ export function getHumanStateIconName(severity: HumanWorkflowState['severity']):
   };
   return map[severity] || 'Info';
 }
-

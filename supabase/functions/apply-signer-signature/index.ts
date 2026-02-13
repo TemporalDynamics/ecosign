@@ -501,7 +501,7 @@ serve(async (req) => {
     }
 
     // GATE: Check if signer is in a terminal state
-    const terminalStates = ['signed', 'cancelled', 'expired']
+    const terminalStates = ['signed', 'cancelled', 'rejected', 'expired']
     const signerTerminal = terminalStates.includes(signer.status)
     if (signerTerminal) {
       console.error('apply-signer-signature: Signer in terminal state', {

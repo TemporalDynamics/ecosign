@@ -905,10 +905,17 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       };
     }
 
+    const currentFile = file;
+    if (!currentFile) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const key = [
-      file?.name,
-      file?.size,
-      file?.lastModified,
+      currentFile.name,
+      currentFile.size,
+      currentFile.lastModified,
       workflowPageSizeMode
     ].join('|');
 
@@ -920,7 +927,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     (async () => {
       try {
-        const signaturePage = await appendSignaturePage(file, workflowPageSizeMode);
+        const signaturePage = await appendSignaturePage(currentFile, workflowPageSizeMode);
         if (cancelled) return;
         const url = URL.createObjectURL(signaturePage.blob);
         revoke(workflowPreviewUrl);

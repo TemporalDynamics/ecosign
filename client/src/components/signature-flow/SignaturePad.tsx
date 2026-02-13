@@ -24,6 +24,11 @@ interface SignaturePadProps {
     label?: string | null
     placeholder?: string | null
     required?: boolean
+    metadata?: {
+      logical_field_kind?: string
+      logical_field_id?: string
+      [key: string]: unknown
+    } | null
   }>
   fieldValues?: Record<string, string>
   onFieldValueChange?: (fieldId: string, value: string) => void

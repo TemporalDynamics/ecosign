@@ -1596,9 +1596,11 @@ function DocumentsPage() {
       return;
     }
 
-    const activeWorkflow = (doc.workflows || []).find((wf) => wf.status === "active");
-    if (!activeWorkflow?.id) {
-      toast("Este documento no tiene un flujo activo para cancelar.", { position: "top-right" });
+    const cancellableWorkflow = (doc.workflows || []).find(
+      (wf) => wf.status === "active" || wf.status === "ready"
+    );
+    if (!cancellableWorkflow?.id) {
+      toast("Este documento no tiene un flujo iniciado para cancelar.", { position: "top-right" });
       return;
     }
 
@@ -1610,7 +1612,7 @@ function DocumentsPage() {
     try {
       const supabase = getSupabase();
       const { error } = await supabase.functions.invoke("cancel-workflow", {
-        body: { workflowId: activeWorkflow.id }
+        body: { workflowId: cancellableWorkflow.id }
       });
       if (error) throw error;
       toast.success("Flujo cancelado", { position: "top-right" });

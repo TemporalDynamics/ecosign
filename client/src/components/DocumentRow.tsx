@@ -59,8 +59,9 @@ export default function DocumentRow({
   // TODO: pasar workflows y signers cuando estén disponibles
   const state = deriveDocumentState(document, document.workflows, document.signers);
   const tooltip = deriveDocumentTooltip(document);
-  const hasActiveWorkflow = Array.isArray(document.workflows)
-    && document.workflows.some((wf: any) => wf?.status === 'active');
+  const hasAnyWorkflow = Array.isArray(document.workflows) && document.workflows.length > 0;
+  const canCancelWorkflow = Array.isArray(document.workflows)
+    && document.workflows.some((wf: any) => wf?.status === 'ready' || wf?.status === 'active');
 
   if (asRow) {
     return (
@@ -118,10 +119,20 @@ export default function DocumentRow({
                 {onMove && context !== 'operation' && (
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onMove(document)}>Agregar a operación</button>
                 )}
-                {onCancelFlow && hasActiveWorkflow && context !== 'operation' && (
+                {onCancelFlow && context !== 'operation' && (
                   <button
-                    className="w-full text-left px-3 py-2 text-sm text-red-700 hover:bg-red-50"
-                    onClick={() => onCancelFlow(document)}
+                    className={`w-full text-left px-3 py-2 text-sm ${
+                      canCancelWorkflow
+                        ? 'text-red-700 hover:bg-red-50'
+                        : 'text-gray-400 cursor-not-allowed'
+                    }`}
+                    onClick={() => canCancelWorkflow && onCancelFlow(document)}
+                    disabled={!canCancelWorkflow}
+                    title={
+                      hasAnyWorkflow
+                        ? (canCancelWorkflow ? '' : 'Solo podés cancelar cuando el flujo está iniciado')
+                        : 'Este documento no tiene flujo'
+                    }
                   >
                     Cancelar flujo
                   </button>
@@ -238,10 +249,20 @@ export default function DocumentRow({
                 </button>
               )}
 
-              {onCancelFlow && hasActiveWorkflow && context !== 'operation' && (
+              {onCancelFlow && context !== 'operation' && (
                 <button
-                  className="w-full text-left px-3 py-2 text-sm text-red-700 hover:bg-red-50"
-                  onClick={() => onCancelFlow(document)}
+                  className={`w-full text-left px-3 py-2 text-sm ${
+                    canCancelWorkflow
+                      ? 'text-red-700 hover:bg-red-50'
+                      : 'text-gray-400 cursor-not-allowed'
+                  }`}
+                  onClick={() => canCancelWorkflow && onCancelFlow(document)}
+                  disabled={!canCancelWorkflow}
+                  title={
+                    hasAnyWorkflow
+                      ? (canCancelWorkflow ? '' : 'Solo podés cancelar cuando el flujo está iniciado')
+                      : 'Este documento no tiene flujo'
+                  }
                 >
                   Cancelar flujo
                 </button>

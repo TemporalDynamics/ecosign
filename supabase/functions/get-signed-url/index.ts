@@ -113,7 +113,7 @@ serve(async (req) => {
         )
       }
 
-      const terminalStatuses = ['signed', 'cancelled', 'expired']
+      const terminalStatuses = ['signed', 'cancelled', 'rejected', 'expired']
       if (terminalStatuses.includes(signer.status)) {
         return new Response(
           JSON.stringify({ error: 'Access denied' }),

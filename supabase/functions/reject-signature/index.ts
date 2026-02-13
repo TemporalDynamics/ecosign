@@ -223,7 +223,7 @@ serve(async (req) => {
     await supabase
       .from('workflow_signers')
       .update({
-        status: 'cancelled',
+        status: 'rejected',
         updated_at: rejectedAt
       })
       .eq('id', signer.id)

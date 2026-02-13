@@ -235,7 +235,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         return
       }
 
-      if (signer.status === 'cancelled' || signer.status === 'expired') {
+      if (signer.status === 'cancelled' || signer.status === 'rejected' || signer.status === 'expired') {
         setError('Este flujo de firma ha sido cancelado')
         setStep('error')
         return

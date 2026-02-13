@@ -308,7 +308,7 @@ serve(async (req) => {
     }
 
     // GATE 4: Check if signer status is terminal
-    const terminalStatus = ["signed", "cancelled", "expired"];
+    const terminalStatus = ["signed", "cancelled", "rejected", "expired"];
     if (terminalStatus.includes(signer.status)) {
       console.warn(
         `Signer access denied: terminal status "${signer.status}". Signer ID: ${signer.id}`,

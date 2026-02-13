@@ -67,7 +67,7 @@ type DocumentRecord = {
   source_storage_path?: string | null;
   custody_mode?: 'hash_only' | 'encrypted_custody' | null;
   workflows?: { id: string; status: 'draft' | 'ready' | 'active' | 'completed' | 'cancelled' | 'rejected' | 'archived' }[];
-  signers?: { id: string; status: 'pending' | 'ready' | 'signed' | 'requested_changes' | 'skipped'; order: number; name?: string | null; email: string }[];
+  signers?: { id: string; status: 'pending' | 'ready' | 'signed' | 'requested_changes' | 'skipped' | 'cancelled' | 'rejected' | 'expired'; order: number; name?: string | null; email: string }[];
 };
 
 type DocumentEntityRow = {

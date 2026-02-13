@@ -1577,6 +1577,38 @@ function DocumentsPage() {
     setShareDoc(doc);
   };
 
+  const handleCancelFlow = async (doc: DocumentRecord | null) => {
+    if (!doc) return;
+    if (isGuestMode()) {
+      toast("Modo invitado: acción disponible solo con cuenta.", { position: "top-right" });
+      return;
+    }
+
+    const activeWorkflow = (doc.workflows || []).find((wf) => wf.status === "active");
+    if (!activeWorkflow?.id) {
+      toast("Este documento no tiene un flujo activo para cancelar.", { position: "top-right" });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "¿Querés cancelar este flujo de firma? Esta acción cierra el flujo activo."
+    );
+    if (!confirmed) return;
+
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase.functions.invoke("cancel-workflow", {
+        body: { workflowId: activeWorkflow.id }
+      });
+      if (error) throw error;
+      toast.success("Flujo cancelado", { position: "top-right" });
+      await loadDocuments({ silent: true });
+    } catch (err) {
+      console.error("Error cancelando flujo:", err);
+      toast.error("No se pudo cancelar el flujo", { position: "top-right" });
+    }
+  };
+
   const handleResumeDraft = (draft: DraftRow) => {
     // Back-compat: always store draft ref as a string.
     // Extra state (operationId) is stored separately so older bundles still work.
@@ -2368,6 +2400,7 @@ function DocumentsPage() {
                       processingHintStartedAtMs={processingHintStartByEntityId[String(doc.document_entity_id ?? doc.id)]}
                       onOpen={(d) => setPreviewDoc(d)}
                       onShare={(d) => handleShareDoc(d)}
+                      onCancelFlow={(d) => handleCancelFlow(d)}
                       onDownloadEco={(d) => handleEcoDownload(d)}
                       onDownloadPdf={(d) => handlePdfDownload(d)}
                       onDownloadOriginal={(d) => handleOriginalDownload(d)}
@@ -2403,6 +2436,7 @@ function DocumentsPage() {
                         processingHintStartedAtMs={processingHintStartByEntityId[String(doc.document_entity_id ?? doc.id)]}
                         onOpen={(d) => setPreviewDoc(d)}
                         onShare={(d) => handleShareDoc(d)}
+                        onCancelFlow={(d) => handleCancelFlow(d)}
                         onDownloadEco={(d) => handleEcoDownload(d)}
                         onDownloadPdf={(d) => handlePdfDownload(d)}
                         onDownloadOriginal={(d) => handleOriginalDownload(d)}

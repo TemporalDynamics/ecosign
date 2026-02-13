@@ -162,7 +162,7 @@ async function deriveUnwrapKey(
   // Import session secret as key material
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
-    sessionSecret,
+    new Uint8Array(sessionSecret),
     CRYPTO_CONFIG.SESSION_KEY_DERIVATION.algorithm,
     false, // not extractable
     ['deriveKey']
@@ -171,7 +171,7 @@ async function deriveUnwrapKey(
   // Derive unwrap key
   const derivationParams: Pbkdf2Params = {
     name: CRYPTO_CONFIG.SESSION_KEY_DERIVATION.algorithm,
-    salt,
+    salt: new Uint8Array(salt),
     iterations: CRYPTO_CONFIG.SESSION_KEY_DERIVATION.iterations,
     hash: CRYPTO_CONFIG.SESSION_KEY_DERIVATION.hash,
   };

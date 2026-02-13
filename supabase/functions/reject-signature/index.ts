@@ -121,11 +121,13 @@ serve(async (req) => {
     }
 
     // Ejecutar decisión legacy (autoridad actual)
+    const rejectedAt = new Date().toISOString()
+
     await supabase
       .from('workflow_signers')
       .update({
         status: 'cancelled',
-        updated_at: new Date().toISOString()
+        updated_at: rejectedAt
       })
       .eq('id', signer.id)
 
@@ -138,6 +140,8 @@ serve(async (req) => {
         payload: {
           email: signer.email,
           signing_order: signer.signing_order,
+          previous_status: signer.status,
+          rejected_at: rejectedAt,
           reason: body.reason || null,
           rejection_phase: rejectionPhase
         }

@@ -63,10 +63,17 @@ export async function shareDocument(
       throw new Error('Session crypto not initialized. Please log in again.');
     }
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('Access denied');
+    }
+
     // 1. Resolve shareable user_documents row.
     // NOTE: DocumentsPage can provide document_entities ids; sharing still needs legacy
     // user_documents for wrapped_key/encrypted_path.
-    const doc = await resolveShareableUserDocument(supabase, documentId, pdfStoragePath);
+    const doc = await resolveShareableUserDocument(supabase, documentId, pdfStoragePath, user.id);
     if (!doc) {
       throw new Error('share_source_unavailable');
     }
@@ -76,10 +83,7 @@ export async function shareDocument(
     }
 
     // Verify user owns the document
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user || doc.user_id !== user.id) {
+    if (doc.user_id !== user.id) {
       throw new Error('Access denied');
     }
 
@@ -245,7 +249,15 @@ export async function accessSharedDocument(
  */
 export async function listDocumentShares(documentId: string, pdfStoragePath?: string | null) {
   const supabase = getSupabase();
-  const resolvedDoc = await resolveShareableUserDocument(supabase, documentId, pdfStoragePath);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const resolvedDoc = await resolveShareableUserDocument(
+    supabase,
+    documentId,
+    pdfStoragePath,
+    user?.id
+  );
   const resolvedDocumentId = resolvedDoc?.id ?? documentId;
 
   const { data, error } = await supabase
@@ -264,7 +276,8 @@ export async function listDocumentShares(documentId: string, pdfStoragePath?: st
 async function resolveShareableUserDocument(
   supabase: ReturnType<typeof getSupabase>,
   documentId: string,
-  pdfStoragePath?: string | null
+  pdfStoragePath?: string | null,
+  ownerUserId?: string
 ): Promise<{
   id: string;
   document_entity_id?: string | null;
@@ -275,42 +288,60 @@ async function resolveShareableUserDocument(
   user_id?: string | null;
 } | null> {
   const selectCols = 'id, document_entity_id, document_name, encrypted, wrapped_key, wrap_iv, user_id';
+  const queryFirst = async (
+    column: 'id' | 'document_entity_id' | 'pdf_storage_path' | 'encrypted_path',
+    value: string
+  ) => {
+    let query = supabase
+      .from('user_documents')
+      .select(selectCols)
+      .eq(column, value)
+      .limit(1);
 
-  const { data: byId, error: byIdError } = await supabase
-    .from('user_documents')
-    .select(selectCols)
-    .eq('id', documentId)
-    .maybeSingle();
-  if (!byIdError && byId) return byId;
+    if (ownerUserId) {
+      query = query.eq('user_id', ownerUserId);
+    }
 
-  const { data: byEntity, error: byEntityError } = await supabase
-    .from('user_documents')
-    .select(selectCols)
-    .eq('document_entity_id', documentId)
-    .maybeSingle();
-  if (!byEntityError && byEntity) return byEntity;
+    const { data, error } = await query;
+    return {
+      row: (data && data.length > 0 ? data[0] : null) as {
+        id: string;
+        document_entity_id?: string | null;
+        document_name?: string | null;
+        encrypted?: boolean | null;
+        wrapped_key?: string | null;
+        wrap_iv?: string | null;
+        user_id?: string | null;
+      } | null,
+      error
+    };
+  };
+
+  const lookups: Promise<{ row: any | null; error: any }>[] = [
+    queryFirst('id', documentId),
+    queryFirst('document_entity_id', documentId),
+  ];
 
   if (pdfStoragePath) {
-    const { data: byPdfPath, error: byPdfPathError } = await supabase
-      .from('user_documents')
-      .select(selectCols)
-      .eq('pdf_storage_path', pdfStoragePath)
-      .maybeSingle();
-    if (!byPdfPathError && byPdfPath) return byPdfPath;
-
-    const { data: byEncryptedPath, error: byEncryptedPathError } = await supabase
-      .from('user_documents')
-      .select(selectCols)
-      .eq('encrypted_path', pdfStoragePath)
-      .maybeSingle();
-    if (!byEncryptedPathError && byEncryptedPath) return byEncryptedPath;
+    lookups.push(queryFirst('pdf_storage_path', pdfStoragePath));
+    lookups.push(queryFirst('encrypted_path', pdfStoragePath));
   }
+
+  const [byId, byEntity, byPdfPath, byEncryptedPath] = await Promise.all(lookups);
+
+  if (byId?.row) return byId.row;
+  if (byEntity?.row) return byEntity.row;
+  if (byPdfPath?.row) return byPdfPath.row;
+  if (byEncryptedPath?.row) return byEncryptedPath.row;
 
   console.error('Share: user_document not found', {
     documentId,
+    ownerUserId: ownerUserId ?? null,
     pdfStoragePath: pdfStoragePath ?? null,
-    byIdError,
-    byEntityError
+    byIdError: byId?.error ?? null,
+    byEntityError: byEntity?.error ?? null,
+    byPdfPathError: byPdfPath?.error ?? null,
+    byEncryptedPathError: byEncryptedPath?.error ?? null,
   });
   return null;
 }

@@ -410,6 +410,10 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
   const handleRejectSignature = async (rejectionPhase: RejectionPhase) => {
     if (!signerData) return
+    const confirmed = window.confirm(
+      '¿Confirmás que querés rechazar este documento? Esta acción quedará registrada.'
+    )
+    if (!confirmed) return
     const supabase = getSupabase();
     setError(null)
     try {

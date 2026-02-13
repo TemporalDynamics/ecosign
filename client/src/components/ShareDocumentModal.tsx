@@ -108,8 +108,6 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
 
   // Validaciones
   const hasPdf = !!document.pdf_storage_path;
-  const hasEco = !!(document.eco_storage_path || document.eco_file_data);
-
   // Share OTP (Flow C) es un capability manual: hoy solo habilita acceso al PDF cifrado.
   const canShare = useMemo(() => hasPdf, [hasPdf]);
 
@@ -161,7 +159,10 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
 
     } catch (err) {
       console.error('Error generating share:', err);
-      const message = err instanceof Error ? err.message : 'Error al generar el enlace';
+      const rawMessage = err instanceof Error ? err.message : 'Error al generar el enlace';
+      const message = rawMessage === 'share_source_unavailable'
+        ? 'No pudimos preparar este documento para compartir con OTP. Reintentá en unos segundos o abrí el documento y volvé a intentar.'
+        : rawMessage;
       setError(message);
     } finally {
       setGenerating(false);
@@ -672,7 +673,7 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
               <label className="block text-sm font-semibold text-gray-700 mb-3">
                 Qué vas a compartir
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <button
                   type="button"
                   disabled={true}
@@ -687,19 +688,6 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
                   <FileText className="w-5 h-5 mx-auto mb-1.5" />
                   <div className="text-xs">PDF</div>
                   {!hasPdf && <div className="text-[10px] text-gray-400 mt-0.5">No disponible</div>}
-                </button>
-                
-                <button
-                  type="button"
-                  disabled={true}
-                  className={`px-4 py-3 rounded-lg text-sm font-medium transition ${
-                    'border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
-                  }`}
-                  title="Próximamente"
-                >
-                  <Shield className="w-5 h-5 mx-auto mb-1.5" />
-                  <div className="text-xs">.ECO</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">Próximamente</div>
                 </button>
               </div>
               

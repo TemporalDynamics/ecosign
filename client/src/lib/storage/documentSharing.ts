@@ -68,7 +68,7 @@ export async function shareDocument(
     // user_documents for wrapped_key/encrypted_path.
     const doc = await resolveShareableUserDocument(supabase, documentId, pdfStoragePath);
     if (!doc) {
-      throw new Error('Este documento no está disponible para compartir con OTP.');
+      throw new Error('share_source_unavailable');
     }
 
     if (!doc.encrypted) {

@@ -595,7 +595,10 @@ function DocumentsPage() {
             .in('status', ['active', 'completed']);
 
           if (!wfError && wfRows && wfRows.length > 0) {
-            const workflowByEntity = new Map<string, { id: string; status: any }[]>();
+            const workflowByEntity = new Map<
+              string,
+              { id: string; status: any; created_at?: string | null }[]
+            >();
             for (const wf of wfRows as any[]) {
               const list = workflowByEntity.get(wf.document_entity_id) ?? [];
               list.push({ id: wf.id, status: wf.status, created_at: wf.created_at });

@@ -93,7 +93,7 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
     const init = async () => {
       try {
         // Cargar shares existentes (no inicializamos crypto acá)
-        const shares = await listDocumentShares(document.id);
+        const shares = await listDocumentShares(document.id, document.pdf_storage_path ?? null);
         setExistingShares(shares);
       } catch (err) {
         console.error('Error loading shares:', err);
@@ -140,6 +140,7 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
       // Llamar a shareDocument (genera OTP en cliente)
       const result = await shareDocument({
         documentId: document.id,
+        pdfStoragePath: document.pdf_storage_path ?? null,
         // NOTE: Share OTP es un capability (no se ata a una identidad).
         // recipientEmail existe solo por constraints legacy (unique_pending_share). No usar para decisiones de identidad.
         recipientEmail: 'share@ecosign.local',
@@ -155,7 +156,7 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
       });
 
       // Recargar la lista de shares
-      const shares = await listDocumentShares(document.id);
+      const shares = await listDocumentShares(document.id, document.pdf_storage_path ?? null);
       setExistingShares(shares);
 
     } catch (err) {
@@ -217,7 +218,7 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
       }
       
       // Recargar shares
-      const shares = await listDocumentShares(document.id);
+      const shares = await listDocumentShares(document.id, document.pdf_storage_path ?? null);
       setExistingShares(shares);
       setConfirmRevoke(null);
     } catch (err) {

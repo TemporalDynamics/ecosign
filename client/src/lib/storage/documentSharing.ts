@@ -27,6 +27,7 @@ export interface ShareDocumentOptions {
   message?: string;
   ndaEnabled?: boolean;
   ndaText?: string;
+  pdfStoragePath?: string | null;
 }
 
 export interface ShareDocumentResult {
@@ -52,6 +53,7 @@ export async function shareDocument(
     message,
     ndaEnabled = false,
     ndaText,
+    pdfStoragePath,
   } = options;
 
   const supabase = getSupabase();
@@ -61,32 +63,12 @@ export async function shareDocument(
       throw new Error('Session crypto not initialized. Please log in again.');
     }
 
-    // 1. Get document metadata
-    // NOTE: DocumentsPage is canonical and uses document_entities ids.
-    // For sharing we need the legacy user_documents row (E2E wrapped key + encrypted_path).
-    let doc: any = null;
-    {
-      const { data: byId, error: byIdError } = await supabase
-        .from('user_documents')
-        .select('id, document_entity_id, document_name, encrypted, wrapped_key, wrap_iv, user_id')
-        .eq('id', documentId)
-        .maybeSingle();
-
-      if (!byIdError && byId) {
-        doc = byId;
-      } else {
-        const { data: byEntity, error: byEntityError } = await supabase
-          .from('user_documents')
-          .select('id, document_entity_id, document_name, encrypted, wrapped_key, wrap_iv, user_id')
-          .eq('document_entity_id', documentId)
-          .maybeSingle();
-
-        if (byEntityError || !byEntity) {
-          console.error('Share: user_document not found', { documentId, byIdError, byEntityError });
-          throw new Error('Este documento no está disponible para compartir con OTP.');
-        }
-        doc = byEntity;
-      }
+    // 1. Resolve shareable user_documents row.
+    // NOTE: DocumentsPage can provide document_entities ids; sharing still needs legacy
+    // user_documents for wrapped_key/encrypted_path.
+    const doc = await resolveShareableUserDocument(supabase, documentId, pdfStoragePath);
+    if (!doc) {
+      throw new Error('Este documento no está disponible para compartir con OTP.');
     }
 
     if (!doc.encrypted) {
@@ -261,13 +243,15 @@ export async function accessSharedDocument(
  * @param documentId - Document ID
  * @returns List of shares
  */
-export async function listDocumentShares(documentId: string) {
+export async function listDocumentShares(documentId: string, pdfStoragePath?: string | null) {
   const supabase = getSupabase();
+  const resolvedDoc = await resolveShareableUserDocument(supabase, documentId, pdfStoragePath);
+  const resolvedDocumentId = resolvedDoc?.id ?? documentId;
 
   const { data, error } = await supabase
     .from('document_shares')
     .select('id, recipient_email, status, expires_at, accessed_at, created_at, nda_enabled, nda_text')
-    .eq('document_id', documentId)
+    .eq('document_id', resolvedDocumentId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -275,6 +259,60 @@ export async function listDocumentShares(documentId: string) {
   }
 
   return data || [];
+}
+
+async function resolveShareableUserDocument(
+  supabase: ReturnType<typeof getSupabase>,
+  documentId: string,
+  pdfStoragePath?: string | null
+): Promise<{
+  id: string;
+  document_entity_id?: string | null;
+  document_name?: string | null;
+  encrypted?: boolean | null;
+  wrapped_key?: string | null;
+  wrap_iv?: string | null;
+  user_id?: string | null;
+} | null> {
+  const selectCols = 'id, document_entity_id, document_name, encrypted, wrapped_key, wrap_iv, user_id';
+
+  const { data: byId, error: byIdError } = await supabase
+    .from('user_documents')
+    .select(selectCols)
+    .eq('id', documentId)
+    .maybeSingle();
+  if (!byIdError && byId) return byId;
+
+  const { data: byEntity, error: byEntityError } = await supabase
+    .from('user_documents')
+    .select(selectCols)
+    .eq('document_entity_id', documentId)
+    .maybeSingle();
+  if (!byEntityError && byEntity) return byEntity;
+
+  if (pdfStoragePath) {
+    const { data: byPdfPath, error: byPdfPathError } = await supabase
+      .from('user_documents')
+      .select(selectCols)
+      .eq('pdf_storage_path', pdfStoragePath)
+      .maybeSingle();
+    if (!byPdfPathError && byPdfPath) return byPdfPath;
+
+    const { data: byEncryptedPath, error: byEncryptedPathError } = await supabase
+      .from('user_documents')
+      .select(selectCols)
+      .eq('encrypted_path', pdfStoragePath)
+      .maybeSingle();
+    if (!byEncryptedPathError && byEncryptedPath) return byEncryptedPath;
+  }
+
+  console.error('Share: user_document not found', {
+    documentId,
+    pdfStoragePath: pdfStoragePath ?? null,
+    byIdError,
+    byEntityError
+  });
+  return null;
 }
 
 /**

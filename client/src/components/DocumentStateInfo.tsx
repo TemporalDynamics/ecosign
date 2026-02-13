@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { deriveDocumentState } from '../lib/deriveDocumentState';
-import { deriveProtectionLevel } from '../lib/protectionLevel';
 import type { DocumentEntityRow } from '../lib/eco/v2';
 
 interface DocumentStateInfoProps {
@@ -24,47 +23,16 @@ interface DocumentStateInfoProps {
  * - Mensaje tranquilizador basado en el estado
  */
 export default function DocumentStateInfo({ document }: DocumentStateInfoProps) {
-
-  // Derivar estado usando la función canónica
-  const state = deriveDocumentState(document as DocumentEntityRow);
-  const protectionLevel = deriveProtectionLevel((document.events ?? []) as any);
-
-  // Mensajes según el estado (sin tecnicismos, tranquilizadores)
-  const getMessage = (): string => {
-    // Estados de firma (priorizan sobre protección)
-    if (state.label.includes('firma')) {
-      if (state.phase === 'gray') {
-        return 'El documento fue firmado correctamente y cuenta con protección probatoria.';
-      }
-      return 'El documento está en proceso de firma. Te notificaremos cuando esté listo.';
-    }
-
-    // Estados de protección
-    if (state.label === 'Protección máxima') {
-      return 'Tu documento tiene la máxima protección probatoria disponible. Podés descargarlo y verificarlo en cualquier momento.';
-    }
-
-    if (state.label === 'Protección reforzada') {
-      return 'Tu documento está protegido con registro en red pública. La evidencia es inmutable y verificable.';
-    }
-
-    if (state.label === 'Protegido') {
-      return 'Tu documento cuenta con sello de tiempo certificado. La evidencia es verificable independientemente.';
-    }
-
-    // Procesando
-    if (state.label === 'Protegiendo') {
-      return 'Estamos asegurando tu documento. Este proceso toma unos segundos.';
-    }
-
-    // Archivado
-    if (state.label === 'Archivado') {
-      return 'Este documento fue archivado. La protección probatoria se mantiene activa.';
-    }
-
-    // Default
-    return 'Tu documento está siendo procesado.';
-  };
+  const signers = Array.isArray(document.signers) ? document.signers : [];
+  const signedCount = signers.filter((s: any) => s?.status === 'signed').length;
+  const totalSigners = signers.length;
+  const state = deriveDocumentState(
+    document as DocumentEntityRow,
+    (document.workflows ?? []) as any,
+    signers as any
+  );
+  const isFinalized = state.phase === 'gray';
+  const ecoAvailable = Boolean(document.eco_storage_path || document.eco_file_data || document.eco_hash);
 
   // Colores según la fase
   const getBorderColor = () => {
@@ -105,8 +73,12 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
       <div className={`font-semibold text-sm mb-2 ${getTextColor()}`}>
         {state.label}
       </div>
-      <div className="text-xs text-gray-600 leading-relaxed">
-        {getMessage()}
+      <div className="space-y-1 text-xs text-gray-600 leading-relaxed">
+        {totalSigners > 0 && (
+          <div>Firmantes: {signedCount}/{totalSigners}</div>
+        )}
+        <div>Finalizado: {isFinalized ? 'Sí' : 'No'}</div>
+        <div>ECO disponible: {ecoAvailable ? 'Sí' : 'No'}</div>
       </div>
     </div>
   );

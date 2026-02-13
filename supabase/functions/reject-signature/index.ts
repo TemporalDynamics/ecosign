@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
+import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts'
 import { shouldRejectSignature } from '../../../packages/authority/src/decisions/rejectSignature.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 
@@ -16,7 +17,29 @@ interface Payload {
   signerId: string
   accessToken?: string
   reason?: string
-  rejectionPhase?: 'preaccess' | 'otp' | 'viewing' | 'signing'
+  rejectionPhase?: 'pre_identity' | 'post_identity' | 'post_view' | 'signature_stage' | 'preaccess' | 'otp' | 'viewing' | 'signing'
+}
+
+type CanonicalRejectionPhase = 'pre_identity' | 'post_identity' | 'post_view' | 'signature_stage'
+
+function normalizeRejectionPhase(phase?: Payload['rejectionPhase']): CanonicalRejectionPhase {
+  switch (phase) {
+    case 'pre_identity':
+    case 'post_identity':
+    case 'post_view':
+    case 'signature_stage':
+      return phase
+    case 'preaccess':
+      return 'pre_identity'
+    case 'otp':
+      return 'post_identity'
+    case 'viewing':
+      return 'post_view'
+    case 'signing':
+      return 'signature_stage'
+    default:
+      return 'pre_identity'
+  }
 }
 
 const isTokenHash = (value?: string | null) =>
@@ -29,6 +52,43 @@ async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
+}
+
+async function attemptRejectionReceiptTsa(
+  supabase: ReturnType<typeof createClient>,
+  receiptHash: string
+): Promise<{ status: 'confirmed' | 'failed'; provider: string; attempted_at: string; token_b64?: string; token_hash?: string; error?: string }> {
+  const attemptedAt = new Date().toISOString()
+  try {
+    const { data, error } = await supabase.functions.invoke('legal-timestamp', {
+      body: { hash_hex: receiptHash }
+    })
+    if (error || !data?.success || !data?.token) {
+      return {
+        status: 'failed',
+        provider: 'https://freetsa.org/tsr',
+        attempted_at: attemptedAt,
+        error: error?.message || data?.error || 'tsa_unavailable'
+      }
+    }
+
+    const tokenB64 = String(data.token)
+    const tokenHash = await sha256Hex(tokenB64)
+    return {
+      status: 'confirmed',
+      provider: String(data.tsa_url || 'https://freetsa.org/tsr'),
+      attempted_at: attemptedAt,
+      token_b64: tokenB64,
+      token_hash: tokenHash
+    }
+  } catch (err: any) {
+    return {
+      status: 'failed',
+      provider: 'https://freetsa.org/tsr',
+      attempted_at: attemptedAt,
+      error: err?.message || 'tsa_error'
+    }
+  }
 }
 
 serve(async (req) => {
@@ -106,7 +166,7 @@ serve(async (req) => {
     })
 
     // Log shadow comparison
-    const rejectionPhase = body.rejectionPhase ?? 'unknown'
+    const rejectionPhase = normalizeRejectionPhase(body.rejectionPhase)
 
     try {
       await supabase.from('shadow_decision_logs').insert({
@@ -146,6 +206,20 @@ serve(async (req) => {
     // Ejecutar decisión legacy (autoridad actual)
     const rejectedAt = new Date().toISOString()
 
+    const rejectionReceiptCore = {
+      format: 'rr',
+      format_version: '1.0',
+      version: 'rr.v1',
+      issued_at: rejectedAt,
+      workflow_id: signer.workflow_id,
+      signer_id: signer.id,
+      signer_email: signer.email,
+      rejection_phase: rejectionPhase,
+      reason: body.reason || null
+    }
+    const receiptHash = await sha256Hex(canonicalize(rejectionReceiptCore))
+    const receiptTsa = await attemptRejectionReceiptTsa(supabase, receiptHash)
+
     await supabase
       .from('workflow_signers')
       .update({
@@ -166,7 +240,12 @@ serve(async (req) => {
           previous_status: signer.status,
           rejected_at: rejectedAt,
           reason: body.reason || null,
-          rejection_phase: rejectionPhase
+          rejection_phase: rejectionPhase,
+          rejection_receipt: {
+            ...rejectionReceiptCore,
+            receipt_hash: receiptHash,
+            tsa: receiptTsa
+          }
         }
       },
       'reject-signature'

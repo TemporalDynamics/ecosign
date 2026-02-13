@@ -406,7 +406,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     }
   }
 
-  type RejectionPhase = 'preaccess' | 'otp' | 'viewing' | 'signing'
+  type RejectionPhase = 'pre_identity' | 'post_identity' | 'post_view' | 'signature_stage'
 
   const handleRejectSignature = async (rejectionPhase: RejectionPhase) => {
     if (!signerData) return
@@ -822,7 +822,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             isSubmitting={preAccessSubmitting}
             errorMessage={error}
             onConfirm={handlePreAccessConfirm}
-            onReject={() => handleRejectSignature('preaccess')}
+            onReject={() => handleRejectSignature('pre_identity')}
           />
         )}
 
@@ -895,7 +895,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                   </div>
                 )}
                 <button
-                  onClick={() => handleRejectSignature('otp')}
+                  onClick={() => handleRejectSignature('post_identity')}
                   className="w-full rounded-lg border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-50"
                 >
                   Rechazar documento
@@ -914,7 +914,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             signedUrl={signerData.encrypted_pdf_url}
             stamps={signerData.prior_signature_stamps}
             onContinue={handleDocumentViewed}
-            onReject={() => handleRejectSignature('viewing')}
+            onReject={() => handleRejectSignature('post_view')}
             mode={mode}
           />
         )}
@@ -974,7 +974,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 </div>
                 <div className="mt-4">
                   <button
-                    onClick={() => handleRejectSignature('signing')}
+                    onClick={() => handleRejectSignature('signature_stage')}
                     className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
                   >
                     Rechazar documento
@@ -1007,7 +1007,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 return null
               }}
               onSign={handleSignatureApplied}
-              onReject={() => handleRejectSignature('signing')}
+              onReject={() => handleRejectSignature('signature_stage')}
             />
           )
         )}

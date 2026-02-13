@@ -39,3 +39,32 @@ Ejemplos:
 ## 5. No-responsabilidades
 - No define eventos tecnicos ni transiciones.
 - No crea evidencia; solo traduce estado existente.
+
+## 6. Regla de terminalidad (MUST)
+
+Estados terminales no reabribles:
+- `completed`
+- `rejected`
+- `cancelled`
+
+Reglas:
+- MUST NOT: existir transicion valida desde estado terminal hacia `active`, `ready` o `draft`.
+- MUST NOT: mutar el mismo `workflow_id` para reiniciar el proceso.
+- MUST: conservar historial de eventos inmutable para el `workflow_id` cerrado.
+
+## 7. Reintento canonico (MUST)
+
+Si se desea retomar un documento tras `rejected`, `cancelled` o cierre previo del ciclo,
+la unica via valida es crear un nuevo workflow:
+
+- `start-signature-workflow` -> `new workflow_id`
+
+Consecuencias:
+- Se preserva la integridad historica del intento previo.
+- No hay borrado logico ni mezcla de intentos.
+- Cada `workflow_id` representa un grafo cerrado de eventos.
+
+## 8. Invariante resumido
+
+- `terminal(workflow.status) => no_transition(workflow_id)`
+- `retry => new workflow_id`

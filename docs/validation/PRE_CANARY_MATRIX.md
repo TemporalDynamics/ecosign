@@ -9,6 +9,11 @@ Objetivo: validar coherencia semántica antes de Canary.
 - Si `workflow.status != active`, no se permite acceso/firma de signers.
 - `workflow.cancelled` solo puede emitirse desde `workflow.status='active'`.
 - No se permite transición `completed -> cancelled` ni `completed -> rejected`.
+- Estados terminales (`completed|rejected|cancelled`) no son reabribles en el mismo `workflow_id`.
+- Reintento de proceso => `start-signature-workflow` con `new workflow_id`.
+
+Referencia semántica:
+- `docs/contratos/WORKFLOW_STATUS_SEMANTICS.md`
 
 ## Escenario 1: Firma simple 1/1
 1. Crear workflow con 1 firmante.

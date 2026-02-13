@@ -1676,7 +1676,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               polygon: forensicEnabled && forensicConfig.usePolygonAnchor,
               bitcoin: forensicEnabled && forensicConfig.useBitcoinAnchor
             }
-          }), 20000, 'startSignatureWorkflow');
+          }), 60000, 'startSignatureWorkflow');
 
           const signUrl = workflowResult?.firstSignerUrl as string | null;
           if (signUrl) {
@@ -1940,7 +1940,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               polygon: forensicEnabled && forensicConfig.usePolygonAnchor,
               bitcoin: forensicEnabled && forensicConfig.useBitcoinAnchor
             }
-          }), 20000, 'startSignatureWorkflow');
+          }), 60000, 'startSignatureWorkflow');
 
           console.log('✅ Workflow iniciado:', workflowResult);
           showToast(`Invitaciones enviadas a ${validSigners.length} firmante(s). Revisá tu email para el seguimiento.`, {

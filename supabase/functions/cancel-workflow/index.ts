@@ -63,7 +63,7 @@ serve(async (req) => {
     const legacyDecision = Boolean(
       workflow &&
       workflow.owner_id === user.id &&
-      workflow.status === 'active'
+      ['ready', 'active'].includes(workflow.status)
     )
     const canonicalDecision = shouldCancelWorkflow({
       actor_id: user.id,
@@ -101,7 +101,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Forbidden' }, 403, corsHeaders)
     }
 
-    if (workflow.status !== 'active') {
+    if (!['ready', 'active'].includes(workflow.status)) {
       return jsonResponse({ error: `Workflow cannot be cancelled from status=${workflow.status}` }, 400, corsHeaders)
     }
 
@@ -109,6 +109,7 @@ serve(async (req) => {
       .from('signature_workflows')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', workflowId)
+      .in('status', ['ready', 'active'])
 
     if (updateError) {
       return jsonResponse({ error: 'Failed to cancel workflow' }, 500, corsHeaders)

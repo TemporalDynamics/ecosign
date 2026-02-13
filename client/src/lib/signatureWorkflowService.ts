@@ -46,6 +46,8 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
     documentEntityId,
     signatureType,
     deliveryMode,
+    ndaText,
+    ndaEnabled,
     signers,
     forensicConfig = {
       rfc3161: true,

@@ -20,12 +20,12 @@ export interface DocumentState {
 // Simplified workflow types (to avoid circular deps)
 export interface SimpleWorkflow {
   id: string;
-  status: 'draft' | 'active' | 'paused' | 'completed' | 'cancelled';
+  status: 'draft' | 'ready' | 'active' | 'completed' | 'cancelled' | 'rejected' | 'archived';
 }
 
 export interface SimpleSigner {
   id: string;
-  status: 'pending' | 'ready' | 'signed' | 'requested_changes' | 'skipped';
+  status: 'pending' | 'ready' | 'signed' | 'requested_changes' | 'skipped' | 'cancelled' | 'rejected' | 'expired';
   order: number;
   name?: string | null;
   email: string;
@@ -76,35 +76,67 @@ export function deriveDocumentState(
   // 2. WORKFLOW DE FIRMA (prioridad)
   // ========================================
 
-  // Buscar workflow activo o completado
-  const activeWorkflow = workflows?.find(
-    w => w.status === 'active' || w.status === 'completed'
-  );
+  // Estado dominante: cuando hay workflow, la UI debe seguir SOLO workflow.status.
+  const workflow = workflows?.[0];
 
-  if (activeWorkflow) {
+  if (workflow) {
     const signedCount = signers?.filter(s => s.status === 'signed').length ?? 0;
     const totalCount = signers?.length ?? 0;
 
-    // 2a. Todas las firmas completadas → AZUL (finalizado)
-    if (activeWorkflow.status === 'completed' || (totalCount > 0 && signedCount === totalCount)) {
+    if (workflow.status === 'active') {
+      if (totalCount > 0) {
+        return {
+          label: `Firmando ${signedCount}/${totalCount}`,
+          phase: 'green'
+        };
+      }
       return {
-        label: totalCount > 1 ? 'Firmado' : 'Firmado',
-        phase: 'blue'
-      };
-    }
-
-    // 2b. Faltan firmas → VERDE (en proceso)
-    if (totalCount > 0) {
-      return {
-        label: `Firmando ${signedCount}/${totalCount}`,
+        label: 'Firmando',
         phase: 'green'
       };
     }
 
-    return {
-      label: 'Firmando',
-      phase: 'green'
-    };
+    if (workflow.status === 'completed') {
+      return {
+        label: 'Firmado',
+        phase: 'gray'
+      };
+    }
+
+    if (workflow.status === 'cancelled') {
+      return {
+        label: 'Cancelado',
+        phase: 'gray'
+      };
+    }
+
+    if (workflow.status === 'rejected') {
+      return {
+        label: 'Rechazado',
+        phase: 'gray'
+      };
+    }
+
+    if (workflow.status === 'archived') {
+      return {
+        label: 'Archivado',
+        phase: 'gray'
+      };
+    }
+
+    if (workflow.status === 'ready') {
+      return {
+        label: 'Listo para enviar',
+        phase: 'blue'
+      };
+    }
+
+    if (workflow.status === 'draft') {
+      return {
+        label: 'Borrador de firma',
+        phase: 'green'
+      };
+    }
   }
 
   // ========================================

@@ -7,6 +7,7 @@
 // ============================================
 
 import { CheckCircle, Home, FileText } from 'lucide-react'
+import { useState } from 'react'
 
 interface CompletionScreenProps {
   workflowTitle?: string | null
@@ -14,6 +15,8 @@ interface CompletionScreenProps {
   onDownloadEco?: () => void
   isLastSigner?: boolean
   onClose: () => void
+  showCloseAction?: boolean
+  closeLabel?: string
 }
 
 export default function CompletionScreen({
@@ -21,8 +24,33 @@ export default function CompletionScreen({
   onDownloadPdf,
   onDownloadEco,
   isLastSigner,
-  onClose
+  onClose,
+  showCloseAction = true,
+  closeLabel = 'Volver al inicio'
 }: CompletionScreenProps) {
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [downloadingEco, setDownloadingEco] = useState(false)
+
+  const handlePdfClick = async () => {
+    if (downloadingPdf) return
+    try {
+      setDownloadingPdf(true)
+      await Promise.resolve(onDownloadPdf())
+    } finally {
+      setTimeout(() => setDownloadingPdf(false), 700)
+    }
+  }
+
+  const handleEcoClick = async () => {
+    if (!onDownloadEco || downloadingEco) return
+    try {
+      setDownloadingEco(true)
+      await Promise.resolve(onDownloadEco())
+    } finally {
+      setTimeout(() => setDownloadingEco(false), 700)
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-lg rounded-2xl bg-white p-10 shadow-md">
@@ -41,28 +69,32 @@ export default function CompletionScreen({
 
         <div className="space-y-3">
           <button
-            onClick={onDownloadPdf}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+            onClick={handlePdfClick}
+            disabled={downloadingPdf}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <FileText className="h-5 w-5" />
-            Descargar PDF firmado
+            {downloadingPdf ? 'Preparando descarga...' : 'Descargar copia fiel (PDF)'}
           </button>
           {onDownloadEco && (
             <button
-              onClick={onDownloadEco}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+              onClick={handleEcoClick}
+              disabled={downloadingEco}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <FileText className="h-5 w-5" />
-              Descargar .ECO
+              {downloadingEco ? 'Preparando descarga...' : 'Descargar .ECO'}
             </button>
           )}
-          <button
-            onClick={onClose}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
-          >
-            <Home className="h-5 w-5" />
-            Volver al inicio
-          </button>
+          {showCloseAction && (
+            <button
+              onClick={onClose}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+            >
+              <Home className="h-5 w-5" />
+              {closeLabel}
+            </button>
+          )}
         </div>
 
         <div className="mt-6 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-700">

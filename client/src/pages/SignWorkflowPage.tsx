@@ -133,6 +133,39 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
   const [ecoPath, setEcoPath] = useState<string | null>(null)
   const [isLastSigner, setIsLastSigner] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [rejecting, setRejecting] = useState(false)
+
+  const homePath = isSignerMode ? '/firma' : '/documentos'
+
+  const mapOtpErrorMessage = (errorCodeOrMessage?: string | null) => {
+    const raw = String(errorCodeOrMessage || '').toLowerCase()
+    if (
+      raw.includes('otp inválido') ||
+      raw.includes('otp invalido') ||
+      raw.includes('invalid') ||
+      raw.includes('not found')
+    ) {
+      return 'El código ingresado no es válido. Revisá el correo e intentá nuevamente.'
+    }
+    if (raw.includes('expired')) {
+      return 'El código expiró. Solicitá uno nuevo para continuar.'
+    }
+    if (raw.includes('too many attempts') || raw.includes('429')) {
+      return 'Superaste el límite de intentos. Esperá unos minutos y volvé a intentar.'
+    }
+    return 'No pudimos verificar el código. Intentá nuevamente.'
+  }
+
+  const mapRejectErrorMessage = (errorCodeOrMessage?: string | null) => {
+    const raw = String(errorCodeOrMessage || '').toLowerCase()
+    if (raw.includes('invalid') || raw.includes('expired') || raw.includes('token')) {
+      return 'El enlace ya no es válido para rechazar este documento. Pedile al remitente un nuevo enlace.'
+    }
+    if (raw.includes('not found')) {
+      return 'No encontramos este flujo de firma. Verificá el enlace recibido.'
+    }
+    return 'No pudimos registrar el rechazo. Intentá nuevamente.'
+  }
 
   const isOtpRequired = (signer?: SignerData | null) => {
     if (!signer) return true
@@ -416,8 +449,9 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     if (!confirmed) return
     const supabase = getSupabase();
     setError(null)
+    setRejecting(true)
     try {
-      const { error } = await supabase.functions.invoke('reject-signature', {
+      const { data, error } = await supabase.functions.invoke('reject-signature', {
         body: {
           signerId: signerData.signer_id,
           accessToken: token,
@@ -425,15 +459,16 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         }
       })
       if (error) {
-        setError(error.message || 'No pudimos registrar el rechazo')
-        setStep('error')
+        const backendMessage = (data as any)?.error || error.message
+        setError(mapRejectErrorMessage(backendMessage))
         return
       }
       setError('Documento rechazado. Si necesitás ayuda, contactá al remitente.')
       setStep('rejected')
     } catch (err: any) {
-      setError(err?.message || 'No pudimos registrar el rechazo')
-      setStep('error')
+      setError(mapRejectErrorMessage(err?.message))
+    } finally {
+      setRejecting(false)
     }
   }
 
@@ -464,7 +499,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
         body: { signerId: signerData.signer_id, otp: otpCode.trim() }
       })
       if (error || !data?.success) {
-        setError(error?.message || 'OTP inválido')
+        const backendMessage = (data as any)?.error || error?.message
+        setError(mapOtpErrorMessage(backendMessage))
         return
       }
       if (token) {
@@ -480,7 +516,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       setStep('viewing')
     } catch (err) {
       console.error('verifyOtp error', err)
-      setError('Error verificando el código')
+      const message = err instanceof Error ? err.message : null
+      setError(mapOtpErrorMessage(message))
     } finally {
       setVerifyingOtp(false)
     }
@@ -770,10 +807,10 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
               <h2 className="mb-2 text-2xl font-bold text-gray-900">Error</h2>
               <p className="mb-6 text-gray-600">{error}</p>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate(homePath)}
                 className="rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
               >
-                Volver al inicio
+                {isSignerMode ? 'Cerrar' : 'Ir a documentos'}
               </button>
             </div>
           </div>
@@ -802,10 +839,10 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 {error || 'El rechazo quedó registrado correctamente.'}
               </p>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate(homePath)}
                 className="rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
               >
-                Volver al inicio
+                {isSignerMode ? 'Cerrar' : 'Ir a documentos'}
               </button>
             </div>
           </div>
@@ -896,9 +933,10 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 )}
                 <button
                   onClick={() => handleRejectSignature('post_identity')}
+                  disabled={rejecting}
                   className="w-full rounded-lg border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-50"
                 >
-                  Rechazar documento
+                  {rejecting ? 'Registrando rechazo...' : 'Rechazar documento'}
                 </button>
               </div>
             </div>
@@ -1018,7 +1056,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             onDownloadPdf={handleDownloadSignedPdf}
             onDownloadEco={(ecoUrl || ecoPath) ? handleDownloadEco : undefined}
             isLastSigner={isLastSigner}
-            onClose={() => navigate('/')}
+            onClose={() => navigate(homePath)}
           />
         )}
       </div>

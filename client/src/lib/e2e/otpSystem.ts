@@ -54,7 +54,7 @@ export async function deriveKeyFromOTP(
   // Derive key
   const derivationParams: Pbkdf2Params = {
     name: CRYPTO_CONFIG.OTP_KEY_DERIVATION.algorithm,
-    salt,
+    salt: new Uint8Array(salt),
     iterations: CRYPTO_CONFIG.OTP_KEY_DERIVATION.iterations,
     hash: CRYPTO_CONFIG.OTP_KEY_DERIVATION.hash,
   };

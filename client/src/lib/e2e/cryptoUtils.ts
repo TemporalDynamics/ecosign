@@ -55,9 +55,13 @@ export function hexToBytes(hex: string): Uint8Array {
  * Calculate SHA-256 hash of data
  */
 export async function sha256(data: Uint8Array | ArrayBuffer): Promise<string> {
+  const normalizedBuffer =
+    data instanceof ArrayBuffer
+      ? data
+      : (data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer);
   const hashBuffer = await crypto.subtle.digest(
     CRYPTO_CONFIG.HASH.algorithm,
-    data
+    normalizedBuffer
   );
   return bytesToHex(new Uint8Array(hashBuffer));
 }

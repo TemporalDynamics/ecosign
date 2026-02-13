@@ -73,7 +73,7 @@ export async function encryptFile(
   const fileBuffer = await file.arrayBuffer();
   
   // 2. Generate random IV
-  const iv = randomBytes(CRYPTO_CONFIG.DOCUMENT_ENCRYPTION.ivLength);
+  const iv = new Uint8Array(randomBytes(CRYPTO_CONFIG.DOCUMENT_ENCRYPTION.ivLength));
   
   // 3. Encrypt
   const encryptedBuffer = await crypto.subtle.encrypt(
@@ -111,7 +111,7 @@ export async function decryptFile(
     const data = new Uint8Array(buffer);
     
     // 2. Extract IV (first 12 bytes)
-    const iv = data.slice(0, CRYPTO_CONFIG.DOCUMENT_ENCRYPTION.ivLength);
+    const iv = new Uint8Array(data.slice(0, CRYPTO_CONFIG.DOCUMENT_ENCRYPTION.ivLength));
     const ciphertext = data.slice(CRYPTO_CONFIG.DOCUMENT_ENCRYPTION.ivLength);
     
     // 3. Decrypt
@@ -145,7 +145,7 @@ export async function wrapDocumentKey(
   unwrapKey: CryptoKey
 ): Promise<{ wrappedKey: string; wrapIv: string }> {
   // Generate IV for wrapping
-  const wrapIv = randomBytes(CRYPTO_CONFIG.KEY_WRAPPING.ivLength);
+  const wrapIv = new Uint8Array(randomBytes(CRYPTO_CONFIG.KEY_WRAPPING.ivLength));
 
   // Wrap the document key
   const wrappedKeyBuffer = await crypto.subtle.wrapKey(
@@ -183,7 +183,7 @@ export async function unwrapDocumentKey(
   unwrapKey: CryptoKey
 ): Promise<CryptoKey> {
   try {
-    const wrappedKeyBytes = base64ToBytes(wrappedKey);
+    const wrappedKeyBytes = new Uint8Array(base64ToBytes(wrappedKey));
     
     // Convert hex IV to bytes
     const iv = new Uint8Array(wrapIv.length / 2);

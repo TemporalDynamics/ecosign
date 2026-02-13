@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
+import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { shouldRejectSignature } from '../../../packages/authority/src/decisions/rejectSignature.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
@@ -13,8 +14,21 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 
 interface Payload {
   signerId: string
+  accessToken?: string
   reason?: string
   rejectionPhase?: 'preaccess' | 'otp' | 'viewing' | 'signing'
+}
+
+const isTokenHash = (value?: string | null) =>
+  !!value && /^[a-f0-9]{64}$/i.test(value)
+
+async function hashToken(token: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(token)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 serve(async (req) => {
@@ -44,15 +58,24 @@ serve(async (req) => {
 
     const body = (await req.json()) as Payload
     if (!body?.signerId) return jsonResponse({ error: 'signerId is required' }, 400, corsHeaders)
+    if (!body?.accessToken) return jsonResponse({ error: 'accessToken is required' }, 400, corsHeaders)
 
     const { data: signer, error: signerError } = await supabase
       .from('workflow_signers')
-      .select('id, email, workflow_id, signing_order, status')
+      .select('id, email, workflow_id, signing_order, status, access_token_hash')
       .eq('id', body.signerId)
       .single()
 
     if (signerError || !signer) {
       return jsonResponse({ error: 'Signer not found' }, 404, corsHeaders)
+    }
+
+    const providedTokenHash = isTokenHash(body.accessToken)
+      ? body.accessToken
+      : await hashToken(body.accessToken)
+
+    if (!signer.access_token_hash || signer.access_token_hash !== providedTokenHash) {
+      return jsonResponse({ error: 'Invalid or expired access token' }, 403, corsHeaders)
     }
 
     // Obtener workflow para shadow mode
@@ -67,9 +90,9 @@ serve(async (req) => {
     const legacyDecision = Boolean(signer)
 
     // Canonical decision: validaciones completas
-    // Nota: actor_id es indeterminado en service role, asumimos owner por ahora
+    // With signer token validation, actor_id can be bound to signer email.
     const canonicalDecision = shouldRejectSignature({
-      actor_id: workflow?.owner_id || null, // Simplificación: asumimos owner
+      actor_id: signer.email || null,
       signer: signer ? {
         id: signer.id,
         email: signer.email,
@@ -93,7 +116,7 @@ serve(async (req) => {
         legacy_decision: legacyDecision,
         canonical_decision: canonicalDecision,
         context: {
-          actor_id: workflow?.owner_id || null,
+          actor_id: signer.email || null,
           operation: 'reject-signature',
           signer_status: signer.status,
           workflow_status: workflow?.status || null,

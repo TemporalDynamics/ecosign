@@ -415,6 +415,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       const { error } = await supabase.functions.invoke('reject-signature', {
         body: {
           signerId: signerData.signer_id,
+          accessToken: token,
           rejectionPhase
         }
       })

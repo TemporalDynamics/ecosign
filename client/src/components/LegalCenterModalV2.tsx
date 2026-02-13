@@ -858,7 +858,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     
     // 3. Soft navigate using React Router (maintains session)
     // DocumentsPage will detect sessionStorage flag in useEffect and scroll/focus
-    navigate('/documents');
+    navigate('/documentos');
   };
 
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {

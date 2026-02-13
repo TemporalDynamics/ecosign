@@ -29,7 +29,13 @@ interface SignaturePadProps {
   onFieldValueChange?: (fieldId: string, value: string) => void
   signatureAllPages?: boolean
   validate?: () => string | null
-  onSign: (payload: { type: SignatureMode, dataUrl: string }) => Promise<void> | void
+  onSign: (payload: {
+    type: SignatureMode
+    dataUrl: string
+    storeEncryptedSignatureOptIn?: boolean
+    storeSignatureVectorsOptIn?: boolean
+  }) => Promise<void> | void
+  onReject?: () => void
 }
 
 export default function SignaturePad({
@@ -41,12 +47,15 @@ export default function SignaturePad({
   onFieldValueChange,
   signatureAllPages,
   validate,
-  onSign
+  onSign,
+  onReject
 }: SignaturePadProps) {
   const { canvasRef, hasSignature, clearCanvas, getSignatureData, handlers } = useSignatureCanvas()
   const [signatureTab, setSignatureTab] = useState<SignatureMode>('draw')
   const [typedSignature, setTypedSignature] = useState('')
   const [uploadedSignature, setUploadedSignature] = useState<string | null>(null)
+  const [storeEncryptedSignatureOptIn, setStoreEncryptedSignatureOptIn] = useState(false)
+  const [storeSignatureVectorsOptIn, setStoreSignatureVectorsOptIn] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { logEvent } = useEcoxLogger()
@@ -138,7 +147,11 @@ export default function SignaturePad({
     try {
       setSubmitting(true)
       setError(null)
-      await onSign(signature)
+      await onSign({
+        ...signature,
+        storeEncryptedSignatureOptIn: signature.type === 'draw' ? storeEncryptedSignatureOptIn : false,
+        storeSignatureVectorsOptIn: signature.type === 'draw' ? storeSignatureVectorsOptIn : false
+      })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No pudimos guardar tu firma'
       setError(message)
@@ -273,6 +286,30 @@ export default function SignaturePad({
                 <Eraser className="h-4 w-4" />
                 Limpiar firma
               </button>
+              <div className="mt-4 space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={storeEncryptedSignatureOptIn}
+                    onChange={(e) => setStoreEncryptedSignatureOptIn(e.target.checked)}
+                    className="eco-checkbox mt-1 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Opcional: guardar firma encriptada para reutilizarla.
+                  </span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={storeSignatureVectorsOptIn}
+                    onChange={(e) => setStoreSignatureVectorsOptIn(e.target.checked)}
+                    className="eco-checkbox mt-1 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Opcional: registrar datos técnicos del trazo para reforzar la verificación.
+                  </span>
+                </label>
+              </div>
             </div>
           )}
 
@@ -354,6 +391,15 @@ export default function SignaturePad({
             )}
             {validationError && (
               <span className="text-xs text-gray-500">{validationError}</span>
+            )}
+            {onReject && (
+              <button
+                onClick={onReject}
+                disabled={submitting}
+                className="inline-flex min-w-[180px] items-center justify-center rounded-lg border border-red-200 px-6 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                Rechazar documento
+              </button>
             )}
           </div>
         </div>

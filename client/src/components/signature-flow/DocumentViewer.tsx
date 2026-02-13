@@ -30,6 +30,7 @@ interface DocumentViewerProps {
     apply_to_all_pages?: boolean
   }>
   onContinue: () => void
+  onReject?: () => void
   mode?: 'dashboard' | 'signer'
 }
 
@@ -41,6 +42,7 @@ export default function DocumentViewer({
   signedUrl,
   stamps,
   onContinue,
+  onReject,
   mode = 'dashboard'
 }: DocumentViewerProps) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
@@ -311,6 +313,14 @@ export default function DocumentViewer({
               >
                 Firmar documento
               </button>
+              {onReject && (
+                <button
+                  onClick={onReject}
+                  className="inline-flex items-center justify-center rounded-lg border border-red-300 px-8 py-3 text-base font-semibold text-red-100 transition hover:bg-red-500/10"
+                >
+                  Rechazar documento
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -359,6 +369,14 @@ export default function DocumentViewer({
           >
             Continuar para firmar →
           </button>
+          {onReject && (
+            <button
+              onClick={onReject}
+              className="inline-flex items-center justify-center rounded-lg border border-red-200 px-6 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+            >
+              Rechazar documento
+            </button>
+          )}
         </div>
       </div>
     </div>

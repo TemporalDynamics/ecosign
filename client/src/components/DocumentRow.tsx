@@ -101,13 +101,13 @@ export default function DocumentRow({
                 {onDownloadOriginal && (
                   <button
                     className={`w-full text-left px-3 py-2 text-sm ${
-                      document.custody_mode === 'encrypted_custody' && document.source_storage_path
+                      document.source_storage_path
                         ? 'hover:bg-gray-50'
                         : 'text-gray-400 cursor-not-allowed'
                     }`}
-                    onClick={() => document.custody_mode === 'encrypted_custody' && document.source_storage_path && onDownloadOriginal(document)}
-                    disabled={!(document.custody_mode === 'encrypted_custody' && document.source_storage_path)}
-                    title={document.custody_mode === 'encrypted_custody' && document.source_storage_path ? '' : 'Original no disponible'}
+                    onClick={() => document.source_storage_path && onDownloadOriginal(document)}
+                    disabled={!document.source_storage_path}
+                    title={document.source_storage_path ? '' : 'Original no disponible'}
                   >
                     Descargar original
                   </button>
@@ -208,13 +208,13 @@ export default function DocumentRow({
               {onDownloadOriginal && (
                 <button
                   className={`w-full text-left px-3 py-2 text-sm ${
-                    document.custody_mode === 'encrypted_custody' && document.source_storage_path
+                    document.source_storage_path
                       ? 'hover:bg-gray-50'
                       : 'text-gray-400 cursor-not-allowed'
                   }`}
-                  onClick={() => document.custody_mode === 'encrypted_custody' && document.source_storage_path && onDownloadOriginal(document)}
-                  disabled={!(document.custody_mode === 'encrypted_custody' && document.source_storage_path)}
-                  title={document.custody_mode === 'encrypted_custody' && document.source_storage_path ? '' : 'Original no disponible'}
+                  onClick={() => document.source_storage_path && onDownloadOriginal(document)}
+                  disabled={!document.source_storage_path}
+                  title={document.source_storage_path ? '' : 'Original no disponible'}
                 >
                   Descargar original
                 </button>

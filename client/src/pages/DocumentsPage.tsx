@@ -1078,6 +1078,38 @@ function DocumentsPage() {
     }, 200);
   };
 
+  const getBucketCandidates = (storagePath: string, preferredBucket?: 'custody' | 'user-documents') => {
+    const isLikelyCustodyPath =
+      storagePath.includes('/encrypted_witness/') ||
+      storagePath.includes('/encrypted_source/');
+    const ordered: Array<'custody' | 'user-documents'> = preferredBucket
+      ? [preferredBucket, preferredBucket === 'custody' ? 'user-documents' : 'custody']
+      : isLikelyCustodyPath
+        ? ['custody', 'user-documents']
+        : ['user-documents', 'custody'];
+    return Array.from(new Set(ordered));
+  };
+
+  const createSignedUrlWithFallback = async (
+    storagePath: string,
+    expiresInSeconds = 3600,
+    preferredBucket?: 'custody' | 'user-documents'
+  ) => {
+    const supabase = getSupabase();
+    const candidates = getBucketCandidates(storagePath, preferredBucket);
+    let lastError: any = null;
+
+    for (const bucket of candidates) {
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, expiresInSeconds);
+      if (!error && data?.signedUrl) {
+        return { signedUrl: data.signedUrl as string, bucket };
+      }
+      lastError = error;
+    }
+
+    throw lastError || new Error('No pudimos crear una URL firmada para este archivo.');
+  };
+
   const downloadFromPath = async (storagePath: string | null | undefined, fileName: string | null = null) => {
     if (isGuestMode()) {
       toast("Modo invitado: descarga disponible solo con cuenta.", { position: "top-right" });
@@ -1085,21 +1117,10 @@ function DocumentsPage() {
     }
     if (!storagePath) return;
     try {
-      const supabase = getSupabase();
-      // Detect bucket based on path pattern
-      // custody: {user_id}/{doc_id}/encrypted_witness/... or encrypted_source
-      // user-documents: everything else
-      const isCustodyPath = storagePath.includes('/encrypted_witness/') || storagePath.includes('/encrypted_source');
-      const bucket = isCustodyPath ? "custody" : "user-documents";
+      const { signedUrl, bucket } = await createSignedUrlWithFallback(storagePath, 3600);
       console.log('[downloadFromPath] Using bucket:', bucket, 'for path:', storagePath);
-      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 3600);
-      if (error) {
-        console.error("Error creando URL de descarga:", error);
-        window.alert("No pudimos preparar la descarga. Probá regenerar el certificado y reintentá.");
-        return;
-      }
 
-      const response = await fetch(data.signedUrl);
+      const response = await fetch(signedUrl);
       if (!response.ok) {
         console.error("Error descargando archivo:", response.status, response.statusText);
         window.alert("La descarga falló. Probá regenerar el archivo y volver a intentar.");
@@ -1142,16 +1163,9 @@ function DocumentsPage() {
     if (isGuestMode()) {
       throw new Error("Iniciá sesión para previsualizar documentos.");
     }
-    const supabase = getSupabase();
-    // Detect bucket based on path pattern
-    const isCustodyPath = storagePath.includes('/encrypted_witness/') || storagePath.includes('/encrypted_source');
-    const bucket = isCustodyPath ? "custody" : "user-documents";
+    const { signedUrl, bucket } = await createSignedUrlWithFallback(storagePath, 3600);
     console.log('[fetchPreviewBlobFromPath] Using bucket:', bucket, 'for path:', storagePath);
-    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 3600);
-    if (error || !data?.signedUrl) {
-      throw new Error("No pudimos preparar la previsualización.");
-    }
-    const response = await fetch(data.signedUrl);
+    const response = await fetch(signedUrl);
     if (!response.ok) {
       throw new Error("No pudimos cargar la previsualización.");
     }
@@ -1482,7 +1496,7 @@ function DocumentsPage() {
     if (!doc) return;
 
     // Verificar que el documento tenga el original guardado
-    if (doc.custody_mode !== 'encrypted_custody' || !doc.source_storage_path) {
+    if (!doc.source_storage_path) {
       window.alert("Este documento no tiene el archivo original guardado.");
       return;
     }
@@ -1498,18 +1512,10 @@ function DocumentsPage() {
 
       console.log('[handleOriginalDownload] Downloading from custody:', doc.source_storage_path);
 
-      // Descargar archivo cifrado desde custody bucket
-      const { data, error } = await supabase.storage
-        .from('custody')
-        .createSignedUrl(doc.source_storage_path, 3600);
+      const { signedUrl, bucket } = await createSignedUrlWithFallback(doc.source_storage_path, 3600, 'custody');
+      console.log('[handleOriginalDownload] Using bucket:', bucket, 'for path:', doc.source_storage_path);
 
-      if (error || !data?.signedUrl) {
-        console.error('[handleOriginalDownload] Error creating signed URL:', error);
-        window.alert("No pudimos preparar la descarga del original.");
-        return;
-      }
-
-      const response = await fetch(data.signedUrl);
+      const response = await fetch(signedUrl);
       if (!response.ok) {
         window.alert("No se pudo descargar el archivo original.");
         return;
@@ -1518,7 +1524,13 @@ function DocumentsPage() {
       const encryptedBlob = await response.blob();
       console.log('[handleOriginalDownload] Downloaded encrypted blob:', encryptedBlob.size, 'bytes');
 
-      // Descifrar usando la clave derivada del userId
+      // Si no es custody cifrado, descargar directo como archivo original.
+      if (doc.custody_mode !== 'encrypted_custody') {
+        triggerDownload(encryptedBlob, doc.document_name);
+        return;
+      }
+
+      // Descifrar usando la clave derivada del userId (custody cifrado)
       const encryptedData = await encryptedBlob.arrayBuffer();
 
       // Determinar MIME type basado en la extensión del nombre original
@@ -1712,14 +1724,8 @@ function DocumentsPage() {
       let blob: Blob;
       const storagePath = getPdfStoragePath(doc);
       if (storagePath) {
-        // Detect bucket based on path pattern
-        const isCustodyPath = storagePath.includes('/encrypted_witness/') || storagePath.includes('/encrypted_source');
-        const bucket = isCustodyPath ? "custody" : "user-documents";
-        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 600);
-        if (error || !data?.signedUrl) {
-          throw error || new Error("No se pudo crear el enlace de verificación automática.");
-        }
-        const response = await fetch(data.signedUrl);
+        const { signedUrl } = await createSignedUrlWithFallback(storagePath, 600);
+        const response = await fetch(signedUrl);
         if (!response.ok) {
           throw new Error("No se pudo descargar el PDF almacenado.");
         }
@@ -2695,12 +2701,12 @@ function DocumentsPage() {
                     type="button"
                     onClick={() => handleOriginalDownload(previewDoc)}
                     className={`px-3 py-2 rounded-lg border text-sm font-semibold ${
-                      previewDoc.custody_mode === 'encrypted_custody' && previewDoc.source_storage_path
+                      previewDoc.source_storage_path
                         ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
                         : 'border-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
-                    disabled={!(previewDoc.custody_mode === 'encrypted_custody' && previewDoc.source_storage_path)}
-                    title={previewDoc.custody_mode === 'encrypted_custody' && previewDoc.source_storage_path
+                    disabled={!previewDoc.source_storage_path}
+                    title={previewDoc.source_storage_path
                       ? 'Archivo original subido por el usuario'
                       : 'Original no disponible - no se guardó copia cifrada'}
                   >

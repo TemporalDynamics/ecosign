@@ -13,7 +13,7 @@ describe('deriveHumanState', () => {
     const signers = [{ id: '1', name: 'Juan', email: 'juan@example.com', status: 'invited', signing_order: 1 }]
     const s = deriveHumanState(wf as any, signers as any)
     expect(s.key).toBe('waiting_for_signer')
-    expect(s.label).toContain('Esperando firma')
+    expect(s.label).toBe('Firmando 0/1')
     expect(s.severity).toBe('action')
   })
 
@@ -21,11 +21,11 @@ describe('deriveHumanState', () => {
     const wf = { status: 'completed' }
     const s = deriveHumanState(wf as any, [])
     expect(s.key).toBe('completed')
-    expect(s.severity).toBe('success')
-    // color mapping for success should be gray token
-    expect(getHumanStateColor(s.severity)).toContain('gray')
-    // icon name for success
-    expect(getHumanStateIconName(s.severity)).toBe('CheckCircle')
+    expect(s.severity).toBe('info')
+    // color mapping for info should be blue token
+    expect(getHumanStateColor(s.severity)).toContain('blue')
+    // icon name for info
+    expect(getHumanStateIconName(s.severity)).toBe('ShieldCheck')
   })
 
   it('returns cancelled when workflow is cancelled', () => {

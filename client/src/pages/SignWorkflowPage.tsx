@@ -405,13 +405,18 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     }
   }
 
-  const handleRejectSignature = async () => {
+  type RejectionPhase = 'preaccess' | 'otp' | 'viewing' | 'signing'
+
+  const handleRejectSignature = async (rejectionPhase: RejectionPhase) => {
     if (!signerData) return
     const supabase = getSupabase();
     setError(null)
     try {
       const { error } = await supabase.functions.invoke('reject-signature', {
-        body: { signerId: signerData.signer_id }
+        body: {
+          signerId: signerData.signer_id,
+          rejectionPhase
+        }
       })
       if (error) {
         setError(error.message || 'No pudimos registrar el rechazo')
@@ -811,7 +816,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             isSubmitting={preAccessSubmitting}
             errorMessage={error}
             onConfirm={handlePreAccessConfirm}
-            onReject={handleRejectSignature}
+            onReject={() => handleRejectSignature('preaccess')}
           />
         )}
 
@@ -884,7 +889,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                   </div>
                 )}
                 <button
-                  onClick={handleRejectSignature}
+                  onClick={() => handleRejectSignature('otp')}
                   className="w-full rounded-lg border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-50"
                 >
                   Rechazar documento
@@ -903,7 +908,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             signedUrl={signerData.encrypted_pdf_url}
             stamps={signerData.prior_signature_stamps}
             onContinue={handleDocumentViewed}
-            onReject={handleRejectSignature}
+            onReject={() => handleRejectSignature('viewing')}
             mode={mode}
           />
         )}
@@ -963,7 +968,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 </div>
                 <div className="mt-4">
                   <button
-                    onClick={handleRejectSignature}
+                    onClick={() => handleRejectSignature('signing')}
                     className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
                   >
                     Rechazar documento
@@ -996,7 +1001,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 return null
               }}
               onSign={handleSignatureApplied}
-              onReject={handleRejectSignature}
+              onReject={() => handleRejectSignature('signing')}
             />
           )
         )}

@@ -222,7 +222,18 @@ export default function WorkflowDetailPage() {
         .single()
 
       if (wfError) throw wfError
-      setWorkflow(wf as Workflow)
+      // Single canonical public status resolver from backend.
+      const { data: publicStatus } = await supabase.rpc('get_workflow_public_status', {
+        p_workflow_id: workflowId
+      })
+      const normalizedWorkflow = {
+        ...(wf as Workflow),
+        status:
+          typeof publicStatus === 'string' && publicStatus.length > 0
+            ? publicStatus
+            : (wf as Workflow).status
+      }
+      setWorkflow(normalizedWorkflow as Workflow)
 
         const { data: signerData, error: signerError } = await supabase
         .from('workflow_signers')

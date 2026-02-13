@@ -2655,6 +2655,12 @@ function DocumentsPage() {
 
               <div className="space-y-4">
                 <DocumentStateInfo document={previewDoc} />
+                {(() => {
+                  const ecoAvailable = Boolean(
+                    previewDoc.eco_storage_path || previewDoc.eco_file_data || previewDoc.eco_hash || previewDoc.content_hash
+                  );
+                  return (
+                    <>
 
                 {/* Evidencias del documento */}
                 <div className="grid gap-2">
@@ -2662,7 +2668,13 @@ function DocumentsPage() {
                   <button
                     type="button"
                     onClick={() => handleEcoDownload(previewDoc)}
-                    className="px-3 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:bg-gray-800"
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold ${
+                      ecoAvailable
+                        ? 'bg-black text-white hover:bg-gray-800'
+                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    }`}
+                    disabled={!ecoAvailable}
+                    title={ecoAvailable ? 'Descargar evidencia ECO' : 'ECO no disponible para este documento'}
                   >
                     Descargar ECO
                     <span className="ml-2 text-xs opacity-70">evidencia verificable</span>
@@ -2719,6 +2731,9 @@ function DocumentsPage() {
                     Agregar a operación
                   </button>
                 </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

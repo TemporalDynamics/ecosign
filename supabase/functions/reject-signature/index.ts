@@ -228,6 +228,17 @@ serve(async (req) => {
       })
       .eq('id', signer.id)
 
+    // If a signer explicitly rejects, the workflow is terminally rejected.
+    // Defensive guard: only transition from active -> rejected.
+    await supabase
+      .from('signature_workflows')
+      .update({
+        status: 'rejected',
+        updated_at: rejectedAt
+      })
+      .eq('id', signer.workflow_id)
+      .eq('status', 'active')
+
     await appendCanonicalEvent(
       supabase,
       {

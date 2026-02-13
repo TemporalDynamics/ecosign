@@ -58,6 +58,15 @@ describe('deriveDocumentState', () => {
     expect(state).toEqual({ label: 'Rechazado', phase: 'gray' });
   });
 
+  it('workflow active + signer rejected -> Rechazado (gris) (fallback defensivo)', () => {
+    const state = deriveDocumentState(
+      createDocument(),
+      [createWorkflow('active')],
+      [createSigner(1, 'rejected')]
+    );
+    expect(state).toEqual({ label: 'Rechazado', phase: 'gray' });
+  });
+
   it('workflow cancelled -> Cancelado (gris)', () => {
     const state = deriveDocumentState(
       createDocument(),

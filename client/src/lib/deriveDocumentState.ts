@@ -82,8 +82,17 @@ export function deriveDocumentState(
   if (workflow) {
     const signedCount = signers?.filter(s => s.status === 'signed').length ?? 0;
     const totalCount = signers?.length ?? 0;
+    const hasRejectedSigner = (signers?.some((s) => s.status === 'rejected') ?? false);
 
     if (workflow.status === 'active') {
+      // Defensive fallback for legacy/in-flight data:
+      // if any signer already rejected, render terminal rejected state.
+      if (hasRejectedSigner) {
+        return {
+          label: 'Rechazado',
+          phase: 'gray'
+        };
+      }
       if (totalCount > 0) {
         return {
           label: `Firmando ${signedCount}/${totalCount}`,

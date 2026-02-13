@@ -854,8 +854,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             senderName={signerData.workflow.owner_name}
             senderEmail={signerData.workflow.owner_email}
             signerEmail={signerData.email}
-            initialFirstName={getInitialNameParts(signerData.name || signerData.email).firstName}
-            initialLastName={getInitialNameParts(signerData.name || signerData.email).lastName}
+            initialFirstName={getInitialNameParts(signerData.name).firstName}
+            initialLastName={getInitialNameParts(signerData.name).lastName}
             isSubmitting={preAccessSubmitting}
             errorMessage={error}
             onConfirm={handlePreAccessConfirm}
@@ -1057,6 +1057,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             onDownloadEco={(ecoUrl || ecoPath) ? handleDownloadEco : undefined}
             isLastSigner={isLastSigner}
             onClose={() => navigate(homePath)}
+            showCloseAction={!isSignerMode}
+            closeLabel={isSignerMode ? 'Cerrar' : 'Ir a documentos'}
           />
         )}
       </div>

@@ -295,7 +295,7 @@ export default function SignaturePad({
                     className="eco-checkbox mt-1 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="text-sm text-gray-700">
-                    Opcional: guardar firma encriptada para reutilizarla.
+                    Opcional: guardar la imagen de tu firma encriptada para facilitar futuras firmas.
                   </span>
                 </label>
                 <label className="flex items-start gap-2">
@@ -306,7 +306,7 @@ export default function SignaturePad({
                     className="eco-checkbox mt-1 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
                   <span className="text-sm text-gray-700">
-                    Opcional: registrar datos técnicos del trazo para reforzar la verificación.
+                    Opcional: registrar datos técnicos del trazo (coordenadas) para reforzar verificación en caso de disputa.
                   </span>
                 </label>
               </div>

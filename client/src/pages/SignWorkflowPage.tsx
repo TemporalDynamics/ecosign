@@ -252,6 +252,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
       // Check if it's their turn (if sequential signing)
       if (signer.workflow.require_sequential) {
+        const supabase = getSupabase();
         // Get all signers with lower signing_order who haven't signed yet
         const { data: previousSigners, error: prevError } = await supabase
           .from('workflow_signers')

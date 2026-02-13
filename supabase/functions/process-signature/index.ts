@@ -188,7 +188,8 @@ serve(async (req) => {
     }
 
     const otpData = Array.isArray(signer.signer_otps) ? signer.signer_otps[0] : signer.signer_otps
-    if (!otpData?.verified_at) {
+    const otpRequired = !(signer.quick_access || signer.require_login === false)
+    if (otpRequired && !otpData?.verified_at) {
       return jsonResponse({ error: 'OTP not verified for signer' }, 403)
     }
 

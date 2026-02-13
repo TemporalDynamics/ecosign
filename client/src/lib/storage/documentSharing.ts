@@ -73,7 +73,8 @@ export async function shareDocument(
     // 1. Resolve shareable user_documents row.
     // NOTE: DocumentsPage can provide document_entities ids; sharing still needs legacy
     // user_documents for wrapped_key/encrypted_path.
-    const doc = await resolveShareableUserDocument(supabase, documentId, pdfStoragePath, user.id);
+    const preferredPath = await resolvePreferredSharePath(supabase, documentId, pdfStoragePath, user.id);
+    const doc = await resolveShareableUserDocument(supabase, documentId, preferredPath, user.id);
     if (!doc) {
       throw new Error('share_source_unavailable');
     }
@@ -252,10 +253,16 @@ export async function listDocumentShares(documentId: string, pdfStoragePath?: st
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const resolvedDoc = await resolveShareableUserDocument(
+  const preferredPath = await resolvePreferredSharePath(
     supabase,
     documentId,
     pdfStoragePath,
+    user?.id
+  );
+  const resolvedDoc = await resolveShareableUserDocument(
+    supabase,
+    documentId,
+    preferredPath,
     user?.id
   );
   const resolvedDocumentId = resolvedDoc?.id ?? documentId;
@@ -344,6 +351,45 @@ async function resolveShareableUserDocument(
     byEncryptedPathError: byEncryptedPath?.error ?? null,
   });
   return null;
+}
+
+async function resolvePreferredSharePath(
+  supabase: ReturnType<typeof getSupabase>,
+  documentId: string,
+  fallbackPath?: string | null,
+  ownerUserId?: string
+): Promise<string | null> {
+  try {
+    let query = supabase
+      .from('document_entities')
+      .select('id, owner_id, witness_current_storage_path, source_storage_path')
+      .eq('id', documentId)
+      .limit(1);
+
+    if (ownerUserId) {
+      query = query.eq('owner_id', ownerUserId);
+    }
+
+    const { data, error } = await query;
+    if (!error && data && data.length > 0) {
+      const entity = data[0] as {
+        witness_current_storage_path?: string | null;
+        source_storage_path?: string | null;
+      };
+
+      const canonicalPath =
+        entity.witness_current_storage_path ||
+        fallbackPath ||
+        entity.source_storage_path ||
+        null;
+
+      return canonicalPath;
+    }
+  } catch (error) {
+    console.warn('Share: failed to resolve preferred path from document_entities', error);
+  }
+
+  return fallbackPath ?? null;
 }
 
 /**

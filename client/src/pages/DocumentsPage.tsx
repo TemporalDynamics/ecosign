@@ -1078,6 +1078,22 @@ function DocumentsPage() {
     }, 200);
   };
 
+  const mapStorageHttpError = (status: number, context: 'preview' | 'download') => {
+    if (status === 404) {
+      return context === 'preview'
+        ? 'La previsualización no está disponible: no encontramos el archivo.'
+        : 'El archivo no está disponible (no encontrado).';
+    }
+    if (status === 403) {
+      return context === 'preview'
+        ? 'No tenés permisos para previsualizar este archivo o el enlace expiró.'
+        : 'No tenés permisos para descargar este archivo o el enlace expiró.';
+    }
+    return context === 'preview'
+      ? `No pudimos cargar la previsualización (código ${status}).`
+      : `No se pudo descargar el archivo (código ${status}).`;
+  };
+
   const getBucketCandidates = (storagePath: string, preferredBucket?: 'custody' | 'user-documents') => {
     const isLikelyCustodyPath =
       storagePath.includes('/encrypted_witness/') ||
@@ -1122,8 +1138,9 @@ function DocumentsPage() {
 
       const response = await fetch(signedUrl);
       if (!response.ok) {
-        console.error("Error descargando archivo:", response.status, response.statusText);
-        window.alert("La descarga falló. Probá regenerar el archivo y volver a intentar.");
+        const body = await response.text().catch(() => '');
+        console.error("Error descargando archivo:", response.status, response.statusText, body);
+        window.alert(mapStorageHttpError(response.status, 'download'));
         return;
       }
 
@@ -1167,7 +1184,9 @@ function DocumentsPage() {
     console.log('[fetchPreviewBlobFromPath] Using bucket:', bucket, 'for path:', storagePath);
     const response = await fetch(signedUrl);
     if (!response.ok) {
-      throw new Error("No pudimos cargar la previsualización.");
+      const body = await response.text().catch(() => '');
+      console.error('[fetchPreviewBlobFromPath] Fetch failed:', response.status, response.statusText, body);
+      throw new Error(mapStorageHttpError(response.status, 'preview'));
     }
     return response.blob();
   };
@@ -1220,8 +1239,9 @@ function DocumentsPage() {
     console.log('[fetchEncryptedPdfBlob] Fetching encrypted blob from signed URL');
     const response = await fetch(data.signedUrl);
     if (!response.ok) {
-      console.error('[fetchEncryptedPdfBlob] Fetch failed:', response.status, response.statusText);
-      throw new Error("No se pudo descargar el PDF cifrado.");
+      const body = await response.text().catch(() => '');
+      console.error('[fetchEncryptedPdfBlob] Fetch failed:', response.status, response.statusText, body);
+      throw new Error(mapStorageHttpError(response.status, 'download'));
     }
 
     const encryptedBlob = await response.blob();
@@ -1517,7 +1537,9 @@ function DocumentsPage() {
 
       const response = await fetch(signedUrl);
       if (!response.ok) {
-        window.alert("No se pudo descargar el archivo original.");
+        const body = await response.text().catch(() => '');
+        console.error('[handleOriginalDownload] Fetch failed:', response.status, response.statusText, body);
+        window.alert(mapStorageHttpError(response.status, 'download'));
         return;
       }
 

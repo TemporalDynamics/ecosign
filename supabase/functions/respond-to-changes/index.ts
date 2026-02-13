@@ -406,7 +406,8 @@ serve(async (req) => {
               <p>${modificationNotes}</p>
             ` : ''}
             <p>El documento original sigue disponible para tu firma.</p>
-            <p><a href="${appUrl}/sign/[TOKEN]">Ver y Firmar Documento</a></p>
+            <p><a href="${appUrl}/sign/[TOKEN]">Ver Documento</a></p>
+            <p>Al ingresar podés elegir firmar o rechazar el documento.</p>
           `,
           delivery_status: 'pending'
         })
@@ -571,7 +572,8 @@ serve(async (req) => {
               <h2>Nueva Versión Lista para Firma</h2>
               <p>El documento ha sido modificado y es tu turno de firmar.</p>
               <p><strong>Versión ${workflow.current_version + 1}</strong> (Documento modificado)</p>
-              <p><a href="${appUrl}/sign/[TOKEN]">Ver y Firmar Documento</a></p>
+              <p><a href="${appUrl}/sign/[TOKEN]">Ver Documento</a></p>
+              <p>Al ingresar podés elegir firmar o rechazar el documento.</p>
             `,
             delivery_status: 'pending'
           })

@@ -1186,6 +1186,46 @@ serve(async (req) => {
       }
     }
 
+    const captureKind =
+      signatureData && typeof signatureData === 'object' && typeof (signatureData as any).type === 'string'
+        ? String((signatureData as any).type)
+        : (typeof signatureData === 'string' ? 'typed' : 'unknown')
+    const captureConsent = {
+      capture_kind: captureKind,
+      store_encrypted_signature_opt_in: Boolean(
+        signatureData &&
+        typeof signatureData === 'object' &&
+        captureKind === 'draw' &&
+        (signatureData as any).storeEncryptedSignatureOptIn
+      ),
+      store_signature_vectors_opt_in: Boolean(
+        signatureData &&
+        typeof signatureData === 'object' &&
+        captureKind === 'draw' &&
+        (signatureData as any).storeSignatureVectorsOptIn
+      )
+    }
+
+    // Canonical consent event, semantically separate from identity.
+    // Best-effort: must not block signing if event type is not yet migrated.
+    try {
+      await appendCanonicalEvent(
+        supabase as any,
+        {
+          event_type: 'signature.capture.consent' as any,
+          workflow_id: signer.workflow_id,
+          signer_id: signer.id,
+          payload: {
+            ...captureConsent,
+            at: applied_at || new Date().toISOString()
+          }
+        },
+        'apply-signer-signature'
+      )
+    } catch (consentErr) {
+      console.warn('apply-signer-signature: signature.capture.consent append failed (best-effort)', consentErr)
+    }
+
     const { error: insertErr } = await supabase
       .from('workflow_events')
       .insert({

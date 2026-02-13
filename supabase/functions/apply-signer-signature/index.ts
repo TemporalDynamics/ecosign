@@ -620,6 +620,10 @@ serve(async (req) => {
       return json({ error: 'Workflow not found' }, 404)
     }
 
+    if (workflow.status !== 'active') {
+      return json({ error: `Workflow is not active (status=${workflow.status})` }, 403)
+    }
+
     if (!workflow.document_entity_id) {
       // Contract: signature flow must be bound to a document_entity_id.
       // Without it we cannot resolve signer batches or record signature instances.

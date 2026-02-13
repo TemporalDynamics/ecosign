@@ -117,9 +117,33 @@ test('Test 7 - workflow null', () => {
 });
 
 // ============================================
-// Test 8: Idempotencia (cancelled)
+// Test 8: Workflow ready (no cancelar)
 // ============================================
-test('Test 8 - idempotencia cancelled', () => {
+test('Test 8 - workflow ready', () => {
+  const result = shouldCancelWorkflow({
+    actor_id: 'owner-1',
+    workflow: { owner_id: 'owner-1', status: 'ready' },
+  });
+
+  assert(result === false, 'No debe permitir cancelación si está ready');
+});
+
+// ============================================
+// Test 9: Workflow rejected (no cancelar)
+// ============================================
+test('Test 9 - workflow rejected', () => {
+  const result = shouldCancelWorkflow({
+    actor_id: 'owner-1',
+    workflow: { owner_id: 'owner-1', status: 'rejected' },
+  });
+
+  assert(result === false, 'No debe permitir cancelación si está rejected');
+});
+
+// ============================================
+// Test 10: Idempotencia (cancelled)
+// ============================================
+test('Test 10 - idempotencia cancelled', () => {
   const result = shouldCancelWorkflow({
     actor_id: 'owner-1',
     workflow: { owner_id: 'owner-1', status: 'cancelled' },

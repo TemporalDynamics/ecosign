@@ -14,6 +14,7 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 interface Payload {
   signerId: string
   reason?: string
+  rejectionPhase?: 'preaccess' | 'otp' | 'viewing' | 'signing'
 }
 
 serve(async (req) => {
@@ -82,6 +83,8 @@ serve(async (req) => {
     })
 
     // Log shadow comparison
+    const rejectionPhase = body.rejectionPhase ?? 'unknown'
+
     try {
       await supabase.from('shadow_decision_logs').insert({
         decision_code: 'D10_REJECT_SIGNATURE',
@@ -94,6 +97,7 @@ serve(async (req) => {
           operation: 'reject-signature',
           signer_status: signer.status,
           workflow_status: workflow?.status || null,
+          rejection_phase: rejectionPhase,
           phase: 'PASO_2_SHADOW_MODE_D10',
         },
       })
@@ -134,7 +138,8 @@ serve(async (req) => {
         payload: {
           email: signer.email,
           signing_order: signer.signing_order,
-          reason: body.reason || null
+          reason: body.reason || null,
+          rejection_phase: rejectionPhase
         }
       },
       'reject-signature'

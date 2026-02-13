@@ -18,6 +18,7 @@ export default function DocumentRow({
   onVerify,
   onMove,
   onInPerson,
+  onCancelFlow,
   selectable = false,
   selected = false,
   onSelect,
@@ -34,6 +35,7 @@ export default function DocumentRow({
   onVerify?: (doc: any) => void;
   onMove?: (doc: any) => void;
   onInPerson?: (doc: any) => void;
+  onCancelFlow?: (doc: any) => void;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (checked: boolean) => void;
@@ -57,6 +59,8 @@ export default function DocumentRow({
   // TODO: pasar workflows y signers cuando estén disponibles
   const state = deriveDocumentState(document, document.workflows, document.signers);
   const tooltip = deriveDocumentTooltip(document);
+  const hasActiveWorkflow = Array.isArray(document.workflows)
+    && document.workflows.some((wf: any) => wf?.status === 'active');
 
   if (asRow) {
     return (
@@ -113,6 +117,14 @@ export default function DocumentRow({
                 )}
                 {onMove && context !== 'operation' && (
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onMove(document)}>Agregar a operación</button>
+                )}
+                {onCancelFlow && hasActiveWorkflow && context !== 'operation' && (
+                  <button
+                    className="w-full text-left px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                    onClick={() => onCancelFlow(document)}
+                  >
+                    Cancelar flujo
+                  </button>
                 )}
                 {onInPerson && (
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onInPerson(document)}>Firma presencial</button>
@@ -223,6 +235,15 @@ export default function DocumentRow({
                   onClick={() => onMove(document)}
                 >
                   Agregar a operación
+                </button>
+              )}
+
+              {onCancelFlow && hasActiveWorkflow && context !== 'operation' && (
+                <button
+                  className="w-full text-left px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                  onClick={() => onCancelFlow(document)}
+                >
+                  Cancelar flujo
                 </button>
               )}
 

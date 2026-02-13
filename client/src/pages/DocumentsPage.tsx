@@ -20,7 +20,7 @@ import OperationRow from "../components/OperationRow";
 import DocumentRow from "../components/DocumentRow";
 import DocumentStateInfo from "../components/DocumentStateInfo";
 import { GRID_TOKENS } from "../config/gridTokens";
-import { deriveFlowStatus, FLOW_STATUS } from "../lib/flowStatus";
+import { deriveDocumentState } from "../lib/deriveDocumentState";
 import { ProtectedBadge } from "../components/ProtectedBadge";
 import { addDocumentToOperation, countDocumentsInOperation, getOperations, getOperationWithDocuments, protectAndSendOperation, updateOperation } from "../lib/operationsService";
 import { getDocumentEntity } from "../lib/documentEntityService";
@@ -66,7 +66,7 @@ type DocumentRecord = {
   signer_links?: any[];
   source_storage_path?: string | null;
   custody_mode?: 'hash_only' | 'encrypted_custody' | null;
-  workflows?: { id: string; status: 'draft' | 'active' | 'paused' | 'completed' | 'cancelled' }[];
+  workflows?: { id: string; status: 'draft' | 'ready' | 'active' | 'completed' | 'cancelled' | 'rejected' | 'archived' }[];
   signers?: { id: string; status: 'pending' | 'ready' | 'signed' | 'requested_changes' | 'skipped'; order: number; name?: string | null; email: string }[];
 };
 
@@ -588,11 +588,10 @@ function DocumentsPage() {
           .filter((id) => typeof id === 'string' && id.length > 0);
 
         if (entityIds.length > 0) {
-          const { data: wfRows, error: wfError } = await supabase
-            .from('signature_workflows')
-            .select('id, document_entity_id, status, created_at')
-            .in('document_entity_id', entityIds)
-            .in('status', ['active', 'completed']);
+              const { data: wfRows, error: wfError } = await supabase
+                .from('signature_workflows')
+                .select('id, document_entity_id, status, created_at')
+                .in('document_entity_id', entityIds);
 
           if (!wfError && wfRows && wfRows.length > 0) {
             const workflowByEntity = new Map<
@@ -2811,8 +2810,8 @@ function DocumentsPage() {
                     {(() => {
                       const total = previewOperationDocs.length;
                       const completed = previewOperationDocs.filter((doc) => {
-                        const key = deriveFlowStatus(doc).key;
-                        return key === "signed" || key === "protected";
+                        const state = deriveDocumentState(doc as any, doc.workflows as any, doc.signers as any);
+                        return state.phase === "gray";
                       }).length;
                       const pending = total - completed;
                       if (total === 0) return "Sin documentos cargados.";

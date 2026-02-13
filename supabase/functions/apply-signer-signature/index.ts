@@ -929,13 +929,13 @@ serve(async (req) => {
           witness_hash: canonicalWitnessHash || null
         }))
 
-        // CAI-INV-001 / CAI-INV-002: ECO witness integrity + proofs seal same artifact.
+        // EPI-INV-001 / EPI-INV-002: ECO witness integrity + proofs seal same artifact.
         if (!canonicalWitnessHash) {
-          throw new Error('cai_invariant_failed:missing_witness_hash')
+          throw new Error('epi_invariant_failed:missing_witness_hash')
         }
         const mismatch = normalizedProofs.find((p: any) => p?.witness_hash && p.witness_hash !== canonicalWitnessHash)
         if (mismatch) {
-          throw new Error('cai_invariant_failed:proof_witness_mismatch')
+          throw new Error('epi_invariant_failed:proof_witness_mismatch')
         }
 
         const issuedAt = new Date().toISOString()

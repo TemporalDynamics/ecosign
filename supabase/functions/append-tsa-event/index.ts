@@ -9,7 +9,7 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 }
 
 serve(async (req) => {
-  throw new Error('Legacy path disabled by CAI invariants')
+  throw new Error('Legacy path disabled by EPI invariants')
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
 
   if (Deno.env.get('FASE') !== '1') {

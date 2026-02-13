@@ -12,11 +12,11 @@ Regla de uso
 Estructura
 ----------
 - HAPPY_PATH_SIGNATURE_WORKFLOW_CONTRACT.md — Contrato maestro (v1) con reglas, acceptance criteria y tests recomendados.
-- ECO_POLICY_CANON.md — Contrato canónico de evidencia (ECO/ECOX), proofs, naming, entrega y compatibilidad CAI.
+- ECO_POLICY_CANON.md — Contrato canónico de evidencia (ECO/ECOX), proofs, naming, entrega y compatibilidad EPI.
 - ECO_SCHEMA_V2.md — Especificación canónica del formato ECO.v2 y distinción entre instancias por firmante.
 - SIGNATURE_CAPTURE_PROBATIVE_POLICY.md — Política probatoria de captura (draw/type/upload) y consentimiento opcional desacoplado.
-- CAI_INVARIANTS.md — Invariantes canónicos (ECO/PDF/CAI). Leyes del sistema y criterio de invalidez.
-- LEGACY_PATHS_MAP.md — Mapa canónico de rutas legacy bloqueadas por invariants CAI.
+- EPI_INVARIANTS.md — Invariantes canónicos (ECO/PDF/EPI). Leyes del sistema y criterio de invalidez.
+- LEGACY_PATHS_MAP.md — Mapa canónico de rutas legacy bloqueadas por invariants EPI.
 - diagrams/ — Diagramas de estados y secuencia (Mermaid) que ilustran los contratos.
 - NOTAS.md — Ajustes menores y recomendaciones de implementación (no bloqueantes).
 

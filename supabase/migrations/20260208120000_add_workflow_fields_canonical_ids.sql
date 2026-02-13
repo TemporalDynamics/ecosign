@@ -1,4 +1,4 @@
--- Add canonical field identity + signer assignment for CAI readiness
+-- Add canonical field identity + signer assignment for EPI readiness
 
 ALTER TABLE public.workflow_fields
   ADD COLUMN IF NOT EXISTS external_field_id UUID;

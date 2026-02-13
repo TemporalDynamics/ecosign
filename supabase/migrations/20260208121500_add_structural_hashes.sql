@@ -1,4 +1,4 @@
--- Add structural hashes for CAI-ready evidence
+-- Add structural hashes for EPI-ready evidence
 
 ALTER TABLE public.signature_workflows
   ADD COLUMN IF NOT EXISTS fields_schema_hash TEXT,

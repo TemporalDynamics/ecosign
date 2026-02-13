@@ -1,17 +1,17 @@
-# Análisis de Viabilidad: Protocolo CAI (Integridad Consciente del Contexto)
+# Análisis de Viabilidad: Protocolo EPI (Evidence Protocol Integrity)
 ## Evaluación Estado Actual vs. Visión INTEGRITY_PROTOCOL_VISION.md
 
-**Fecha:** 2026-02-08  
-**Estado:** Análisis arquitectónico sin cambios de código  
+**Fecha:** 2026-02-08
+**Estado:** Análisis arquitectónico sin cambios de código
 **Clasificación:** Estratégico - Evolución arquitectural
 
 ---
 
 ## Resumen Ejecutivo
 
-El documento INTEGRITY_PROTOCOL_VISION.md **sigue siendo válido** en sus conceptos fundamentales, pero la implementación actual ha avanzado significativamente hacia esa visión sin haberlo formalizado completamente. El sistema ya tiene **80% de la infraestructura necesaria** para implementar el protocolo CAI.
+El documento INTEGRITY_PROTOCOL_VISION.md **sigue siendo válido** en sus conceptos fundamentales, pero la implementación actual ha avanzado significativamente hacia esa visión sin haberlo formalizado completamente. El sistema ya tiene **80% de la infraestructura necesaria** para implementar el protocolo EPI.
 
-### Veredicto: ✅ **MOMENTO IDEAL PARA IMPLEMENTAR CAI**
+### Veredicto: ✅ **MOMENTO IDEAL PARA IMPLEMENTAR EPI**
 
 ---
 
@@ -41,7 +41,7 @@ El documento INTEGRITY_PROTOCOL_VISION.md **sigue siendo válido** en sus concep
    - ⚠️ No separamos "cuerpo inmutable" vs "actualizaciones incrementales"
    - ⚠️ No detectamos automáticamente modificaciones estructurales vs. firmas
 
-### ❌ Lo que falta para CAI completo
+### ❌ Lo que falta para EPI completo
 
 5. **Hashes diferenciados (Nivel 2):**
    - ❌ `Content Hash (H_c)`: Hash solo del cuerpo inmutable del PDF
@@ -81,18 +81,18 @@ El documento INTEGRITY_PROTOCOL_VISION.md **sigue siendo válido** en sus concep
 1. **Modelo de "caja negra":**
    - Tratamos PDFs como blobs binarios únicos
    - No analizamos estructura interna (incremental updates)
-   - **Exactamente el problema que CAI resuelve**
+   - **Exactamente el problema que EPI resuelve**
 
 2. **Falsos negativos existentes:**
    - Un PDF firmado por 2/3 personas aparece como "inválido" al verificador
    - Usuario pierde confianza en documentos parcialmente procesados
-   - **Este es el dolor que CAI elimina**
+   - **Este es el dolor que EPI elimina**
 
 ### Compatibilidad arquitectural
 
-✅ **CAI es 100% backward-compatible:**
+✅ **EPI es 100% backward-compatible:**
 - Nivel 1 (actual) sigue funcionando
-- Nivel 2 (CAI) se construye encima sin romper nada
+- Nivel 2 (EPI) se construye encima sin romper nada
 - Migración puede ser gradual
 
 ---
@@ -114,7 +114,7 @@ export async function stateHash(updateData: ArrayBuffer): Promise<string>
 ### Fase 2: Root Hash con Merkle Tree (1-2 semanas)
 ```typescript
 export async function rootHash(
-  contentHash: string, 
+  contentHash: string,
   stateHashes: string[]
 ): Promise<string>
 ```
@@ -128,7 +128,7 @@ export function analyzeDocumentState(
 ```
 
 ### Fase 4: Integración con eventos existentes (1 semana)
-- Extender `document_entities.events[]` con hashes CAI
+- Extender `document_entities.events[]` con hashes EPI
 - Backward compatibility total
 
 ---
@@ -137,10 +137,10 @@ export function analyzeDocumentState(
 
 ### Riesgos Técnicos: 🟢 BAJO
 - **Infraestructura madura:** Sistema de eventos y hashing ya probado en producción
-- **No breaking changes:** CAI se suma al sistema actual
+- **No breaking changes:** EPI se suma al sistema actual
 - **Librerías disponibles:** PDF parsing y Merkle trees tienen implementaciones estables
 
-### Riesgos de Negocio: 🟢 BAJO  
+### Riesgos de Negocio: 🟢 BAJO
 - **Diferenciación competitiva:** Ningún competidor tiene verificación "Íntegro pero Intermedio"
 - **Protección IP:** Claim formal ya redactado en el documento visión
 - **Migración gradual:** Clientes existentes no se ven afectados
@@ -153,7 +153,7 @@ export function analyzeDocumentState(
 
 ## Parte 5: Recomendaciones Estratégicas
 
-### ✅ Implementar CAI **AHORA**
+### ✅ Implementar EPI **AHORA**
 
 **Razones:**
 
@@ -165,7 +165,7 @@ export function analyzeDocumentState(
 ### 🎯 Enfoque recomendado
 
 1. **Start with MVP:** Implementar para PDFs simples primero
-2. **Gradual rollout:** Feature flag para activar CAI selectivamente  
+2. **Gradual rollout:** Feature flag para activar EPI selectivamente
 3. **Backward compatibility:** Mantener verificación Nivel 1 como fallback
 4. **Documentation:** Actualizar docs técnicos con nueva capacidad
 
@@ -188,7 +188,7 @@ export function analyzeDocumentState(
 ### El sistema actual está **80% listo**
 
 - Infraestructura de hashing ✅
-- Sistema de eventos inmutable ✅  
+- Sistema de eventos inmutable ✅
 - Cadena de evidencia completa ✅
 - Solo falta análisis estructural de PDFs ❌
 
@@ -199,7 +199,7 @@ export function analyzeDocumentState(
 - Diferenciación competitiva clara
 - ROI técnico y de negocio alto
 
-### Inversión recomendada: 5-7 semanas para CAI completo
+### Inversión recomendada: 5-7 semanas para EPI completo
 
 **Retorno esperado:**
 - Eliminar falsos negativos (pain point #1 de usuarios)
@@ -209,6 +209,6 @@ export function analyzeDocumentState(
 
 ---
 
-**Recomendación final: PROCEDER con implementación CAI en el próximo sprint mayor.**
+**Recomendación final: PROCEDER con implementación EPI en el próximo sprint mayor.**
 
 El documento INTEGRITY_PROTOCOL_VISION.md demostró ser profético - identificó el problema correcto y propuso la solución correcta. Ahora tenemos la madurez técnica para ejecutar esa visión.

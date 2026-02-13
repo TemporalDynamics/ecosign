@@ -1,6 +1,6 @@
 # ECO POLICY CANON (v1)
 **Estado:** Canónico  
-**Alcance:** Evidencia (.ECO / .ECOX), entrega, proofs, naming y compatibilidad CAI  
+**Alcance:** Evidencia (.ECO / .ECOX), entrega, proofs, naming y compatibilidad EPI  
 **Fecha:** 2026-02-08  
 
 ## Evaluación global
@@ -11,7 +11,7 @@
 - Momento psicológico: UX + legal alineados
 - Mails reducidos: menos ruido, más confianza
 - Hash estructural: entra en el momento justo
-- CAI: preparado sin prometer humo
+- EPI: preparado sin prometer humo
 - Upgrade sin invalidar: arquitectura correcta
 - Fallback legal: nadie queda desprotegido
 
@@ -65,7 +65,7 @@
 - **Se elimina el mail “firmaste”.**
   - Motivo: la UI ya confirma el acto y entrega PDF + ECO.
 
-## 7) Hash estructural (CAI-ready)
+## 7) Hash estructural (EPI-ready)
 - Se agregan:
   - `fields_schema_hash`: congela layout/asignación de campos.
   - `signer_state_hash`: hash de valores del firmante + firma.
@@ -74,7 +74,7 @@
   - `fields_schema_hash` al commit del layout.
   - `signer_state_hash` al firmar.
 
-## 8) CAI (camino allanado)
+## 8) EPI (camino allanado)
 - Hashes estructurales entran ahora.
 - Merkle/root (`Hr`) se agrega después sin romper ECO.
 - ECO actual sigue siendo válido.

@@ -32,7 +32,6 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
     signers as any
   );
   const isFinalized = state.phase === 'gray';
-  const ecoAvailable = Boolean(document.eco_storage_path || document.eco_file_data || document.eco_hash);
 
   // Colores según la fase
   const getBorderColor = () => {
@@ -78,7 +77,6 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
           <div>Firmantes: {signedCount}/{totalSigners}</div>
         )}
         <div>Finalizado: {isFinalized ? 'Sí' : 'No'}</div>
-        <div>ECO disponible: {ecoAvailable ? 'Sí' : 'No'}</div>
       </div>
     </div>
   );

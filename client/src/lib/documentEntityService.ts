@@ -294,13 +294,24 @@ export const ensureWitnessCurrent = async (
 ) => {
   const doc = await getDocumentEntity(documentId);
 
-  if (doc.witness_current_hash) {
+  // Idempotency rule:
+  // - if current witness already points to the same hash+path, do nothing
+  // - if hash/path differ, update current witness to the new artifact
+  const currentHash = doc.witness_current_hash ?? null;
+  const currentPath = doc.witness_current_storage_path ?? null;
+  const nextHash = witness.hash ?? null;
+  const nextPath = witness.storage_path ?? null;
+  if (currentHash === nextHash && currentPath === nextPath) {
     return;
   }
 
-  const witnessHistory = Array.isArray(doc.witness_history)
-    ? [...doc.witness_history, witness]
-    : [witness];
+  const existingHistory = Array.isArray(doc.witness_history) ? doc.witness_history : [];
+  const alreadyInHistory = existingHistory.some((entry: any) =>
+    entry?.hash === witness.hash && entry?.storage_path === witness.storage_path
+  );
+  const witnessHistory = alreadyInHistory
+    ? existingHistory
+    : [...existingHistory, witness];
 
   const nextHashChain: HashChain = {
     ...(doc.hash_chain || {}),

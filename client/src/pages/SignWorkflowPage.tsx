@@ -40,6 +40,7 @@ type SignatureStep =
   | 'viewing'
   | 'signing'
   | 'completed'
+  | 'cancelled_info'
   | 'rejected'
   | 'error'
 
@@ -137,6 +138,13 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
   const homePath = isSignerMode ? '/firma' : '/documentos'
 
+  const handleCloseAction = () => {
+    if (isSignerMode && typeof window !== 'undefined') {
+      window.close()
+    }
+    navigate(homePath)
+  }
+
   const mapOtpErrorMessage = (errorCodeOrMessage?: string | null) => {
     const raw = String(errorCodeOrMessage || '').toLowerCase()
     if (
@@ -226,6 +234,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     try {
       const supabase = getSupabase();
       setStep('validating')
+      setError(null)
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
       const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -240,6 +249,20 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
       })
 
       if (!response.ok) {
+        const body = await response.json().catch(() => ({} as any))
+        const backendMessage = String(body?.error || body?.message || '')
+        const lowered = backendMessage.toLowerCase()
+
+        if (
+          response.status === 403 &&
+          (lowered.includes('no longer active') ||
+            lowered.includes('flow is no longer active') ||
+            lowered.includes('link is no longer active'))
+        ) {
+          setStep('cancelled_info')
+          return null
+        }
+
         setError('Link de firma inválido o no encontrado')
         setStep('error')
         return null
@@ -807,10 +830,43 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
               <h2 className="mb-2 text-2xl font-bold text-gray-900">Error</h2>
               <p className="mb-6 text-gray-600">{error}</p>
               <button
-                onClick={() => navigate(homePath)}
+                onClick={handleCloseAction}
                 className="rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
               >
                 {isSignerMode ? 'Cerrar' : 'Ir a documentos'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'cancelled_info' && (
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="max-w-md text-center">
+              <div className="mb-6 flex justify-center">
+                <svg
+                  className="h-20 w-20 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-7 4h8m2 5H6a2 2 0 01-2-2V5a2 2 0 012-2h8l6 6v10a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <h2 className="mb-2 text-2xl font-bold text-gray-900">Este flujo fue cancelado</h2>
+              <p className="mb-6 text-gray-600">
+                El propietario canceló este proceso. No hiciste nada mal.
+                Si te vuelven a invitar, vas a recibir un nuevo correo.
+              </p>
+              <button
+                onClick={handleCloseAction}
+                className="rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
+              >
+                Cerrar
               </button>
             </div>
           </div>
@@ -839,7 +895,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 {error || 'El rechazo quedó registrado correctamente.'}
               </p>
               <button
-                onClick={() => navigate(homePath)}
+                onClick={handleCloseAction}
                 className="rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
               >
                 {isSignerMode ? 'Cerrar' : 'Ir a documentos'}

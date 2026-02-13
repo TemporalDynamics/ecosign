@@ -173,7 +173,7 @@ export function deriveDocumentState(
   if (protectionLevel === 'NONE') {
     return {
       label: 'Protegiendo',
-      phase: 'green'
+      phase: 'blue'
     };
   }
 

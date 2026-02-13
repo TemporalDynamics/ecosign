@@ -1321,8 +1321,9 @@ serve(async (req) => {
     <p style="margin:0 0 12px;color:#334155;">Es tu turno de firmar:</p>
     <p style="margin:0 0 16px;font-weight:600;color:#0f172a;">${originalFilename}</p>
     <p style="margin:16px 0;">
-      <a href="${nextSignerUrl}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Ver y Firmar Documento</a>
+      <a href="${nextSignerUrl}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Ver Documento</a>
     </p>
+    <p style="margin:8px 0 0;color:#64748b;font-size:12px;">Al ingresar podés elegir firmar o rechazar el documento.</p>
     <p style="margin:16px 0 0;color:#0f172a;font-weight:600;">EcoSign. Transparencia que acompaña.</p>
     <p style="margin:8px 0 0;color:#94a3b8;font-size:12px;">Este enlace es personal e intransferible.</p>
   </div>

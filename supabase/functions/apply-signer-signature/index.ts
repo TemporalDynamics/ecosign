@@ -536,7 +536,7 @@ serve(async (req) => {
       !tokenRevoked &&
       !tokenExpired &&
       !signerTerminal &&
-      otpVerified
+      (otpRequired ? otpVerified : true)
     )
 
     const canonicalDecision = shouldApplySignerSignature({

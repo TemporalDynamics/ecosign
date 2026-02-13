@@ -179,6 +179,40 @@ async function attemptTsaProof(params: {
   }
 }
 
+type CanonicalIdentityLevel = 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5'
+
+function toCanonicalIdentityLevel(operationalLevel: string | null | undefined): {
+  canonical_level: CanonicalIdentityLevel
+  ial_reference: string | null
+  operational_level: string
+} {
+  const normalized = (operationalLevel || 'none').trim().toLowerCase()
+  const map: Record<string, { canonical_level: CanonicalIdentityLevel; ial_reference: string | null; operational_level: string }> = {
+    none: { canonical_level: 'L0', ial_reference: null, operational_level: 'none' },
+    unknown: { canonical_level: 'L0', ial_reference: null, operational_level: 'none' },
+    acknowledgement: { canonical_level: 'L0', ial_reference: null, operational_level: 'none' },
+    account_authenticated: { canonical_level: 'L1', ial_reference: 'IAL-1', operational_level: 'account_authenticated' },
+    email_verified: { canonical_level: 'L1', ial_reference: 'IAL-1', operational_level: 'email_verified' },
+    nda_bound: { canonical_level: 'L1', ial_reference: 'IAL-1', operational_level: 'nda_bound' },
+    otp: { canonical_level: 'L2', ial_reference: 'IAL-1.5', operational_level: 'otp_verified' },
+    otp_verified: { canonical_level: 'L2', ial_reference: 'IAL-1.5', operational_level: 'otp_verified' },
+    passkey: { canonical_level: 'L3', ial_reference: 'IAL-1.5+', operational_level: 'passkey_verified' },
+    passkey_verified: { canonical_level: 'L3', ial_reference: 'IAL-1.5+', operational_level: 'passkey_verified' },
+    webauthn_verified: { canonical_level: 'L3', ial_reference: 'IAL-1.5+', operational_level: 'passkey_verified' },
+    kyc_verified: { canonical_level: 'L4', ial_reference: 'IAL-2', operational_level: 'kyc_verified' },
+    biometric_kyc: { canonical_level: 'L4', ial_reference: 'IAL-2', operational_level: 'kyc_verified' },
+    qes_cert: { canonical_level: 'L5', ial_reference: 'IAL-2/IAL-3', operational_level: 'qes_cert' },
+    qes_verified: { canonical_level: 'L5', ial_reference: 'IAL-2/IAL-3', operational_level: 'qes_cert' },
+    certificate: { canonical_level: 'L5', ial_reference: 'IAL-2/IAL-3', operational_level: 'qes_cert' },
+  }
+
+  return map[normalized] || {
+    canonical_level: 'L1',
+    ial_reference: 'IAL-1',
+    operational_level: normalized || 'account_authenticated'
+  }
+}
+
 
 async function stampSignerOnPdf(params: {
   supabase: ReturnType<typeof createClient>
@@ -302,6 +336,7 @@ serve(async (req) => {
 
     const body = await req.json()
     const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level, signatureData, fieldValues } = body
+    const normalizeEmail = (value: string | null | undefined) => (value || '').trim().toLowerCase()
     let witnessHashForEvent: string | null = witness_pdf_hash || null
     let signedPdfPath: string | null = null
     let signerStateHash: string | null = null
@@ -418,6 +453,32 @@ serve(async (req) => {
       .select('id, owner_id, document_entity_id, status, delivery_mode, original_filename, document_path, document_hash, forensic_config, fields_schema_hash, fields_schema_version')
       .eq('id', signer.workflow_id)
       .single()
+
+    let ownerEmail: string | null = null
+    let ownerEmailVerified: boolean | null = null
+    if (workflow?.owner_id) {
+      try {
+        const { data: ownerData, error: ownerErr } = await (supabase as any).auth.admin.getUserById(workflow.owner_id)
+        if (!ownerErr && ownerData?.user) {
+          ownerEmail = ownerData.user.email ?? null
+          ownerEmailVerified = Boolean(ownerData.user.email_confirmed_at)
+        }
+      } catch (ownerAdminErr) {
+        console.warn('apply-signer-signature: owner identity admin lookup failed', ownerAdminErr)
+      }
+    }
+
+    const signerMatchesOwnerAccount =
+      Boolean(ownerEmail) &&
+      normalizeEmail(ownerEmail) === normalizeEmail(signer.email)
+
+    let operationalIdentityLevel: string | null = identity_level || null
+    if (signerMatchesOwnerAccount) {
+      if (!operationalIdentityLevel || operationalIdentityLevel === 'none' || operationalIdentityLevel === 'unknown') {
+        operationalIdentityLevel = 'account_authenticated'
+      }
+    }
+    const identityLevel = toCanonicalIdentityLevel(operationalIdentityLevel)
 
     // GATE: Check if token has been revoked
     const tokenRevoked = Boolean(signer.token_revoked_at)
@@ -550,7 +611,7 @@ serve(async (req) => {
       return json({ error: `Cannot sign: signer is not ready_to_sign (status=${signer.status})` }, 403)
     }
 
-    if (!otpVerified) {
+    if (otpRequired && !otpVerified) {
       return json({ error: 'OTP not verified for signer' }, 403)
     }
 
@@ -887,8 +948,16 @@ serve(async (req) => {
 
         let signatureCaptureKind: string | null = null
         let signatureRenderHash: string | null = null
+        let storeEncryptedSignatureOptIn = false
+        let storeSignatureVectorsOptIn = false
         if (signatureData && typeof signatureData === 'object') {
           signatureCaptureKind = typeof signatureData.type === 'string' ? signatureData.type : null
+          storeEncryptedSignatureOptIn = Boolean(signatureData.storeEncryptedSignatureOptIn)
+          storeSignatureVectorsOptIn = Boolean(signatureData.storeSignatureVectorsOptIn)
+          if (signatureCaptureKind !== 'draw') {
+            // Vector capture consent only applies to drawn signatures.
+            storeSignatureVectorsOptIn = false
+          }
           if (typeof signatureData.dataUrl === 'string') {
             signatureRenderHash = await sha256Hex(signatureData.dataUrl)
           }
@@ -896,6 +965,13 @@ serve(async (req) => {
           signatureCaptureKind = 'typed'
           signatureRenderHash = await sha256Hex(signatureData)
         }
+
+        const identityHash = await sha256Hex(canonicalize({
+          owner_user_id: workflow.owner_id ?? null,
+          owner_email: ownerEmail,
+          canonical_level: identityLevel.canonical_level,
+          email_verified: ownerEmailVerified
+        }))
 
         const ecoSnapshot = {
           format: 'eco',
@@ -910,7 +986,7 @@ serve(async (req) => {
             signing_step: signer.signing_order ?? null,
             total_steps: stepTotal,
             signed_at: issuedAt,
-            identity_assurance_level: identity_level || null,
+            identity_assurance_level: identityLevel.canonical_level,
             summary: [
               'Document integrity preserved',
               'Signature recorded',
@@ -946,6 +1022,17 @@ serve(async (req) => {
             email: signer.email ?? null,
             name: signer.name ?? null
           },
+          identity: {
+            canonical_level: identityLevel.canonical_level,
+            ial_reference: identityLevel.ial_reference,
+            operational_level: identityLevel.operational_level,
+            level: identityLevel.canonical_level,
+            owner_user_id: workflow.owner_id ?? null,
+            owner_email: ownerEmail,
+            email_verified: ownerEmailVerified,
+            auth_context: signerMatchesOwnerAccount ? 'supabase_session' : null,
+            identity_hash: identityHash
+          },
           fields: {
             schema_hash: (workflow as any)?.fields_schema_hash ?? null,
             schema_version: (workflow as any)?.fields_schema_version ?? 1,
@@ -957,6 +1044,8 @@ serve(async (req) => {
             stored: false,
             consent: true,
             capture_kind: signatureCaptureKind,
+            store_encrypted_signature_opt_in: storeEncryptedSignatureOptIn,
+            store_signature_vectors_opt_in: storeSignatureVectorsOptIn,
             render_hash: signatureRenderHash,
             strokes_hash: null,
             ciphertext_hash: null
@@ -1082,7 +1171,19 @@ serve(async (req) => {
     const eventPayload = {
       witness_pdf_hash: witnessHashForEvent,
       applied_at: applied_at || new Date().toISOString(),
-      identity_level: identity_level || null
+      identity_level: identityLevel.canonical_level,
+      identity_operational_level: identityLevel.operational_level,
+      signature_capture_options: {
+        store_encrypted_signature_opt_in: Boolean(
+          signatureData && typeof signatureData === 'object' && signatureData.storeEncryptedSignatureOptIn
+        ),
+        store_signature_vectors_opt_in: Boolean(
+          signatureData &&
+          typeof signatureData === 'object' &&
+          signatureData.type === 'draw' &&
+          signatureData.storeSignatureVectorsOptIn
+        )
+      }
     }
 
     const { error: insertErr } = await supabase
@@ -1119,7 +1220,8 @@ serve(async (req) => {
           },
           evidence: {
             witness_pdf_hash: eventPayload.witness_pdf_hash || null,
-            identity_level: identity_level || null,
+            identity_level: identityLevel.canonical_level,
+            identity_operational_level: identityLevel.operational_level,
             batches_signed: batches.map((b: any) => b.id)
           }
         },

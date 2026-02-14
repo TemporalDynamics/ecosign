@@ -438,8 +438,10 @@ serve(async (req) => {
       }
     }
 
-    // IDEMPOTENCY CHECK: Check if this signer has already signed this workflow
-    const { data: existingSignedEvent } = await supabase
+    // IDEMPOTENCY CHECK: Check if this signer has already signed this workflow.
+    // Important: we cannot always return early because we may need to reconcile
+    // canonical witness pointers when legacy/event race conditions exist.
+    const { data: existingSignedEvent, error: existingSignedEventError } = await supabase
       .from('workflow_events')
       .select('id')
       .eq('workflow_id', signer.workflow_id)
@@ -448,14 +450,12 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle()
 
-    if (existingSignedEvent) {
-      console.log(`apply-signer-signature: Signer ${signer.id} already signed workflow ${signer.workflow_id}, returning idempotent success`)
-      return json({ 
-        success: true, 
-        idempotent: true,
-        message: 'Signer has already signed this workflow'
-      })
+    if (existingSignedEventError) {
+      console.error('apply-signer-signature: failed idempotency lookup', existingSignedEventError)
+      return json({ error: 'Could not verify signer idempotency' }, 500)
     }
+    const signerAlreadySigned = Boolean(existingSignedEvent)
+    const allowIdempotentRepair = signerAlreadySigned && signer.status === 'signed'
 
     const workflowIdMismatch = Boolean(workflowId && signer.workflow_id !== workflowId)
     if (workflowIdMismatch) {
@@ -613,24 +613,24 @@ serve(async (req) => {
       return json({ error: 'Signer does not belong to this workflow' }, 403)
     }
 
-    if (tokenRevoked) {
+    if (tokenRevoked && !allowIdempotentRepair) {
       return json({ error: 'Token has been revoked' }, 403)
     }
 
-    if (tokenExpired) {
+    if (tokenExpired && !allowIdempotentRepair) {
       return json({ error: 'Token has expired' }, 403)
     }
 
-    if (signerTerminal) {
+    if (signerTerminal && !allowIdempotentRepair) {
       return json({ error: `Cannot sign: signer status is ${signer.status}` }, 403)
     }
 
     // Enforce sequential order: only the signer whose turn it is may sign.
-    if (signer.status !== 'ready_to_sign') {
+    if (signer.status !== 'ready_to_sign' && !allowIdempotentRepair) {
       return json({ error: `Cannot sign: signer is not ready_to_sign (status=${signer.status})` }, 403)
     }
 
-    if (otpRequired && !otpVerified) {
+    if (otpRequired && !otpVerified && !allowIdempotentRepair) {
       return json({ error: 'OTP not verified for signer' }, 403)
     }
 
@@ -657,6 +657,28 @@ serve(async (req) => {
         },
         409
       )
+    }
+
+    if (signerAlreadySigned) {
+      const { data: entity, error: entityReadError } = await supabase
+        .from('document_entities')
+        .select('witness_current_storage_path')
+        .eq('id', workflow.document_entity_id)
+        .single()
+
+      if (!entityReadError) {
+        const currentPath = (entity as any)?.witness_current_storage_path as string | null
+        if (currentPath && currentPath.startsWith(`signed/${workflow.id}/`)) {
+          console.log(
+            `apply-signer-signature: signer ${signer.id} already signed and canonical witness already set`
+          )
+          return json({
+            success: true,
+            idempotent: true,
+            message: 'Signer has already signed this workflow'
+          })
+        }
+      }
     }
 
     // Get all batches assigned to this signer
@@ -1278,18 +1300,22 @@ serve(async (req) => {
       console.warn('apply-signer-signature: signature.capture.consent append failed (best-effort)', consentErr)
     }
 
-    const { error: insertErr } = await supabase
-      .from('workflow_events')
-      .insert({
-        workflow_id: signer.workflow_id,
-        signer_id: signer.id,
-        event_type: 'signer.signed',
-        payload: eventPayload
-      })
+    if (!signerAlreadySigned) {
+      const { error: insertErr } = await supabase
+        .from('workflow_events')
+        .insert({
+          workflow_id: signer.workflow_id,
+          signer_id: signer.id,
+          event_type: 'signer.signed',
+          payload: eventPayload
+        })
 
-    if (insertErr) {
-      console.error('insert workflow_event failed', insertErr)
-      return json({ error: 'Could not insert event', details: insertErr.message }, 500)
+      if (insertErr) {
+        console.error('insert workflow_event failed', insertErr)
+        return json({ error: 'Could not insert event', details: insertErr.message }, 500)
+      }
+    } else {
+      console.log('apply-signer-signature: skipping signer.signed insert (idempotent)')
     }
 
     // Probatario (document_entities.events[]) - best effort; must not block.
@@ -1324,14 +1350,16 @@ serve(async (req) => {
     }
 
     // Update signer status and persist signature data
-    const { error: signerUpdErr } = await supabase
-      .from('workflow_signers')
-      .update({ status: 'signed', signed_at: new Date().toISOString(), signature_data: signatureData || null })
-      .eq('id', signer.id)
+    if (!signerAlreadySigned) {
+      const { error: signerUpdErr } = await supabase
+        .from('workflow_signers')
+        .update({ status: 'signed', signed_at: new Date().toISOString(), signature_data: signatureData || null })
+        .eq('id', signer.id)
 
-    if (signerUpdErr) {
-      console.error('update signer failed', signerUpdErr)
-      return json({ error: 'Could not update signer', details: signerUpdErr.message }, 500)
+      if (signerUpdErr) {
+        console.error('update signer failed', signerUpdErr)
+        return json({ error: 'Could not update signer', details: signerUpdErr.message }, 500)
+      }
     }
 
     // NOTE: do not update signature_workflows.status here.

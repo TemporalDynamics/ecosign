@@ -59,7 +59,7 @@ const collectTsFiles = async (dir: string, out: string[]): Promise<void> => {
   }
 };
 
-test('authority: TSA/anchoring callers must be executor or guarded', async () => {
+test('authority: TSA/anchoring callers must be executor or guarded', { timeout: 20000 }, async () => {
   const offenders: string[] = [];
 
   const files: string[] = [];

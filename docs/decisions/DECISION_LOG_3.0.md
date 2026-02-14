@@ -1,3 +1,39 @@
+## Iteración: Pre-Canary Test Baseline + Notificaciones (429) — 2026-02-14
+
+### 🎯 Resumen
+Se cerró el paso de saneamiento de baseline de tests para eliminar ruido operativo
+antes de Canary, y se documentó el comportamiento de mails "workflow completed"
+como issue de rate limiting del proveedor (no de lógica de workflow).
+
+### ✅ Decisiones tomadas
+- **Baseline verde primero:** no agregar tests nuevos hasta estabilizar señal.
+- **Filtrado de falso positivo de autoridad:** `reject-signature` permitido en el
+  guard test por uso de `legal-timestamp` como recibo de rechazo.
+- **`tsaEvents` como integración opt-in:** se ejecuta solo con
+  `RUN_DB_INTEGRATION=1`; queda fuera del baseline estándar para evitar ruido.
+- **Incidente de mails clasificado como no bloqueante para Canary:**
+  - Evidencia: `workflow_notifications.error_message.kind=rate_limited`, `status=429`.
+  - Efecto observado: envíos pendientes se liberan en reintentos posteriores y
+    parecen "mails viejos" al iniciar nuevos workflows.
+
+### 🔍 Diagnóstico consolidado (mails firmantes)
+- No hay evidencia de corrupción de estado de workflow.
+- El comportamiento es consistente con **throttling de proveedor (Resend 429)** +
+  cola/retry de `workflow_notifications`.
+- El problema es de **timing de despacho**, no de integridad canónica.
+
+### 🧱 Fix mínimo definido (POST-CANARY, no implementado ahora)
+1. Backoff por proveedor respetando `rate_limited_until` antes de reintentar.
+2. Dedupe de notificaciones terminales por `(workflow_id, recipient_email, notification_type)`.
+3. Dashboard/consulta operativa de cola: `pending`, `sent`, `failed`, `rate_limited`.
+4. Alertar solo por pendientes estancados (SLA), no por pendientes transitorios.
+
+### 📌 Estado actual
+- `npm test` en raíz: verde (`30 passed | 4 skipped`; `145 passed | 25 skipped`).
+- Baseline listo para gate de Canary sin falsos rojos críticos.
+
+---
+
 ## Incidente: Cambios no solicitados por LLM (Gemini) — 2026-01-07T04:50:11Z
 
 ### 🎯 Resumen

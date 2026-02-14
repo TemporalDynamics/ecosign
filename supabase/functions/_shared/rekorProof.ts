@@ -122,6 +122,19 @@ function getPrivateKeyBytes(): Uint8Array | null {
   }
 }
 
+async function signForRekor(message: Uint8Array, priv: Uint8Array): Promise<Uint8Array> {
+  const signer = ed as unknown as {
+    sign: (msg: Uint8Array, sk: Uint8Array, opts?: { prehash?: boolean }) => Promise<Uint8Array>;
+  };
+  // Rekor verifies Ed25519 signatures with SHA-512 hashing semantics.
+  // Prefer Ed25519ph when available; fallback to standard Ed25519.
+  try {
+    return await signer.sign(message, priv, { prehash: true });
+  } catch {
+    return await signer.sign(message, priv);
+  }
+}
+
 export async function attemptRekorProof(params: {
   witness_hash: string;
   workflow_id: string;
@@ -173,7 +186,7 @@ export async function attemptRekorProof(params: {
     const statementDigest512 = sha512(statementBytes);
     const statementHash512 = bytesToHex(statementDigest512);
 
-    const signature = await ed.sign(statementDigest512, priv);
+    const signature = await signForRekor(statementDigest512, priv);
     const pubkey = await ed.getPublicKey(priv);
     const pubkeyB64 = bytesToBase64(pubkey);
     const spkiDer = ed25519PublicKeySpkiDer(pubkey);

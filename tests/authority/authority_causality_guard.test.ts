@@ -21,6 +21,9 @@ const allowedWithoutGuard = new Set([
   'supabase/functions/run-tsa/index.ts',
   'supabase/functions/submit-anchor-polygon/index.ts',
   'supabase/functions/submit-anchor-bitcoin/index.ts',
+  // This function invokes legal-timestamp for rejection receipt TSA proof,
+  // not for canonical TSA/anchoring pipeline dispatch.
+  'supabase/functions/reject-signature/index.ts',
 ]);
 
 const guardTokens = [

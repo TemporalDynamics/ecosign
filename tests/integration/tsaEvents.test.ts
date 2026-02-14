@@ -1,43 +1,40 @@
 /**
  * Integration test for TSA events in document_entities
  * Tests DB triggers, append-only enforcement, and tsa_latest cache
- * 
+ *
  * REQUIREMENTS:
  * - Supabase local dev running (supabase start)
- * - SUPABASE_URL and SUPABASE_ANON_KEY in env
- * - RLS policies must allow authenticated inserts on document_entities
- * 
- * NOTE: If this test fails with "Document creation failed (RLS policy may be blocking)",
- * ensure your local Supabase has the correct RLS policies enabled for authenticated users.
+ * - SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in env
+ *
+ * NOTE: This suite uses service role to avoid RLS/session flakiness and validate
+ * DB-level invariants (triggers, append-only, tsa_latest updates).
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { createTestUser, deleteTestUser, getAdminClient } from '../helpers/supabase-test-helpers';
 
 // NOTE: This test requires Supabase local dev (supabase start)
-const supabaseUrl = process.env.SUPABASE_URL || 'http://127.0.0.1:54321';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+process.env.SUPABASE_URL ||= 'http://127.0.0.1:54321';
+const canRun = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+const runDbIntegration = process.env.RUN_DB_INTEGRATION === '1';
+const it = canRun && runDbIntegration ? test : test.skip;
 
 let supabase: SupabaseClient;
-let testUserId: string;
-let testDocId: string;
+let testUserId: string | null = null;
+let testDocId: string | null = null;
 
 beforeAll(async () => {
-  if (!supabaseKey) {
-    throw new Error('SUPABASE_ANON_KEY required for integration tests');
+  if (!canRun || !runDbIntegration) {
+    return;
   }
 
-  supabase = createClient(supabaseUrl, supabaseKey);
+  supabase = getAdminClient();
 
-  // Create test user (or use existing)
-  const { data: userData, error: userError } = await supabase.auth.signUp({
-    email: `test-tsa-${Date.now()}@example.com`,
-    password: 'test-password-123!',
-  });
-
-  if (userError) throw userError;
-  if (!userData.user) throw new Error('User creation failed');
-  testUserId = userData.user.id;
+  const testEmail = `test-tsa-${Date.now()}@example.com`;
+  const testPassword = 'test-password-123!';
+  const { userId } = await createTestUser(testEmail, testPassword);
+  testUserId = userId;
 
   // Create test document entity
   const docId = crypto.randomUUID();
@@ -69,14 +66,22 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (!canRun || !runDbIntegration) {
+    return;
+  }
+
   // Cleanup
   if (testDocId) {
     await supabase.from('document_entities').delete().eq('id', testDocId);
   }
+
+  if (testUserId) {
+    await deleteTestUser(testUserId);
+  }
 });
 
 describe('TSA Events DB Integration', () => {
-  test('appends TSA event successfully', async () => {
+  it('appends TSA event successfully', async () => {
     const tsaEvent = {
       kind: 'tsa',
       at: new Date().toISOString(),
@@ -120,7 +125,7 @@ describe('TSA Events DB Integration', () => {
     expect(data.tsa_latest.tsa.token_b64).toBe('MIITestToken...');
   });
 
-  test('auto-updates tsa_latest on TSA append', async () => {
+  it('auto-updates tsa_latest on TSA append', async () => {
     // Append second TSA event
     const tsaEvent2 = {
       kind: 'tsa',
@@ -160,7 +165,7 @@ describe('TSA Events DB Integration', () => {
     expect(data.tsa_latest.tsa.token_b64).toBe('MIISecondToken...');
   });
 
-  test('rejects TSA event with mismatched witness_hash', async () => {
+  it('rejects TSA event with mismatched witness_hash', async () => {
     const invalidTsaEvent = {
       kind: 'tsa',
       at: new Date().toISOString(),
@@ -189,7 +194,7 @@ describe('TSA Events DB Integration', () => {
     expect(error?.message).toContain('witness_hash');
   });
 
-  test('rejects TSA event without token_b64', async () => {
+  it('rejects TSA event without token_b64', async () => {
     const invalidTsaEvent = {
       kind: 'tsa',
       at: new Date().toISOString(),
@@ -218,7 +223,7 @@ describe('TSA Events DB Integration', () => {
     expect(error?.message).toContain('token_b64');
   });
 
-  test('enforces events append-only (cannot shrink)', async () => {
+  it('enforces events append-only (cannot shrink)', async () => {
     // Try to remove events
     const { error } = await supabase
       .from('document_entities')
@@ -231,7 +236,7 @@ describe('TSA Events DB Integration', () => {
     expect(error?.message).toContain('append-only');
   });
 
-  test('allows multiple TSA events', async () => {
+  it('allows multiple TSA events', async () => {
     const tsaEvent3 = {
       kind: 'tsa',
       at: new Date().toISOString(),

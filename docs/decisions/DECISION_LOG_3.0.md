@@ -2784,3 +2784,48 @@ Branch: `h6-official-closure`
 Responsable: Sistema Canónico Ecosign
 
 ---
+
+## Decision: Rekor confirmado con intoto/DSSE (migración desde hashedrekord) — 2026-02-14
+
+### 🎯 Resumen
+Se cierra la integración de Rekor con resultado **confirmado** en producción para evidencia `ecosign.proof.v1`.
+La decisión técnica final fue migrar el submit de Rekor de `hashedrekord` a `intoto` con envelope DSSE.
+
+### ✅ Decisión final
+- **No continuar** con `hashedrekord` para este caso de uso.
+- **Migrar** a `kind: intoto` (`apiVersion: 0.0.2`) con envelope DSSE.
+- Objetivo operativo explícito: **Rekor debe confirmar** (`status: confirmed`), no quedar en estado degradado.
+
+### 🔧 Implementación aplicada
+- Firma DSSE sobre PAE (`DSSEv1 ...`) con Ed25519.
+- Verificación local previa de firma antes del POST a Rekor.
+- Ajuste de formato de key pública compatible con Rekor.
+- Ajuste de estructura `intoto` para que Rekor procese envelope correctamente.
+
+Commits relevantes:
+- `f6711a1` `fix(rekor): send base64-encoded PEM public key content`
+- `04f0c16` `fix(rekor): sign statement with sha512 digest for hashedrekord`
+- `3245d5f` `fix(rekor): set hashedrekord data hash to sha512 for ed25519 verification`
+- `846a214` `fix(rekor): avoid double-hash by signing statement bytes in prehash mode`
+- `a06ee03` `chore(rekor): add local signature verification and digest consistency guard`
+- `ace5e4e` `feat(rekor): migrate submit payload from hashedrekord to intoto DSSE`
+- `33e5ff9` `fix(rekor-intoto): double-encode DSSE payload/signature and include envelope hash`
+
+### 📌 Evidencia de cierre (producción)
+- `status`: `confirmed`
+- `provider`: `rekor.sigstore.dev`
+- `ref`: `108e9186e8c5677a919fce0fc2d2adc5d5c05aa1c83c45adc9717f8d5f86928bdca085aa210825bd`
+- `log_index`: `953301650`
+- `integrated_time`: `1771112412`
+- `statement_type`: `ecosign.proof.v1`
+
+### 🧭 Impacto arquitectónico
+- Se valida el modelo de EcoSign como **attestation estructurada** (no artifact signing clásico).
+- Se mantiene EPI como verdad canónica y Rekor como capa de transparencia verificable.
+- Se elimina la ambigüedad conceptual entre `hashedrekord` e `intoto` para este flujo.
+
+### 📌 Estado final
+- Rekor: **operativo y confirmado** en flujo real.
+- Tarea cerrada.
+
+---

@@ -53,6 +53,14 @@ serve(async (req) => {
     }
     const { signer_id, signer_email } = parsed.data
 
+    const { data: signer, error } = await supabase
+      .from('workflow_signers')
+      .select('id, email, nda_accepted, workflow_id')
+      .eq('id', signer_id)
+      .single()
+
+    if (error || !signer) return json({ error: 'Signer not found' }, 404)
+
     const { data: workflow, error: workflowError } = await supabase
       .from('signature_workflows')
       .select('id, nda_text')
@@ -70,14 +78,6 @@ serve(async (req) => {
 
     const ndaHash = await computeSha256(ndaText);
     const templateMeta = resolveNdaTemplateMetadata(ndaText);
-
-    const { data: signer, error } = await supabase
-      .from('workflow_signers')
-      .select('id, email, nda_accepted, workflow_id')
-      .eq('id', signer_id)
-      .single()
-
-    if (error || !signer) return json({ error: 'Signer not found' }, 404)
 
     const emailMatches = signer.email.toLowerCase() === signer_email.toLowerCase()
     const legacyDecision = Boolean(emailMatches && !signer.nda_accepted)

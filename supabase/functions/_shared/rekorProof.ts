@@ -1,5 +1,20 @@
 import { canonicalize, sha256Hex } from './canonicalHash.ts';
-import { getPublicKey, sign } from 'https://esm.sh/@noble/ed25519@2.0.0';
+import * as ed from 'https://esm.sh/@noble/ed25519@2.0.0';
+import { sha512 } from 'https://esm.sh/@noble/hashes@1.5.0/sha512';
+
+// @noble/ed25519 on Deno/esm may require explicit sha512 wiring for sync internals.
+if (typeof ed.etc.sha512Sync !== 'function') {
+  ed.etc.sha512Sync = (...messages: Uint8Array[]) => {
+    const total = messages.reduce((sum, m) => sum + m.length, 0);
+    const merged = new Uint8Array(total);
+    let offset = 0;
+    for (const m of messages) {
+      merged.set(m, offset);
+      offset += m.length;
+    }
+    return sha512(merged);
+  };
+}
 
 export type RekorProofResult = {
   kind: 'rekor';
@@ -129,8 +144,8 @@ export async function attemptRekorProof(params: {
     const statementHash = await sha256Hex(statementJson);
     const statementHashBytes = hexToBytes(statementHash);
 
-    const signature = await sign(statementHashBytes, priv);
-    const pubkey = await getPublicKey(priv);
+    const signature = await ed.sign(statementHashBytes, priv);
+    const pubkey = await ed.getPublicKey(priv);
     const pubkeyB64 = bytesToBase64(pubkey);
 
     const rekorPayload = {

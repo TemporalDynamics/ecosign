@@ -83,14 +83,6 @@ Un ECO es evidencia autocontenida de un acto de firma, emitida en un momento esp
       "token_hash": "hex",
       "token_b64": "base64",
       "attempted_at": "2026-02-09T03:47:10.392Z"
-    },
-    {
-      "kind": "rekor",
-      "status": "confirmed",
-      "provider": "rekor.sigstore.dev",
-      "ref": "rekor_uuid",
-      "statement_hash": "hex",
-      "statement_type": "ecosign.proof.v1"
     }
   ],
 

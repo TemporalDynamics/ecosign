@@ -45,7 +45,6 @@
 ## 4) Proofs rápidas (refuerzo, no bloqueo)
 - Pruebas rápidas que pueden entrar en ECO:
   - TSA (base legal)
-  - Rekor (transparency log)
   - Roughtime (refuerzo temporal)
 - Todas son **best-effort**.
 - No se usan servidores propios para estas proofs (autoridad externa siempre).
@@ -88,8 +87,11 @@
 - Si proofs rápidas fallan, igual hay ECO + **firma técnica de integridad del sistema EcoSign**.
 - **No reemplaza autoridades externas**; garantiza consistencia e integridad del artefacto.
 
-## 11) Rekor Proof Identity
-- EcoSign publica su clave pública Ed25519 para verificación de proofs en Sigstore Rekor.
-- Uso exclusivo: firma de statements `ecosign.proof.v1`.
-- **Public Key (Ed25519, base64):**
-  - `HeJ9QDRHyJfcX03pdX39AvBiLiIl3OElaxJLOit+1q0=`
+## 11) Estado de pruebas rápidas externas
+- Las pruebas rápidas externas fuera del núcleo canónico se manejan como
+  **capacidad operativa opcional**, no como claim obligatorio del producto.
+- Cualquier activación futura requiere:
+  - estado explícito ON/OFF,
+  - runbook operativo,
+  - monitoreo y alertas,
+  - copy legal-safe alineado.

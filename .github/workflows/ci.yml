@@ -7,6 +7,27 @@ on:
     branches: [main]
 
 jobs:
+  # Non-blocking structural guardrail for local EPI invariants
+  epi-local-guardrail:
+    name: EPI Local Guardrail (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run local EPI invariant guardrail
+        run: |
+          chmod +x ./verify_epi_invariants_local.sh
+          ./verify_epi_invariants_local.sh | tee epi-local-guardrail.out
+      - name: Upload EPI guardrail output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: epi-local-guardrail-output
+          path: epi-local-guardrail.out
+
   # Lint client code
   client-lint:
     name: Client Lint

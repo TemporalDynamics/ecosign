@@ -81,7 +81,7 @@ describe('deriveDocumentState', () => {
     expect(state).toEqual({ label: 'Protegiendo', phase: 'blue' });
   });
 
-  it('sin workflow y con TSA -> Protegido (azul)', () => {
+  it('sin workflow y con TSA -> Protegido (gris)', () => {
     const state = deriveDocumentState(
       createDocument({
         events: [
@@ -95,7 +95,7 @@ describe('deriveDocumentState', () => {
         ]
       })
     );
-    expect(state).toEqual({ label: 'Protegido', phase: 'blue' });
+    expect(state).toEqual({ label: 'Protegido', phase: 'gray' });
   });
 });
 

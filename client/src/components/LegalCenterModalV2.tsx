@@ -1627,13 +1627,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               'witness'
             ).catch(err => console.warn('Custody backup skipped:', err));
 
-            await ensureWitnessCurrent(canonicalDocumentId, {
-              hash: documentHash,
-              mime_type: 'application/pdf',
-              storage_path: storagePath,
-              status: 'generated'
-            });
-
             await advanceLifecycle(canonicalDocumentId, 'witness_ready');
           } catch (err) {
             console.error('❌ Canonical witness preparation failed (Mi firma):', err);

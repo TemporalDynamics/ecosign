@@ -19,6 +19,7 @@ export default function DocumentRow({
   onMove,
   onInPerson,
   onCancelFlow,
+  onResumeFlow,
   selectable = false,
   selected = false,
   onSelect,
@@ -36,6 +37,7 @@ export default function DocumentRow({
   onMove?: (doc: any) => void;
   onInPerson?: (doc: any) => void;
   onCancelFlow?: (doc: any) => void;
+  onResumeFlow?: (doc: any) => void;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (checked: boolean) => void;
@@ -62,6 +64,10 @@ export default function DocumentRow({
   const hasAnyWorkflow = Array.isArray(document.workflows) && document.workflows.length > 0;
   const canCancelWorkflow = Array.isArray(document.workflows)
     && document.workflows.some((wf: any) => wf?.status === 'ready' || wf?.status === 'active');
+  const canResumeWorkflow = Array.isArray(document.workflows)
+    && Array.isArray(document.signers)
+    && document.workflows.some((wf: any) => wf?.status === 'ready' || wf?.status === 'active')
+    && document.signers.some((s: any) => ['ready_to_sign', 'ready', 'accessed', 'verified'].includes(String(s?.status ?? '')));
 
   if (asRow) {
     return (
@@ -135,6 +141,24 @@ export default function DocumentRow({
                     }
                   >
                     Cancelar flujo
+                  </button>
+                )}
+                {onResumeFlow && context !== 'operation' && (
+                  <button
+                    className={`w-full text-left px-3 py-2 text-sm ${
+                      canResumeWorkflow
+                        ? 'hover:bg-gray-50'
+                        : 'text-gray-400 cursor-not-allowed'
+                    }`}
+                    onClick={() => {
+                      if (!canResumeWorkflow) return;
+                      setOpenMenu(false);
+                      onResumeFlow(document);
+                    }}
+                    disabled={!canResumeWorkflow}
+                    title={canResumeWorkflow ? '' : 'No hay una firma pendiente para continuar'}
+                  >
+                    Continuar firma
                   </button>
                 )}
                 {onInPerson && (
@@ -265,6 +289,24 @@ export default function DocumentRow({
                   }
                 >
                   Cancelar flujo
+                </button>
+              )}
+              {onResumeFlow && context !== 'operation' && (
+                <button
+                  className={`w-full text-left px-3 py-2 text-sm ${
+                    canResumeWorkflow
+                      ? 'hover:bg-gray-50'
+                      : 'text-gray-400 cursor-not-allowed'
+                  }`}
+                  onClick={() => {
+                    if (!canResumeWorkflow) return;
+                    setOpenMenu(false);
+                    onResumeFlow(document);
+                  }}
+                  disabled={!canResumeWorkflow}
+                  title={canResumeWorkflow ? '' : 'No hay una firma pendiente para continuar'}
+                >
+                  Continuar firma
                 </button>
               )}
 

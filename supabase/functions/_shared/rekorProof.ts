@@ -170,6 +170,15 @@ export async function attemptRekorProof(params: {
     }).finally(() => clearTimeout(timer));
 
     if (!resp.ok) {
+      let responseBodySnippet = '';
+      try {
+        const raw = await resp.text();
+        if (raw) {
+          responseBodySnippet = raw.slice(0, 200).replace(/\s+/g, ' ').trim();
+        }
+      } catch {
+        // ignore body parsing errors
+      }
       return {
         kind: 'rekor',
         status: 'failed',
@@ -177,7 +186,7 @@ export async function attemptRekorProof(params: {
         ref: null,
         attempted_at: attemptedAt,
         elapsed_ms: Date.now() - startedAtMs,
-        reason: `http_${resp.status}`,
+        reason: responseBodySnippet ? `http_${resp.status}:${responseBodySnippet}` : `http_${resp.status}`,
         statement_hash: statementHash,
         statement_type: statement.type
       };

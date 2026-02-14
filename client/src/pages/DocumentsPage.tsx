@@ -1659,6 +1659,46 @@ function DocumentsPage() {
     }
   };
 
+  const handleResumeFlow = async (doc: DocumentRecord | null) => {
+    if (!doc) return;
+    if (isGuestMode()) {
+      toast("Modo invitado: acción disponible solo con cuenta.", { position: "top-right" });
+      return;
+    }
+
+    const resumableWorkflow = (doc.workflows || []).find(
+      (wf) => wf.status === "active" || wf.status === "ready"
+    );
+    if (!resumableWorkflow?.id) {
+      toast("Este documento no tiene un flujo activo para continuar.", { position: "top-right" });
+      return;
+    }
+
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase.functions.invoke("resume-signer-link", {
+        body: { workflowId: resumableWorkflow.id }
+      });
+
+      if (error) throw error;
+      if (!data?.success || !data?.sign_url) {
+        throw new Error(data?.message || "No se pudo resolver el enlace de firma");
+      }
+
+      const tokenPart = String(data.sign_url).split('/sign/')[1] || '';
+      const tokenOnly = tokenPart.split('?')[0];
+      if (!tokenOnly) {
+        throw new Error("Enlace inválido para continuar la firma");
+      }
+
+      navigate(`/sign/${tokenOnly}`);
+    } catch (err) {
+      console.error("Error continuando flujo:", err);
+      const message = err instanceof Error ? err.message : "No se pudo continuar la firma";
+      toast.error(message, { position: "top-right" });
+    }
+  };
+
   const handleResumeDraft = (draft: DraftRow) => {
     // Back-compat: always store draft ref as a string.
     // Extra state (operationId) is stored separately so older bundles still work.
@@ -2445,6 +2485,7 @@ function DocumentsPage() {
                       onOpen={(d) => setPreviewDoc(d)}
                       onShare={(d) => handleShareDoc(d)}
                       onCancelFlow={(d) => handleCancelFlow(d)}
+                      onResumeFlow={(d) => handleResumeFlow(d)}
                       onDownloadEco={(d) => handleEcoDownload(d)}
                       onDownloadPdf={(d) => handlePdfDownload(d)}
                       onDownloadOriginal={(d) => handleOriginalDownload(d)}
@@ -2481,6 +2522,7 @@ function DocumentsPage() {
                         onOpen={(d) => setPreviewDoc(d)}
                         onShare={(d) => handleShareDoc(d)}
                         onCancelFlow={(d) => handleCancelFlow(d)}
+                        onResumeFlow={(d) => handleResumeFlow(d)}
                         onDownloadEco={(d) => handleEcoDownload(d)}
                         onDownloadPdf={(d) => handlePdfDownload(d)}
                         onDownloadOriginal={(d) => handleOriginalDownload(d)}

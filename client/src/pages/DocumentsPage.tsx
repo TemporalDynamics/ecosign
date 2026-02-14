@@ -739,8 +739,16 @@ function DocumentsPage() {
   }, []);
 
   // Realtime: update document list when document_entities.events changes
+  const realtimeChannelRef = useRef<any>(null);
+  
   useEffect(() => {
     if (!currentUserId) return;
+
+    // Prevent duplicate subscriptions
+    if (realtimeChannelRef.current) {
+      getSupabase().removeChannel(realtimeChannelRef.current);
+      realtimeChannelRef.current = null;
+    }
 
     const supabase = getSupabase();
     const channel = supabase
@@ -771,8 +779,14 @@ function DocumentsPage() {
       )
       .subscribe();
 
+    // Store reference to prevent duplicate subscriptions
+    realtimeChannelRef.current = channel;
+
     return () => {
-      supabase.removeChannel(channel);
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
+        realtimeChannelRef.current = null;
+      }
     };
   }, [currentUserId]);
 

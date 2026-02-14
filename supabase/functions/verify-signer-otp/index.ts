@@ -60,15 +60,35 @@ serve(async (req) => {
       .eq('signer_id', signerId)
       .single()
 
-    if (otpErr || !record) return json({ error: 'OTP not found' }, 404, corsHeaders)
+    if (otpErr || !record) return json({ 
+      success: false,
+      error_code: 'OTP_NOT_FOUND',
+      message: 'OTP not found',
+      retryable: false
+    }, 404, corsHeaders)
 
-    if (record.verified_at) return json({ error: 'OTP already used' }, 400, corsHeaders)
+    if (record.verified_at) return json({ 
+      success: false,
+      error_code: 'OTP_ALREADY_USED',
+      message: 'OTP already used',
+      retryable: false
+    }, 400, corsHeaders)
 
-    if (record.attempts >= 5) return json({ error: 'Too many attempts' }, 429, corsHeaders)
+    if (record.attempts >= 5) return json({ 
+      success: false,
+      error_code: 'OTP_TOO_MANY_ATTEMPTS',
+      message: 'Too many attempts',
+      retryable: false
+    }, 429, corsHeaders)
 
     const now = new Date()
     if (new Date(record.expires_at) < now) {
-      return json({ error: 'OTP expired' }, 400, corsHeaders)
+      return json({ 
+        success: false,
+        error_code: 'OTP_EXPIRED',
+        message: 'OTP expired',
+        retryable: false
+      }, 400, corsHeaders)
     }
 
     const hash = await hashCode(otp.trim())
@@ -87,7 +107,12 @@ serve(async (req) => {
     }
 
     if (!isValid) {
-      return json({ error: 'OTP inválido' }, 400, corsHeaders)
+      return json({ 
+        success: false,
+        error_code: 'OTP_INVALID',
+        message: 'OTP inválido',
+        retryable: true
+      }, 400, corsHeaders)
     }
 
     // === PROBATORY EVENT: otp.verified ===

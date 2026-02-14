@@ -170,11 +170,11 @@ export function deriveDocumentState(
     };
   }
 
-  // 3c. Protección ACTIVA (TSA) → AZUL (activa)
+  // 3c. Protección ACTIVA (TSA) → GRIS (final)
   if (protectionLevel === 'ACTIVE') {
     return {
       label: 'Protegido',
-      phase: 'blue'
+      phase: 'gray'
     };
   }
 

@@ -295,6 +295,46 @@ Se cerró la etapa de hardening pre-canary con validaciones de integridad, build
 1. Ejecutar smoke manual final sobre flujos: proteger, mi firma, workflow multi-firmante, share OTP.
 2. Registrar outputs en artifacts de release.
 3. Abrir Canary controlado (interno/limitado) con observabilidad activa.
+
+---
+
+## Nota Operativa (Post-Canary): Notificaciones de cierre de workflow — 2026-02-14
+
+### 🎯 Contexto
+Durante pruebas manuales de flujos de firma se observó que algunos correos de
+"Proceso de firmas completado" llegan con retraso o aparecen como "viejos" al
+iniciar un nuevo workflow.
+
+### ✅ Diagnóstico confirmado
+- En `workflow_notifications` hay filas `pending` con `error_message` de
+  `rate_limited` (`status=429`) del proveedor de correo.
+- Se detectó además duplicación de encolado para `workflow_completed_simple`
+  dentro del mismo workflow (mismo destinatario/tipo en timestamps cercanos).
+- Efecto resultante: correos pendientes se reintentan en ejecuciones
+  posteriores del dispatcher y parecen "arrastrados" del flujo anterior.
+
+### 📌 Clasificación
+- **No bloqueante para Canary** (no afecta integridad EPI ni estado canónico del documento).
+- **Sí es deuda operativa de notificaciones** (timing/duplicados de envío).
+
+### 🧭 Decisión
+No corregir en esta etapa pre-Canary. Dejar como trabajo explícito **post-Canary**
+para evitar introducir riesgo en el cierre actual.
+
+### 🔧 Fix mínimo definido (post-Canary)
+1. Unificar a **un solo productor** de `workflow_completed_simple`.
+2. Agregar idempotencia DB (índice único parcial) para
+   `(workflow_id, recipient_email, notification_type, step)` en
+   `workflow_completed_simple`.
+3. Insert defensivo con `ON CONFLICT DO NOTHING`.
+4. Ajustar dispatcher para que un `cooldown/rate-limit` de completado no bloquee
+   otros tipos pendientes del mismo workflow.
+5. Cleanup no destructivo de duplicados pendientes (marcar `cancelled` con razón).
+
+### 📊 Señales a monitorear en Canary
+- Crecimiento de `pending` por tipo en `workflow_notifications`.
+- Duplicados por `(workflow_id, recipient_email, notification_type, step)`.
+- Pendientes con antigüedad mayor a 15 minutos.
 - **Verificador con cronología:**
   - `VerifierTimeline` + normalización/orden UTC.
   - Tooltip UTC + hora local visible.

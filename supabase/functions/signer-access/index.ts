@@ -327,7 +327,13 @@ serve(async (req) => {
         `Signer access denied: workflow status "${signer.workflow?.status}". Signer ID: ${signer.id}`,
       );
       return json(
-        { error: "This signing flow is no longer active." },
+        { 
+          success: false,
+          error_code: "FLOW_NOT_ACTIVE",
+          message: "This signing flow is no longer active.",
+          workflow_status: signer.workflow?.status,
+          retryable: false
+        },
         403,
         corsHeaders,
       );
@@ -340,7 +346,13 @@ serve(async (req) => {
       console.warn(
         `Signer access denied: not ready_to_sign (status="${signer.status}"). Signer ID: ${signer.id}`,
       );
-      return json({ error: "Not your turn to sign yet." }, 403, corsHeaders);
+      return json({ 
+        success: false,
+        error_code: "SIGNER_NOT_READY_TO_SIGN",
+        message: "Not your turn to sign yet.",
+        workflow_status: signer.workflow?.status,
+        retryable: false
+      }, 403, corsHeaders);
     }
 
     // All gates passed. Log access event.

@@ -258,6 +258,43 @@ Sin eventos canónicos no hay auditoría confiable ni pipelines observables. Est
 - **Eventos de operación:**
   - `operation.created`, `operation.renamed`, `operation.archived`, `operation.closed`.
   - `operation.document_added/removed` (canon en `document_entities.events[]` + espejo en `operations_events`).
+
+---
+
+## Pre-Canary Gate — Cierre de etapa y decisión operativa — 2026-02-14
+
+### 🎯 Resumen
+Se cerró la etapa de hardening pre-canary con validaciones de integridad, build de raíz en verde, auditoría de eventos ejecutable y ajustes de UX/flujo críticos. Se declara el sistema en **paso previo a Canary** con riesgos acotados y observables.
+
+### ✅ Decisiones tomadas en esta etapa
+- `witness_current_storage_path` se mantiene como único puntero canónico para preview/download.
+- Se corrigió drift de scripts de verificación al schema actual (`workflow_events` via `workflow_id` + `signature_workflows.document_entity_id`).
+- Se mantuvo enfoque pragmático para `audit:events`: filtrar falsos positivos y normalizar alias (`.`/`_`) sin bloquear el gate por ruido.
+- Se habilitó `Continuar firma` para workflows activos/retomables (sin crear flujo nuevo).
+- En flujo de firmantes, se eliminó navegación lateral no canónica: modal final con descarga de PDF/ECO únicamente.
+
+### ✅ Evidencias ejecutadas
+- `./verify_epi_invariants.sh`: **PASSED** (`violations.* = 0`).
+- `psql -f scripts/db/verify_precanary_epi.sql`: checks en verde (sin filas de violación).
+- Checks adicionales:
+  - monotonía de eventos: sin filas.
+  - unicidad de puntero canónico `signed/*`: sin filas.
+  - correlación `executor_jobs.entity_id == correlation_id`: sin filas.
+- `npm run build` (raíz): **PASSED** (eco-packer + client).
+- `npm run audit:events`: **OK** tras hardening del script.
+
+### ⚠️ Riesgo observado y decisión
+- `executor_jobs` con `dead` en `generate_signature_evidence` por `document_entity not found` en contexto no bloqueante para canary actual.
+- Decisión: tratarlo como capa opcional/no canónica en esta fase; no bloquea salida a Canary mientras invariantes EPI y flujo principal permanezcan verdes.
+
+### 🚦 Estado del gate
+- **Estado:** GO (paso previo a Canary completado)
+- **Condición de continuidad:** mantener monitoreo de jobs y rerun de invariantes antes de abrir tráfico externo.
+
+### 📌 Próximo paso inmediato
+1. Ejecutar smoke manual final sobre flujos: proteger, mi firma, workflow multi-firmante, share OTP.
+2. Registrar outputs en artifacts de release.
+3. Abrir Canary controlado (interno/limitado) con observabilidad activa.
 - **Verificador con cronología:**
   - `VerifierTimeline` + normalización/orden UTC.
   - Tooltip UTC + hora local visible.

@@ -19,7 +19,7 @@
     "typecheck": "cd client && npm run typecheck",
     "deadcode": "knip --max-issues 100",
     "validate": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "audit:events": "ts-node --transpile-only scripts/audit-events.ts",
+    "audit:events": "ts-node --project tsconfig.scripts.json --transpile-only scripts/audit-events.ts",
     "ci:predeploy": "npm run audit:events"
   },
   "keywords": [

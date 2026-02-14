@@ -109,7 +109,7 @@ interface SignWorkflowPageProps {
   mode?: 'dashboard' | 'signer'
 }
 
-export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPageProps) {
+export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPageProps) {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
   const { logEvent } = useEcoxLogger()
@@ -858,7 +858,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 onClick={handleCloseAction}
                 className="rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
               >
-                {isSignerMode ? 'Cerrar' : 'Ir a documentos'}
+                Cerrar
               </button>
             </div>
           </div>
@@ -923,7 +923,7 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
                 onClick={handleCloseAction}
                 className="rounded-md bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
               >
-                {isSignerMode ? 'Cerrar' : 'Ir a documentos'}
+                Cerrar
               </button>
             </div>
           </div>
@@ -1138,8 +1138,8 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
             onDownloadEco={(ecoUrl || ecoPath) ? handleDownloadEco : undefined}
             isLastSigner={isLastSigner}
             onClose={() => navigate(homePath)}
-            showCloseAction={!isSignerMode}
-            closeLabel={isSignerMode ? 'Cerrar' : 'Ir a documentos'}
+            showCloseAction={false}
+            closeLabel="Cerrar"
           />
         )}
       </div>

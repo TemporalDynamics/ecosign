@@ -27,6 +27,7 @@ interface ShareDocumentModalProps {
     document_name: string;
     encrypted: boolean;
     pdf_storage_path?: string | null;
+    encrypted_path?: string | null;
     eco_storage_path?: string | null;
     eco_file_data?: string | null;
   };
@@ -93,7 +94,8 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
     const init = async () => {
       try {
         // Cargar shares existentes (no inicializamos crypto acá)
-        const shares = await listDocumentShares(document.id, document.pdf_storage_path ?? null);
+        const preferredPath = document.pdf_storage_path ?? document.encrypted_path ?? null;
+        const shares = await listDocumentShares(document.id, preferredPath);
         setExistingShares(shares);
       } catch (err) {
         console.error('Error loading shares:', err);
@@ -107,7 +109,7 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
   }, [document.id]);
 
   // Validaciones
-  const hasPdf = !!document.pdf_storage_path;
+  const hasPdf = Boolean(document.pdf_storage_path || document.encrypted_path);
   // Share OTP (Flow C) es un capability manual: hoy solo habilita acceso al PDF cifrado.
   const canShare = useMemo(() => hasPdf, [hasPdf]);
 
@@ -138,7 +140,7 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
       // Llamar a shareDocument (genera OTP en cliente)
       const result = await shareDocument({
         documentId: document.id,
-        pdfStoragePath: document.pdf_storage_path ?? null,
+        pdfStoragePath: document.pdf_storage_path ?? document.encrypted_path ?? null,
         // NOTE: Share OTP es un capability (no se ata a una identidad).
         // recipientEmail existe solo por constraints legacy (unique_pending_share). No usar para decisiones de identidad.
         recipientEmail: 'share@ecosign.local',

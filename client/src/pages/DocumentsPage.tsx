@@ -1359,7 +1359,14 @@ function DocumentsPage() {
         if (storagePath) {
           blob = await fetchPreviewBlobFromPath(storagePath);
         } else if (previewDoc.encrypted_path) {
-          blob = await fetchEncryptedPdfBlob(previewDoc);
+          const hasUnwrapMetadata = Boolean(previewDoc.wrapped_key && previewDoc.wrap_iv);
+          if (hasUnwrapMetadata) {
+            blob = await fetchEncryptedPdfBlob(previewDoc);
+          } else {
+            // Legacy compatibility: some historical rows persisted the final PDF under
+            // encrypted_path (signed/...) without unwrap metadata.
+            blob = await fetchPreviewBlobFromPath(previewDoc.encrypted_path);
+          }
         }
 
         if (!blob) {
@@ -1550,7 +1557,11 @@ function DocumentsPage() {
     }
     if (doc.encrypted_path) {
       console.log('[handlePdfDownload] Using encrypted path:', doc.encrypted_path);
-      fetchEncryptedPdfBlob(doc)
+      const hasUnwrapMetadata = Boolean(doc.wrapped_key && doc.wrap_iv);
+      const fetchBlob = hasUnwrapMetadata
+        ? fetchEncryptedPdfBlob(doc)
+        : fetchPreviewBlobFromPath(doc.encrypted_path);
+      fetchBlob
         .then((blob) => {
           console.log('[handlePdfDownload] Got blob, size:', blob.size);
           triggerDownload(blob, doc.document_name);

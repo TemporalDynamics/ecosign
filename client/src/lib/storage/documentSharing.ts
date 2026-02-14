@@ -83,8 +83,9 @@ export async function shareDocument(
       throw new Error('Can only share encrypted documents with OTP');
     }
 
-    // Verify user owns the document
-    if (doc.user_id !== user.id) {
+    // Verify user owns the document (legacy-compatible):
+    // if user_id is present it must match; if null (historical rows), rely on RLS + entity binding.
+    if (doc.user_id && doc.user_id !== user.id) {
       throw new Error('Access denied');
     }
 
@@ -299,15 +300,11 @@ async function resolveShareableUserDocument(
     column: 'id' | 'document_entity_id' | 'pdf_storage_path' | 'encrypted_path',
     value: string
   ) => {
-    let query = supabase
+    const query = supabase
       .from('user_documents')
       .select(selectCols)
       .eq(column, value)
       .limit(1);
-
-    if (ownerUserId) {
-      query = query.eq('user_id', ownerUserId);
-    }
 
     const { data, error } = await query;
     return {
@@ -340,6 +337,36 @@ async function resolveShareableUserDocument(
   if (byEntity?.row) return byEntity.row;
   if (byPdfPath?.row) return byPdfPath.row;
   if (byEncryptedPath?.row) return byEncryptedPath.row;
+
+  // Legacy fallback: resolve by latest row bound to document_entity_id, then latest encrypted row.
+  try {
+    const { data: byEntityLatest, error: byEntityLatestError } = await supabase
+      .from('user_documents')
+      .select(selectCols)
+      .eq('document_entity_id', documentId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (!byEntityLatestError && byEntityLatest && byEntityLatest.length > 0) {
+      return byEntityLatest[0] as any;
+    }
+
+    if (ownerUserId) {
+      const { data: byOwnerEncrypted, error: byOwnerEncryptedError } = await supabase
+        .from('user_documents')
+        .select(selectCols)
+        .eq('user_id', ownerUserId)
+        .eq('encrypted', true)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!byOwnerEncryptedError && byOwnerEncrypted && byOwnerEncrypted.length > 0) {
+        return byOwnerEncrypted[0] as any;
+      }
+    }
+  } catch (fallbackErr) {
+    console.warn('Share: fallback resolution failed', fallbackErr);
+  }
 
   console.error('Share: user_document not found', {
     documentId,

@@ -106,6 +106,10 @@ function hexToBytes(hex: string): Uint8Array {
   return out;
 }
 
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 function getPrivateKeyBytes(): Uint8Array | null {
   const raw = (Deno.env.get('REKOR_ED25519_PRIVATE_KEY_B64') || '').trim();
   if (!raw) return null;
@@ -167,6 +171,7 @@ export async function attemptRekorProof(params: {
     const statementHash = await sha256Hex(statementJson);
     const statementBytes = new TextEncoder().encode(statementJson);
     const statementDigest512 = sha512(statementBytes);
+    const statementHash512 = bytesToHex(statementDigest512);
 
     const signature = await ed.sign(statementDigest512, priv);
     const pubkey = await ed.getPublicKey(priv);
@@ -179,7 +184,7 @@ export async function attemptRekorProof(params: {
       apiVersion: '0.0.1',
       kind: 'hashedrekord',
       spec: {
-        data: { hash: { algorithm: 'sha256', value: statementHash } },
+        data: { hash: { algorithm: 'sha512', value: statementHash512 } },
         signature: {
           content: bytesToBase64(signature),
           publicKey: { content: pemB64 }

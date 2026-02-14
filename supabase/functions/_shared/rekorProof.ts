@@ -56,6 +56,16 @@ type RekorStatement = {
   issued_at: string;
 };
 
+type DsseEnvelope = {
+  payloadType: string;
+  payload: string;
+  signatures: Array<{
+    keyid?: string;
+    sig: string;
+    publicKey: string;
+  }>;
+};
+
 function base64ToBytes(input: string): Uint8Array {
   const raw = atob(input);
   const bytes = new Uint8Array(raw.length);
@@ -110,14 +120,6 @@ function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
 function getPrivateKeyBytes(): Uint8Array | null {
   const raw = (Deno.env.get('REKOR_ED25519_PRIVATE_KEY_B64') || '').trim();
   if (!raw) return null;
@@ -130,33 +132,31 @@ function getPrivateKeyBytes(): Uint8Array | null {
   }
 }
 
-async function signForRekor(statementBytes: Uint8Array, statementDigest512: Uint8Array, priv: Uint8Array): Promise<Uint8Array> {
+function buildDssePae(payloadType: string, payload: Uint8Array): Uint8Array {
+  const header = `DSSEv1 ${payloadType.length} ${payloadType} ${payload.length} `;
+  const headerBytes = new TextEncoder().encode(header);
+  const out = new Uint8Array(headerBytes.length + payload.length);
+  out.set(headerBytes, 0);
+  out.set(payload, headerBytes.length);
+  return out;
+}
+
+async function signForRekor(message: Uint8Array, priv: Uint8Array): Promise<Uint8Array> {
   const signer = ed as unknown as {
-    sign: (msg: Uint8Array, sk: Uint8Array, opts?: { prehash?: boolean }) => Promise<Uint8Array>;
+    sign: (msg: Uint8Array, sk: Uint8Array) => Promise<Uint8Array>;
   };
-  // Rekor verifies Ed25519 signatures with SHA-512 hashing semantics.
-  // Prefer Ed25519ph on the original statement bytes; fallback to digest signing.
-  try {
-    return await signer.sign(statementBytes, priv, { prehash: true });
-  } catch {
-    return await signer.sign(statementDigest512, priv);
-  }
+  return await signer.sign(message, priv);
 }
 
 async function verifyForRekor(
   signature: Uint8Array,
-  statementBytes: Uint8Array,
-  statementDigest512: Uint8Array,
+  message: Uint8Array,
   pubkey: Uint8Array,
 ): Promise<boolean> {
   const verifier = ed as unknown as {
-    verify: (sig: Uint8Array, msg: Uint8Array, pk: Uint8Array, opts?: { prehash?: boolean }) => Promise<boolean>;
+    verify: (sig: Uint8Array, msg: Uint8Array, pk: Uint8Array) => Promise<boolean>;
   };
-  try {
-    return await verifier.verify(signature, statementBytes, pubkey, { prehash: true });
-  } catch {
-    return await verifier.verify(signature, statementDigest512, pubkey);
-  }
+  return await verifier.verify(signature, message, pubkey);
 }
 
 export async function attemptRekorProof(params: {
@@ -207,26 +207,11 @@ export async function attemptRekorProof(params: {
     const statementJson = canonicalize(statement);
     const statementHash = await sha256Hex(statementJson);
     const statementBytes = new TextEncoder().encode(statementJson);
-    const statementDigest512 = sha512(statementBytes);
-    const statementDigest512Recomputed = sha512(statementBytes);
-    if (!bytesEqual(statementDigest512, statementDigest512Recomputed)) {
-      return {
-        kind: 'rekor',
-        status: 'failed',
-        provider,
-        ref: null,
-        attempted_at: attemptedAt,
-        elapsed_ms: Date.now() - startedAtMs,
-        reason: 'digest_consistency_check_failed',
-        statement_hash: statementHash,
-        statement_type: statement.type
-      };
-    }
-    const statementHash512 = bytesToHex(statementDigest512);
-
-    const signature = await signForRekor(statementBytes, statementDigest512, priv);
+    const payloadType = 'application/vnd.in-toto+json';
+    const pae = buildDssePae(payloadType, statementBytes);
+    const signature = await signForRekor(pae, priv);
     const pubkey = await ed.getPublicKey(priv);
-    const localSignatureValid = await verifyForRekor(signature, statementBytes, statementDigest512, pubkey);
+    const localSignatureValid = await verifyForRekor(signature, pae, pubkey);
     if (!localSignatureValid) {
       return {
         kind: 'rekor',
@@ -244,15 +229,25 @@ export async function attemptRekorProof(params: {
     const spkiDer = ed25519PublicKeySpkiDer(pubkey);
     const pem = ed25519PublicKeyPem(pubkey);
     const pemB64 = utf8ToBase64(pem);
+    const envelope: DsseEnvelope = {
+      payloadType,
+      payload: bytesToBase64(statementBytes),
+      signatures: [{
+        sig: bytesToBase64(signature),
+        publicKey: pemB64
+      }]
+    };
 
     const rekorPayload = {
-      apiVersion: '0.0.1',
-      kind: 'hashedrekord',
+      apiVersion: '0.0.2',
+      kind: 'intoto',
       spec: {
-        data: { hash: { algorithm: 'sha512', value: statementHash512 } },
-        signature: {
-          content: bytesToBase64(signature),
-          publicKey: { content: pemB64 }
+        content: {
+          envelope,
+          payloadHash: {
+            algorithm: 'sha256',
+            value: statementHash
+          }
         }
       }
     };
@@ -284,8 +279,8 @@ export async function attemptRekorProof(params: {
         attempted_at: attemptedAt,
         elapsed_ms: Date.now() - startedAtMs,
         reason: responseBodySnippet
-          ? `http_${resp.status}:${responseBodySnippet}:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}`
-          : `http_${resp.status}:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}`,
+          ? `http_${resp.status}:${responseBodySnippet}:entry_kind_intoto:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}`
+          : `http_${resp.status}:entry_kind_intoto:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}`,
         statement_hash: statementHash,
         statement_type: statement.type
       };

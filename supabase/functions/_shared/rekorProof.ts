@@ -110,6 +110,14 @@ function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 function getPrivateKeyBytes(): Uint8Array | null {
   const raw = (Deno.env.get('REKOR_ED25519_PRIVATE_KEY_B64') || '').trim();
   if (!raw) return null;
@@ -132,6 +140,22 @@ async function signForRekor(statementBytes: Uint8Array, statementDigest512: Uint
     return await signer.sign(statementBytes, priv, { prehash: true });
   } catch {
     return await signer.sign(statementDigest512, priv);
+  }
+}
+
+async function verifyForRekor(
+  signature: Uint8Array,
+  statementBytes: Uint8Array,
+  statementDigest512: Uint8Array,
+  pubkey: Uint8Array,
+): Promise<boolean> {
+  const verifier = ed as unknown as {
+    verify: (sig: Uint8Array, msg: Uint8Array, pk: Uint8Array, opts?: { prehash?: boolean }) => Promise<boolean>;
+  };
+  try {
+    return await verifier.verify(signature, statementBytes, pubkey, { prehash: true });
+  } catch {
+    return await verifier.verify(signature, statementDigest512, pubkey);
   }
 }
 
@@ -184,10 +208,38 @@ export async function attemptRekorProof(params: {
     const statementHash = await sha256Hex(statementJson);
     const statementBytes = new TextEncoder().encode(statementJson);
     const statementDigest512 = sha512(statementBytes);
+    const statementDigest512Recomputed = sha512(statementBytes);
+    if (!bytesEqual(statementDigest512, statementDigest512Recomputed)) {
+      return {
+        kind: 'rekor',
+        status: 'failed',
+        provider,
+        ref: null,
+        attempted_at: attemptedAt,
+        elapsed_ms: Date.now() - startedAtMs,
+        reason: 'digest_consistency_check_failed',
+        statement_hash: statementHash,
+        statement_type: statement.type
+      };
+    }
     const statementHash512 = bytesToHex(statementDigest512);
 
     const signature = await signForRekor(statementBytes, statementDigest512, priv);
     const pubkey = await ed.getPublicKey(priv);
+    const localSignatureValid = await verifyForRekor(signature, statementBytes, statementDigest512, pubkey);
+    if (!localSignatureValid) {
+      return {
+        kind: 'rekor',
+        status: 'failed',
+        provider,
+        ref: null,
+        attempted_at: attemptedAt,
+        elapsed_ms: Date.now() - startedAtMs,
+        reason: 'local_verify_failed',
+        statement_hash: statementHash,
+        statement_type: statement.type
+      };
+    }
     const pubkeyB64 = bytesToBase64(pubkey);
     const spkiDer = ed25519PublicKeySpkiDer(pubkey);
     const pem = ed25519PublicKeyPem(pubkey);

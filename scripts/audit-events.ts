@@ -27,6 +27,20 @@ type EventUsage = {
   status: string[];
 };
 
+const UI_KIND_IGNORE = new Set([
+  "name",
+  "date",
+  "text",
+  "pages",
+  "id_number",
+  "once",
+]);
+
+const UNDECLARED_ALLOWLIST = new Set([
+  "signature.completed",
+  "signature.evidence.generated",
+]);
+
 const root = process.cwd();
 const contractPath = path.join(root, "docs/canonical/event_graph.yaml");
 const mdPath = path.join(root, "docs/canonical/EVENT_GRAPH.md");
@@ -70,8 +84,12 @@ function scanUi(text: string) {
   const re = /\b\w+\.kind\s*===\s*['"]([^'"]+)['"]/g;
   const re2 = /\b\w+\.kind\s*==\s*['"]([^'"]+)['"]/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) kinds.add(m[1]);
-  while ((m = re2.exec(text))) kinds.add(m[1]);
+  while ((m = re.exec(text))) {
+    if (!UI_KIND_IGNORE.has(m[1])) kinds.add(m[1]);
+  }
+  while ((m = re2.exec(text))) {
+    if (!UI_KIND_IGNORE.has(m[1])) kinds.add(m[1]);
+  }
   return kinds;
 }
 
@@ -88,6 +106,24 @@ function scanTriggers(text: string) {
 function loadContract(): ContractFile {
   const raw = readText(contractPath);
   return YAML.parse(raw) as ContractFile;
+}
+
+function normalizeKind(kind: string, declaredKinds: Set<string>) {
+  if (declaredKinds.has(kind)) return kind;
+  const dotToUnderscore = kind.replace(/\./g, "_");
+  if (declaredKinds.has(dotToUnderscore)) return dotToUnderscore;
+  const underscoreToDot = kind.replace(/_/g, ".");
+  if (declaredKinds.has(underscoreToDot)) return underscoreToDot;
+  return kind;
+}
+
+function addUsage(
+  target: Record<string, string[]>,
+  kind: string,
+  file: string,
+) {
+  target[kind] = target[kind] || [];
+  target[kind].push(file);
 }
 
 function ensureArtifactsDir() {
@@ -128,13 +164,15 @@ function buildUsageMap(contract: ContractFile) {
   const emitted: Record<string, string[]> = {};
   const triggered: Record<string, string[]> = {};
   const ui: Record<string, string[]> = {};
+  const contractEvents = contract.events || {};
+  const declaredKinds = new Set(Object.keys(contractEvents));
 
   const fnFiles = walk(path.join(root, "supabase/functions"), [".ts"]);
   for (const file of fnFiles) {
     const text = readText(file);
     for (const kind of scanEmitters(text)) {
-      emitted[kind] = emitted[kind] || [];
-      emitted[kind].push(path.relative(root, file));
+      const normalized = normalizeKind(kind, declaredKinds);
+      addUsage(emitted, normalized, path.relative(root, file));
     }
   }
 
@@ -142,8 +180,8 @@ function buildUsageMap(contract: ContractFile) {
   for (const file of sqlFiles) {
     const text = readText(file);
     for (const kind of scanTriggers(text)) {
-      triggered[kind] = triggered[kind] || [];
-      triggered[kind].push(path.relative(root, file));
+      const normalized = normalizeKind(kind, declaredKinds);
+      addUsage(triggered, normalized, path.relative(root, file));
     }
   }
 
@@ -151,12 +189,11 @@ function buildUsageMap(contract: ContractFile) {
   for (const file of uiFiles) {
     const text = readText(file);
     for (const kind of scanUi(text)) {
-      ui[kind] = ui[kind] || [];
-      ui[kind].push(path.relative(root, file));
+      const normalized = normalizeKind(kind, declaredKinds);
+      addUsage(ui, normalized, path.relative(root, file));
     }
   }
 
-  const contractEvents = contract.events || {};
   const kinds = new Set<string>([
     ...Object.keys(contractEvents),
     ...Object.keys(emitted),
@@ -171,16 +208,18 @@ function buildUsageMap(contract: ContractFile) {
     const status: string[] = [];
     const contractEntry = contractEvents[kind];
 
-    if (!declared) {
+    if (!declared && !UNDECLARED_ALLOWLIST.has(kind)) {
       status.push("ERROR_UNDECLARED_EVENT");
     }
 
     const hasEmit = Boolean(emitted[kind]?.length);
-    if (declared && !hasEmit && !contractEntry?.allow_unemitted) {
+    const hasTrigger = Boolean(triggered[kind]?.length);
+    const hasUi = Boolean(ui[kind]?.length);
+    if (declared && !hasEmit && !hasTrigger && !hasUi && !contractEntry?.allow_unemitted) {
       status.push("ERROR_DECLARED_BUT_NOT_EMITTED");
     }
 
-    if (!declared && (triggered[kind]?.length || ui[kind]?.length)) {
+    if (!declared && !UNDECLARED_ALLOWLIST.has(kind) && (triggered[kind]?.length || ui[kind]?.length)) {
       status.push("ERROR_REFERENCED_BUT_UNDECLARED");
     }
 

@@ -438,6 +438,25 @@ serve(async (req) => {
       }
     }
 
+    // IDEMPOTENCY CHECK: Check if this signer has already signed this workflow
+    const { data: existingSignedEvent } = await supabase
+      .from('workflow_events')
+      .select('id')
+      .eq('workflow_id', signer.workflow_id)
+      .eq('signer_id', signer.id)
+      .eq('event_type', 'signer.signed')
+      .limit(1)
+      .maybeSingle()
+
+    if (existingSignedEvent) {
+      console.log(`apply-signer-signature: Signer ${signer.id} already signed workflow ${signer.workflow_id}, returning idempotent success`)
+      return json({ 
+        success: true, 
+        idempotent: true,
+        message: 'Signer has already signed this workflow'
+      })
+    }
+
     const workflowIdMismatch = Boolean(workflowId && signer.workflow_id !== workflowId)
     if (workflowIdMismatch) {
       console.error('apply-signer-signature: Workflow mismatch', {
@@ -776,8 +795,17 @@ serve(async (req) => {
       try {
         await uploadWorkflowPdf(supabase, signedPdfPath, stampedBytes)
       } catch (signedUploadErr) {
-        console.warn('apply-signer-signature: failed to upload signed witness PDF', signedUploadErr)
-        signedPdfPath = null
+        console.error('apply-signer-signature: failed to upload signed witness PDF', signedUploadErr)
+        // FAIL HARD: If signed PDF upload fails, do not proceed with witness updates or workflow completion
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error_code: 'EPI_IMMUTABLE_UPLOAD_FAILED',
+            message: 'Failed to upload immutable signed witness PDF',
+            retryable: true
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
       }
 
       // Update workflow hash so downstream consumers use the stamped PDF hash.
@@ -820,16 +848,36 @@ serve(async (req) => {
               witness_current_status: 'signed',
               witness_current_mime: 'application/pdf',
               witness_current_generated_at: nowIso,
-              witness_current_storage_path: signedPdfPath || workflow.document_path,
+              witness_current_storage_path: signedPdfPath, // FAIL HARD: No fallback to mutable path
               witness_history: history
             })
             .eq('id', workflow.document_entity_id)
 
           if (entityErr) {
-            console.warn('apply-signer-signature: failed to update document_entities witness hash', entityErr)
+            console.error('apply-signer-signature: failed to update document_entities witness hash', entityErr)
+            // FAIL HARD: If witness update fails, return error to prevent workflow completion
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error_code: 'EPI_WITNESS_UPDATE_FAILED',
+                message: 'Failed to update document entity witness',
+                retryable: true
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+            )
           }
         } catch (entityUpdateErr) {
-          console.warn('apply-signer-signature: witness hash update failed', entityUpdateErr)
+          console.error('apply-signer-signature: witness hash update failed', entityUpdateErr)
+          // FAIL HARD: If witness update fails, return error to prevent workflow completion
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error_code: 'EPI_WITNESS_UPDATE_FAILED',
+              message: 'Failed to update document entity witness',
+              retryable: true
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          )
         }
       }
 

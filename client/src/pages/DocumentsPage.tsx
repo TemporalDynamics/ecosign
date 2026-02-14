@@ -653,6 +653,45 @@ function DocumentsPage() {
         console.warn('Skipping workflow enrichment:', workflowJoinErr);
       }
 
+      // Enriquecer con user_documents para fallback de preview/descarga cifrada
+      // (especialmente útil en documentos históricos donde witness_current_storage_path esté vacío).
+      try {
+        const entityIds = mapped
+          .map((doc) => doc.document_entity_id ?? doc.id)
+          .filter((id) => typeof id === 'string' && id.length > 0);
+
+        if (entityIds.length > 0) {
+          const { data: userDocs, error: userDocsError } = await supabase
+            .from('user_documents')
+            .select('document_entity_id, encrypted_path, wrapped_key, wrap_iv, pdf_storage_path, created_at')
+            .in('document_entity_id', entityIds)
+            .order('created_at', { ascending: false });
+
+          if (!userDocsError && userDocs) {
+            const latestByEntity = new Map<string, any>();
+            for (const row of userDocs as any[]) {
+              const entityId = row?.document_entity_id;
+              if (!entityId || latestByEntity.has(entityId)) continue;
+              latestByEntity.set(entityId, row);
+            }
+
+            mapped.forEach((doc) => {
+              const entityId = doc.document_entity_id ?? doc.id;
+              const row = latestByEntity.get(entityId);
+              if (!row) return;
+              doc.encrypted_path = row.encrypted_path ?? doc.encrypted_path ?? null;
+              doc.wrapped_key = row.wrapped_key ?? doc.wrapped_key ?? null;
+              doc.wrap_iv = row.wrap_iv ?? doc.wrap_iv ?? null;
+              if (!doc.pdf_storage_path) {
+                doc.pdf_storage_path = row.pdf_storage_path ?? null;
+              }
+            });
+          }
+        }
+      } catch (userDocsJoinErr) {
+        console.warn('Skipping user_documents enrichment:', userDocsJoinErr);
+      }
+
       // UX rule: Documents list shows only documents not assigned to any operation.
       // If a document is in an operation, it is accessed from that operation.
       try {

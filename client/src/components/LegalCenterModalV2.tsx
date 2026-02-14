@@ -2298,6 +2298,17 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         }
         const { storagePath } = await persistSignedPdfToStorage(signedBytes, authUser.id);
         signedStoragePath = storagePath;
+
+        // Mi Firma (flujo individual) no pasa por apply-signer-signature, por lo que
+        // debemos fijar explícitamente el witness_current_* al artefacto final canónico.
+        if (canonicalDocumentId && signedStoragePath) {
+          await ensureWitnessCurrent(canonicalDocumentId, {
+            hash: signedHash,
+            mime_type: 'application/pdf',
+            storage_path: signedStoragePath,
+            status: 'signed'
+          });
+        }
       } catch (err) {
         console.warn('Canonical signed persistence skipped:', err);
       }

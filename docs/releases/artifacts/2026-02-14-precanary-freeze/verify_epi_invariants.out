@@ -1,0 +1,5 @@
+STATUS: FAILED_TO_START
+DATE: 2026-02-14
+ERROR: DATABASE_URL or SUPABASE_DB_URL is required.
+COMMAND: bash verify_epi_invariants.sh
+NEXT_ACTION: run with DATABASE_URL and persist output in this file.

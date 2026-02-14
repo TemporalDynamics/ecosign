@@ -1,0 +1,5 @@
+STATUS: NOT_EXECUTED
+DATE: 2026-02-14
+REASON: DATABASE_URL or SUPABASE_DB_URL not provided in shell environment.
+COMMAND: psql <DB_URL> -f scripts/db/verify_precanary_epi.sql
+NEXT_ACTION: run with DATABASE_URL and persist output in this file.

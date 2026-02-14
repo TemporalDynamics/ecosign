@@ -71,10 +71,8 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function toPem(type: 'PUBLIC KEY', der: Uint8Array): string {
-  const b64 = bytesToBase64(der);
-  const lines = b64.match(/.{1,64}/g) ?? [b64];
-  return `-----BEGIN ${type}-----\n${lines.join('\n')}\n-----END ${type}-----`;
+function utf8ToBase64(input: string): string {
+  return btoa(new TextEncoder().encode(input).reduce((acc, b) => acc + String.fromCharCode(b), ''));
 }
 
 // SubjectPublicKeyInfo DER prefix for Ed25519 public keys (RFC 8410):
@@ -88,6 +86,12 @@ function ed25519PublicKeySpkiDer(pubkey32: Uint8Array): Uint8Array {
   out.set(prefix, 0);
   out.set(pubkey32, prefix.length);
   return out;
+}
+
+function ed25519PublicKeyPem(pubkey32: Uint8Array): string {
+  const spkiDer = ed25519PublicKeySpkiDer(pubkey32);
+  const body = bytesToBase64(spkiDer).match(/.{1,64}/g)?.join('\n') ?? bytesToBase64(spkiDer);
+  return `-----BEGIN PUBLIC KEY-----\n${body}\n-----END PUBLIC KEY-----\n`;
 }
 
 function hexToBytes(hex: string): Uint8Array {
@@ -166,7 +170,9 @@ export async function attemptRekorProof(params: {
     const signature = await ed.sign(statementHashBytes, priv);
     const pubkey = await ed.getPublicKey(priv);
     const pubkeyB64 = bytesToBase64(pubkey);
-    const pubkeyPem = toPem('PUBLIC KEY', ed25519PublicKeySpkiDer(pubkey));
+    const spkiDer = ed25519PublicKeySpkiDer(pubkey);
+    const pem = ed25519PublicKeyPem(pubkey);
+    const pemB64 = utf8ToBase64(pem);
 
     const rekorPayload = {
       apiVersion: '0.0.1',
@@ -175,7 +181,7 @@ export async function attemptRekorProof(params: {
         data: { hash: { algorithm: 'sha256', value: statementHash } },
         signature: {
           content: bytesToBase64(signature),
-          publicKey: { content: pubkeyPem }
+          publicKey: { content: pemB64 }
         }
       }
     };
@@ -206,7 +212,9 @@ export async function attemptRekorProof(params: {
         ref: null,
         attempted_at: attemptedAt,
         elapsed_ms: Date.now() - startedAtMs,
-        reason: responseBodySnippet ? `http_${resp.status}:${responseBodySnippet}` : `http_${resp.status}`,
+        reason: responseBodySnippet
+          ? `http_${resp.status}:${responseBodySnippet}:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}`
+          : `http_${resp.status}:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}`,
         statement_hash: statementHash,
         statement_type: statement.type
       };

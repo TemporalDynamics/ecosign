@@ -984,13 +984,18 @@ serve(async (req) => {
         }
 
         const canonicalWitnessHash = witnessHashForEvent || witnessCurrent || null
+        const rekorTimeoutMsRaw = Number.parseInt(String(Deno.env.get('REKOR_TIMEOUT_MS') || '12000'), 10)
+        const rekorTimeoutMs = Number.isFinite(rekorTimeoutMsRaw)
+          ? Math.max(3000, Math.min(rekorTimeoutMsRaw, 30000))
+          : 12000
+
         const proofs = await Promise.all([
           attemptTsaProof({ witness_hash: canonicalWitnessHash || '', timeout_ms: 3000 }),
           attemptRekorProof({
             witness_hash: canonicalWitnessHash || '',
             workflow_id: signer.workflow_id,
             signer_id: signer.id,
-            timeout_ms: 12000
+            timeout_ms: rekorTimeoutMs
           })
         ])
 

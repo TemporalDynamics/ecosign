@@ -17,6 +17,22 @@ export type RekorProofResult = {
   inclusion_proof?: Record<string, unknown>;
 };
 
+function normalizeRekorError(err: unknown): { status: 'failed' | 'timeout'; reason: string } {
+  if (err && typeof err === 'object') {
+    const maybeName = String((err as { name?: unknown }).name ?? '').trim();
+    const maybeMessage = String((err as { message?: unknown }).message ?? '').trim();
+
+    if (maybeName === 'AbortError') {
+      return { status: 'timeout', reason: 'abort_timeout' };
+    }
+
+    if (maybeMessage.length > 0) {
+      return { status: 'failed', reason: `network_error:${maybeMessage.slice(0, 120)}` };
+    }
+  }
+  return { status: 'failed', reason: 'unknown_error' };
+}
+
 type RekorStatement = {
   type: 'ecosign.proof.v1';
   hash: string;
@@ -180,14 +196,16 @@ export async function attemptRekorProof(params: {
       integrated_time: integratedTime ?? undefined,
       inclusion_proof: inclusionProof ?? undefined
     };
-  } catch (_err) {
+  } catch (err) {
+    const normalized = normalizeRekorError(err);
     return {
       kind: 'rekor',
-      status: 'timeout',
+      status: normalized.status,
       provider,
       ref: null,
       attempted_at: attemptedAt,
-      elapsed_ms: Date.now() - startedAtMs
+      elapsed_ms: Date.now() - startedAtMs,
+      reason: normalized.reason
     };
   }
 }

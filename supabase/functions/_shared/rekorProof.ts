@@ -71,6 +71,25 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+function toPem(type: 'PUBLIC KEY', der: Uint8Array): string {
+  const b64 = bytesToBase64(der);
+  const lines = b64.match(/.{1,64}/g) ?? [b64];
+  return `-----BEGIN ${type}-----\n${lines.join('\n')}\n-----END ${type}-----`;
+}
+
+// SubjectPublicKeyInfo DER prefix for Ed25519 public keys (RFC 8410):
+// SEQUENCE {
+//   SEQUENCE { OID 1.3.101.112 }
+//   BIT STRING (32-byte public key)
+// }
+function ed25519PublicKeySpkiDer(pubkey32: Uint8Array): Uint8Array {
+  const prefix = hexToBytes('302a300506032b6570032100');
+  const out = new Uint8Array(prefix.length + pubkey32.length);
+  out.set(prefix, 0);
+  out.set(pubkey32, prefix.length);
+  return out;
+}
+
 function hexToBytes(hex: string): Uint8Array {
   const clean = hex.toLowerCase();
   if (!/^([0-9a-f]{2})+$/.test(clean)) {
@@ -147,6 +166,7 @@ export async function attemptRekorProof(params: {
     const signature = await ed.sign(statementHashBytes, priv);
     const pubkey = await ed.getPublicKey(priv);
     const pubkeyB64 = bytesToBase64(pubkey);
+    const pubkeyPem = toPem('PUBLIC KEY', ed25519PublicKeySpkiDer(pubkey));
 
     const rekorPayload = {
       apiVersion: '0.0.1',
@@ -155,7 +175,7 @@ export async function attemptRekorProof(params: {
         data: { hash: { algorithm: 'sha256', value: statementHash } },
         signature: {
           content: bytesToBase64(signature),
-          publicKey: { content: pubkeyB64 }
+          publicKey: { content: pubkeyPem }
         }
       }
     };

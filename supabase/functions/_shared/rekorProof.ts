@@ -229,11 +229,23 @@ export async function attemptRekorProof(params: {
     const spkiDer = ed25519PublicKeySpkiDer(pubkey);
     const pem = ed25519PublicKeyPem(pubkey);
     const pemB64 = utf8ToBase64(pem);
+    const payloadB64 = bytesToBase64(statementBytes);
+    const signatureB64 = bytesToBase64(signature);
+    const envelopeForHash = {
+      payloadType,
+      payload: payloadB64,
+      signatures: [{
+        sig: signatureB64,
+        publicKey: pemB64
+      }]
+    };
+    const envelopeHash = await sha256Hex(canonicalize(envelopeForHash));
     const envelope: DsseEnvelope = {
       payloadType,
-      payload: bytesToBase64(statementBytes),
+      // Rekor intoto v0.0.2 expects payload/signature double-encoded.
+      payload: utf8ToBase64(payloadB64),
       signatures: [{
-        sig: bytesToBase64(signature),
+        sig: utf8ToBase64(signatureB64),
         publicKey: pemB64
       }]
     };
@@ -244,6 +256,10 @@ export async function attemptRekorProof(params: {
       spec: {
         content: {
           envelope,
+          hash: {
+            algorithm: 'sha256',
+            value: envelopeHash
+          },
           payloadHash: {
             algorithm: 'sha256',
             value: statementHash
@@ -279,8 +295,8 @@ export async function attemptRekorProof(params: {
         attempted_at: attemptedAt,
         elapsed_ms: Date.now() - startedAtMs,
         reason: responseBodySnippet
-          ? `http_${resp.status}:${responseBodySnippet}:entry_kind_intoto:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}`
-          : `http_${resp.status}:entry_kind_intoto:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}`,
+          ? `http_${resp.status}:${responseBodySnippet}:entry_kind_intoto:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}:payload_b64_len_${payloadB64.length}`
+          : `http_${resp.status}:entry_kind_intoto:spki_len_${spkiDer.length}:pem_b64_len_${pemB64.length}:payload_b64_len_${payloadB64.length}`,
         statement_hash: statementHash,
         statement_type: statement.type
       };

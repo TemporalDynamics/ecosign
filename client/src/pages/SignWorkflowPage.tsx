@@ -250,6 +250,25 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({} as any))
+        
+        // Handle structured error codes
+        if (body?.error_code) {
+          switch (body.error_code) {
+            case 'FLOW_NOT_ACTIVE':
+              setStep('cancelled_info')
+              return null
+            case 'SIGNER_NOT_READY_TO_SIGN':
+              setError('Aún no es tu turno de firmar.')
+              setStep('error')
+              return null
+            default:
+              setError('Link de firma inválido o no encontrado')
+              setStep('error')
+              return null
+          }
+        }
+        
+        // Fallback for legacy error handling
         const backendMessage = String(body?.error || body?.message || '')
         const lowered = backendMessage.toLowerCase()
 
@@ -283,6 +302,12 @@ export default function SignWorkflowPage({ mode = 'dashboard' }: SignWorkflowPag
     try {
       const signer = await fetchSignerData(accessToken)
       if (!signer) return
+
+      // Check for structured error response
+      if (signer.success === false && signer.error_code) {
+        // Already handled in fetchSignerData, but double-check
+        return
+      }
 
       // Check signer status
       if (signer.status === 'signed') {

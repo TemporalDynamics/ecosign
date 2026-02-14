@@ -165,9 +165,10 @@ export async function attemptRekorProof(params: {
 
     const statementJson = canonicalize(statement);
     const statementHash = await sha256Hex(statementJson);
-    const statementHashBytes = hexToBytes(statementHash);
+    const statementBytes = new TextEncoder().encode(statementJson);
+    const statementDigest512 = sha512(statementBytes);
 
-    const signature = await ed.sign(statementHashBytes, priv);
+    const signature = await ed.sign(statementDigest512, priv);
     const pubkey = await ed.getPublicKey(priv);
     const pubkeyB64 = bytesToBase64(pubkey);
     const spkiDer = ed25519PublicKeySpkiDer(pubkey);

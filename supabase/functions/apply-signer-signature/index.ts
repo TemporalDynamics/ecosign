@@ -990,7 +990,7 @@ serve(async (req) => {
             witness_hash: canonicalWitnessHash || '',
             workflow_id: signer.workflow_id,
             signer_id: signer.id,
-            timeout_ms: 3000
+            timeout_ms: 12000
           })
         ])
 

@@ -7,6 +7,7 @@ export type RekorProofResult = {
   provider: string;
   ref: string | null;
   attempted_at: string;
+  elapsed_ms?: number;
   reason?: string;
   statement_hash?: string;
   statement_type?: string;
@@ -69,16 +70,33 @@ export async function attemptRekorProof(params: {
   signer_id: string;
   timeout_ms: number;
 }): Promise<RekorProofResult> {
+  const startedAtMs = Date.now();
   const attemptedAt = new Date().toISOString();
   const provider = 'rekor.sigstore.dev';
 
   if (!params.witness_hash) {
-    return { kind: 'rekor', status: 'attempted', provider, ref: null, attempted_at: attemptedAt, reason: 'no_witness_hash' };
+    return {
+      kind: 'rekor',
+      status: 'attempted',
+      provider,
+      ref: null,
+      attempted_at: attemptedAt,
+      elapsed_ms: Date.now() - startedAtMs,
+      reason: 'no_witness_hash'
+    };
   }
 
   const priv = getPrivateKeyBytes();
   if (!priv) {
-    return { kind: 'rekor', status: 'attempted', provider, ref: null, attempted_at: attemptedAt, reason: 'no_key_configured' };
+    return {
+      kind: 'rekor',
+      status: 'attempted',
+      provider,
+      ref: null,
+      attempted_at: attemptedAt,
+      elapsed_ms: Date.now() - startedAtMs,
+      reason: 'no_key_configured'
+    };
   }
 
   try {
@@ -127,6 +145,7 @@ export async function attemptRekorProof(params: {
         provider,
         ref: null,
         attempted_at: attemptedAt,
+        elapsed_ms: Date.now() - startedAtMs,
         reason: `http_${resp.status}`,
         statement_hash: statementHash,
         statement_type: statement.type
@@ -153,6 +172,7 @@ export async function attemptRekorProof(params: {
       provider,
       ref: uuid,
       attempted_at: attemptedAt,
+      elapsed_ms: Date.now() - startedAtMs,
       statement_hash: statementHash,
       statement_type: statement.type,
       public_key_b64: pubkeyB64,
@@ -161,6 +181,13 @@ export async function attemptRekorProof(params: {
       inclusion_proof: inclusionProof ?? undefined
     };
   } catch (_err) {
-    return { kind: 'rekor', status: 'timeout', provider, ref: null, attempted_at: attemptedAt };
+    return {
+      kind: 'rekor',
+      status: 'timeout',
+      provider,
+      ref: null,
+      attempted_at: attemptedAt,
+      elapsed_ms: Date.now() - startedAtMs
+    };
   }
 }

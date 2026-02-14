@@ -2119,27 +2119,15 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             throw new Error('WITNESS_UPLOAD_FAILED');
           } else {
             console.log('✅ Witness PDF uploaded to user-documents:', downloadPath);
-            // Actualizar witness_current_storage_path con el path de descarga (plaintext)
-            // El path de custody (cifrado) queda como backup, pero el de descarga es el importante
-            const { error: updateError } = await supabase
-              .from('document_entities')
-              .update({ witness_current_storage_path: downloadPath })
-              .eq('id', canonicalDocumentId);
-
-            if (updateError) {
-              throw new Error('WITNESS_PATH_UPDATE_FAILED');
-            } else {
-              console.log('✅ witness_current_storage_path updated to downloadable path:', downloadPath);
-              witnessStorageReady = true;
-            }
+            // NOTE: Do NOT update witness_current_storage_path here.
+            // The canonical signed/... path will be set by apply-signer-signature function
+            // after the signature is properly applied through the signing flow.
+            witnessStorageReady = true;
           }
 
-          await ensureWitnessCurrent(canonicalDocumentId, {
-            hash: witnessHash,
-            mime_type: 'application/pdf',
-            storage_path: downloadPath,
-            status: 'generated'
-          });
+          // NOTE: Do NOT call ensureWitnessCurrent with mutable path.
+          // The canonical witness will be set by apply-signer-signature function
+          // after the signature is properly applied.
 
           // 2. Subir versión CIFRADA a custody (backup no bloqueante)
           storeEncryptedCustody(

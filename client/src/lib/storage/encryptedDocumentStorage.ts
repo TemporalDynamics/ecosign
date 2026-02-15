@@ -47,7 +47,8 @@ const persistEncryptedFile = async (
 ): Promise<PersistEncryptedFileResult> => {
   const supabase = getSupabase();
   const encryptedBlob = await encryptFile(file, documentKey);
-  const storagePath = `encrypted/${userId}/${crypto.randomUUID()}.enc`;
+  // Storage RLS expects auth.uid() in the first path segment.
+  const storagePath = `${userId}/encrypted/${crypto.randomUUID()}.enc`;
 
   const { error: uploadError } = await supabase.storage
     .from('user-documents')
@@ -115,7 +116,8 @@ export async function uploadEncryptedDocument(
       console.log('✅ Document encrypted');
     } else {
       // Standard upload (not encrypted)
-      storagePath = `documents/${userId}/${originalHash}_${file.name}`;
+      // Storage RLS expects auth.uid() in the first path segment.
+      storagePath = `${userId}/documents/${originalHash}_${file.name}`;
       console.log('📤 Uploading unencrypted document...');
     }
 

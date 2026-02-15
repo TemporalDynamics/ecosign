@@ -196,22 +196,31 @@ async function handleDocumentProtected(
     { anchorStage }
   );
   if (shouldEnqueuePolygonResult) {
-    const anchorDedupeKey = `${documentEntityId}:submit_anchor_polygon:${anchorStage}:${stepIndex}`;
-    await enqueueExecutorJob(
-      supabase,
-      'submit_anchor_polygon',
-      documentEntityId,
-      userDocumentId,
-      anchorDedupeKey,
-      {
-        document_entity_id: documentEntityId,
-        user_document_id: userDocumentId,
-        witness_hash: requestedWitnessHash,
+    if (!requestedWitnessHash) {
+      console.warn('[fase1-executor] skip submit_anchor_polygon enqueue: missing witness_hash', {
+        jobId: job.id,
+        documentEntityId,
         anchor_stage: anchorStage,
-        step_index: stepIndex
-      },
-      correlationId  // NUEVO: propagate correlation_id
-    );
+        step_index: stepIndex,
+      });
+    } else {
+      const anchorDedupeKey = `${documentEntityId}:submit_anchor_polygon:${anchorStage}:${stepIndex}`;
+      await enqueueExecutorJob(
+        supabase,
+        'submit_anchor_polygon',
+        documentEntityId,
+        userDocumentId,
+        anchorDedupeKey,
+        {
+          document_entity_id: documentEntityId,
+          user_document_id: userDocumentId,
+          witness_hash: requestedWitnessHash,
+          anchor_stage: anchorStage,
+          step_index: stepIndex
+        },
+        correlationId  // NUEVO: propagate correlation_id
+      );
+    }
   }
 
   // Decisión para anclaje Bitcoin basado en autoridad
@@ -221,22 +230,31 @@ async function handleDocumentProtected(
     { anchorStage }
   );
   if (shouldEnqueueBitcoinResult) {
-    const anchorDedupeKey = `${documentEntityId}:submit_anchor_bitcoin:${anchorStage}:${stepIndex}`;
-    await enqueueExecutorJob(
-      supabase,
-      'submit_anchor_bitcoin',
-      documentEntityId,
-      userDocumentId,
-      anchorDedupeKey,
-      {
-        document_entity_id: documentEntityId,
-        user_document_id: userDocumentId,
-        witness_hash: requestedWitnessHash,
+    if (!requestedWitnessHash) {
+      console.warn('[fase1-executor] skip submit_anchor_bitcoin enqueue: missing witness_hash', {
+        jobId: job.id,
+        documentEntityId,
         anchor_stage: anchorStage,
-        step_index: stepIndex
-      },
-      correlationId  // NUEVO: propagate correlation_id
-    );
+        step_index: stepIndex,
+      });
+    } else {
+      const anchorDedupeKey = `${documentEntityId}:submit_anchor_bitcoin:${anchorStage}:${stepIndex}`;
+      await enqueueExecutorJob(
+        supabase,
+        'submit_anchor_bitcoin',
+        documentEntityId,
+        userDocumentId,
+        anchorDedupeKey,
+        {
+          document_entity_id: documentEntityId,
+          user_document_id: userDocumentId,
+          witness_hash: requestedWitnessHash,
+          anchor_stage: anchorStage,
+          step_index: stepIndex
+        },
+        correlationId  // NUEVO: propagate correlation_id
+      );
+    }
   }
 
   // Decisión para build artifact basado en autoridad
@@ -264,9 +282,20 @@ async function handleProtectDocumentV2(
   const payload = job.payload ?? {};
   const documentEntityId = String(payload['document_entity_id'] ?? '');
   const correlationId = job.correlation_id || documentEntityId;
+  const legacyTriggerEvent =
+    typeof payload['trigger_event'] === 'string' ? String(payload['trigger_event']) : null;
 
   if (!documentEntityId) {
     console.log(`[fase1-executor] NOOP protect_document_v2 (missing document_entity_id) for job ${job.id}`);
+    return;
+  }
+
+  if (legacyTriggerEvent) {
+    console.warn('[fase1-executor] NOOP protect_document_v2 (legacy trigger_event payload ignored)', {
+      jobId: job.id,
+      documentEntityId,
+      trigger_event: legacyTriggerEvent,
+    });
     return;
   }
 
@@ -411,6 +440,14 @@ async function handleProtectDocumentV2(
 
   // ENCONE JOB PARA ANCLAJE POLYGON
   if (polygonShouldEnqueue) {
+    if (!requestedWitnessHash) {
+      console.warn('[fase1-executor] skip submit_anchor_polygon enqueue: missing witness_hash', {
+        jobId: job.id,
+        documentEntityId,
+        anchor_stage: anchorStage,
+        step_index: stepIndex,
+      });
+    } else {
     await enqueueExecutorJob(
       supabase,
       SUBMIT_ANCHOR_POLYGON_JOB_TYPE,
@@ -426,6 +463,7 @@ async function handleProtectDocumentV2(
       },
       correlationId  // NUEVO: propagate correlation_id
     );
+    }
   }
 
   // DECISIÓN DE ANCLAJES - Bitcoin
@@ -462,6 +500,14 @@ async function handleProtectDocumentV2(
 
   // ENCONE JOB PARA ANCLAJE BITCOIN
   if (bitcoinShouldEnqueue) {
+    if (!requestedWitnessHash) {
+      console.warn('[fase1-executor] skip submit_anchor_bitcoin enqueue: missing witness_hash', {
+        jobId: job.id,
+        documentEntityId,
+        anchor_stage: anchorStage,
+        step_index: stepIndex,
+      });
+    } else {
     await enqueueExecutorJob(
       supabase,
       SUBMIT_ANCHOR_BITCOIN_JOB_TYPE,
@@ -477,6 +523,7 @@ async function handleProtectDocumentV2(
       },
       correlationId  // NUEVO: propagate correlation_id
     );
+    }
   }
 
   // DECISIÓN DE ARTIFACT - Artifact

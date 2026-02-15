@@ -32,6 +32,7 @@ const isFlagEnabled = (name: string) =>
 
 type AnchorRequest = {
   documentHash: string
+  documentEntityId?: string | null
   documentId?: string | null
   userDocumentId?: string | null
   userId?: string | null
@@ -71,6 +72,7 @@ serve(async (req) => {
     const body = await req.json() as AnchorRequest
     const {
       documentHash,
+      documentEntityId: requestDocumentEntityId = null,
       documentId = null,
       userDocumentId = null,
       userId = null,
@@ -221,7 +223,10 @@ serve(async (req) => {
     let projectId: string | null = typeof (metadata as Record<string, unknown>)?.['projectId'] === 'string'
       ? String((metadata as Record<string, unknown>)['projectId'])
       : null
-    let documentEntityId: string | null = null
+    const metadataDocumentEntityId = typeof (metadata as Record<string, unknown>)?.['document_entity_id'] === 'string'
+      ? String((metadata as Record<string, unknown>)['document_entity_id'])
+      : null
+    let documentEntityId: string | null = requestDocumentEntityId || metadataDocumentEntityId
 
     if (userDocumentId && (!documentId || !userEmail || !projectId || !finalUserId)) {
       const { data: userDoc } = await supabase

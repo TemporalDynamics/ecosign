@@ -41,6 +41,7 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
 
 type AnchorRequest = {
   documentHash: string
+  documentEntityId?: string | null
   documentId?: string | null
   userDocumentId?: string | null
   userId?: string | null
@@ -84,7 +85,15 @@ serve(async (req) => {
     }
 
     const body = await req.json() as AnchorRequest
-    const { documentHash, documentId = null, userDocumentId = null, userId = null, userEmail = null, metadata = {} } = body
+    const {
+      documentHash,
+      documentEntityId: requestDocumentEntityId = null,
+      documentId = null,
+      userDocumentId = null,
+      userId = null,
+      userEmail = null,
+      metadata = {}
+    } = body
 
     const authorityOnly = isFlagEnabled('V2_AUTHORITY_ONLY') || isFlagEnabled('DISABLE_DB_ANCHOR_TRIGGERS')
     const source = typeof metadata?.source === 'string' ? metadata.source : null
@@ -136,11 +145,14 @@ serve(async (req) => {
     let projectId: string | null = typeof (metadata as Record<string, unknown>)?.['projectId'] === 'string'
       ? String((metadata as Record<string, unknown>)['projectId'])
       : null
+    const metadataDocumentEntityId = typeof (metadata as Record<string, unknown>)?.['document_entity_id'] === 'string'
+      ? String((metadata as Record<string, unknown>)['document_entity_id'])
+      : null
 
     let finalDocumentId = documentId
     let finalUserEmail = userEmail
     let finalUserId = validUserId
-    let documentEntityId: string | null = null
+    let documentEntityId: string | null = requestDocumentEntityId || metadataDocumentEntityId
 
     const { data: existingAnchor, error: existingError } = await supabaseAdmin
       .from('anchors')

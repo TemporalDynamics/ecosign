@@ -2,12 +2,7 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts';
 import { validateEventAppend } from '../_shared/validateEventAppend.ts';
-import {
-  shouldEnqueueRunTsa,
-  shouldEnqueuePolygon,
-  shouldEnqueueBitcoin,
-  shouldEnqueueArtifact as shouldEnqueueArtifactCanonical,
-} from '../_shared/decisionEngineCanonical.ts';
+import { decideProtectDocumentV2Pipeline, type ProtectV2Job } from '../_shared/protectDocumentV2PipelineDecision.ts';
 import { syncFlagsToDatabase } from '../_shared/flagSync.ts';
 
 type ExecutorJob = {
@@ -35,19 +30,12 @@ const DEFAULT_LIMIT = 5;
 const POLYGON_CONFIRM_TIMEOUT_MS = 60_000;
 const POLYGON_CONFIRM_INTERVAL_MS = 5_000;
 const TSA_MONITOR_SCAN_LIMIT = 50;
-type AnchorStage = 'initial' | 'intermediate' | 'final';
 
 const jsonResponse = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
-
-const normalizeAnchorStage = (value: unknown): AnchorStage => {
-  if (value === 'final') return 'final';
-  if (value === 'intermediate') return 'intermediate';
-  return 'initial';
-};
 
 async function emitEvent(
   supabase: ReturnType<typeof createClient>,
@@ -59,6 +47,47 @@ async function emitEvent(
 
   if (!result.success) {
     throw new Error(result.error ?? 'Failed to append event');
+  }
+}
+
+async function emitExecutionRequiredEvent(
+  supabase: ReturnType<typeof createClient>,
+  documentEntityId: string,
+  kind: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  await emitEvent(
+    supabase,
+    documentEntityId,
+    {
+      kind,
+      at: new Date().toISOString(),
+      payload: {
+        document_entity_id: documentEntityId,
+        ...payload,
+      },
+    },
+    'fase1-executor',
+  );
+}
+
+const REQUIRED_EVENT_BY_JOB: Record<ProtectV2Job, string> = {
+  run_tsa: 'job.run-tsa.required',
+  submit_anchor_polygon: 'job.submit-anchor-polygon.required',
+  submit_anchor_bitcoin: 'job.submit-anchor-bitcoin.required',
+  build_artifact: 'job.build-artifact.required',
+};
+
+async function emitRequiredEventsForDecision(
+  supabase: ReturnType<typeof createClient>,
+  documentEntityId: string,
+  jobs: ProtectV2Job[],
+  payload: Record<string, unknown>,
+): Promise<void> {
+  for (const nextJob of jobs) {
+    const eventKind = REQUIRED_EVENT_BY_JOB[nextJob];
+    if (!eventKind) continue;
+    await emitExecutionRequiredEvent(supabase, documentEntityId, eventKind, payload);
   }
 }
 
@@ -119,13 +148,11 @@ async function handleDocumentProtected(
   const payload = job.payload ?? {};
   const documentEntityId = String(payload['document_entity_id'] ?? '');
   const userDocumentId = payload['document_id'] ? String(payload['document_id']) : null;
-  const correlationId = job.correlation_id || documentEntityId;
 
   if (!documentEntityId) {
     throw new Error('document_entity_id missing in payload');
   }
 
-  // 1. LEER VERDAD: Obtener el estado actual de document_entity
   const { data: entity, error: entityError } = await supabase
     .from('document_entities')
     .select('id, witness_hash, events')
@@ -136,118 +163,26 @@ async function handleDocumentProtected(
     throw new Error(`document_entity not found: ${entityError?.message ?? 'missing'}`);
   }
 
-  // 2. USAR AUTORIDAD: Aplicar reglas de packages/authority
   const events = Array.isArray(entity.events) ? entity.events : [];
-
-  // Decisión basada en packages/authority (shouldEnqueueRunTsa)
-  const shouldEnqueueTsa = shouldEnqueueRunTsa(events);
-  const anchorStage = normalizeAnchorStage(payload['anchor_stage']);
-  const stepIndex = Number.isFinite(Number(payload['step_index'])) ? Number(payload['step_index']) : 0;
   const requestedWitnessHash =
     (typeof payload['witness_hash'] === 'string' && payload['witness_hash'].trim())
       ? String(payload['witness_hash'])
       : String(entity.witness_hash ?? '');
-
-  // 3. ESCRIBIR EN COLA NEUTRAL: En lugar de ejecutar directamente, encolar job
-  if (shouldEnqueueTsa) {
-    await enqueueExecutorJob(
-      supabase,
-      'run_tsa', // Tipo de job neutral
-      documentEntityId,
-      userDocumentId,
-      `${documentEntityId}:run_tsa`,
-      {
-        witness_hash: requestedWitnessHash,
-        document_entity_id: documentEntityId,
-        user_document_id: userDocumentId,
-        anchor_stage: anchorStage,
-        step_index: stepIndex
-      },
-      correlationId  // NUEVO: propagate correlation_id
-    );
-
-    console.log(`[fase1-executor] Job encolado para TSA: ${documentEntityId}`);
-  } else {
-    console.log(`[fase1-executor] No se requiere TSA para: ${documentEntityId}`);
+  const decision = decideProtectDocumentV2Pipeline(events);
+  const requiresAnchor = decision.jobs.includes('submit_anchor_polygon') || decision.jobs.includes('submit_anchor_bitcoin');
+  if (requiresAnchor && !requestedWitnessHash) {
+    throw new Error(`[precondition_failed] anchor submission requires witness_hash (job=${job.id}, entity=${documentEntityId})`);
   }
 
-  // Manejar también anclajes y artifact basados en autoridad
-  // Decisión para anclaje Polygon basado en autoridad
-  const shouldEnqueuePolygonResult = shouldEnqueuePolygon(events);
-  if (shouldEnqueuePolygonResult) {
-    if (!requestedWitnessHash) {
-      console.warn('[fase1-executor] skip submit_anchor_polygon enqueue: missing witness_hash', {
-        jobId: job.id,
-        documentEntityId,
-        anchor_stage: anchorStage,
-        step_index: stepIndex,
-      });
-    } else {
-      const anchorDedupeKey = `${documentEntityId}:submit_anchor_polygon:${anchorStage}:${stepIndex}`;
-      await enqueueExecutorJob(
-        supabase,
-        'submit_anchor_polygon',
-        documentEntityId,
-        userDocumentId,
-        anchorDedupeKey,
-        {
-          document_entity_id: documentEntityId,
-          user_document_id: userDocumentId,
-          witness_hash: requestedWitnessHash,
-          anchor_stage: anchorStage,
-          step_index: stepIndex
-        },
-        correlationId  // NUEVO: propagate correlation_id
-      );
-    }
-  }
-
-  // Decisión para anclaje Bitcoin basado en autoridad
-  const shouldEnqueueBitcoinResult = shouldEnqueueBitcoin(events);
-  if (shouldEnqueueBitcoinResult) {
-    if (!requestedWitnessHash) {
-      console.warn('[fase1-executor] skip submit_anchor_bitcoin enqueue: missing witness_hash', {
-        jobId: job.id,
-        documentEntityId,
-        anchor_stage: anchorStage,
-        step_index: stepIndex,
-      });
-    } else {
-      const anchorDedupeKey = `${documentEntityId}:submit_anchor_bitcoin:${anchorStage}:${stepIndex}`;
-      await enqueueExecutorJob(
-        supabase,
-        'submit_anchor_bitcoin',
-        documentEntityId,
-        userDocumentId,
-        anchorDedupeKey,
-        {
-          document_entity_id: documentEntityId,
-          user_document_id: userDocumentId,
-          witness_hash: requestedWitnessHash,
-          anchor_stage: anchorStage,
-          step_index: stepIndex
-        },
-        correlationId  // NUEVO: propagate correlation_id
-      );
-    }
-  }
-
-  // Decisión para build artifact basado en autoridad
-  const shouldEnqueueArtifactResult = shouldEnqueueArtifactCanonical(events);
-  if (shouldEnqueueArtifactResult) {
-    await enqueueExecutorJob(
-      supabase,
-      'build_artifact',
-      documentEntityId,
-      userDocumentId,
-      `${documentEntityId}:build_artifact`,
-      {
-        document_entity_id: documentEntityId,
-        user_document_id: userDocumentId
-      },
-      correlationId  // NUEVO: propagate correlation_id
-    );
-  }
+  await emitRequiredEventsForDecision(
+    supabase,
+    documentEntityId,
+    decision.jobs,
+    {
+      user_document_id: userDocumentId,
+      witness_hash: requestedWitnessHash || null,
+    },
+  );
 }
 
 async function handleProtectDocumentV2(
@@ -256,7 +191,6 @@ async function handleProtectDocumentV2(
 ): Promise<void> {
   const payload = job.payload ?? {};
   const documentEntityId = String(payload['document_entity_id'] ?? '');
-  const correlationId = job.correlation_id || documentEntityId;
 
   if (!documentEntityId) {
     console.log(`[fase1-executor] NOOP protect_document_v2 (missing document_entity_id) for job ${job.id}`);
@@ -275,176 +209,31 @@ async function handleProtectDocumentV2(
   }
 
   const events = Array.isArray(entity.events) ? entity.events : [];
+  const requestedWitnessHash =
+    (typeof payload['witness_hash'] === 'string' && String(payload['witness_hash']).trim())
+      ? String(payload['witness_hash'])
+      : null;
 
-  const hasRequest = events.some((event: { kind?: string }) => event.kind === 'document.protected.requested');
-  if (!hasRequest) {
+  const decision = decideProtectDocumentV2Pipeline(events);
+  if (decision.reason === 'noop_missing_request') {
     console.log(`[fase1-executor] NOOP protect_document_v2 (no request event) for job ${job.id}`);
     return;
   }
 
-  if (shouldEnqueueRunTsa(events)) {
-    await handleDocumentProtected(supabase, job);
+  const requiresAnchor = decision.jobs.includes('submit_anchor_polygon') || decision.jobs.includes('submit_anchor_bitcoin');
+  if (requiresAnchor && !requestedWitnessHash) {
+    throw new Error(`[precondition_failed] anchor submission requires witness_hash (job=${job.id}, entity=${documentEntityId})`);
   }
 
-  const updated = await supabase
-    .from('document_entities')
-    .select('events')
-    .eq('id', documentEntityId)
-    .single();
-
-  if (updated.error || !updated.data) {
-    console.log(`[fase1-executor] NOOP protect_document_v2 (events reload failed) for job ${job.id}`);
-    return;
-  }
-
-  const updatedEvents = Array.isArray(updated.data.events) ? updated.data.events : [];
-  const hasArtifact = updatedEvents.some((event: { kind?: string }) => event.kind === 'artifact.finalized');
-
-  const requestEvent = updatedEvents.find((event: { kind?: string }) =>
-    event.kind === 'document.protected.requested'
-  ) as { payload?: Record<string, unknown> } | undefined;
-  const requestPayload = requestEvent?.payload ?? {};
-  const anchorStage = normalizeAnchorStage(payload['anchor_stage'] ?? requestPayload['anchor_stage']);
-  const stepIndex = Number.isFinite(Number(payload['step_index'] ?? requestPayload['step_index']))
-    ? Number(payload['step_index'] ?? requestPayload['step_index'])
-    : 0;
-  const requestedWitnessHash =
-    (typeof (payload['witness_hash'] ?? requestPayload['witness_hash']) === 'string'
-      && String(payload['witness_hash'] ?? requestPayload['witness_hash']).trim())
-      ? String(payload['witness_hash'] ?? requestPayload['witness_hash'])
-      : null;
-
-  // DECISIÓN DE ANCLAJES - Polygon (canónica)
-  const canonicalShouldEnqueuePolygon = shouldEnqueuePolygon(updatedEvents);
-  const polygonShouldEnqueue = canonicalShouldEnqueuePolygon;
-
-  // ENCONE JOB PARA ANCLAJE POLYGON
-  if (polygonShouldEnqueue) {
-    if (!requestedWitnessHash) {
-      console.warn('[fase1-executor] skip submit_anchor_polygon enqueue: missing witness_hash', {
-        jobId: job.id,
-        documentEntityId,
-        anchor_stage: anchorStage,
-        step_index: stepIndex,
-      });
-    } else {
-    await enqueueExecutorJob(
-      supabase,
-      SUBMIT_ANCHOR_POLYGON_JOB_TYPE,
-      documentEntityId,
-      payload['document_id'] ? String(payload['document_id']) : null,
-      `${documentEntityId}:${SUBMIT_ANCHOR_POLYGON_JOB_TYPE}:${anchorStage}:${stepIndex}`,
-      {
-        document_entity_id: documentEntityId,
-        document_id: payload['document_id'] ? String(payload['document_id']) : null,
-        witness_hash: requestedWitnessHash,
-        anchor_stage: anchorStage,
-        step_index: stepIndex
-      },
-      correlationId  // NUEVO: propagate correlation_id
-    );
-    }
-  }
-
-  // DECISIÓN DE ANCLAJES - Bitcoin (canónica)
-  const canonicalShouldEnqueueBitcoin = shouldEnqueueBitcoin(updatedEvents);
-  const bitcoinShouldEnqueue = canonicalShouldEnqueueBitcoin;
-
-  // ENCONE JOB PARA ANCLAJE BITCOIN
-  if (bitcoinShouldEnqueue) {
-    if (!requestedWitnessHash) {
-      console.warn('[fase1-executor] skip submit_anchor_bitcoin enqueue: missing witness_hash', {
-        jobId: job.id,
-        documentEntityId,
-        anchor_stage: anchorStage,
-        step_index: stepIndex,
-      });
-    } else {
-    await enqueueExecutorJob(
-      supabase,
-      SUBMIT_ANCHOR_BITCOIN_JOB_TYPE,
-      documentEntityId,
-      payload['document_id'] ? String(payload['document_id']) : null,
-      `${documentEntityId}:${SUBMIT_ANCHOR_BITCOIN_JOB_TYPE}:${anchorStage}:${stepIndex}`,
-      {
-        document_entity_id: documentEntityId,
-        document_id: payload['document_id'] ? String(payload['document_id']) : null,
-        witness_hash: requestedWitnessHash,
-        anchor_stage: anchorStage,
-        step_index: stepIndex
-      },
-      correlationId  // NUEVO: propagate correlation_id
-    );
-    }
-  }
-
-  // DECISIÓN DE ARTIFACT (canónica)
-  const canonicalShouldEnqueueArtifact = shouldEnqueueArtifactCanonical(updatedEvents);
-  const artifactShouldEnqueue = canonicalShouldEnqueueArtifact;
-
-  // ENCONE JOB PARA BUILD ARTIFACT
-  if (artifactShouldEnqueue) {
-    await enqueueExecutorJob(
-      supabase,
-      BUILD_ARTIFACT_JOB_TYPE,
-      documentEntityId,
-      payload['document_id'] ? String(payload['document_id']) : null,
-      `${documentEntityId}:${BUILD_ARTIFACT_JOB_TYPE}:${anchorStage}:${stepIndex}`,
-      undefined,  // no custom payload
-      correlationId  // NUEVO: propagate correlation_id
-    );
-  }
-}
-
-async function enqueueExecutorJob(
-  supabase: ReturnType<typeof createClient>,
-  type: string,
-  documentEntityId: string,
-  documentId: string | null,
-  dedupeKey: string,
-  payload?: Record<string, unknown>,
-  correlationId?: string,
-): Promise<void> {
-  const jobPayload = payload ?? {
-    document_entity_id: documentEntityId,
-    document_id: documentId,
-  };
-
-  const { error } = await supabase
-    .from('executor_jobs')
-    .insert({
-      type,
-      entity_type: 'document',
-      entity_id: documentEntityId,
-      correlation_id: correlationId || documentEntityId,  // NUEVO: propagate correlation_id
-      dedupe_key: dedupeKey,
-      payload: jobPayload,
-      status: 'queued',
-      run_at: new Date().toISOString(),
-    });
-
-  if (error && error.code !== '23505') {
-    console.log(`[fase1-executor] Failed to enqueue ${type} for ${documentEntityId}: ${error.message}`);
-    return;
-  }
-
-  if (error && error.code === '23505') {
-    const { error: updateError } = await supabase
-      .from('executor_jobs')
-      .update({
-        status: 'queued',
-        run_at: new Date().toISOString(),
-        locked_at: null,
-        locked_by: null,
-        last_error: null,
-      })
-      .eq('dedupe_key', dedupeKey)
-      .in('status', ['failed', 'retry_scheduled', 'dead']);
-
-    if (updateError) {
-      console.log(`[fase1-executor] Failed to requeue ${type} for ${documentEntityId}: ${updateError.message}`);
-    }
-  }
+  await emitRequiredEventsForDecision(
+    supabase,
+    documentEntityId,
+    decision.jobs,
+    {
+      document_id: payload['document_id'] ? String(payload['document_id']) : null,
+      witness_hash: requestedWitnessHash,
+    },
+  );
 }
 
 async function emitMissingTsaMonitoringEvents(
@@ -463,11 +252,11 @@ async function emitMissingTsaMonitoringEvents(
 
   const candidates = (entities ?? []).filter((entity: any) => {
     const events = Array.isArray(entity.events) ? entity.events : [];
-    const hasTsa = events.some((event: { kind?: string }) => event.kind === 'tsa.confirmed');
+    const decision = decideProtectDocumentV2Pipeline(events);
     const hasMonitoringEvent = events.some((event: { kind?: string }) =>
       event.kind === 'monitoring.tsa.missing.detected'
     );
-    return !hasTsa && shouldEnqueueRunTsa(events) && !hasMonitoringEvent;
+    return decision.reason === 'needs_tsa' && !hasMonitoringEvent;
   });
 
   for (const entity of candidates) {
@@ -517,8 +306,6 @@ async function handleSubmitAnchorPolygon(
     document_entity_id: documentEntityId,
     document_id: documentId,
     witness_hash: job.payload?.['witness_hash'] ?? null,
-    anchor_stage: job.payload?.['anchor_stage'] ?? 'initial',
-    step_index: job.payload?.['step_index'] ?? 0,
   });
 }
 
@@ -537,8 +324,6 @@ async function handleSubmitAnchorBitcoin(
     document_entity_id: documentEntityId,
     document_id: documentId,
     witness_hash: job.payload?.['witness_hash'] ?? null,
-    anchor_stage: job.payload?.['anchor_stage'] ?? 'initial',
-    step_index: job.payload?.['step_index'] ?? 0,
   });
 }
 

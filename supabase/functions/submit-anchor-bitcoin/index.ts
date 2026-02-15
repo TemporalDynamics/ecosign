@@ -5,6 +5,9 @@ import { appendEvent } from '../_shared/eventHelper.ts';
 type SubmitAnchorRequest = {
   document_entity_id: string;
   document_id?: string;
+  witness_hash?: string;
+  anchor_stage?: 'initial' | 'intermediate' | 'final';
+  step_index?: number;
   correlation_id?: string;
 };
 
@@ -90,7 +93,7 @@ serve(async (req) => {
 
   const events = Array.isArray(entity.events) ? entity.events : [];
 
-  const witnessHash = String(entity.witness_hash ?? '');
+  const witnessHash = String(body.witness_hash ?? entity.witness_hash ?? '');
   if (!witnessHash) {
     await emitEvent(
       supabase,
@@ -99,6 +102,13 @@ serve(async (req) => {
       'submit-anchor-bitcoin',
     );
     return jsonResponse({ error: 'witness_hash missing' }, 400);
+  }
+
+  const hasTsaForHash = events.some((event: { kind?: string; witness_hash?: string }) =>
+    event.kind === 'tsa.confirmed' && event.witness_hash === witnessHash
+  );
+  if (!hasTsaForHash) {
+    return jsonResponse({ error: 'precondition_failed:missing_tsa_for_witness_hash' }, 409);
   }
 
   try {
@@ -117,7 +127,9 @@ serve(async (req) => {
         correlation_id: correlationId,  // NUEVO: heredado del job
         anchor: {
           network: 'bitcoin',
-          witness_hash: witnessHash
+          witness_hash: witnessHash,
+          anchor_stage: body.anchor_stage ?? 'initial',
+          step_index: body.step_index ?? 0
         }
       },
       'submit-anchor-bitcoin',

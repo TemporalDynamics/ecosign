@@ -183,6 +183,8 @@ serve(withRateLimit('record', async (req) => {
         document_hash: doc.document_hash,
         witness_hash: effectiveWitnessHash,
         protection: protectionMethods,
+        anchor_stage: 'initial',
+        step_index: 0,
         protection_details: {
           signature_type: protection_details.signature_type || 'none',
           forensic_enabled: protection_details.forensic_enabled,
@@ -219,7 +221,10 @@ serve(withRateLimit('record', async (req) => {
           document_entity_id: documentEntityId,
           document_id: userDocumentId,
           document_hash: doc.document_hash,
-          witness_hash: effectiveWitnessHash
+          witness_hash: effectiveWitnessHash,
+          protection: protectionMethods,
+          anchor_stage: 'initial',
+          step_index: 0
         },
         status: 'queued',
         run_at: new Date().toISOString()

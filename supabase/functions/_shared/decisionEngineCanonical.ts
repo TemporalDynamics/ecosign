@@ -12,6 +12,10 @@
  */
 
 export type EventLike = { kind?: string };
+export type AnchorStage = 'initial' | 'intermediate' | 'final';
+export type AnchorDecisionContext = {
+  anchorStage?: AnchorStage;
+};
 
 /**
  * Decisión canónica: ¿debería encolarse run_tsa?
@@ -122,11 +126,21 @@ const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin')
  * @returns true si se debería encolar submit_anchor_polygon
  */
 export const shouldEnqueuePolygon = (events: EventLike[], protection: string[]): boolean => {
+  return shouldEnqueuePolygonWithContext(events, protection, {});
+};
+
+export const shouldEnqueuePolygonWithContext = (
+  events: EventLike[],
+  protection: string[],
+  context: AnchorDecisionContext,
+): boolean => {
   const hasTsa = events.some((e) => e.kind === 'tsa.confirmed');
   const requiresPolygon = protection.includes('polygon');
   const hasPolygon = hasAnchorConfirmed(events, 'polygon');
+  const stage = context.anchorStage ?? 'initial';
+  const isChainStage = stage === 'initial' || stage === 'final';
 
-  return hasTsa && requiresPolygon && !hasPolygon;
+  return hasTsa && requiresPolygon && !hasPolygon && isChainStage;
 };
 
 /**
@@ -142,11 +156,21 @@ export const shouldEnqueuePolygon = (events: EventLike[], protection: string[]):
  * @returns true si se debería encolar submit_anchor_bitcoin
  */
 export const shouldEnqueueBitcoin = (events: EventLike[], protection: string[]): boolean => {
+  return shouldEnqueueBitcoinWithContext(events, protection, {});
+};
+
+export const shouldEnqueueBitcoinWithContext = (
+  events: EventLike[],
+  protection: string[],
+  context: AnchorDecisionContext,
+): boolean => {
   const hasTsa = events.some((e) => e.kind === 'tsa.confirmed');
   const requiresBitcoin = protection.includes('bitcoin');
   const hasBitcoin = hasAnchorConfirmed(events, 'bitcoin');
+  const stage = context.anchorStage ?? 'initial';
+  const isChainStage = stage === 'initial' || stage === 'final';
 
-  return hasTsa && requiresBitcoin && !hasBitcoin;
+  return hasTsa && requiresBitcoin && !hasBitcoin && isChainStage;
 };
 
 // ============================================================================

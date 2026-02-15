@@ -1,3 +1,41 @@
+## Fase 2 (semántica hash canónico + política inicio/final) — 2026-02-15
+
+### 🎯 Resumen
+Se implementó la política canónica de anchors para evitar drift: los jobs chain
+se encolan con `witness_hash` explícito desde la decisión canónica y con
+contexto de etapa (`anchor_stage`), quedando bloqueados en etapas intermedias.
+
+### ✅ Cambios implementados
+- **Contexto de decisión para anchors:** `anchorStage` en motor canónico.
+  - `initial` y `final` permiten chain; `intermediate` no encola chain.
+  - Archivo: `supabase/functions/_shared/decisionEngineCanonical.ts`.
+- **Payload canónico de jobs de chain:**
+  - `witness_hash`, `anchor_stage`, `step_index`.
+  - Dedupe key extendida con etapa/paso.
+  - Archivo: `supabase/functions/fase1-executor/index.ts`.
+- **Submitters chain usan hash canónico del job (no “el hash a mano”):**
+  - `submit-anchor-polygon` y `submit-anchor-bitcoin` consumen `witness_hash`
+    del payload y exigen precondición `tsa.confirmed` para ese hash.
+  - Archivos:
+    - `supabase/functions/submit-anchor-polygon/index.ts`
+    - `supabase/functions/submit-anchor-bitcoin/index.ts`
+- **Inicio explícito:**
+  - `record-protection-event` emite/enfila con `anchor_stage: "initial"` y
+    `step_index: 0`.
+  - Archivo: `supabase/functions/record-protection-event/index.ts`.
+- **Cierre explícito (final):**
+  - al completar workflow, `apply-signer-signature` encola `protect_document_v2`
+    con `anchor_stage: "final"`, `step_index` y `witness_hash` final.
+  - Archivo: `supabase/functions/apply-signer-signature/index.ts`.
+
+### ✅ Validación
+- `npm test` verde tras cambios (`159 passed`, `25 skipped`).
+
+### 📌 Nota operativa
+- Esta fase deja lista la semántica canónica para “inicio/final”.
+- La activación efectiva por plan (Free/Pro con redes específicas) queda en la
+  siguiente fase de rollout/policy.
+
 ## Fase 1 (Camino a defendible): contratos y eventos canónicos — 2026-02-15
 
 ### 🎯 Resumen

@@ -21,7 +21,8 @@ const CANONICAL_EVENT_TYPES = new Set([
   'signature.capture.consent',
   'fields.schema.committed',
   'signature.state.committed',
-  'eco.snapshot.issued'
+  'eco.snapshot.issued',
+  'rekor.confirmed'
 ]);
 
 export type CanonicalEventType =
@@ -45,7 +46,8 @@ export type CanonicalEventType =
   | 'signature.capture.consent'
   | 'fields.schema.committed'
   | 'signature.state.committed'
-  | 'eco.snapshot.issued';
+  | 'eco.snapshot.issued'
+  | 'rekor.confirmed';
 
 type AppendEventParams = {
   event_type: CanonicalEventType;

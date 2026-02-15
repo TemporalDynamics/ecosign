@@ -49,10 +49,20 @@ function normalizeRekorError(err: unknown): { status: 'failed' | 'timeout'; reas
 }
 
 type RekorStatement = {
-  type: 'ecosign.proof.v1';
+  type: 'ecosign.proof.v1.1';
   hash: string;
   workflow_id: string;
   signer_id: string;
+  step_index: number | null;
+  total_steps: number | null;
+  prev_witness_hash: string | null;
+  identity_method: string | null;
+  identity_level: string | null;
+  signer_ref_hash: string | null;
+  auth_context_hash: string | null;
+  ip_hash: string | null;
+  ua_hash: string | null;
+  geo_country: string | null;
   issued_at: string;
 };
 
@@ -163,6 +173,16 @@ export async function attemptRekorProof(params: {
   witness_hash: string;
   workflow_id: string;
   signer_id: string;
+  step_index?: number | null;
+  total_steps?: number | null;
+  prev_witness_hash?: string | null;
+  identity_method?: string | null;
+  identity_level?: string | null;
+  signer_ref_hash?: string | null;
+  auth_context_hash?: string | null;
+  ip_hash?: string | null;
+  ua_hash?: string | null;
+  geo_country?: string | null;
   timeout_ms: number;
 }): Promise<RekorProofResult> {
   const startedAtMs = Date.now();
@@ -197,10 +217,20 @@ export async function attemptRekorProof(params: {
   try {
     const issuedAt = new Date().toISOString();
     const statement: RekorStatement = {
-      type: 'ecosign.proof.v1',
+      type: 'ecosign.proof.v1.1',
       hash: params.witness_hash,
       workflow_id: params.workflow_id,
       signer_id: params.signer_id,
+      step_index: params.step_index ?? null,
+      total_steps: params.total_steps ?? null,
+      prev_witness_hash: params.prev_witness_hash ?? null,
+      identity_method: params.identity_method ?? null,
+      identity_level: params.identity_level ?? null,
+      signer_ref_hash: params.signer_ref_hash ?? null,
+      auth_context_hash: params.auth_context_hash ?? null,
+      ip_hash: params.ip_hash ?? null,
+      ua_hash: params.ua_hash ?? null,
+      geo_country: params.geo_country ?? null,
       issued_at: issuedAt,
     };
 

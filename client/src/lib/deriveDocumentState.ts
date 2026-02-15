@@ -154,31 +154,39 @@ export function deriveDocumentState(
 
   const protectionLevel: ProtectionLevel = deriveProtectionLevel((document.events ?? []) as Event[]);
 
-  // 3a. Protección TOTAL → GRIS (final)
-  if (protectionLevel === 'TOTAL') {
+  // 3a. Dos chains confirmadas → GRIS (final)
+  if (protectionLevel === 'TWO_CHAINS_CONFIRMED') {
     return {
       label: 'Protección máxima',
       phase: 'gray'
     };
   }
 
-  // 3b. Protección REFORZADA → AZUL (activa)
-  if (protectionLevel === 'REINFORCED') {
+  // 3b. Una chain confirmada → AZUL (activa)
+  if (protectionLevel === 'ONE_CHAIN_CONFIRMED') {
     return {
       label: 'Protección reforzada',
       phase: 'blue'
     };
   }
 
-  // 3c. Protección ACTIVA (TSA) → GRIS (final)
-  if (protectionLevel === 'ACTIVE') {
+  // 3c. TSA+Rekor confirmado → AZUL (activa)
+  if (protectionLevel === 'TSA_REKOR_CONFIRMED') {
+    return {
+      label: 'TSA + Rekor confirmado',
+      phase: 'blue'
+    };
+  }
+
+  // 3d. TSA confirmado → GRIS (final)
+  if (protectionLevel === 'TSA_CONFIRMED') {
     return {
       label: 'Protegido',
       phase: 'gray'
     };
   }
 
-  // 3d. Sin protección aún → VERDE (proceso)
+  // 3e. Sin protección aún → AZUL (proceso)
   if (protectionLevel === 'NONE') {
     return {
       label: 'Protegiendo',

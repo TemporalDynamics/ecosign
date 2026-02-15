@@ -197,26 +197,30 @@ export async function getAnchorEvent(
  *
  * Levels:
  * - NONE: No protection
- * - ACTIVE: TSA confirmed
- * - REINFORCED: TSA + Polygon confirmed
- * - TOTAL: TSA + Polygon + Bitcoin confirmed
+ * - TSA_CONFIRMED: TSA confirmed
+ * - TSA_REKOR_CONFIRMED: TSA + Rekor confirmed
+ * - ONE_CHAIN_CONFIRMED: TSA + Rekor + one chain confirmed
+ * - TWO_CHAINS_CONFIRMED: TSA + Rekor + both chains confirmed
  *
  * @param events - Array of events from document_entities
  * @returns Protection level string
  */
 export function deriveProtectionLevel(events: any[]): string {
   const hasTsa = events.some((e: any) => e.kind === 'tsa.confirmed');
+  const hasRekor = events.some((e: any) => e.kind === 'rekor.confirmed');
   const hasPolygon = events.some(
-    (e: any) => e.kind === 'anchor' && e.anchor?.network === 'polygon'
+    (e: any) => (e.kind === 'anchor' || e.kind === 'anchor.confirmed')
+      && ((e.anchor?.network === 'polygon') || (e.payload?.network === 'polygon'))
   );
   const hasBitcoin = events.some(
-    (e: any) => e.kind === 'anchor' && e.anchor?.network === 'bitcoin'
+    (e: any) => (e.kind === 'anchor' || e.kind === 'anchor.confirmed')
+      && ((e.anchor?.network === 'bitcoin') || (e.payload?.network === 'bitcoin'))
   );
 
-  // Monotonic progression: can only go up
-  if (hasBitcoin && hasPolygon && hasTsa) return 'TOTAL';
-  if (hasPolygon && hasTsa) return 'REINFORCED';
-  if (hasTsa) return 'ACTIVE';
+  if (hasBitcoin && hasPolygon && hasTsa && hasRekor) return 'TWO_CHAINS_CONFIRMED';
+  if ((hasPolygon || hasBitcoin) && hasTsa && hasRekor) return 'ONE_CHAIN_CONFIRMED';
+  if (hasTsa && hasRekor) return 'TSA_REKOR_CONFIRMED';
+  if (hasTsa) return 'TSA_CONFIRMED';
   return 'NONE';
 }
 

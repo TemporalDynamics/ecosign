@@ -10,7 +10,12 @@
  * Reproducible: same events[] = same level (today and in 20 years)
  */
 
-export type ProtectionLevel = 'NONE' | 'ACTIVE' | 'REINFORCED' | 'TOTAL';
+export type ProtectionLevel =
+  | 'NONE'
+  | 'TSA_CONFIRMED'
+  | 'TSA_REKOR_CONFIRMED'
+  | 'ONE_CHAIN_CONFIRMED'
+  | 'TWO_CHAINS_CONFIRMED';
 
 export interface Event {
   kind: string;
@@ -47,9 +52,10 @@ export interface AnchorEvent extends Event {
  *
  * Rules:
  * - NONE: No TSA
- * - ACTIVE: Has TSA
- * - REINFORCED: Has TSA + first anchor (Polygon OR Bitcoin)
- * - TOTAL: Has TSA + Polygon anchor + Bitcoin anchor (both)
+ * - TSA_CONFIRMED: Has TSA only
+ * - TSA_REKOR_CONFIRMED: Has TSA + Rekor
+ * - ONE_CHAIN_CONFIRMED: Has TSA + Rekor + one chain (Polygon OR Bitcoin)
+ * - TWO_CHAINS_CONFIRMED: Has TSA + Rekor + both chains (Polygon AND Bitcoin)
  *
  * Monotonic: Level can only increase, never decrease
  *
@@ -70,6 +76,13 @@ export function deriveProtectionLevel(events: Event[]): ProtectionLevel {
       typeof (e as any).payload?.token_b64 === 'string')
   );
 
+  // Check for Rekor confirmation
+  const hasRekor = events.some((e: Event) =>
+    e.kind === 'rekor.confirmed' &&
+    typeof (e as any).payload?.statement_hash === 'string' &&
+    typeof (e as any).payload?.witness_hash === 'string'
+  );
+
   // Check for confirmed Polygon anchor
   const hasPolygon = events.some((e): e is AnchorEvent =>
     (e.kind === 'anchor' || e.kind === 'anchor.confirmed') &&
@@ -88,13 +101,10 @@ export function deriveProtectionLevel(events: Event[]): ProtectionLevel {
       typeof (e as any).payload?.confirmed_at === 'string')
   );
 
-  // Apply derivation rules (order matters for correctness)
-  // TOTAL: TSA + both anchors (Polygon AND Bitcoin)
-  if (hasBitcoin && hasPolygon && hasTsa) return 'TOTAL';
-  // REINFORCED: TSA + first anchor (Polygon OR Bitcoin)
-  if ((hasPolygon || hasBitcoin) && hasTsa) return 'REINFORCED';
-  // ACTIVE: TSA only
-  if (hasTsa) return 'ACTIVE';
+  if (hasTsa && hasRekor && hasPolygon && hasBitcoin) return 'TWO_CHAINS_CONFIRMED';
+  if (hasTsa && hasRekor && (hasPolygon || hasBitcoin)) return 'ONE_CHAIN_CONFIRMED';
+  if (hasTsa && hasRekor) return 'TSA_REKOR_CONFIRMED';
+  if (hasTsa) return 'TSA_CONFIRMED';
   return 'NONE';
 }
 
@@ -104,9 +114,10 @@ export function deriveProtectionLevel(events: Event[]): ProtectionLevel {
 export function getProtectionLevelLabel(level: ProtectionLevel): string {
   const labels: Record<ProtectionLevel, string> = {
     NONE: 'Sin protección',
-    ACTIVE: 'Protección activa',
-    REINFORCED: 'Protección reforzada',
-    TOTAL: 'Protección total',
+    TSA_CONFIRMED: 'TSA confirmado',
+    TSA_REKOR_CONFIRMED: 'TSA + Rekor confirmado',
+    ONE_CHAIN_CONFIRMED: 'Una cadena confirmada',
+    TWO_CHAINS_CONFIRMED: 'Dos cadenas confirmadas',
   };
   return labels[level];
 }
@@ -117,9 +128,10 @@ export function getProtectionLevelLabel(level: ProtectionLevel): string {
 export function getProtectionLevelColor(level: ProtectionLevel): string {
   const colors: Record<ProtectionLevel, string> = {
     NONE: 'gray',
-    ACTIVE: 'green',
-    REINFORCED: 'blue',
-    TOTAL: 'purple',
+    TSA_CONFIRMED: 'green',
+    TSA_REKOR_CONFIRMED: 'cyan',
+    ONE_CHAIN_CONFIRMED: 'blue',
+    TWO_CHAINS_CONFIRMED: 'purple',
   };
   return colors[level];
 }
@@ -132,9 +144,10 @@ export function getProtectionLevelBadgeVariant(
 ): 'default' | 'secondary' | 'success' | 'info' | 'warning' {
   const variants: Record<ProtectionLevel, 'default' | 'secondary' | 'success' | 'info' | 'warning'> = {
     NONE: 'secondary',
-    ACTIVE: 'success',
-    REINFORCED: 'info',
-    TOTAL: 'default', // Will be styled with purple
+    TSA_CONFIRMED: 'success',
+    TSA_REKOR_CONFIRMED: 'info',
+    ONE_CHAIN_CONFIRMED: 'info',
+    TWO_CHAINS_CONFIRMED: 'default', // Will be styled with purple
   };
   return variants[level];
 }
@@ -145,9 +158,10 @@ export function getProtectionLevelBadgeVariant(
 export function getProtectionLevelDescription(level: ProtectionLevel): string {
   const descriptions: Record<ProtectionLevel, string> = {
     NONE: 'Documento sin evidencia temporal verificable',
-    ACTIVE: 'Evidencia temporal certificada (TSA)',
-    REINFORCED: 'Evidencia temporal + registro público (Polygon o Bitcoin)',
-    TOTAL: 'Evidencia temporal + registros públicos múltiples (Polygon + Bitcoin)',
+    TSA_CONFIRMED: 'Evidencia temporal certificada (TSA)',
+    TSA_REKOR_CONFIRMED: 'Evidencia temporal + transparencia pública (Rekor)',
+    ONE_CHAIN_CONFIRMED: 'TSA + Rekor + un anclaje blockchain confirmado',
+    TWO_CHAINS_CONFIRMED: 'TSA + Rekor + anclaje confirmado en Polygon y Bitcoin',
   };
   return descriptions[level];
 }

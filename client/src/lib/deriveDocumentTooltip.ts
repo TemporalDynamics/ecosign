@@ -65,15 +65,19 @@ export function deriveDocumentTooltip(
 
   const protectionLevel = deriveProtectionLevel((document.events ?? []) as any);
 
-  if (protectionLevel === 'TOTAL') {
+  if (protectionLevel === 'TWO_CHAINS_CONFIRMED') {
     return 'Protección máxima completada\n\nMáxima fortaleza probatoria';
   }
 
-  if (protectionLevel === 'REINFORCED') {
+  if (protectionLevel === 'ONE_CHAIN_CONFIRMED') {
     return 'Protección reforzada\n\nRegistro en red pública adicional';
   }
 
-  if (protectionLevel === 'ACTIVE') {
+  if (protectionLevel === 'TSA_REKOR_CONFIRMED') {
+    return 'Protección transparente\n\nTSA + Rekor confirmados';
+  }
+
+  if (protectionLevel === 'TSA_CONFIRMED') {
     return 'Documento protegido\n\nSello de tiempo confirmado';
   }
 

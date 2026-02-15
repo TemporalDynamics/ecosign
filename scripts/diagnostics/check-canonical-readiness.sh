@@ -59,6 +59,19 @@ run_check "R08" "No direct anchor row mutation in canonical decision files" \
 run_check "R09" "Decision functions depend only on events[]" \
   "! rg -n 'anchorStage|stepIndex|WithContext|context\\.' supabase/functions/_shared/decisionEngineCanonical.ts supabase/functions/_shared/protectDocumentV2Decision.ts supabase/functions/_shared/protectDocumentV2PipelineDecision.ts"
 
+# Fase 4 - Dumb executor checks
+run_check "R10" "Executor does not skip enqueues based on local validation" \
+  "! rg -n 'skip .* enqueue|skip .*enqueue' supabase/functions/fase1-executor/index.ts"
+
+run_check "R11" "Executor does not reshape business payload fields" \
+  "! rg -n 'normalizeAnchorStage|step_index|anchor_stage' supabase/functions/fase1-executor/index.ts"
+
+run_check "R12" "Executor does not infer business state from events" \
+  "! rg -n 'hasRequest|hasArtifact|shouldEnqueueRunTsa\\(|shouldEnqueuePolygon\\(|shouldEnqueueBitcoin\\(|shouldEnqueueArtifactCanonical\\(' supabase/functions/fase1-executor/index.ts"
+
+run_check "R13" "Executor does not enqueue follow-up business jobs directly" \
+  "! rg -n 'enqueueExecutorJob\\(' supabase/functions/fase1-executor/index.ts"
+
 echo
 if [ "$FAILED" -eq 0 ]; then
   echo "READY: $TOTAL/$TOTAL checks passed"

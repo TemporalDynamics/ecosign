@@ -1,4 +1,4 @@
-export type EventLike = { kind?: string; at?: string };
+export type EventLike = { kind?: string; at?: string; payload?: Record<string, unknown> };
 export type ProtectV2Job =
   | 'run_tsa'
   | 'build_artifact'
@@ -11,6 +11,27 @@ export type ProtectV2PipelineDecision = {
 };
 
 const hasEvent = (events: EventLike[], kind: string) => events.some((event) => event.kind === kind);
+
+const getRequiredEvidenceFromEvents = (events: EventLike[], fallbackProtection?: string[]): string[] => {
+  const requestEvent = events.find((event) => event.kind === 'document.protected.requested') as
+    | { payload?: Record<string, unknown> }
+    | undefined;
+  const requiredEvidence = requestEvent?.payload?.['required_evidence'];
+  if (Array.isArray(requiredEvidence)) {
+    return requiredEvidence.filter((item): item is string => typeof item === 'string');
+  }
+
+  const legacyProtection = requestEvent?.payload?.['protection'];
+  if (Array.isArray(legacyProtection)) {
+    return legacyProtection.filter((item): item is string => typeof item === 'string');
+  }
+
+  if (Array.isArray(fallbackProtection)) {
+    return fallbackProtection.filter((item): item is string => typeof item === 'string');
+  }
+
+  return [];
+};
 
 // Verifica si hay un anchor confirmado para una red específica
 const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin'): boolean => {
@@ -57,7 +78,7 @@ const hasRequiredAnchors = (events: EventLike[], protection: string[]): boolean 
 
 export const decideProtectDocumentV2Pipeline = (
   events: EventLike[],
-  protection: string[],
+  protection?: string[],
 ): ProtectV2PipelineDecision => {
   if (!hasEvent(events, 'document.protected.requested')) {
     return { jobs: [], reason: 'noop_missing_request' };
@@ -67,18 +88,20 @@ export const decideProtectDocumentV2Pipeline = (
     return { jobs: ['run_tsa'], reason: 'needs_tsa' };
   }
 
+  const requiredEvidence = getRequiredEvidenceFromEvents(events, protection);
+
   // Solo generar artifact si TSA + anclajes requeridos están confirmados
-  const hasAllRequiredEvidence = hasRequiredAnchors(events, protection);
+  const hasAllRequiredEvidence = hasRequiredAnchors(events, requiredEvidence);
 
   if (!hasEvent(events, 'artifact.finalized') && hasAllRequiredEvidence) {
     return { jobs: ['build_artifact'], reason: 'needs_artifact' };
   }
 
   const jobs: ProtectV2Job[] = [];
-  if (protection.includes('polygon') && !hasAnchorConfirmed(events, 'polygon')) {
+  if (requiredEvidence.includes('polygon') && !hasAnchorConfirmed(events, 'polygon')) {
     jobs.push('submit_anchor_polygon');
   }
-  if (protection.includes('bitcoin') && !hasAnchorConfirmed(events, 'bitcoin')) {
+  if (requiredEvidence.includes('bitcoin') && !hasAnchorConfirmed(events, 'bitcoin')) {
     jobs.push('submit_anchor_bitcoin');
   }
 

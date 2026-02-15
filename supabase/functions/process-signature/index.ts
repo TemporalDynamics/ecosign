@@ -377,68 +377,32 @@ serve(async (req) => {
     // RFC 3161 Timestamp (always over witness hash)
     const authorityOnly = isFlagEnabled('V2_AUTHORITY_ONLY') || isFlagEnabled('DISABLE_PROCESS_SIGNATURE_EXECUTION')
 
+    // LEGACY PATH DISABLED:
+    // process-signature is no longer allowed to execute TSA or blockchain anchors.
+    // Canonical authority is protectDocumentV2PipelineDecision + executor/orchestrator.
     if (forensicConfig.rfc3161 && !authorityOnly) {
-      try {
-        const { data: tsaData, error: tsaError } = await supabase.functions.invoke('legal-timestamp', {
-          body: { hash_hex: currentVersion.document_hash }
-        })
-          if (!tsaError && tsaData?.success) {
-            rfc3161Token = tsaData.token
-            timeAssurance = {
-              source: 'RFC3161',
-              confidence: 'high'
-            }
-          // Canonical closure: do not append tsa.confirmed from process-signature.
-          // TSA evidence is produced via the job pipeline (run_tsa -> run-tsa) over witness_hash.
-        } else {
-          timeAssurance = {
-            source: 'server_clock',
-            confidence: 'informational'
-          }
-        }
-      } catch (err) {
-        console.warn('RFC 3161 failed:', err)
-        timeAssurance = {
-          source: 'server_clock',
-          confidence: 'informational'
-        }
+      console.warn('LEGACY_PATH_DISABLED: process-signature TSA execution skipped', {
+        workflow_id: workflow.id,
+        signer_id: signer.id,
+      })
+      timeAssurance = {
+        source: 'server_clock',
+        confidence: 'informational'
       }
     }
 
-    // Polygon Anchoring
     if (forensicConfig.polygon && !authorityOnly) {
-      try {
-        const { data: polygonData, error: polygonError } = await supabase.functions.invoke('anchor-polygon', {
-          body: {
-            documentHash: signatureHash,
-            documentId: workflow.id,
-            userEmail: signer.email
-          }
-        })
-        if (!polygonError && polygonData?.success) {
-          polygonTxHash = polygonData.txHash
-        }
-      } catch (err) {
-        console.warn('Polygon anchoring failed:', err)
-      }
+      console.warn('LEGACY_PATH_DISABLED: process-signature polygon anchor skipped', {
+        workflow_id: workflow.id,
+        signer_id: signer.id,
+      })
     }
 
-    // Bitcoin Anchoring
     if (forensicConfig.bitcoin && !authorityOnly) {
-      try {
-        const { data: bitcoinData, error: bitcoinError } = await supabase.functions.invoke('anchor-bitcoin', {
-          body: {
-            documentHash: signatureHash,
-            documentId: workflow.id,
-            userEmail: signer.email
-          }
-        })
-        if (!bitcoinError && bitcoinData?.anchorId) {
-          bitcoinAnchorId = bitcoinData.anchorId
-        }
-      } catch (err) {
-        console.warn('Bitcoin anchoring failed:', err)
-      }
+      console.warn('LEGACY_PATH_DISABLED: process-signature bitcoin anchor skipped', {
+        workflow_id: workflow.id,
+        signer_id: signer.id,
+      })
     }
 
     // 6. Registrar firma en workflow_signatures (con NDA tracking)

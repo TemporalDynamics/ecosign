@@ -11,10 +11,24 @@
  * Fase: Paso 1 - Shadow validation para run_tsa
  */
 
-export type EventLike = { kind?: string };
-export type AnchorStage = 'initial' | 'intermediate' | 'final';
-export type AnchorDecisionContext = {
-  anchorStage?: AnchorStage;
+export type EventLike = { kind?: string; payload?: Record<string, unknown>; at?: string };
+
+const getRequiredEvidenceFromEvents = (events: EventLike[]): string[] => {
+  const requestEvent = events.find((event) => event.kind === 'document.protected.requested') as
+    | { payload?: Record<string, unknown> }
+    | undefined;
+  const requiredEvidence = requestEvent?.payload?.['required_evidence'];
+  if (Array.isArray(requiredEvidence)) {
+    return requiredEvidence.filter((item): item is string => typeof item === 'string');
+  }
+
+  // Backward compatibility for historical events.
+  const legacyProtection = requestEvent?.payload?.['protection'];
+  if (Array.isArray(legacyProtection)) {
+    return legacyProtection.filter((item): item is string => typeof item === 'string');
+  }
+
+  return [];
 };
 
 /**
@@ -125,22 +139,13 @@ const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin')
  * @param protection - Array de protecciones solicitadas
  * @returns true si se debería encolar submit_anchor_polygon
  */
-export const shouldEnqueuePolygon = (events: EventLike[], protection: string[]): boolean => {
-  return shouldEnqueuePolygonWithContext(events, protection, {});
-};
-
-export const shouldEnqueuePolygonWithContext = (
-  events: EventLike[],
-  protection: string[],
-  context: AnchorDecisionContext,
-): boolean => {
+export const shouldEnqueuePolygon = (events: EventLike[]): boolean => {
+  const requiredEvidence = getRequiredEvidenceFromEvents(events);
   const hasTsa = events.some((e) => e.kind === 'tsa.confirmed');
-  const requiresPolygon = protection.includes('polygon');
+  const requiresPolygon = requiredEvidence.includes('polygon');
   const hasPolygon = hasAnchorConfirmed(events, 'polygon');
-  const stage = context.anchorStage ?? 'initial';
-  const isChainStage = stage === 'initial' || stage === 'final';
 
-  return hasTsa && requiresPolygon && !hasPolygon && isChainStage;
+  return hasTsa && requiresPolygon && !hasPolygon;
 };
 
 /**
@@ -155,22 +160,13 @@ export const shouldEnqueuePolygonWithContext = (
  * @param protection - Array de protecciones solicitadas
  * @returns true si se debería encolar submit_anchor_bitcoin
  */
-export const shouldEnqueueBitcoin = (events: EventLike[], protection: string[]): boolean => {
-  return shouldEnqueueBitcoinWithContext(events, protection, {});
-};
-
-export const shouldEnqueueBitcoinWithContext = (
-  events: EventLike[],
-  protection: string[],
-  context: AnchorDecisionContext,
-): boolean => {
+export const shouldEnqueueBitcoin = (events: EventLike[]): boolean => {
+  const requiredEvidence = getRequiredEvidenceFromEvents(events);
   const hasTsa = events.some((e) => e.kind === 'tsa.confirmed');
-  const requiresBitcoin = protection.includes('bitcoin');
+  const requiresBitcoin = requiredEvidence.includes('bitcoin');
   const hasBitcoin = hasAnchorConfirmed(events, 'bitcoin');
-  const stage = context.anchorStage ?? 'initial';
-  const isChainStage = stage === 'initial' || stage === 'final';
 
-  return hasTsa && requiresBitcoin && !hasBitcoin && isChainStage;
+  return hasTsa && requiresBitcoin && !hasBitcoin;
 };
 
 // ============================================================================
@@ -197,7 +193,7 @@ export const shouldEnqueueBitcoinWithContext = (
  * @param protection - Array de protecciones solicitadas
  * @returns true si se debería encolar build_artifact
  */
-export const shouldEnqueueArtifact = (events: EventLike[], protection: string[]): boolean => {
+export const shouldEnqueueArtifact = (events: EventLike[]): boolean => {
   // 1. Verificar TSA
   const hasTsa = events.some((e) => e.kind === 'tsa.confirmed');
   if (!hasTsa) return false;
@@ -207,8 +203,9 @@ export const shouldEnqueueArtifact = (events: EventLike[], protection: string[])
   if (hasArtifact) return false;
 
   // 3. Verificar que todos los anchors SOLICITADOS estén confirmados
-  const requiresPolygon = protection.includes('polygon');
-  const requiresBitcoin = protection.includes('bitcoin');
+  const requiredEvidence = getRequiredEvidenceFromEvents(events);
+  const requiresPolygon = requiredEvidence.includes('polygon');
+  const requiresBitcoin = requiredEvidence.includes('bitcoin');
 
   const hasPolygon = hasAnchorConfirmed(events, 'polygon');
   const hasBitcoin = hasAnchorConfirmed(events, 'bitcoin');

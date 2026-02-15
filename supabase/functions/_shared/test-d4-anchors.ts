@@ -14,8 +14,8 @@ console.log('=== Test D4 - Decisiones de anchors ===\n');
 // Test 1: Sin TSA → no encolar nada
 const test1Events = [{ kind: 'document.protected.requested' }];
 const test1Protection = ['polygon', 'bitcoin'];
-const poly1 = shouldEnqueuePolygon(test1Events, test1Protection);
-const btc1 = shouldEnqueueBitcoin(test1Events, test1Protection);
+const poly1 = shouldEnqueuePolygon(test1Events);
+const btc1 = shouldEnqueueBitcoin(test1Events);
 console.log('Test 1 - Sin TSA:');
 console.log('  shouldEnqueuePolygon:', poly1, '(esperado: false)');
 console.log('  shouldEnqueueBitcoin:', btc1, '(esperado: false)');
@@ -27,8 +27,8 @@ const test2Events = [
   { kind: 'tsa.confirmed' }
 ];
 const test2Protection = ['polygon', 'bitcoin'];
-const poly2 = shouldEnqueuePolygon(test2Events, test2Protection);
-const btc2 = shouldEnqueueBitcoin(test2Events, test2Protection);
+const poly2 = shouldEnqueuePolygon(test2Events);
+const btc2 = shouldEnqueueBitcoin(test2Events);
 console.log('\nTest 2 - Con TSA, sin anchors, ambos solicitados:');
 console.log('  shouldEnqueuePolygon:', poly2, '(esperado: true)');
 console.log('  shouldEnqueueBitcoin:', btc2, '(esperado: true)');
@@ -40,8 +40,8 @@ const test3Events = [
   { kind: 'tsa.confirmed' }
 ];
 const test3Protection = ['polygon'];
-const poly3 = shouldEnqueuePolygon(test3Events, test3Protection);
-const btc3 = shouldEnqueueBitcoin(test3Events, test3Protection);
+const poly3 = shouldEnqueuePolygon(test3Events);
+const btc3 = shouldEnqueueBitcoin(test3Events);
 console.log('\nTest 3 - Con TSA, solo polygon solicitado:');
 console.log('  shouldEnqueuePolygon:', poly3, '(esperado: true)');
 console.log('  shouldEnqueueBitcoin:', btc3, '(esperado: false)');
@@ -62,8 +62,8 @@ const test4Events = [
   }
 ];
 const test4Protection = ['polygon', 'bitcoin'];
-const poly4 = shouldEnqueuePolygon(test4Events, test4Protection);
-const btc4 = shouldEnqueueBitcoin(test4Events, test4Protection);
+const poly4 = shouldEnqueuePolygon(test4Events);
+const btc4 = shouldEnqueueBitcoin(test4Events);
 console.log('\nTest 4 - Con TSA y polygon confirmado:');
 console.log('  shouldEnqueuePolygon:', poly4, '(esperado: false - ya confirmado)');
 console.log('  shouldEnqueueBitcoin:', btc4, '(esperado: true - falta bitcoin)');
@@ -93,8 +93,8 @@ const test5Events = [
   }
 ];
 const test5Protection = ['polygon', 'bitcoin'];
-const poly5 = shouldEnqueuePolygon(test5Events, test5Protection);
-const btc5 = shouldEnqueueBitcoin(test5Events, test5Protection);
+const poly5 = shouldEnqueuePolygon(test5Events);
+const btc5 = shouldEnqueueBitcoin(test5Events);
 console.log('\nTest 5 - Con TSA y ambos anchors confirmados:');
 console.log('  shouldEnqueuePolygon:', poly5, '(esperado: false)');
 console.log('  shouldEnqueueBitcoin:', btc5, '(esperado: false)');
@@ -115,7 +115,7 @@ const test6Events = [
   }
 ];
 const test6Protection = ['polygon'];
-const poly6 = shouldEnqueuePolygon(test6Events, test6Protection);
+const poly6 = shouldEnqueuePolygon(test6Events);
 console.log('\nTest 6 - Causalidad temporal inválida:');
 console.log('  shouldEnqueuePolygon:', poly6, '(esperado: true - anchor inválido)');
 console.log('  Match:', poly6 ? '✅' : '❌');

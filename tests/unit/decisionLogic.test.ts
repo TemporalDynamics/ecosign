@@ -30,18 +30,25 @@ describe('Decision Logic - Canonical Authority Functions', () => {
 
   test('shouldEnqueuePolygon - true when TSA confirmed, polygon requested, no polygon yet', () => {
     const events = [
-      { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
+      {
+        kind: 'document.protected.requested',
+        at: '2026-01-27T10:00:00.000Z',
+        payload: { required_evidence: ['polygon'] },
+      },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' }
     ];
-    const protection = ['polygon'];
     
-    const result = shouldEnqueuePolygon(events, protection);
+    const result = shouldEnqueuePolygon(events);
     expect(result).toBe(true);
   });
 
   test('shouldEnqueuePolygon - false when polygon already confirmed', () => {
     const events = [
-      { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
+      {
+        kind: 'document.protected.requested',
+        at: '2026-01-27T10:00:00.000Z',
+        payload: { required_evidence: ['polygon'] },
+      },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' },
       { 
         kind: 'anchor.confirmed', 
@@ -49,26 +56,32 @@ describe('Decision Logic - Canonical Authority Functions', () => {
         payload: { network: 'polygon', confirmed_at: '2026-01-27T10:02:00.000Z' }
       }
     ];
-    const protection = ['polygon'];
     
-    const result = shouldEnqueuePolygon(events, protection);
+    const result = shouldEnqueuePolygon(events);
     expect(result).toBe(false);
   });
 
   test('shouldEnqueueBitcoin - true when TSA confirmed, bitcoin requested, no bitcoin yet', () => {
     const events = [
-      { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
+      {
+        kind: 'document.protected.requested',
+        at: '2026-01-27T10:00:00.000Z',
+        payload: { required_evidence: ['bitcoin'] },
+      },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' }
     ];
-    const protection = ['bitcoin'];
     
-    const result = shouldEnqueueBitcoin(events, protection);
+    const result = shouldEnqueueBitcoin(events);
     expect(result).toBe(true);
   });
 
   test('shouldEnqueueArtifact - true when all protections confirmed', () => {
     const events = [
-      { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
+      {
+        kind: 'document.protected.requested',
+        at: '2026-01-27T10:00:00.000Z',
+        payload: { required_evidence: ['tsa', 'polygon', 'bitcoin'] },
+      },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' },
       { 
         kind: 'anchor.confirmed', 
@@ -81,15 +94,18 @@ describe('Decision Logic - Canonical Authority Functions', () => {
         payload: { network: 'bitcoin', confirmed_at: '2026-01-27T10:03:00.000Z' }
       }
     ];
-    const protection = ['tsa', 'polygon', 'bitcoin'];
     
-    const result = shouldEnqueueArtifact(events, protection);
+    const result = shouldEnqueueArtifact(events);
     expect(result).toBe(true);
   });
 
   test('shouldEnqueueArtifact - false when not all protections confirmed', () => {
     const events = [
-      { kind: 'document.protected.requested', at: '2026-01-27T10:00:00.000Z' },
+      {
+        kind: 'document.protected.requested',
+        at: '2026-01-27T10:00:00.000Z',
+        payload: { required_evidence: ['tsa', 'polygon', 'bitcoin'] },
+      },
       { kind: 'tsa.confirmed', at: '2026-01-27T10:01:00.000Z' },
       { 
         kind: 'anchor.confirmed', 
@@ -98,9 +114,8 @@ describe('Decision Logic - Canonical Authority Functions', () => {
       }
       // Falta bitcoin
     ];
-    const protection = ['tsa', 'polygon', 'bitcoin'];
     
-    const result = shouldEnqueueArtifact(events, protection);
+    const result = shouldEnqueueArtifact(events);
     expect(result).toBe(false);
   });
 });

@@ -36,6 +36,41 @@ contexto de etapa (`anchor_stage`), quedando bloqueados en etapas intermedias.
 - La activación efectiva por plan (Free/Pro con redes específicas) queda en la
   siguiente fase de rollout/policy.
 
+## Fase 3 (activación efectiva por plan en inicio/final) — 2026-02-15
+
+### 🎯 Resumen
+Se activó enforcement server-side por plan para anchors chain en etapas
+`initial` y `final`, manteniendo intermedios sin blockchain.
+
+### ✅ Cambios implementados
+- **Policy canónica por plan + etapa:**
+  - Nuevo helper compartido para resolver capacidades de plan por owner
+    (`workspaces` + `compute_workspace_effective_limits`) y derivar protección
+    efectiva por etapa.
+  - Archivo: `supabase/functions/_shared/anchorPlanPolicy.ts`.
+- **Inicio (record-protection-event) con policy real:**
+  - `protection` ya no sale directo del request; se filtra por plan y etapa
+    `initial`.
+  - Se agregan metadatos de trazabilidad: `plan_key`, `policy_source`.
+  - Archivo: `supabase/functions/record-protection-event/index.ts`.
+- **Final (apply-signer-signature) con policy real:**
+  - `finalProtection` se calcula por plan y etapa `final`.
+  - El job `protect_document_v2` final encola con `plan_key` y
+    `policy_source`.
+  - Archivo: `supabase/functions/apply-signer-signature/index.ts`.
+
+### 📌 Política efectiva
+- **Intermedio:** sin blockchain.
+- **Initial:** TSA + Polygon solo si plan/capability lo permite.
+- **Final:** TSA + Polygon/Bitcoin según plan/capabilities.
+- Fallback seguro: si no hay workspace/plan resolvible, se usa policy
+  conservadora (`tsa=true`, `bitcoin=true`, `polygon=false`).
+
+### ✅ Estado
+- Fase 3 queda implementada en backend para inicio/final.
+- Siguiente paso: validación end-to-end Free/Pro en producción (sin cambios de
+  contrato adicionales).
+
 ## Fase 1 (Camino a defendible): contratos y eventos canónicos — 2026-02-15
 
 ### 🎯 Resumen

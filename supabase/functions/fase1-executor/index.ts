@@ -5,8 +5,8 @@ import { validateEventAppend } from '../_shared/validateEventAppend.ts';
 import { decideProtectDocumentV2 } from '../_shared/protectDocumentV2Decision.ts';
 import {
   shouldEnqueueRunTsa,
-  shouldEnqueuePolygon,
-  shouldEnqueueBitcoin as shouldEnqueueBitcoinCanonical,
+  shouldEnqueuePolygonWithContext,
+  shouldEnqueueBitcoinWithContext as shouldEnqueueBitcoinCanonicalWithContext,
   shouldEnqueueArtifact as shouldEnqueueArtifactCanonical,
 } from '../_shared/decisionEngineCanonical.ts';
 import { isDecisionUnderCanonicalAuthority } from '../_shared/featureFlags.ts';
@@ -37,12 +37,19 @@ const DEFAULT_LIMIT = 5;
 const POLYGON_CONFIRM_TIMEOUT_MS = 60_000;
 const POLYGON_CONFIRM_INTERVAL_MS = 5_000;
 const REQUEUE_TSA_LIMIT = 50;
+type AnchorStage = 'initial' | 'intermediate' | 'final';
 
 const jsonResponse = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+
+const normalizeAnchorStage = (value: unknown): AnchorStage => {
+  if (value === 'final') return 'final';
+  if (value === 'intermediate') return 'intermediate';
+  return 'initial';
+};
 
 async function emitEvent(
   supabase: ReturnType<typeof createClient>,
@@ -136,6 +143,12 @@ async function handleDocumentProtected(
 
   // Decisión basada en packages/authority (shouldEnqueueRunTsa)
   const shouldEnqueueTsa = shouldEnqueueRunTsa(events);
+  const anchorStage = normalizeAnchorStage(payload['anchor_stage']);
+  const stepIndex = Number.isFinite(Number(payload['step_index'])) ? Number(payload['step_index']) : 0;
+  const requestedWitnessHash =
+    (typeof payload['witness_hash'] === 'string' && payload['witness_hash'].trim())
+      ? String(payload['witness_hash'])
+      : String(entity.witness_hash ?? '');
 
   // 3. ESCRIBIR EN COLA NEUTRAL: En lugar de ejecutar directamente, encolar job
   if (shouldEnqueueTsa) {
@@ -146,9 +159,11 @@ async function handleDocumentProtected(
       userDocumentId,
       `${documentEntityId}:run_tsa`,
       {
-        witness_hash: entity.witness_hash,
+        witness_hash: requestedWitnessHash,
         document_entity_id: documentEntityId,
-        user_document_id: userDocumentId
+        user_document_id: userDocumentId,
+        anchor_stage: anchorStage,
+        step_index: stepIndex
       },
       correlationId  // NUEVO: propagate correlation_id
     );
@@ -175,36 +190,50 @@ async function handleDocumentProtected(
   const hasBitcoinConfirmed = hasAnchorConfirmed('bitcoin');
 
   // Decisión para anclaje Polygon basado en autoridad
-  const shouldEnqueuePolygonResult = shouldEnqueuePolygon(events, protection as string[]);
+  const shouldEnqueuePolygonResult = shouldEnqueuePolygonWithContext(
+    events,
+    protection as string[],
+    { anchorStage }
+  );
   if (shouldEnqueuePolygonResult) {
+    const anchorDedupeKey = `${documentEntityId}:submit_anchor_polygon:${anchorStage}:${stepIndex}`;
     await enqueueExecutorJob(
       supabase,
       'submit_anchor_polygon',
       documentEntityId,
       userDocumentId,
-      `${documentEntityId}:submit_anchor_polygon`,
+      anchorDedupeKey,
       {
         document_entity_id: documentEntityId,
         user_document_id: userDocumentId,
-        witness_hash: entity.witness_hash
+        witness_hash: requestedWitnessHash,
+        anchor_stage: anchorStage,
+        step_index: stepIndex
       },
       correlationId  // NUEVO: propagate correlation_id
     );
   }
 
   // Decisión para anclaje Bitcoin basado en autoridad
-  const shouldEnqueueBitcoinResult = shouldEnqueueBitcoinCanonical(events, protection as string[]);
+  const shouldEnqueueBitcoinResult = shouldEnqueueBitcoinCanonicalWithContext(
+    events,
+    protection as string[],
+    { anchorStage }
+  );
   if (shouldEnqueueBitcoinResult) {
+    const anchorDedupeKey = `${documentEntityId}:submit_anchor_bitcoin:${anchorStage}:${stepIndex}`;
     await enqueueExecutorJob(
       supabase,
       'submit_anchor_bitcoin',
       documentEntityId,
       userDocumentId,
-      `${documentEntityId}:submit_anchor_bitcoin`,
+      anchorDedupeKey,
       {
         document_entity_id: documentEntityId,
         user_document_id: userDocumentId,
-        witness_hash: entity.witness_hash
+        witness_hash: requestedWitnessHash,
+        anchor_stage: anchorStage,
+        step_index: stepIndex
       },
       correlationId  // NUEVO: propagate correlation_id
     );
@@ -318,11 +347,25 @@ async function handleProtectDocumentV2(
   const requestEvent = updatedEvents.find((event: { kind?: string }) =>
     event.kind === 'document.protected.requested'
   ) as { payload?: Record<string, unknown> } | undefined;
-  const protection = Array.isArray(requestEvent?.payload?.['protection'])
+  const protectionFromPayload = Array.isArray(payload['protection'])
+    ? (payload['protection'] as Array<unknown>)
+    : null;
+  const protectionFromRequestEvent = Array.isArray(requestEvent?.payload?.['protection'])
     ? (requestEvent?.payload?.['protection'] as Array<unknown>)
     : [];
+  const protection = protectionFromPayload ?? protectionFromRequestEvent;
   const requiresPolygon = protection.includes('polygon');
   const requiresBitcoin = protection.includes('bitcoin');
+  const requestPayload = requestEvent?.payload ?? {};
+  const anchorStage = normalizeAnchorStage(payload['anchor_stage'] ?? requestPayload['anchor_stage']);
+  const stepIndex = Number.isFinite(Number(payload['step_index'] ?? requestPayload['step_index']))
+    ? Number(payload['step_index'] ?? requestPayload['step_index'])
+    : 0;
+  const requestedWitnessHash =
+    (typeof (payload['witness_hash'] ?? requestPayload['witness_hash']) === 'string'
+      && String(payload['witness_hash'] ?? requestPayload['witness_hash']).trim())
+      ? String(payload['witness_hash'] ?? requestPayload['witness_hash'])
+      : null;
 
   const hasTsaConfirmed = updatedEvents.some((event: { kind?: string }) => event.kind === 'tsa.confirmed');
   const hasAnchorConfirmed = (network: 'polygon' | 'bitcoin') => updatedEvents.some((event: any) =>
@@ -336,7 +379,11 @@ async function handleProtectDocumentV2(
   // DECISIÓN DE ANCLAJES - Polygon
   const isD4Canonical = isDecisionUnderCanonicalAuthority('D4_ANCHORS_ENABLED');
   const currentShouldEnqueuePolygon = !isD4Canonical && hasTsaConfirmed && requiresPolygon && !hasPolygonConfirmed;
-  const canonicalShouldEnqueuePolygon = shouldEnqueuePolygon(updatedEvents, protection as string[]);
+  const canonicalShouldEnqueuePolygon = shouldEnqueuePolygonWithContext(
+    updatedEvents,
+    protection as string[],
+    { anchorStage }
+  );
   const polygonShouldEnqueue = isD4Canonical ? canonicalShouldEnqueuePolygon : currentShouldEnqueuePolygon;
 
   // SHADOW COMPARISON - Polygon
@@ -369,15 +416,25 @@ async function handleProtectDocumentV2(
       SUBMIT_ANCHOR_POLYGON_JOB_TYPE,
       documentEntityId,
       payload['document_id'] ? String(payload['document_id']) : null,
-      `${documentEntityId}:${SUBMIT_ANCHOR_POLYGON_JOB_TYPE}`,
-      undefined,  // no custom payload
+      `${documentEntityId}:${SUBMIT_ANCHOR_POLYGON_JOB_TYPE}:${anchorStage}:${stepIndex}`,
+      {
+        document_entity_id: documentEntityId,
+        document_id: payload['document_id'] ? String(payload['document_id']) : null,
+        witness_hash: requestedWitnessHash,
+        anchor_stage: anchorStage,
+        step_index: stepIndex
+      },
       correlationId  // NUEVO: propagate correlation_id
     );
   }
 
   // DECISIÓN DE ANCLAJES - Bitcoin
   const currentShouldEnqueueBitcoin = !isD4Canonical && hasTsaConfirmed && requiresBitcoin && !hasBitcoinConfirmed;
-  const canonicalShouldEnqueueBitcoin = shouldEnqueueBitcoinCanonical(updatedEvents, protection as string[]);
+  const canonicalShouldEnqueueBitcoin = shouldEnqueueBitcoinCanonicalWithContext(
+    updatedEvents,
+    protection as string[],
+    { anchorStage }
+  );
   const bitcoinShouldEnqueue = isD4Canonical ? canonicalShouldEnqueueBitcoin : currentShouldEnqueueBitcoin;
 
   // SHADOW COMPARISON - Bitcoin
@@ -410,8 +467,14 @@ async function handleProtectDocumentV2(
       SUBMIT_ANCHOR_BITCOIN_JOB_TYPE,
       documentEntityId,
       payload['document_id'] ? String(payload['document_id']) : null,
-      `${documentEntityId}:${SUBMIT_ANCHOR_BITCOIN_JOB_TYPE}`,
-      undefined,  // no custom payload
+      `${documentEntityId}:${SUBMIT_ANCHOR_BITCOIN_JOB_TYPE}:${anchorStage}:${stepIndex}`,
+      {
+        document_entity_id: documentEntityId,
+        document_id: payload['document_id'] ? String(payload['document_id']) : null,
+        witness_hash: requestedWitnessHash,
+        anchor_stage: anchorStage,
+        step_index: stepIndex
+      },
       correlationId  // NUEVO: propagate correlation_id
     );
   }
@@ -459,7 +522,7 @@ async function handleProtectDocumentV2(
       BUILD_ARTIFACT_JOB_TYPE,
       documentEntityId,
       payload['document_id'] ? String(payload['document_id']) : null,
-      `${documentEntityId}:${BUILD_ARTIFACT_JOB_TYPE}`,
+      `${documentEntityId}:${BUILD_ARTIFACT_JOB_TYPE}:${anchorStage}:${stepIndex}`,
       undefined,  // no custom payload
       correlationId  // NUEVO: propagate correlation_id
     );
@@ -582,6 +645,9 @@ async function handleSubmitAnchorPolygon(
   await callFunction('submit-anchor-polygon', {
     document_entity_id: documentEntityId,
     document_id: documentId,
+    witness_hash: job.payload?.['witness_hash'] ?? null,
+    anchor_stage: job.payload?.['anchor_stage'] ?? 'initial',
+    step_index: job.payload?.['step_index'] ?? 0,
   });
 }
 
@@ -599,6 +665,9 @@ async function handleSubmitAnchorBitcoin(
   await callFunction('submit-anchor-bitcoin', {
     document_entity_id: documentEntityId,
     document_id: documentId,
+    witness_hash: job.payload?.['witness_hash'] ?? null,
+    anchor_stage: job.payload?.['anchor_stage'] ?? 'initial',
+    step_index: job.payload?.['step_index'] ?? 0,
   });
 }
 

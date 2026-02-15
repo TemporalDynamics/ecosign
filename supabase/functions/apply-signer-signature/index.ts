@@ -1517,6 +1517,12 @@ serve(async (req) => {
     if (!nextSignerRecord) {
       isLastSigner = true
       const completedAt = new Date().toISOString()
+      const workflowForensicConfig = (workflow as any)?.forensic_config ?? {}
+      const finalProtection: string[] = [
+        'tsa',
+        ...(workflowForensicConfig?.polygon ? ['polygon'] : []),
+        ...(workflowForensicConfig?.bitcoin ? ['bitcoin'] : []),
+      ]
       try {
         // Defensive completion: advance_workflow() is best-effort above; this guarantees
         // workflow.status does not remain "active" after the final signer.
@@ -1562,6 +1568,34 @@ serve(async (req) => {
             },
             'apply-signer-signature'
           )
+        }
+
+        if (workflow.document_entity_id) {
+          const finalStepIndex = signer.signing_order ?? 0
+          const finalProtectDedupe = `${workflow.document_entity_id}:protect_document_v2:final:${finalStepIndex}`
+          const { error: enqueueFinalProtectErr } = await supabase
+            .from('executor_jobs')
+            .insert({
+              type: 'protect_document_v2',
+              entity_type: 'document',
+              entity_id: workflow.document_entity_id,
+              correlation_id: workflow.document_entity_id,
+              dedupe_key: finalProtectDedupe,
+              payload: {
+                document_entity_id: workflow.document_entity_id,
+                workflow_id: signer.workflow_id,
+                witness_hash: hashHex,
+                protection: finalProtection,
+                anchor_stage: 'final',
+                step_index: finalStepIndex
+              },
+              status: 'queued',
+              run_at: new Date().toISOString()
+            })
+
+          if (enqueueFinalProtectErr && enqueueFinalProtectErr.code !== '23505') {
+            console.warn('apply-signer-signature: enqueue final protect_document_v2 failed', enqueueFinalProtectErr)
+          }
         }
       } catch (completionStatusErr) {
         console.warn('apply-signer-signature: completion status/event hardening failed (best-effort)', completionStatusErr)

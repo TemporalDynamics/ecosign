@@ -8,6 +8,37 @@ Guidance: these scripts should not be removed. Use them to detect operational pr
 
 ---
 
+## check-canonical-readiness.sh
+
+Detecta:
+- Si el sistema ya cumple los gates minimos para operar con autoridad canonica (events + decision engine + executor).
+
+Cuándo correr:
+- Antes de avanzar de fase en la migración de convergencia.
+- Antes de declarar `go/no-go` para apagar rutas legacy.
+
+Qué significa si falla:
+- Sigue habiendo branching por flags, requeue autónomo, triggers que encolan o rutas paralelas de progresión.
+
+Acción manual:
+- Corregir cada check fallido y volver a ejecutar hasta `READY`.
+
+## generate-progression-inventory.sh
+
+Detecta:
+- Inventario de motores de progresión reales: triggers, encolado SQL, flags runtime, requeue/retry, paths legacy y decisiones fuera del engine.
+
+Cuándo correr:
+- Al iniciar una fase de convergencia o durante incidentes de desalineación.
+
+Qué significa si falla:
+- El script no falla por hallazgos; genera snapshot para análisis. Si falla ejecución, revisar permisos/herramientas (`rg`).
+
+Acción manual:
+- Revisar el reporte en `docs/reports/canonical-convergence/` y abrir acciones correctivas por cada motor no canónico.
+
+---
+
 ## check-cron-jobs.sql
 
 Detecta:
@@ -349,4 +380,3 @@ Qué significa si falla:
 
 Acción manual:
 - Revisar logs de integración, endpoints y revisar credenciales.
-

@@ -151,6 +151,7 @@ serve(withRateLimit('record', async (req) => {
       protectionMethods.push(protection_details.signature_type)
     }
     protectionMethods.push(...anchorPolicy.protection)
+    const requiredEvidence = [...anchorPolicy.protection]
 
     const requestEventKind = FASE1_EVENT_KINDS.DOCUMENT_PROTECTED_REQUESTED
 
@@ -185,6 +186,7 @@ serve(withRateLimit('record', async (req) => {
         document_id: userDocumentId,
         document_hash: doc.document_hash,
         witness_hash: effectiveWitnessHash,
+        required_evidence: requiredEvidence,
         protection: protectionMethods,
         anchor_stage: 'initial',
         step_index: 0,
@@ -227,6 +229,7 @@ serve(withRateLimit('record', async (req) => {
           document_id: userDocumentId,
           document_hash: doc.document_hash,
           witness_hash: effectiveWitnessHash,
+          required_evidence: requiredEvidence,
           protection: protectionMethods,
           anchor_stage: 'initial',
           step_index: 0,

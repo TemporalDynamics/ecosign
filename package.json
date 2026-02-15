@@ -20,6 +20,8 @@
     "deadcode": "knip --max-issues 100",
     "validate": "npm run lint && npm run typecheck && npm run test && npm run build",
     "audit:events": "ts-node --project tsconfig.scripts.json --transpile-only scripts/audit-events.ts",
+    "diag:progression": "bash scripts/diagnostics/generate-progression-inventory.sh",
+    "diag:canonical-readiness": "bash scripts/diagnostics/check-canonical-readiness.sh",
     "ci:predeploy": "npm run audit:events"
   },
   "keywords": [

@@ -1231,6 +1231,11 @@ serve(async (req) => {
           const alreadyRequested = eventsArr.some((e: any) => e?.kind === 'document.protected.requested')
           if (!alreadyRequested) {
             const cfg = (workflow as any)?.forensic_config ?? {}
+            const requiredEvidence = [
+              'tsa',
+              ...(cfg?.polygon ? ['polygon'] : []),
+              ...(cfg?.bitcoin ? ['bitcoin'] : []),
+            ]
             await appendEvent(
               supabase as any,
               workflow.document_entity_id,
@@ -1240,11 +1245,8 @@ serve(async (req) => {
                 payload: {
                   document_entity_id: workflow.document_entity_id,
                   workflow_id: workflow.id,
-                  protection: [
-                    'tsa',
-                    ...(cfg?.polygon ? ['polygon'] : []),
-                    ...(cfg?.bitcoin ? ['bitcoin'] : []),
-                  ],
+                  required_evidence: requiredEvidence,
+                  protection: requiredEvidence,
                   protection_details: {
                     signature_type: 'legal',
                     forensic_enabled: true,

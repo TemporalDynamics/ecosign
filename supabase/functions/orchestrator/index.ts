@@ -51,6 +51,21 @@ interface ExecutorJob {
   trace_id?: string;
 }
 
+function isMissingWitnessHash(value: unknown): boolean {
+  return !(typeof value === 'string' && value.trim().length > 0);
+}
+
+function isTerminalJobError(type: JobType, message: string): boolean {
+  if (type === 'submit_anchor_polygon' || type === 'submit_anchor_bitcoin') {
+    return (
+      message.includes('precondition_failed:missing_tsa_for_witness_hash') ||
+      message.includes('precondition_failed:missing_witness_hash') ||
+      message.includes('terminal:missing_witness_hash')
+    );
+  }
+  return false;
+}
+
 function computeRetryDelayMs(type: JobType, attempts: number): number {
   const attempt = Math.max(1, Math.floor(attempts || 1));
   const baseMs = type === 'run_tsa' ? 30_000 : 60_000;
@@ -111,6 +126,9 @@ const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promi
   'submit_anchor_polygon': async (job, trace_id) => {
     const { document_entity_id, witness_hash } = job.payload;
     const correlationId = job.correlation_id || String(document_entity_id);
+    if (isMissingWitnessHash(witness_hash)) {
+      throw new Error('terminal:missing_witness_hash');
+    }
 
     logger.info('Calling submit-anchor-polygon function', {
       documentEntityId: String(document_entity_id),
@@ -121,7 +139,7 @@ const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promi
     // Llamar al worker de anclaje Polygon
     const anchorResponse = await callFunction('submit-anchor-polygon', {
       document_entity_id: String(document_entity_id),
-      witness_hash: String(witness_hash),
+      witness_hash: String(witness_hash).trim(),
       correlation_id: correlationId,  // NUEVO: pass to worker
     });
 
@@ -137,6 +155,9 @@ const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promi
   'submit_anchor_bitcoin': async (job, trace_id) => {
     const { document_entity_id, witness_hash } = job.payload;
     const correlationId = job.correlation_id || String(document_entity_id);
+    if (isMissingWitnessHash(witness_hash)) {
+      throw new Error('terminal:missing_witness_hash');
+    }
 
     logger.info('Calling submit-anchor-bitcoin function', {
       documentEntityId: String(document_entity_id),
@@ -147,7 +168,7 @@ const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promi
     // Llamar al worker de anclaje Bitcoin
     const anchorResponse = await callFunction('submit-anchor-bitcoin', {
       document_entity_id: String(document_entity_id),
-      witness_hash: String(witness_hash),
+      witness_hash: String(witness_hash).trim(),
       correlation_id: correlationId,  // NUEVO: pass to worker
     });
 
@@ -383,6 +404,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
 
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const terminalError = isTerminalJobError(type, message);
     logger.error('Job processing failed', {
       jobId,
       type,
@@ -391,7 +413,8 @@ async function processJob(job: ExecutorJob): Promise<void> {
       trace_id,
       error: message,
       attempt: job.attempts || 1,
-      willRetry: !((job.attempts || 1) >= (job.max_attempts || 10)),
+      terminalError,
+      willRetry: !(terminalError || (job.attempts || 1) >= (job.max_attempts || 10)),
     });
 
     stopHeartbeat();
@@ -406,7 +429,7 @@ async function processJob(job: ExecutorJob): Promise<void> {
 
     const attempt = Number(job.attempts ?? 1);
     const maxAttempts = Number(job.max_attempts ?? 10);
-    const shouldDeadLetter = attempt >= maxAttempts;
+    const shouldDeadLetter = terminalError || attempt >= maxAttempts;
     const nextRunAt = new Date(Date.now() + computeRetryDelayMs(type, attempt));
 
     const updatePayload: Record<string, unknown> = {

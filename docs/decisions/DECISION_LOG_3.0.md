@@ -2829,3 +2829,57 @@ Commits relevantes:
 - Tarea cerrada.
 
 ---
+
+## Authority Freeze v1 (Pre-Canary) — 2026-02-15
+
+### 🎯 Objetivo
+Congelar autoridad arquitectónica y reglas canónicas antes de activar ajustes operativos de Polygon/Bitcoin.
+
+### ✅ Decisiones congeladas
+1. **Autoridad única para encolar TSA/anchors**
+- `protectDocumentV2PipelineDecision` vía executor/orchestrator es la única autoridad.
+- `process-signature` no encola ni invoca TSA/anchors en el flujo canónico.
+
+2. **Eventos canónicos de confirmación**
+- TSA: `tsa.confirmed`
+- Rekor: `rekor.confirmed`
+- Blockchain: `anchor.confirmed` con `payload.network = "polygon" | "bitcoin"`
+- No usar `polygon.confirmed` / `bitcoin.confirmed` como kinds separados.
+
+3. **Encadenado DSSE**
+- Se adopta `prev_witness_hash` como encadenado único (no `prev_statement_hash`).
+
+4. **Hash que va a blockchain**
+- Se ancla `witness_hash` del estado anclado (inicio/final, según política).
+- El contexto de trazabilidad se mantiene con `workflow_id` y `step_index` en el statement.
+
+5. **Identidad mínima en statement (sin PII en claro)**
+- `identity_method`
+- `identity_level`
+- `signer_ref_hash`
+- `auth_context_hash`
+- Opcional: `ip_hash`, `ua_hash`, `geo_country`
+
+6. **Escala única de protection_level**
+- `0 = none`
+- `1 = tsa_confirmed`
+- `2 = tsa + rekor_confirmed`
+- `3 = + one_blockchain_confirmed`
+- `4 = + two_blockchains_confirmed`
+- Rekor **sí** sube nivel (1 → 2).
+
+7. **Idempotencia y correlación**
+- Idempotency key canónica por `(workflow_id, step_index, anchor_kind)`.
+- Para proofs: `(workflow_id, step_index, proof_kind)`.
+- `correlation_id` obligatorio e igual a `document_entity_id`.
+
+### 📌 Política de anchors (corregida)
+- **Inicio**: TSA + Rekor + (Polygon/Bitcoin según política de plan).
+- **Intermedios**: TSA + Rekor (sin blockchain).
+- **Final**: TSA + Rekor + Polygon + Bitcoin (según política final definida).
+
+### 🧱 Notas de implementación
+- El sistema puede permanecer técnicamente preparado para anchors intermedios, pero queda **desactivado por política**.
+- Esta congelación prioriza consistencia, menor superficie de fallo y auditabilidad.
+
+---

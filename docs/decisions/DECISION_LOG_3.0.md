@@ -1,3 +1,31 @@
+## Fase 1 (Camino a defendible): contratos y eventos canónicos — 2026-02-15
+
+### 🎯 Resumen
+Se inició el cierre de contratos para pasar de evidencia “best-effort” a trazabilidad
+canónica auditable en ledger/eventos, sin tocar todavía la activación de anchors chain.
+
+### ✅ Cambios implementados
+- **Evento canónico nuevo:** `rekor.confirmed` en `workflow_events`.
+  - Se agregó en helper canónico y constraint de DB (`workflow_events_event_type_check`).
+  - Migración: `supabase/migrations/20260215001000_add_rekor_confirmed_event_type.sql`.
+- **DSSE statement actualizado a `ecosign.proof.v1.1`:**
+  - Nuevos campos: `step_index`, `total_steps`, `prev_witness_hash`.
+  - Identidad mínima hasheada: `identity_method`, `identity_level`,
+    `signer_ref_hash`, `auth_context_hash` (+ opcionales reservados).
+- **Emisión canónica desde firma:**
+  - `apply-signer-signature` ahora apendea `rekor.confirmed` al confirmar submit,
+    con `ref`, `log_index`, `integrated_time`, `statement_hash`,
+    `public_key_b64`, `witness_hash`, `step_index`.
+- **Escala de protección unificada (adapter):**
+  - Se actualizó derivación a 5 niveles:
+    `NONE`, `TSA_CONFIRMED`, `TSA_REKOR_CONFIRMED`,
+    `ONE_CHAIN_CONFIRMED`, `TWO_CHAINS_CONFIRMED`.
+
+### 📌 Nota de alcance
+- Esta iteración cierra **Fase 1** (contratos/eventos/derivación).
+- **Fase 2 y 3** (semántica fina de hash canónico para inicio/final y activación
+  efectiva Polygon/Bitcoin por plan) quedan para el siguiente corte.
+
 ## Iteración: Pre-Canary Test Baseline + Notificaciones (429) — 2026-02-14
 
 ### 🎯 Resumen

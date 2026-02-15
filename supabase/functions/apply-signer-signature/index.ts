@@ -973,6 +973,7 @@ serve(async (req) => {
         const witnessHash = witnessHashForEvent || null
         let sourceHash: string | null = null
         let witnessCurrent: string | null = witnessHash
+        let prevWitnessHash: string | null = null
         if (workflow.document_entity_id) {
           const { data: entityRow } = await supabase
             .from('document_entities')
@@ -981,13 +982,36 @@ serve(async (req) => {
             .single()
           sourceHash = (entityRow as any)?.source_hash ?? null
           witnessCurrent = (entityRow as any)?.witness_current_hash ?? (entityRow as any)?.witness_hash ?? witnessHash
+          prevWitnessHash = (entityRow as any)?.witness_hash ?? null
         }
 
         const canonicalWitnessHash = witnessHashForEvent || witnessCurrent || null
+        const canonicalPrevWitnessHash =
+          prevWitnessHash && prevWitnessHash !== canonicalWitnessHash ? prevWitnessHash : null
         const rekorTimeoutMsRaw = Number.parseInt(String(Deno.env.get('REKOR_TIMEOUT_MS') || '12000'), 10)
         const rekorTimeoutMs = Number.isFinite(rekorTimeoutMsRaw)
           ? Math.max(3000, Math.min(rekorTimeoutMsRaw, 30000))
           : 12000
+        let stepTotal: number | null = null
+        try {
+          const { count } = await supabase
+            .from('workflow_signers')
+            .select('id', { count: 'exact', head: true })
+            .eq('workflow_id', signer.workflow_id)
+          stepTotal = typeof count === 'number' ? count : null
+        } catch (countErr) {
+          console.warn('apply-signer-signature: failed to count workflow signers', countErr)
+        }
+        const identityMethod = signerMatchesOwnerAccount ? 'supabase_session' : 'signer_link'
+        const signerRefHash = await sha256Hex(canonicalize({
+          signer_id: signer.id ?? null,
+          signer_email: (signer.email ?? '').trim().toLowerCase() || null
+        }))
+        const authContextHash = await sha256Hex(canonicalize({
+          auth_context: identityMethod,
+          owner_user_id: workflow.owner_id ?? null,
+          signer_id: signer.id ?? null
+        }))
 
         const proofs = await Promise.all([
           attemptTsaProof({ witness_hash: canonicalWitnessHash || '', timeout_ms: 3000 }),
@@ -995,6 +1019,13 @@ serve(async (req) => {
             witness_hash: canonicalWitnessHash || '',
             workflow_id: signer.workflow_id,
             signer_id: signer.id,
+            step_index: signer.signing_order ?? null,
+            total_steps: stepTotal,
+            prev_witness_hash: canonicalPrevWitnessHash,
+            identity_method: identityMethod,
+            identity_level: identityLevel.canonical_level,
+            signer_ref_hash: signerRefHash,
+            auth_context_hash: authContextHash,
             timeout_ms: rekorTimeoutMs
           })
         ])
@@ -1014,17 +1045,6 @@ serve(async (req) => {
         }
 
         const issuedAt = new Date().toISOString()
-        let stepTotal: number | null = null
-        try {
-          const { count } = await supabase
-            .from('workflow_signers')
-            .select('id', { count: 'exact', head: true })
-            .eq('workflow_id', signer.workflow_id)
-          stepTotal = typeof count === 'number' ? count : null
-        } catch (countErr) {
-          console.warn('apply-signer-signature: failed to count workflow signers', countErr)
-        }
-
         let signatureCaptureKind: string | null = null
         let signatureRenderHash: string | null = null
         let storeEncryptedSignatureOptIn = false
@@ -1168,6 +1188,30 @@ serve(async (req) => {
             },
             'apply-signer-signature'
           )
+
+          const rekorConfirmed = normalizedProofs.find(
+            (proof: any) => proof?.kind === 'rekor' && proof?.status === 'confirmed' && typeof proof?.ref === 'string'
+          )
+          if (rekorConfirmed) {
+            await appendCanonicalEvent(
+              supabase as any,
+              {
+                event_type: 'rekor.confirmed',
+                workflow_id: signer.workflow_id,
+                signer_id: signer.id,
+                payload: {
+                  ref: rekorConfirmed.ref ?? null,
+                  log_index: rekorConfirmed.log_index ?? null,
+                  integrated_time: rekorConfirmed.integrated_time ?? null,
+                  statement_hash: rekorConfirmed.statement_hash ?? null,
+                  public_key_b64: rekorConfirmed.public_key_b64 ?? null,
+                  witness_hash: canonicalWitnessHash || null,
+                  step_index: signer.signing_order ?? null
+                }
+              },
+              'apply-signer-signature'
+            )
+          }
         }
       } catch (ecoErr) {
         console.warn('ECO snapshot generation failed (best-effort)', ecoErr)

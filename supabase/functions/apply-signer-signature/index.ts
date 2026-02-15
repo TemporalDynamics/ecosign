@@ -9,6 +9,7 @@ import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHe
 import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts'
 import { attemptRekorProof } from '../_shared/rekorProof.ts'
 import { decryptToken } from '../_shared/cryptoHelper.ts'
+import { decideAnchorPolicyByStage, resolveOwnerAnchorPlan } from '../_shared/anchorPlanPolicy.ts'
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
@@ -1518,11 +1519,19 @@ serve(async (req) => {
       isLastSigner = true
       const completedAt = new Date().toISOString()
       const workflowForensicConfig = (workflow as any)?.forensic_config ?? {}
-      const finalProtection: string[] = [
-        'tsa',
-        ...(workflowForensicConfig?.polygon ? ['polygon'] : []),
-        ...(workflowForensicConfig?.bitcoin ? ['bitcoin'] : []),
-      ]
+      const planPolicy = await resolveOwnerAnchorPlan(supabase as any, workflow.owner_id ?? null)
+      const finalAnchorPolicy = decideAnchorPolicyByStage({
+        stage: 'final',
+        forensicConfig: {
+          rfc3161: true,
+          polygon: Boolean(workflowForensicConfig?.polygon),
+          bitcoin: Boolean(workflowForensicConfig?.bitcoin),
+        },
+        planKey: planPolicy.planKey,
+        capabilities: planPolicy.capabilities,
+        policySource: planPolicy.policySource,
+      })
+      const finalProtection: string[] = finalAnchorPolicy.protection
       try {
         // Defensive completion: advance_workflow() is best-effort above; this guarantees
         // workflow.status does not remain "active" after the final signer.
@@ -1587,7 +1596,9 @@ serve(async (req) => {
                 witness_hash: hashHex,
                 protection: finalProtection,
                 anchor_stage: 'final',
-                step_index: finalStepIndex
+                step_index: finalStepIndex,
+                plan_key: finalAnchorPolicy.plan_key,
+                policy_source: finalAnchorPolicy.policy_source
               },
               status: 'queued',
               run_at: new Date().toISOString()

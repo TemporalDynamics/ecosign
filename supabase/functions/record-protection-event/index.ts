@@ -14,6 +14,7 @@ import { withRateLimit } from '../_shared/ratelimit.ts'
 import { appendEvent, getDocumentEntityId, getUserDocumentId } from '../_shared/eventHelper.ts'
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { decideAnchorPolicyByStage, resolveOwnerAnchorPlan } from '../_shared/anchorPlanPolicy.ts'
 
 interface RecordProtectionRequest {
   document_id?: string
@@ -119,7 +120,7 @@ serve(withRateLimit('record', async (req) => {
 
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
-      .select('id, witness_hash, source_hash')
+      .select('id, owner_id, witness_hash, source_hash')
       .eq('id', documentEntityId)
       .single()
 
@@ -130,24 +131,26 @@ serve(withRateLimit('record', async (req) => {
     // Use witness_hash if available, otherwise fall back to source_hash
     const effectiveWitnessHash = entity.witness_hash || entity.source_hash
 
-    // Build protection array (what was requested/enabled)
-    const protectionMethods: string[] = []
+    const ownerId = (entity as any).owner_id ?? userId ?? null
+    const planPolicy = await resolveOwnerAnchorPlan(supabase as any, ownerId)
+    const anchorPolicy = decideAnchorPolicyByStage({
+      stage: 'initial',
+      forensicConfig: {
+        rfc3161: protection_details.tsa_requested,
+        polygon: protection_details.polygon_requested,
+        bitcoin: protection_details.bitcoin_requested,
+      },
+      planKey: planPolicy.planKey,
+      capabilities: planPolicy.capabilities,
+      policySource: planPolicy.policySource,
+    })
 
+    // Build protection array (request signature type + policy-resolved anchors)
+    const protectionMethods: string[] = []
     if (protection_details.signature_type && protection_details.signature_type !== 'none') {
       protectionMethods.push(protection_details.signature_type)
     }
-
-    if (protection_details.tsa_requested) {
-      protectionMethods.push('tsa')
-    }
-
-    if (protection_details.polygon_requested) {
-      protectionMethods.push('polygon')
-    }
-
-    if (protection_details.bitcoin_requested) {
-      protectionMethods.push('bitcoin')
-    }
+    protectionMethods.push(...anchorPolicy.protection)
 
     const requestEventKind = FASE1_EVENT_KINDS.DOCUMENT_PROTECTED_REQUESTED
 
@@ -185,12 +188,14 @@ serve(withRateLimit('record', async (req) => {
         protection: protectionMethods,
         anchor_stage: 'initial',
         step_index: 0,
+        plan_key: anchorPolicy.plan_key,
+        policy_source: anchorPolicy.policy_source,
         protection_details: {
           signature_type: protection_details.signature_type || 'none',
           forensic_enabled: protection_details.forensic_enabled,
-          tsa_requested: Boolean(protection_details.tsa_requested),
-          polygon_requested: Boolean(protection_details.polygon_requested),
-          bitcoin_requested: Boolean(protection_details.bitcoin_requested),
+          tsa_requested: anchorPolicy.allowed.tsa,
+          polygon_requested: anchorPolicy.allowed.polygon,
+          bitcoin_requested: anchorPolicy.allowed.bitcoin,
           contract_hash: doc.eco_hash || doc.document_hash,
         },
       }
@@ -224,7 +229,9 @@ serve(withRateLimit('record', async (req) => {
           witness_hash: effectiveWitnessHash,
           protection: protectionMethods,
           anchor_stage: 'initial',
-          step_index: 0
+          step_index: 0,
+          plan_key: anchorPolicy.plan_key,
+          policy_source: anchorPolicy.policy_source
         },
         status: 'queued',
         run_at: new Date().toISOString()

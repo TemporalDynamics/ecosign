@@ -114,6 +114,7 @@ serve(async (req) => {
   try {
     await callFunction('anchor-polygon', {
       documentHash: witnessHash,
+      documentEntityId,
       documentId: body.document_id ?? null,
       metadata: { source: 'executor_v2' },
     });

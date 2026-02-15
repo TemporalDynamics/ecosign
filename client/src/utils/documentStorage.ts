@@ -80,7 +80,8 @@ const persistSignedPdf = async (
       ? pdfBytes
       : (pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength) as ArrayBuffer);
   const blob = new Blob([normalizedBuffer], { type: 'application/pdf' });
-  const storagePath = `signed/${userId}/${crypto.randomUUID()}.pdf`;
+  // Storage RLS expects auth.uid() in the first path segment.
+  const storagePath = `${userId}/signed/${crypto.randomUUID()}.pdf`;
 
   const { error } = await supabase.storage
     .from('user-documents')

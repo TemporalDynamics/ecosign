@@ -23,6 +23,21 @@ Qué significa si falla:
 Acción manual:
 - Corregir cada check fallido y volver a ejecutar hasta `READY`.
 
+## check-decision-path-clean.sh
+
+Detecta:
+- Lecturas a tablas legacy/proyección (`anchors`, `user_documents`, `workflow_events`) dentro del path de decisión.
+
+Cuándo correr:
+- Antes de switch canónico.
+- Después de cambios en decision engine/pipeline.
+
+Qué significa si falla:
+- Hay fuga de autoridad fuera de `events[]`.
+
+Acción manual:
+- Eliminar lecturas legacy del decision path y volver a validar.
+
 ## generate-progression-inventory.sh
 
 Detecta:
@@ -97,6 +112,23 @@ Qué significa si falla:
 
 Acción manual:
 - Corregir prerrequisitos, reintentar y revisar el JSON de evidencia generado.
+
+## ../production-canonical-switch.sh
+
+Detecta:
+- Gate go/no-go previo al switch de autoridad canónica en producción.
+
+Cuándo correr:
+- Justo antes de declarar switch readiness.
+
+Qué significa si falla:
+- Algún invariante crítico de canonical authority no está cumplido.
+
+Acción manual:
+- Corregir el check fallido y repetir el gate completo.
+
+Nota:
+- En modo `SWITCH_ENV=production`, el gate exige prueba canónica real (`REQUIRE_REAL_PROOF=1`) y falla si la evidencia salió `skipped`.
 
 ---
 

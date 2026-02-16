@@ -26,6 +26,8 @@
     "audit:events": "ts-node --project tsconfig.scripts.json --transpile-only scripts/audit-events.ts",
     "diag:progression": "bash scripts/diagnostics/generate-progression-inventory.sh",
     "diag:canonical-readiness": "bash scripts/diagnostics/check-canonical-readiness.sh",
+    "diag:decision-path-clean": "bash scripts/diagnostics/check-decision-path-clean.sh",
+    "prod:canonical-switch": "bash scripts/production-canonical-switch.sh",
     "ci:predeploy": "npm run audit:events"
   },
   "keywords": [

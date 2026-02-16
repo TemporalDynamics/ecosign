@@ -76,7 +76,8 @@ const isLocalSupabase = process.env.SUPABASE_URL?.includes('127.0.0.1') ||
 if (!isLocalSupabase) {
   console.log('⚠️  Using mocked Supabase client (no local instance detected)');
   
-  vi.mock('@supabase/supabase-js', async () => {
+  // Use doMock (not hoisted) so local runs can use the real client.
+  vi.doMock('@supabase/supabase-js', async () => {
     const actual = await import('@supabase/supabase-js');
 
     // Create a chainable mock that supports .eq(), .gte(), etc.

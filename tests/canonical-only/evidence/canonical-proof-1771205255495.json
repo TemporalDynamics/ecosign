@@ -1,0 +1,19 @@
+{
+  "test_run_id": "canonical-proof-1771205255495",
+  "started_at": "2026-02-16T01:27:35.495Z",
+  "timeline": [
+    {
+      "timestamp": "2026-02-16T01:27:35.526Z",
+      "step": "skipped_no_connectivity",
+      "detail": "supabase not reachable: fetch failed"
+    }
+  ],
+  "validations": {
+    "db_constraint_required_evidence_enforced": false,
+    "events_only_reconstruction": false,
+    "canonical_authority_confirmed": false
+  },
+  "skipped": true,
+  "skip_reason": "supabase not reachable: fetch failed",
+  "finished_at": "2026-02-16T01:27:35.526Z"
+}

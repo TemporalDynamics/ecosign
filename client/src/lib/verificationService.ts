@@ -47,6 +47,12 @@ const mapEcoV2Result = (
   signedAuthorityRef?: Record<string, unknown> | null
 ): VerificationBaseResult => {
   const valid = result.status === 'valid' || result.status === 'incomplete';
+  const errors =
+    result.status === 'tampered'
+      ? ['Archivo .ECO inconsistente.']
+      : result.status === 'unknown'
+      ? ['Formato .ECO inválido o versión no soportada.']
+      : [];
   const warnings =
     result.status === 'incomplete'
       ? ['Evidencia incompleta: faltan testigos o firmas.']
@@ -56,12 +62,32 @@ const mapEcoV2Result = (
     warnings.push('Certificado oficial: NO. Es una vista/proyección no autoritativa.');
     warnings.push('Para certificado oficial, descarga el ECO emitido por backend (artifact.finalized.eco_storage_path).');
   }
-  const errors =
-    result.status === 'tampered'
-      ? ['Archivo .ECO inconsistente.']
-      : result.status === 'unknown'
-      ? ['Formato .ECO inválido o versión no soportada.']
-      : [];
+  if (result.institutional_signature?.present) {
+    if (result.institutional_signature.valid === true) {
+      if (result.institutional_signature.trusted) {
+        warnings.push(
+          `Firma institucional válida (key_id=${result.institutional_signature.public_key_id ?? 'unknown'}).`
+        );
+      } else {
+        warnings.push(
+          'Firma institucional criptográficamente válida, pero sin trust store configurado en este verificador.'
+        );
+      }
+    } else {
+      const reason = result.institutional_signature.reason ?? 'unknown';
+      if (reason === 'institutional_signature_key_not_trusted') {
+        warnings.push(
+          `Firma institucional no confiable: key_id=${result.institutional_signature.public_key_id ?? 'unknown'} no está en claves confiables.`
+        );
+      } else if (reason === 'institutional_signature_key_revoked') {
+        warnings.push(
+          `Firma institucional revocada: key_id=${result.institutional_signature.public_key_id ?? 'unknown'}.`
+        );
+      } else {
+        errors.push(`Firma institucional inválida (${reason}).`);
+      }
+    }
+  }
 
   return {
     valid,

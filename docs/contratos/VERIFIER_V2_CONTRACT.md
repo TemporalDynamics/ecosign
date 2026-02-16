@@ -72,8 +72,26 @@ El verificador debe devolver:
 * `source_hash`
 * `witness_hash` (si existe)
 * `signed_hash` (si existe)
+* `institutional_signature` (si existe):
+  * `present`
+  * `valid`
+  * `trusted`
+  * `revoked`
+  * `public_key_id`
 * `timestamps` relevantes
 * `anchors` (si existen)
+
+---
+
+## 6.1 Firma institucional (ECO canónico)
+
+Para certificados declarativos con `ecosign_signature`:
+
+* MUST: recalcular `eco_hash` sobre JSON canónico sin `ecosign_signature`.
+* MUST: validar firma Ed25519 sobre `eco_hash`.
+* SHOULD: validar `public_key_id` contra trust store configurado.
+* SHOULD: marcar `revoked=true` si `public_key_id` está revocada.
+* MUST: si falla hash/firma/formato de firma, devolver `tampered`.
 
 ---
 

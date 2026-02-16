@@ -1,5 +1,12 @@
 // Canonical ECO v2 utilities (projection + verification)
 import { jcsCanonicalize } from './jcs';
+import * as ed from '@noble/ed25519';
+import { sha256, sha512 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
+
+if (!ed.hashes.sha512) {
+  ed.hashes.sha512 = sha512;
+}
 
 export type HashChain = {
   source_hash: string;
@@ -401,6 +408,16 @@ export type VerificationResult = {
   witness_hash?: string;
   signed_hash?: string;
   authoritative?: boolean;
+  institutional_signature?: {
+    present: boolean;
+    valid?: boolean;
+    trusted?: boolean;
+    revoked?: boolean;
+    reason?: string;
+    public_key_id?: string;
+    eco_hash_match?: boolean;
+    cryptographic_valid?: boolean;
+  };
   timestamps?: EcoV2['timestamps'];
   anchors?: EcoV2['anchors'];
   tsa?: {
@@ -408,6 +425,215 @@ export type VerificationResult = {
     valid?: boolean;
     witness_hash?: string;
     gen_time?: string;
+  };
+};
+
+const getViteEnv = (name: string): string => {
+  try {
+    const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+    return (env?.[name] ?? '').trim();
+  } catch {
+    return '';
+  }
+};
+
+const parseTrustedPublicKeysById = (): Record<string, string> => {
+  const raw =
+    getViteEnv('VITE_ECOSIGN_TRUSTED_PUBLIC_KEYS_JSON') ||
+    getViteEnv('VITE_ECOSIGN_TRUSTED_PUBLIC_KEYS');
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      const entries = parsed
+        .map((item) => (typeof item === 'object' && item ? (item as Record<string, unknown>) : null))
+        .filter((item): item is Record<string, unknown> => Boolean(item))
+        .map((item) => {
+          const id = typeof item['id'] === 'string' ? item['id'].trim() : '';
+          const b64 = typeof item['public_key_b64'] === 'string' ? item['public_key_b64'].trim() : '';
+          return { id, b64 };
+        })
+        .filter((item) => item.id.length > 0 && item.b64.length > 0);
+      return Object.fromEntries(entries.map((entry) => [entry.id, entry.b64]));
+    }
+    if (typeof parsed === 'object' && parsed) {
+      const obj = parsed as Record<string, unknown>;
+      const pairs = Object.entries(obj)
+        .map(([id, value]) => [id.trim(), typeof value === 'string' ? value.trim() : ''] as const)
+        .filter(([id, value]) => id.length > 0 && value.length > 0);
+      return Object.fromEntries(pairs);
+    }
+  } catch {
+    return {};
+  }
+  return {};
+};
+
+const parseRevokedKeyIds = (): Set<string> => {
+  const raw = getViteEnv('VITE_ECOSIGN_REVOKED_KEY_IDS');
+  if (!raw) return new Set<string>();
+  return new Set(
+    raw
+      .split(',')
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0),
+  );
+};
+
+const base64ToBytes = (input: string): Uint8Array | null => {
+  try {
+    const normalized = input.replace(/\s+/g, '');
+    const binary = atob(normalized);
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
+    return out;
+  } catch {
+    return null;
+  }
+};
+
+const verifyInstitutionalSignature = (
+  raw: Record<string, unknown>,
+): VerificationResult['institutional_signature'] => {
+  const block = raw['ecosign_signature'];
+  if (!block || typeof block !== 'object') {
+    return { present: false };
+  }
+
+  const signature = block as Record<string, unknown>;
+  const alg = typeof signature['alg'] === 'string' ? signature['alg'].toLowerCase() : '';
+  const publicKeyId = typeof signature['public_key_id'] === 'string' ? signature['public_key_id'] : undefined;
+  const ecoHash = typeof signature['eco_hash'] === 'string' ? signature['eco_hash'].toLowerCase() : '';
+  const signatureB64 = typeof signature['signature_b64'] === 'string' ? signature['signature_b64'] : '';
+  const embeddedPublicKeyB64 =
+    typeof signature['public_key_b64'] === 'string' ? signature['public_key_b64'].trim() : '';
+
+  if (alg !== 'ed25519' || !publicKeyId || !ecoHash || !signatureB64) {
+    return {
+      present: true,
+      valid: false,
+      trusted: false,
+      revoked: false,
+      public_key_id: publicKeyId,
+      reason: 'institutional_signature_invalid_shape',
+    };
+  }
+
+  const trustedKeys = parseTrustedPublicKeysById();
+  const trustedKeyCount = Object.keys(trustedKeys).length;
+  const revokedKeyIds = parseRevokedKeyIds();
+  const revoked = revokedKeyIds.has(publicKeyId);
+  const trustedPublicKey = trustedKeys[publicKeyId];
+  const hasTrustStore = trustedKeyCount > 0;
+  const trusted = Boolean(trustedPublicKey);
+
+  if (hasTrustStore && !trustedPublicKey) {
+    return {
+      present: true,
+      valid: false,
+      trusted: false,
+      revoked,
+      public_key_id: publicKeyId,
+      reason: revoked ? 'institutional_signature_key_revoked' : 'institutional_signature_key_not_trusted',
+    };
+  }
+
+  if (trustedPublicKey && embeddedPublicKeyB64 && trustedPublicKey !== embeddedPublicKeyB64) {
+    return {
+      present: true,
+      valid: false,
+      trusted: true,
+      revoked,
+      public_key_id: publicKeyId,
+      reason: 'institutional_signature_public_key_mismatch',
+    };
+  }
+
+  const publicKeyB64 = trustedPublicKey || embeddedPublicKeyB64;
+  if (!publicKeyB64) {
+    return {
+      present: true,
+      valid: false,
+      trusted,
+      revoked,
+      public_key_id: publicKeyId,
+      reason: 'institutional_signature_public_key_missing',
+    };
+  }
+
+  const unsigned = { ...raw };
+  delete unsigned['ecosign_signature'];
+  const computedEcoHash = bytesToHex(sha256(utf8ToBytes(canonicalStringify(unsigned))));
+  const ecoHashMatch = computedEcoHash === ecoHash;
+  if (!ecoHashMatch) {
+    return {
+      present: true,
+      valid: false,
+      trusted,
+      revoked,
+      public_key_id: publicKeyId,
+      eco_hash_match: false,
+      reason: 'institutional_signature_eco_hash_mismatch',
+    };
+  }
+
+  const sigBytes = base64ToBytes(signatureB64);
+  const pubBytes = base64ToBytes(publicKeyB64);
+  if (!sigBytes || !pubBytes) {
+    return {
+      present: true,
+      valid: false,
+      trusted,
+      revoked,
+      public_key_id: publicKeyId,
+      eco_hash_match: true,
+      reason: 'institutional_signature_decode_failed',
+    };
+  }
+
+  const ecoHashBytes = hexToBytes(ecoHash);
+  let cryptographicValid = false;
+  try {
+    cryptographicValid = ed.verify(sigBytes, ecoHashBytes, pubBytes);
+  } catch {
+    cryptographicValid = false;
+  }
+
+  if (!cryptographicValid) {
+    return {
+      present: true,
+      valid: false,
+      trusted,
+      revoked,
+      public_key_id: publicKeyId,
+      eco_hash_match: true,
+      cryptographic_valid: false,
+      reason: 'institutional_signature_invalid',
+    };
+  }
+
+  if (revoked) {
+    return {
+      present: true,
+      valid: false,
+      trusted,
+      revoked: true,
+      public_key_id: publicKeyId,
+      eco_hash_match: true,
+      cryptographic_valid: true,
+      reason: 'institutional_signature_key_revoked',
+    };
+  }
+
+  return {
+    present: true,
+    valid: true,
+    trusted,
+    revoked: false,
+    public_key_id: publicKeyId,
+    eco_hash_match: true,
+    cryptographic_valid: true,
+    reason: trusted ? undefined : 'institutional_signature_no_trust_store',
   };
 };
 
@@ -522,15 +748,25 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
           gen_time: typeof tsaProof['attempted_at'] === 'string' ? (tsaProof['attempted_at'] as string) : undefined,
         }
       : { present: false as const };
+    const institutionalSignature = verifyInstitutionalSignature(raw);
 
     if (!sourceHash) return { status: 'unknown' };
     if (tsa.present && tsa.valid === false) return { status: 'tampered', tsa };
+    if (institutionalSignature.present && institutionalSignature.valid === false) {
+      const trustPolicyReason =
+        institutionalSignature.reason === 'institutional_signature_key_not_trusted' ||
+        institutionalSignature.reason === 'institutional_signature_key_revoked';
+      if (!trustPolicyReason) {
+        return { status: 'tampered', tsa, institutional_signature: institutionalSignature };
+      }
+    }
 
     return {
       status: witnessHash ? 'valid' : 'incomplete',
       source_hash: sourceHash,
       witness_hash: witnessHash,
       authoritative,
+      institutional_signature: institutionalSignature,
       signed_hash: typeof raw?.['system'] === 'object' && raw['system'] !== null
         ? ((raw['system'] as Record<string, unknown>)['signed_hash'] as string | undefined)
         : undefined,

@@ -174,6 +174,33 @@ Se unificó el modelo del certificado entregado al usuario para evitar dos ontol
 
 ---
 
+## Iteración: Hardening firma institucional (rotación/revocación/verificador) — 2026-02-16
+
+### 🎯 Resumen
+Se agregó hardening de confianza para firma institucional del ECO final:
+verificación criptográfica local, soporte multi-clave por `public_key_id`,
+y política explícita de revocación.
+
+### ✅ Cambios implementados
+- **Verificador v2 ahora valida `ecosign_signature`:**
+  - recomputa `eco_hash` desde JSON canónico sin bloque de firma;
+  - valida firma Ed25519 sobre `eco_hash`;
+  - distingue errores criptográficos vs política de confianza.
+- **Trust store de claves públicas en frontend (opcional):**
+  - `VITE_ECOSIGN_TRUSTED_PUBLIC_KEYS_JSON`
+  - `VITE_ECOSIGN_REVOKED_KEY_IDS`
+- **Mensajes de verificación mejorados:**
+  - diferencia entre firma inválida, key no confiable y key revocada.
+- **Runbook operativo agregado:**
+  - `docs/ops/INSTITUTIONAL_SIGNATURE_INCIDENT_RUNBOOK.md`
+  - pasos de contención, rotación, recuperación y cierre.
+
+### 📌 Resultado
+- El sistema mantiene verificación hash/PDF y agrega capa institucional con gobernanza de claves.
+- Rotación y revocación quedan operables sin cambiar el formato canónico del certificado.
+
+---
+
 ## Iteración: Cierre operacional TSA → Anchors → Artifact (sin intervención manual) — 2026-02-16
 
 ### 🎯 Resumen

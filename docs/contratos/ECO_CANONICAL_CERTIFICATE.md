@@ -64,3 +64,14 @@ Este contrato separa explicitamente:
 - Identificador de clave publica activa: `ECO_SIGNING_PUBLIC_KEY_ID`.
 - Flag de enforcement: `ECO_REQUIRE_INSTITUTIONAL_SIGNATURE=1` para exigir firma en final.
 - Rotacion: incrementar `public_key_id`, publicar clave nueva y mantener verificacion de claves previas.
+- Verificador (trust store, opcional pero recomendado):
+  - `VITE_ECOSIGN_TRUSTED_PUBLIC_KEYS_JSON` (JSON `{"k1":"<public_key_b64>", ...}` o lista equivalente).
+  - `VITE_ECOSIGN_REVOKED_KEY_IDS` (lista CSV de `key_id` revocadas).
+
+## 8. Politica de validacion de firma institucional
+- Si `ecosign_signature` existe, el verificador MUST validar:
+  - `eco_hash` contra canonical JSON sin `ecosign_signature`.
+  - firma Ed25519 sobre `eco_hash`.
+- Si falla hash/firma/formato, estado de verificacion MUST ser `tampered`.
+- Si la firma es criptograficamente valida pero `key_id` no esta en trust store, resultado MAY mantenerse valido con advertencia de confianza.
+- Si la firma es criptograficamente valida pero la `key_id` esta revocada, resultado MAY mantenerse valido con advertencia de revocacion.

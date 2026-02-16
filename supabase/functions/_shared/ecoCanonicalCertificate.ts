@@ -50,6 +50,8 @@ type BuildCanonicalEcoInput = {
     strokes_hash?: string | null;
     ciphertext_hash?: string | null;
   } | null;
+  snapshot_kind?: 'signer_snapshot' | 'final_artifact' | 'protected_snapshot' | 'preview';
+  witness_hash_for_snapshot?: string | null;
 };
 
 const toIso = (value: unknown): string | null => {
@@ -63,17 +65,49 @@ const deriveIssuedAt = (input: BuildCanonicalEcoInput, events: CanonicalEvent[])
   const explicit = toIso(input.issued_at);
   if (explicit) return explicit;
 
-  const artifactFinalized = [...events].reverse().find((event) => event.kind === 'artifact.finalized');
-  const artifactAt = toIso(artifactFinalized?.at);
-  if (artifactAt) return artifactAt;
+  const snapshotKind = input.snapshot_kind ?? 'preview';
+  const witnessForSnapshot = input.witness_hash_for_snapshot ?? input.witness_hash ?? null;
 
-  const latestAt = [...events]
-    .map((event) => toIso(event?.at))
-    .filter((value): value is string => Boolean(value))
-    .sort((a, b) => a.localeCompare(b))
-    .at(-1);
+  if (snapshotKind === 'final_artifact') {
+    const artifactFinalized = [...events].reverse().find((event) => event.kind === 'artifact.finalized');
+    const artifactAt = toIso(artifactFinalized?.at);
+    if (artifactAt) return artifactAt;
+    throw new Error('issued_at_required:final_artifact_requires_artifact.finalized.at');
+  }
 
-  return latestAt ?? new Date().toISOString();
+  if (snapshotKind === 'signer_snapshot') {
+    if (witnessForSnapshot) {
+      const tsaForWitness = [...events].reverse().find((event) =>
+        event.kind === 'tsa.confirmed' &&
+        ((event.witness_hash && event.witness_hash === witnessForSnapshot) ||
+          event.payload?.['witness_hash'] === witnessForSnapshot)
+      );
+      const tsaAt = toIso(tsaForWitness?.at);
+      if (tsaAt) return tsaAt;
+    }
+    const latestTsa = toIso(findLatest(events, 'tsa.confirmed')?.at);
+    if (latestTsa) return latestTsa;
+    throw new Error('issued_at_required:signer_snapshot_requires_signed_at_or_tsa.confirmed.at');
+  }
+
+  if (snapshotKind === 'protected_snapshot' || snapshotKind === 'preview') {
+    if (witnessForSnapshot) {
+      const tsaForWitness = [...events].reverse().find((event) =>
+        event.kind === 'tsa.confirmed' &&
+        ((event.witness_hash && event.witness_hash === witnessForSnapshot) ||
+          event.payload?.['witness_hash'] === witnessForSnapshot)
+      );
+      const tsaAt = toIso(tsaForWitness?.at);
+      if (tsaAt) return tsaAt;
+    }
+    const latestTsa = toIso(findLatest(events, 'tsa.confirmed')?.at);
+    if (latestTsa) return latestTsa;
+    const protectionRequested = toIso(findLatest(events, 'document.protected.requested')?.at);
+    if (protectionRequested) return protectionRequested;
+    throw new Error('issued_at_required:protected_snapshot_requires_tsa_or_protection_request');
+  }
+
+  throw new Error('issued_at_required:unsupported_snapshot_kind');
 };
 
 const findLatest = (events: CanonicalEvent[], kind: string): CanonicalEvent | null => {
@@ -108,8 +142,8 @@ const findAnchorProof = (events: CanonicalEvent[], network: 'polygon' | 'bitcoin
 };
 
 export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
-  const issuedAt = deriveIssuedAt(input, Array.isArray(input.events) ? input.events : []);
   const events = Array.isArray(input.events) ? input.events : [];
+  const issuedAt = deriveIssuedAt(input, events);
   const signer = input.signer ?? null;
   const hasSigner = Boolean(signer?.id);
   const identity = input.identity ?? {};

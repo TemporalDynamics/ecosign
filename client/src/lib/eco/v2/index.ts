@@ -399,6 +399,7 @@ export type VerificationResult = {
   source_hash?: string;
   witness_hash?: string;
   signed_hash?: string;
+  authoritative?: boolean;
   timestamps?: EcoV2['timestamps'];
   anchors?: EcoV2['anchors'];
   tsa?: {
@@ -499,6 +500,11 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
     !raw['hash_chain'];
 
   if (isCanonicalCertificate) {
+    const system = typeof raw['system'] === 'object' && raw['system'] !== null
+      ? (raw['system'] as Record<string, unknown>)
+      : null;
+    const authoritative = system?.['authoritative'] !== false;
+
     const document = raw['document'] as Record<string, unknown>;
     const sourceHash = typeof document['source_hash'] === 'string' ? document['source_hash'] : undefined;
     const witnessHash = typeof document['witness_hash'] === 'string' ? document['witness_hash'] : undefined;
@@ -523,6 +529,7 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
       status: witnessHash ? 'valid' : 'incomplete',
       source_hash: sourceHash,
       witness_hash: witnessHash,
+      authoritative,
       signed_hash: typeof raw?.['system'] === 'object' && raw['system'] !== null
         ? ((raw['system'] as Record<string, unknown>)['signed_hash'] as string | undefined)
         : undefined,
@@ -590,6 +597,7 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
     source_hash: candidate.hash_chain.source_hash,
     witness_hash: candidate.hash_chain.witness_hash,
     signed_hash: candidate.hash_chain.signed_hash,
+    authoritative: true,
     timestamps: candidate.timestamps,
     anchors: candidate.anchors,
     tsa: tsaVerification,

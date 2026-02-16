@@ -102,6 +102,8 @@ serve(async (req) => {
     issued_at: signer.signed_at ?? tsaEvent?.at ?? null,
     events: filteredEvents,
     workflow_id: workflowId || null,
+    snapshot_kind: 'signer_snapshot',
+    witness_hash_for_snapshot: witnessHash,
     signer: {
       id: signer.id,
       email: signer.email ?? null,

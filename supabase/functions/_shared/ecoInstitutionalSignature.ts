@@ -45,10 +45,16 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 function getPrivateKeyBytes(): Uint8Array | null {
-  const raw = (Deno.env.get('ECO_SIGNING_PRIVATE_KEY_B64') || '').trim();
+  const primary = (Deno.env.get('ECO_SIGNING_PRIVATE_KEY_B64') || '').trim();
+  const legacy = (Deno.env.get('ECO_SIGNING_PRIVATE_KEY') || '').trim();
+  const raw = primary || legacy;
   if (!raw) return null;
   try {
-    const bytes = base64ToBytes(raw);
+    // Accept plain base64 DER or PEM payload.
+    const normalizedBase64 = raw.includes('BEGIN')
+      ? raw.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')
+      : raw.replace(/\s+/g, '');
+    const bytes = base64ToBytes(normalizedBase64);
     if (bytes.length === 32 || bytes.length === 64) return bytes;
     return null;
   } catch {
@@ -102,4 +108,3 @@ export async function signFinalEcoInstitutionally(
 
   return { signed: true, eco: signedEco };
 }
-

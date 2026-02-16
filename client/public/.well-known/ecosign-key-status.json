@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "updated_at": "2026-02-16T00:00:00Z",
+  "updated_at": "2026-02-16T06:00:00Z",
   "issuer": "ecosign",
   "revocation_endpoint": "https://ecosign-lilac.vercel.app/.well-known/ecosign-key-status.json",
   "contact": "security@ecosign.example",
@@ -12,7 +12,8 @@
     "k1": {
       "alg": "ed25519",
       "public_key_b64": "gY6yhdN73Qj3z4F0dorxN0T8/qqkWwhO3vTsJD5+Xnk=",
-      "status": "active"
+      "status": "active",
+      "valid_from": "2026-02-16T00:00:00Z"
     }
   }
 }

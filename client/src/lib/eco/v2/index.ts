@@ -180,15 +180,19 @@ const toIso = (value: unknown): string | null => {
 };
 
 const deriveDeterministicIssuedAt = (events: EventEntry[], fallback: string): string => {
-  const artifactEvent = [...events].reverse().find((event) => event.kind === 'artifact.finalized');
+  const artifactEvent = [...events]
+    .reverse()
+    .find((event) => (event as { kind?: string })?.kind === 'artifact.finalized') as
+    | ({ at?: string } & EventEntry)
+    | undefined;
   const artifactAt = toIso(artifactEvent?.at);
   if (artifactAt) return artifactAt;
 
-  const latestAt = [...events]
+  const sortedAts = [...events]
     .map((event) => toIso(event?.at))
     .filter((value): value is string => Boolean(value))
-    .sort((a, b) => a.localeCompare(b))
-    .at(-1);
+    .sort((a, b) => a.localeCompare(b));
+  const latestAt = sortedAts.length > 0 ? sortedAts[sortedAts.length - 1] : null;
 
   return latestAt ?? fallback;
 };
@@ -415,6 +419,7 @@ export type VerificationResult = {
     revoked?: boolean;
     reason?: string;
     public_key_id?: string;
+    revocation_endpoint?: string;
     eco_hash_match?: boolean;
     cryptographic_valid?: boolean;
   };
@@ -501,6 +506,13 @@ const verifyInstitutionalSignature = (
   }
 
   const signature = block as Record<string, unknown>;
+  const policyBlock = raw['ecosign_signature_policy'];
+  const policy = (typeof policyBlock === 'object' && policyBlock)
+    ? (policyBlock as Record<string, unknown>)
+    : null;
+  const revocationEndpoint = typeof policy?.['revocation_endpoint'] === 'string'
+    ? policy['revocation_endpoint']
+    : undefined;
   const alg = typeof signature['alg'] === 'string' ? signature['alg'].toLowerCase() : '';
   const publicKeyId = typeof signature['public_key_id'] === 'string' ? signature['public_key_id'] : undefined;
   const ecoHash = typeof signature['eco_hash'] === 'string' ? signature['eco_hash'].toLowerCase() : '';
@@ -515,6 +527,7 @@ const verifyInstitutionalSignature = (
       trusted: false,
       revoked: false,
       public_key_id: publicKeyId,
+      revocation_endpoint: revocationEndpoint,
       reason: 'institutional_signature_invalid_shape',
     };
   }
@@ -534,6 +547,7 @@ const verifyInstitutionalSignature = (
       trusted: false,
       revoked,
       public_key_id: publicKeyId,
+      revocation_endpoint: revocationEndpoint,
       reason: revoked ? 'institutional_signature_key_revoked' : 'institutional_signature_key_not_trusted',
     };
   }
@@ -545,6 +559,7 @@ const verifyInstitutionalSignature = (
       trusted: true,
       revoked,
       public_key_id: publicKeyId,
+      revocation_endpoint: revocationEndpoint,
       reason: 'institutional_signature_public_key_mismatch',
     };
   }
@@ -557,6 +572,7 @@ const verifyInstitutionalSignature = (
       trusted,
       revoked,
       public_key_id: publicKeyId,
+      revocation_endpoint: revocationEndpoint,
       reason: 'institutional_signature_public_key_missing',
     };
   }
@@ -572,6 +588,7 @@ const verifyInstitutionalSignature = (
       trusted,
       revoked,
       public_key_id: publicKeyId,
+      revocation_endpoint: revocationEndpoint,
       eco_hash_match: false,
       reason: 'institutional_signature_eco_hash_mismatch',
     };
@@ -586,6 +603,7 @@ const verifyInstitutionalSignature = (
       trusted,
       revoked,
       public_key_id: publicKeyId,
+      revocation_endpoint: revocationEndpoint,
       eco_hash_match: true,
       reason: 'institutional_signature_decode_failed',
     };
@@ -606,6 +624,7 @@ const verifyInstitutionalSignature = (
       trusted,
       revoked,
       public_key_id: publicKeyId,
+      revocation_endpoint: revocationEndpoint,
       eco_hash_match: true,
       cryptographic_valid: false,
       reason: 'institutional_signature_invalid',
@@ -619,6 +638,7 @@ const verifyInstitutionalSignature = (
       trusted,
       revoked: true,
       public_key_id: publicKeyId,
+      revocation_endpoint: revocationEndpoint,
       eco_hash_match: true,
       cryptographic_valid: true,
       reason: 'institutional_signature_key_revoked',
@@ -631,6 +651,7 @@ const verifyInstitutionalSignature = (
     trusted,
     revoked: false,
     public_key_id: publicKeyId,
+    revocation_endpoint: revocationEndpoint,
     eco_hash_match: true,
     cryptographic_valid: true,
     reason: trusted ? undefined : 'institutional_signature_no_trust_store',
@@ -748,7 +769,8 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
           gen_time: typeof tsaProof['attempted_at'] === 'string' ? (tsaProof['attempted_at'] as string) : undefined,
         }
       : { present: false as const };
-    const institutionalSignature = verifyInstitutionalSignature(raw);
+    const institutionalSignature =
+      verifyInstitutionalSignature(raw) ?? ({ present: false } as NonNullable<VerificationResult['institutional_signature']>);
 
     if (!sourceHash) return { status: 'unknown' };
     if (tsa.present && tsa.valid === false) return { status: 'tampered', tsa };

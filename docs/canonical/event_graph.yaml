@@ -35,6 +35,19 @@ events:
     depends_on:
       - document.protected.requested
 
+  rekor.confirmed:
+    sources:
+      - apply-signer-signature
+    triggers:
+      - on_document_entity_events_change
+    jobs:
+      - submit_anchor_polygon
+      - submit_anchor_bitcoin
+    ui:
+      status: "TSA + Rekor confirmado"
+    depends_on:
+      - tsa.confirmed
+
   tsa.failed:
     sources:
       - run-tsa

@@ -22,6 +22,7 @@ Do not edit manually.
 | nda_accepted | nda-flow | — | — | NDA aceptado | — |  |
 | otp_verified | otp-flow | — | — | OTP verificado | — |  |
 | protection.failed | record-protection-event | — | — | Error protección | document.protected.requested |  |
+| rekor.confirmed | apply-signer-signature | on_document_entity_events_change | submit_anchor_polygon, submit_anchor_bitcoin | TSA + Rekor confirmado | tsa.confirmed |  |
 | share_created | share-service | — | — | Compartido | — |  |
 | share_opened | share-service | — | — | Compartido | — |  |
 | signature | process-signature | — | — | Firma aplicada | — |  |

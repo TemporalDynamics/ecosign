@@ -23,6 +23,7 @@ Al finalizar, el worker MUST emitir exactamente uno:
 
 `artifact.finalized` MUST incluir:
 - `artifact_storage_path`
+- `eco_storage_path`
 - `artifact_hash`
 - `mime`
 - `size_bytes`

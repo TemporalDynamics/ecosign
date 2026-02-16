@@ -135,6 +135,37 @@ como issue de rate limiting del proveedor (no de lógica de workflow).
 
 ---
 
+## Iteración: Unificación de certificado ECO canónico (ECO público vs ECOX interno) — 2026-02-16
+
+### 🎯 Resumen
+Se unificó el modelo del certificado entregado al usuario para evitar dos ontologías distintas
+(`dump técnico` vs `certificado declarativo`) y reducir superficie de inconsistencia.
+
+### ✅ Cambios implementados
+- **Contrato nuevo:** `docs/contratos/ECO_CANONICAL_CERTIFICATE.md`.
+- **Builder canónico server-side:** `supabase/functions/_shared/ecoCanonicalCertificate.ts`.
+- **`generate-signature-evidence` migra a certificado declarativo canónico** (deja de exportar dump de entidad).
+- **`build-artifact` ahora también genera certificado ECO canónico** y lo publica en storage:
+  - `artifacts/<document_entity_id>/<artifact_version>.eco.json`
+  - `artifact.finalized.payload` incluye `eco_storage_path`.
+- **Flujo protegido en frontend (`emitEcoVNext`) migra al mismo formato declarativo** para que la descarga `.eco`
+  sea consistente con snapshots de flujo de firma.
+- **Verificador v2 actualizado** para validar:
+  - formato histórico basado en `hash_chain`, y
+  - nuevo certificado declarativo (`format=eco`, `format_version=2.0`).
+- **Determinismo de `issued_at`:**
+  - se deriva de eventos canónicos (`artifact.finalized` o último evento relevante),
+    no de `new Date()` arbitrario.
+  - para snapshot de firmante se usa preferentemente `workflow_signers.signed_at`.
+- **Límite de autoridad:** el frontend deja de descargar certificados oficiales
+  generados localmente cuando no hay `eco_storage_path`; solicita regeneración backend.
+
+### 📌 Resultado
+- ECO público ahora converge a un único lenguaje verificable y legible.
+- ECOX se mantiene implícitamente como capa forense interna sin contaminar el certificado público.
+
+---
+
 ## Iteración: Cierre operacional TSA → Anchors → Artifact (sin intervención manual) — 2026-02-16
 
 ### 🎯 Resumen

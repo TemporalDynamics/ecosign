@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { appendEvent } from '../_shared/eventHelper.ts';
-import { mapEntityToExportData } from '../_shared/domainAdapters.ts';
+import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate.ts';
 
 type GenerateEvidenceRequest = {
   document_entity_id: string;
@@ -54,7 +54,7 @@ serve(async (req) => {
 
   const { data: signer, error: signerErr } = await supabase
     .from('workflow_signers')
-    .select('id, email, name, workflow_id')
+    .select('id, email, name, workflow_id, signed_at, signing_order')
     .eq('id', signerId)
     .single();
 
@@ -66,7 +66,7 @@ serve(async (req) => {
 
   const { data: entity, error: entityError } = await supabase
     .from('document_entities')
-    .select('id, owner_id, source_hash, witness_hash, signed_hash, composite_hash, lifecycle_status, created_at, updated_at, metadata, events')
+    .select('id, owner_id, source_name, source_hash, witness_hash, signed_hash, composite_hash, lifecycle_status, created_at, updated_at, metadata, events')
     .eq('id', documentEntityId)
     .single();
 
@@ -93,21 +93,24 @@ serve(async (req) => {
     })
     : events;
 
-  const exportEntity = {
-    ...entity,
+  const certificate = buildCanonicalEcoCertificate({
+    document_entity_id: documentEntityId,
+    document_name: entity.source_name ?? null,
+    source_hash: entity.source_hash ?? null,
     witness_hash: witnessHash,
+    signed_hash: entity.signed_hash ?? null,
+    issued_at: signer.signed_at ?? tsaEvent?.at ?? null,
     events: filteredEvents,
-    metadata: {
-      ...(entity.metadata || {}),
-      signer_id: signerId,
-      workflow_id: workflowId || null,
-      witness_hash: witnessHash,
-      tsa_confirmed_at: tsaEvent?.at ?? null,
+    workflow_id: workflowId || null,
+    signer: {
+      id: signer.id,
+      email: signer.email ?? null,
+      name: signer.name ?? null,
+      step_index: signer.signing_order ?? null,
+      step_total: null,
     },
-  };
-
-  const exportData = mapEntityToExportData(exportEntity);
-  const evidenceJson = JSON.stringify(exportData, null, 2);
+  });
+  const evidenceJson = JSON.stringify(certificate, null, 2);
 
   const basePath = workflowId || documentEntityId;
   const artifactPath = `evidence/${basePath}/${signerId}/${witnessHash}.eco.json`;

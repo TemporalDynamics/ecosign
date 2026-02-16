@@ -165,6 +165,27 @@ const parseJsonArray = (value: unknown): unknown[] => {
   return Array.isArray(value) ? value : [];
 };
 
+const toIso = (value: unknown): string | null => {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+};
+
+const deriveDeterministicIssuedAt = (events: EventEntry[], fallback: string): string => {
+  const artifactEvent = [...events].reverse().find((event) => event.kind === 'artifact.finalized');
+  const artifactAt = toIso(artifactEvent?.at);
+  if (artifactAt) return artifactAt;
+
+  const latestAt = [...events]
+    .map((event) => toIso(event?.at))
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => a.localeCompare(b))
+    .at(-1);
+
+  return latestAt ?? fallback;
+};
+
 const buildHashChainFallback = (row: DocumentEntityRow): HashChain => {
   return {
     source_hash: row.source_hash,
@@ -225,6 +246,150 @@ export const serializeEcoV2 = (eco: EcoV2): string => canonicalStringify(eco);
 export const generateEcoV2 = (row: DocumentEntityRow): { eco: EcoV2; json: string } => {
   const eco = projectEcoV2FromDocumentEntity(row);
   return { eco, json: serializeEcoV2(eco) };
+};
+
+type CanonicalCertificate = Record<string, unknown>;
+
+const findLatestEvent = (events: EventEntry[], kind: string): EventEntry | null => {
+  for (let idx = events.length - 1; idx >= 0; idx -= 1) {
+    if (events[idx]?.kind === kind) return events[idx];
+  }
+  return null;
+};
+
+const buildProofsFromEvents = (events: EventEntry[], witnessHash?: string) => {
+  const proofs: Record<string, unknown>[] = [];
+
+  const tsa = findLatestEvent(events, 'tsa.confirmed') as TsaEvent | null;
+  if (tsa) {
+    proofs.push({
+      kind: 'tsa',
+      status: 'confirmed',
+      provider: 'https://freetsa.org/tsr',
+      ref: witnessHash ?? tsa.witness_hash ?? null,
+      attempted_at: tsa.at ?? null,
+      token_b64: tsa.tsa?.token_b64 ?? null,
+      witness_hash: witnessHash ?? tsa.witness_hash ?? null,
+    });
+  }
+
+  const anchors = events.filter((event) => event.kind === 'anchor' || event.kind === 'anchor.confirmed') as AnchorEvent[];
+  for (const network of ['polygon', 'bitcoin'] as const) {
+    const latest = [...anchors].reverse().find((event) => {
+      const anchorData = event.anchor ?? event.payload;
+      return anchorData?.['network'] === network;
+    });
+    if (!latest) continue;
+    const anchorData = latest.anchor ?? latest.payload ?? {};
+    proofs.push({
+      kind: network,
+      status: 'confirmed',
+      provider: network,
+      ref: (anchorData['txid'] as string | undefined) ?? null,
+      attempted_at: latest.at ?? null,
+      witness_hash: (anchorData['witness_hash'] as string | undefined) ?? witnessHash ?? null,
+    });
+  }
+
+  return proofs;
+};
+
+export const generateCanonicalCertificateFromDocumentEntity = (
+  row: DocumentEntityRow
+): { eco: CanonicalCertificate; json: string } => {
+  const witnessHash = row.witness_current_hash ?? row.witness_hash ?? undefined;
+  const signedHash = row.signed_hash ?? undefined;
+  const events = parseJsonArray(row.events) as EventEntry[];
+  const issuedAt = deriveDeterministicIssuedAt(events, row.created_at ?? row.source_captured_at);
+  const proofs = buildProofsFromEvents(events, witnessHash);
+
+  const eco = {
+    format: 'eco',
+    format_version: '2.0',
+    version: 'eco.v2',
+    issued_at: issuedAt,
+    evidence_declaration: {
+      type: 'digital_protection_evidence',
+      document_name: row.source_name ?? null,
+      signer_email: null,
+      signer_name: null,
+      signing_step: null,
+      total_steps: null,
+      signed_at: new Date().toISOString(),
+      identity_assurance_level: null,
+      summary: [
+        'Document integrity preserved',
+        'Protection recorded',
+        'Evidence is self-contained',
+        'Independent verification possible',
+      ],
+    },
+    trust_summary: {
+      checks: [
+        'Document integrity preserved',
+        'Protection recorded',
+        'Timestamped (TSA) when available',
+        'Evidence is self-contained',
+      ],
+    },
+    document: {
+      id: row.id,
+      name: row.source_name ?? null,
+      mime: row.source_mime ?? 'application/pdf',
+      source_hash: row.source_hash,
+      witness_hash: witnessHash ?? null,
+    },
+    signing_act: {
+      signer_id: null,
+      signer_email: null,
+      signer_display_name: null,
+      step_index: null,
+      step_total: null,
+      signed_at: null,
+    },
+    signer: {
+      id: null,
+      email: null,
+      name: null,
+    },
+    identity: {
+      canonical_level: null,
+      ial_reference: null,
+      operational_level: null,
+      level: null,
+      owner_user_id: row.owner_id ?? null,
+      owner_email: null,
+      email_verified: null,
+      auth_context: null,
+      identity_hash: null,
+    },
+    fields: {
+      schema_hash: null,
+      schema_version: 1,
+      signer_state_hash: null,
+      signer_state_version: 1,
+    },
+    signature_capture: {
+      present: Boolean(signedHash),
+      stored: false,
+      consent: true,
+      capture_kind: null,
+      store_encrypted_signature_opt_in: false,
+      store_signature_vectors_opt_in: false,
+      render_hash: null,
+      strokes_hash: null,
+      ciphertext_hash: null,
+    },
+    proofs,
+    system: {
+      schema: 'eco.canonical.certificate.v1',
+      source: 'client_projection_preview',
+      authoritative: false,
+      signed_hash: signedHash ?? null,
+    },
+  };
+
+  return { eco, json: canonicalStringify(eco) };
 };
 
 export type VerificationStatus = 'valid' | 'tampered' | 'incomplete' | 'unknown';
@@ -320,6 +485,49 @@ const verifyTsaEvents = (
 export const verifyEcoV2 = (eco: unknown): VerificationResult => {
   if (!eco || typeof eco !== 'object') {
     return { status: 'unknown' };
+  }
+
+  const raw = eco as Record<string, unknown>;
+
+  // Canonical certificate format (declarative):
+  // { format: 'eco', format_version: '2.0', version: 'eco.v2', document: {...}, proofs: [...] }
+  const isCanonicalCertificate =
+    raw['version'] === 'eco.v2' &&
+    raw['format'] === 'eco' &&
+    typeof raw['document'] === 'object' &&
+    raw['document'] !== null &&
+    !raw['hash_chain'];
+
+  if (isCanonicalCertificate) {
+    const document = raw['document'] as Record<string, unknown>;
+    const sourceHash = typeof document['source_hash'] === 'string' ? document['source_hash'] : undefined;
+    const witnessHash = typeof document['witness_hash'] === 'string' ? document['witness_hash'] : undefined;
+    const proofs = Array.isArray(raw['proofs']) ? (raw['proofs'] as Array<Record<string, unknown>>) : [];
+    const tsaProof = proofs.find((proof) => proof?.['kind'] === 'tsa');
+    const tsa = tsaProof
+      ? {
+          present: true,
+          valid: tsaProof['status'] === 'confirmed',
+          witness_hash:
+            typeof tsaProof['witness_hash'] === 'string'
+              ? (tsaProof['witness_hash'] as string)
+              : witnessHash,
+          gen_time: typeof tsaProof['attempted_at'] === 'string' ? (tsaProof['attempted_at'] as string) : undefined,
+        }
+      : { present: false as const };
+
+    if (!sourceHash) return { status: 'unknown' };
+    if (tsa.present && tsa.valid === false) return { status: 'tampered', tsa };
+
+    return {
+      status: witnessHash ? 'valid' : 'incomplete',
+      source_hash: sourceHash,
+      witness_hash: witnessHash,
+      signed_hash: typeof raw?.['system'] === 'object' && raw['system'] !== null
+        ? ((raw['system'] as Record<string, unknown>)['signed_hash'] as string | undefined)
+        : undefined,
+      tsa,
+    };
   }
 
   const candidate = eco as EcoV2;

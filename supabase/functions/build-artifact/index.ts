@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { processArtifact, type ArtifactInput } from '../../../packages/artifact-processor/src/index.ts';
+import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate.ts';
 
 type BuildArtifactRequest = {
   document_entity_id: string;
@@ -62,7 +63,7 @@ serve(async (req) => {
 
   const { data: entity, error: entityError } = await supabase
     .from('document_entities')
-    .select('id, events, witness_current_storage_path, created_at')
+    .select('id, source_name, source_hash, witness_hash, signed_hash, events, witness_current_storage_path, created_at')
     .eq('id', documentEntityId)
     .single();
 
@@ -133,6 +134,7 @@ serve(async (req) => {
 
     const result = await processArtifact(input);
     const artifactPath = `artifacts/${documentEntityId}/${result.artifact_version}.pdf`;
+    const ecoPath = `artifacts/${documentEntityId}/${result.artifact_version}.eco.json`;
 
     // Ensure a plain ArrayBuffer-backed Uint8Array for BlobPart compatibility.
     const artifactBytes = new Uint8Array(result.artifact);
@@ -157,6 +159,37 @@ serve(async (req) => {
       return jsonResponse({ error: 'artifact_upload_failed' }, 500);
     }
 
+    const ecoCertificate = buildCanonicalEcoCertificate({
+      document_entity_id: documentEntityId,
+      document_name: entity.source_name ?? null,
+      source_hash: entity.source_hash ?? null,
+      witness_hash: entity.witness_hash ?? null,
+      signed_hash: entity.signed_hash ?? null,
+      issued_at: new Date().toISOString(),
+      events,
+    });
+
+    const ecoUpload = await supabase.storage
+      .from('artifacts')
+      .upload(ecoPath, new Blob([JSON.stringify(ecoCertificate, null, 2)], { type: 'application/json' }), {
+        upsert: true,
+        contentType: 'application/json',
+      });
+
+    if (ecoUpload.error) {
+      await emitEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'artifact.failed',
+          at: new Date().toISOString(),
+          payload: { reason: 'eco_certificate_upload_failed', retryable: true },
+        },
+        'build-artifact',
+      );
+      return jsonResponse({ error: 'eco_certificate_upload_failed' }, 500);
+    }
+
     await emitEvent(
       supabase,
       documentEntityId,
@@ -166,16 +199,18 @@ serve(async (req) => {
         correlation_id: correlationId,  // NUEVO: heredado del job
         payload: {
           artifact_storage_path: artifactPath,
+          eco_storage_path: ecoPath,
           artifact_hash: result.hash,
           mime: result.mime,
           size_bytes: result.size_bytes,
           artifact_version: result.artifact_version,
+          eco_format: 'eco.v2.canonical.certificate',
         },
       },
       'build-artifact',
     );
 
-    return jsonResponse({ success: true, artifact_storage_path: artifactPath });
+    return jsonResponse({ success: true, artifact_storage_path: artifactPath, eco_storage_path: ecoPath });
   } catch (error) {
     await emitEvent(
       supabase,

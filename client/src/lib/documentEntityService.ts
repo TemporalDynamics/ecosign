@@ -6,7 +6,7 @@
  */
 
 import { getSupabase } from './supabaseClient';
-import { generateEcoV2, type DocumentEntityRow, type EcoV2 } from './eco/v2';
+import { generateCanonicalCertificateFromDocumentEntity, type DocumentEntityRow } from './eco/v2';
 
 export type CustodyMode = 'hash_only' | 'encrypted_custody';
 
@@ -377,9 +377,9 @@ export const advanceLifecycle = async (
 
 export const emitEcoVNext = async (
   documentId: string
-): Promise<{ eco: EcoV2; json: string }> => {
+): Promise<{ eco: Record<string, unknown>; json: string }> => {
   const doc = await getDocumentEntity(documentId);
-  return generateEcoV2(doc as DocumentEntityRow);
+  return generateCanonicalCertificateFromDocumentEntity(doc as DocumentEntityRow);
 };
 
 /**

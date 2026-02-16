@@ -194,6 +194,12 @@ y política explícita de revocación.
 - **Runbook operativo agregado:**
   - `docs/ops/INSTITUTIONAL_SIGNATURE_INCIDENT_RUNBOOK.md`
   - pasos de contención, rotación, recuperación y cierre.
+- **Metadata de política institucional en ECO final (opcional):**
+  - bloque `ecosign_signature_policy` con `rotation_policy|revocation_endpoint|contact`.
+  - controlado por env:
+    - `ECO_SIGNING_ROTATION_POLICY`
+    - `ECO_SIGNING_REVOCATION_ENDPOINT`
+    - `ECO_SIGNING_CONTACT`
 
 ### 📌 Resultado
 - El sistema mantiene verificación hash/PDF y agrega capa institucional con gobernanza de claves.

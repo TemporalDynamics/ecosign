@@ -48,6 +48,10 @@ Este contrato separa explicitamente:
   - `eco_hash`
   - `signature_b64`
   - `signed_at`
+- El certificado final MAY incluir `ecosign_signature_policy`:
+  - `rotation_policy`
+  - `revocation_endpoint`
+  - `contact`
 
 ## 5. Snapshots
 - Un documento MAY tener multiples snapshots ECO validos.
@@ -64,6 +68,10 @@ Este contrato separa explicitamente:
 - Identificador de clave publica activa: `ECO_SIGNING_PUBLIC_KEY_ID`.
 - Flag de enforcement: `ECO_REQUIRE_INSTITUTIONAL_SIGNATURE=1` para exigir firma en final.
 - Rotacion: incrementar `public_key_id`, publicar clave nueva y mantener verificacion de claves previas.
+- Metadata opcional embebida en ECO final:
+  - `ECO_SIGNING_ROTATION_POLICY`
+  - `ECO_SIGNING_REVOCATION_ENDPOINT`
+  - `ECO_SIGNING_CONTACT`
 - Verificador (trust store, opcional pero recomendado):
   - `VITE_ECOSIGN_TRUSTED_PUBLIC_KEYS_JSON` (JSON `{"k1":"<public_key_b64>", ...}` o lista equivalente).
   - `VITE_ECOSIGN_REVOKED_KEY_IDS` (lista CSV de `key_id` revocadas).

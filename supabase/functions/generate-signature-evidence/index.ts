@@ -93,13 +93,17 @@ serve(async (req) => {
     })
     : events;
 
+  const issuedAtRaw = signer.signed_at ?? tsaEvent?.at ?? null;
+  const issuedAtSource = signer.signed_at ? 'workflow_signers.signed_at' : 'tsa.confirmed.at';
+
   const certificate = buildCanonicalEcoCertificate({
     document_entity_id: documentEntityId,
     document_name: entity.source_name ?? null,
     source_hash: entity.source_hash ?? null,
     witness_hash: witnessHash,
     signed_hash: entity.signed_hash ?? null,
-    issued_at: signer.signed_at ?? tsaEvent?.at ?? null,
+    issued_at: issuedAtRaw,
+    issued_at_source_override: issuedAtSource,
     events: filteredEvents,
     workflow_id: workflowId || null,
     snapshot_kind: 'signer_snapshot',

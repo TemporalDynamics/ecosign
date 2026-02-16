@@ -52,6 +52,7 @@ type BuildCanonicalEcoInput = {
   } | null;
   snapshot_kind?: 'signer_snapshot' | 'final_artifact' | 'protected_snapshot' | 'preview';
   witness_hash_for_snapshot?: string | null;
+  issued_at_source_override?: string | null;
 };
 
 const toIso = (value: unknown): string | null => {
@@ -61,9 +62,17 @@ const toIso = (value: unknown): string | null => {
   return date.toISOString();
 };
 
-const deriveIssuedAt = (input: BuildCanonicalEcoInput, events: CanonicalEvent[]): string => {
+const deriveIssuedAt = (
+  input: BuildCanonicalEcoInput,
+  events: CanonicalEvent[],
+): { issuedAt: string; issuedAtSource: string } => {
   const explicit = toIso(input.issued_at);
-  if (explicit) return explicit;
+  if (explicit) {
+    return {
+      issuedAt: explicit,
+      issuedAtSource: input.issued_at_source_override ?? 'input.issued_at',
+    };
+  }
 
   const snapshotKind = input.snapshot_kind ?? 'preview';
   const witnessForSnapshot = input.witness_hash_for_snapshot ?? input.witness_hash ?? null;
@@ -71,7 +80,9 @@ const deriveIssuedAt = (input: BuildCanonicalEcoInput, events: CanonicalEvent[])
   if (snapshotKind === 'final_artifact') {
     const artifactFinalized = [...events].reverse().find((event) => event.kind === 'artifact.finalized');
     const artifactAt = toIso(artifactFinalized?.at);
-    if (artifactAt) return artifactAt;
+    if (artifactAt) {
+      return { issuedAt: artifactAt, issuedAtSource: 'artifact.finalized.at' };
+    }
     throw new Error('issued_at_required:final_artifact_requires_artifact.finalized.at');
   }
 
@@ -83,10 +94,14 @@ const deriveIssuedAt = (input: BuildCanonicalEcoInput, events: CanonicalEvent[])
           event.payload?.['witness_hash'] === witnessForSnapshot)
       );
       const tsaAt = toIso(tsaForWitness?.at);
-      if (tsaAt) return tsaAt;
+      if (tsaAt) {
+        return { issuedAt: tsaAt, issuedAtSource: 'tsa.confirmed.at_for_witness' };
+      }
     }
     const latestTsa = toIso(findLatest(events, 'tsa.confirmed')?.at);
-    if (latestTsa) return latestTsa;
+    if (latestTsa) {
+      return { issuedAt: latestTsa, issuedAtSource: 'tsa.confirmed.at_latest' };
+    }
     throw new Error('issued_at_required:signer_snapshot_requires_signed_at_or_tsa.confirmed.at');
   }
 
@@ -98,12 +113,18 @@ const deriveIssuedAt = (input: BuildCanonicalEcoInput, events: CanonicalEvent[])
           event.payload?.['witness_hash'] === witnessForSnapshot)
       );
       const tsaAt = toIso(tsaForWitness?.at);
-      if (tsaAt) return tsaAt;
+      if (tsaAt) {
+        return { issuedAt: tsaAt, issuedAtSource: 'tsa.confirmed.at_for_witness' };
+      }
     }
     const latestTsa = toIso(findLatest(events, 'tsa.confirmed')?.at);
-    if (latestTsa) return latestTsa;
+    if (latestTsa) {
+      return { issuedAt: latestTsa, issuedAtSource: 'tsa.confirmed.at_latest' };
+    }
     const protectionRequested = toIso(findLatest(events, 'document.protected.requested')?.at);
-    if (protectionRequested) return protectionRequested;
+    if (protectionRequested) {
+      return { issuedAt: protectionRequested, issuedAtSource: 'document.protected.requested.at' };
+    }
     throw new Error('issued_at_required:protected_snapshot_requires_tsa_or_protection_request');
   }
 
@@ -143,7 +164,7 @@ const findAnchorProof = (events: CanonicalEvent[], network: 'polygon' | 'bitcoin
 
 export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
   const events = Array.isArray(input.events) ? input.events : [];
-  const issuedAt = deriveIssuedAt(input, events);
+  const { issuedAt, issuedAtSource } = deriveIssuedAt(input, events);
   const signer = input.signer ?? null;
   const hasSigner = Boolean(signer?.id);
   const identity = input.identity ?? {};
@@ -249,6 +270,7 @@ export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
       schema: 'eco.canonical.certificate.v1',
       workflow_id: input.workflow_id ?? null,
       source: 'canonical_builder',
+      issued_at_source: issuedAtSource,
       signed_hash: input.signed_hash ?? null,
     },
   };

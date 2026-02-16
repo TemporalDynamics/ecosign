@@ -40,6 +40,14 @@ Este contrato separa explicitamente:
   - artefacto PDF final
   - certificado ECO canónico asociado
 - El payload del evento SHOULD incluir `eco_storage_path`.
+- El certificado final MAY incluir firma institucional de EcoSign en bloque
+  `ecosign_signature` con:
+  - `version`
+  - `alg`
+  - `public_key_id`
+  - `eco_hash`
+  - `signature_b64`
+  - `signed_at`
 
 ## 5. Snapshots
 - Un documento MAY tener multiples snapshots ECO validos.
@@ -51,3 +59,8 @@ Este contrato separa explicitamente:
 - ECOX: timeline forense interno (debug/auditoria/operacion).
 - ECOX no reemplaza ECO ni debe mezclarse con el payload publico del certificado.
 
+## 7. Claves y rotacion (minimo)
+- Clave privada institucional (Canary): `ECO_SIGNING_PRIVATE_KEY_B64`.
+- Identificador de clave publica activa: `ECO_SIGNING_PUBLIC_KEY_ID`.
+- Flag de enforcement: `ECO_REQUIRE_INSTITUTIONAL_SIGNATURE=1` para exigir firma en final.
+- Rotacion: incrementar `public_key_id`, publicar clave nueva y mantener verificacion de claves previas.

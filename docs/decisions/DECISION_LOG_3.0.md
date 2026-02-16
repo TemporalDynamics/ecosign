@@ -159,6 +159,14 @@ Se unificó el modelo del certificado entregado al usuario para evitar dos ontol
   - para snapshot de firmante se usa preferentemente `workflow_signers.signed_at`.
 - **Límite de autoridad:** el frontend deja de descargar certificados oficiales
   generados localmente cuando no hay `eco_storage_path`; solicita regeneración backend.
+- **Firma institucional del ECO final (solo artifact):**
+  - `build-artifact` firma el ECO final con Ed25519 sobre `eco_hash`
+    (JSON canónico sin bloque de firma).
+  - Campos: `ecosign_signature.version|alg|public_key_id|eco_hash|signature_b64|signed_at`.
+  - Configuración:
+    - `ECO_SIGNING_PRIVATE_KEY_B64`
+    - `ECO_SIGNING_PUBLIC_KEY_ID`
+    - `ECO_REQUIRE_INSTITUTIONAL_SIGNATURE=1` (enforcement)
 
 ### 📌 Resultado
 - ECO público ahora converge a un único lenguaje verificable y legible.

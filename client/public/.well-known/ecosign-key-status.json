@@ -2,7 +2,7 @@
   "version": "1",
   "updated_at": "2026-02-16T06:00:00Z",
   "issuer": "ecosign",
-  "revocation_endpoint": "https://ecosign-lilac.vercel.app/.well-known/ecosign-key-status.json",
+  "revocation_endpoint": "https://www.ecosign.app/.well-known/ecosign-key-status.json",
   "contact": "security@ecosign.example",
   "active_keys": [
     "k1"

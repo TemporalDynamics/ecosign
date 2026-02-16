@@ -135,6 +135,61 @@ como issue de rate limiting del proveedor (no de lógica de workflow).
 
 ---
 
+## Iteración: Incidente Prod `generate_signature_evidence` + Validación OTS Bitcoin — 2026-02-16
+
+### 🎯 Resumen
+Se resolvió un incidente real en producción donde `generate_signature_evidence`
+fallaba en cadena con `document_entity not found` pese a que los IDs existían.
+Además, se validó end-to-end que el flujo Bitcoin recibe el hash correcto y que
+OpenTimestamps (OTS) se genera cuando el worker está activo.
+
+### ✅ Hallazgos confirmados
+- Los jobs fallidos tenían datos consistentes:
+  - `document_entity_id` existente
+  - `signer_id` existente
+  - `workflow_id` consistente con signer
+- El error no era de payload ni de integridad referencial.
+- Causa raíz: desalineación de esquema en producción:
+  - faltaba `public.document_entities.metadata`.
+
+### ✅ Corrección aplicada
+- Hotfix en producción:
+  - `ALTER TABLE public.document_entities ADD COLUMN IF NOT EXISTS metadata jsonb;`
+  - backfill `metadata = '{}'::jsonb` para nulos.
+- Reencolado controlado de jobs afectados.
+- Resultado:
+  - `generate_signature_evidence` nuevos => `succeeded`
+  - emisión correcta de `signature.evidence.generated` con `artifact_path`.
+
+### ✅ Estandarización en repositorio
+- Se formalizó la corrección en migración idempotente:
+  - `supabase/migrations/20260216003000_add_document_entities_metadata_column.sql`
+- Se actualizó contrato de eventos con `rekor.confirmed`:
+  - `docs/canonical/event_graph.yaml`
+  - `docs/canonical/EVENT_GRAPH.md`
+
+### ✅ Validación Bitcoin / OTS
+- Se verificó que `submit_anchor_bitcoin` usa y persiste el hash correcto
+  (`document_hash == witness_hash` esperado).
+- Se reactivó cron `process-bitcoin-anchors` para validación operativa.
+- Se confirmó transición:
+  - `anchors.anchor_status: queued -> pending`
+  - `ots_proof` presente (`has_ots_proof = true`)
+  - `ots_calendar_url` poblado.
+
+### 📌 Decisiones operativas
+- Mantener trazabilidad de incidentes reales con evidencia SQL/cron/http_response.
+- No asumir “not found” como error de datos sin validar esquema de producción.
+- Toda corrección de hotfix debe quedar en migración versionada.
+
+### 🔜 Seguimiento recomendado
+1. Decidir explícitamente si `process-bitcoin-anchors` queda activo de forma permanente
+   (impacta el gate canónico que esperaba `disabled/absent`).
+2. Agregar chequeo preventivo de drift de columnas críticas entre entornos.
+3. Mantener limpieza periódica de jobs históricos `dead` para reducir ruido operativo.
+
+---
+
 ## Incidente: Cambios no solicitados por LLM (Gemini) — 2026-01-07T04:50:11Z
 
 ### 🎯 Resumen

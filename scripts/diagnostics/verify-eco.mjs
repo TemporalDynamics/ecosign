@@ -21,6 +21,13 @@ function readJson(filePath) {
 }
 
 function validateEcoStructure(eco) {
+  if (eco?.format === 'eco' && String(eco?.format_version || '').startsWith('2')) {
+    return validateEcoV2Structure(eco);
+  }
+  return validateLegacyEcoStructure(eco);
+}
+
+function validateLegacyEcoStructure(eco) {
   const errors = [];
   if (!eco || typeof eco !== 'object') {
     errors.push('ECO payload is not an object.');
@@ -42,6 +49,60 @@ function validateEcoStructure(eco) {
   return errors;
 }
 
+function validateEcoV2Structure(eco) {
+  const errors = [];
+  if (!eco || typeof eco !== 'object') {
+    errors.push('ECO payload is not an object.');
+    return errors;
+  }
+
+  if (eco.format !== 'eco') {
+    errors.push('format must be "eco".');
+  }
+  if (typeof eco.format_version !== 'string' || !eco.format_version.startsWith('2')) {
+    errors.push('format_version must be 2.x.');
+  }
+
+  if (!eco.document || typeof eco.document !== 'object') {
+    errors.push('Missing document section.');
+    return errors;
+  }
+
+  if (!isHex64(eco.document.source_hash)) {
+    errors.push('document.source_hash must be a valid SHA-256 hex string.');
+  }
+
+  if (eco.document.witness_hash != null && !isHex64(eco.document.witness_hash)) {
+    errors.push('document.witness_hash must be a valid SHA-256 hex string when present.');
+  }
+
+  if (!eco.signing_act || typeof eco.signing_act !== 'object') {
+    errors.push('Missing signing_act section.');
+  }
+
+  if (eco.proofs != null && !Array.isArray(eco.proofs)) {
+    errors.push('proofs must be an array when present.');
+  }
+
+  return errors;
+}
+
+function getDeclaredHash(eco) {
+  if (eco?.format === 'eco' && String(eco?.format_version || '').startsWith('2')) {
+    return eco?.document?.witness_hash || eco?.document?.source_hash || null;
+  }
+  return eco?.manifest?.assets?.[0]?.hash || null;
+}
+
+function printProofSummary(eco) {
+  if (!(eco?.format === 'eco' && String(eco?.format_version || '').startsWith('2'))) {
+    return;
+  }
+  const proofs = Array.isArray(eco.proofs) ? eco.proofs : [];
+  const summary = proofs.map((proof) => `${proof.kind || 'unknown'}:${proof.status || 'unknown'}`);
+  console.log('Proofs:', summary.length > 0 ? summary.join(', ') : 'none');
+}
+
 const [ecoPath, originalPath] = process.argv.slice(2);
 if (!ecoPath) {
   usage();
@@ -60,17 +121,30 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-const asset = eco.manifest.assets[0];
 console.log('ECO file:', resolvedEcoPath);
-console.log('Document name:', asset.name || 'unknown');
-console.log('Declared hash:', asset.hash);
+const declaredHash = getDeclaredHash(eco);
+if (!declaredHash || !isHex64(declaredHash)) {
+  console.error('Declared hash not found or invalid in ECO.');
+  process.exit(1);
+}
+
+if (eco?.format === 'eco' && String(eco?.format_version || '').startsWith('2')) {
+  console.log('ECO format:', `eco.v${eco.format_version}`);
+  console.log('Document id:', eco?.document?.id || 'unknown');
+  console.log('Declared hash:', declaredHash);
+  printProofSummary(eco);
+} else {
+  const asset = eco.manifest.assets[0];
+  console.log('Document name:', asset.name || 'unknown');
+  console.log('Declared hash:', declaredHash);
+}
 
 let matchResult = null;
 if (originalPath) {
   const resolvedOriginalPath = path.resolve(originalPath);
   const originalBytes = fs.readFileSync(resolvedOriginalPath);
   const calculatedHash = sha256Hex(originalBytes);
-  matchResult = calculatedHash.toLowerCase() === asset.hash.toLowerCase();
+  matchResult = calculatedHash.toLowerCase() === declaredHash.toLowerCase();
   console.log('Original file:', resolvedOriginalPath);
   console.log('Calculated hash:', calculatedHash);
   console.log('Hash match:', matchResult ? 'YES' : 'NO');

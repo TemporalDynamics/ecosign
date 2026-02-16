@@ -91,6 +91,54 @@ async function emitRequiredEventsForDecision(
   }
 }
 
+async function emitArtifactChainPendingIfNeeded(
+  supabase: ReturnType<typeof createClient>,
+  documentEntityId: string,
+  events: Array<{ kind?: string; payload?: Record<string, unknown>; witness_hash?: string }>,
+  jobs: ProtectV2Job[],
+  witnessHash: string | null,
+): Promise<void> {
+  if (!jobs.includes('submit_anchor_polygon') && !jobs.includes('submit_anchor_bitcoin')) {
+    return;
+  }
+
+  if (events.some((event) => event.kind === 'artifact.finalized')) {
+    return;
+  }
+
+  if (witnessHash && events.some((event) =>
+    event.kind === 'artifact.chain_pending' &&
+    event.payload?.['witness_hash'] === witnessHash
+  )) {
+    return;
+  }
+
+  const pendingNetworks: string[] = [];
+  if (jobs.includes('submit_anchor_polygon')) pendingNetworks.push('polygon');
+  if (jobs.includes('submit_anchor_bitcoin')) pendingNetworks.push('bitcoin');
+
+  const requestEvent = events.find((event) => event.kind === 'document.protected.requested');
+  const requiredEvidence = Array.isArray(requestEvent?.payload?.['required_evidence'])
+    ? (requestEvent?.payload?.['required_evidence'] as unknown[]).filter((item): item is string => typeof item === 'string')
+    : [];
+
+  await emitEvent(
+    supabase,
+    documentEntityId,
+    {
+      kind: 'artifact.chain_pending',
+      at: new Date().toISOString(),
+      payload: {
+        document_entity_id: documentEntityId,
+        witness_hash: witnessHash,
+        required_evidence: requiredEvidence,
+        pending_networks: pendingNetworks,
+      },
+    },
+    'fase1-executor',
+  );
+}
+
 async function callFunction(name: string, body: Record<string, unknown>) {
   const response = await fetch(`${FUNCTIONS_URL}/${name}`, {
     method: 'POST',
@@ -174,6 +222,14 @@ async function handleDocumentProtected(
     throw new Error(`[precondition_failed] anchor submission requires witness_hash (job=${job.id}, entity=${documentEntityId})`);
   }
 
+  await emitArtifactChainPendingIfNeeded(
+    supabase,
+    documentEntityId,
+    events,
+    decision.jobs,
+    requestedWitnessHash || null,
+  );
+
   await emitRequiredEventsForDecision(
     supabase,
     documentEntityId,
@@ -199,7 +255,7 @@ async function handleProtectDocumentV2(
 
   const { data: entity, error: entityError } = await supabase
     .from('document_entities')
-    .select('id, events')
+    .select('id, events, witness_hash')
     .eq('id', documentEntityId)
     .single();
 
@@ -212,7 +268,7 @@ async function handleProtectDocumentV2(
   const requestedWitnessHash =
     (typeof payload['witness_hash'] === 'string' && String(payload['witness_hash']).trim())
       ? String(payload['witness_hash'])
-      : null;
+      : String(entity.witness_hash ?? '');
 
   const decision = decideProtectDocumentV2Pipeline(events);
   if (decision.reason === 'noop_missing_request') {
@@ -224,6 +280,14 @@ async function handleProtectDocumentV2(
   if (requiresAnchor && !requestedWitnessHash) {
     throw new Error(`[precondition_failed] anchor submission requires witness_hash (job=${job.id}, entity=${documentEntityId})`);
   }
+
+  await emitArtifactChainPendingIfNeeded(
+    supabase,
+    documentEntityId,
+    events,
+    decision.jobs,
+    requestedWitnessHash || null,
+  );
 
   await emitRequiredEventsForDecision(
     supabase,

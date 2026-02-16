@@ -60,6 +60,27 @@ async function emitEvent(
   }
 }
 
+function getRequiredEvidence(events: Array<{ kind?: string; payload?: Record<string, unknown> }>): string[] {
+  const requestEvent = events.find((event) => event.kind === 'document.protected.requested');
+  const requiredEvidence = requestEvent?.payload?.['required_evidence'];
+  if (Array.isArray(requiredEvidence)) {
+    return requiredEvidence.filter((item): item is string => typeof item === 'string');
+  }
+  return [];
+}
+
+function hasRequiredAnchorEvent(
+  events: Array<{ kind?: string; payload?: Record<string, unknown> }>,
+  kind: string,
+  witnessHash: string,
+): boolean {
+  return events.some((event) =>
+    event.kind === kind &&
+    typeof event.payload?.['witness_hash'] === 'string' &&
+    event.payload?.['witness_hash'] === witnessHash
+  );
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 204 });
@@ -156,6 +177,47 @@ serve(async (req) => {
     }
 
     await emitEvent(supabase, documentEntityId, tsaEvent, 'run-tsa');
+
+    const requiredEvidence = getRequiredEvidence(events);
+    const witnessHashForJobs = witnessHash;
+    const shouldRequirePolygon = requiredEvidence.includes('polygon') &&
+      !hasRequiredAnchorEvent(events, 'job.submit-anchor-polygon.required', witnessHashForJobs);
+    const shouldRequireBitcoin = requiredEvidence.includes('bitcoin') &&
+      !hasRequiredAnchorEvent(events, 'job.submit-anchor-bitcoin.required', witnessHashForJobs);
+
+    if (shouldRequirePolygon) {
+      await emitEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'job.submit-anchor-polygon.required',
+          at: new Date().toISOString(),
+          payload: {
+            document_entity_id: documentEntityId,
+            witness_hash: witnessHashForJobs,
+            workflow_id: body.workflow_id ?? null,
+          },
+        },
+        'run-tsa',
+      );
+    }
+
+    if (shouldRequireBitcoin) {
+      await emitEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'job.submit-anchor-bitcoin.required',
+          at: new Date().toISOString(),
+          payload: {
+            document_entity_id: documentEntityId,
+            witness_hash: witnessHashForJobs,
+            workflow_id: body.workflow_id ?? null,
+          },
+        },
+        'run-tsa',
+      );
+    }
 
     // Enqueue signature evidence generation (per signer, post-TSA).
     if (body.signer_id) {

@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { processArtifact, type ArtifactInput } from '../../../packages/artifact-processor/src/index.ts';
 import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate.ts';
+import { signFinalEcoInstitutionally } from '../_shared/ecoInstitutionalSignature.ts';
 
 type BuildArtifactRequest = {
   document_entity_id: string;
@@ -186,10 +187,12 @@ serve(async (req) => {
       events,
       snapshot_kind: 'final_artifact',
     });
+    const signedEcoResult = await signFinalEcoInstitutionally(ecoCertificate as Record<string, unknown>);
+    const ecoToPersist = signedEcoResult.eco;
 
     const ecoUpload = await supabase.storage
       .from('artifacts')
-      .upload(ecoPath, new Blob([JSON.stringify(ecoCertificate, null, 2)], { type: 'application/json' }), {
+      .upload(ecoPath, new Blob([JSON.stringify(ecoToPersist, null, 2)], { type: 'application/json' }), {
         upsert: true,
         contentType: 'application/json',
       });
@@ -223,6 +226,8 @@ serve(async (req) => {
           size_bytes: result.size_bytes,
           artifact_version: result.artifact_version,
           eco_format: 'eco.v2.canonical.certificate',
+          eco_institutional_signature: signedEcoResult.signed ? 'present' : 'absent',
+          eco_institutional_signature_reason: signedEcoResult.reason ?? null,
         },
       },
       'build-artifact',

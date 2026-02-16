@@ -21,6 +21,7 @@ import { applySignatureToPDF } from '@/utils/pdfSigner'
 import { downloadDocument } from '@/utils/documentStorage'
 import { decryptFile } from '@/utils/encryption'
 import { encryptFile, generateEncryptionKey } from '@/utils/encryption'
+import { deriveKeyFromOTP, unwrapDocumentKey, decryptFile as decryptFileE2E, hexToBytes } from '@/lib/e2e'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 
@@ -80,11 +81,15 @@ interface SignerData {
     position: { page: number; x: number; y: number; width: number; height: number }
     apply_to_all_pages?: boolean
   }>
+  wrapped_key?: string | null
+  wrap_iv?: string | null
+  recipient_salt?: string | null
+  key_mode?: 'wrapped' | 'legacy'
   workflow: {
     title: string
     document_path: string | null
     document_hash: string | null
-    encryption_key: string | null // For decryption
+    encryption_key: string | null // For decryption (legacy mode)
     status: string
     require_sequential: boolean
     original_filename?: string | null
@@ -94,6 +99,21 @@ interface SignerData {
     owner_name?: string | null
     nda_text?: string | null
   }
+}
+
+// ZK Mode types
+interface ZkPackageData {
+  key_mode: 'wrapped'
+  encrypted_signed_url: string
+  wrapped_key: string
+  wrap_iv: string
+  recipient_salt: string
+  kdf_params: {
+    algorithm: string
+    iterations: number
+    hash: string
+  }
+  ecoUrl?: string | null
 }
 
 async function hashToken(token: string): Promise<string> {
@@ -555,12 +575,16 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
         const refreshed = await fetchSignerData(token)
         if (refreshed) {
           setSignerData(refreshed as any)
+          // Store verified OTP for ZK decryption during download
+          sessionStorage.setItem('ecosign_signer_otp', otpCode.trim())
           if ((refreshed as any).require_nda && !(refreshed as any).nda_accepted) {
             setStep('nda')
             return
           }
         }
       }
+      // Store verified OTP for ZK decryption during download
+      sessionStorage.setItem('ecosign_signer_otp', otpCode.trim())
       setStep('viewing')
     } catch (err) {
       console.error('verifyOtp error', err)
@@ -739,7 +763,43 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
 
       let pdfBlob: Blob | null = null
 
-      if (workflow.encryption_key) {
+      // ZK Mode: Client-side decryption with OTP
+      if (signerData.key_mode === 'wrapped' && signerData.wrapped_key && signerData.recipient_salt && signerData.otp_verified) {
+        let encryptedBlob: Blob | null = null
+        const encryptedUrl = signerData.encrypted_pdf_url || workflow.document_path
+        if (!encryptedUrl) {
+          throw new Error('No se pudo acceder al documento')
+        }
+        const resp = await fetch(encryptedUrl)
+        if (!resp.ok) throw new Error('No se pudo descargar el documento')
+        encryptedBlob = await resp.blob()
+
+        if (!encryptedBlob) {
+          throw new Error('No se pudo acceder al documento')
+        }
+
+        // Get OTP from user session (already verified)
+        // TODO: Store verified OTP in session storage for decryption
+        // For now, require user to re-enter OTP for download
+        const otp = sessionStorage.getItem('ecosign_signer_otp')
+        if (!otp) {
+          throw new Error('Se requiere OTP para descargar. Por favor, verificá tu OTP nuevamente.')
+        }
+
+        // Derive KEK from OTP and unwrap document key
+        const recipientSaltBytes = hexToBytes(signerData.recipient_salt!)
+        const recipientKey = await deriveKeyFromOTP(otp, recipientSaltBytes)
+        const documentKey = await unwrapDocumentKey(
+          signerData.wrapped_key!,
+          signerData.wrap_iv!,
+          recipientKey
+        )
+
+        // Decrypt with unwrapped key
+        const decrypted = await decryptFileE2E(encryptedBlob, documentKey)
+        pdfBlob = new Blob([await decrypted.arrayBuffer()], { type: 'application/pdf' })
+      } else if (workflow.encryption_key) {
+        // Legacy mode: Server-side decryption key available
         let encryptedBlob: Blob | null = null
         if (signerData.encrypted_pdf_url) {
           const resp = await fetch(signerData.encrypted_pdf_url)

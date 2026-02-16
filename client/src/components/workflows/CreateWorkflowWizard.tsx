@@ -11,6 +11,14 @@ import { getSupabase } from '@/lib/supabaseClient'
 import { X, CheckCircle } from 'lucide-react';
 import DocumentUploader from '@/components/documents/DocumentUploader'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { 
+  generateOTP, 
+  deriveKeyFromOTP, 
+  wrapDocumentKey, 
+  randomBytes,
+  bytesToBase64,
+} from '@/lib/e2e'
+import { importKey } from '@/utils/encryption'
 
 interface CreateWorkflowWizardProps {
   isOpen: boolean
@@ -174,7 +182,88 @@ export default function CreateWorkflowWizard({
         throw new Error('No autenticado')
       }
 
-      // Step 1: Create workflow
+      // ========================================
+      // ZK MODE: Generate wrapped keys for signers
+      // ========================================
+      // The owner client has the documentKey (DEK) in memory.
+      // We generate wrapped keys so the server NEVER sees the DEK.
+      let documentKey: CryptoKey | null = null
+      let signersWithZk: Array<{
+        email: string
+        name: string | null
+        signing_order: number
+        require_login: boolean
+        require_nda: boolean
+        quick_access: boolean
+        status: string
+        access_token_hash: string
+        wrapped_key?: string
+        wrap_iv?: string
+        recipient_salt?: string
+        key_mode?: string
+      }> = []
+
+      try {
+        // Import the document key from base64
+        documentKey = await importKey(documentData.encryptionKey)
+        console.log('[ZK] Document key imported for ZK workflow')
+      } catch (e) {
+        console.warn('[ZK] Could not import document key, falling back to legacy mode:', e)
+      }
+
+      // Generate ZK materials for each signer if we have the document key
+      if (documentKey) {
+        // Generate ZK materials for each signer
+        for (const signer of signers) {
+          // Generate recipient salt and OTP for this signer
+          const salt = randomBytes(16)
+          const otp = generateOTP()
+          
+          // Derive KEK from OTP (async)
+          const recipientKey = await deriveKeyFromOTP(otp, salt)
+          
+          // Wrap the document key with the recipient's KEK (async)
+          const { wrappedKey, wrapIv } = await wrapDocumentKey(documentKey, recipientKey)
+          
+          console.log('[ZK] Generated wrapped key for signer:', signer.email)
+
+          signersWithZk.push({
+            email: signer.email.trim(),
+            name: signer.name.trim() || null,
+            signing_order: signer.signing_order,
+            require_login: signer.require_login,
+            require_nda: signer.require_nda,
+            quick_access: !signer.require_login,
+            status: workflowSettings.sequential
+              ? (signersWithZk.length === 0 ? 'ready_to_sign' : 'invited')
+              : 'ready_to_sign',
+            access_token_hash: crypto.randomUUID(),
+            wrapped_key: wrappedKey,
+            wrap_iv: wrapIv,
+            recipient_salt: bytesToBase64(salt),
+            key_mode: 'wrapped'
+          })
+        }
+        console.log('[ZK] Created', signersWithZk.length, 'signers with ZK materials')
+      } else {
+        // Legacy mode: no ZK materials
+        signersWithZk = signers.map((signer, index) => ({
+          email: signer.email.trim(),
+          name: signer.name.trim() || null,
+          signing_order: signer.signing_order,
+          require_login: signer.require_login,
+          require_nda: signer.require_nda,
+          quick_access: !signer.require_login,
+          status: workflowSettings.sequential
+            ? (index === 0 ? 'ready_to_sign' : 'invited')
+            : 'ready_to_sign',
+          access_token_hash: crypto.randomUUID(),
+          key_mode: 'legacy'
+        }))
+        console.log('[LEGACY] Created', signersWithZk.length, 'signers without ZK materials')
+      }
+
+      // Step 1: Create workflow (NEVER store encryption_key - ZK!)
       const { data: workflow, error: workflowError } = await supabase
         .from('signature_workflows')
         .insert({
@@ -182,7 +271,7 @@ export default function CreateWorkflowWizard({
           owner_id: user.id,
           document_path: documentData.encryptedPath,
           document_hash: documentData.contentHash,
-          encryption_key: documentData.encryptionKey,
+          // encryption_key: NOT stored - ZK mode!
           status: 'active',
           require_sequential: workflowSettings.sequential,
           expires_at: workflowSettings.expiresInDays
@@ -196,25 +285,10 @@ export default function CreateWorkflowWizard({
         throw workflowError || new Error('No se pudo crear el workflow')
       }
 
-      // Step 2: Create signers
-      const signersToInsert = signers.map((signer, index) => ({
-        workflow_id: workflow.id,
-        email: signer.email.trim(),
-        name: signer.name.trim() || null,
-        signing_order: signer.signing_order,
-        require_login: signer.require_login,
-        require_nda: signer.require_nda,
-        quick_access: !signer.require_login,
-        status: workflowSettings.sequential
-          ? (index === 0 ? 'ready_to_sign' : 'invited')
-          : 'ready_to_sign',
-        // Generate access token hash (simple UUID for now, could be more secure)
-        access_token_hash: crypto.randomUUID()
-      }))
-
+      // Step 2: Create signers with ZK materials
       const { error: signersError } = await supabase
         .from('workflow_signers')
-        .insert(signersToInsert)
+        .insert(signersWithZk)
 
       if (signersError) {
         // Rollback: delete workflow
@@ -222,7 +296,7 @@ export default function CreateWorkflowWizard({
         throw signersError
       }
 
-      console.log('✅ Workflow created successfully:', workflow.id)
+      console.log('✅ Workflow created successfully with ZK mode:', workflow.id)
 
       // Triggers will automatically send emails to signers
       onWorkflowCreated(workflow.id)

@@ -581,6 +581,11 @@ serve(async (req) => {
           signer.workflow?.signnow_embed_url ?? null,
         encrypted_pdf_url: encryptedPdfUrl,
         otp_verified: otpVerified,
+        // ZK Mode fields
+        wrapped_key: signer.wrapped_key ?? null,
+        wrap_iv: signer.wrap_iv ?? null,
+        recipient_salt: signer.recipient_salt ?? null,
+        key_mode: signer.key_mode ?? 'legacy',
         workflow_fields: signerFields,
         prior_signature_stamps: priorSignatureStamps,
         workflow: signer.workflow ?? null,

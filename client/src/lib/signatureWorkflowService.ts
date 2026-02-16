@@ -127,6 +127,57 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
 }
 
 /**
+ * ZK Mode - Genera wrapped keys para firmantes
+ * 
+ * Esta función debe llamarse cuando el owner tiene acceso al documentKey
+ * para generar los materiales criptográficos para cada firmante.
+ * 
+ * El flujo es:
+ * 1. Owner tiene documentKey (del documento cifrado)
+ * 2. Para cada signer:
+ *    - Generar recipient_salt
+ *    - Generar OTP
+ *    - Derivar KEK desde OTP
+ *    - Envolver documentKey con KEK
+ * 3. Enviar wrapped_key + wrap_iv + recipient_salt al servidor
+ * 
+ * NOTA: Esta función requiere integración adicional con el documentKey
+ * del documento. Por ahora, el sistema usa modo legacy.
+ */
+export async function generateSignerZkMaterials(
+  documentKey: CryptoKey,
+  signers: WorkflowSigner[]
+): Promise<Array<{
+  email: string;
+  wrappedKey?: string;
+  wrapIv?: string;
+  recipientSalt?: string;
+  otp?: string;
+}>> {
+  console.warn('[ZK] generateSignerZkMaterials called but requires documentKey integration');
+  
+  // TODO: Implementar cuando se tenga acceso al documentKey
+  // const { generateOTP, deriveKeyFromOTP, wrapDocumentKey, randomBytes } = await import('./e2e');
+  // 
+  // return signers.map(signer => {
+  //   const recipientSalt = randomBytes(16);
+  //   const otp = generateOTP();
+  //   const recipientKey = deriveKeyFromOTP(otp, recipientSalt);
+  //   const { wrappedKey, wrapIv } = wrapDocumentKey(documentKey, recipientKey);
+  //   
+  //   return {
+  //     email: signer.email,
+  //     wrappedKey,
+  //     wrapIv,
+  //     recipientSalt: Array.from(recipientSalt),
+  //     otp
+  //   };
+  // });
+  
+  return [];
+}
+
+/**
  * Ejemplo de uso:
  * 
  * const result = await startSignatureWorkflow({

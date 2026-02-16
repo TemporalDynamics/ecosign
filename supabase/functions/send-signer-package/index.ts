@@ -57,6 +57,10 @@ serve(async (req) => {
         email,
         name,
         workflow_id,
+        wrapped_key,
+        wrap_iv,
+        recipient_salt,
+        key_mode,
         workflow:signature_workflows (
           id,
           owner_id,
@@ -73,6 +77,81 @@ serve(async (req) => {
     if (!signer.workflow?.document_path) {
       return json({ error: 'No signed document available' }, 400)
     }
+
+    const isZkMode = signer.key_mode === 'wrapped' && signer.wrapped_key
+
+    if (isZkMode) {
+      // ZK MODE: Return encrypted blob + wrapped key for client-side decryption
+      // NO server-side decryption - server never sees plaintext
+      console.log('[ZK] Sending ZK package to signer:', signer.id)
+
+      // Create signed URL to encrypted blob (never decrypted)
+      const { data: encryptedSignedUrl, error: signedErr } = await supabase.storage
+        .from('user-documents')
+        .createSignedUrl(signer.workflow.document_path, 7 * 24 * 3600)
+
+      if (signedErr || !encryptedSignedUrl) {
+        console.error('send-signer-package: failed to create signed URL for ZK mode', signedErr)
+        return json({ error: 'Could not create secure link' }, 500)
+      }
+
+      // Generate ECO for audit trail
+      let ecoUrl: string | null = null
+      const ecoPath = `packages/${signer.workflow_id}/${signer.id}/certificate.eco.json`
+      try {
+        const { data: ecoData, error: ecoErr } = await supabase.rpc('generate_ecox_certificate', {
+          p_workflow_id: signer.workflow_id
+        })
+        if (!ecoErr && ecoData) {
+          const ecoBlob = new Blob([JSON.stringify(ecoData, null, 2)], { type: 'application/json' })
+          const { error: ecoUploadErr } = await supabase.storage
+            .from('user-documents')
+            .upload(ecoPath, ecoBlob, { upsert: true, cacheControl: '3600' })
+          if (!ecoUploadErr) {
+            const { data: ecoSigned } = await supabase.storage
+              .from('user-documents')
+              .createSignedUrl(ecoPath, 7 * 24 * 3600)
+            ecoUrl = ecoSigned?.signedUrl || null
+          }
+        }
+      } catch (err) {
+        console.warn('send-signer-package eco generation failed', err)
+      }
+
+      // Audit
+      try {
+        await supabase.functions.invoke('log-ecox-event', {
+          body: {
+            workflowId: signer.workflow_id,
+            signerId: signer.id,
+            eventType: 'package_sent_zk',
+            details: { key_mode: 'wrapped', documentPath: signer.workflow.document_path }
+          }
+        })
+      } catch (err) {
+        console.warn('send-signer-package log-ecox-event failed', err)
+      }
+
+      // Return ZK package - client decrypts
+      return json({
+        success: true,
+        key_mode: 'wrapped',
+        encrypted_signed_url: encryptedSignedUrl.signedUrl,
+        wrapped_key: signer.wrapped_key,
+        wrap_iv: signer.wrap_iv,
+        recipient_salt: signer.recipient_salt,
+        kdf_params: {
+          algorithm: 'PBKDF2',
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        ecoUrl
+      })
+    }
+
+    // LEGACY MODE: Server-side decryption (backwards compatibility)
+    // This branch will be removed after full ZK migration
+    console.log('[LEGACY] Sending legacy package to signer:', signer.id)
 
     // Download encrypted PDF
     const { data: file, error: dlErr } = await supabase.storage

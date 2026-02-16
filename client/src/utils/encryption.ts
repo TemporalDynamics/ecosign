@@ -35,7 +35,7 @@ export async function generateEncryptionKey(): Promise<string> {
  * @param keyBase64 - Base64-encoded key
  * @returns CryptoKey for encryption/decryption
  */
-async function importKey(keyBase64: string): Promise<CryptoKey> {
+export async function importKey(keyBase64: string): Promise<CryptoKey> {
   // Decode base64 to ArrayBuffer
   const keyString = atob(keyBase64)
   const keyArray = new Uint8Array(keyString.length)

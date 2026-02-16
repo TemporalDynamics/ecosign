@@ -30,6 +30,84 @@ type VerificationBaseResult = {
   originalFileProvided?: boolean | null;
 };
 
+type OnlineRevocationState = {
+  checked: boolean;
+  endpoint?: string;
+  revoked?: boolean;
+  keyId?: string;
+  updatedAt?: string;
+  error?: string;
+};
+
+const getViteEnv = (name: string): string => {
+  try {
+    const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+    return (env?.[name] ?? '').trim();
+  } catch {
+    return '';
+  }
+};
+
+const shouldCheckOnlineRevocation = (): boolean => {
+  const raw = getViteEnv('VITE_ECOSIGN_ONLINE_REVOCATION_CHECK').toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+};
+
+const getRevocationEndpointFromEco = (eco: unknown, result: VerificationResult): string => {
+  if (result.institutional_signature?.revocation_endpoint) {
+    return result.institutional_signature.revocation_endpoint;
+  }
+  if (!eco || typeof eco !== 'object') return '';
+  const policy = (eco as Record<string, unknown>)['ecosign_signature_policy'];
+  if (!policy || typeof policy !== 'object') return '';
+  const endpoint = (policy as Record<string, unknown>)['revocation_endpoint'];
+  return typeof endpoint === 'string' ? endpoint.trim() : '';
+};
+
+const checkOnlineRevocationStatus = async (
+  eco: unknown,
+  result: VerificationResult,
+): Promise<OnlineRevocationState> => {
+  const keyId = result.institutional_signature?.public_key_id;
+  if (!keyId || !result.institutional_signature?.present) return { checked: false };
+  if (!shouldCheckOnlineRevocation()) return { checked: false };
+
+  const endpoint = getRevocationEndpointFromEco(eco, result) || getViteEnv('VITE_ECOSIGN_REVOCATION_ENDPOINT');
+  if (!endpoint) return { checked: false };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(endpoint, { signal: controller.signal, cache: 'no-store' });
+    if (!response.ok) {
+      return { checked: true, endpoint, keyId, error: `http_${response.status}` };
+    }
+    const payload = (await response.json()) as Record<string, unknown>;
+    const revokedKeys = Array.isArray(payload['revoked_keys'])
+      ? (payload['revoked_keys'] as unknown[]).filter((k): k is string => typeof k === 'string')
+      : [];
+    const keys = (typeof payload['keys'] === 'object' && payload['keys'])
+      ? (payload['keys'] as Record<string, unknown>)
+      : {};
+    const keyEntry = (typeof keys[keyId] === 'object' && keys[keyId])
+      ? (keys[keyId] as Record<string, unknown>)
+      : null;
+    const status = typeof keyEntry?.['status'] === 'string' ? keyEntry['status'].toLowerCase() : '';
+    const revoked = revokedKeys.includes(keyId) || status === 'revoked';
+    const updatedAt = typeof payload['updated_at'] === 'string' ? payload['updated_at'] : undefined;
+    return { checked: true, endpoint, keyId, revoked, updatedAt };
+  } catch (error) {
+    return {
+      checked: true,
+      endpoint,
+      keyId,
+      error: error instanceof Error ? error.name : 'fetch_error',
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const parseEcoJson = async (file: File): Promise<unknown | null> => {
   try {
     const text = await file.text();
@@ -44,7 +122,8 @@ const mapEcoV2Result = (
   result: VerificationResult,
   fileName: string,
   signedAuthority?: 'internal' | 'external',
-  signedAuthorityRef?: Record<string, unknown> | null
+  signedAuthorityRef?: Record<string, unknown> | null,
+  onlineRevocation?: OnlineRevocationState
 ): VerificationBaseResult => {
   const valid = result.status === 'valid' || result.status === 'incomplete';
   const errors =
@@ -89,8 +168,28 @@ const mapEcoV2Result = (
     }
   }
 
+  let finalValid = valid;
+  let finalSignatureValid = !!result.signed_hash;
+  if (onlineRevocation?.checked) {
+    if (onlineRevocation.error) {
+      warnings.push(
+        `Chequeo online de revocación no disponible (${onlineRevocation.error}). Verificación offline conservada.`
+      );
+    } else if (onlineRevocation.revoked) {
+      errors.push(
+        `Clave institucional revocada en endpoint público (key_id=${onlineRevocation.keyId ?? 'unknown'}).`
+      );
+      finalValid = false;
+      finalSignatureValid = false;
+    } else {
+      warnings.push(
+        `Chequeo online de revocación OK (key_id=${onlineRevocation.keyId ?? 'unknown'}; updated_at=${onlineRevocation.updatedAt ?? 'unknown'}).`
+      );
+    }
+  }
+
   return {
-    valid,
+    valid: finalValid,
     fileName,
     hash: result.source_hash,
     timestamp: result.timestamps?.created_at,
@@ -103,7 +202,7 @@ const mapEcoV2Result = (
     signedAuthority,
     signedAuthorityRef,
     documentIntegrity: valid,
-    signatureValid: !!result.signed_hash,
+    signatureValid: finalSignatureValid,
     timestampValid: true,
     legalTimestamp: { enabled: false },
     anchors: result.anchors,
@@ -136,7 +235,8 @@ export async function verifyEcoFile(file: File): Promise<VerificationBaseResult>
       const signedAuthority = (parsed as { signed?: { authority?: 'internal' | 'external' } }).signed?.authority;
       const signedAuthorityRef = (parsed as { signed?: { authority_ref?: Record<string, unknown> } }).signed?.authority_ref ?? null;
       const result = verifyEcoV2(parsed);
-      return mapEcoV2Result(result, file.name, signedAuthority, signedAuthorityRef);
+      const onlineRevocation = await checkOnlineRevocationStatus(parsed, result);
+      return mapEcoV2Result(result, file.name, signedAuthority, signedAuthorityRef, onlineRevocation);
     }
 
     // Crear FormData para enviar el archivo
@@ -221,8 +321,9 @@ export async function verifyEcoWithOriginal(ecoFile: File, originalFile?: File |
       const signedAuthority = (parsed as { signed?: { authority?: 'internal' | 'external' } }).signed?.authority;
       const signedAuthorityRef = (parsed as { signed?: { authority_ref?: Record<string, unknown> } }).signed?.authority_ref ?? null;
       const result = verifyEcoV2(parsed);
+      const onlineRevocation = await checkOnlineRevocationStatus(parsed, result);
       return {
-        ...mapEcoV2Result(result, ecoFile.name, signedAuthority, signedAuthorityRef),
+        ...mapEcoV2Result(result, ecoFile.name, signedAuthority, signedAuthorityRef, onlineRevocation),
         originalFileProvided: !!originalFile,
         originalFileName: originalFile?.name || null
       };

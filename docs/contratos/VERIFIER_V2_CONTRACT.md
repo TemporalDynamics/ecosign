@@ -92,6 +92,9 @@ Para certificados declarativos con `ecosign_signature`:
 * SHOULD: validar `public_key_id` contra trust store configurado.
 * SHOULD: marcar `revoked=true` si `public_key_id` está revocada.
 * MUST: si falla hash/firma/formato de firma, devolver `tampered`.
+* MAY: consultar `ecosign_signature_policy.revocation_endpoint` para estado dinámico de `key_id`.
+* MUST: si falla consulta remota, conservar resultado criptográfico offline y emitir advertencia.
+* SHOULD: si endpoint reporta clave revocada, marcar certificado como no confiable en UI.
 
 ---
 

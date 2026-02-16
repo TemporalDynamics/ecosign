@@ -22,12 +22,6 @@ const getRequiredEvidenceFromEvents = (events: EventLike[]): string[] => {
     return requiredEvidence.filter((item): item is string => typeof item === 'string');
   }
 
-  // Backward compatibility for historical events.
-  const legacyProtection = requestEvent?.payload?.['protection'];
-  if (Array.isArray(legacyProtection)) {
-    return legacyProtection.filter((item): item is string => typeof item === 'string');
-  }
-
   return [];
 };
 

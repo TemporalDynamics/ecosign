@@ -6,9 +6,8 @@ describe('protect_document_v2 pipeline decision', () => {
     const decision = decideProtectDocumentV2Pipeline(
       [
         { kind: 'document.signed' },
-        { kind: 'document.protected.requested' },
-      ],
-      [],
+        { kind: 'document.protected.requested', payload: { required_evidence: [] } },
+      ]
     );
 
     expect(decision.jobs).toEqual(['run_tsa']);
@@ -18,10 +17,9 @@ describe('protect_document_v2 pipeline decision', () => {
     const decision = decideProtectDocumentV2Pipeline(
       [
         { kind: 'document.signed' },
-        { kind: 'document.protected.requested' },
+        { kind: 'document.protected.requested', payload: { required_evidence: ['polygon'] } },
         { kind: 'tsa.confirmed' },
-      ],
-      ['polygon'],
+      ]
     );
 
     expect(decision.jobs).toEqual(['submit_anchor_polygon']);
@@ -31,7 +29,7 @@ describe('protect_document_v2 pipeline decision', () => {
     const decision = decideProtectDocumentV2Pipeline(
       [
         { kind: 'document.signed' },
-        { kind: 'document.protected.requested' },
+        { kind: 'document.protected.requested', payload: { required_evidence: ['polygon', 'bitcoin'] } },
         { kind: 'tsa.confirmed' },
         {
           kind: 'anchor.confirmed',
@@ -43,15 +41,14 @@ describe('protect_document_v2 pipeline decision', () => {
           at: '2026-01-27T10:03:00.000Z',
           payload: { network: 'bitcoin', confirmed_at: '2026-01-27T10:03:00.000Z' },
         },
-      ],
-      ['polygon', 'bitcoin'],
+      ]
     );
 
     expect(decision.jobs).toEqual(['build_artifact']);
   });
 
   test('noop when request missing', () => {
-    const decision = decideProtectDocumentV2Pipeline([{ kind: 'document.signed' }], ['polygon']);
+    const decision = decideProtectDocumentV2Pipeline([{ kind: 'document.signed' }]);
     expect(decision.jobs).toEqual([]);
     expect(decision.reason).toBe('noop_missing_request');
   });
@@ -60,11 +57,10 @@ describe('protect_document_v2 pipeline decision', () => {
     const decision = decideProtectDocumentV2Pipeline(
       [
         { kind: 'document.signed' },
-        { kind: 'document.protected.requested' },
+        { kind: 'document.protected.requested', payload: { required_evidence: [] } },
         { kind: 'tsa.confirmed' },
         { kind: 'artifact.finalized' },
-      ],
-      [],
+      ]
     );
 
     expect(decision.jobs).toEqual([]);

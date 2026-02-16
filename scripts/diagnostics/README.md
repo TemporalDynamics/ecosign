@@ -37,6 +37,67 @@ Qué significa si falla:
 Acción manual:
 - Revisar el reporte en `docs/reports/canonical-convergence/` y abrir acciones correctivas por cada motor no canónico.
 
+## ../verify-cron-inventory.sh
+
+Detecta:
+- Inventario real de cron jobs en runtime usando función SQL `public.get_cron_status(...)`.
+- Divergencia entre expectativas canónicas y estado actual de scheduler.
+
+Cuándo correr:
+- Antes de pruebas canonical-only.
+- Como evidencia de readiness en Fase 6/7.
+
+Qué significa si falla:
+- Hay cron crítico faltante/inactivo o cron legacy aún activo.
+
+Acción manual:
+- Aplicar/ajustar migraciones de cron y volver a ejecutar.
+
+## ../test-canonical-only-mode.sh
+
+Detecta:
+- Si el pipeline canónico mantiene progresión con trigger legacy deshabilitado temporalmente.
+
+Cuándo correr:
+- En staging aislado antes de authority switch.
+
+Qué significa si falla:
+- Persisten dependencias de autoridad legacy o gaps de ejecución canónica.
+
+Acción manual:
+- Corregir ruta de progresión y repetir prueba.
+
+## ../verify-runtime-crons.sh
+
+Detecta:
+- Estado real de cron jobs en runtime vía `public.get_cron_runtime_status()`.
+- Desalineación entre inventario esperado y scheduler efectivo.
+
+Cuándo correr:
+- Antes de ejecutar pruebas canonical-only.
+- Como evidencia de readiness para Fase 6/7.
+
+Qué significa si falla:
+- Cron canónico inactivo o cron legacy aún activo.
+
+Acción manual:
+- Ajustar cron jobs en migraciones/entorno y repetir verificación.
+
+## ../test-canonical-only-proof.sh
+
+Detecta:
+- Prueba canónica aislada con evidencia JSON persistida en `tests/canonical-only/evidence/`.
+- Ejecuta verificación de crons runtime antes de la prueba.
+
+Cuándo correr:
+- Como evidencia de Fase 6 (canonical-only proof) en staging.
+
+Qué significa si falla:
+- El entorno no cumple prerrequisitos de cron/runtime o la prueba canónica no completó.
+
+Acción manual:
+- Corregir prerrequisitos, reintentar y revisar el JSON de evidencia generado.
+
 ---
 
 ## check-cron-jobs.sql

@@ -12,22 +12,13 @@ export type ProtectV2PipelineDecision = {
 
 const hasEvent = (events: EventLike[], kind: string) => events.some((event) => event.kind === kind);
 
-const getRequiredEvidenceFromEvents = (events: EventLike[], fallbackProtection?: string[]): string[] => {
+const getRequiredEvidenceFromEvents = (events: EventLike[]): string[] => {
   const requestEvent = events.find((event) => event.kind === 'document.protected.requested') as
     | { payload?: Record<string, unknown> }
     | undefined;
   const requiredEvidence = requestEvent?.payload?.['required_evidence'];
   if (Array.isArray(requiredEvidence)) {
     return requiredEvidence.filter((item): item is string => typeof item === 'string');
-  }
-
-  const legacyProtection = requestEvent?.payload?.['protection'];
-  if (Array.isArray(legacyProtection)) {
-    return legacyProtection.filter((item): item is string => typeof item === 'string');
-  }
-
-  if (Array.isArray(fallbackProtection)) {
-    return fallbackProtection.filter((item): item is string => typeof item === 'string');
   }
 
   return [];
@@ -76,10 +67,7 @@ const hasRequiredAnchors = (events: EventLike[], protection: string[]): boolean 
   return hasPolygon && hasBitcoin;
 };
 
-export const decideProtectDocumentV2Pipeline = (
-  events: EventLike[],
-  protection?: string[],
-): ProtectV2PipelineDecision => {
+export const decideProtectDocumentV2Pipeline = (events: EventLike[]): ProtectV2PipelineDecision => {
   if (!hasEvent(events, 'document.protected.requested')) {
     return { jobs: [], reason: 'noop_missing_request' };
   }
@@ -88,7 +76,7 @@ export const decideProtectDocumentV2Pipeline = (
     return { jobs: ['run_tsa'], reason: 'needs_tsa' };
   }
 
-  const requiredEvidence = getRequiredEvidenceFromEvents(events, protection);
+  const requiredEvidence = getRequiredEvidenceFromEvents(events);
 
   // Solo generar artifact si TSA + anclajes requeridos están confirmados
   const hasAllRequiredEvidence = hasRequiredAnchors(events, requiredEvidence);

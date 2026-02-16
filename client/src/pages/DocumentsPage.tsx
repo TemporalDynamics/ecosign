@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
-import { emitEcoVNext } from "../lib/documentEntityService";
 import { getLatestTsaEvent, formatTsaTimestamp } from "../lib/events/tsa";
 import { deriveProtectionLevel, getAnchorEvent } from "../lib/protectionLevel";
 import { AlertCircle, ArrowRightCircle, CheckCircle, Clock, Copy, Download, Eye, FilePlus, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
@@ -1499,20 +1498,9 @@ function DocumentsPage() {
       requestRegeneration(doc.id, "eco");
       return;
     }
-    try {
-      const { json } = await emitEcoVNext(doc.id);
-      const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
-      const bytes = new TextEncoder().encode(json);
-      const blob = new Blob([bytes], { type: "application/octet-stream" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = ecoName;
-      link.click();
-      URL.revokeObjectURL(link.href);
-      return;
-    } catch (err) {
-      console.warn("Canonical ECO v2 download skipped:", err);
-    }
+    // Frontend must not issue authoritative ECO certificates.
+    // If canonical path is absent, request backend regeneration.
+    requestRegeneration(doc.id, "eco");
     window.alert("Todavía no hay certificado .ECO para este documento. Puede estar generándose; reintentá en unos minutos.");
   };
 

@@ -385,6 +385,7 @@ export const generateCanonicalCertificateFromDocumentEntity = (
       schema: 'eco.canonical.certificate.v1',
       source: 'client_projection_preview',
       authoritative: false,
+      issued_at_source: 'client_projection_preview',
       signed_hash: signedHash ?? null,
     },
   };

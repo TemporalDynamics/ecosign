@@ -182,6 +182,7 @@ serve(async (req) => {
       witness_hash: entity.witness_hash ?? null,
       signed_hash: entity.signed_hash ?? null,
       issued_at: finalizedAt,
+      issued_at_source_override: 'artifact.finalized.at (worker clock)',
       events,
       snapshot_kind: 'final_artifact',
     });

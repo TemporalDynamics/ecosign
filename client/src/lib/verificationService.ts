@@ -52,7 +52,9 @@ const mapEcoV2Result = (
       ? ['Evidencia incompleta: faltan testigos o firmas.']
       : [];
   if (result.authoritative === false) {
-    warnings.push('Snapshot no autoritativo: vista/proyección, no certificado oficial emitido por EcoSign.');
+    warnings.push('Verificación criptográfica: OK (hash consistente).');
+    warnings.push('Certificado oficial: NO. Es una vista/proyección no autoritativa.');
+    warnings.push('Para certificado oficial, descarga el ECO emitido por backend (artifact.finalized.eco_storage_path).');
   }
   const errors =
     result.status === 'tampered'

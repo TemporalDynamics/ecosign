@@ -6,6 +6,7 @@ export const FASE1_EVENT_KINDS = {
   ANCHOR_CONFIRMED: 'anchor',
   ANCHOR_FAILED: 'anchor.failed',
   ANCHOR_PENDING: 'anchor.pending',
+  ARTIFACT_CHAIN_PENDING: 'artifact.chain_pending',
   WORKFLOW_COMPLETED: 'workflow.completed',
 } as const;
 

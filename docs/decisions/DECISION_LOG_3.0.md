@@ -135,6 +135,46 @@ como issue de rate limiting del proveedor (no de lógica de workflow).
 
 ---
 
+## Iteración: Cierre operacional TSA → Anchors → Artifact (sin intervención manual) — 2026-02-16
+
+### 🎯 Resumen
+Se cerró el hueco operacional detectado en producción: TSA y evidencia funcionaban,
+pero el disparo de anchors podía quedar dependiente de re-evaluaciones no robustas.
+Ahora el pipeline emite jobs de chain de forma determinística y deja trazabilidad
+explícita de estado intermedio de artifact.
+
+### ✅ Cambios implementados
+- **Auto-trigger determinístico de anchors desde `run-tsa`:**
+  - tras `tsa.confirmed`, si `required_evidence` incluye `polygon/bitcoin`,
+    se emiten `job.submit-anchor-polygon.required` y
+    `job.submit-anchor-bitcoin.required` con `witness_hash`.
+  - Archivo: `supabase/functions/run-tsa/index.ts`.
+- **Fix de fallback de `witness_hash` en `protect_document_v2`:**
+  - si el job no trae `payload.witness_hash`, se usa `document_entities.witness_hash`.
+  - evita `precondition_failed` al re-evaluar en etapa `awaiting_anchors`.
+  - Archivo: `supabase/functions/fase1-executor/index.ts`.
+- **Nuevo evento de observabilidad temporal:**
+  - `artifact.chain_pending` cuando faltan anchors requeridos.
+  - no cambia la regla de unicidad/no-regeneración de `artifact.finalized`.
+  - Archivos:
+    - `supabase/functions/fase1-executor/index.ts`
+    - `supabase/functions/_shared/eventHelper.ts`
+    - `supabase/functions/_shared/fase1Events.ts`
+    - `docs/canonical/event_graph.yaml`
+    - `docs/canonical/EVENT_GRAPH.md`
+- **Verifier ECO alineado a formato actual:**
+  - `scripts/diagnostics/verify-eco.mjs` ahora soporta ECO legacy y ECO v2.
+  - usa `document.witness_hash`/`document.source_hash` para validación en v2.
+
+### 📌 Resultado operativo
+- Se elimina la necesidad de “operador corriendo SQL manual” para disparar anchors.
+- El usuario/ops puede distinguir claramente:
+  - protegido con TSA,
+  - artifact en espera de anchors (`artifact.chain_pending`),
+  - artifact final (`artifact.finalized`).
+
+---
+
 ## Iteración: Incidente Prod `generate_signature_evidence` + Validación OTS Bitcoin — 2026-02-16
 
 ### 🎯 Resumen

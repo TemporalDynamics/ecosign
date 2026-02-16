@@ -13,6 +13,7 @@ Do not edit manually.
 | anchor.pending | legacy | — | — | Anclaje pendiente (legacy) | — | deprecated |
 | anchor.submitted | submit-anchor-polygon, submit-anchor-bitcoin | — | — | Anclaje enviado | tsa.confirmed |  |
 | artifact.completed | legacy | — | — | Artifact completado (legacy) | — | deprecated |
+| artifact.chain_pending | fase1-executor | — | — | Anclaje en proceso | tsa.confirmed |  |
 | artifact.failed | build-artifact | — | — | Error artifact | anchor.confirmed |  |
 | artifact.finalized | build-artifact | — | — | Artifact listo | anchor.confirmed |  |
 | document.protected | legacy | — | — | Protegido (legacy) | — | deprecated |

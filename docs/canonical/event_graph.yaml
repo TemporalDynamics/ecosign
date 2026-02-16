@@ -141,6 +141,16 @@ events:
     allow_unemitted: true
     deprecated: true
 
+  artifact.chain_pending:
+    sources:
+      - fase1-executor
+    triggers: []
+    jobs: []
+    ui:
+      status: "Anclaje en proceso"
+    depends_on:
+      - tsa.confirmed
+
   artifact.finalized:
     sources:
       - build-artifact

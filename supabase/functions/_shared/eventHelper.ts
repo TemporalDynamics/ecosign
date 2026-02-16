@@ -47,6 +47,7 @@ export const EVENT_CLASS: Record<string, EventClass> = {
   'tsa.failed': 'tracking',
   'anchor.failed': 'tracking',
   'artifact.failed': 'tracking',
+  'artifact.chain_pending': 'tracking',
   'protection.failed': 'tracking',
 
   // Eventos probatorios (share/NDA) - evidencia contextual

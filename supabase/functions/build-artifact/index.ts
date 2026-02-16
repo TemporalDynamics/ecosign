@@ -159,14 +159,31 @@ serve(async (req) => {
       return jsonResponse({ error: 'artifact_upload_failed' }, 500);
     }
 
+    if (events.length === 0) {
+      await emitEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'artifact.failed',
+          at: new Date().toISOString(),
+          payload: { reason: 'eco_certificate_requires_events', retryable: false },
+        },
+        'build-artifact',
+      );
+      return jsonResponse({ error: 'eco_certificate_requires_events' }, 500);
+    }
+
+    const finalizedAt = new Date().toISOString();
+
     const ecoCertificate = buildCanonicalEcoCertificate({
       document_entity_id: documentEntityId,
       document_name: entity.source_name ?? null,
       source_hash: entity.source_hash ?? null,
       witness_hash: entity.witness_hash ?? null,
       signed_hash: entity.signed_hash ?? null,
-      issued_at: new Date().toISOString(),
+      issued_at: finalizedAt,
       events,
+      snapshot_kind: 'final_artifact',
     });
 
     const ecoUpload = await supabase.storage
@@ -195,7 +212,7 @@ serve(async (req) => {
       documentEntityId,
       {
         kind: 'artifact.finalized',
-        at: new Date().toISOString(),
+        at: finalizedAt,
         correlation_id: correlationId,  // NUEVO: heredado del job
         payload: {
           artifact_storage_path: artifactPath,

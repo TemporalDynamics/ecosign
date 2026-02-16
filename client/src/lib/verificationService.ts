@@ -51,6 +51,9 @@ const mapEcoV2Result = (
     result.status === 'incomplete'
       ? ['Evidencia incompleta: faltan testigos o firmas.']
       : [];
+  if (result.authoritative === false) {
+    warnings.push('Snapshot no autoritativo: vista/proyección, no certificado oficial emitido por EcoSign.');
+  }
   const errors =
     result.status === 'tampered'
       ? ['Archivo .ECO inconsistente.']

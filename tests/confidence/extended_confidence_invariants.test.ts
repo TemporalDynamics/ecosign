@@ -11,9 +11,12 @@ import {
 
 describe('Confidence Suite - Extended Invariants', () => {
   test('replay determinism: same event replay yields identical decision sequence', () => {
-    const protection = ['polygon', 'bitcoin'];
     const stream = [
-      { kind: 'document.protected.requested', at: '2026-02-14T10:00:00.000Z' },
+      {
+        kind: 'document.protected.requested',
+        at: '2026-02-14T10:00:00.000Z',
+        payload: { required_evidence: ['polygon', 'bitcoin'] },
+      },
       { kind: 'tsa.confirmed', at: '2026-02-14T10:01:00.000Z' },
       {
         kind: 'anchor.confirmed',
@@ -31,7 +34,7 @@ describe('Confidence Suite - Extended Invariants', () => {
     const replay = (events: any[]) => {
       const snapshots: Array<{ jobs: string[]; reason?: string }> = [];
       for (let i = 1; i <= events.length; i += 1) {
-        const decision = decideProtectDocumentV2Pipeline(events.slice(0, i), protection);
+        const decision = decideProtectDocumentV2Pipeline(events.slice(0, i));
         snapshots.push({ jobs: [...decision.jobs], reason: decision.reason });
       }
       return snapshots;

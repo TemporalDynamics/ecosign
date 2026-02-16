@@ -13,7 +13,11 @@ const ROOT = path.resolve(__dirname, '..', '..');
 describe('Confidence Suite - Core Invariants', () => {
   test('determinism: same input yields same pipeline decision', () => {
     const events = [
-      { kind: 'document.protected.requested', at: '2026-02-14T10:00:00.000Z' },
+      {
+        kind: 'document.protected.requested',
+        at: '2026-02-14T10:00:00.000Z',
+        payload: { required_evidence: ['polygon', 'bitcoin'] },
+      },
       { kind: 'tsa.confirmed', at: '2026-02-14T10:01:00.000Z' },
       {
         kind: 'anchor.confirmed',
@@ -26,10 +30,8 @@ describe('Confidence Suite - Core Invariants', () => {
         payload: { network: 'bitcoin', confirmed_at: '2026-02-14T10:03:00.000Z' },
       },
     ];
-    const protection = ['polygon', 'bitcoin'];
-
-    const d1 = decideProtectDocumentV2Pipeline(events, protection);
-    const d2 = decideProtectDocumentV2Pipeline(events, protection);
+    const d1 = decideProtectDocumentV2Pipeline(events);
+    const d2 = decideProtectDocumentV2Pipeline(events);
 
     expect(d1).toEqual(d2);
     expect(d1.jobs).toEqual(['build_artifact']);
@@ -37,7 +39,11 @@ describe('Confidence Suite - Core Invariants', () => {
 
   test('event order independence: decision remains stable for equivalent event set', () => {
     const baseEvents = [
-      { kind: 'document.protected.requested', at: '2026-02-14T10:00:00.000Z' },
+      {
+        kind: 'document.protected.requested',
+        at: '2026-02-14T10:00:00.000Z',
+        payload: { required_evidence: ['polygon', 'bitcoin'] },
+      },
       {
         kind: 'anchor.confirmed',
         at: '2026-02-14T10:02:00.000Z',
@@ -51,10 +57,8 @@ describe('Confidence Suite - Core Invariants', () => {
       },
     ];
     const reorderedEvents = [baseEvents[3], baseEvents[1], baseEvents[0], baseEvents[2]];
-    const protection = ['polygon', 'bitcoin'];
-
-    const d1 = decideProtectDocumentV2Pipeline(baseEvents, protection);
-    const d2 = decideProtectDocumentV2Pipeline(reorderedEvents, protection);
+    const d1 = decideProtectDocumentV2Pipeline(baseEvents);
+    const d2 = decideProtectDocumentV2Pipeline(reorderedEvents);
 
     expect(d1).toEqual(d2);
     expect(d1.jobs).toEqual(['build_artifact']);

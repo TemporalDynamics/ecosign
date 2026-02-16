@@ -21,6 +21,12 @@ type SignResult = {
   reason?: string;
 };
 
+type SignaturePolicy = {
+  rotation_policy?: string;
+  revocation_endpoint?: string;
+  contact?: string;
+};
+
 function base64ToBytes(input: string): Uint8Array {
   const raw = atob(input);
   const out = new Uint8Array(raw.length);
@@ -62,6 +68,19 @@ function getPrivateKeyBytes(): Uint8Array | null {
   }
 }
 
+function getInstitutionalSignaturePolicy(): SignaturePolicy | null {
+  const rotationPolicy = (Deno.env.get('ECO_SIGNING_ROTATION_POLICY') || '').trim();
+  const revocationEndpoint = (Deno.env.get('ECO_SIGNING_REVOCATION_ENDPOINT') || '').trim();
+  const contact = (Deno.env.get('ECO_SIGNING_CONTACT') || '').trim();
+
+  const policy: SignaturePolicy = {};
+  if (rotationPolicy) policy.rotation_policy = rotationPolicy;
+  if (revocationEndpoint) policy.revocation_endpoint = revocationEndpoint;
+  if (contact) policy.contact = contact;
+
+  return Object.keys(policy).length > 0 ? policy : null;
+}
+
 export async function signFinalEcoInstitutionally(
   ecoPayload: Record<string, unknown>,
 ): Promise<SignResult> {
@@ -92,6 +111,7 @@ export async function signFinalEcoInstitutionally(
   const signedAt = typeof ecoPayload?.['issued_at'] === 'string'
     ? String(ecoPayload['issued_at'])
     : new Date().toISOString();
+  const signaturePolicy = getInstitutionalSignaturePolicy();
 
   const signedEco = {
     ...unsignedEco,
@@ -104,6 +124,7 @@ export async function signFinalEcoInstitutionally(
       signature_b64: bytesToBase64(signatureBytes),
       signed_at: signedAt,
     },
+    ...(signaturePolicy ? { ecosign_signature_policy: signaturePolicy } : {}),
   };
 
   return { signed: true, eco: signedEco };

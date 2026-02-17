@@ -112,36 +112,54 @@ serve(async (req) => {
   }
 
   try {
-    await callFunction('anchor-bitcoin', {
+    const anchorResponse = await callFunction('anchor-bitcoin', {
       documentHash: witnessHash,
       documentEntityId,
       documentId: body.document_id ?? null,
       metadata: { source: 'executor_v2' },
     });
 
+    const anchorId = (anchorResponse as { anchorId?: string }).anchorId;
+    const estimatedTime = (anchorResponse as { estimatedTime?: string }).estimatedTime;
+
     await emitEvent(
       supabase,
       documentEntityId,
       {
-        kind: 'anchor.pending',
+        kind: 'anchor.submitted',
         at: new Date().toISOString(),
-        correlation_id: correlationId,  // NUEVO: heredado del job
+        correlation_id: correlationId,
         anchor: {
           network: 'bitcoin',
           witness_hash: witnessHash,
           anchor_stage: body.anchor_stage ?? 'initial',
-          step_index: body.step_index ?? 0
+          step_index: body.step_index ?? 0,
+          ots_request: true,
+          anchor_id: anchorId ?? null,
+          provider: 'opentimestamps',
+          estimated_confirm_time: estimatedTime ?? null,
         }
       },
       'submit-anchor-bitcoin',
     );
 
-    return jsonResponse({ success: true });
+    return jsonResponse({ success: true, anchorId, estimatedTime });
   } catch (error) {
     await emitEvent(
       supabase,
       documentEntityId,
-      { kind: 'anchor.failed', at: new Date().toISOString() },
+      { 
+        kind: 'anchor.failed', 
+        at: new Date().toISOString(),
+        anchor: {
+          network: 'bitcoin',
+          witness_hash: witnessHash,
+          anchor_stage: body.anchor_stage ?? 'initial',
+          step_index: body.step_index ?? 0,
+          reason: error instanceof Error ? error.message : String(error),
+          retryable: true,
+        }
+      },
       'submit-anchor-bitcoin',
     );
     const message = error instanceof Error ? error.message : String(error);

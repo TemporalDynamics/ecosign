@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
 import { ethers } from 'npm:ethers@6.9.0'
-import { appendEvent } from '../supabase/functions/_shared/eventHelper.ts'
+import { appendEvent } from '../_shared/eventHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,7 +29,7 @@ const jsonResponse = (data: unknown, status = 200) =>
 
 async function markFailed(anchorId: string, message: string, attempts: number) {
   if (!supabaseAdmin) return
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from('anchors')
     .update({
       anchor_status: 'failed',
@@ -39,6 +39,9 @@ async function markFailed(anchorId: string, message: string, attempts: number) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', anchorId)
+  if (error) {
+    throw new Error(`markFailed(${anchorId}) failed: ${error.message}`)
+  }
 }
 
 async function insertNotification(anchor: any, txHash: string, blockNumber?: number | null, blockHash?: string | null, confirmedAt?: string | null) {
@@ -134,7 +137,7 @@ serve(async (req) => {
 
         if (!receipt) {
           // Still pending in mempool
-          await supabaseAdmin
+          const { error: updateProcessingError } = await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'processing',
@@ -143,6 +146,9 @@ serve(async (req) => {
               updated_at: new Date().toISOString(),
             })
             .eq('id', anchor.id)
+          if (updateProcessingError) {
+            throw new Error(`Failed to set processing for anchor ${anchor.id}: ${updateProcessingError.message}`)
+          }
 
           waiting++
           processed++
@@ -172,7 +178,7 @@ serve(async (req) => {
           confirmedAt,
         }
 
-        await supabaseAdmin
+        const { error: updateConfirmedError } = await supabaseAdmin
           .from('anchors')
           .update({
             anchor_status: 'confirmed',
@@ -186,6 +192,9 @@ serve(async (req) => {
             metadata: updatedMetadata,
           })
           .eq('id', anchor.id)
+        if (updateConfirmedError) {
+          throw new Error(`Failed to set confirmed for anchor ${anchor.id}: ${updateConfirmedError.message}`)
+        }
 
         // Emit anchor.confirmed event to document_entities.events[] (CANONICAL)
         if (anchor.document_entity_id) {

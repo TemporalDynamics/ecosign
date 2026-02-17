@@ -1,0 +1,44 @@
+{
+  "test_run_id": "canonical-proof-1771225843697",
+  "started_at": "2026-02-16T07:10:43.697Z",
+  "timeline": [
+    {
+      "timestamp": "2026-02-16T07:10:44.329Z",
+      "step": "test_user_created",
+      "detail": "user_id=a09c40af-a7ce-4f0f-be80-db982d031f54"
+    },
+    {
+      "timestamp": "2026-02-16T07:10:44.416Z",
+      "step": "constraint_rejected_invalid_event",
+      "detail": "error=document.protected.requested requires payload.required_evidence array (event_index=0)"
+    },
+    {
+      "timestamp": "2026-02-16T07:10:44.431Z",
+      "step": "valid_document_created",
+      "detail": "document_entity_id=a3718ba7-bffa-44df-8a1e-2ac21f0edee9"
+    },
+    {
+      "timestamp": "2026-02-16T07:10:44.434Z",
+      "step": "events_only_decision_verified",
+      "detail": "decision_jobs=run_tsa"
+    },
+    {
+      "timestamp": "2026-02-16T07:10:44.453Z",
+      "step": "cleanup_document_entity",
+      "detail": "document_entity_id=a3718ba7-bffa-44df-8a1e-2ac21f0edee9"
+    },
+    {
+      "timestamp": "2026-02-16T07:10:44.614Z",
+      "step": "cleanup_test_user",
+      "detail": "user_id=a09c40af-a7ce-4f0f-be80-db982d031f54"
+    }
+  ],
+  "validations": {
+    "db_constraint_required_evidence_enforced": true,
+    "events_only_reconstruction": true,
+    "canonical_authority_confirmed": true
+  },
+  "user_id": "a09c40af-a7ce-4f0f-be80-db982d031f54",
+  "document_entity_id": "a3718ba7-bffa-44df-8a1e-2ac21f0edee9",
+  "finished_at": "2026-02-16T07:10:44.614Z"
+}

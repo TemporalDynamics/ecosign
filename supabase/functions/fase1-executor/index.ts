@@ -2,7 +2,14 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts';
 import { validateEventAppend } from '../_shared/validateEventAppend.ts';
-import { decideProtectDocumentV2Pipeline, type ProtectV2Job } from '../_shared/protectDocumentV2PipelineDecision.ts';
+import {
+  decideProtectDocumentV2Pipeline,
+  getRequiredEvidenceFromEvents,
+  hasAnchorConfirmed,
+  hasDocumentCertifiedForWitness,
+  hasRequiredAnchors,
+  type ProtectV2Job,
+} from '../_shared/protectDocumentV2PipelineDecision.ts';
 import { syncFlagsToDatabase } from '../_shared/flagSync.ts';
 
 type ExecutorJob = {
@@ -107,7 +114,7 @@ async function emitArtifactChainPendingIfNeeded(
   }
 
   if (witnessHash && events.some((event) =>
-    event.kind === 'artifact.chain_pending' &&
+    event.kind === 'artifact.chain.pending' &&
     event.payload?.['witness_hash'] === witnessHash
   )) {
     return;
@@ -126,13 +133,46 @@ async function emitArtifactChainPendingIfNeeded(
     supabase,
     documentEntityId,
     {
-      kind: 'artifact.chain_pending',
+      kind: 'artifact.chain.pending',
       at: new Date().toISOString(),
       payload: {
         document_entity_id: documentEntityId,
         witness_hash: witnessHash,
         required_evidence: requiredEvidence,
         pending_networks: pendingNetworks,
+      },
+    },
+    'fase1-executor',
+  );
+}
+
+async function maybeEmitDocumentCertified(
+  supabase: ReturnType<typeof createClient>,
+  documentEntityId: string,
+  events: Array<{ kind?: string; payload?: Record<string, unknown>; anchor?: Record<string, unknown> }>,
+  witnessHash: string | null,
+): Promise<void> {
+  const requiredEvidence = getRequiredEvidenceFromEvents(events);
+  const hasAllRequiredEvidence = hasRequiredAnchors(events, requiredEvidence);
+  if (!hasAllRequiredEvidence) return;
+  if (hasDocumentCertifiedForWitness(events, witnessHash)) return;
+
+  const networksConfirmed: string[] = [];
+  if (hasAnchorConfirmed(events, 'polygon')) networksConfirmed.push('polygon');
+  if (hasAnchorConfirmed(events, 'bitcoin')) networksConfirmed.push('bitcoin');
+
+  await emitEvent(
+    supabase,
+    documentEntityId,
+    {
+      kind: 'document.certified',
+      at: new Date().toISOString(),
+      payload: {
+        document_entity_id: documentEntityId,
+        witness_hash: witnessHash,
+        required_evidence: requiredEvidence,
+        confirmed_networks: networksConfirmed,
+        certified_at: new Date().toISOString(),
       },
     },
     'fase1-executor',
@@ -297,6 +337,13 @@ async function handleProtectDocumentV2(
       document_id: payload['document_id'] ? String(payload['document_id']) : null,
       witness_hash: requestedWitnessHash,
     },
+  );
+
+  await maybeEmitDocumentCertified(
+    supabase,
+    documentEntityId,
+    events,
+    requestedWitnessHash || null,
   );
 }
 

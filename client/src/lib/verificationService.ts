@@ -4,6 +4,7 @@
 
 import { getSupabase } from './supabaseClient';
 import { verifyEcoV2, type VerificationResult } from './eco/v2';
+import { hashSource } from './canonicalHashing';
 
 type VerificationBaseResult = {
   valid: boolean;
@@ -28,6 +29,49 @@ type VerificationBaseResult = {
   warnings?: string[];
   error?: string;
   originalFileProvided?: boolean | null;
+};
+
+const enforceOriginalFileMatch = async (
+  base: VerificationBaseResult,
+  result: VerificationResult,
+  originalFile?: File | null
+): Promise<VerificationBaseResult> => {
+  if (!originalFile) {
+    return {
+      ...base,
+      originalFileProvided: false,
+      originalFileName: null,
+      originalFileMatches: null,
+      originalHash: null
+    };
+  }
+
+  const originalHash = await hashSource(originalFile);
+  const expectedHash = result.witness_hash || result.source_hash;
+  const originalFileMatches = !!expectedHash && originalHash === expectedHash;
+
+  const errors = [...(base.errors ?? [])];
+  const warnings = [...(base.warnings ?? [])];
+
+  if (!expectedHash) {
+    warnings.push('No hay hash esperado en el ECO para comparar contra el archivo subido.');
+  } else if (!originalFileMatches) {
+    errors.push(
+      'El PDF subido no coincide con el snapshot ECO (hash esperado distinto).'
+    );
+  }
+
+  return {
+    ...base,
+    valid: base.valid && originalFileMatches,
+    documentIntegrity: (base.documentIntegrity ?? base.valid) && originalFileMatches,
+    originalFileProvided: true,
+    originalFileName: originalFile.name,
+    originalHash,
+    originalFileMatches,
+    errors,
+    warnings
+  };
 };
 
 type OnlineRevocationState = {
@@ -322,11 +366,8 @@ export async function verifyEcoWithOriginal(ecoFile: File, originalFile?: File |
       const signedAuthorityRef = (parsed as { signed?: { authority_ref?: Record<string, unknown> } }).signed?.authority_ref ?? null;
       const result = verifyEcoV2(parsed);
       const onlineRevocation = await checkOnlineRevocationStatus(parsed, result);
-      return {
-        ...mapEcoV2Result(result, ecoFile.name, signedAuthority, signedAuthorityRef, onlineRevocation),
-        originalFileProvided: !!originalFile,
-        originalFileName: originalFile?.name || null
-      };
+      const mapped = mapEcoV2Result(result, ecoFile.name, signedAuthority, signedAuthorityRef, onlineRevocation);
+      return await enforceOriginalFileMatch(mapped, result, originalFile);
     }
 
     // Crear FormData con ambos archivos

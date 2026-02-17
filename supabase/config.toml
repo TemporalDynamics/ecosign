@@ -259,9 +259,12 @@ verify_enabled = false
 [auth.mfa.phone]
 enroll_enabled = false
 verify_enabled = false
-otp_length = 6
-template = "Your code is {{ .Code }}"
-max_frequency = "5s"
+
+[functions.process-polygon-anchors]
+verify_jwt = false
+
+[functions.process-bitcoin-anchors]
+verify_jwt = false
 
 # Configure MFA via WebAuthn
 # [auth.mfa.web_authn]

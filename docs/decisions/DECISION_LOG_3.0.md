@@ -3289,3 +3289,179 @@ Evidencia: `canonical-proof-1771205362721.json`
 Estado: **READY FOR PRODUCTION CANONICAL AUTHORITY** ✅
 
 ---
+
+## Iteración: Verificación EPI/CAI de snapshots intermedios + fix anti falso positivo — 2026-02-16
+
+### 🎯 Resumen
+Se auditó el comportamiento esperado de snapshots por firmante (EPI/CAI) y se cerró un gap en el verificador v2:
+cuando se subía `PDF + ECO v2`, el flujo validaba consistencia interna del ECO pero no comparaba hash del PDF subido.
+
+### 🔎 Hallazgo
+- En `verifyEcoWithOriginal`, rama `eco.v2`, faltaba comparar el hash del archivo subido contra el hash esperado del snapshot.
+- Riesgo: posible falso positivo operativo en combinación de archivos incorrectos (`PDF` de una etapa con `ECO` de otra).
+
+### ✅ Cambios implementados
+- Archivo: `client/src/lib/verificationService.ts`
+  - Se agregó `enforceOriginalFileMatch(...)`.
+  - Para `eco.v2`, si se sube archivo original/PDF:
+    - calcula hash real del archivo (`hashSource`),
+    - compara contra hash esperado del snapshot (`witness_hash` preferente, fallback `source_hash`),
+    - marca `valid=false` y agrega error si no coincide.
+  - Se poblan campos:
+    - `originalHash`
+    - `originalFileMatches`
+    - `originalFileName`
+
+### 📌 Semántica EPI/CAI confirmada
+- Snapshot firmante 1 + PDF witness firmante 1 => **debe validar positivo**.
+- Snapshot final + PDF witness firmante 1 => **debe fallar mismatch** (hash distinto por evolución posterior).
+- Esto NO es falso negativo: es comportamiento canónico de evidencia por etapa.
+
+### ✅ Validación técnica
+- `npm run typecheck` verde.
+- `npm test -- tests/unit/ecoV2.test.ts` verde.
+
+---
+
+## Iteración: Fase 2A — Projection Authority única (events[] -> user_documents) — 2026-02-16
+
+### 🎯 Objetivo
+Cerrar autoridad de lectura sin reescribir frontend: `user_documents` queda como cache materializada derivada exclusivamente desde `document_entities.events[]`.
+
+### ✅ Cambios implementados
+- Migración: `supabase/migrations/20260216030000_create_events_projection_trigger.sql`
+  - Nueva función canónica: `project_document_entity_to_user_document(document_entity_id)`.
+  - Trigger: `trg_project_events_to_user_document` en `document_entities` (`AFTER UPDATE OF events` con append-only guard por longitud).
+  - Reglas de proyección:
+    - Solo cuenta `anchor.confirmed` como hecho definitivo.
+    - Deriva `has_polygon_anchor`, `has_bitcoin_anchor`, `overall_status`, `download_enabled`.
+    - Resuelve `polygon_anchor_id` / `bitcoin_anchor_id` desde `anchors` como cache técnica (no autoridad).
+  - Política actual preservada para compatibilidad de producto: `polygon OR bitcoin confirmed => certified`.
+  - `UPDATE-only`: evita `INSERT` frágil sobre `user_documents` (que tiene columnas legacy `NOT NULL`).
+  - Fallback de enlace legacy: si no existe fila ligada por `document_entity_id`, intenta ligar una fila por `(owner_id, witness_hash)`.
+  - Helper operativo: `rebuild_user_documents_projection(document_entity_id NULL)` para rebuild total/parcial.
+
+- Migraciones de enlace robustas:
+  - `supabase/migrations/20260216040000_add_document_entity_id_to_user_documents.sql`
+    - `ADD COLUMN IF NOT EXISTS document_entity_id` + índice.
+  - `supabase/migrations/20260216040001_add_unique_constraint_user_documents.sql`
+    - Constraint único idempotente via `DO $$ IF NOT EXISTS ... $$`.
+
+### 📐 Contrato resultante
+- **Autoridad única:** `document_entities.events[]`.
+- **Proyección única:** trigger SQL (no workers).
+- **Tabla legacy:** `user_documents` queda explícitamente como cache materializada, reconstruible.
+
+### 🧪 Operación recomendada
+- Rebuild total después de aplicar migraciones:
+  - `SELECT public.rebuild_user_documents_projection(NULL);`
+- Rebuild puntual:
+  - `SELECT public.rebuild_user_documents_projection('<document_entity_id>'::uuid);`
+
+### 🔒 Invariante arquitectónico
+`user_documents` no decide verdad. Solo refleja estado derivado de eventos canónicos.
+
+---
+
+## Iteración: Fase 3 — Evento canónico `document.certified` + proyección compatible — 2026-02-17
+
+### 🎯 Objetivo
+Hacer explícita la certificación en el ledger canónico (`document_entities.events[]`) y dejar de depender de inferencia implícita en tablas legacy.
+
+### ✅ Cambios implementados
+- Emisión de evento canónico en Decision/Executor:
+  - Archivo: `supabase/functions/fase1-executor/index.ts`
+  - Se agregó `maybeEmitDocumentCertified(...)`.
+  - Se emite `document.certified` cuando:
+    - la evidencia requerida está completa (`required_evidence` satisfecha por `anchor.confirmed`),
+    - y no existe `document.certified` para el witness actual.
+  - Payload emitido:
+    - `document_entity_id`
+    - `witness_hash`
+    - `required_evidence`
+    - `confirmed_networks`
+    - `certified_at`
+
+- Helpers canónicos reutilizables:
+  - Archivo: `supabase/functions/_shared/protectDocumentV2PipelineDecision.ts`
+  - Se exportan helpers:
+    - `getRequiredEvidenceFromEvents(...)`
+    - `hasAnchorConfirmed(...)`
+    - `hasRequiredAnchors(...)`
+    - `hasDocumentCertifiedForWitness(...)`
+
+- Clasificación de evento:
+  - Archivo: `supabase/functions/_shared/eventHelper.ts`
+  - `document.certified` agregado a `EVENT_CLASS` como `evidence`.
+
+- Proyección SQL (Fase 3):
+  - Nueva migración: `supabase/migrations/20260217123000_document_certified_projection.sql`
+  - `project_document_entity_to_user_document(...)` ahora:
+    - prioriza `document.certified` (para witness actual) como fuente de certificación,
+    - mantiene fallback por anchors confirmados para compatibilidad temporal,
+    - proyecta `certified_at` en `user_documents`.
+
+### 🔒 Invariante resultante
+La certificación ya no es implícita. Existe hecho canónico explícito (`document.certified`) en el ledger.
+`user_documents` sigue siendo cache materializada derivada.
+
+### 🧪 Validación mínima
+- `npm run typecheck` verde.
+- Verificación recomendada post-migración:
+  - `verify_projection.sql`
+  - `verify_projection_drift.sql`
+  - `SELECT public.rebuild_user_documents_projection(NULL);`
+
+---
+
+## Iteración: Incidente real de certificación post-anchor + cierre de causa raíz — 2026-02-17
+
+### 🎯 Contexto observado
+Para `document_entity_id = ee65671e-fead-40c0-bb8d-8697bdead59d`:
+- Existían `anchor.submitted` (polygon/bitcoin).
+- Luego apareció `anchor.confirmed` (polygon).
+- `protect_document_v2` seguía fallando y no emitía `document.certified`.
+
+### 🔎 Causa raíz confirmada
+`fase1-executor` emitía evento inválido con underscore:
+- `artifact.chain_pending`
+- El validador canónico rechaza `_` en `kind`.
+- Error exacto en jobs: `Event kind must not contain underscore: "artifact.chain_pending"`.
+
+### ✅ Corrección aplicada
+- Renombre de evento a formato canónico con puntos:
+  - `artifact.chain_pending` -> `artifact.chain.pending`
+- Archivos tocados:
+  - `supabase/functions/fase1-executor/index.ts`
+  - `supabase/functions/_shared/eventHelper.ts`
+  - `supabase/functions/_shared/fase1Events.ts`
+- Resultado:
+  - Reintento manual de `protect_document_v2` pasó de `failed` a `succeeded`.
+  - Se emitió `artifact.chain.pending` correctamente en `events[]`.
+
+### 📌 Hallazgos operativos de flujo (importantes)
+- El sistema está consistente con la policy canónica:
+  - `required_evidence = ["tsa","polygon","bitcoin"]`
+  - Estado actual: `polygon=confirmed`, `bitcoin=submitted/no confirmed`
+  - Por eso **no** se emite todavía `document.certified` (comportamiento correcto).
+- `user_documents` sin fila no bloquea autoridad canónica si el producto no depende de legacy.
+  - La verdad de negocio sigue en `document_entities.events[]`.
+
+### 🧠 Aprendizajes
+1. El naming contract de `event.kind` es crítico y bloquea pipelines enteros si se rompe.
+2. Un solo evento inválido puede aparentar “falla de anchoring”, cuando el problema real está en orchestración/event append.
+3. Para depurar rápido: primero validar `required_evidence` vs anchors confirmados antes de esperar `document.certified`.
+
+### ✅ Qué quedó solucionado
+- Error de underscore en evento intermedio.
+- Re-encolado manual de `protect_document_v2` con ejecución exitosa.
+- Confirmación explícita de que la no-certificación actual responde a policy (falta Bitcoin confirmado), no a bug.
+
+### ⏳ Qué queda por hacer
+1. Confirmar `anchor.confirmed` de Bitcoin (puede tardar por naturaleza OTS/Bitcoin).
+2. Verificar aparición automática de `document.certified` al completar evidencia requerida.
+3. (Opcional) Mantener checklist operativo de verificación por entidad:
+   - `required_evidence`
+   - anchors por red (`submitted/confirmed`)
+   - estado de `protect_document_v2`
+   - presencia de `document.certified`.

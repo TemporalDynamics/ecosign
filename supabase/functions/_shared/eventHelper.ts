@@ -41,13 +41,14 @@ export const EVENT_CLASS: Record<string, EventClass> = {
   'anchor': 'evidence',  // confirmación real
   'artifact.finalized': 'evidence',
   'document.protected.requested': 'evidence',
+  'document.certified': 'evidence',
 
   // Eventos de seguimiento/fallo (requieren _source verificable)
   'anchor.pending': 'tracking',
   'tsa.failed': 'tracking',
   'anchor.failed': 'tracking',
   'artifact.failed': 'tracking',
-  'artifact.chain_pending': 'tracking',
+  'artifact.chain.pending': 'tracking',
   'protection.failed': 'tracking',
 
   // Eventos probatorios (share/NDA) - evidencia contextual
@@ -98,6 +99,39 @@ export async function appendEvent(
       }
     } catch {
       return { success: false, error: 'Event "at" must be valid ISO 8601 timestamp' };
+    }
+
+    // 3. IDEMPOTENCE: Check for duplicate anchor events before appending
+    // Only for anchor events - check if same (witness_hash, network, anchor_stage, step_index) exists
+    if (event.kind === 'anchor.confirmed' || event.kind === 'anchor.submitted' || event.kind === 'anchor.failed') {
+      const anchorData = event.anchor;
+      if (anchorData?.witness_hash && anchorData?.network) {
+        const { data: entity, error: fetchError } = await supabase
+          .from('document_entities')
+          .select('events')
+          .eq('id', documentEntityId)
+          .single();
+
+        if (!fetchError && entity?.events) {
+          const existingEvents = entity.events as any[];
+          const isDuplicate = existingEvents.some((e: any) => {
+            if (e.kind !== event.kind) return false;
+            const existingAnchor = e.anchor;
+            if (!existingAnchor) return false;
+            return (
+              existingAnchor.witness_hash === anchorData.witness_hash &&
+              existingAnchor.network === anchorData.network &&
+              (existingAnchor.anchor_stage ?? 'initial') === (anchorData.anchor_stage ?? 'initial') &&
+              (existingAnchor.step_index ?? 0) === (anchorData.step_index ?? 0)
+            );
+          });
+
+          if (isDuplicate) {
+            console.log(`[idempotence] Skipping duplicate ${event.kind} for ${anchorData.witness_hash}/${anchorData.network}`);
+            return { success: true }; // Idempotent - already exists
+          }
+        }
+      }
     }
 
     const envelope = {

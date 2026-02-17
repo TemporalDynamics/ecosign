@@ -12,7 +12,7 @@ export type ProtectV2PipelineDecision = {
 
 const hasEvent = (events: EventLike[], kind: string) => events.some((event) => event.kind === kind);
 
-const getRequiredEvidenceFromEvents = (events: EventLike[]): string[] => {
+export const getRequiredEvidenceFromEvents = (events: EventLike[]): string[] => {
   const requestEvent = events.find((event) => event.kind === 'document.protected.requested') as
     | { payload?: Record<string, unknown> }
     | undefined;
@@ -25,13 +25,15 @@ const getRequiredEvidenceFromEvents = (events: EventLike[]): string[] => {
 };
 
 // Verifica si hay un anchor confirmado para una red específica
-const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin'): boolean => {
+export const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin'): boolean => {
   return events.some((event: any) => {
     const isCanonical = event.kind === 'anchor.confirmed';
     const isLegacy = event.kind === 'anchor';
     if (!isCanonical && !isLegacy) return false;
 
-    const anchorData = isCanonical ? event.payload : event.anchor;
+    // Canonical anchor events are stored under `event.anchor`.
+    // Keep fallback to payload for backward compatibility.
+    const anchorData = event.anchor ?? event.payload;
     const hasCorrectNetwork = anchorData?.network === network;
     if (!hasCorrectNetwork) return false;
 
@@ -60,11 +62,24 @@ const hasAnchorConfirmed = (events: EventLike[], network: 'polygon' | 'bitcoin')
 // Nota: hoy el evento canónico es 'anchor.confirmed' con payload.confirmed_at
 
 // Verifica si todos los anclajes requeridos están confirmados
-const hasRequiredAnchors = (events: EventLike[], protection: string[]): boolean => {
+export const hasRequiredAnchors = (events: EventLike[], protection: string[]): boolean => {
   const hasPolygon = protection.includes('polygon') ? hasAnchorConfirmed(events, 'polygon') : true;
   const hasBitcoin = protection.includes('bitcoin') ? hasAnchorConfirmed(events, 'bitcoin') : true;
 
   return hasPolygon && hasBitcoin;
+};
+
+export const hasDocumentCertifiedForWitness = (
+  events: EventLike[],
+  witnessHash: string | null,
+): boolean => {
+  return events.some((event: any) => {
+    if (event?.kind !== 'document.certified') return false;
+    const payload = event?.payload ?? {};
+    const eventWitness = typeof payload?.witness_hash === 'string' ? payload.witness_hash : null;
+    if (!witnessHash || !eventWitness) return true;
+    return eventWitness === witnessHash;
+  });
 };
 
 export const decideProtectDocumentV2Pipeline = (events: EventLike[]): ProtectV2PipelineDecision => {

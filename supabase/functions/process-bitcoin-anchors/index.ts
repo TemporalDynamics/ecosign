@@ -4,8 +4,8 @@
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
-import { sendResendEmail } from '../supabase/functions/_shared/email.ts';
-import { appendEvent } from '../supabase/functions/_shared/eventHelper.ts';
+import { sendResendEmail } from '../_shared/email.ts';
+import { appendEvent } from '../_shared/eventHelper.ts';
 import { Buffer } from 'node:buffer';
 
 const corsHeaders = {
@@ -343,7 +343,7 @@ serve(async (req) => {
         const result = await submitToOpenTimestamps(anchor.document_hash);
 
         if (result.success) {
-          await supabaseAdmin
+          const { error: updateSubmittedError } = await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'pending',
@@ -352,11 +352,14 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             })
             .eq('id', anchor.id);
+          if (updateSubmittedError) {
+            throw new Error(`Failed to set pending for anchor ${anchor.id}: ${updateSubmittedError.message}`);
+          }
 
           submitted++;
           console.log(`✅ Submitted anchor ${anchor.id}`);
         } else {
-          await supabaseAdmin
+          const { error: updateFailedSubmitError } = await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'failed',
@@ -364,6 +367,9 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             })
             .eq('id', anchor.id);
+          if (updateFailedSubmitError) {
+            throw new Error(`Failed to set failed(submit) for anchor ${anchor.id}: ${updateFailedSubmitError.message}`);
+          }
 
           failed++;
           console.log(`❌ Failed to submit anchor ${anchor.id}: ${result.error}`);
@@ -404,7 +410,7 @@ serve(async (req) => {
           console.error(`❌ ${errorMessage} - Anchor ID: ${anchor.id}`);
 
           // Marcar anchor de Bitcoin como failed
-          await supabaseAdmin
+          const { error: timeoutFailedError } = await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'failed',
@@ -413,6 +419,9 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             })
             .eq('id', anchor.id);
+          if (timeoutFailedError) {
+            throw new Error(`Failed to set failed(timeout) for anchor ${anchor.id}: ${timeoutFailedError.message}`);
+          }
 
           // Emit anchor.failed event to document_entities.events[] (CANONICAL)
           if (anchor.document_entity_id) {
@@ -481,7 +490,7 @@ serve(async (req) => {
                 calendar_url: anchor.ots_calendar_url
               };
 
-              await supabaseAdmin
+              const { error: updateConfirmedFastError } = await supabaseAdmin
                 .from('anchors')
                 .update({
                   bitcoin_tx_id: txid ?? anchor.bitcoin_tx_id,
@@ -494,6 +503,9 @@ serve(async (req) => {
                   updated_at: new Date().toISOString(),
                 })
                 .eq('id', anchor.id);
+              if (updateConfirmedFastError) {
+                throw new Error(`Failed to set confirmed(fast) for anchor ${anchor.id}: ${updateConfirmedFastError.message}`);
+              }
 
               console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
 
@@ -579,7 +591,7 @@ serve(async (req) => {
           };
 
           // Update anchor directly (projection authority will handle user_documents in Fase 2)
-          await supabaseAdmin
+          const { error: updateConfirmedError } = await supabaseAdmin
             .from('anchors')
             .update({
               bitcoin_tx_id: txid ?? anchor.bitcoin_tx_id,
@@ -592,6 +604,9 @@ serve(async (req) => {
               updated_at: new Date().toISOString(),
             })
             .eq('id', anchor.id);
+          if (updateConfirmedError) {
+            throw new Error(`Failed to set confirmed for anchor ${anchor.id}: ${updateConfirmedError.message}`);
+          }
 
           console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
 
@@ -693,7 +708,7 @@ serve(async (req) => {
           confirmed++;
         } else {
           // Still pending - update status to 'processing' if not already
-          await supabaseAdmin
+          const { error: updateProcessingError } = await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'processing',
@@ -701,6 +716,9 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             })
             .eq('id', anchor.id);
+          if (updateProcessingError) {
+            throw new Error(`Failed to set processing for anchor ${anchor.id}: ${updateProcessingError.message}`);
+          }
           waiting++;
         }
 

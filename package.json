@@ -25,8 +25,10 @@
     "validate": "npm run lint && npm run typecheck && npm run test && npm run build",
     "audit:events": "ts-node --project tsconfig.scripts.json --transpile-only scripts/audit-events.ts",
     "diag:progression": "bash scripts/diagnostics/generate-progression-inventory.sh",
+    "diag:entrypoint-guard": "bash scripts/diagnostics/check-executor-entrypoints.sh",
     "diag:canonical-readiness": "bash scripts/diagnostics/check-canonical-readiness.sh",
     "diag:decision-path-clean": "bash scripts/diagnostics/check-decision-path-clean.sh",
+    "phase1:gate": "npm run diag:entrypoint-guard && npm run diag:canonical-readiness",
     "prod:canonical-switch": "bash scripts/production-canonical-switch.sh",
     "ci:predeploy": "npm run audit:events"
   },

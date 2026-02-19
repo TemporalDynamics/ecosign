@@ -28,6 +28,7 @@ Acción manual:
 Detecta:
 - Drift de entrypoints hacia `executor_jobs` en runtime.
 - Uso fuera de scope de `claim_initial_decision_jobs` y `claim_orchestrator_jobs`.
+- Soporte de `compat-mode` explícito vía `scripts/diagnostics/allowlists/executor_jobs_direct_insert_compat.txt`.
 
 Cuándo correr:
 - En cada PR que toque pipeline.
@@ -35,6 +36,7 @@ Cuándo correr:
 
 Qué significa si falla:
 - Se agregó una ruta de materialización directa fuera del gateway/listener canónico o se rompió la separación de claims por rol.
+- Nota: si detecta inserts directos allowlisteados, reporta `WARN` + `PASS` (deuda explícita, no silenciosa).
 
 Acción manual:
 - Mover materialización al gateway/listener canónico y restaurar scope correcto de claims.

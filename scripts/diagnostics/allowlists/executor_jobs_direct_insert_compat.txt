@@ -1,0 +1,5 @@
+# Temporary compat-mode allowlist for direct runtime executor_jobs inserts.
+# One path per line. Keep this list minimal and remove entries during gateway migration.
+supabase/functions/record-protection-event/index.ts
+supabase/functions/apply-signer-signature/index.ts
+supabase/functions/run-tsa/index.ts

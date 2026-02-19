@@ -40,8 +40,8 @@ run_check "R02" "No autonomous TSA requeue in executor" \
 run_check "R03" "No trigger-based enqueue for protect_document_v2 in migrations" \
   "! rg -n 'create_or_requeue_job\\([^)]*protect_document_v2|enqueue_executor_job\\([^)]*protect_document_v2|insert into executor_jobs[^\\n]*protect_document_v2' supabase/migrations"
 
-run_check "R04" "No legacy anchor processors in active function tree" \
-  "[ ! -d supabase/functions/process-polygon-anchors ] && [ ! -d supabase/functions/process-bitcoin-anchors ]"
+run_check "R04" "Legacy anchor confirmation crons are explicitly disabled" \
+  "rg -n \"cron.unschedule\\('process-polygon-anchors'\\)|cron.unschedule\\('process-bitcoin-anchors'\\)\" supabase/migrations/20260215175000_disable_anchor_confirmation_crons.sql >/dev/null"
 
 run_check "R05" "Decision engine does not read env vars" \
   "! rg -n 'Deno\\.env|getFeatureFlag|isDecisionUnderCanonicalAuthority' supabase/functions/_shared/decisionEngineCanonical.ts supabase/functions/_shared/protectDocumentV2Decision.ts supabase/functions/_shared/protectDocumentV2PipelineDecision.ts"
@@ -71,6 +71,10 @@ run_check "R12" "Executor does not infer business state from events" \
 
 run_check "R13" "Executor does not enqueue follow-up business jobs directly" \
   "! rg -n 'enqueueExecutorJob\\(' supabase/functions/fase1-executor/index.ts"
+
+# Fase 1 - anti-drift entrypoint guard
+run_check "R14" "Single entry point guard (executor_jobs + claim scopes)" \
+  "bash scripts/diagnostics/check-executor-entrypoints.sh"
 
 echo
 if [ "$FAILED" -eq 0 ]; then

@@ -23,6 +23,22 @@ Qué significa si falla:
 Acción manual:
 - Corregir cada check fallido y volver a ejecutar hasta `READY`.
 
+## check-executor-entrypoints.sh
+
+Detecta:
+- Drift de entrypoints hacia `executor_jobs` en runtime.
+- Uso fuera de scope de `claim_initial_decision_jobs` y `claim_orchestrator_jobs`.
+
+Cuándo correr:
+- En cada PR que toque pipeline.
+- Antes de cerrar gate de Fase 1.
+
+Qué significa si falla:
+- Se agregó una ruta de materialización directa fuera del gateway/listener canónico o se rompió la separación de claims por rol.
+
+Acción manual:
+- Mover materialización al gateway/listener canónico y restaurar scope correcto de claims.
+
 ## check-decision-path-clean.sh
 
 Detecta:

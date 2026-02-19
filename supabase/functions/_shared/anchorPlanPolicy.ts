@@ -1,4 +1,5 @@
 export type AnchorStage = 'initial' | 'intermediate' | 'final';
+export type FlowType = 'DIRECT_PROTECTION' | 'SIGNATURE_FLOW';
 
 export type ForensicConfigInput = {
   rfc3161?: boolean | null;
@@ -67,36 +68,55 @@ export function normalizePlanCapabilities(raw: unknown): AnchorPlanCapabilities 
 
 export function decideAnchorPolicyByStage(params: {
   stage: AnchorStage;
+  flowType?: FlowType;
   forensicConfig: ForensicConfigInput | null | undefined;
   planKey?: string | null;
   capabilities?: AnchorPlanCapabilities;
   policySource?: AnchorPolicyDecision['policy_source'];
 }): AnchorPolicyDecision {
   const stage = params.stage;
+  const flowType: FlowType = params.flowType ?? 'DIRECT_PROTECTION';
+  const normalizedPlanKey = String(params.planKey ?? 'fallback').trim().toLowerCase();
   const requestedConfig = normalizeForensicConfig(params.forensicConfig);
   const capabilities = params.capabilities ?? DEFAULT_CAPABILITIES;
+  const isProPlusPlan =
+    normalizedPlanKey.startsWith('pro')
+    || normalizedPlanKey.startsWith('business')
+    || normalizedPlanKey.startsWith('enterprise');
   const requested = {
     tsa: requestedConfig.rfc3161,
     polygon: requestedConfig.polygon,
     bitcoin: requestedConfig.bitcoin,
   };
 
-  const allowChainAtStage = stage === 'initial' || stage === 'final';
-  const allowBitcoinAtStage = stage === 'final';
-  const allowPolygonAtStage = stage === 'initial' || stage === 'final';
+  // Contract-first policy:
+  // 1) DIRECT_PROTECTION
+  //    - Free: TSA + Bitcoin
+  //    - Pro+/Business/Enterprise: TSA + Polygon + Bitcoin
+  // 2) SIGNATURE_FLOW
+  //    - initial: Free => TSA ; Pro+ => TSA + Polygon
+  //    - intermediate: TSA only
+  //    - final: Free => Bitcoin ; Pro+ => TSA + Polygon + Bitcoin
+  const contractRequired = { tsa: false, polygon: false, bitcoin: false };
+  if (flowType === 'DIRECT_PROTECTION') {
+    contractRequired.tsa = true;
+    contractRequired.bitcoin = true;
+    contractRequired.polygon = isProPlusPlan;
+  } else if (stage === 'initial') {
+    contractRequired.tsa = true;
+    contractRequired.polygon = isProPlusPlan;
+  } else if (stage === 'intermediate') {
+    contractRequired.tsa = true;
+  } else {
+    contractRequired.bitcoin = true;
+    contractRequired.tsa = isProPlusPlan;
+    contractRequired.polygon = isProPlusPlan;
+  }
 
   const allowed = {
-    tsa: requested.tsa && capabilities.tsa_enabled,
-    polygon:
-      requested.polygon &&
-      capabilities.polygon_anchor_enabled &&
-      allowChainAtStage &&
-      allowPolygonAtStage,
-    bitcoin:
-      requested.bitcoin &&
-      capabilities.bitcoin_anchor_enabled &&
-      allowChainAtStage &&
-      allowBitcoinAtStage,
+    tsa: contractRequired.tsa && capabilities.tsa_enabled,
+    polygon: contractRequired.polygon && capabilities.polygon_anchor_enabled,
+    bitcoin: contractRequired.bitcoin && capabilities.bitcoin_anchor_enabled,
   };
 
   const protection = [
@@ -106,7 +126,7 @@ export function decideAnchorPolicyByStage(params: {
   ];
 
   return {
-    plan_key: params.planKey ?? 'fallback',
+    plan_key: normalizedPlanKey,
     stage,
     requested,
     allowed,

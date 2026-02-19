@@ -1,4 +1,5 @@
 export type EventLike = { kind?: string; at?: string; payload?: Record<string, unknown> };
+export type FlowType = 'DIRECT_PROTECTION' | 'SIGNATURE_FLOW';
 export type ProtectV2Job =
   | 'run_tsa'
   | 'build_artifact'
@@ -12,10 +13,17 @@ export type ProtectV2PipelineDecision = {
 
 const hasEvent = (events: EventLike[], kind: string) => events.some((event) => event.kind === kind);
 
+const getLatestProtectionRequestEvent = (events: EventLike[]): { payload?: Record<string, unknown> } | undefined => {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    if (events[i]?.kind === 'document.protected.requested') {
+      return events[i] as { payload?: Record<string, unknown> };
+    }
+  }
+  return undefined;
+};
+
 export const getRequiredEvidenceFromEvents = (events: EventLike[]): string[] => {
-  const requestEvent = events.find((event) => event.kind === 'document.protected.requested') as
-    | { payload?: Record<string, unknown> }
-    | undefined;
+  const requestEvent = getLatestProtectionRequestEvent(events);
   const requiredEvidence = requestEvent?.payload?.['required_evidence'];
   if (Array.isArray(requiredEvidence)) {
     return requiredEvidence.filter((item): item is string => typeof item === 'string');
@@ -82,8 +90,11 @@ export const hasDocumentCertifiedForWitness = (
   });
 };
 
-export const decideProtectDocumentV2Pipeline = (events: EventLike[]): ProtectV2PipelineDecision => {
-  if (!hasEvent(events, 'document.protected.requested')) {
+export const decideProtectDocumentV2Pipeline = (
+  events: EventLike[],
+): ProtectV2PipelineDecision => {
+  const requestEvent = getLatestProtectionRequestEvent(events);
+  if (!requestEvent) {
     return { jobs: [], reason: 'noop_missing_request' };
   }
 
@@ -91,21 +102,31 @@ export const decideProtectDocumentV2Pipeline = (events: EventLike[]): ProtectV2P
     return { jobs: ['run_tsa'], reason: 'needs_tsa' };
   }
 
-  const requiredEvidence = getRequiredEvidenceFromEvents(events);
+  const payload = requestEvent.payload ?? {};
+  const flowType = payload['flow_type'] === 'SIGNATURE_FLOW' ? 'SIGNATURE_FLOW' : 'DIRECT_PROTECTION';
+  const stageFromPayload = payload['anchor_stage'] === 'final'
+    ? 'final'
+    : (payload['anchor_stage'] === 'intermediate' ? 'intermediate' : 'initial');
+  const isSignatureTerminal = flowType !== 'SIGNATURE_FLOW' || stageFromPayload === 'final';
 
-  // Solo generar artifact si TSA + anclajes requeridos están confirmados
-  const hasAllRequiredEvidence = hasRequiredAnchors(events, requiredEvidence);
-
-  if (!hasEvent(events, 'artifact.finalized') && hasAllRequiredEvidence) {
-    return { jobs: ['build_artifact'], reason: 'needs_artifact' };
+  if (hasEvent(events, 'artifact.finalized')) {
+    return { jobs: [], reason: 'noop_complete' };
   }
 
+  const requiredEvidence = getRequiredEvidenceFromEvents(events);
   const jobs: ProtectV2Job[] = [];
   if (requiredEvidence.includes('polygon') && !hasAnchorConfirmed(events, 'polygon')) {
     jobs.push('submit_anchor_polygon');
   }
   if (requiredEvidence.includes('bitcoin') && !hasAnchorConfirmed(events, 'bitcoin')) {
     jobs.push('submit_anchor_bitcoin');
+  }
+
+  // Snapshots (signature flow pre-terminal) never emit final ECO artifact.
+  if (isSignatureTerminal) {
+    // ECO final is TSA-gated, while chain anchors are best-effort strengthening.
+    jobs.unshift('build_artifact');
+    return { jobs, reason: 'needs_artifact' };
   }
 
   return jobs.length > 0 ? { jobs, reason: 'needs_anchors' } : { jobs: [], reason: 'noop_complete' };

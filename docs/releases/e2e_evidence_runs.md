@@ -40,3 +40,15 @@ Expected verifier statuses:
 - strengthening failed rate:
 - anchor confirmation latency (avg/p95):
 - Go/No-Go recommendation:
+
+## Run 20260219-144007
+- captured_at: 2026-02-19T14:40:07Z
+- flow_type: DIRECT_PROTECTION
+- plan: free
+- entity_id: 4dc2fa83-102e-4288-a868-7650be1df543
+- workflow_id: n/a
+- workflow.completed present: NO
+- finalization_reference.final_state: intermediate
+- event_to_job_gap_seconds: -3.393
+- verifier_status: valid
+- notes: free direct protection real run #1

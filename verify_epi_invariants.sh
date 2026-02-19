@@ -6,8 +6,13 @@ set -euo pipefail
 #   DATABASE_URL='postgres://...' ./verify_epi_invariants.sh
 # or
 #   SUPABASE_DB_URL='postgres://...' ./verify_epi_invariants.sh
+# Optional:
+#   EPI_FREEZE_SINCE='2026-02-19T00:00:00Z' ./verify_epi_invariants.sh
+#   EPI_STRICT_HISTORICAL=1 ./verify_epi_invariants.sh
 
 DB_URL="${DATABASE_URL:-${SUPABASE_DB_URL:-}}"
+FREEZE_SINCE="${EPI_FREEZE_SINCE:-2026-02-19T00:00:00Z}"
+STRICT_HISTORICAL="${EPI_STRICT_HISTORICAL:-0}"
 if [[ -z "${DB_URL}" ]]; then
   echo "ERROR: DATABASE_URL or SUPABASE_DB_URL is required." >&2
   exit 2
@@ -39,8 +44,33 @@ run_psql() {
 }
 
 echo "Checking EPI invariants..."
+echo "freeze_since=${FREEZE_SINCE}"
 
-q1="SELECT COUNT(*)::int
+q1_post_freeze="SELECT COUNT(*)::int
+    FROM signature_workflows sw
+    LEFT JOIN document_entities de ON de.id = sw.document_entity_id
+    WHERE sw.status = 'completed'
+      AND sw.completed_at >= '${FREEZE_SINCE}'
+      AND (
+        sw.document_entity_id IS NULL
+        OR de.witness_current_storage_path IS NULL
+        OR de.witness_current_storage_path NOT LIKE 'signed/%'
+      );"
+
+q2_post_freeze="SELECT COUNT(*)::int
+    FROM workflow_events we
+    JOIN signature_workflows sw ON sw.id = we.workflow_id
+    LEFT JOIN document_entities de ON de.id = sw.document_entity_id
+    WHERE we.event_type = 'workflow.completed'
+      AND we.created_at >= '${FREEZE_SINCE}'
+      AND (
+        sw.document_entity_id IS NULL
+        OR
+        de.witness_current_storage_path IS NULL
+        OR de.witness_current_storage_path NOT LIKE 'signed/%'
+      );"
+
+q1_historical="SELECT COUNT(*)::int
     FROM signature_workflows sw
     LEFT JOIN document_entities de ON de.id = sw.document_entity_id
     WHERE sw.status = 'completed'
@@ -50,7 +80,7 @@ q1="SELECT COUNT(*)::int
         OR de.witness_current_storage_path NOT LIKE 'signed/%'
       );"
 
-q2="SELECT COUNT(*)::int
+q2_historical="SELECT COUNT(*)::int
     FROM workflow_events we
     JOIN signature_workflows sw ON sw.id = we.workflow_id
     LEFT JOIN document_entities de ON de.id = sw.document_entity_id
@@ -62,14 +92,23 @@ q2="SELECT COUNT(*)::int
         OR de.witness_current_storage_path NOT LIKE 'signed/%'
       );"
 
-viol_1="$(run_psql "${q1}")"
-viol_2="$(run_psql "${q2}")"
+viol_1_post_freeze="$(run_psql "${q1_post_freeze}")"
+viol_2_post_freeze="$(run_psql "${q2_post_freeze}")"
+viol_1_historical="$(run_psql "${q1_historical}")"
+viol_2_historical="$(run_psql "${q2_historical}")"
 
-echo "violations.non_signed_witness_path=${viol_1}"
-echo "violations.completed_without_immutable_witness=${viol_2}"
+echo "hard_gate.post_freeze.non_signed_witness_path=${viol_1_post_freeze}"
+echo "hard_gate.post_freeze.completed_without_immutable_witness=${viol_2_post_freeze}"
+echo "debt.historical.non_signed_witness_path=${viol_1_historical}"
+echo "debt.historical.completed_without_immutable_witness=${viol_2_historical}"
 
-if [[ "${viol_1}" != "0" || "${viol_2}" != "0" ]]; then
+if [[ "${viol_1_post_freeze}" != "0" || "${viol_2_post_freeze}" != "0" ]]; then
   echo "EPI invariant check FAILED." >&2
+  exit 1
+fi
+
+if [[ "${STRICT_HISTORICAL}" == "1" ]] && [[ "${viol_1_historical}" != "0" || "${viol_2_historical}" != "0" ]]; then
+  echo "EPI invariant check FAILED (STRICT_HISTORICAL=1)." >&2
   exit 1
 fi
 

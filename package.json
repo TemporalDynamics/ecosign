@@ -28,6 +28,8 @@
     "diag:entrypoint-guard": "bash scripts/diagnostics/check-executor-entrypoints.sh",
     "diag:canonical-readiness": "bash scripts/diagnostics/check-canonical-readiness.sh",
     "diag:decision-path-clean": "bash scripts/diagnostics/check-decision-path-clean.sh",
+    "epi:capture-run": "bash scripts/diagnostics/capture-e2e-run.sh",
+    "epi:hard-gate": "bash scripts/diagnostics/run-epi-hard-gate.sh",
     "phase1:gate": "npm run diag:entrypoint-guard && npm run diag:canonical-readiness",
     "prod:canonical-switch": "bash scripts/production-canonical-switch.sh",
     "ci:predeploy": "npm run audit:events"

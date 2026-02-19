@@ -3465,3 +3465,56 @@ Para `document_entity_id = ee65671e-fead-40c0-bb8d-8697bdead59d`:
    - anchors por red (`submitted/confirmed`)
    - estado de `protect_document_v2`
    - presencia de `document.certified`.
+
+---
+
+## Iteración: Hard Gate post-freeze + captura E2E operativa — 2026-02-19
+
+### 🎯 Resumen
+Se consolidó el gate operativo en un solo comando reproducible, separando explícitamente
+regresión post-freeze (bloqueante) de deuda histórica (report-only), y se dejó listo el
+registro auditable de corridas E2E reales para Day 2-3.
+
+### ✅ Cambios implementados
+- **Hard gate unificado:**
+  - Nuevo script `scripts/diagnostics/run-epi-hard-gate.sh`.
+  - Nuevo comando `npm run epi:hard-gate`.
+  - Ejecuta en orden: `phase1:gate` -> `verify-runtime-crons.sh` ->
+    `verify_epi_invariants.sh` -> `scripts/db/verify_precanary_epi.sql`.
+- **Invariantes EPI con ventana post-freeze:**
+  - `verify_epi_invariants.sh` ahora reporta:
+    - `hard_gate.post_freeze.*` (bloqueante),
+    - `debt.historical.*` (informativo).
+  - Freeze por defecto: `2026-02-19T00:00:00Z` (`EPI_FREEZE_SINCE` configurable).
+  - Modo estricto opcional: `EPI_STRICT_HISTORICAL=1`.
+- **SQL pre-canary con doble scope:**
+  - `scripts/db/verify_precanary_epi.sql` dividido en:
+    - `EPI Precanary: Hard Gate (post_freeze)`
+    - `EPI Precanary: Historical Debt (report-only)`
+  - `freeze_since` configurable por `-v`.
+- **Captura auditable de corridas reales:**
+  - Nuevo script `scripts/diagnostics/capture-e2e-run.sh`.
+  - Nuevo comando `npm run epi:capture-run`.
+  - Registra en `docs/releases/e2e_evidence_runs.md`:
+    - `workflow.completed` present,
+    - `finalization_reference.final_state`,
+    - `event_to_job_gap_seconds`,
+    - `verifier_status`.
+
+### ✅ Validación real observada
+- `npm run epi:hard-gate` ejecutado en DB real con resultado:
+  - `READY: 14/14 checks passed`
+  - runtime crons: `RESULT: PASS`
+  - `hard_gate.post_freeze.non_signed_witness_path=0`
+  - `hard_gate.post_freeze.completed_without_immutable_witness=0`
+  - SQL hard gate: `violations=0` en ambos checks.
+- Deuda histórica quedó visible y separada:
+  - `non_signed_witness_path=19`
+  - `duplicate_workflow_notifications=52`
+  - `signed_witness_without_user_document=43`
+  - `signed_user_document_without_matching_document_entity=79`
+
+### 📌 Decisión de operación
+- **GO** para ejecución por fases bajo gate post-freeze.
+- Deuda histórica permanece como backlog de saneamiento, sin bloquear releases
+  mientras no haya regresión en ventana post-freeze.

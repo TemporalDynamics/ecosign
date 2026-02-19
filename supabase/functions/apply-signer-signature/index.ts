@@ -1231,11 +1231,20 @@ serve(async (req) => {
           const alreadyRequested = eventsArr.some((e: any) => e?.kind === 'document.protected.requested')
           if (!alreadyRequested) {
             const cfg = (workflow as any)?.forensic_config ?? {}
-            const requiredEvidence = [
-              'tsa',
-              ...(cfg?.polygon ? ['polygon'] : []),
-              ...(cfg?.bitcoin ? ['bitcoin'] : []),
-            ]
+            const planPolicy = await resolveOwnerAnchorPlan(supabase as any, workflow.owner_id ?? null)
+            const initialAnchorPolicy = decideAnchorPolicyByStage({
+              stage: 'initial',
+              flowType: 'SIGNATURE_FLOW',
+              forensicConfig: {
+                rfc3161: true,
+                polygon: Boolean(cfg?.polygon),
+                bitcoin: Boolean(cfg?.bitcoin),
+              },
+              planKey: planPolicy.planKey,
+              capabilities: planPolicy.capabilities,
+              policySource: planPolicy.policySource,
+            })
+            const requiredEvidence = [...initialAnchorPolicy.protection]
             await appendEvent(
               supabase as any,
               workflow.document_entity_id,
@@ -1245,14 +1254,18 @@ serve(async (req) => {
                 payload: {
                   document_entity_id: workflow.document_entity_id,
                   workflow_id: workflow.id,
+                  flow_type: 'SIGNATURE_FLOW',
                   required_evidence: requiredEvidence,
                   protection: requiredEvidence,
+                  anchor_stage: 'initial',
+                  plan_key: initialAnchorPolicy.plan_key,
+                  policy_source: initialAnchorPolicy.policy_source,
                   protection_details: {
                     signature_type: 'legal',
                     forensic_enabled: true,
-                    tsa_requested: true,
-                    polygon_requested: Boolean(cfg?.polygon),
-                    bitcoin_requested: Boolean(cfg?.bitcoin)
+                    tsa_requested: initialAnchorPolicy.allowed.tsa,
+                    polygon_requested: initialAnchorPolicy.allowed.polygon,
+                    bitcoin_requested: initialAnchorPolicy.allowed.bitcoin,
                   }
                 }
               },
@@ -1524,6 +1537,7 @@ serve(async (req) => {
       const planPolicy = await resolveOwnerAnchorPlan(supabase as any, workflow.owner_id ?? null)
       const finalAnchorPolicy = decideAnchorPolicyByStage({
         stage: 'final',
+        flowType: 'SIGNATURE_FLOW',
         forensicConfig: {
           rfc3161: true,
           polygon: Boolean(workflowForensicConfig?.polygon),
@@ -1583,6 +1597,53 @@ serve(async (req) => {
 
         if (workflow.document_entity_id) {
           const finalStepIndex = signer.signing_order ?? 0
+          try {
+            const { data: finalEntity } = await supabase
+              .from('document_entities')
+              .select('events')
+              .eq('id', workflow.document_entity_id)
+              .single()
+
+            const finalEvents = Array.isArray((finalEntity as any)?.events) ? (finalEntity as any).events : []
+            const hasFinalProtectionRequest = finalEvents.some((event: any) =>
+              event?.kind === 'document.protected.requested' &&
+              event?.payload?.flow_type === 'SIGNATURE_FLOW' &&
+              event?.payload?.anchor_stage === 'final'
+            )
+
+            if (!hasFinalProtectionRequest) {
+              await appendEvent(
+                supabase as any,
+                workflow.document_entity_id,
+                {
+                  kind: 'document.protected.requested',
+                  at: new Date().toISOString(),
+                  payload: {
+                    document_entity_id: workflow.document_entity_id,
+                    workflow_id: signer.workflow_id,
+                    flow_type: 'SIGNATURE_FLOW',
+                    required_evidence: finalProtection,
+                    protection: finalProtection,
+                    anchor_stage: 'final',
+                    step_index: finalStepIndex,
+                    plan_key: finalAnchorPolicy.plan_key,
+                    policy_source: finalAnchorPolicy.policy_source,
+                    protection_details: {
+                      signature_type: 'legal',
+                      forensic_enabled: true,
+                      tsa_requested: finalAnchorPolicy.allowed.tsa,
+                      polygon_requested: finalAnchorPolicy.allowed.polygon,
+                      bitcoin_requested: finalAnchorPolicy.allowed.bitcoin,
+                    },
+                  },
+                },
+                'apply-signer-signature'
+              )
+            }
+          } catch (appendFinalPolicyErr) {
+            console.warn('apply-signer-signature: final protection policy append failed (best-effort)', appendFinalPolicyErr)
+          }
+
           const finalProtectDedupe = `${workflow.document_entity_id}:protect_document_v2:final:${finalStepIndex}`
           const { error: enqueueFinalProtectErr } = await supabase
             .from('executor_jobs')
@@ -1596,7 +1657,9 @@ serve(async (req) => {
                 document_entity_id: workflow.document_entity_id,
                 workflow_id: signer.workflow_id,
                 witness_hash: hashHex,
+                flow_type: 'SIGNATURE_FLOW',
                 protection: finalProtection,
+                required_evidence: finalProtection,
                 anchor_stage: 'final',
                 step_index: finalStepIndex,
                 plan_key: finalAnchorPolicy.plan_key,

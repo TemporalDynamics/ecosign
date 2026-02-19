@@ -142,7 +142,10 @@ event_to_job_gap_seconds="$(sql_scalar "WITH required_event AS (
 ), first_job AS (
     SELECT MIN(created_at) AS job_at
     FROM executor_jobs
-    WHERE document_entity_id='${ENTITY_ID}'::uuid
+    WHERE (
+      (entity_type = 'document_entity' AND entity_id='${ENTITY_ID}'::uuid)
+      OR COALESCE(payload->>'document_entity_id', '') = '${ENTITY_ID}'
+    )
 )
 SELECT COALESCE(
   ROUND(EXTRACT(EPOCH FROM (first_job.job_at - required_event.required_at))::numeric, 3)::text,

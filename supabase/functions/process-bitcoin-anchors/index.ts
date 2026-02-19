@@ -332,7 +332,7 @@ serve(async (req) => {
       .select('*')
       .eq('anchor_status', 'queued')
       .order('created_at', { ascending: true })
-      .limit(10);
+      .limit(50);
 
     if (queuedError) {
       console.error('Error fetching queued anchors:', queuedError);
@@ -380,12 +380,17 @@ serve(async (req) => {
     }
 
     // STEP 2: Check pending anchors for confirmation
+    // Fairness/throughput:
+    // - Prioritize anchors with fewer attempts first to avoid starvation.
+    // - Then process the least recently updated first.
+    // - Larger batch to reduce backlog drain time.
     const { data: pendingAnchors, error: pendingError } = await supabaseAdmin
       .from('anchors')
       .select('*')
       .in('anchor_status', ['pending', 'processing'])
-      .order('created_at', { ascending: true })
-      .limit(20);
+      .order('bitcoin_attempts', { ascending: true })
+      .order('updated_at', { ascending: true })
+      .limit(100);
 
     if (pendingError) {
       console.error('Error fetching pending anchors:', pendingError);

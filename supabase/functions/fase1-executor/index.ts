@@ -7,7 +7,6 @@ import {
   getRequiredEvidenceFromEvents,
   hasAnchorConfirmed,
   hasDocumentCertifiedForWitness,
-  hasRequiredAnchors,
   type ProtectV2Job,
 } from '../_shared/protectDocumentV2PipelineDecision.ts';
 import { syncFlagsToDatabase } from '../_shared/flagSync.ts';
@@ -153,8 +152,8 @@ async function maybeEmitDocumentCertified(
   witnessHash: string | null,
 ): Promise<void> {
   const requiredEvidence = getRequiredEvidenceFromEvents(events);
-  const hasAllRequiredEvidence = hasRequiredAnchors(events, requiredEvidence);
-  if (!hasAllRequiredEvidence) return;
+  const hasTsa = events.some((event) => event.kind === 'tsa.confirmed');
+  if (!hasTsa) return;
   if (hasDocumentCertifiedForWitness(events, witnessHash)) return;
 
   const networksConfirmed: string[] = [];
@@ -172,6 +171,10 @@ async function maybeEmitDocumentCertified(
         witness_hash: witnessHash,
         required_evidence: requiredEvidence,
         confirmed_networks: networksConfirmed,
+        strengthening_pending: requiredEvidence.filter((item) =>
+          (item === 'polygon' && !networksConfirmed.includes('polygon')) ||
+          (item === 'bitcoin' && !networksConfirmed.includes('bitcoin'))
+        ),
         certified_at: new Date().toISOString(),
       },
     },

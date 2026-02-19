@@ -135,6 +135,7 @@ serve(withRateLimit('record', async (req) => {
     const planPolicy = await resolveOwnerAnchorPlan(supabase as any, ownerId)
     const anchorPolicy = decideAnchorPolicyByStage({
       stage: 'initial',
+      flowType: 'DIRECT_PROTECTION',
       forensicConfig: {
         rfc3161: protection_details.tsa_requested,
         polygon: protection_details.polygon_requested,
@@ -186,6 +187,7 @@ serve(withRateLimit('record', async (req) => {
         document_id: userDocumentId,
         document_hash: doc.document_hash,
         witness_hash: effectiveWitnessHash,
+        flow_type: 'DIRECT_PROTECTION',
         required_evidence: requiredEvidence,
         protection: protectionMethods,
         anchor_stage: 'initial',
@@ -229,6 +231,7 @@ serve(withRateLimit('record', async (req) => {
           document_id: userDocumentId,
           document_hash: doc.document_hash,
           witness_hash: effectiveWitnessHash,
+          flow_type: 'DIRECT_PROTECTION',
           required_evidence: requiredEvidence,
           protection: protectionMethods,
           anchor_stage: 'initial',

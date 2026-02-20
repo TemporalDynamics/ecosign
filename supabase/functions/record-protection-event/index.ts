@@ -222,6 +222,7 @@ serve(withRateLimit('record', async (req) => {
       .from('executor_jobs')
       .insert({
         type: flowVersion === 'v2' ? 'protect_document_v2' : FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
+        enqueue_source: 'compat_direct',
         entity_type: 'document',
         entity_id: documentEntityId,
         correlation_id: documentEntityId,  // NUEVO: canonical correlation

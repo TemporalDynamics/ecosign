@@ -1,3 +1,9 @@
+import {
+  validateMinimumEvidence,
+  validateMonotonicityByStage,
+  validateRequiredEvidenceNotNull,
+} from './eventValidator.ts';
+
 /**
  * Event Helper for Edge Functions
  *
@@ -132,6 +138,24 @@ export async function appendEvent(
           }
         }
       }
+    }
+
+    // 4. B1/B2/B3 validators for policy evolution events (fail-hard).
+    if (event.kind === 'document.protected.requested') {
+      const { data: entity, error: fetchError } = await supabase
+        .from('document_entities')
+        .select('events')
+        .eq('id', documentEntityId)
+        .single();
+
+      if (fetchError) {
+        return { success: false, error: `Failed to load previous events: ${fetchError.message}` };
+      }
+
+      const previousEvents = Array.isArray(entity?.events) ? (entity.events as GenericEvent[]) : [];
+      validateRequiredEvidenceNotNull(event);
+      validateMonotonicityByStage(event, previousEvents);
+      validateMinimumEvidence(event);
     }
 
     const envelope = {

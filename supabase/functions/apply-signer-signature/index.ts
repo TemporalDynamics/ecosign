@@ -1284,6 +1284,7 @@ serve(async (req) => {
             .from('executor_jobs')
             .insert({
               type: 'run_tsa',
+              enqueue_source: 'compat_direct',
               entity_type: 'document',
               entity_id: workflow.document_entity_id,
               correlation_id: workflow.document_entity_id,
@@ -1649,6 +1650,7 @@ serve(async (req) => {
             .from('executor_jobs')
             .insert({
               type: 'protect_document_v2',
+              enqueue_source: 'compat_direct',
               entity_type: 'document',
               entity_id: workflow.document_entity_id,
               correlation_id: workflow.document_entity_id,

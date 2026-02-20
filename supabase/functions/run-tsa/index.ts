@@ -226,6 +226,7 @@ serve(async (req) => {
         .from('executor_jobs')
         .insert({
           type: 'generate_signature_evidence',
+          enqueue_source: 'compat_direct',
           entity_type: 'document',
           entity_id: documentEntityId,
           correlation_id: documentEntityId,

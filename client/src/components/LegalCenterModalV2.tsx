@@ -3726,8 +3726,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                     </label>
                                   ) : (                  <div className={`border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 ${isPreviewFullscreen || isDocumentFocus ? 'fixed inset-0 z-50 rounded-none border-0 bg-white flex flex-col' : ''}`}>
                     {/* Header del preview */}
-                    <div className={`bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between ${isPreviewFullscreen ? 'sticky top-0 z-10' : ''}`}>
-                        <div className="flex items-center gap-2">
+                    <div className={`bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between gap-3 ${isPreviewFullscreen ? 'sticky top-0 z-10' : ''}`}>
+                        <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
                         {isDocumentFocus && (
                           <button
                             onClick={() => setFocusView(null)}
@@ -3750,9 +3750,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         >
                           <Shield className={`w-5 h-5 ${forensicEnabled ? 'fill-gray-900' : ''}`} />
                         </button>
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-900 truncate">
+                            <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
                               {file.name}
                             </p>
                             {signatureFields.length > 0 && (
@@ -3768,7 +3768,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         </div>
                       </div>
                       {/* Iconos alineados en la misma línea */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex shrink-0 items-center gap-1.5">
                         {documentPreview && (
                           <button
                             type="button"

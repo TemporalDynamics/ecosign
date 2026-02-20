@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
+import { useLegalCenter } from '../contexts/LegalCenterContext';
 
 interface HeaderProps {
   variant: 'public' | 'private';
@@ -126,8 +127,10 @@ const PrivateNavMobile = ({ onLogout, openLegalCenter, setMobileMenuOpen }: { on
     );
 };
 
-const Header = ({ variant, onLogout = () => {}, openLegalCenter = () => {} }: HeaderProps) => {
+const Header = ({ variant, onLogout = () => {}, openLegalCenter }: HeaderProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { open: openLegalCenterFromContext } = useLegalCenter();
+  const resolvedOpenLegalCenter = openLegalCenter ?? (() => openLegalCenterFromContext('certify'));
 
   return (
     <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40 shadow-sm">
@@ -135,7 +138,7 @@ const Header = ({ variant, onLogout = () => {}, openLegalCenter = () => {} }: He
         <div className="flex justify-between h-16 items-center">
           <Logo to={variant === 'public' ? '/' : '/inicio'} variant="option-c" />
           <nav className="hidden md:flex items-center space-x-8 translate-y-[2px]">
-            {variant === 'public' ? <PublicNavDesktop /> : <PrivateNavDesktop onLogout={onLogout} openLegalCenter={openLegalCenter} />}
+            {variant === 'public' ? <PublicNavDesktop /> : <PrivateNavDesktop onLogout={onLogout} openLegalCenter={resolvedOpenLegalCenter} />}
           </nav>
           <div className="md:hidden">
             <button
@@ -151,7 +154,7 @@ const Header = ({ variant, onLogout = () => {}, openLegalCenter = () => {} }: He
       </div>
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-gray-200 bg-white shadow-sm">
-            {variant === 'public' ? <PublicNavMobile setMobileMenuOpen={setMobileMenuOpen} /> : <PrivateNavMobile onLogout={onLogout} openLegalCenter={openLegalCenter} setMobileMenuOpen={setMobileMenuOpen} />}
+            {variant === 'public' ? <PublicNavMobile setMobileMenuOpen={setMobileMenuOpen} /> : <PrivateNavMobile onLogout={onLogout} openLegalCenter={resolvedOpenLegalCenter} setMobileMenuOpen={setMobileMenuOpen} />}
         </div>
       )}
     </header>

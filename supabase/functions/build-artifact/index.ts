@@ -77,10 +77,6 @@ serve(async (req) => {
     return jsonResponse({ success: true, noop: true });
   }
 
-  if (events.some((event: { kind?: string }) => event.kind === 'artifact.failed')) {
-    return jsonResponse({ success: true, noop: true });
-  }
-
   const witnessPath = entity.witness_current_storage_path as string | null;
   if (!witnessPath) {
     await emitEvent(

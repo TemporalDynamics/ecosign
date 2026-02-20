@@ -383,14 +383,14 @@ function DocumentsPage() {
   const getSectionPrefsKey = (userId: string | null) =>
     `ecosign:documents:sections:${userId ?? "guest"}`;
   const getDefaultSectionPrefs = () => ({
-    documents: false,
+    documents: true,
     drafts: false,
     operations: false
   });
   const readSectionPrefs = (userId: string | null) => {
     try {
       const key = getSectionPrefsKey(userId);
-      const raw = sessionStorage.getItem(key);
+      const raw = localStorage.getItem(key);
       if (!raw) return getDefaultSectionPrefs();
       const parsed = JSON.parse(raw);
       return { ...getDefaultSectionPrefs(), ...parsed };
@@ -405,7 +405,7 @@ function DocumentsPage() {
   const persistSectionPrefs = (nextPrefs: typeof sectionPrefs) => {
     try {
       const key = getSectionPrefsKey(currentUserId);
-      sessionStorage.setItem(key, JSON.stringify(nextPrefs));
+      localStorage.setItem(key, JSON.stringify(nextPrefs));
     } catch (error) {
       console.warn("No se pudieron guardar preferencias de secciones:", error);
     }
@@ -420,12 +420,6 @@ function DocumentsPage() {
   };
 
   const handleLogout = () => {
-    try {
-      const key = getSectionPrefsKey(currentUserId);
-      sessionStorage.removeItem(key);
-    } catch (error) {
-      console.warn("No se pudieron limpiar preferencias de secciones:", error);
-    }
     navigate("/");
   };
 
@@ -995,31 +989,45 @@ function DocumentsPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [directoryMenuOpen]);
 
-  // Auto-recovery: mostrar notificación si hay drafts tras posible crash
+  // Auto-recovery: mostrar notificación solo si hay borradores nuevos/actualizados.
   useEffect(() => {
     const checkAutoRecovery = async () => {
       try {
         const serverDrafts = await loadDraftOperations();
         const hasDrafts = serverDrafts.length > 0;
+        if (!hasDrafts) return;
 
-        if (hasDrafts && !sessionStorage.getItem('draft-recovery-shown')) {
-          sessionStorage.setItem('draft-recovery-shown', 'true');
-          toast.success(
-            `${serverDrafts.length} borrador(es) recuperado(s) automáticamente`,
-            {
-              position: 'top-right',
-              duration: 5000
-            }
-          );
+        const lastDraftUpdateAtMs = serverDrafts.reduce((maxTimestamp, draft) => {
+          const draftTimestamp = Date.parse(draft.updated_at || draft.created_at || "");
+          if (Number.isNaN(draftTimestamp)) {
+            return maxTimestamp;
+          }
+          return Math.max(maxTimestamp, draftTimestamp);
+        }, 0);
+
+        const recoveryKey = `ecosign:draft-recovery:last-seen:${currentUserId ?? "guest"}`;
+        const previousTimestamp = Number(localStorage.getItem(recoveryKey) || "0");
+        const hasNewDraftRecovery = lastDraftUpdateAtMs > previousTimestamp;
+
+        if (!hasNewDraftRecovery) {
+          return;
         }
+
+        localStorage.setItem(recoveryKey, String(lastDraftUpdateAtMs));
+        toast.success(
+          `${serverDrafts.length} borrador(es) recuperado(s) automáticamente`,
+          {
+            position: 'top-right',
+            duration: 5000
+          }
+        );
       } catch (err) {
         console.warn('Auto-recovery check failed:', err);
       }
     };
 
-    // Solo ejecutar una vez al montar
     checkAutoRecovery();
-  }, []);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (isGuestMode()) return;
@@ -1646,6 +1654,8 @@ function DocumentsPage() {
     setVerifying(false);
     setAutoVerifyAttempted(false);
     setVerificationMode("signed");
+    setShowTimeline(false);
+    setTimelineEvents([]);
     setShowVerifyModal(true);
   };
 
@@ -2725,8 +2735,8 @@ function DocumentsPage() {
 
       {/* Modal Preview */}
       {previewDoc && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">{previewDoc.document_name}</h3>
@@ -2866,8 +2876,8 @@ function DocumentsPage() {
 
       {/* Modal Detalle de Operación */}
       {previewOperation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">{previewOperation.name}</h3>
@@ -3072,8 +3082,8 @@ function DocumentsPage() {
 
       {/* Modal Detalle de Borrador */}
       {previewDraft && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">{previewDraft.name}</h3>
@@ -3163,8 +3173,8 @@ function DocumentsPage() {
 
       {/* Modal Verificar documento */}
       {showVerifyModal && verifyDoc && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Verificar documento</h3>
@@ -3177,6 +3187,8 @@ function DocumentsPage() {
                   setShowVerifyModal(false);
                   setVerifyResult(null);
                   setVerifyDoc(null);
+                  setShowTimeline(false);
+                  setTimelineEvents([]);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >

@@ -19,7 +19,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, FileText, Maximize2, Upload, X } from 'lucide-react';
+import { FileText, Maximize2, Upload, X } from 'lucide-react';
 import { NDA_COPY } from './nda.copy';
 
 type NdaSource = 'template' | 'pasted' | 'uploaded';
@@ -129,15 +129,7 @@ podés reemplazar este contenido.`;
           <h3 className="font-semibold text-sm text-gray-900 text-center truncate" title={NDA_COPY.PANEL_TITLE}>
             {NDA_COPY.PANEL_TITLE}
           </h3>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition"
-              title="Ocultar panel"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          )}
+          <span aria-hidden="true" className="h-7 w-7" />
         </div>
 
         {/* Body */}

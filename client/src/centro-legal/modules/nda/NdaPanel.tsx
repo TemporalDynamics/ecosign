@@ -86,23 +86,25 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
   return (
     <>
       {/* Panel izquierdo - width controlado por Stage CSS */}
-      <div className="w-full bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
+      <div className="w-full bg-white border-r border-gray-200 rounded-l-2xl flex flex-col h-full overflow-hidden">
         {/* Header - COMPACTO */}
-        <div className="h-14 px-3 border-b border-gray-200 grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
+        <div className="h-14 px-3 border-b border-gray-200">
+          <div className="h-full grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
           <span aria-hidden="true" className="h-7 w-7" />
-          <h3 className="font-semibold text-sm text-gray-900 text-center truncate" title={NDA_COPY.PANEL_TITLE}>
+          <h3 className="font-semibold text-sm leading-none text-gray-900 text-center truncate" title={NDA_COPY.PANEL_TITLE}>
             {NDA_COPY.PANEL_TITLE}
           </h3>
           <span aria-hidden="true" className="h-7 w-7" />
+          </div>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-hidden p-2 flex flex-col gap-2">
 
           {/* Visor de contenido - MÁS COMPACTO */}
-          <div className="border border-gray-200 rounded-lg flex flex-col flex-1 min-h-0 mt-1">
-            <div className="px-2 py-1 bg-white border-b border-gray-200 text-xs text-gray-600 flex items-center justify-between">
-              <span>Vista previa</span>
+          <div className="border border-gray-200 rounded-xl bg-white flex flex-col flex-1 min-h-0 mt-1 overflow-hidden">
+            <div className="h-11 px-3 bg-white border-b border-gray-200 flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Vista previa</span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => {
@@ -134,7 +136,7 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
           </div>
         </div>
         {onSave && (
-          <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white p-2">
+          <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white p-2 mb-1.5">
             <button
               onClick={handleSave}
               disabled={!isDirty || !content.trim()}

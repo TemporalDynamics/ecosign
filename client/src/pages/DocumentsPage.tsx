@@ -2789,6 +2789,47 @@ function DocumentsPage() {
 
               <div className="space-y-4">
                 <DocumentStateInfo document={previewDoc} />
+                {Array.isArray(previewDoc.signers) && previewDoc.signers.length > 0 && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                    <div className="font-semibold text-gray-800 mb-2">Firmantes</div>
+                    <div className="space-y-2">
+                      {[...previewDoc.signers]
+                        .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
+                        .map((signer, idx) => {
+                          const signerStatusLabel =
+                            signer.status === 'signed'
+                              ? 'Firmado'
+                              : signer.status === 'cancelled'
+                                ? 'Cancelado'
+                                : signer.status === 'rejected'
+                                  ? 'Rechazado'
+                                  : signer.status === 'expired'
+                                    ? 'Expirado'
+                                    : 'Pendiente';
+
+                          return (
+                            <div key={signer.id || `${signer.email}-${idx}`} className="rounded-md border border-gray-100 px-2 py-2">
+                              <div className="text-xs font-semibold text-gray-700">Firmante {idx + 1}</div>
+                              <div className="text-xs text-gray-600 mt-0.5 truncate" title={signer.email}>
+                                {signer.email}
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                Estado: <span className="font-semibold text-gray-800">{signerStatusLabel}</span>
+                              </div>
+                              <button
+                                type="button"
+                                disabled
+                                title="Próximamente"
+                                className="mt-1 text-xs text-gray-400 cursor-not-allowed"
+                              >
+                                Cambiar mail
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
                 {(() => {
                   const ecoAvailable = Boolean(
                     previewDoc.eco_storage_path || previewDoc.eco_file_data || previewDoc.eco_hash || previewDoc.content_hash

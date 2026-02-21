@@ -3685,8 +3685,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             /* Center Panel (Main Content) - SIN CLASES GRID */
             <div className="h-full w-full flex flex-col">
               {!isFocusMode && (
-                <div className="-mx-1.5 -mt-1.5 px-2 py-1.5 border-b border-gray-200 flex items-center justify-between bg-white">
-                  <div className="text-sm font-semibold text-gray-900">Centro Legal</div>
+                <div className="-mx-1.5 -mt-1.5 px-2 py-1.5 border-b border-gray-200 grid grid-cols-[28px_minmax(0,1fr)_28px] items-center bg-white">
+                  <span aria-hidden="true" className="h-7 w-7" />
+                  <div className="text-sm font-semibold text-gray-900 text-center">Centro Legal</div>
                   <div className="relative">
                     <button
                       type="button"
@@ -4847,8 +4848,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               <div className="h-full flex flex-col bg-white">
                 {/* Header colapsable del panel */}
             <div className="px-2 py-1.5 border-b border-gray-200 bg-white">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Flujo de Firmas</h3>
+              <div className="grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
+                <span aria-hidden="true" className="h-7 w-7" />
+                <h3 className="text-sm font-semibold text-gray-900 text-center">Flujo de Firmas</h3>
                 <button
                   onClick={() => setFlowPanelOpen(false)}
                   className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"

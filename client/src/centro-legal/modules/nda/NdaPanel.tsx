@@ -124,8 +124,9 @@ podés reemplazar este contenido.`;
       {/* Panel izquierdo - width controlado por Stage CSS */}
       <div className="w-full bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
         {/* Header - COMPACTO */}
-        <div className="px-2 py-1.5 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="font-semibold text-sm text-gray-900">
+        <div className="px-2 py-1.5 border-b border-gray-200 grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
+          <span aria-hidden="true" className="h-7 w-7" />
+          <h3 className="font-semibold text-sm text-gray-900 text-center truncate" title={NDA_COPY.PANEL_TITLE}>
             {NDA_COPY.PANEL_TITLE}
           </h3>
           {onClose && (

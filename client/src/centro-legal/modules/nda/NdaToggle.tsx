@@ -34,7 +34,7 @@ export const NdaToggle: React.FC<NdaToggleProps> = ({
       type="button"
       onClick={handleClick}
       disabled={disabled}
-      className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+      className={`h-11 px-4 rounded-lg text-sm font-medium border transition ${
         enabled
           ? 'border-blue-900 text-blue-900 bg-transparent'
           : 'border-gray-200 text-gray-600 bg-white hover:border-gray-300'

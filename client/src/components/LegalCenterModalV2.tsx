@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ChangeEvent } from 'react';
-import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Shield, Type, Upload, Users, RefreshCw, MoreVertical, Wand2, FileUp } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Shield, Type, Upload, Users, RefreshCw, MoreVertical, FileUp, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ToastOptions as HotToastOptions } from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
@@ -4476,6 +4476,13 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                   <MySignatureToggle
                     enabled={mySignature}
                     onToggle={(newState) => {
+                      if (newState && workflowEnabled) {
+                        showToast(
+                          'Mi firma y Flujo de firmas son opciones excluyentes.\n\nSi querés firmar junto a otros, agregá tu correo dentro del flujo.',
+                          { type: 'warning', duration: 5500, position: 'top-right' }
+                        );
+                        return;
+                      }
                       if (newState) {
                         if (!ownerEmail) {
                           showToast('Necesitás iniciar sesión para firmar tu documento.', { type: 'error' });
@@ -4483,8 +4490,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                           return;
                         }
                         setMySignature(true);
-                        setWorkflowEnabled(false);
-                        setFlowPanelOpen(false);
                         setIsCanvasLocked(false);
                         openMySignatureWizard();
                         return;
@@ -4498,6 +4503,13 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                   <SignatureFlowToggle
                     enabled={workflowEnabled}
                     onToggle={(next) => {
+                      if (next && mySignature) {
+                        showToast(
+                          'Mi firma y Flujo de firmas son opciones excluyentes.\n\nSi querés firmar junto a otros, agregá tu correo dentro del flujo.',
+                          { type: 'warning', duration: 5500, position: 'top-right' }
+                        );
+                        return;
+                      }
                       setWorkflowEnabled(next);
                       if (next) {
                         setFlowPanelOpen(true);
@@ -4688,27 +4700,28 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                       setSignatureType('legal');
                       showToast('Firma legal seleccionada', { type: 'success', duration: 2000 });
                     }}
-                    className={`px-4 py-2 rounded-lg border text-left transition ${
+                    className={`h-11 px-4 rounded-lg border text-left transition ${
                       signatureType === 'legal'
                         ? 'border-blue-900 text-blue-900 bg-transparent'
                         : 'border-gray-200 text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">
                         Firma Legal
                       </p>
-                      <div className="group relative">
-                        <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
-                        <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
-                          Firma válida para acuerdos cotidianos. Rápida, privada y simple.
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-gray-500">
+                          {!isEnterprisePlan ? `${ecosignUsed}/${ecosignTotal}` : '∞'}
+                        </p>
+                        <div className="group relative">
+                          <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
+                          <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
+                            Firma válida para acuerdos cotidianos. Rápida, privada y simple.
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {!isEnterprisePlan && `${ecosignUsed}/${ecosignTotal} usadas`}
-                      {isEnterprisePlan && 'Ilimitadas'}
-                    </p>
                   </button>
 
                   {/* Firma Certificada */}
@@ -4719,7 +4732,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                       setShowCertifiedModal(true);
                       showToast('Firma certificada seleccionada', { type: 'success', duration: 2000 });
                     }}
-                    className={`px-4 py-2 rounded-lg border text-left transition ${
+                    className={`h-11 px-4 rounded-lg border text-left transition ${
                       signatureType === 'certified'
                         ? 'border-blue-900 text-blue-900 bg-transparent'
                         : 'border-gray-200 text-gray-700 hover:border-gray-300'
@@ -4731,14 +4744,11 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                       </p>
                       <div className="group relative">
                         <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
-                        <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
+                        <div className="invisible group-hover:visible absolute right-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
                           Para contratos que exigen certificación oficial según tu país.
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {certifiedSubType ? `Tipo: ${certifiedSubType}` : 'Seleccionar tipo'}
-                    </p>
                   </button>
                 </div>
               </div>
@@ -4826,12 +4836,33 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             </div>
 
             {/* Contenido del panel */}
-            <div className="flex-1 overflow-hidden p-2 flex flex-col gap-2">
+            <div className="flex-1 overflow-y-auto overflow-x-visible p-2 flex flex-col gap-2">
 
               {/* Sub-header de Flujo - alineado con barra interna de NDA */}
-              <div className="border border-gray-200 rounded-xl bg-white overflow-hidden mt-1">
-                <div className="h-11 px-3 bg-white border-b border-gray-200 flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Firmantes</span>
+              <div className="border border-gray-200 rounded-xl bg-white overflow-visible mt-1">
+                <div className="h-11 px-3 bg-white border-b border-gray-200 flex items-center justify-between relative">
+                  <div className="group relative flex items-center gap-1">
+                    <span className="text-sm font-medium text-gray-700">Firmantes</span>
+                    <button
+                      type="button"
+                      className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition"
+                      title="Ayuda de firmantes"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="invisible group-hover:visible absolute left-0 top-full mt-2 w-72 rounded-md bg-gray-900 px-3 py-2 text-xs leading-relaxed text-white shadow-lg z-[70]">
+                      <p className="font-medium">Orden de firmantes</p>
+                      <p className="mt-1">
+                        El sistema enviará las solicitudes respetando el orden en que agregás los correos.
+                      </p>
+                      <p className="mt-1">
+                        El firmante 1 recibe primero. Cuando firma, se envía automáticamente al siguiente.
+                      </p>
+                      <p className="mt-1">
+                        Tip: Pegá una lista de correos (separados por coma, espacio o salto de línea) y EcoSign los agregará automáticamente.
+                      </p>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -4917,84 +4948,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                     Agregar otro firmante
                   </button>
 
-                  {/* CTA: Confirmar asignación (en panel Flujo de Firmas) */}
-                  {(() => {
-                    const validSigners = buildSignersList();
-                    const { batches, unassignedBatches } = resolveBatchAssignments(signatureFields, validSigners);
-                    const signerEmailSet = new Set(validSigners.map((s) => normalizeEmail(s.email)));
-
-                    const assignedEmails = new Set(
-                      batches
-                        .map((b) => normalizeEmail(b.assignedSignerEmail))
-                        .filter((email) => Boolean(email) && signerEmailSet.has(email))
-                    );
-                    const missingFor = validSigners
-                      .map((s) => s.email.trim().toLowerCase())
-                      .filter((email) => !assignedEmails.has(email));
-
-                    const isComplete =
-                      workflowAssignmentConfirmed ||
-                      (unassignedBatches.length === 0 &&
-                        missingFor.length === 0 &&
-                        batches.length > 0 &&
-                        validSigners.length > 0);
-                    const isLocked = workflowAssignmentConfirmed;
-                    const canConfirm = !isLocked && isComplete;
-
-                    if (signatureFields.length === 0) return null;
-
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isLocked) {
-                            showToast('Asignación ya confirmada', { type: 'success', duration: 1500, position: 'top-right' });
-                            return;
-                          }
-                          if (canConfirm) {
-                            setWorkflowAssignmentConfirmed(true);
-                            showToast('Asignación correcta por firmante', { type: 'success', duration: 2000, position: 'top-right' });
-                            return;
-                          }
-                          showToast('Asigná campos a todos los firmantes primero', { type: 'warning', duration: 2000, position: 'top-right' });
-                        }}
-                        disabled={!canConfirm}
-                        className={`w-full mt-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
-                          canConfirm
-                            ? 'bg-gray-900 hover:bg-gray-800 text-white'
-                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        {isLocked ? 'Asignación confirmada' : 'Confirmar asignación de campos'}
-                      </button>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Info flujo */}
-              <div className="p-2 bg-gray-100 border border-gray-200 rounded-lg text-xs">
-                <div className="flex gap-2">
-                  <Shield className="w-3.5 h-3.5 text-gray-900 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">Orden de firmantes</p>
-                    <p className="text-gray-700 mt-0.5">
-                      El flujo respeta el orden de los mails que agregás.
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Tip: pegá varios correos juntos con{' '}
-                      <span
-                        className="inline-flex items-center gap-1 font-medium text-gray-900"
-                        title="Copiá todos los correos juntos. Al pegarlos en el primer campo, EcoSign los separa y respeta el orden."
-                      >
-                        Smart Paste
-                        <span className="text-[10px] leading-none text-gray-500 border border-gray-300 rounded-full w-3 h-3 inline-flex items-center justify-center">
-                          ?
-                        </span>
-                      </span>
-                      .
-                    </p>
-                  </div>
                 </div>
               </div>
 
@@ -5073,7 +5026,18 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     <SignerFieldsWizard
       isOpen={showSignerFieldsWizard}
-      onClose={() => setShowSignerFieldsWizard(false)}
+      onClose={() => {
+        setShowSignerFieldsWizard(false);
+        if (mySignature && signatureFields.length === 0) {
+          setMySignature(false);
+          setSignatureType(null);
+          showToast('Mi firma se desactivó porque no se asignaron campos.', {
+            type: 'warning',
+            duration: 2000,
+            position: 'top-right'
+          });
+        }
+      }}
       signers={
         mySignature && !workflowEnabled
           ? (ownerEmail ? [{ email: ownerEmail, signingOrder: 1 }] : [])

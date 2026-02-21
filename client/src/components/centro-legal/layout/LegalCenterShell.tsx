@@ -4,6 +4,7 @@ interface LegalCenterShellProps {
   children: React.ReactNode;
   modeConfirmation?: string;
   onClose: () => void;
+  onBackdropClick?: () => void;
   gridTemplateColumns: string;
   useGrid?: boolean; // false cuando se usa Stage (absolute positioning)
   ndaOpen?: boolean; // Panel NDA abierto
@@ -19,6 +20,7 @@ export function LegalCenterShell({
   children,
   modeConfirmation,
   onClose,
+  onBackdropClick,
   gridTemplateColumns,
   useGrid = true, // Por defecto usa grid (legacy)
   ndaOpen = false,
@@ -37,9 +39,19 @@ export function LegalCenterShell({
   // - Canvas es el ÚNICO scroll owner
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 px-0 pt-12 md:pt-16 md:px-4 md:py-4">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 px-0 pt-12 md:pt-16 md:px-4 md:py-4"
+      onMouseDown={() => {
+        if (onBackdropClick) {
+          onBackdropClick();
+          return;
+        }
+        onClose();
+      }}
+    >
       <div
         className="modal-container bg-white rounded-none md:rounded-2xl w-auto shadow-xl flex flex-col"
+        onMouseDown={(event) => event.stopPropagation()}
         style={{
           // CONTRATO HORIZONTAL
           maxWidth: 'calc(100vw - 80px)', // Margen mínimo lateral

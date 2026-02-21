@@ -2934,6 +2934,35 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const signerCount = emailInputs.filter((input) => input.email.trim()).length;
   const hasWorkflowEmails = emailInputs.some((input) => isValidEmail(input.email.trim()).valid);
   const canAssignWorkflowFields = workflowEnabled && hasWorkflowEmails && !workflowAssignmentConfirmed;
+  const hasUnsavedContent = Boolean(
+    file ||
+    documentLoaded ||
+    signatureFields.length > 0 ||
+    emailInputs.some((input) => input.email.trim().length > 0) ||
+    ndaDirty ||
+    (ndaText.trim().length > 0 && ndaText.trim() !== NDA_COPY.EMPTY_MESSAGE.trim()) ||
+    mySignature ||
+    workflowEnabled ||
+    ndaEnabled
+  );
+
+  const handleBackdropClose = () => {
+    if (!hasUnsavedContent) {
+      resetAndClose();
+      return;
+    }
+
+    const shouldSaveAsDraft = window.confirm(
+      'Tenés cambios en progreso.\n\nAceptar = Guardar borrador y cerrar\nCancelar = Cerrar sin guardar'
+    );
+
+    if (shouldSaveAsDraft && file) {
+      void handleSaveDraft();
+      return;
+    }
+
+    resetAndClose();
+  };
 
   useEffect(() => {
     if (!isMobile) return;
@@ -3643,6 +3672,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     <LegalCenterShell
       modeConfirmation={modeConfirmation}
       onClose={resetAndClose}
+      onBackdropClick={handleBackdropClose}
       gridTemplateColumns={gridTemplateColumns}
       useGrid={!USE_NEW_STAGE} // Stage no necesita grid
       ndaOpen={ndaEnabled} // Panel NDA

@@ -1255,6 +1255,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       }
 
       if (signatureFields.length === 0) {
+        toast.error('Necesitás aceptar la asignación de campos. Tocá "Asignar campos".');
         openSignerFieldsWizard();
         return;
       }
@@ -2708,7 +2709,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         return;
       }
       if (workflowEnabled && !workflowAssignmentConfirmed) {
-        toast.error('Confirmá la asignación de campos antes de enviar.', {
+        toast.error('Necesitás aceptar la asignación de campos. Tocá "Asignar campos".', {
           position: 'bottom-right'
         });
         return;
@@ -2931,6 +2932,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   };
 
   const signerCount = emailInputs.filter((input) => input.email.trim()).length;
+  const hasWorkflowEmails = emailInputs.some((input) => isValidEmail(input.email.trim()).valid);
+  const canAssignWorkflowFields = workflowEnabled && hasWorkflowEmails && !workflowAssignmentConfirmed;
 
   useEffect(() => {
     if (!isMobile) return;
@@ -5058,6 +5061,30 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                 </div>
               </div>
 
+              </div>
+
+              <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!canAssignWorkflowFields) return;
+                    openSignerFieldsWizard();
+                    showToast('Asignación automática lista: revisá y confirmá.', { type: 'info', duration: 2000, position: 'top-right' });
+                  }}
+                  disabled={!canAssignWorkflowFields}
+                  className={`w-full h-11 rounded-lg px-4 text-sm font-medium transition ${
+                    canAssignWorkflowFields
+                      ? 'bg-gray-900 hover:bg-gray-800 text-white'
+                      : 'bg-gray-300 text-white cursor-not-allowed'
+                  }`}
+                  title={
+                    workflowAssignmentConfirmed
+                      ? 'Campos ya asignados'
+                      : 'Agregá un mail válido para asignar campos'
+                  }
+                >
+                  <span>{workflowAssignmentConfirmed ? 'Campos asignados' : 'Asignar campos'}</span>
+                </button>
               </div>
               </div>
             ) : undefined

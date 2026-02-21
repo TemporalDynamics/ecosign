@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ChangeEvent } from 'react';
-import { X, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Lock, Maximize2, Minimize2, PlusSquare, Shield, Type, Unlock, Upload, Users, RefreshCw, MoreVertical, Wand2 } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Lock, Maximize2, Minimize2, PlusSquare, Shield, Type, Unlock, Upload, Users, RefreshCw, MoreVertical, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ToastOptions as HotToastOptions } from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
@@ -3688,7 +3688,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                 <div className="-mx-1.5 -mt-1.5 px-2 py-1.5 border-b border-gray-200 grid grid-cols-[28px_minmax(0,1fr)_28px] items-center bg-white">
                   <span aria-hidden="true" className="h-7 w-7" />
                   <div className="text-sm font-semibold text-gray-900 text-center">Centro Legal</div>
-                  <div className="relative">
+                  <div className="relative mr-2">
                     <button
                       type="button"
                       onClick={() => setHeaderMenuOpen((prev) => !prev)}
@@ -3698,7 +3698,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                       <MoreVertical className="w-4 h-4" />
                     </button>
                     {headerMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                      <div className="absolute right-1 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                         <button
                           type="button"
                           onClick={() => {
@@ -3878,26 +3878,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         isPreviewFullscreen || isDocumentFocus ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
                       } bg-gray-100 overflow-x-hidden overflow-y-auto`}
                     >
-                      {documentLoaded && ndaEnabled && !ndaPanelOpen && !isFocusMode && (
-                        <button
-                          type="button"
-                          onClick={() => setNdaPanelOpen(true)}
-                          className="absolute left-0 top-16 h-7 w-7 -translate-x-1/2 rounded-md bg-white border border-gray-200 text-gray-500 hover:text-gray-900 shadow-sm opacity-0 group-hover:opacity-100 transition"
-                          title="Mostrar panel de NDA"
-                        >
-                          <ChevronRight className="w-4 h-4 mx-auto" />
-                        </button>
-                      )}
-                      {documentLoaded && workflowEnabled && !flowPanelOpen && !isFocusMode && (
-                        <button
-                          type="button"
-                          onClick={() => setFlowPanelOpen(true)}
-                          className="absolute right-0 top-16 h-7 w-7 translate-x-1/2 rounded-md bg-white border border-gray-200 text-gray-500 hover:text-gray-900 shadow-sm opacity-0 group-hover:opacity-100 transition"
-                          title="Mostrar panel de flujo"
-                        >
-                          <ChevronLeft className="w-4 h-4 mx-auto" />
-                        </button>
-                      )}
                           {documentPreview && file.type.startsWith('image/') && (
                             <img
                               src={documentPreview}
@@ -4851,13 +4831,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               <div className="grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
                 <span aria-hidden="true" className="h-7 w-7" />
                 <h3 className="text-sm font-semibold text-gray-900 text-center">Flujo de Firmas</h3>
-                <button
-                  onClick={() => setFlowPanelOpen(false)}
-                  className="h-7 w-7 inline-flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-                  title="Ocultar panel"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                <span aria-hidden="true" className="h-7 w-7" />
               </div>
             </div>
 

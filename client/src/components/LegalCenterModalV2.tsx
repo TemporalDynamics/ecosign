@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ChangeEvent } from 'react';
-import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, Copy, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Lock, Maximize2, Minimize2, PlusSquare, Shield, Type, Unlock, Upload, Users, RefreshCw, MoreVertical, Wand2 } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Shield, Type, Upload, Users, RefreshCw, RotateCw, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ToastOptions as HotToastOptions } from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
@@ -256,6 +256,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [isSignatureDragging, setIsSignatureDragging] = useState(false);
   const [pdfEditError, setPdfEditError] = useState(false);
   const [virtualScale, setVirtualScale] = useState(1);
+  const [previewRotation, setPreviewRotation] = useState(0);
 
   const handlePdfMetrics = useCallback((metrics: PdfPageMetrics[]) => {
     setPdfPageMetrics(metrics);
@@ -292,6 +293,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     return saved === null ? true : saved === 'true';
   });
   const [showToastConfirmModal, setShowToastConfirmModal] = useState(false);
+  const [showCloseConfirmModal, setShowCloseConfirmModal] = useState(false);
+  const [closeConfirmSelection, setCloseConfirmSelection] = useState<'discard' | 'save'>('save');
   const [isMobile, setIsMobile] = useState(false);
   const [ndaAccordionOpen, setNdaAccordionOpen] = useState(false);
   const [workflowAccordionOpen, setWorkflowAccordionOpen] = useState(false);
@@ -2947,22 +2950,38 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   );
 
   const handleBackdropClose = () => {
+    if (showCloseConfirmModal) return;
+
     if (!hasUnsavedContent) {
       resetAndClose();
       return;
     }
 
-    const shouldSaveAsDraft = window.confirm(
-      'Tenés cambios en progreso.\n\nAceptar = Guardar borrador y cerrar\nCancelar = Cerrar sin guardar'
-    );
+    setShowCloseConfirmModal(true);
+  };
 
-    if (shouldSaveAsDraft && file) {
-      void handleSaveDraft();
-      return;
-    }
+  const handleDismissCloseConfirm = () => {
+    setShowCloseConfirmModal(false);
+  };
 
+  const handleCloseWithoutSave = () => {
+    setShowCloseConfirmModal(false);
     resetAndClose();
   };
+
+  const handleSaveDraftAndClose = async () => {
+    if (!file) {
+      showToast('Seleccioná un archivo antes de guardar el borrador.', { type: 'error' });
+      return;
+    }
+    setShowCloseConfirmModal(false);
+    await handleSaveDraft();
+  };
+
+  useEffect(() => {
+    if (!showCloseConfirmModal) return;
+    setCloseConfirmSelection(file ? 'save' : 'discard');
+  }, [showCloseConfirmModal, file]);
 
   useEffect(() => {
     if (!isMobile) return;
@@ -3685,7 +3704,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             /* Center Panel (Main Content) - SIN CLASES GRID */
             <div className="h-full w-full flex flex-col">
               {!isFocusMode && (
-                <div className="-mx-1.5 -mt-1.5 px-2 py-1.5 border-b border-gray-200 grid grid-cols-[28px_minmax(0,1fr)_28px] items-center bg-white">
+                <div className="-mx-1.5 -mt-1.5 h-14 px-3 border-b border-gray-200 grid grid-cols-[28px_minmax(0,1fr)_28px] items-center bg-white">
                   <span aria-hidden="true" className="h-7 w-7" />
                   <div className="text-sm font-semibold text-gray-900 text-center">Centro Legal</div>
                   <div className="relative mr-2">
@@ -3805,40 +3824,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                       <div className="flex shrink-0 items-center gap-1.5">
                         {documentPreview && (
                           <button
-                            type="button"
-                            onClick={addTextField}
-                            className={`hidden md:inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-                              isViewerLocked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                            title="Agregar campo de texto"
-                          >
-                            <PlusSquare className="w-4 h-4" />
-                          </button>
-                        )}
-                        {documentPreview && signatureFields.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={duplicateBatch}
-                            className={`hidden md:inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-                              isViewerLocked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                            title="Duplicar todos los campos"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                        )}
-                        {documentPreview && (
-                          <button
-                            type="button"
-                            onClick={() => setIsCanvasLocked((prev) => !prev)}
-                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-                            title={isCanvasLocked ? 'Desbloquear posiciones' : 'Fijar posiciones'}
-                          >
-                            {isCanvasLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                          </button>
-                        )}
-                        {documentPreview && (
-                          <button
                             onClick={() => {
                               setFocusView((prev) => (prev === 'document' ? null : 'document'));
                             }}
@@ -3846,6 +3831,16 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             title={isDocumentFocus ? 'Volver al Centro Legal' : 'Ver en grande'}
                           >
                             {isDocumentFocus ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                          </button>
+                        )}
+                        {documentPreview && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewRotation((prev) => (prev + 90) % 360)}
+                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                            title="Rotar documento"
+                          >
+                            <RotateCw className="w-4 h-4" />
                           </button>
                         )}
                         {documentPreview && (
@@ -3878,6 +3873,14 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         isPreviewFullscreen || isDocumentFocus ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
                       } bg-gray-100 overflow-x-hidden overflow-y-auto`}
                     >
+                      <div
+                        className="relative min-h-full"
+                        style={{
+                          transform: `rotate(${previewRotation}deg)`,
+                          transformOrigin: 'center center',
+                          transition: 'transform 200ms ease'
+                        }}
+                      >
                           {documentPreview && file.type.startsWith('image/') && (
                             <img
                               src={documentPreview}
@@ -4177,6 +4180,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                               ))}
                             </div>
                           )}
+                      </div>
 
                           {/* Modal de firma con tabs */}
                           {showSignatureOnPreview && (
@@ -4756,12 +4760,12 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
               {/* Botón principal */}
               {!isFocusMode && (
-              <div className="hidden md:block">
+              <div className="hidden md:block sticky bottom-0 z-10 border-t border-gray-200 bg-white p-2">
                 <button
                   ref={finalizeButtonRef}
                   onClick={handleProtectClick}
                   disabled={!file || loading || !isCTAEnabled()}
-                  className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
+                  className="w-full h-11 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:text-gray-700 disabled:cursor-not-allowed text-white rounded-lg px-5 text-sm font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>
@@ -4776,11 +4780,11 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               </div>
               )}
               {!isFocusMode && (
-              <div className="md:hidden sticky bottom-0 bg-white pt-2 pb-3 border-t border-gray-200">
+              <div className="md:hidden sticky bottom-0 z-10 border-t border-gray-200 bg-white p-2">
                 <button
                   onClick={handleProtectClick}
                   disabled={!file || loading || !isCTAEnabled()}
-                  className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2"
+                  className="w-full h-11 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:text-gray-700 disabled:cursor-not-allowed text-white rounded-lg px-5 text-sm font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>
@@ -4827,7 +4831,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             !isMobile && documentLoaded && workflowEnabled && !isFocusMode ? (
               <div className="h-full flex flex-col bg-white">
                 {/* Header colapsable del panel */}
-            <div className="px-2 py-1.5 border-b border-gray-200 bg-white">
+            <div className="h-14 px-3 border-b border-gray-200 bg-white">
               <div className="grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
                 <span aria-hidden="true" className="h-7 w-7" />
                 <h3 className="text-sm font-semibold text-gray-900 text-center">Flujo de Firmas</h3>
@@ -4842,78 +4846,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <div className="px-2 py-1 bg-white border-b border-gray-200 text-xs text-gray-600 flex items-center justify-between">
                   <span>Acciones</span>
-                  <div className="flex items-center gap-1.5">
-                    {/* Wizard */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        openSignerFieldsWizard();
-                        showToast('Asigná campos automáticamente con el Wizard', { type: 'info', duration: 2000, position: 'top-right' });
-                      }}
-                      disabled={buildSignersList().length === 0}
-                      title="Asignar campos automáticamente por cantidad de usuarios"
-                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <Wand2 className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Asignar campos manualmente */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // TODO: Activar modo asignación manual
-                        showToast('Seleccioná el firmante que quieras', { type: 'info', duration: 2000, position: 'top-right' });
-                      }}
-                      title="Asignar campos manualmente"
-                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                      </svg>
-                    </button>
-
-                    {/* Agregar campo */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // TODO: Implementar agregar campo
-                      }}
-                      title="Agregar campo"
-                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
-
-                    {/* Duplicar campos */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // TODO: Implementar duplicar campos
-                      }}
-                      title="Duplicar campos"
-                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-
-                    {/* Crear nuevo grupo */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // TODO: Implementar crear nuevo grupo
-                      }}
-                      title="Crear nuevo grupo de campos"
-                      className="h-7 w-7 inline-flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-                  </div>
+                  <span className="text-[11px] text-gray-500">Automático por firmante</span>
                 </div>
 
                 {/* Contenido scrolleable - Firmantes */}
@@ -5061,7 +4994,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                           Copiá todos los correos juntos. Al pegarlos en el primer campo, EcoSign los separa y respeta el orden.
                         </span>
                       </span>
-                      , o usá la varita mágica para crear los campos.
+                      .
                     </p>
                   </div>
                 </div>
@@ -5080,8 +5013,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                   disabled={!canAssignWorkflowFields}
                   className={`w-full h-11 rounded-lg px-4 text-sm font-medium transition ${
                     canAssignWorkflowFields
-                      ? 'bg-gray-900 hover:bg-gray-800 text-white'
-                      : 'bg-gray-300 text-white cursor-not-allowed'
+                      ? 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                   }`}
                   title={
                     workflowAssignmentConfirmed
@@ -5322,6 +5255,91 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             <p className="text-xs text-gray-500 mt-3">
               Este aviso se basa en el nombre del archivo (no es una verificacion por huella).
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación al cerrar por click fuera */}
+      {showCloseConfirmModal && (
+        <div
+          className="fixed inset-0 bg-white md:bg-black md:bg-opacity-60 flex items-center justify-center z-[70] animate-fadeIn p-0 md:p-6"
+          onMouseDown={handleDismissCloseConfirm}
+        >
+          <div
+            className="bg-white rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-md p-6 shadow-2xl animate-fadeScaleIn overflow-y-auto"
+            onMouseDown={(event) => event.stopPropagation()}
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                setCloseConfirmSelection('discard');
+                return;
+              }
+              if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                if (!file) return;
+                setCloseConfirmSelection('save');
+                return;
+              }
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                if (closeConfirmSelection === 'discard') {
+                  handleCloseWithoutSave();
+                  return;
+                }
+                if (file) {
+                  void handleSaveDraftAndClose();
+                }
+                return;
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                handleDismissCloseConfirm();
+              }
+            }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Tenés cambios sin guardar
+              </h3>
+              <button
+                onClick={handleDismissCloseConfirm}
+                className="text-gray-400 hover:text-gray-600 transition"
+                title="Cancelar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Podés guardar un borrador para retomar después, o cerrar y descartar los cambios.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCloseWithoutSave}
+                className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors ${
+                  closeConfirmSelection === 'discard'
+                    ? 'bg-gray-200 text-gray-800 ring-2 ring-gray-900 ring-offset-1'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Cerrar sin guardar
+              </button>
+              <button
+                onClick={() => {
+                  void handleSaveDraftAndClose();
+                }}
+                disabled={!file}
+                className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed ${
+                  closeConfirmSelection === 'save' && file
+                    ? 'bg-gray-900 text-white ring-2 ring-gray-900 ring-offset-1'
+                    : 'bg-gray-900 text-white hover:bg-gray-800'
+                }`}
+              >
+                Guardar borrador
+              </button>
+            </div>
           </div>
         </div>
       )}

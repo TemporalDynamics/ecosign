@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ChangeEvent } from 'react';
-import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Shield, Type, Upload, Users, RefreshCw, RotateCw, MoreVertical } from 'lucide-react';
+import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Shield, Type, Upload, Users, RefreshCw, MoreVertical, Wand2, FileUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ToastOptions as HotToastOptions } from 'react-hot-toast';
 import '../styles/legalCenterAnimations.css';
@@ -1232,7 +1232,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   };
 
   // Sprint 4: Wrapper para mostrar custody modal antes de proteger
-  const handleProtectClick = () => {
+  const handleProtectClick = async () => {
     if (!file) return;
 
     // Mi firma: requiere owner y al menos un campo
@@ -1297,6 +1297,23 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         return;
       }
 
+    }
+
+    // Validación dura de TSA SOLO al ejecutar Proteger (no en el toggle).
+    if (forensicEnabled) {
+      setIsValidatingTSA(true);
+      const tsaAvailable = await validateTSAConnectivity().catch(() => false);
+      setIsValidatingTSA(false);
+      if (!tsaAvailable) {
+        toast.error(
+          'No se pudo conectar con timestamping en este intento. Reintentá en unos minutos.',
+          {
+            duration: 5000,
+            position: 'bottom-right'
+          }
+        );
+        return;
+      }
     }
 
     // Mostrar modal de custody para que usuario elija el modo
@@ -3706,7 +3723,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               {!isFocusMode && (
                 <div className="-mx-1.5 -mt-1.5 h-14 px-3 border-b border-gray-200 grid grid-cols-[28px_minmax(0,1fr)_28px] items-center bg-white">
                   <span aria-hidden="true" className="h-7 w-7" />
-                  <div className="text-sm font-semibold text-gray-900 text-center">Centro Legal</div>
+                  <div className="text-sm font-semibold leading-none text-gray-900 text-center">Centro Legal</div>
                   <div className="relative mr-2">
                     <button
                       type="button"
@@ -3742,7 +3759,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                   </div>
                 </div>
               )}
-              <div className="h-full w-full px-6 py-3">
+              <div className="h-full w-full px-6 pt-3 pb-0 overflow-y-auto overflow-x-hidden">
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
               <div className={`space-y-2 ${isMobile ? 'pb-24' : ''}`}>
@@ -3779,7 +3796,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                     </label>
                                   ) : (                  <div className={`border-2 border-gray-200 rounded-xl overflow-hidden bg-gray-50 ${isPreviewFullscreen || isDocumentFocus ? 'fixed inset-0 z-50 rounded-none border-0 bg-white flex flex-col' : ''}`}>
                     {/* Header del preview */}
-                    <div className={`bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between gap-3 ${isPreviewFullscreen ? 'sticky top-0 z-10' : ''}`}>
+                    <div className={`bg-white border-b border-gray-200 h-11 px-3 flex items-center justify-between gap-3 ${isPreviewFullscreen ? 'sticky top-0 z-10' : ''}`}>
                         <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
                         {isDocumentFocus && (
                           <button
@@ -3804,19 +3821,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                           <Shield className={`w-5 h-5 ${forensicEnabled ? 'fill-gray-900' : ''}`} />
                         </button>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
-                              {file.name}
-                            </p>
-                            {signatureFields.length > 0 && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <CheckCircle2 className="w-3 h-3" />
-                                Campos listos
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+                            {file.name}
                           </p>
                         </div>
                       </div>
@@ -3827,20 +3833,20 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             onClick={() => {
                               setFocusView((prev) => (prev === 'document' ? null : 'document'));
                             }}
-                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                             title={isDocumentFocus ? 'Volver al Centro Legal' : 'Ver en grande'}
                           >
-                            {isDocumentFocus ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                            {isDocumentFocus ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                           </button>
                         )}
                         {documentPreview && (
                           <button
                             type="button"
                             onClick={() => setPreviewRotation((prev) => (prev + 90) % 360)}
-                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                             title="Rotar documento"
                           >
-                            <RotateCw className="w-4 h-4" />
+                            <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                         )}
                         {documentPreview && (
@@ -3853,14 +3859,14 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             {isDocumentFocus ? 'Volver al Centro Legal' : 'Ver documento completo'}
                           </button>
                         )}
-                        <label className="h-7 w-7 inline-flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-md transition-colors cursor-pointer" title="Cambiar documento">
+                        <label className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer" title="Cambiar documento">
                           <input
                             type="file"
                             className="hidden"
                             onChange={handleFileSelect}
                             accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                           />
-                          <RefreshCw className="w-4 h-4" />
+                          <FileUp className="w-3.5 h-3.5" />
                         </label>
                       </div>
                     </div>
@@ -4447,35 +4453,15 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                   <ProtectionToggle
                     enabled={forensicEnabled}
                     onToggle={async (newState) => {
-                      // P0.3: If enabling, validate TSA connectivity first
                       if (newState) {
-                        setIsValidatingTSA(true);
-                        const tsaAvailable = await validateTSAConnectivity();
-                        setIsValidatingTSA(false);
-
-                        if (!tsaAvailable) {
-                          toast.error(
-                            'El servicio de timestamping no está disponible en este momento.\n\nReintentá en unos minutos o contactá soporte.',
-                            {
-                              duration: 6000,
-                              position: 'bottom-right',
-                              style: {
-                                whiteSpace: 'pre-line',
-                                maxWidth: '500px'
-                              }
-                            }
-                          );
-                          return; // Don't enable
-                        }
-
-                        // TSA is available, enable protection
+                        // UX: activar siempre la intención de protección.
+                        // La validación dura corre al ejecutar "Proteger".
                         setForensicEnabled(true);
                         toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
                           duration: 3000,
                           position: 'top-right'
                         });
                       } else {
-                        // Disabling protection (no validation needed)
                         setForensicEnabled(false);
                         toast('Protección desactivada', {
                           duration: 2000,
@@ -4760,7 +4746,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
               {/* Botón principal */}
               {!isFocusMode && (
-              <div className="hidden md:block sticky bottom-0 z-10 border-t border-gray-200 bg-white p-2">
+              <div className="hidden md:block sticky bottom-0 z-10 -mx-6 border-t border-gray-200 bg-white px-6 py-2 mt-0">
                 <button
                   ref={finalizeButtonRef}
                   onClick={handleProtectClick}
@@ -4780,7 +4766,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               </div>
               )}
               {!isFocusMode && (
-              <div className="md:hidden sticky bottom-0 z-10 border-t border-gray-200 bg-white p-2">
+              <div className="md:hidden sticky bottom-0 z-10 -mx-6 border-t border-gray-200 bg-white px-6 py-2">
                 <button
                   onClick={handleProtectClick}
                   disabled={!file || loading || !isCTAEnabled()}
@@ -4832,9 +4818,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               <div className="h-full flex flex-col bg-white">
                 {/* Header colapsable del panel */}
             <div className="h-14 px-3 border-b border-gray-200 bg-white">
-              <div className="grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
+              <div className="h-full grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
                 <span aria-hidden="true" className="h-7 w-7" />
-                <h3 className="text-sm font-semibold text-gray-900 text-center">Flujo de Firmas</h3>
+                <h3 className="text-sm font-semibold leading-none text-gray-900 text-center">Flujo de Firmas</h3>
                 <span aria-hidden="true" className="h-7 w-7" />
               </div>
             </div>
@@ -4842,11 +4828,23 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             {/* Contenido del panel */}
             <div className="flex-1 overflow-hidden p-2 flex flex-col gap-2">
 
-              {/* Barra de Acciones - similar a "Vista previa" del NDA */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="px-2 py-1 bg-white border-b border-gray-200 text-xs text-gray-600 flex items-center justify-between">
-                  <span>Acciones</span>
-                  <span className="text-[11px] text-gray-500">Automático por firmante</span>
+              {/* Sub-header de Flujo - alineado con barra interna de NDA */}
+              <div className="border border-gray-200 rounded-xl bg-white overflow-hidden mt-1">
+                <div className="h-11 px-3 bg-white border-b border-gray-200 flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Firmantes</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (buildSignersList().length === 0) return;
+                      openSignerFieldsWizard();
+                      showToast('Ajustá campos con el wizard.', { type: 'info', duration: 1800, position: 'top-right' });
+                    }}
+                    disabled={buildSignersList().length === 0}
+                    title="Modificar asignación de campos"
+                    className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
 
                 {/* Contenido scrolleable - Firmantes */}
@@ -4983,15 +4981,15 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                     <p className="text-gray-700 mt-0.5">
                       El flujo respeta el orden de los mails que agregás.
                     </p>
-                    <p className="text-[11px] text-gray-600 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       Tip: pegá varios correos juntos con{' '}
-                      <span className="inline-flex items-center gap-1 font-medium text-gray-900 group relative">
+                      <span
+                        className="inline-flex items-center gap-1 font-medium text-gray-900"
+                        title="Copiá todos los correos juntos. Al pegarlos en el primer campo, EcoSign los separa y respeta el orden."
+                      >
                         Smart Paste
                         <span className="text-[10px] leading-none text-gray-500 border border-gray-300 rounded-full w-3 h-3 inline-flex items-center justify-center">
                           ?
-                        </span>
-                        <span className="invisible group-hover:visible absolute left-0 top-full mt-2 w-64 rounded-md bg-gray-900 px-2 py-1 text-[10px] text-white shadow-lg z-50">
-                          Copiá todos los correos juntos. Al pegarlos en el primer campo, EcoSign los separa y respeta el orden.
                         </span>
                       </span>
                       .
@@ -5002,7 +5000,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
               </div>
 
-              <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white p-2">
+              <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white p-2 mb-1.5">
                 <button
                   type="button"
                   onClick={() => {

@@ -347,7 +347,7 @@ FRONTEND_URL = "http://localhost:5173"
 
 [analytics]
 enabled = true
-port = 54327
+port = 54325
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
 

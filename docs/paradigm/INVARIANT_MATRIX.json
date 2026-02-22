@@ -1,0 +1,39 @@
+{
+  "invariants": [
+    {
+      "id": "EPI-001",
+      "status": "mapped",
+      "blocking_severity": "release-blocking",
+      "owner": "backend",
+      "description": "Decision path canonical guard"
+    },
+    {
+      "id": "EPI-002",
+      "status": "mapped",
+      "blocking_severity": "release-blocking",
+      "owner": "backend",
+      "description": "Entrypoint guard enforced"
+    },
+    {
+      "id": "EPI-003",
+      "status": "mapped",
+      "blocking_severity": "release-blocking",
+      "owner": "backend",
+      "description": "Runtime cron canonical set"
+    },
+    {
+      "id": "EPI-004",
+      "status": "mapped",
+      "blocking_severity": "release-blocking",
+      "owner": "backend",
+      "description": "Post-freeze invariant gate"
+    },
+    {
+      "id": "EPI-005",
+      "status": "mapped",
+      "blocking_severity": "warning",
+      "owner": "backend",
+      "description": "Historical debt tracked separately"
+    }
+  ]
+}

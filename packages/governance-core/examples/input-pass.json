@@ -1,0 +1,22 @@
+{
+  "invariants": [
+    { "id": "I-001", "status": "mapped", "blocking_severity": "release-blocking", "owner": "backend" },
+    { "id": "I-002", "status": "mapped", "blocking_severity": "release-blocking", "owner": "backend" },
+    { "id": "I-003", "status": "mapped", "blocking_severity": "release-blocking", "owner": "core" },
+    { "id": "I-004", "status": "mapped", "blocking_severity": "release-blocking", "owner": "core" },
+    { "id": "I-005", "status": "mapped", "blocking_severity": "release-blocking", "owner": "backend" },
+    { "id": "I-006", "status": "gap", "blocking_severity": "release-blocking", "owner": "backend" },
+    { "id": "I-007", "status": "mapped", "blocking_severity": "release-blocking", "owner": "core" },
+    { "id": "I-008", "status": "gap", "blocking_severity": "release-blocking", "owner": "platform" }
+  ],
+  "critical_invariants": ["I-001", "I-002", "I-005", "I-007"],
+  "target_level": "L3",
+  "strict_matrix": false,
+  "release_mode": false,
+  "metadata": {
+    "protocol_version": "1.8.0",
+    "protocol_version_changed": true,
+    "decision_log_changed": true,
+    "invariants_changed": true
+  }
+}

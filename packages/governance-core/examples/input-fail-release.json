@@ -1,0 +1,18 @@
+{
+  "invariants": [
+    { "id": "I-001", "status": "mapped", "blocking_severity": "release-blocking", "owner": "backend" },
+    { "id": "I-002", "status": "mapped", "blocking_severity": "release-blocking", "owner": "backend" },
+    { "id": "I-005", "status": "mapped", "blocking_severity": "release-blocking", "owner": "backend" },
+    { "id": "I-007", "status": "mapped", "blocking_severity": "release-blocking", "owner": "core" }
+  ],
+  "critical_invariants": ["I-001", "I-002", "I-005", "I-007"],
+  "target_level": "L3",
+  "strict_matrix": true,
+  "release_mode": true,
+  "metadata": {
+    "protocol_version": "1.8.0",
+    "protocol_version_changed": false,
+    "decision_log_changed": false,
+    "invariants_changed": true
+  }
+}

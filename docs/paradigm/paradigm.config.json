@@ -1,0 +1,7 @@
+{
+  "critical_invariants": ["EPI-001", "EPI-002", "EPI-003", "EPI-004"],
+  "target_level": "L3",
+  "strict_matrix": false,
+  "release_mode": false,
+  "protocol_version": "1.0.0"
+}

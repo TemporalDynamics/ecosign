@@ -42,9 +42,7 @@ export const NDA_COPY = {
   ORDER_INFO: 'Orden de acceso: NDA → OTP → Documento → Firma',
   
   // Estado vacío (mensaje inicial)
-  EMPTY_MESSAGE: `Elegí un template para empezar o escribí tu propio acuerdo.
-
-Podés pegar tu texto directamente, cargar un archivo o seleccionar un tipo de documento desde el ícono de templates.`,
+  EMPTY_MESSAGE: ``,
 
   // Templates base (texto inicial + título visible)
   TEMPLATES: [

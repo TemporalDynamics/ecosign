@@ -239,7 +239,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [signatureFields, setSignatureFields] = useState<SignatureField[]>([]);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
-  const [isCanvasLocked, setIsCanvasLocked] = useState(false);
+  const [isCanvasLocked, setIsCanvasLocked] = useState(true);
   const [workflowPageSizeMode, setWorkflowPageSizeMode] = useState<SignaturePageMode>('document');
   const [workflowVirtualSize, setWorkflowVirtualSize] = useState({ width: 1000, height: 1414 });
 
@@ -648,7 +648,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     // CONSTITUCIÓN: Abrir wizard de campos si corresponde (Mi firma)
     if (initialAction === 'sign' || mySignature) {
-      setIsCanvasLocked(false);
+      setIsCanvasLocked(true);
       openMySignatureWizard();
 
       showToast('Configurá los campos antes de firmar.', {
@@ -3060,7 +3060,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const isPreviewFullscreen = isMobile && previewMode === 'fullscreen';
   const isFocusMode = focusView !== null;
   const isDocumentFocus = focusView === 'document';
-  const isViewerLocked = isCanvasLocked && !isDocumentFocus;
+  const isViewerLocked = true;
   const activePreviewUrl = workflowPreviewUrl ?? documentPreview;
   const isPdfPreview =
     !!activePreviewUrl &&
@@ -4490,7 +4490,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                           return;
                         }
                         setMySignature(true);
-                        setIsCanvasLocked(false);
+                        setIsCanvasLocked(true);
                         openMySignatureWizard();
                         return;
                       }

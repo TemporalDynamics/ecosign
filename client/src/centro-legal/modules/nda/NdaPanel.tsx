@@ -104,7 +104,21 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
           {/* Visor de contenido - MÁS COMPACTO */}
           <div className="border border-gray-200 rounded-xl bg-white flex flex-col flex-1 min-h-0 mt-1 overflow-hidden">
             <div className="h-11 px-3 bg-white border-b border-gray-200 flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Vista previa</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium text-gray-700">Vista previa</span>
+                <div className="relative group">
+                  <button
+                    type="button"
+                    className="h-4 w-4 inline-flex items-center justify-center rounded-full border border-gray-300 text-[10px] text-gray-500 hover:text-gray-700 hover:border-gray-400"
+                    title="Ayuda de Vista previa"
+                  >
+                    ?
+                  </button>
+                  <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden w-64 -translate-x-1/2 rounded-md bg-gray-900 px-2 py-1.5 text-[11px] leading-snug text-white shadow-lg group-hover:block">
+                    Elegí un template para empezar o escribí tu propio acuerdo. Podés pegar tu texto directamente o seleccionar un tipo de documento desde el ícono de templates.
+                  </div>
+                </div>
+              </div>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => {

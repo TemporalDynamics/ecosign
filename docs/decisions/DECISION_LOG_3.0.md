@@ -3623,3 +3623,66 @@ reducir carga cognitiva y mejorar control operativo en previsualización:
 - Se elimina la bifurcación UX en Paso 2 para mantener un flujo más directo.
 - El ajuste fino por firmante se concentra en previsualización, no en la capa
   de decisión inicial.
+
+---
+
+## Iteración: Governance Core Shadow en EcoSign (validación no bloqueante) — 2026-02-22
+
+### 🎯 Resumen
+Se incorporó `governance-core` al repo de EcoSign en modo **shadow** para validar
+portabilidad del estándar de gobernanza extraído en WITH, sin tocar dominio ni
+pipeline productivo.
+
+Objetivo de esta iteración:
+- validar contrato normalizado (JSON) en EcoSign,
+- correr derivación de compliance en paralelo,
+- guardar evidencia de salida como artifact CI,
+- mantener ejecución no bloqueante mientras converge.
+
+### ✅ Cambios implementados
+- **Módulo reusable integrado:**
+  - `packages/governance-core/` (engine puro + CLI + ejemplos).
+  - El core se mantiene agnóstico de dominio:
+    - no SQL,
+    - no shell de checks de producto,
+    - no parser de matriz MD,
+    - no conocimiento de EPI/eventos/tablas.
+- **Contrato de entrada inicial para EcoSign:**
+  - `docs/paradigm/INVARIANT_MATRIX.json`
+  - `docs/paradigm/paradigm.config.json`
+- **Adapter local de normalización (fuera del core):**
+  - `scripts/governance/build-input.mjs`
+  - Convierte configuración + metadata de cambios a input normalizado.
+- **Runner shadow (no bloqueante):**
+  - `scripts/governance/run-shadow.mjs`
+  - Genera artifacts:
+    - `reports/governance/input.latest.json`
+    - `reports/governance/output.latest.json`
+  - Nunca bloquea ejecución (modo observación).
+- **Scripts npm:**
+  - `governance:build-input`
+  - `check:governance-shadow`
+- **CI no bloqueante con artifacts:**
+  - `.github/workflows/ci.yml` agrega job:
+    - `Governance Core Shadow (non-blocking)`
+    - Deriva `GOVERNANCE_CHANGED_FILES`
+    - Ejecuta `npm run check:governance-shadow`
+    - Publica artifact `governance-shadow-output`
+
+### ✅ Validación
+- Corrida local de shadow:
+  - `current_level: L3`
+  - `ratio: 100`
+  - `critical_missing: []`
+  - `pass: true`
+- Integración de CI queda en modo informativo (sin gate de release en esta fase).
+
+### 📌 Decisión de operación
+- Esta fase se declara **piloto de convergencia**:
+  - `governance-core` corre en paralelo al tooling actual.
+  - No reemplaza aún checks vigentes.
+  - No bloquea `main` ni release por ahora.
+- Siguiente criterio para avanzar:
+  - comparar salidas shadow vs checks actuales en ventana de estabilidad,
+  - corregir divergencias en adapters (no en el core),
+  - luego habilitar gate progresivo en ramas `release/*`.

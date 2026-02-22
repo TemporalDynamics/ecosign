@@ -3518,3 +3518,108 @@ registro auditable de corridas E2E reales para Day 2-3.
 - **GO** para ejecución por fases bajo gate post-freeze.
 - Deuda histórica permanece como backlog de saneamiento, sin bloquear releases
   mientras no haya regresión en ventana post-freeze.
+
+---
+
+## Iteración: Modelo B Week 1 (contratos + validadores + observabilidad) — 2026-02-20
+
+### 🎯 Resumen
+Se ejecutó la primera iteración de cierre Modelo B con tres objetivos:
+1) navegación contractual bidireccional,
+2) validadores B1/B2/B3 fail-hard en append de eventos,
+3) trazabilidad de origen de encolado (`enqueue_source`) para separar canónico vs compat.
+
+### ✅ Cambios implementados
+- **PR-1 Contracts (cross-refs bidireccionales):**
+  - `docs/contratos/MODELO_B_POLICY_EVOLUTION.md`
+  - `docs/contratos/CONTRATO_ECO_ECOX.md`
+  - `docs/contratos/DIRECT_INSERTS_COMPAT_FALLBACK.md`
+  - Se dejó navegación explícita entre los 3 contratos y terminología consistente:
+    `valid_intermediate` + `compat failover`.
+- **PR-2 Validators B1–B3:**
+  - Nuevo archivo: `supabase/functions/_shared/eventValidator.ts`
+  - Integración en append: `supabase/functions/_shared/eventHelper.ts`
+  - Tests nuevos: `tests/validators/b1_b2_b3.test.ts`
+  - Reglas:
+    - B1: `required_evidence` no-null/no-vacío,
+    - B2: monotonicidad por etapa,
+    - B3: mínimo TSA (con override explícito controlado).
+- **PR-3 Observability de autoridad:**
+  - Nueva migración:
+    `supabase/migrations/20260220141000_add_enqueue_source_and_mark_canonical_listener.sql`
+  - Agrega columna `executor_jobs.enqueue_source` con check:
+    `canonical | compat_direct | manual | unknown`.
+  - Trigger canónico (`process_document_entity_events`) encola con `enqueue_source='canonical'`.
+  - Direct inserts allowlisted marcan `enqueue_source='compat_direct'` en:
+    - `supabase/functions/apply-signer-signature/index.ts`
+    - `supabase/functions/record-protection-event/index.ts`
+    - `supabase/functions/run-tsa/index.ts`
+
+### ✅ Validación
+- Typecheck dirigido del validador:
+  - `npx tsc supabase/functions/_shared/eventValidator.ts --noEmit` ✅
+- Test suite dirigida de B1/B2/B3:
+  - `npm run test -- tests/validators/b1_b2_b3.test.ts` ✅ (`11 passed`).
+- Verificación de docs:
+  - `valid_intermediate` presente en contrato ECO/ECOX.
+  - `compat failover` explícito en contrato de direct inserts.
+  - Cross-links funcionando entre los 3 contratos.
+
+### 📌 Decisión de operación
+- Se formaliza que el sistema opera en **híbrido observable**:
+  - ruta canónica (listener),
+  - ruta compat directa (allowlist temporal).
+- A partir de esta iteración, cualquier diagnóstico de jobs debe segmentar por
+  `enqueue_source` para evitar confusión causal.
+- Próximo criterio de cierre: reducir `compat_direct` por tipo de job hasta 0
+  en ventana de estabilidad definida y retirar allowlist.
+
+---
+
+## Iteración: UX Hardening Wizard (selección múltiple por firmante + ubicación simplificada) — 2026-02-22
+
+### 🎯 Resumen
+Se cerró una iteración de simplificación del wizard de asignación de campos para
+reducir carga cognitiva y mejorar control operativo en previsualización:
+- ubicación del documento más simple (sin bifurcación “aplicar a todos/seleccionar”),
+- control multi-firmante real en preview,
+- reglas visuales consistentes para opciones de margen y omisión de última página.
+
+### ✅ Cambios implementados
+- **Ubicación del documento simplificada (Paso 2):**
+  - Se removieron los CTAs `Aplicar a todos` / `Seleccionar firmantes`.
+  - Quedaron solo:
+    - `Incluir firma final`
+    - `Incluir firma en cada página`
+  - Columna derecha fija con listado de firmantes (`Firmante N`) como referencia.
+  - Archivo: `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`.
+- **Previsualización multi-firmante (Paso 4):**
+  - Preview inicia con todos los firmantes seleccionados por defecto.
+  - Se puede seleccionar/deseleccionar firmantes en bloque (mínimo 1 activo).
+  - El canvas muestra simultáneamente campos de todos los firmantes seleccionados.
+  - Archivo: `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`.
+- **Aplicación en lote de opciones de layout:**
+  - `Margen derecho` / `Margen izquierdo` y `Omitir última página`
+    impactan sobre todos los firmantes seleccionados.
+  - Los márgenes se comportan como radio visual (mutuamente excluyentes).
+  - `Omitir última página` renombrado explícitamente (antes `Omitir última`).
+  - Archivo: `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`.
+- **Guardas de coherencia de UX:**
+  - `Omitir última página` queda deshabilitado cuando `totalPages <= 1`.
+  - Se mantiene selección por defecto de firmantes válidos y saneada al cambiar
+    lista de signers.
+  - Archivo: `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`.
+- **Estabilidad React (fix crítico):**
+  - Se corrigió el crash `Rendered more hooks than during the previous render`
+    moviendo el guard `if (!isOpen) return null` después de declarar hooks.
+  - Archivo: `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`.
+
+### ✅ Validación
+- `npm run typecheck` ✅
+- Sin errores de hooks al abrir wizard de flujo de firmas.
+
+### 📌 Decisión de operación
+- Se adopta `preview multi-firmante` como default de trabajo (visión conjunta).
+- Se elimina la bifurcación UX en Paso 2 para mantener un flujo más directo.
+- El ajuste fino por firmante se concentra en previsualización, no en la capa
+  de decisión inicial.

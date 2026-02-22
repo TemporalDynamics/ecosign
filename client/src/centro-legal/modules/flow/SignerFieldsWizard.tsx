@@ -62,9 +62,7 @@ export function SignerFieldsWizard({
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [pageSizeMode, setPageSizeMode] = useState<PageSizeMode>('document');
   const [includePerPageSignature, setIncludePerPageSignature] = useState(false);
-  const [perPageMode, setPerPageMode] = useState<'all' | 'selected'>('all');
-  const [perPageSignerEmails, setPerPageSignerEmails] = useState<string[]>([]);
-  const [activeSignerEmail, setActiveSignerEmail] = useState<string | null>(null);
+  const [previewSignerEmails, setPreviewSignerEmails] = useState<string[]>([]);
   const [perSignerPlacement, setPerSignerPlacement] = useState<Record<string, PerSignerPlacement>>({});
   const [previewRotation, setPreviewRotation] = useState(0);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
@@ -121,25 +119,27 @@ export function SignerFieldsWizard({
 
   const selectedPerPageSigners = useMemo(() => {
     if (!includePerPageSignature) return [];
-    if (perPageMode === 'all') return validSigners;
-    const selected = new Set(perPageSignerEmails.map((email) => email.trim().toLowerCase()));
-    return validSigners.filter((signer) => selected.has(signer.email));
-  }, [includePerPageSignature, perPageMode, perPageSignerEmails, validSigners]);
+    return validSigners;
+  }, [includePerPageSignature, validSigners]);
 
-  const selectedSignerSet = useMemo(
-    () => new Set(selectedPerPageSigners.map((signer) => signer.email)),
-    [selectedPerPageSigners]
+  const selectedPreviewSignerSet = useMemo(
+    () => new Set(previewSignerEmails.map((email) => email.trim().toLowerCase())),
+    [previewSignerEmails]
   );
 
   useEffect(() => {
-    if (selectedPerPageSigners.length === 0) {
-      setActiveSignerEmail(null);
+    const validEmails = validSigners.map((signer) => signer.email);
+    if (validEmails.length === 0) {
+      setPreviewSignerEmails([]);
       return;
     }
-    if (!activeSignerEmail || !selectedSignerSet.has(activeSignerEmail)) {
-      setActiveSignerEmail(selectedPerPageSigners[0].email);
-    }
-  }, [activeSignerEmail, selectedPerPageSigners, selectedSignerSet]);
+    setPreviewSignerEmails((current) => {
+      const currentSet = new Set(current.map((email) => email.trim().toLowerCase()));
+      const filtered = validEmails.filter((email) => currentSet.has(email));
+      if (filtered.length === 0) return validEmails;
+      return filtered;
+    });
+  }, [validSigners]);
 
   const addCustomField = () => {
     setCustomFields([...customFields, { id: Date.now().toString(), label: '' }]);
@@ -166,8 +166,19 @@ export function SignerFieldsWizard({
     const key = email.trim().toLowerCase();
     setPerSignerPlacement((prev) => ({
       ...prev,
-      [key]: { ...getSignerPlacement(key), ...patch }
+      [key]: {
+        ...(prev[key] ?? {
+          includePerPage: true,
+          side: 'right',
+          omitLastPage: true
+        }),
+        ...patch
+      }
     }));
+  };
+
+  const applyPlacementToSelectedSigners = (patch: Partial<PerSignerPlacement>) => {
+    previewSignerEmails.forEach((email) => updateSignerPlacement(email, patch));
   };
 
   const buildPerPageFields = () => {
@@ -219,8 +230,6 @@ export function SignerFieldsWizard({
     return out;
   };
 
-  if (!isOpen) return null;
-
   const previewBaseFields = useMemo(
     () =>
       generateWorkflowFieldsFromWizard(validSigners, template, {
@@ -255,13 +264,13 @@ export function SignerFieldsWizard({
   }, [autoFields]);
 
   const previewItems = wizardFields;
-  const currentSignerEmail =
-    activeSignerEmail && selectedSignerSet.has(activeSignerEmail)
-      ? activeSignerEmail
-      : selectedPerPageSigners[0]?.email ?? null;
-  const previewItemsVisible = currentSignerEmail
-    ? previewItems.filter((field) => (field.assignedTo || '').trim().toLowerCase() === currentSignerEmail)
-    : previewItems;
+  const previewItemsVisible =
+    previewSignerEmails.length === 0
+      ? previewItems
+      : previewItems.filter((field) => {
+          const assigned = (field.assignedTo || '').trim().toLowerCase();
+          return assigned.length > 0 && selectedPreviewSignerSet.has(assigned);
+        });
 
   const pdfPreviewSrc = previewIsPdf && previewUrl ? previewUrl : null;
 
@@ -311,6 +320,8 @@ export function SignerFieldsWizard({
       window.removeEventListener('mouseup', onUp);
     };
   }, [previewFullscreen, dragState, resizeState, virtualWidth, resolvedVirtualHeight]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
@@ -479,67 +490,21 @@ export function SignerFieldsWizard({
                       </span>
                     </span>
                   </label>
-                  {includePerPageSignature && (
-                    <div className="pl-5 space-y-2">
-                      <div className="inline-flex rounded-md border border-gray-200 overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() => setPerPageMode('all')}
-                          className={`px-2 py-1 text-[11px] border-r border-gray-200 transition-colors ${
-                            perPageMode === 'all'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-white text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          Aplicar a todos
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPerPageMode('selected');
-                            if (perPageSignerEmails.length === 0) {
-                              setPerPageSignerEmails(validSigners.map((s) => s.email));
-                            }
-                          }}
-                          className={`px-2 py-1 text-[11px] transition-colors ${
-                            perPageMode === 'selected'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-white text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          Seleccionar firmantes
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
-                {includePerPageSignature && perPageMode === 'selected' && (
-                  <div className="border-t sm:border-t-0 sm:border-l border-gray-200 sm:pl-3 pt-2 sm:pt-0">
-                    <div className="border border-gray-200 rounded-md p-2 max-h-28 overflow-y-auto">
+                <div className="border-t sm:border-t-0 sm:border-l border-gray-200 sm:pl-3 pt-2 sm:pt-0">
+                  <div className="text-[10px] text-gray-500 font-medium mb-1">Firmantes</div>
+                  <div className="border border-gray-200 rounded-md p-2 max-h-28 overflow-y-auto">
                     <div className="grid grid-cols-1 gap-1">
                       {validSigners.map((signer) => {
-                        const checked = perPageSignerEmails.includes(signer.email);
                         return (
-                          <label key={signer.email} className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer" title={signer.email}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) => {
-                                const next = e.target.checked
-                                  ? [...perPageSignerEmails, signer.email]
-                                  : perPageSignerEmails.filter((email) => email !== signer.email);
-                                setPerPageSignerEmails(next);
-                              }}
-                              className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                            />
-                            F{signer.signingOrder}
-                          </label>
+                          <div key={signer.email} className="text-xs text-gray-700" title={signer.email}>
+                            Firmante {signer.signingOrder}
+                          </div>
                         );
                       })}
                     </div>
-                    </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>
@@ -675,74 +640,79 @@ export function SignerFieldsWizard({
                     <div className="space-y-2">
                       <div className="text-[10px] text-gray-500 font-medium">Opciones</div>
                       <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
-                        <div className="inline-flex rounded-md border border-gray-200 overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!currentSignerEmail) return;
-                              updateSignerPlacement(currentSignerEmail, { side: 'right' });
-                            }}
-                            disabled={!currentSignerEmail}
-                            className={`px-2 py-1 text-[11px] border-r border-gray-200 transition-colors disabled:opacity-50 ${
-                              currentSignerEmail && getSignerPlacement(currentSignerEmail).side === 'right'
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'bg-white text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            Margen der.
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!currentSignerEmail) return;
-                              updateSignerPlacement(currentSignerEmail, { side: 'left' });
-                            }}
-                            disabled={!currentSignerEmail}
-                            className={`px-2 py-1 text-[11px] transition-colors disabled:opacity-50 ${
-                              currentSignerEmail && getSignerPlacement(currentSignerEmail).side === 'left'
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'bg-white text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            Margen izq.
-                          </button>
-                        </div>
+                        <input
+                          type="checkbox"
+                          checked={
+                            previewSignerEmails.length > 0 &&
+                            previewSignerEmails.every((email) => getSignerPlacement(email).side === 'right')
+                          }
+                          onChange={(e) => {
+                            if (!e.target.checked) return;
+                            applyPlacementToSelectedSigners({ side: 'right' });
+                          }}
+                          disabled={previewSignerEmails.length === 0}
+                          className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        />
+                        Margen derecho
                       </label>
                       <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={Boolean(currentSignerEmail && getSignerPlacement(currentSignerEmail).omitLastPage)}
+                          checked={
+                            previewSignerEmails.length > 0 &&
+                            previewSignerEmails.every((email) => getSignerPlacement(email).side === 'left')
+                          }
                           onChange={(e) => {
-                            if (!currentSignerEmail) return;
-                            updateSignerPlacement(currentSignerEmail, { omitLastPage: e.target.checked });
+                            if (!e.target.checked) return;
+                            applyPlacementToSelectedSigners({ side: 'left' });
                           }}
-                          disabled={!currentSignerEmail || !includeFinalSignature}
+                          disabled={previewSignerEmails.length === 0}
                           className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
                         />
-                        Omitir última
+                        Margen izquierdo
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={
+                            previewSignerEmails.length > 0 &&
+                            previewSignerEmails.every((email) => getSignerPlacement(email).omitLastPage)
+                          }
+                          onChange={(e) => {
+                            applyPlacementToSelectedSigners({ omitLastPage: e.target.checked });
+                          }}
+                          disabled={previewSignerEmails.length === 0 || !includePerPageSignature || (totalPages ?? 1) <= 1}
+                          className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        />
+                        Omitir última página
                       </label>
                     </div>
                     <div className="space-y-1">
                       <div className="text-[10px] text-gray-500 font-medium">Firmantes</div>
-                      {selectedPerPageSigners.map((signer) => {
+                      {validSigners.map((signer) => {
                         const key = signer.email.trim().toLowerCase();
-                        const active = activeSignerEmail === key;
-                        const enabled = selectedSignerSet.has(key);
+                        const selected = selectedPreviewSignerSet.has(key);
                         return (
                           <button
                             key={key}
                             type="button"
-                            onClick={() => setActiveSignerEmail(key)}
+                            onClick={() => {
+                              setPreviewSignerEmails((current) => {
+                                if (current.includes(key)) {
+                                  if (current.length <= 1) return current;
+                                  return current.filter((email) => email !== key);
+                                }
+                                return [...current, key];
+                              });
+                            }}
                             className={`w-full text-left rounded px-1.5 py-1 border text-[11px] ${
-                              active
+                              selected
                                 ? 'border-blue-400 bg-blue-50 text-blue-700'
-                                : enabled
-                                  ? 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                                  : 'border-gray-200 text-gray-400'
+                                : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                             }`}
                             title={signer.email}
                           >
-                            F{signer.signingOrder}
+                            Firmante {signer.signingOrder}
                           </button>
                         );
                       })}

@@ -19,7 +19,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { FileText, Maximize2, X } from 'lucide-react';
+import { FileText, HelpCircle, Maximize2, X } from 'lucide-react';
 import { NDA_COPY } from './nda.copy';
 
 type NdaSource = 'template' | 'pasted';
@@ -47,14 +47,31 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
   onFocus,
   onSave,
 }) => {
-  const [content, setContent] = useState(controlledContent ?? NDA_COPY.EMPTY_MESSAGE);
+  const legacyHints = [
+    `Elegí un template para empezar o escribí tu propio acuerdo.
+
+Podés pegar tu texto directamente, cargar un archivo o seleccionar un tipo de documento desde el ícono de templates.`,
+    `Elegí un template para empezar o escribí tu propio acuerdo.
+
+Podés pegar tu texto directamente o seleccionar un tipo de documento desde el ícono de templates.`
+  ];
+
+  const sanitizeContent = (value: string | undefined) => {
+    const raw = value ?? NDA_COPY.EMPTY_MESSAGE;
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    const isLegacyHint = legacyHints.some((hint) => trimmed === hint.trim());
+    return isLegacyHint ? '' : raw;
+  };
+
+  const [content, setContent] = useState(sanitizeContent(controlledContent));
   const [source, setSource] = useState<NdaSource>('template');
   const [isDirty, setIsDirty] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   useEffect(() => {
     if (controlledContent !== undefined) {
-      setContent(controlledContent);
+      setContent(sanitizeContent(controlledContent));
     }
   }, [controlledContent]);
 
@@ -109,10 +126,10 @@ export const NdaPanel: React.FC<NdaPanelProps> = ({
                 <div className="relative group">
                   <button
                     type="button"
-                    className="h-4 w-4 inline-flex items-center justify-center rounded-full border border-gray-300 text-[10px] text-gray-500 hover:text-gray-700 hover:border-gray-400"
+                    className="h-4 w-4 inline-flex items-center justify-center text-gray-400 hover:text-gray-600"
                     title="Ayuda de Vista previa"
                   >
-                    ?
+                    <HelpCircle className="w-3.5 h-3.5" />
                   </button>
                   <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden w-64 -translate-x-1/2 rounded-md bg-gray-900 px-2 py-1.5 text-[11px] leading-snug text-white shadow-lg group-hover:block">
                     Elegí un template para empezar o escribí tu propio acuerdo. Podés pegar tu texto directamente o seleccionar un tipo de documento desde el ícono de templates.

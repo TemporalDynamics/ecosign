@@ -52,6 +52,7 @@ const VideosPage = lazy(() => import('./pages/VideosPage'))
 const RoadmapPage = lazy(() => import('./pages/RoadmapPage'))
 const UpdatesPage = lazy(() => import('./pages/UpdatesPage'))
 const InvitePage = lazy(() => import('./pages/InvitePage'))
+const PresentialConfirmPage = lazy(() => import('./pages/PresentialConfirmPage'))
 const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'))
 const WorkflowsPage = lazy(() => import('./pages/WorkflowsPage'))
 const WorkflowDetailPage = lazy(() => import('./pages/WorkflowDetailPage'))
@@ -105,6 +106,7 @@ function DashboardAppRoutes() {
             <Route path="/nda/:token" element={<NdaAccessPage />} />
             <Route path="/sign/:token" element={<SignWorkflowPage mode="dashboard" />} />
             <Route path="/invite/:token" element={<InvitePage />} />
+            <Route path="/presential-confirm" element={<PresentialConfirmPage />} />
             <Route path="/shared/:shareId" element={<SharedDocumentAccessPage />} />
             <Route path="/videos" element={<VideosPage />} />
 

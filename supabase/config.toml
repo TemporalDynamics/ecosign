@@ -270,7 +270,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.presential-verification-confirm-presence]
-verify_jwt = true
+verify_jwt = false
 
 [functions.presential-verification-close-session]
 verify_jwt = true

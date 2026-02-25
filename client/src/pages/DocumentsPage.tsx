@@ -22,6 +22,7 @@ import { GRID_TOKENS } from "../config/gridTokens";
 import { deriveDocumentState } from "../lib/deriveDocumentState";
 import { ProtectedBadge } from "../components/ProtectedBadge";
 import { addDocumentToOperation, countDocumentsInOperation, getOperations, getOperationWithDocuments, protectAndSendOperation, updateOperation } from "../lib/operationsService";
+import { startPresentialVerificationSession } from "../lib/presentialVerificationService";
 import { getDocumentEntity } from "../lib/documentEntityService";
 import type { Operation } from "../types/operations";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
@@ -91,6 +92,17 @@ type DraftRow = DraftMeta & {
   draftFileRef?: string;
   source?: "server" | "local";
   draftMetadata?: any;
+};
+
+type PresentialSessionSummary = {
+  operationId: string;
+  operationName: string;
+  sessionId: string;
+  snapshotHash: string;
+  expiresAt: string;
+  signersNotified: number;
+  witnessesNotified: number;
+  participantsNotified: number;
 };
 
 type PlanTier = "guest" | "free" | "pro" | "business" | "enterprise" | null | string;
@@ -375,6 +387,8 @@ function DocumentsPage() {
   });
   const [operationFilter, setOperationFilter] = useState<"active" | "completed" | "archived" | "all">("active");
   const [openDraftMenuId, setOpenDraftMenuId] = useState<string | null>(null);
+  const [startingPresentialOperationId, setStartingPresentialOperationId] = useState<string | null>(null);
+  const [presentialSessionSummary, setPresentialSessionSummary] = useState<PresentialSessionSummary | null>(null);
   const operationsSectionRef = useRef<HTMLDivElement>(null);
   const normalizedSearch = search.trim().toLowerCase();
   const isSearchActive = normalizedSearch.length > 0;
@@ -515,6 +529,78 @@ function DocumentsPage() {
     } finally {
       setSavingOperation(false);
     }
+  };
+
+  const copyToClipboard = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copiado`, { position: "top-right" });
+    } catch {
+      toast.error(`No se pudo copiar ${label.toLowerCase()}`, { position: "top-right" });
+    }
+  };
+
+  const handleStartPresentialSession = async (operation: Operation) => {
+    if (isGuestMode()) {
+      toast("Modo invitado: firma presencial disponible solo con cuenta.", { position: "top-right" });
+      return;
+    }
+    if (startingPresentialOperationId) {
+      toast("Ya estamos iniciando otra sesión presencial. Esperá un momento.", { position: "top-right" });
+      return;
+    }
+
+    const docCountFromList = operationDocCounts[operation.id];
+    const docCountFromPreview =
+      previewOperation?.id === operation.id ? previewOperationDocs.length : 0;
+    const docCount =
+      typeof docCountFromList === "number" ? docCountFromList : docCountFromPreview;
+    if (docCount === 0) {
+      toast.error("No podés iniciar sesión presencial en una operación sin documentos.", { position: "top-right" });
+      return;
+    }
+
+    const loadingToastId = toast.loading(`Iniciando sesión presencial en "${operation.name}"...`, {
+      position: "top-right",
+    });
+    setStartingPresentialOperationId(operation.id);
+
+    try {
+      const result = await startPresentialVerificationSession({
+        operationId: operation.id,
+      });
+
+      setPresentialSessionSummary({
+        operationId: operation.id,
+        operationName: operation.name,
+        sessionId: result.sessionId,
+        snapshotHash: result.snapshotHash,
+        expiresAt: result.expiresAt,
+        signersNotified: result.signersNotified,
+        witnessesNotified: result.witnessesNotified,
+        participantsNotified: result.participantsNotified,
+      });
+
+      toast.success(
+        `Sesión ${result.sessionId} iniciada. OTP enviados a ${result.participantsNotified} participante(s).`,
+        { id: loadingToastId, position: "top-right", duration: 4500 }
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "No se pudo iniciar la sesión presencial.";
+      toast.error(message, { id: loadingToastId, position: "top-right" });
+    } finally {
+      setStartingPresentialOperationId(null);
+    }
+  };
+
+  const handleDocumentInPersonNotAvailable = (doc: DocumentRecord) => {
+    toast(
+      `La firma presencial se inicia por operación. Agregá "${doc.document_name}" a una operación para continuar.`,
+      { position: "top-right", duration: 5000 }
+    );
   };
 
   const loadDocuments = useCallback(async (opts?: { silent?: boolean }) => {
@@ -2376,7 +2462,7 @@ function DocumentsPage() {
                               toast.error('No se pudo abrir el documento', { position: 'top-right' });
                             }
                           }}
-                          onInPerson={() => toast(`Firma presencial para "${operation.name}" próximamente`, { position: "top-right" })}
+                          onInPerson={() => handleStartPresentialSession(operation)}
                         />
                       ))}
                     </div>
@@ -2539,7 +2625,7 @@ function DocumentsPage() {
                       onDownloadOriginal={(d) => handleOriginalDownload(d)}
                       onVerify={(d) => handleVerifyDoc(d)}
                       onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
-                      onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
+                      onInPerson={(d) => handleDocumentInPersonNotAvailable(d)}
                       selectable={activeSelection === "documents"}
                       selected={selectedDocumentIds.has(doc.id)}
                       onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
@@ -2576,7 +2662,7 @@ function DocumentsPage() {
                         onDownloadOriginal={(d) => handleOriginalDownload(d)}
                         onVerify={(d) => handleVerifyDoc(d)}
                         onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
-                        onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
+                        onInPerson={(d) => handleDocumentInPersonNotAvailable(d)}
                         selectable={activeSelection === "documents"}
                         selected={selectedDocumentIds.has(doc.id)}
                         onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
@@ -2969,7 +3055,13 @@ function DocumentsPage() {
                             setPreviewOperation(null);
                             setPreviewDoc(d);
                           }}
-                          onInPerson={(d) => toast(`Firma presencial para "${d.document_name}" próximamente`, { position: "top-right" })}
+                          onInPerson={(d) => {
+                            if (!previewOperation) {
+                              handleDocumentInPersonNotAvailable(d);
+                              return;
+                            }
+                            handleStartPresentialSession(previewOperation);
+                          }}
                         />
                       ))}
                     </div>
@@ -3093,10 +3185,10 @@ function DocumentsPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => toast("Firma presencial próximamente", { position: "top-right" })}
+                    onClick={() => handleStartPresentialSession(previewOperation)}
                     className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
                   >
-                    Firma presencial
+                    {startingPresentialOperationId === previewOperation.id ? "Iniciando sesión..." : "Firma presencial"}
                   </button>
                 </div>
 
@@ -3191,6 +3283,95 @@ function DocumentsPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Sesión Presencial */}
+      {presentialSessionSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Sesión presencial iniciada</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Operación: <span className="font-medium">{presentialSessionSummary.operationName}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setPresentialSessionSummary(null)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+              <div className="break-all">
+                <span className="font-semibold">Session ID:</span>{" "}
+                <span className="font-mono">{presentialSessionSummary.sessionId}</span>
+              </div>
+              <div className="break-all">
+                <span className="font-semibold">Snapshot Hash:</span>{" "}
+                <span className="font-mono">{presentialSessionSummary.snapshotHash}</span>
+              </div>
+              <div>
+                <span className="font-semibold">Expira:</span>{" "}
+                {formatDate(presentialSessionSummary.expiresAt)}
+              </div>
+              <div>
+                <span className="font-semibold">Participantes notificados:</span>{" "}
+                {presentialSessionSummary.participantsNotified}
+                {" · "}
+                firmantes {presentialSessionSummary.signersNotified}
+                {" · "}
+                testigos {presentialSessionSummary.witnessesNotified}
+              </div>
+            </div>
+
+            <p className="mt-4 text-xs text-gray-600">
+              Se enviaron OTP y enlace seguro por email a cada participante de la sesión.
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  copyToClipboard(
+                    presentialSessionSummary.sessionId,
+                    "Session ID"
+                  )
+                }
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+              >
+                Copiar session ID
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  copyToClipboard(
+                    presentialSessionSummary.snapshotHash,
+                    "Snapshot hash"
+                  )
+                }
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+              >
+                Copiar snapshot hash
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const url =
+                    `/presential-confirm?session_id=${encodeURIComponent(presentialSessionSummary.sessionId)}` +
+                    `&snapshot_hash=${encodeURIComponent(presentialSessionSummary.snapshotHash)}`;
+                  window.open(url, "_blank", "noopener,noreferrer");
+                }}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
+              >
+                Abrir confirmación manual
+              </button>
             </div>
           </div>
         </div>

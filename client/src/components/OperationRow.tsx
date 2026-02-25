@@ -386,9 +386,7 @@ export default function OperationRow({
                         asRow
                         context="operation"
                         onOpen={() => onOpenDocument?.(mapped.id)}
-                        onInPerson={(doc) =>
-                          toast(`Firma presencial para "${doc.document_name}" próximamente`, { position: 'top-right' })
-                        }
+                        onInPerson={onInPerson ? () => onInPerson() : undefined}
                         selectable={docSelectMode}
                         selected={selectedDocIds.has(mapped.id)}
                         onSelect={(checked) => toggleDocSelection(mapped.id, checked)}
@@ -710,9 +708,7 @@ export default function OperationRow({
                     document={mapped}
                     context="operation"
                     onOpen={() => onOpenDocument?.(mapped.id)}
-                    onInPerson={(doc) =>
-                      toast(`Firma presencial para "${doc.document_name}" próximamente`, { position: 'top-right' })
-                    }
+                    onInPerson={onInPerson ? () => onInPerson() : undefined}
                     selectable={docSelectMode}
                     selected={selectedDocIds.has(mapped.id)}
                     onSelect={(checked) => toggleDocSelection(mapped.id, checked)}

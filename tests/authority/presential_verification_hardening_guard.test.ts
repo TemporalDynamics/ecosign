@@ -31,6 +31,7 @@ const INVITED_TOKENS_MIGRATION_FILE = path.join(
   ROOT,
   'supabase/migrations/20260301000300_presential_invited_tokens.sql',
 );
+const SUPABASE_CONFIG_FILE = path.join(ROOT, 'supabase/config.toml');
 
 test('presential confirm must use persisted OTP and canonical append helper', async () => {
   const content = await fs.readFile(CONFIRM_FILE, 'utf8');
@@ -98,4 +99,11 @@ test('migration must add invited participant token columns for presential OTPs',
   expect(content).toContain('participant_token_hash');
   expect(content).toContain('token_expires_at');
   expect(content).toContain('token_revoked_at');
+});
+
+test('presential confirm function must allow invited token flow', async () => {
+  const content = await fs.readFile(SUPABASE_CONFIG_FILE, 'utf8');
+
+  expect(content).toContain('[functions.presential-verification-confirm-presence]');
+  expect(content).toContain('verify_jwt = false');
 });

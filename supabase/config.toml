@@ -275,6 +275,9 @@ verify_jwt = false
 [functions.presential-verification-close-session]
 verify_jwt = true
 
+[functions.presential-verification-get-acta]
+verify_jwt = false
+
 # Configure MFA via WebAuthn
 # [auth.mfa.web_authn]
 # enroll_enabled = true

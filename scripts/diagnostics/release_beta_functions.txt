@@ -13,6 +13,7 @@ orchestrator
 presential-verification-start-session
 presential-verification-confirm-presence
 presential-verification-close-session
+presential-verification-get-acta
 process-bitcoin-anchors
 process-polygon-anchors
 reject-signature

@@ -10,6 +10,7 @@ export type PresenceClosedStrand = {
 export type PresenceClosedSummary = {
   closedAt: string | null;
   actaHash: string | null;
+  actaPayload: Record<string, unknown> | null;
   trenzaStatus: string | null;
   confirmedStrands: number | null;
   requiredStrands: number | null;
@@ -74,6 +75,7 @@ export const getLatestPresenceClosedSummary = (
     return {
       closedAt: asString(latest.at),
       actaHash: null,
+      actaPayload: null,
       trenzaStatus: null,
       confirmedStrands: null,
       requiredStrands: null,
@@ -91,6 +93,7 @@ export const getLatestPresenceClosedSummary = (
   return {
     closedAt: asString(payload.closed_at) ?? asString(latest.at),
     actaHash: asString(payload.acta_hash),
+    actaPayload: asRecord(payload.acta_payload),
     trenzaStatus: asString(trenza?.status),
     confirmedStrands: asNumber(trenza?.confirmed_strands),
     requiredStrands: asNumber(trenza?.required_strands),

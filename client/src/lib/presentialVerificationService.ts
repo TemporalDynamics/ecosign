@@ -65,6 +65,20 @@ export type ClosePresentialResult = {
   acta: Record<string, unknown> | null;
 };
 
+type GetPublicPresentialActaInput = {
+  actaHash: string;
+};
+
+export type GetPublicPresentialActaResult = {
+  success: boolean;
+  actaHash: string;
+  sessionId: string | null;
+  operationId: string | null;
+  closedAt: string | null;
+  actaEco: Record<string, unknown>;
+  timestamps: ClosePresentialTimestampEvidence[];
+};
+
 type SupabaseFunctionErrorPayload = {
   error?: string;
   details?: unknown;
@@ -209,5 +223,47 @@ export async function closePresentialVerificationSession(
       payload.acta && typeof payload.acta === 'object'
         ? (payload.acta as Record<string, unknown>)
         : null,
+  };
+}
+
+export async function getPublicPresentialActaByHash(
+  input: GetPublicPresentialActaInput,
+): Promise<GetPublicPresentialActaResult> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.functions.invoke(
+    'presential-verification-get-acta',
+    {
+      body: {
+        acta_hash: input.actaHash,
+      },
+    },
+  );
+
+  const payload = (data ?? {}) as Record<string, unknown>;
+  if (error || payload.success !== true) {
+    throw new Error(
+      resolveFunctionErrorMessage(error, payload, 'No se pudo obtener el acta pública.'),
+    );
+  }
+
+  const actaEco =
+    payload.actaEco && typeof payload.actaEco === 'object'
+      ? (payload.actaEco as Record<string, unknown>)
+      : null;
+
+  if (!actaEco) {
+    throw new Error('El endpoint no devolvió un acta válida.');
+  }
+
+  return {
+    success: true,
+    actaHash: String(payload.actaHash ?? input.actaHash),
+    sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : null,
+    operationId: typeof payload.operationId === 'string' ? payload.operationId : null,
+    closedAt: typeof payload.closedAt === 'string' ? payload.closedAt : null,
+    actaEco,
+    timestamps: Array.isArray(payload.timestamps)
+      ? (payload.timestamps as ClosePresentialTimestampEvidence[])
+      : [],
   };
 }

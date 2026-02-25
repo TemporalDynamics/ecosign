@@ -17,6 +17,7 @@ import VerifierTimeline from './VerifierTimeline';
 import { buildTimeline } from '../lib/verifier/buildTimeline';
 import { extractOperationIds } from '../lib/verifier/normalizeEvents';
 import { getLatestPresenceClosedSummary } from '../lib/verifier/presentialEvidence';
+import { getPublicPresentialActaByHash } from '../lib/presentialVerificationService';
 import type { DocumentEventEntry, OperationEventRow, TimelineEvent } from '../lib/verifier/types';
 
 // INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
@@ -158,6 +159,10 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [showTimeline, setShowTimeline] = useState(false);
+  const [actaEco, setActaEco] = useState<Record<string, unknown> | null>(null);
+  const [actaLoading, setActaLoading] = useState(false);
+  const [actaError, setActaError] = useState<string | null>(null);
+  const [showActaJson, setShowActaJson] = useState(false);
 
   const handleEcoFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -169,6 +174,9 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
       setTimelineEvents([]);
       setTimelineError(null);
       setShowTimeline(false);
+      setActaEco(null);
+      setActaError(null);
+      setShowActaJson(false);
     }
   }, []);
 
@@ -181,6 +189,9 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
       setTimelineEvents([]);
       setTimelineError(null);
       setShowTimeline(false);
+      setActaEco(null);
+      setActaError(null);
+      setShowActaJson(false);
     }
   }, []);
 
@@ -196,6 +207,9 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
     try {
       const result = await verifyEcoWithOriginal(ecoFile, pdfFile);
       setVerificationResult(result);
+      setActaEco(null);
+      setActaError(null);
+      setShowActaJson(false);
       if (!result.valid) {
         setError(result.error || result.errors?.join(', ') || 'La verificación falló');
       }
@@ -278,6 +292,9 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
         setTimelineEvents([]);
         setTimelineError(null);
         setShowTimeline(false);
+        setActaEco(null);
+        setActaError(null);
+        setShowActaJson(false);
       } else if (type === 'pdf' && droppedFile.type === 'application/pdf') {
         setPdfFile(droppedFile);
         setVerificationResult(null);
@@ -285,6 +302,9 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
         setTimelineEvents([]);
         setTimelineError(null);
         setShowTimeline(false);
+        setActaEco(null);
+        setActaError(null);
+        setShowActaJson(false);
       }
     }
   }, []);
@@ -302,6 +322,67 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
   const evidenceItems = verificationResult
     ? buildEvidenceItems(verificationResult, presenceCloseSummary)
     : [];
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadActa = async () => {
+      setActaError(null);
+      setShowActaJson(false);
+
+      if (!presenceCloseSummary?.actaHash) {
+        setActaEco(null);
+        setActaLoading(false);
+        return;
+      }
+
+      if (presenceCloseSummary.actaPayload) {
+        setActaEco(presenceCloseSummary.actaPayload);
+        setActaLoading(false);
+        return;
+      }
+
+      setActaLoading(true);
+      try {
+        const result = await getPublicPresentialActaByHash({
+          actaHash: presenceCloseSummary.actaHash,
+        });
+        if (!isActive) return;
+        setActaEco(result.actaEco);
+      } catch (err) {
+        if (!isActive) return;
+        const message =
+          err instanceof Error ? err.message : 'No se pudo cargar el acta pública.';
+        setActaError(message);
+        setActaEco(null);
+      } finally {
+        if (isActive) {
+          setActaLoading(false);
+        }
+      }
+    };
+
+    loadActa();
+    return () => {
+      isActive = false;
+    };
+  }, [presenceCloseSummary?.actaHash, presenceCloseSummary?.actaPayload]);
+
+  const handleDownloadActaEco = useCallback(() => {
+    if (!presenceCloseSummary?.actaHash || !actaEco) return;
+
+    const fileName = `acta-${presenceCloseSummary.actaHash.slice(0, 16)}.eco`;
+    const content = `${JSON.stringify(actaEco, null, 2)}\n`;
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, [actaEco, presenceCloseSummary?.actaHash]);
 
   return (
     <div className="space-y-6">
@@ -540,6 +621,35 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
                         </>
                       )}
                     </p>
+                  )}
+                  <div className="pt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowActaJson((prev) => !prev)}
+                      disabled={actaLoading || !actaEco}
+                      className="rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:border-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {showActaJson ? 'Ocultar acta .eco' : 'Ver acta .eco'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadActaEco}
+                      disabled={actaLoading || !actaEco}
+                      className="rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:border-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Descargar acta .eco
+                    </button>
+                  </div>
+                  {actaLoading && (
+                    <p className="text-xs text-gray-600">Cargando acta pública…</p>
+                  )}
+                  {actaError && (
+                    <p className="text-xs text-red-700">Acta: {actaError}</p>
+                  )}
+                  {showActaJson && actaEco && (
+                    <pre className="max-h-72 overflow-auto rounded-md border border-gray-200 bg-white p-2 text-xs text-gray-800">
+                      {JSON.stringify(actaEco, null, 2)}
+                    </pre>
                   )}
                 </div>
               </div>

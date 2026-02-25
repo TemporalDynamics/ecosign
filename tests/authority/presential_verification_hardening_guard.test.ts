@@ -19,6 +19,10 @@ const CLOSE_FILE = path.join(
   ROOT,
   'supabase/functions/presential-verification-close-session/index.ts',
 );
+const GET_ACTA_FILE = path.join(
+  ROOT,
+  'supabase/functions/presential-verification-get-acta/index.ts',
+);
 const RELEASE_MANIFEST = path.join(
   ROOT,
   'scripts/diagnostics/release_beta_functions.txt',
@@ -69,6 +73,7 @@ test('presential close must append canonical event (no direct events array updat
   expect(content).toContain('acta_timestamps');
   expect(content).toContain('legal-timestamp');
   expect(content).toContain('identity.session.presence.closed');
+  expect(content).toContain('acta_payload: actaPayload');
   expect(content).not.toMatch(
     /\.from\(\s*['"]document_entities['"]\s*\)\s*\.update\(\s*\{\s*events\s*:/s,
   );
@@ -79,6 +84,7 @@ test('release bundle must include presential verification functions', async () =
   expect(manifest).toContain('presential-verification-start-session');
   expect(manifest).toContain('presential-verification-confirm-presence');
   expect(manifest).toContain('presential-verification-close-session');
+  expect(manifest).toContain('presential-verification-get-acta');
 });
 
 test('verifier must label presential trenza events', async () => {
@@ -106,4 +112,17 @@ test('presential confirm function must allow invited token flow', async () => {
 
   expect(content).toContain('[functions.presential-verification-confirm-presence]');
   expect(content).toContain('verify_jwt = false');
+});
+
+test('public acta endpoint must be exposed by hash and unauthenticated', async () => {
+  const functionContent = await fs.readFile(GET_ACTA_FILE, 'utf8');
+  const configContent = await fs.readFile(SUPABASE_CONFIG_FILE, 'utf8');
+
+  expect(functionContent).toContain('presential_verification_sessions');
+  expect(functionContent).toContain(".eq('acta_hash', actaHash)");
+  expect(functionContent).toContain('acta_payload');
+  expect(functionContent).toContain('withRateLimit');
+
+  expect(configContent).toContain('[functions.presential-verification-get-acta]');
+  expect(configContent).toContain('verify_jwt = false');
 });

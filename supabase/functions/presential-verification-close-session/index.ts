@@ -456,6 +456,7 @@ serve(async (req) => {
           tsa_token_hash: externalTimestamp.token_hash,
           tsa_error: externalTimestamp.error,
         },
+        acta_payload: actaPayload,
         ecosign_signature: {
           present: signedActaResult.signed,
           reason: signedActaResult.reason ?? null,

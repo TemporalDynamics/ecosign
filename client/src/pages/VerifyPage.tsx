@@ -75,6 +75,10 @@ function VerifyPage() {
             </li>
             <li className="flex items-start">
               <span className="mr-2">-</span>
+              <span>Acta, trenza y timestamp de sesión probatoria, si existe</span>
+            </li>
+            <li className="flex items-start">
+              <span className="mr-2">-</span>
               <span>Estructura del certificado .ECO</span>
             </li>
             <li className="flex items-start">

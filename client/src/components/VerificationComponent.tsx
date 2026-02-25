@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Upload,
   FileText,
@@ -16,7 +16,8 @@ import type { EcoV2 } from '../lib/eco/v2';
 import VerifierTimeline from './VerifierTimeline';
 import { buildTimeline } from '../lib/verifier/buildTimeline';
 import { extractOperationIds } from '../lib/verifier/normalizeEvents';
-import type { OperationEventRow, TimelineEvent } from '../lib/verifier/types';
+import { getLatestPresenceClosedSummary } from '../lib/verifier/presentialEvidence';
+import type { DocumentEventEntry, OperationEventRow, TimelineEvent } from '../lib/verifier/types';
 
 // INTERFAZ DE RESULTADO (COINCIDE CON BACKEND)
 interface VerificationServiceResult {
@@ -47,7 +48,10 @@ interface VerificationServiceResult {
   [key: string]: any; // Permite otros campos
 }
 
-const buildEvidenceItems = (result: VerificationServiceResult): string[] => {
+const buildEvidenceItems = (
+  result: VerificationServiceResult,
+  presenceSummary: ReturnType<typeof getLatestPresenceClosedSummary>,
+): string[] => {
   const items: string[] = [];
 
   if (result.valid) {
@@ -100,6 +104,27 @@ const buildEvidenceItems = (result: VerificationServiceResult): string[] => {
 
   if (bitcoinConfirmed) {
     items.push('Existe un anclaje público confirmado (Bitcoin).');
+  }
+
+  if (presenceSummary) {
+    items.push('Existe una sesión probatoria cerrada con acta registrada.');
+    if (
+      presenceSummary.confirmedStrands !== null &&
+      presenceSummary.requiredStrands !== null
+    ) {
+      const statusText = presenceSummary.trenzaStatus
+        ? ` (${presenceSummary.trenzaStatus})`
+        : '';
+      items.push(
+        `Trenza probatoria: ${presenceSummary.confirmedStrands}/${presenceSummary.requiredStrands}${statusText}.`,
+      );
+    }
+    if (presenceSummary.tsaStatus) {
+      const provider = presenceSummary.tsaProvider
+        ? ` · proveedor ${presenceSummary.tsaProvider}`
+        : '';
+      items.push(`Timestamp de acta (TSA): ${presenceSummary.tsaStatus}${provider}.`);
+    }
   }
 
   return items;
@@ -256,7 +281,15 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
     e.preventDefault();
   }, []);
 
-  const evidenceItems = verificationResult ? buildEvidenceItems(verificationResult) : [];
+  const presenceCloseSummary = useMemo(() => {
+    const rawEvents = verificationResult?.eco?.events;
+    const events = Array.isArray(rawEvents) ? (rawEvents as DocumentEventEntry[]) : [];
+    return getLatestPresenceClosedSummary(events);
+  }, [verificationResult]);
+
+  const evidenceItems = verificationResult
+    ? buildEvidenceItems(verificationResult, presenceCloseSummary)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -417,6 +450,60 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
                 </p>
               ))}
             </div>
+            {presenceCloseSummary && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+                  Sesión Probatoria Reforzada
+                </p>
+                <div className="mt-2 space-y-1 text-sm text-gray-700">
+                  {presenceCloseSummary.closedAt && (
+                    <p>
+                      Cierre: <span className="font-medium">{new Date(presenceCloseSummary.closedAt).toLocaleString()}</span>
+                    </p>
+                  )}
+                  {presenceCloseSummary.actaHash && (
+                    <p className="break-all">
+                      Acta hash: <span className="font-mono text-xs">{presenceCloseSummary.actaHash}</span>
+                    </p>
+                  )}
+                  {presenceCloseSummary.confirmedStrands !== null &&
+                    presenceCloseSummary.requiredStrands !== null && (
+                      <p>
+                        Trenza: <span className="font-medium">{presenceCloseSummary.confirmedStrands}/{presenceCloseSummary.requiredStrands}</span>
+                        {presenceCloseSummary.trenzaStatus && (
+                          <>
+                            {' · '}
+                            Estado: <span className="font-medium">{presenceCloseSummary.trenzaStatus}</span>
+                          </>
+                        )}
+                      </p>
+                    )}
+                  {presenceCloseSummary.tsaStatus && (
+                    <p className="break-all">
+                      TSA: <span className="font-medium">{presenceCloseSummary.tsaStatus}</span>
+                      {presenceCloseSummary.tsaProvider && (
+                        <>
+                          {' · '}
+                          Proveedor: <span className="font-medium">{presenceCloseSummary.tsaProvider}</span>
+                        </>
+                      )}
+                      {presenceCloseSummary.tsaTokenHash && (
+                        <>
+                          {' · '}
+                          Token hash: <span className="font-mono text-xs">{presenceCloseSummary.tsaTokenHash}</span>
+                        </>
+                      )}
+                      {presenceCloseSummary.tsaError && (
+                        <>
+                          {' · '}
+                          Error: <span className="font-medium">{presenceCloseSummary.tsaError}</span>
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
             {verificationResult.valid && (
               <div className="pt-2">
                 <button

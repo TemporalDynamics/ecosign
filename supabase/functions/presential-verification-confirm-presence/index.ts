@@ -8,6 +8,7 @@ interface ConfirmPresenceRequest {
   snapshot_hash: string;
   signer_id?: string;
   participant_id?: string;
+  participant_token?: string;
   confirmation_method?: 'otp' | 'selfie' | 'dni';
   otp?: string;
 }
@@ -26,6 +27,20 @@ type SnapshotParticipant = {
   role: SessionParticipantRole;
 };
 
+type SessionOtpRecord = {
+  id: string;
+  signer_email: string;
+  participant_id: string | null;
+  participant_role: SessionParticipantRole | null;
+  otp_hash: string;
+  expires_at: string | null;
+  attempts: number;
+  verified_at: string | null;
+  participant_token_hash: string | null;
+  token_expires_at: string | null;
+  token_revoked_at: string | null;
+};
+
 type TrenzaAttestation = {
   version: 'ecosign.nonrep.attestation.v1';
   attestation_hash: string;
@@ -42,9 +57,10 @@ type TrenzaAttestation = {
   proof: {
     otp_record_id: string;
     otp_attempt: number;
-    auth_mode: 'supabase_user';
-    auth_user_id: string;
-    auth_email: string;
+    auth_mode: 'supabase_user' | 'participant_token';
+    auth_user_id: string | null;
+    auth_email: string | null;
+    token_hash: string | null;
     user_agent: string | null;
   };
 };
@@ -176,6 +192,36 @@ function resolveParticipantFromSnapshot(
   return participants.find((p) => normalizeEmail(p.email) === authEmail) ?? null;
 }
 
+function resolveParticipantFromToken(input: {
+  participants: SnapshotParticipant[];
+  otpRecord: SessionOtpRecord;
+  requestedParticipantId?: string;
+  requestedSignerId?: string;
+}): SnapshotParticipant | null {
+  const requested = (input.requestedParticipantId || input.requestedSignerId || '').trim();
+  const otpParticipantId = String(input.otpRecord.participant_id ?? '').trim();
+  const otpEmail = normalizeEmail(input.otpRecord.signer_email);
+
+  const byToken = input.participants.find((participant) => {
+    const idMatches =
+      otpParticipantId &&
+      (participant.participantId === otpParticipantId || participant.signerId === otpParticipantId);
+    const emailMatches = normalizeEmail(participant.email) === otpEmail;
+    return idMatches || emailMatches;
+  });
+
+  if (!byToken) return null;
+
+  if (requested) {
+    const requestedMatches =
+      byToken.participantId === requested ||
+      byToken.signerId === requested;
+    if (!requestedMatches) return null;
+  }
+
+  return byToken;
+}
+
 async function buildTrenzaAttestation(input: {
   sessionId: string;
   snapshotHash: string;
@@ -183,7 +229,10 @@ async function buildTrenzaAttestation(input: {
   confirmationMethod: string;
   otpRecordId: string;
   otpAttempt: number;
-  authUser: AuthUser;
+  authMode: 'supabase_user' | 'participant_token';
+  authUserId: string | null;
+  authEmail: string | null;
+  participantTokenHash: string | null;
   userAgent: string | null;
   attestedAt: string;
 }): Promise<TrenzaAttestation> {
@@ -202,9 +251,10 @@ async function buildTrenzaAttestation(input: {
     proof: {
       otp_record_id: input.otpRecordId,
       otp_attempt: input.otpAttempt,
-      auth_mode: 'supabase_user' as const,
-      auth_user_id: input.authUser.id,
-      auth_email: normalizeEmail(input.authUser.email),
+      auth_mode: input.authMode,
+      auth_user_id: input.authUserId,
+      auth_email: input.authEmail ? normalizeEmail(input.authEmail) : null,
+      token_hash: input.participantTokenHash,
       user_agent: input.userAgent,
     },
   };
@@ -227,23 +277,12 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    const authUser = await verifyAuthUser(authHeader);
-
-    if (!authUser) {
-      return jsonResponse({ error: 'Unauthorized' }, 401);
-    }
-
-    const authEmail = normalizeEmail(authUser.email);
-    if (!authEmail) {
-      return jsonResponse({ error: 'Authenticated user has no email' }, 403);
-    }
-
     const body = (await req.json().catch(() => ({}))) as Partial<ConfirmPresenceRequest>;
     const sessionId = String(body.session_id ?? '').trim();
     const snapshotHash = String(body.snapshot_hash ?? '').trim();
     const participantIdFromBody = body.participant_id?.trim();
     const signerIdFromBody = body.signer_id?.trim();
+    const participantToken = String(body.participant_token ?? '').trim();
     const confirmationMethod = body.confirmation_method ?? 'otp';
     const otp = String(body.otp ?? '').trim();
 
@@ -256,6 +295,18 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const authHeader = req.headers.get('Authorization');
+    const authUser = await verifyAuthUser(authHeader);
+    const authEmail = normalizeEmail(authUser?.email);
+    const usingParticipantToken = Boolean(participantToken);
+
+    if (!usingParticipantToken && !authUser) {
+      return jsonResponse({ error: 'Unauthorized: provide account session or participant_token' }, 401);
+    }
+
+    if (!usingParticipantToken && !authEmail) {
+      return jsonResponse({ error: 'Authenticated user has no email' }, 403);
+    }
 
     const { data: session, error: sessionError } = await supabase
       .from('presential_verification_sessions')
@@ -287,15 +338,59 @@ serve(async (req) => {
     }
 
     const snapshotParticipants = buildSnapshotParticipants(session?.snapshot_data);
-    const participant = resolveParticipantFromSnapshot(
-      snapshotParticipants,
-      authEmail,
-      participantIdFromBody,
-      signerIdFromBody,
-    );
+    let participant: SnapshotParticipant | null = null;
+    let otpRecord: SessionOtpRecord | null = null;
+    let participantTokenHash: string | null = null;
+
+    if (usingParticipantToken) {
+      participantTokenHash = await sha256Hex(participantToken);
+      const { data: tokenOtpRecord, error: tokenOtpError } = await supabase
+        .from('presential_verification_otps')
+        .select(
+          'id, signer_email, participant_id, participant_role, otp_hash, expires_at, attempts, verified_at, participant_token_hash, token_expires_at, token_revoked_at',
+        )
+        .eq('session_id', session.id)
+        .eq('participant_token_hash', participantTokenHash)
+        .single();
+
+      if (tokenOtpError || !tokenOtpRecord) {
+        return jsonResponse({ error: 'Invalid participant token' }, 403);
+      }
+
+      if (tokenOtpRecord.token_revoked_at) {
+        return jsonResponse({ error: 'Participant token revoked' }, 403);
+      }
+
+      const tokenExpiresAtMs = parseTimestamp(tokenOtpRecord.token_expires_at);
+      if (tokenExpiresAtMs !== null && tokenExpiresAtMs < now) {
+        return jsonResponse({ error: 'Participant token expired' }, 403);
+      }
+
+      otpRecord = tokenOtpRecord as SessionOtpRecord;
+      participant = resolveParticipantFromToken({
+        participants: snapshotParticipants,
+        otpRecord: otpRecord,
+        requestedParticipantId: participantIdFromBody,
+        requestedSignerId: signerIdFromBody,
+      });
+      if (!participant) {
+        return jsonResponse({ error: 'Participant token does not match session participant' }, 403);
+      }
+    } else {
+      participant = resolveParticipantFromSnapshot(
+        snapshotParticipants,
+        authEmail,
+        participantIdFromBody,
+        signerIdFromBody,
+      );
+
+      if (!participant) {
+        return jsonResponse({ error: 'Participant identity mismatch for authenticated user' }, 403);
+      }
+    }
 
     if (!participant) {
-      return jsonResponse({ error: 'Participant identity mismatch for authenticated user' }, 403);
+      return jsonResponse({ error: 'Participant resolution failed' }, 403);
     }
 
     const participantId = participant.participantId;
@@ -313,14 +408,24 @@ serve(async (req) => {
       });
     }
 
-    const { data: otpRecord, error: otpFetchError } = await supabase
-      .from('presential_verification_otps')
-      .select('id, otp_hash, expires_at, attempts, verified_at')
-      .eq('session_id', session.id)
-      .eq('signer_email', participantEmail)
-      .single();
+    if (!otpRecord) {
+      const { data: fetchedOtpRecord, error: otpFetchError } = await supabase
+        .from('presential_verification_otps')
+        .select(
+          'id, signer_email, participant_id, participant_role, otp_hash, expires_at, attempts, verified_at, participant_token_hash, token_expires_at, token_revoked_at',
+        )
+        .eq('session_id', session.id)
+        .eq('signer_email', participantEmail)
+        .single();
 
-    if (otpFetchError || !otpRecord) {
+      if (otpFetchError || !fetchedOtpRecord) {
+        return jsonResponse({ error: 'OTP challenge not found for participant' }, 404);
+      }
+
+      otpRecord = fetchedOtpRecord as SessionOtpRecord;
+    }
+
+    if (!otpRecord) {
       return jsonResponse({ error: 'OTP challenge not found for participant' }, 404);
     }
 
@@ -361,7 +466,10 @@ serve(async (req) => {
       confirmationMethod,
       otpRecordId: String(otpRecord.id),
       otpAttempt: Number(otpRecord.attempts ?? 0) + 1,
-      authUser,
+      authMode: usingParticipantToken ? 'participant_token' : 'supabase_user',
+      authUserId: authUser?.id ?? null,
+      authEmail: authUser?.email ?? null,
+      participantTokenHash,
       userAgent: req.headers.get('user-agent') ?? null,
       attestedAt: confirmedAt,
     });
@@ -383,6 +491,7 @@ serve(async (req) => {
         confirmation_method: confirmationMethod,
         identity_binding_id: identityBindingId,
         attestation_hash: attestation.attestation_hash,
+        auth_mode: usingParticipantToken ? 'participant_token' : 'supabase_user',
         timestamp_confirmed: confirmedAt,
         user_agent: req.headers.get('user-agent') ?? null,
       },

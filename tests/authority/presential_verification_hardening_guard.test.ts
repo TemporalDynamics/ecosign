@@ -27,11 +27,17 @@ const VERIFIER_NORMALIZE_EVENTS_FILE = path.join(
   ROOT,
   'client/src/lib/verifier/normalizeEvents.ts',
 );
+const INVITED_TOKENS_MIGRATION_FILE = path.join(
+  ROOT,
+  'supabase/migrations/20260301000300_presential_invited_tokens.sql',
+);
 
 test('presential confirm must use persisted OTP and canonical append helper', async () => {
   const content = await fs.readFile(CONFIRM_FILE, 'utf8');
 
   expect(content).toContain(".from('presential_verification_otps')");
+  expect(content).toContain('participant_token');
+  expect(content).toContain('participant_token_hash');
   expect(content).toContain('appendEvent(');
   expect(content).toContain('presential-verification-confirm-presence');
   expect(content).not.toMatch(/For now, accept any 6-digit OTP/i);
@@ -46,6 +52,8 @@ test('presential start must create expiring session and OTP challenges', async (
 
   expect(content).toContain('expires_at');
   expect(content).toContain(".from('presential_verification_otps')");
+  expect(content).toContain('participant_token_hash');
+  expect(content).toContain('buildParticipantAccessLink');
   expect(content).toContain('buildSignerOtpEmail');
   expect(content).toContain('sendEmail');
 });
@@ -80,4 +88,14 @@ test('verifier must label presential trenza events', async () => {
   expect(content).toContain('identity.session.presence.closed');
   expect(content).toContain('Trenza:');
   expect(content).toContain('Acta:');
+});
+
+test('migration must add invited participant token columns for presential OTPs', async () => {
+  const content = await fs.readFile(INVITED_TOKENS_MIGRATION_FILE, 'utf8');
+
+  expect(content).toContain('participant_id');
+  expect(content).toContain('participant_role');
+  expect(content).toContain('participant_token_hash');
+  expect(content).toContain('token_expires_at');
+  expect(content).toContain('token_revoked_at');
 });

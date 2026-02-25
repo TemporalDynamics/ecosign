@@ -31,6 +31,7 @@ type SessionParticipant = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SITE_URL = (Deno.env.get('SITE_URL') ?? 'https://ecosign.app').replace(/\/+$/, '');
 
 const SESSION_TTL_MINUTES = 30;
 const OTP_TTL_MINUTES = 10;
@@ -75,6 +76,29 @@ async function hashData(data: string): Promise<string> {
 function generateSessionId(): string {
   const raw = crypto.randomUUID().replaceAll('-', '').toUpperCase();
   return `PSV-${raw.slice(0, 6)}`;
+}
+
+function generateParticipantToken(): string {
+  const randomBytes = new Uint8Array(32);
+  crypto.getRandomValues(randomBytes);
+  return btoa(String.fromCharCode(...randomBytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function buildParticipantAccessLink(input: {
+  sessionId: string;
+  snapshotHash: string;
+  participantId: string;
+  participantToken: string;
+}): string {
+  const url = new URL('/presential-confirm', SITE_URL);
+  url.searchParams.set('session_id', input.sessionId);
+  url.searchParams.set('snapshot_hash', input.snapshotHash);
+  url.searchParams.set('participant_id', input.participantId);
+  url.searchParams.set('participant_token', input.participantToken);
+  return url.toString();
 }
 
 function uniqueSignersByEmail(signers: SessionSigner[]): SessionSigner[] {
@@ -314,17 +338,30 @@ serve(async (req) => {
     for (const participant of participants) {
       const otpCode = generateOtpCode();
       const otpHash = await hashData(otpCode);
+      const participantToken = generateParticipantToken();
+      const participantTokenHash = await hashData(participantToken);
+      const participantAccessLink = buildParticipantAccessLink({
+        sessionId,
+        snapshotHash,
+        participantId: participant.participantId,
+        participantToken,
+      });
 
       const { error: otpError } = await supabase
         .from('presential_verification_otps')
         .upsert(
           {
             session_id: session.id,
+            participant_id: participant.participantId,
+            participant_role: participant.role,
             signer_email: normalizeEmail(participant.email),
             otp_hash: otpHash,
             expires_at: otpExpiresAt,
             attempts: 0,
             verified_at: null,
+            participant_token_hash: participantTokenHash,
+            token_expires_at: expiresAt,
+            token_revoked_at: null,
             last_sent_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           },
@@ -344,6 +381,7 @@ serve(async (req) => {
             ? `Testigo de sesion probatoria (${sessionId})`
             : `Verificacion presencial (${sessionId})`,
         otpCode,
+        accessLinkLine: `Acceso seguro de sesion: ${participantAccessLink}`,
         siteUrl: Deno.env.get('SITE_URL'),
       });
 

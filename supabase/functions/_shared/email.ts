@@ -127,12 +127,14 @@ export async function buildSignerOtpEmail({
   signerName,
   workflowTitle,
   otpCode,
+  accessLinkLine,
   siteUrl,
 }: {
   signerEmail: string;
   signerName?: string | null;
   workflowTitle: string;
   otpCode: string;
+  accessLinkLine?: string | null;
   siteUrl?: string | null;
 }) {
   const name = signerName || 'Hola';
@@ -148,6 +150,7 @@ export async function buildSignerOtpEmail({
         display_name: name,
         otp_code: otpCode,
         workflow_title: workflowTitle,
+        access_link_line: accessLinkLine ?? '',
       },
     }),
   };

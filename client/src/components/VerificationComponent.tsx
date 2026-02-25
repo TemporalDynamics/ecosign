@@ -48,6 +48,18 @@ interface VerificationServiceResult {
   [key: string]: any; // Permite otros campos
 }
 
+const TRIPLE_BRAID_LABELS: Record<string, string> = {
+  signer: 'Firmante',
+  witness: 'Testigo',
+  ecosign: 'EcoSign',
+};
+
+const getStrandStatus = (strand: { required: boolean | null; ok: boolean | null }) => {
+  if (strand.ok === true) return { label: 'OK', tone: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+  if (strand.required === true) return { label: 'Faltante', tone: 'bg-red-100 text-red-800 border-red-300' };
+  return { label: 'Opcional', tone: 'bg-amber-100 text-amber-800 border-amber-300' };
+};
+
 const buildEvidenceItems = (
   result: VerificationServiceResult,
   presenceSummary: ReturnType<typeof getLatestPresenceClosedSummary>,
@@ -478,6 +490,34 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
                         )}
                       </p>
                     )}
+                  {presenceCloseSummary.strands.length > 0 && (
+                    <div className="pt-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                        Detalle de strands
+                      </p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        {presenceCloseSummary.strands.map((strand) => {
+                          const status = getStrandStatus(strand);
+                          const label = TRIPLE_BRAID_LABELS[strand.key] ?? strand.key;
+                          return (
+                            <div
+                              key={strand.key}
+                              className={`rounded-md border px-2 py-1 ${status.tone}`}
+                            >
+                              <p className="text-xs font-semibold">
+                                {label}: {status.label}
+                              </p>
+                              {strand.reason && (
+                                <p className="mt-0.5 text-xs">
+                                  Motivo: {strand.reason}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {presenceCloseSummary.tsaStatus && (
                     <p className="break-all">
                       TSA: <span className="font-medium">{presenceCloseSummary.tsaStatus}</span>

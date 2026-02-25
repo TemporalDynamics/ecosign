@@ -14,6 +14,7 @@ import { Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import SignWorkflowPage from './pages/SignWorkflowPage'
+import PresentialConfirmPage from './pages/PresentialConfirmPage'
 
 export function SignerApp() {
   return (
@@ -32,6 +33,7 @@ export function SignerApp() {
           <Routes>
             {/* Only route: signature workflow with token */}
             <Route path="/sign/:token" element={<SignWorkflowPage mode="signer" />} />
+            <Route path="/presential-confirm" element={<PresentialConfirmPage />} />
 
             {/* Fallback for invalid/expired links */}
             <Route

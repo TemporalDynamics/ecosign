@@ -34,6 +34,37 @@ export type ConfirmPresentialResult = {
   attestationHash?: string;
 };
 
+type ClosePresentialInput = {
+  sessionId: string;
+};
+
+export type ClosePresentialTimestampEvidence = {
+  kind?: string;
+  status?: string;
+  at?: string;
+  provider?: string;
+  token_hash?: string | null;
+  error?: string | null;
+};
+
+export type ClosePresentialTrenza = {
+  status?: string;
+  confirmed_strands?: number;
+  required_strands?: number;
+  summary?: Record<string, unknown>;
+  strands?: Record<string, unknown>;
+};
+
+export type ClosePresentialResult = {
+  success: boolean;
+  status: string;
+  sessionId: string;
+  actaHash: string | null;
+  trenza: ClosePresentialTrenza | null;
+  timestamps: ClosePresentialTimestampEvidence[];
+  acta: Record<string, unknown> | null;
+};
+
 type SupabaseFunctionErrorPayload = {
   error?: string;
   details?: unknown;
@@ -139,5 +170,44 @@ export async function confirmPresentialVerificationPresence(
       typeof payload.attestationHash === 'string'
         ? payload.attestationHash
         : undefined,
+  };
+}
+
+export async function closePresentialVerificationSession(
+  input: ClosePresentialInput,
+): Promise<ClosePresentialResult> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.functions.invoke(
+    'presential-verification-close-session',
+    {
+      body: {
+        session_id: input.sessionId,
+      },
+    },
+  );
+
+  const payload = (data ?? {}) as Record<string, unknown>;
+  if (error || payload.success !== true) {
+    throw new Error(
+      resolveFunctionErrorMessage(error, payload, 'No se pudo cerrar la sesión presencial.'),
+    );
+  }
+
+  return {
+    success: true,
+    status: String(payload.status ?? 'closed'),
+    sessionId: String(payload.sessionId ?? input.sessionId),
+    actaHash: typeof payload.actaHash === 'string' ? payload.actaHash : null,
+    trenza:
+      payload.trenza && typeof payload.trenza === 'object'
+        ? (payload.trenza as ClosePresentialTrenza)
+        : null,
+    timestamps: Array.isArray(payload.timestamps)
+      ? (payload.timestamps as ClosePresentialTimestampEvidence[])
+      : [],
+    acta:
+      payload.acta && typeof payload.acta === 'object'
+        ? (payload.acta as Record<string, unknown>)
+        : null,
   };
 }

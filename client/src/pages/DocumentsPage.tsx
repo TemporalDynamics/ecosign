@@ -22,7 +22,11 @@ import { GRID_TOKENS } from "../config/gridTokens";
 import { deriveDocumentState } from "../lib/deriveDocumentState";
 import { ProtectedBadge } from "../components/ProtectedBadge";
 import { addDocumentToOperation, countDocumentsInOperation, getOperations, getOperationWithDocuments, protectAndSendOperation, updateOperation } from "../lib/operationsService";
-import { startPresentialVerificationSession } from "../lib/presentialVerificationService";
+import {
+  closePresentialVerificationSession,
+  startPresentialVerificationSession,
+  type ClosePresentialResult,
+} from "../lib/presentialVerificationService";
 import { getDocumentEntity } from "../lib/documentEntityService";
 import type { Operation } from "../types/operations";
 import { disableGuestMode, isGuestMode } from "../utils/guestMode";
@@ -230,6 +234,14 @@ const formatDate = (date: string | number | Date | null | undefined) => {
   });
 };
 
+const extractActaClosedAt = (acta: Record<string, unknown> | null | undefined): string | null => {
+  if (!acta || typeof acta !== "object") return null;
+  const session = acta.session;
+  if (!session || typeof session !== "object") return null;
+  const closedAt = (session as Record<string, unknown>).closed_at;
+  return typeof closedAt === "string" ? closedAt : null;
+};
+
 const getPdfStoragePath = (doc: DocumentRecord | null) => {
   // Only return pdf_storage_path (plaintext PDF in user-documents bucket)
   // DO NOT fall back to source_storage_path (encrypted custody path in different bucket)
@@ -389,6 +401,8 @@ function DocumentsPage() {
   const [openDraftMenuId, setOpenDraftMenuId] = useState<string | null>(null);
   const [startingPresentialOperationId, setStartingPresentialOperationId] = useState<string | null>(null);
   const [presentialSessionSummary, setPresentialSessionSummary] = useState<PresentialSessionSummary | null>(null);
+  const [closingPresentialSessionId, setClosingPresentialSessionId] = useState<string | null>(null);
+  const [presentialCloseResult, setPresentialCloseResult] = useState<ClosePresentialResult | null>(null);
   const operationsSectionRef = useRef<HTMLDivElement>(null);
   const normalizedSearch = search.trim().toLowerCase();
   const isSearchActive = normalizedSearch.length > 0;
@@ -570,6 +584,7 @@ function DocumentsPage() {
         operationId: operation.id,
       });
 
+      setPresentialCloseResult(null);
       setPresentialSessionSummary({
         operationId: operation.id,
         operationName: operation.name,
@@ -601,6 +616,45 @@ function DocumentsPage() {
       `La firma presencial se inicia por operación. Agregá "${doc.document_name}" a una operación para continuar.`,
       { position: "top-right", duration: 5000 }
     );
+  };
+
+  const handleClosePresentialSession = async () => {
+    if (!presentialSessionSummary) {
+      toast.error("No hay sesión presencial activa para cerrar.", { position: "top-right" });
+      return;
+    }
+
+    const sessionId = presentialSessionSummary.sessionId;
+    if (!sessionId) {
+      toast.error("Falta el session ID para cerrar la sesión.", { position: "top-right" });
+      return;
+    }
+
+    if (closingPresentialSessionId) {
+      toast("Ya estamos cerrando una sesión presencial. Esperá un momento.", { position: "top-right" });
+      return;
+    }
+
+    const loadingToastId = toast.loading(`Cerrando sesión ${sessionId}...`, {
+      position: "top-right",
+    });
+    setClosingPresentialSessionId(sessionId);
+    try {
+      const result = await closePresentialVerificationSession({ sessionId });
+      setPresentialCloseResult(result);
+      toast.success(`Sesión ${sessionId} cerrada y acta generada.`, {
+        id: loadingToastId,
+        position: "top-right",
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "No se pudo cerrar la sesión presencial.";
+      toast.error(message, { id: loadingToastId, position: "top-right" });
+    } finally {
+      setClosingPresentialSessionId(null);
+    }
   };
 
   const loadDocuments = useCallback(async (opts?: { silent?: boolean }) => {
@@ -2041,6 +2095,19 @@ function DocumentsPage() {
     );
   }, [operationFilter, operations]);
 
+  const closeResultForSession =
+    presentialSessionSummary &&
+    presentialCloseResult?.sessionId === presentialSessionSummary.sessionId
+      ? presentialCloseResult
+      : null;
+  const closeResultLocalTimestamp = closeResultForSession?.timestamps.find(
+    (timestamp) => timestamp.kind === "local",
+  );
+  const closeResultTsaTimestamp = closeResultForSession?.timestamps.find(
+    (timestamp) => timestamp.kind === "tsa.rfc3161",
+  );
+  const closeResultClosedAt = extractActaClosedAt(closeResultForSession?.acta);
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Header variant="private" onLogout={handleLogout} openLegalCenter={openLegalCenter} />
@@ -3338,6 +3405,18 @@ function DocumentsPage() {
             <div className="mt-5 flex flex-wrap gap-2">
               <button
                 type="button"
+                onClick={() => handleClosePresentialSession()}
+                disabled={Boolean(closingPresentialSessionId) || closeResultForSession?.status === "closed"}
+                className="rounded-lg bg-black px-3 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+              >
+                {closingPresentialSessionId
+                  ? "Cerrando sesión..."
+                  : closeResultForSession
+                    ? "Sesión cerrada"
+                    : "Cerrar sesión presencial"}
+              </button>
+              <button
+                type="button"
                 onClick={() =>
                   copyToClipboard(
                     presentialSessionSummary.sessionId,
@@ -3373,6 +3452,70 @@ function DocumentsPage() {
                 Abrir confirmación manual
               </button>
             </div>
+
+            {closeResultForSession && (
+              <div className="mt-4 space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                <div className="font-semibold">Acta probatoria cerrada</div>
+                {closeResultClosedAt && (
+                  <div>
+                    Cerrada: <span className="font-medium">{formatDate(closeResultClosedAt)}</span>
+                  </div>
+                )}
+                {closeResultForSession.actaHash && (
+                  <div className="break-all">
+                    Acta hash: <span className="font-mono">{closeResultForSession.actaHash}</span>
+                  </div>
+                )}
+                {closeResultForSession.trenza && (
+                  <div>
+                    Trenza:{" "}
+                    <span className="font-medium">
+                      {(closeResultForSession.trenza.confirmed_strands ?? 0)}/
+                      {(closeResultForSession.trenza.required_strands ?? 0)}
+                    </span>
+                    {" · "}
+                    Estado: <span className="font-medium">{closeResultForSession.trenza.status ?? "n/a"}</span>
+                  </div>
+                )}
+                {closeResultLocalTimestamp && (
+                  <div>
+                    Timestamp local:{" "}
+                    <span className="font-medium">{closeResultLocalTimestamp.status ?? "recorded"}</span>
+                  </div>
+                )}
+                {closeResultTsaTimestamp && (
+                  <div className="break-all">
+                    TSA: <span className="font-medium">{closeResultTsaTimestamp.status ?? "n/a"}</span>
+                    {" · "}
+                    Provider: <span className="font-medium">{closeResultTsaTimestamp.provider ?? "n/a"}</span>
+                    {closeResultTsaTimestamp.token_hash && (
+                      <>
+                        {" · "}
+                        Token hash: <span className="font-mono">{closeResultTsaTimestamp.token_hash}</span>
+                      </>
+                    )}
+                    {closeResultTsaTimestamp.error && (
+                      <>
+                        {" · "}
+                        Error: <span className="font-medium">{closeResultTsaTimestamp.error}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      closeResultForSession.actaHash &&
+                      copyToClipboard(closeResultForSession.actaHash, "Acta hash")
+                    }
+                    className="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-900 hover:border-emerald-700"
+                  >
+                    Copiar acta hash
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

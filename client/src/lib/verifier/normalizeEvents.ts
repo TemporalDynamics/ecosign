@@ -32,6 +32,9 @@ const DOCUMENT_LABELS: Record<string, string> = {
   signature: 'Firma completada',
   // Canonical signature kind
   'signature.completed': 'Firma completada',
+  'identity.session.presence.confirmed': 'Presencia confirmada (sesión probatoria)',
+  'identity.session.presence.witnessed': 'Testigo confirmó presencia',
+  'identity.session.presence.closed': 'Acta probatoria cerrada',
   signature_applied: 'Firma aplicada',
   signature_completed: 'Firma completada',
   document_viewed: 'Documento visualizado',
@@ -53,6 +56,59 @@ const getAnchorLabel = (event: DocumentEventEntry): string | null => {
 const getTsaLabel = (event: DocumentEventEntry): string | null => {
   if (event.kind !== 'tsa.confirmed') return null;
   return 'Sello de tiempo registrado';
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+
+const getPresenceDetails = (event: DocumentEventEntry): string | null => {
+  const kind = typeof event.kind === 'string' ? event.kind : '';
+  if (!kind.startsWith('identity.session.presence.')) return null;
+
+  const payload = asRecord(event.payload);
+  if (!payload) return null;
+
+  if (kind === 'identity.session.presence.confirmed' || kind === 'identity.session.presence.witnessed') {
+    const role = typeof payload.participant_role === 'string' ? payload.participant_role : null;
+    const method = typeof payload.confirmation_method === 'string' ? payload.confirmation_method : null;
+    const attestationHash =
+      typeof payload.attestation_hash === 'string' ? payload.attestation_hash : null;
+    const roleText =
+      role === 'witness'
+        ? 'Rol: testigo'
+        : role === 'signer'
+        ? 'Rol: firmante'
+        : null;
+    const methodText = method ? `Método: ${method.toUpperCase()}` : null;
+    const attestationText = attestationHash
+      ? `Attestation: ${attestationHash.slice(0, 12)}…`
+      : null;
+    return [roleText, methodText, attestationText].filter(Boolean).join(' | ') || null;
+  }
+
+  if (kind === 'identity.session.presence.closed') {
+    const trenza = asRecord(payload.trenza);
+    const timestampEvidence = asRecord(payload.timestamp_evidence);
+    const status = typeof trenza?.status === 'string' ? trenza.status : null;
+    const confirmedStrands =
+      typeof trenza?.confirmed_strands === 'number' ? trenza.confirmed_strands : null;
+    const requiredStrands =
+      typeof trenza?.required_strands === 'number' ? trenza.required_strands : null;
+    const tsaStatus = typeof timestampEvidence?.tsa === 'string' ? timestampEvidence.tsa : null;
+    const actaHash = typeof payload.acta_hash === 'string' ? payload.acta_hash : null;
+
+    const trenzaText =
+      confirmedStrands !== null && requiredStrands !== null
+        ? `Trenza: ${confirmedStrands}/${requiredStrands}`
+        : null;
+    const statusText = status ? `Estado: ${status}` : null;
+    const tsaText = tsaStatus ? `TSA: ${tsaStatus}` : null;
+    const actaText = actaHash ? `Acta: ${actaHash.slice(0, 12)}…` : null;
+
+    return [trenzaText, statusText, tsaText, actaText].filter(Boolean).join(' | ') || null;
+  }
+
+  return null;
 };
 
 export const extractOperationIds = (events: DocumentEventEntry[]): string[] => {
@@ -90,6 +146,7 @@ export const normalizeDocumentEvents = (
       const kind = (evt.kind || evt.event_type || evt.eventType || 'evento') as string;
       const tsaLabel = getTsaLabel(evt);
       const anchorLabel = getAnchorLabel(evt);
+      const presenceDetails = getPresenceDetails(evt);
       const label = tsaLabel || anchorLabel || DOCUMENT_LABELS[kind] || `Evento: ${kind}`;
       const id = `doc-${kind}-${evt.at}-${idx}`;
       return {
@@ -98,6 +155,7 @@ export const normalizeDocumentEvents = (
         at: evt.at as string,
         source: 'document' as const,
         label,
+        details: presenceDetails,
       };
     });
 };

@@ -1,9 +1,12 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { sendEmail, buildSignerOtpEmail } from '../_shared/email.ts';
+import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts';
 
 interface StartSessionRequest {
   operation_id: string;
+  witness_email?: string;
+  witness_emails?: string[];
 }
 
 type AuthUser = {
@@ -15,6 +18,15 @@ type SessionSigner = {
   signerId: string;
   email: string;
   role: string | null;
+};
+
+type SessionParticipantRole = 'signer' | 'witness';
+
+type SessionParticipant = {
+  participantId: string;
+  signerId: string | null;
+  email: string;
+  role: SessionParticipantRole;
 };
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -57,11 +69,7 @@ async function verifyAuthUser(authHeader: string | null): Promise<AuthUser | nul
 }
 
 async function hashData(data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  return await sha256Hex(data);
 }
 
 function generateSessionId(): string {
@@ -83,7 +91,64 @@ function uniqueSignersByEmail(signers: SessionSigner[]): SessionSigner[] {
   return unique;
 }
 
-async function captureOperationSnapshot(supabase: any, operationId: string) {
+function uniqueParticipantsByEmail(participants: SessionParticipant[]): SessionParticipant[] {
+  const seen = new Set<string>();
+  const unique: SessionParticipant[] = [];
+
+  for (const participant of participants) {
+    const key = normalizeEmail(participant.email);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    unique.push({ ...participant, email: key });
+  }
+
+  return unique;
+}
+
+function parseWitnessEmails(body: Partial<StartSessionRequest>): string[] {
+  const candidates: string[] = [];
+  if (typeof body.witness_email === 'string') candidates.push(body.witness_email);
+  if (Array.isArray(body.witness_emails)) {
+    for (const value of body.witness_emails) {
+      if (typeof value === 'string') candidates.push(value);
+    }
+  }
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const candidate of candidates) {
+    const email = normalizeEmail(candidate);
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    normalized.push(email);
+  }
+  return normalized;
+}
+
+function buildParticipants(signers: SessionSigner[], witnessEmails: string[]): SessionParticipant[] {
+  const signerParticipants: SessionParticipant[] = signers.map((signer) => ({
+    participantId: signer.signerId,
+    signerId: signer.signerId,
+    email: signer.email,
+    role: 'signer',
+  }));
+  const witnessParticipants: SessionParticipant[] = witnessEmails.map((email) => ({
+    participantId: `witness:${email}`,
+    signerId: null,
+    email,
+    role: 'witness',
+  }));
+
+  return uniqueParticipantsByEmail([...signerParticipants, ...witnessParticipants]).sort((a, b) => {
+    if (a.role !== b.role) return a.role.localeCompare(b.role);
+    return a.email.localeCompare(b.email);
+  });
+}
+
+async function captureOperationSnapshot(
+  supabase: any,
+  operationId: string,
+  witnessEmails: string[],
+) {
   const { data: documents, error: docError } = await supabase
     .from('user_documents')
     .select('id, name, document_entity_id')
@@ -93,7 +158,7 @@ async function captureOperationSnapshot(supabase: any, operationId: string) {
     throw new Error('Failed to fetch operation documents');
   }
 
-  const documentSnapshots = await Promise.all(
+  const documentSnapshots = (await Promise.all(
     documents.map(async (doc: any) => {
       const { data: entity, error: entError } = await supabase
         .from('document_entities')
@@ -122,7 +187,7 @@ async function captureOperationSnapshot(supabase: any, operationId: string) {
         state: lastEvent?.kind || 'unknown',
       };
     }),
-  );
+  )).sort((a, b) => String(a.entityId).localeCompare(String(b.entityId)));
 
   const { data: signers, error: sigError } = await supabase
     .from('operation_signers')
@@ -147,10 +212,18 @@ async function captureOperationSnapshot(supabase: any, operationId: string) {
     throw new Error('Operation has no signers with valid emails');
   }
 
+  const participants = buildParticipants(normalizedSigners, witnessEmails);
+
   return {
     operationId,
     documents: documentSnapshots,
-    signers: normalizedSigners,
+    signers: normalizedSigners.sort((a, b) => a.email.localeCompare(b.email)),
+    participants,
+    policy: {
+      version: 'ecosign.nonrep.session.v1',
+      witness_required: witnessEmails.length > 0,
+      witness_count: witnessEmails.length,
+    },
     capturedAt: new Date().toISOString(),
   };
 }
@@ -174,6 +247,7 @@ serve(async (req) => {
 
     const body = (await req.json().catch(() => ({}))) as Partial<StartSessionRequest>;
     const operationId = String(body.operation_id ?? '');
+    const witnessEmails = parseWitnessEmails(body);
 
     if (!operationId) {
       return jsonResponse({ error: 'operation_id required' }, 400);
@@ -195,9 +269,9 @@ serve(async (req) => {
       return jsonResponse({ error: 'Not authorized to manage this operation' }, 403);
     }
 
-    const snapshot = await captureOperationSnapshot(supabase, operationId);
-    const snapshotJson = JSON.stringify(snapshot);
-    const snapshotHash = await hashData(snapshotJson);
+    const snapshot = await captureOperationSnapshot(supabase, operationId, witnessEmails);
+    const snapshotCanonical = canonicalize(snapshot);
+    const snapshotHash = await hashData(snapshotCanonical);
 
     const sessionId = generateSessionId();
     const nowMs = Date.now();
@@ -208,6 +282,7 @@ serve(async (req) => {
       operationId,
       snapshotHash,
       expiresAt,
+      mode: 'nonrep.session.v1',
     };
 
     const { data: session, error: insertError } = await supabase
@@ -221,6 +296,7 @@ serve(async (req) => {
         snapshot_data: snapshot,
         created_by: authUser.id,
         expires_at: expiresAt,
+        trenza_attestations: [],
       })
       .select()
       .single();
@@ -231,7 +307,11 @@ serve(async (req) => {
 
     const otpExpiresAt = new Date(nowMs + OTP_TTL_MINUTES * 60_000).toISOString();
 
-    for (const signer of snapshot.signers as SessionSigner[]) {
+    const participants = Array.isArray(snapshot.participants)
+      ? (snapshot.participants as SessionParticipant[])
+      : [];
+
+    for (const participant of participants) {
       const otpCode = generateOtpCode();
       const otpHash = await hashData(otpCode);
 
@@ -240,7 +320,7 @@ serve(async (req) => {
         .upsert(
           {
             session_id: session.id,
-            signer_email: normalizeEmail(signer.email),
+            signer_email: normalizeEmail(participant.email),
             otp_hash: otpHash,
             expires_at: otpExpiresAt,
             attempts: 0,
@@ -253,13 +333,16 @@ serve(async (req) => {
 
       if (otpError) {
         await supabase.from('presential_verification_sessions').delete().eq('id', session.id);
-        return jsonResponse({ error: `Failed to create OTP challenge for ${signer.email}` }, 500);
+        return jsonResponse({ error: `Failed to create OTP challenge for ${participant.email}` }, 500);
       }
 
       const emailPayload = await buildSignerOtpEmail({
-        signerEmail: signer.email,
+        signerEmail: participant.email,
         signerName: null,
-        workflowTitle: `Verificacion presencial (${sessionId})`,
+        workflowTitle:
+          participant.role === 'witness'
+            ? `Testigo de sesion probatoria (${sessionId})`
+            : `Verificacion presencial (${sessionId})`,
         otpCode,
         siteUrl: Deno.env.get('SITE_URL'),
       });
@@ -268,9 +351,13 @@ serve(async (req) => {
       if (!emailResult.success) {
         await supabase.from('presential_verification_sessions').delete().eq('id', session.id);
         await supabase.from('presential_verification_otps').delete().eq('session_id', session.id);
-        return jsonResponse({ error: `Failed to send OTP to ${signer.email}` }, 500);
+        return jsonResponse({ error: `Failed to send OTP to ${participant.email}` }, 500);
       }
     }
+
+    const participantsCount = participants.length;
+    const witnessCount = participants.filter((p) => p.role === 'witness').length;
+    const signerCount = participantsCount - witnessCount;
 
     return jsonResponse({
       success: true,
@@ -278,7 +365,9 @@ serve(async (req) => {
       qrCode: session.qr_code,
       snapshotHash: session.snapshot_hash,
       expiresAt: session.expires_at,
-      signersNotified: (snapshot.signers as SessionSigner[]).length,
+      signersNotified: signerCount,
+      witnessesNotified: witnessCount,
+      participantsNotified: participantsCount,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

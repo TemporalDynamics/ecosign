@@ -59,7 +59,13 @@ const groupEventsByPhase = (events: TimelineEvent[]) => {
     }
 
     // Signing
-    if (kind.includes('signature') || label.includes('firma') || label.includes('signed') || label.includes('signature')) {
+    if (
+      kind.includes('signature') ||
+      kind.startsWith('identity.session.presence') ||
+      label.includes('firma') ||
+      label.includes('signed') ||
+      label.includes('signature')
+    ) {
       buckets.signing.push(ev);
       return;
     }

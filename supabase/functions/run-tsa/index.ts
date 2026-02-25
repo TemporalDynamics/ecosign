@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { validateEventAppend } from '../_shared/validateEventAppend.ts';
+import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 type RunTsaRequest = {
   document_entity_id: string;
@@ -81,6 +82,20 @@ function hasRequiredAnchorEvent(
   );
 }
 
+function hasRequiredSignatureEvidenceEvent(
+  events: Array<{ kind?: string; payload?: Record<string, unknown> }>,
+  witnessHash: string,
+  signerId: string,
+): boolean {
+  return events.some((event) =>
+    event.kind === 'job.generate-signature-evidence.required' &&
+    typeof event.payload?.['witness_hash'] === 'string' &&
+    event.payload?.['witness_hash'] === witnessHash &&
+    typeof event.payload?.['signer_id'] === 'string' &&
+    event.payload?.['signer_id'] === signerId
+  );
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 204 });
@@ -88,6 +103,11 @@ serve(async (req) => {
 
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  if (!auth.ok) {
+    return jsonResponse({ error: 'Forbidden' }, 403);
   }
 
   const body = (await req.json().catch(() => ({}))) as Partial<RunTsaRequest>;
@@ -219,30 +239,25 @@ serve(async (req) => {
       );
     }
 
-    // Enqueue signature evidence generation (per signer, post-TSA).
+    // Request signature evidence generation (per signer, post-TSA) via canonical event.
     if (body.signer_id) {
-      const dedupeKey = `${documentEntityId}:signature_evidence:${witnessHash}:${body.signer_id}`;
-      const { error: jobErr } = await supabase
-        .from('executor_jobs')
-        .insert({
-          type: 'generate_signature_evidence',
-          enqueue_source: 'compat_direct',
-          entity_type: 'document',
-          entity_id: documentEntityId,
-          correlation_id: documentEntityId,
-          dedupe_key: dedupeKey,
-          payload: {
-            document_entity_id: documentEntityId,
-            signer_id: body.signer_id,
-            workflow_id: body.workflow_id ?? null,
-            witness_hash: witnessHash,
+      const signerId = String(body.signer_id);
+      if (!hasRequiredSignatureEvidenceEvent(events, witnessHash, signerId)) {
+        await emitEvent(
+          supabase,
+          documentEntityId,
+          {
+            kind: 'job.generate-signature-evidence.required',
+            at: new Date().toISOString(),
+            payload: {
+              document_entity_id: documentEntityId,
+              signer_id: signerId,
+              workflow_id: body.workflow_id ?? null,
+              witness_hash: witnessHash,
+            },
           },
-          status: 'queued',
-          run_at: new Date().toISOString(),
-        });
-
-      if (jobErr) {
-        console.warn('[run-tsa] failed to enqueue generate_signature_evidence', jobErr);
+          'run-tsa',
+        );
       }
     } else {
       console.info('[run-tsa] TSA confirmed without signer_id; evidence not enqueued', {

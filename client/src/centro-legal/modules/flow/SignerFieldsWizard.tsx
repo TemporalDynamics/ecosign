@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, RotateCw, Maximize2, Minimize2, Info } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, RotateCw, Maximize2, Minimize2, Info, Move } from 'lucide-react';
 import type { SignatureField } from '../../../types/signature-fields';
 import { generateWorkflowFieldsFromWizard, type RepetitionRule, type WizardTemplate } from '../../../lib/workflowFieldTemplate';
 import { PdfEditViewer } from '../../../components/pdf/PdfEditViewer';
+import { getDocument } from 'pdfjs-dist/build/pdf';
+import type { PDFDocumentProxy } from 'pdfjs-dist/build/pdf';
+import { ensurePdfJsWorkerConfigured } from '../../../components/pdf/pdfjsRuntime';
+
+ensurePdfJsWorkerConfigured();
 
 type Props = {
   isOpen: boolean;
@@ -13,6 +18,7 @@ type Props = {
   totalPages: number | null;
   detectedPageLabel: string;
   previewUrl?: string | null;
+  previewPdfData?: ArrayBuffer | null;
   previewIsPdf?: boolean;
   previewPage?: number | null;
   onApply: (result: {
@@ -42,6 +48,17 @@ const PAGE_RATIOS = {
   oficio: 1008 / 612
 };
 
+function createFieldId() {
+  try {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // fall through
+  }
+  return `wfz-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
 export function SignerFieldsWizard({
   isOpen,
   onClose,
@@ -51,6 +68,7 @@ export function SignerFieldsWizard({
   totalPages,
   detectedPageLabel,
   previewUrl,
+  previewPdfData = null,
   previewIsPdf = false,
   previewPage,
   onApply
@@ -62,13 +80,20 @@ export function SignerFieldsWizard({
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [pageSizeMode, setPageSizeMode] = useState<PageSizeMode>('document');
   const [includePerPageSignature, setIncludePerPageSignature] = useState(false);
-  const [previewSignerEmails, setPreviewSignerEmails] = useState<string[]>([]);
+  const [includePerPageName, setIncludePerPageName] = useState(false);
+  const [includePerPageDate, setIncludePerPageDate] = useState(false);
+  const [activeSignerEmail, setActiveSignerEmail] = useState<string>('');
   const [perSignerPlacement, setPerSignerPlacement] = useState<Record<string, PerSignerPlacement>>({});
   const [previewRotation, setPreviewRotation] = useState(0);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [pdfPreviewFailed, setPdfPreviewFailed] = useState(false);
+  const [pdfPreviewThumb, setPdfPreviewThumb] = useState<string | null>(null);
   const [wizardFields, setWizardFields] = useState<SignatureField[]>([]);
   const [dragState, setDragState] = useState<{
     id: string;
+    batchId?: string;
+    moveBatch: boolean;
     startX: number;
     startY: number;
     originX: number;
@@ -81,12 +106,16 @@ export function SignerFieldsWizard({
     originW: number;
     originH: number;
   } | null>(null);
-  const [openSections, setOpenSections] = useState<Record<'fields' | 'placement' | 'size' | 'preview', boolean>>({
-    fields: false,
-    placement: false,
+  const [openSections, setOpenSections] = useState<Record<'signatures' | 'size' | 'preview', boolean>>({
+    signatures: true,
     size: false,
-    preview: false
+    preview: true
   });
+  const [personalizeBySigner, setPersonalizeBySigner] = useState(false);
+  const fullscreenScrollRef = useRef<HTMLDivElement | null>(null);
+  const FULL_SCALE = 0.82;
+  const [openSignatureBlock, setOpenSignatureBlock] = useState<'final' | 'perPage' | null>('final');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const validSigners = useMemo(
     () =>
@@ -100,20 +129,23 @@ export function SignerFieldsWizard({
   // Siempre usamos "once" (al final del documento)
   const repetitionRule: RepetitionRule = { kind: 'once' };
 
-  const targetPage = (totalPages ?? 1) + 1;
+  const targetPage = Math.max(1, totalPages ?? 1);
   const resolvedVirtualHeight =
     pageSizeMode === 'document'
       ? detectedVirtualHeight
       : Math.round(virtualWidth * PAGE_RATIOS[pageSizeMode]);
 
   const template: WizardTemplate = useMemo(() => {
-    const fields: WizardTemplate['fields'] = includeFinalSignature ? [{ kind: 'signature' }] : [];
-    if (includeName) fields.push({ kind: 'name', required: true });
-    if (includeId) fields.push({ kind: 'id_number', required: true });
-    if (includeDate) fields.push({ kind: 'date', required: true });
-    customFields.forEach((cf) => {
-      fields.push({ kind: 'text', required: true, label: cf.label || 'Texto' });
-    });
+    const fields: WizardTemplate['fields'] = [];
+    if (includeFinalSignature) {
+      fields.push({ kind: 'signature' });
+      if (includeName) fields.push({ kind: 'name', required: true });
+      if (includeId) fields.push({ kind: 'id_number', required: true });
+      if (includeDate) fields.push({ kind: 'date', required: true });
+      customFields.forEach((cf) => {
+        fields.push({ kind: 'text', required: true, label: cf.label || 'Texto' });
+      });
+    }
     return { fields, repetitionRule };
   }, [includeFinalSignature, includeName, includeId, includeDate, customFields]);
 
@@ -122,23 +154,18 @@ export function SignerFieldsWizard({
     return validSigners;
   }, [includePerPageSignature, validSigners]);
 
-  const selectedPreviewSignerSet = useMemo(
-    () => new Set(previewSignerEmails.map((email) => email.trim().toLowerCase())),
-    [previewSignerEmails]
-  );
+  const selectedSignerEmails = useMemo(() => {
+    if (personalizeBySigner && activeSignerEmail) return [activeSignerEmail];
+    return validSigners.map((signer) => signer.email);
+  }, [personalizeBySigner, activeSignerEmail, validSigners]);
 
   useEffect(() => {
     const validEmails = validSigners.map((signer) => signer.email);
     if (validEmails.length === 0) {
-      setPreviewSignerEmails([]);
+      setActiveSignerEmail('');
       return;
     }
-    setPreviewSignerEmails((current) => {
-      const currentSet = new Set(current.map((email) => email.trim().toLowerCase()));
-      const filtered = validEmails.filter((email) => currentSet.has(email));
-      if (filtered.length === 0) return validEmails;
-      return filtered;
-    });
+    setActiveSignerEmail((current) => (validEmails.includes(current) ? current : validEmails[0]));
   }, [validSigners]);
 
   const addCustomField = () => {
@@ -177,8 +204,19 @@ export function SignerFieldsWizard({
     }));
   };
 
-  const applyPlacementToSelectedSigners = (patch: Partial<PerSignerPlacement>) => {
-    previewSignerEmails.forEach((email) => updateSignerPlacement(email, patch));
+  const applyPlacementToActiveSigner = (patch: Partial<PerSignerPlacement>) => {
+    selectedSignerEmails.forEach((email) => updateSignerPlacement(email, patch));
+  };
+
+  const scopePlacements = selectedSignerEmails.map((email) => getSignerPlacement(email));
+  const isRightSelected = scopePlacements.length > 0 && scopePlacements.every((placement) => placement.side === 'right');
+  const isLeftSelected = scopePlacements.length > 0 && scopePlacements.every((placement) => placement.side === 'left');
+  const isOmitLastSelected = scopePlacements.length > 0 && scopePlacements.every((placement) => placement.omitLastPage);
+
+  const toggleMarginSide = (side: MarginSide, checked: boolean) => {
+    if (!includePerPageSignature || !activeSignerEmail) return;
+    if (!checked) return; // comportamiento exclusivo tipo radio manteniendo estética checkbox
+    applyPlacementToActiveSigner({ side });
   };
 
   const buildPerPageFields = () => {
@@ -187,8 +225,16 @@ export function SignerFieldsWizard({
     }
     const pagesCount = Math.max(1, totalPages ?? 1);
     const marginX = 24;
-    const marginBottom = 56;
+    const upperBandStart = Math.max(24, Math.round(resolvedVirtualHeight * 0.18));
+    const upperBandEnd = Math.max(upperBandStart + 110, Math.round(resolvedVirtualHeight * 0.50));
     const rowGap = 8;
+    const signatureSize = { w: 220, h: 58 };
+    const fieldSize = { w: 180, h: 28 };
+    const stackGap = 6;
+    const stackHeight =
+      signatureSize.h +
+      (includePerPageName ? fieldSize.h + stackGap : 0) +
+      (includePerPageDate ? fieldSize.h + stackGap : 0);
 
     const out: SignatureField[] = [];
     selectedPerPageSigners.forEach((signer, signerIdx) => {
@@ -202,28 +248,77 @@ export function SignerFieldsWizard({
         return true;
       });
       if (pages.length === 0) return;
+      const batchId = createFieldId();
+      const x =
+        placement.side === 'right'
+          ? Math.max(marginX, virtualWidth - marginX - signatureSize.w)
+          : marginX;
+      const preferredY = upperBandStart + signerIdx * (stackHeight + rowGap);
+      const y = Math.max(24, Math.min(preferredY, upperBandEnd - stackHeight));
 
-      const generated = generateWorkflowFieldsFromWizard(
-        [signer],
-        { fields: [{ kind: 'signature' }], repetitionRule: { kind: 'pages', pages } },
-        {
-          virtualWidth,
-          virtualHeight: resolvedVirtualHeight,
-          totalPages,
-          targetPage: undefined
+      pages.forEach((page) => {
+        out.push({
+          id: createFieldId(),
+          batchId,
+          assignedTo: signer.email,
+          type: 'signature',
+          page,
+          x,
+          y,
+          width: signatureSize.w,
+          height: signatureSize.h,
+          required: true,
+          applyToAllPages: false,
+          metadata: {
+            label: 'Firma',
+            logical_field_kind: 'signature',
+            logical_field_id: 'signature',
+            repetition_rule: { kind: 'pages', pages }
+          }
+        });
+
+        let cursorY = y + signatureSize.h + stackGap;
+        if (includePerPageName) {
+          out.push({
+            id: createFieldId(),
+            batchId,
+            assignedTo: signer.email,
+            type: 'text',
+            page,
+            x,
+            y: cursorY,
+            width: fieldSize.w,
+            height: fieldSize.h,
+            required: true,
+            metadata: {
+              label: 'Nombre',
+              logical_field_kind: 'name',
+              logical_field_id: 'name',
+              repetition_rule: { kind: 'pages', pages }
+            }
+          });
+          cursorY += fieldSize.h + stackGap;
         }
-      );
-
-      generated.forEach((field) => {
-        const x =
-          placement.side === 'right'
-            ? Math.max(marginX, virtualWidth - marginX - field.width)
-            : marginX;
-        const y = Math.max(
-          24,
-          resolvedVirtualHeight - marginBottom - field.height - signerIdx * (field.height + rowGap)
-        );
-        out.push({ ...field, x, y, applyToAllPages: false });
+        if (includePerPageDate) {
+          out.push({
+            id: createFieldId(),
+            batchId,
+            assignedTo: signer.email,
+            type: 'date',
+            page,
+            x,
+            y: cursorY,
+            width: fieldSize.w,
+            height: fieldSize.h,
+            required: true,
+            metadata: {
+              label: 'Fecha',
+              logical_field_kind: 'date',
+              logical_field_id: 'date',
+              repetition_rule: { kind: 'pages', pages }
+            }
+          });
+        }
       });
     });
 
@@ -245,6 +340,8 @@ export function SignerFieldsWizard({
     () => buildPerPageFields(),
     [
       includePerPageSignature,
+      includePerPageName,
+      includePerPageDate,
       selectedPerPageSigners,
       includeFinalSignature,
       perSignerPlacement,
@@ -263,42 +360,183 @@ export function SignerFieldsWizard({
     setWizardFields(autoFields);
   }, [autoFields]);
 
+  useEffect(() => {
+    if (validationErrors.length === 0) return;
+    setValidationErrors(evaluateWizardValidation());
+    // Re-evaluate only when signature-relevant state changes after an error is shown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeFinalSignature, includePerPageSignature, includePerPageName, includePerPageDate, wizardFields, validSigners]);
+
   const previewItems = wizardFields;
-  const previewItemsVisible =
-    previewSignerEmails.length === 0
-      ? previewItems
-      : previewItems.filter((field) => {
-          const assigned = (field.assignedTo || '').trim().toLowerCase();
-          return assigned.length > 0 && selectedPreviewSignerSet.has(assigned);
-        });
+  const previewItemsVisible = activeSignerEmail
+    ? (personalizeBySigner
+      ? previewItems.filter((field) => {
+        const assigned = (field.assignedTo || '').trim().toLowerCase();
+        return assigned.length > 0 && assigned === activeSignerEmail;
+      })
+      : previewItems)
+    : previewItems;
+  // Bounding boxes for each batch group (absolute Y, accounting for page offset)
+  const batchBoundingBoxes = useMemo(() => {
+    const boxes = new Map<string, { x: number; y: number; w: number; h: number }>();
+    for (const field of previewItemsVisible) {
+      const batchKey = field.batchId || field.id;
+      const absY = (field.page - 1) * resolvedVirtualHeight + field.y;
+      const existing = boxes.get(batchKey);
+      if (!existing) {
+        boxes.set(batchKey, { x: field.x, y: absY, w: field.width, h: field.height });
+      } else {
+        const minX = Math.min(existing.x, field.x);
+        const minY = Math.min(existing.y, absY);
+        const maxX = Math.max(existing.x + existing.w, field.x + field.width);
+        const maxY = Math.max(existing.y + existing.h, absY + field.height);
+        boxes.set(batchKey, { x: minX, y: minY, w: maxX - minX, h: maxY - minY });
+      }
+    }
+    return boxes;
+  }, [previewItemsVisible, resolvedVirtualHeight]);
 
   const pdfPreviewSrc = previewIsPdf && previewUrl ? previewUrl : null;
+  const miniPreviewWidth = 250;
+  const miniPreviewHeight = Math.max(150, Math.round((miniPreviewWidth * resolvedVirtualHeight) / virtualWidth));
 
-  const toggleSection = (section: 'fields' | 'placement' | 'size' | 'preview') => {
+  useEffect(() => {
+    // Reset when source changes / wizard reopens.
+    setPdfPreviewFailed(false);
+    setPdfPreviewThumb(null);
+  }, [pdfPreviewSrc, previewPdfData, previewIsPdf, isOpen]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!previewIsPdf || !previewPdfData) {
+      setPdfPreviewThumb(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const buildThumb = async () => {
+      try {
+        const doc: PDFDocumentProxy = await getDocument({ data: previewPdfData.slice(0) }).promise;
+        if (!doc) {
+          setPdfPreviewThumb(null);
+          return;
+        }
+        const page = await doc.getPage(1);
+        const base = page.getViewport({ scale: 1 });
+        const thumbWidth = miniPreviewWidth;
+        const scale = thumbWidth / Math.max(1, base.width);
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        const context = canvas.getContext('2d');
+        if (!context) {
+          setPdfPreviewThumb(null);
+          return;
+        }
+        await page.render({ canvasContext: context, viewport }).promise;
+        if (cancelled) return;
+        setPdfPreviewThumb(canvas.toDataURL('image/jpeg', 0.75));
+      } catch {
+        if (!cancelled) {
+          setPdfPreviewThumb(null);
+          setPdfPreviewFailed(true);
+        }
+      }
+    };
+
+    buildThumb();
+    return () => {
+      cancelled = true;
+    };
+  }, [previewIsPdf, previewPdfData, miniPreviewWidth]);
+
+  const evaluateWizardValidation = () => {
+    const errors: string[] = [];
+
+    if (!includeFinalSignature && !includePerPageSignature) {
+      errors.push('Debes activar al menos una opción: "Incluir firma final" o "Incluir firma en cada página".');
+    }
+
+    const signatureCounts = new Map<string, number>();
+    validSigners.forEach((signer) => signatureCounts.set(signer.email, 0));
+
+    wizardFields.forEach((field) => {
+      if (field.type !== 'signature') return;
+      const assigned = (field.assignedTo || '').trim().toLowerCase();
+      if (!assigned || !signatureCounts.has(assigned)) return;
+      signatureCounts.set(assigned, (signatureCounts.get(assigned) || 0) + 1);
+    });
+
+    validSigners.forEach((signer) => {
+      if ((signatureCounts.get(signer.email) || 0) < 1) {
+        errors.push(`El firmante ${signer.signingOrder} no tiene ningún campo de firma asignado.`);
+      }
+    });
+
+    return errors;
+  };
+
+  const toggleSection = (section: 'signatures' | 'size' | 'preview') => {
     setOpenSections((current) => ({ ...current, [section]: !current[section] }));
   };
 
+  // Auto-scroll to show the signature fields when fullscreen opens
+  useEffect(() => {
+    if (!previewFullscreen || !fullscreenScrollRef.current) return;
+    const lowestAbsY = previewItemsVisible.reduce((max, f) => {
+      return Math.max(max, (f.page - 1) * resolvedVirtualHeight + f.y + f.height);
+    }, 0);
+    const containerH = fullscreenScrollRef.current.clientHeight;
+    const targetScroll = lowestAbsY * FULL_SCALE - containerH * 0.7;
+    fullscreenScrollRef.current.scrollTop = Math.max(0, targetScroll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewFullscreen]);
+
   useEffect(() => {
     if (!previewFullscreen) return;
-    const scale = 0.82;
+    const maxXBase = virtualWidth;
+    const maxYBase = resolvedVirtualHeight;
     const onMove = (event: MouseEvent) => {
       if (dragState) {
-        const dx = (event.clientX - dragState.startX) / scale;
-        const dy = (event.clientY - dragState.startY) / scale;
-        setWizardFields((prev) =>
-          prev.map((field) => {
-            if (field.id !== dragState.id) return field;
-            return {
-              ...field,
-              x: Math.max(0, Math.min(virtualWidth - field.width, dragState.originX + dx)),
-              y: Math.max(0, Math.min(resolvedVirtualHeight - field.height, dragState.originY + dy))
-            };
-          })
-        );
+        const dx = (event.clientX - dragState.startX) / FULL_SCALE;
+        const dy = (event.clientY - dragState.startY) / FULL_SCALE;
+        if (dragState.moveBatch && dragState.batchId) {
+          setWizardFields((prev) => {
+            const batchFields = prev.filter((f) => f.batchId === dragState.batchId);
+            // Compute max delta that keeps every field in bounds
+            let clampedDx = dx;
+            let clampedDy = dy;
+            for (const f of batchFields) {
+              clampedDx = Math.max(-f.x, Math.min(clampedDx, maxXBase - f.width - f.x));
+              clampedDy = Math.max(-f.y, Math.min(clampedDy, maxYBase - f.height - f.y));
+            }
+            return prev.map((field) => {
+              if (field.batchId !== dragState.batchId) return field;
+              return { ...field, x: field.x + clampedDx, y: field.y + clampedDy };
+            });
+          });
+          setDragState((current) =>
+            current ? { ...current, startX: event.clientX, startY: event.clientY } : current
+          );
+        } else {
+          setWizardFields((prev) =>
+            prev.map((field) => {
+              if (field.id !== dragState.id) return field;
+              return {
+                ...field,
+                x: Math.max(0, Math.min(maxXBase - field.width, dragState.originX + dx)),
+                y: Math.max(0, Math.min(maxYBase - field.height, dragState.originY + dy))
+              };
+            })
+          );
+        }
       }
       if (resizeState) {
-        const dx = (event.clientX - resizeState.startX) / scale;
-        const dy = (event.clientY - resizeState.startY) / scale;
+        const dx = (event.clientX - resizeState.startX) / FULL_SCALE;
+        const dy = (event.clientY - resizeState.startY) / FULL_SCALE;
         setWizardFields((prev) =>
           prev.map((field) => {
             if (field.id !== resizeState.id) return field;
@@ -325,7 +563,7 @@ export function SignerFieldsWizard({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl">
+      <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
           <h3 className="text-base font-semibold text-gray-900">Configuración de campos</h3>
           <button
@@ -338,178 +576,219 @@ export function SignerFieldsWizard({
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-3 max-h-[64vh] overflow-y-auto">
-          {/* Sección 1: Campos */}
+        <div className="px-5 py-4 space-y-3 max-h-[70vh] overflow-y-auto">
+          {/* Sección 1: Firmas del documento */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => toggleSection('fields')}
-              className="w-full flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200"
-            >
-              <div className="text-left">
-                <p className="text-xs font-semibold text-gray-700">1. Campos del firmante</p>
-                <p className="text-[11px] text-gray-500">
-                  {includeFinalSignature ? 'Firma' : 'Sin firma final'}
-                  {includeName ? ' + Nombre' : ''}
-                  {includeDate ? ' + Fecha' : ''}
-                  {includeId ? ' + Identidad' : ''}
-                </p>
-              </div>
-              {openSections.fields ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
-            </button>
-            {openSections.fields && (
-              <div className="px-3 pt-2 pb-1 grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-xs text-gray-700 cursor-not-allowed opacity-60">
-                    <input
-                      type="checkbox"
-                      checked
-                      disabled
-                      className="eco-checkbox rounded border-gray-300 text-gray-400 focus:ring-0 cursor-not-allowed"
-                    />
-                    <span>Firma (obligatoria)</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeName}
-                      onChange={(e) => setIncludeName(e.target.checked)}
-                      className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <span>Nombre completo</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeId}
-                      onChange={(e) => setIncludeId(e.target.checked)}
-                      className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <span>Identidad</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeDate}
-                      onChange={(e) => setIncludeDate(e.target.checked)}
-                      className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <span>Fecha</span>
-                  </label>
+            <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white border-b border-gray-200">
+              <button
+                type="button"
+                onClick={() => toggleSection('signatures')}
+                className="flex-1 min-w-0 flex items-center justify-between text-left"
+              >
+                <div className="text-left">
+                  <p className="text-xs font-semibold text-gray-700">1. Configuración de campos por firmante</p>
+                  <p className="text-[11px] text-gray-500">Configurá firma final y firma en cada página</p>
                 </div>
-
-                <div className="space-y-1 border-t sm:border-t-0 sm:border-l border-gray-200 pt-1 sm:pt-0 sm:pl-2 self-start">
-                  <p className="text-[11px] font-semibold text-gray-600">Campos personalizados</p>
-                  {customFields.length > 0 ? (
-                    <div className="space-y-0.5">
-                      {customFields.map((field) => (
-                        <div key={field.id} className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            value={field.label}
-                            onChange={(e) => updateCustomFieldLabel(field.id, e.target.value)}
-                            placeholder="Nuevo campo"
-                            className="w-full max-w-[220px] h-7 px-2 py-0 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeCustomField(field.id)}
-                            className="text-gray-400 hover:text-red-600 transition-colors p-0.5"
-                            title="Eliminar campo"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <input
-                      type="text"
-                      readOnly
-                      placeholder="Nuevo campo"
-                      className="w-full max-w-[220px] h-7 px-2 py-0 text-xs border border-gray-300 rounded-md bg-gray-50 text-gray-400"
-                    />
-                  )}
+                {openSections.signatures ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
+              </button>
+              <div className="h-7 px-2 rounded-md border border-gray-200 bg-gray-50 text-[11px] text-gray-600 inline-flex items-center gap-2">
+                <span>{personalizeBySigner ? 'Personalizando por firmante' : 'Aplica a todos'}</span>
+                {validSigners.length > 1 && (
                   <button
                     type="button"
-                    onClick={addCustomField}
-                    className="h-6 inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                    onClick={() => setPersonalizeBySigner((prev) => !prev)}
+                    className="text-blue-600 hover:text-blue-700 font-medium"
                   >
-                    <Plus className="w-3 h-3" />
-                    Nuevo campo
+                    {personalizeBySigner ? 'Volver a todos' : 'Personalizar por firmante'}
                   </button>
-                </div>
+                )}
               </div>
-            )}
-          </div>
-
-          {/* Sección 2: Ubicación */}
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => toggleSection('placement')}
-              className="w-full flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200"
-            >
-              <div className="text-left">
-                <p className="text-xs font-semibold text-gray-700">2. Ubicación en el documento</p>
-                <p className="text-[11px] text-gray-500">
-                  {includeFinalSignature ? 'Firma final' : 'Sin firma final'} {includePerPageSignature ? '+ firma en cada página' : ''}
-                </p>
-              </div>
-              {openSections.placement ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
-            </button>
-            {openSections.placement && (
-              <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeFinalSignature}
-                      onChange={(e) => setIncludeFinalSignature(e.target.checked)}
-                      className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <span>Incluir firma final</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includePerPageSignature}
-                      onChange={(e) => setIncludePerPageSignature(e.target.checked)}
-                      className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <span className="inline-flex items-center gap-1">
-                      Incluir firma en cada página
-                      <span
-                        className="inline-flex items-center text-gray-400 hover:text-gray-600"
-                        title="Las firmas por página se ubican inicialmente en el margen inferior derecho."
-                      >
-                        <Info className="w-3 h-3" />
-                      </span>
-                    </span>
-                  </label>
-                </div>
-                <div className="border-t sm:border-t-0 sm:border-l border-gray-200 sm:pl-3 pt-2 sm:pt-0">
-                  <div className="text-[10px] text-gray-500 font-medium mb-1">Firmantes</div>
-                  <div className="border border-gray-200 rounded-md p-2 max-h-28 overflow-y-auto">
-                    <div className="grid grid-cols-1 gap-1">
+            </div>
+            {openSections.signatures && (
+              <div className="p-3 space-y-3">
+                {personalizeBySigner && (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {validSigners.map((signer) => {
+                        const selected = activeSignerEmail === signer.email;
                         return (
-                          <div key={signer.email} className="text-xs text-gray-700" title={signer.email}>
+                          <button
+                            key={signer.email}
+                            type="button"
+                            onClick={() => setActiveSignerEmail(signer.email)}
+                            className={`h-7 px-2 rounded-md border text-[11px] transition-colors ${
+                              selected
+                                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                            title={signer.email}
+                          >
                             Firmante {signer.signingOrder}
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <div className={`rounded-lg border ${includeFinalSignature ? 'border-gray-300 bg-white' : 'border-gray-200 bg-gray-50'}`}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenSignatureBlock((prev) => (prev === 'final' ? null : 'final'))}
+                      className="w-full px-3 py-2 flex items-center justify-between border-b border-gray-200"
+                    >
+                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={includeFinalSignature}
+                          onChange={(e) => setIncludeFinalSignature(e.target.checked)}
+                          className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>Firma al final del documento</span>
+                      </label>
+                      {openSignatureBlock === 'final' ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
+                    </button>
+                    {openSignatureBlock === 'final' && (
+                      <div className={`p-3 ${includeFinalSignature ? '' : 'opacity-50 pointer-events-none'}`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] font-medium text-gray-600">Campos incluidos</p>
+                            <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+                              <input type="checkbox" checked={true} disabled className="eco-checkbox rounded border-gray-300 text-gray-400 cursor-not-allowed" />
+                              <span>Firma</span>
+                            </label>
+                            <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+                              <input type="checkbox" checked={includeName} onChange={(e) => setIncludeName(e.target.checked)} className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer" />
+                              <span>Nombre completo</span>
+                            </label>
+                            <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+                              <input type="checkbox" checked={includeDate} onChange={(e) => setIncludeDate(e.target.checked)} className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer" />
+                              <span>Fecha</span>
+                            </label>
+                            <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+                              <input type="checkbox" checked={includeId} onChange={(e) => setIncludeId(e.target.checked)} className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer" />
+                              <span>Identidad</span>
+                            </label>
+                          </div>
+                          <div className="space-y-1.5 border-t sm:border-t-0 sm:border-l border-gray-200 pt-2 sm:pt-0 sm:pl-3">
+                            <p className="text-[11px] font-medium text-gray-600">Campos personalizados</p>
+                            {customFields.map((field) => (
+                              <div key={field.id} className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={field.label}
+                                  onChange={(e) => updateCustomFieldLabel(field.id, e.target.value)}
+                                  placeholder="Nuevo campo"
+                                  className="w-full h-7 px-2 py-0 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-500"
+                                />
+                                <button type="button" onClick={() => removeCustomField(field.id)} className="text-gray-400 hover:text-red-600 transition-colors p-0.5" title="Eliminar campo">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={addCustomField} className="h-7 px-2 inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 transition-colors border border-dashed border-gray-300 rounded-md">
+                              <Plus className="w-3 h-3" />
+                              Nuevo campo
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`rounded-lg border ${includePerPageSignature ? 'border-gray-300 bg-white' : 'border-gray-200 bg-gray-50'}`}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenSignatureBlock((prev) => (prev === 'perPage' ? null : 'perPage'))}
+                      className="w-full px-3 py-2 flex items-center justify-between border-b border-gray-200"
+                    >
+                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-800 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={includePerPageSignature}
+                          onChange={(e) => setIncludePerPageSignature(e.target.checked)}
+                          className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="inline-flex items-center gap-1">
+                          Firma en cada página
+                          <span className="inline-flex items-center text-gray-400 hover:text-gray-600" title="Las firmas por página se ubican inicialmente en zona media-superior.">
+                            <Info className="w-3 h-3" />
+                          </span>
+                        </span>
+                      </label>
+                      {openSignatureBlock === 'perPage' ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
+                    </button>
+                    {openSignatureBlock === 'perPage' && (
+                      <div className={`p-3 ${includePerPageSignature ? '' : 'opacity-50 pointer-events-none'}`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] font-medium text-gray-600">Campos incluidos</p>
+                            <label className="flex items-center gap-2 text-xs text-gray-800">
+                              <input type="checkbox" checked={true} disabled className="eco-checkbox rounded border-gray-300 text-gray-400 cursor-not-allowed" />
+                              <span>Firma</span>
+                            </label>
+                            <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={includePerPageName}
+                                onChange={(e) => setIncludePerPageName(e.target.checked)}
+                                className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>Nombre</span>
+                            </label>
+                            <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={includePerPageDate}
+                                onChange={(e) => setIncludePerPageDate(e.target.checked)}
+                                className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <span>Fecha</span>
+                            </label>
+                          </div>
+                          <div className="space-y-2 border-t sm:border-t-0 sm:border-l border-gray-200 pt-2 sm:pt-0 sm:pl-3">
+                            <p className="text-[11px] font-medium text-gray-600">Opciones</p>
+                            <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
+                              <input
+                                type="checkbox"
+                              checked={includePerPageSignature && isRightSelected}
+                              onChange={(e) => toggleMarginSide('right', e.target.checked)}
+                              disabled={!includePerPageSignature || selectedSignerEmails.length === 0}
+                              className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                            />
+                            Margen derecho
+                            </label>
+                            <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
+                              <input
+                                type="checkbox"
+                              checked={includePerPageSignature && isLeftSelected}
+                              onChange={(e) => toggleMarginSide('left', e.target.checked)}
+                              disabled={!includePerPageSignature || selectedSignerEmails.length === 0}
+                              className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                            />
+                            Margen izquierdo
+                            </label>
+                            <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
+                              <input
+                                type="checkbox"
+                              checked={includePerPageSignature && isOmitLastSelected}
+                              onChange={(e) => applyPlacementToActiveSigner({ omitLastPage: e.target.checked })}
+                              disabled={!includePerPageSignature || selectedSignerEmails.length === 0 || (totalPages ?? 1) <= 1}
+                              className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                            />
+                            Omitir última página
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Sección 3: Tamaño */}
+          {/* Sección 2: Tamaño */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <button
               type="button"
@@ -517,7 +796,7 @@ export function SignerFieldsWizard({
               className="w-full flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200"
             >
               <div className="text-left">
-                <p className="text-xs font-semibold text-gray-700">3. Tamaño de página</p>
+                <p className="text-xs font-semibold text-gray-700">2. Tamaño de página</p>
                 <p className="text-[11px] text-gray-500">
                   {pageSizeMode === 'document' ? `Usar tamaño detectado (${detectedPageLabel})` : pageSizeMode === 'a4' ? 'Forzar A4' : 'Forzar Oficio'}
                 </p>
@@ -557,7 +836,7 @@ export function SignerFieldsWizard({
             )}
           </div>
 
-          {/* Sección 4: Previsualización */}
+          {/* Sección 3: Previsualización */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <button
               type="button"
@@ -565,50 +844,47 @@ export function SignerFieldsWizard({
               className="w-full flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200"
             >
               <div className="text-left">
-                <p className="text-xs font-semibold text-gray-700">4. Previsualización</p>
+                <p className="text-xs font-semibold text-gray-700">3. Previsualización</p>
                 <p className="text-[11px] text-gray-500">Vista simplificada del documento y campos</p>
               </div>
               {openSections.preview ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
             </button>
             {openSections.preview && (
-              <div className="p-3">
-                <div className="flex items-start gap-3">
+              <div className="p-4">
+                <div className="flex items-start gap-4">
                   <div
                     className="relative border border-gray-200 rounded-md bg-gray-50 overflow-hidden"
-                    style={{ width: 180, height: Math.round((180 * resolvedVirtualHeight) / virtualWidth) }}
+                    style={{ width: miniPreviewWidth, height: miniPreviewHeight }}
                   >
-                    <div className="absolute right-1 top-1 z-10 flex items-center gap-1">
+                    <div className="absolute right-1.5 top-1.5 z-10 flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => setPreviewRotation((prev) => (prev + 90) % 360)}
-                        className="h-4 w-4 inline-flex items-center justify-center rounded-sm bg-white/85 text-gray-600 hover:text-gray-900 border border-gray-200"
+                        className="h-6 w-6 inline-flex items-center justify-center rounded-md bg-white/90 text-gray-600 hover:text-gray-900 border border-gray-200 shadow-sm"
                         title="Rotar documento"
                       >
-                        <RotateCw className="w-2.5 h-2.5" />
+                        <RotateCw className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setPreviewFullscreen(true)}
-                        className="h-4 w-4 inline-flex items-center justify-center rounded-sm bg-white/85 text-gray-600 hover:text-gray-900 border border-gray-200"
+                        className="h-6 w-6 inline-flex items-center justify-center rounded-md bg-white/90 text-gray-600 hover:text-gray-900 border border-gray-200 shadow-sm"
                         title="Ver en pantalla completa"
                       >
-                        <Maximize2 className="w-2.5 h-2.5" />
+                        <Maximize2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    {previewIsPdf && pdfPreviewSrc ? (
-                      <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{ transform: `rotate(${previewRotation}deg)`, transformOrigin: 'center center' }}
-                      >
-                        <PdfEditViewer
-                          src={pdfPreviewSrc}
-                          locked
-                          virtualWidth={virtualWidth}
-                          scale={180 / virtualWidth}
-                          pageGap={0}
-                          className="bg-transparent"
+                    {previewIsPdf && !pdfPreviewFailed ? (
+                      pdfPreviewThumb ? (
+                        <img
+                          src={pdfPreviewThumb}
+                          alt="Preview PDF"
+                          className="absolute inset-0 w-full h-full object-contain"
+                          style={{ transform: `rotate(${previewRotation}deg)`, transformOrigin: 'center center' }}
                         />
-                      </div>
+                      ) : (
+                        <div className="absolute inset-0 bg-gray-50" />
+                      )
                     ) : previewUrl && !previewIsPdf ? (
                       <img
                         src={previewUrl}
@@ -618,8 +894,8 @@ export function SignerFieldsWizard({
                       />
                     ) : null}
                     {previewItemsVisible.map((field) => {
-                      const scaleX = 180 / virtualWidth;
-                      const scaleY = Math.round((180 * resolvedVirtualHeight) / virtualWidth) / resolvedVirtualHeight;
+                      const scaleX = miniPreviewWidth / virtualWidth;
+                      const scaleY = miniPreviewHeight / resolvedVirtualHeight;
                       return (
                         <div
                           key={field.id}
@@ -636,87 +912,10 @@ export function SignerFieldsWizard({
                       );
                     })}
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] w-[210px]">
-                    <div className="space-y-2">
-                      <div className="text-[10px] text-gray-500 font-medium">Opciones</div>
-                      <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={
-                            previewSignerEmails.length > 0 &&
-                            previewSignerEmails.every((email) => getSignerPlacement(email).side === 'right')
-                          }
-                          onChange={(e) => {
-                            if (!e.target.checked) return;
-                            applyPlacementToSelectedSigners({ side: 'right' });
-                          }}
-                          disabled={previewSignerEmails.length === 0}
-                          className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                        />
-                        Margen derecho
-                      </label>
-                      <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={
-                            previewSignerEmails.length > 0 &&
-                            previewSignerEmails.every((email) => getSignerPlacement(email).side === 'left')
-                          }
-                          onChange={(e) => {
-                            if (!e.target.checked) return;
-                            applyPlacementToSelectedSigners({ side: 'left' });
-                          }}
-                          disabled={previewSignerEmails.length === 0}
-                          className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                        />
-                        Margen izquierdo
-                      </label>
-                      <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={
-                            previewSignerEmails.length > 0 &&
-                            previewSignerEmails.every((email) => getSignerPlacement(email).omitLastPage)
-                          }
-                          onChange={(e) => {
-                            applyPlacementToSelectedSigners({ omitLastPage: e.target.checked });
-                          }}
-                          disabled={previewSignerEmails.length === 0 || !includePerPageSignature || (totalPages ?? 1) <= 1}
-                          className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                        />
-                        Omitir última página
-                      </label>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-[10px] text-gray-500 font-medium">Firmantes</div>
-                      {validSigners.map((signer) => {
-                        const key = signer.email.trim().toLowerCase();
-                        const selected = selectedPreviewSignerSet.has(key);
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => {
-                              setPreviewSignerEmails((current) => {
-                                if (current.includes(key)) {
-                                  if (current.length <= 1) return current;
-                                  return current.filter((email) => email !== key);
-                                }
-                                return [...current, key];
-                              });
-                            }}
-                            className={`w-full text-left rounded px-1.5 py-1 border text-[11px] ${
-                              selected
-                                ? 'border-blue-400 bg-blue-50 text-blue-700'
-                                : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                            }`}
-                            title={signer.email}
-                          >
-                            Firmante {signer.signingOrder}
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <div className="text-[11px] text-gray-500 pt-1">
+                    {personalizeBySigner && activeSignerEmail
+                      ? `Vista de ${activeSignerEmail}`
+                      : 'Vista de todos los firmantes'}
                   </div>
                 </div>
               </div>
@@ -725,6 +924,13 @@ export function SignerFieldsWizard({
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
+          {validationErrors.length > 0 && (
+            <div className="mr-auto text-xs text-red-600 space-y-1">
+              {validationErrors.map((message) => (
+                <div key={message}>{message}</div>
+              ))}
+            </div>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -736,6 +942,9 @@ export function SignerFieldsWizard({
             type="button"
             disabled={validSigners.length === 0}
             onClick={() => {
+              const errors = evaluateWizardValidation();
+              setValidationErrors(errors);
+              if (errors.length > 0) return;
               onApply({
                 fields: wizardFields,
                 template,
@@ -752,107 +961,191 @@ export function SignerFieldsWizard({
       </div>
       {previewFullscreen && (
         <div className="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4">
-          <div className="relative w-[92vw] h-[86vh] rounded-xl bg-white p-3 overflow-hidden">
-            <div className="absolute right-4 top-4 z-10 flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPreviewRotation((prev) => (prev + 90) % 360)}
-                className="h-7 w-7 inline-flex items-center justify-center rounded-md bg-white text-gray-600 hover:text-gray-900 border border-gray-200"
-                title="Rotar documento"
-              >
-                <RotateCw className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewFullscreen(false)}
-                className="h-7 w-7 inline-flex items-center justify-center rounded-md bg-white text-gray-600 hover:text-gray-900 border border-gray-200"
-                title="Salir de pantalla completa"
-              >
-                <Minimize2 className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="w-full h-full border border-gray-200 rounded-md bg-gray-50 overflow-hidden relative">
-              {previewIsPdf && pdfPreviewSrc ? (
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{ transform: `rotate(${previewRotation}deg)`, transformOrigin: 'center center' }}
+          <div className="relative w-[92vw] h-[90vh] rounded-xl bg-white flex flex-col overflow-hidden">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 flex-shrink-0">
+              <p className="text-xs text-gray-400 select-none">
+                Arrastrá el marco punteado para mover el grupo · arrastrá el campo individual para reposicionarlo
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPreviewRotation((prev) => (prev + 90) % 360)}
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-md bg-white text-gray-600 hover:text-gray-900 border border-gray-200"
+                  title="Rotar documento"
                 >
-                  <PdfEditViewer
-                    src={pdfPreviewSrc}
-                    locked
-                    virtualWidth={virtualWidth}
-                    scale={0.82}
-                    pageGap={0}
-                    className="bg-transparent"
+                  <RotateCw className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFullscreen(false)}
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-md bg-white text-gray-600 hover:text-gray-900 border border-gray-200"
+                  title="Salir de pantalla completa"
+                >
+                  <Minimize2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable document area */}
+            <div
+              ref={fullscreenScrollRef}
+              className="flex-1 overflow-auto bg-gray-100 rounded-b-xl"
+              onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedFieldId(null); }}
+            >
+              {/* Canvas: natural document size */}
+              <div
+                className="relative mx-auto"
+                style={{
+                  width: virtualWidth * FULL_SCALE,
+                  minHeight: (totalPages ?? 1) * resolvedVirtualHeight * FULL_SCALE,
+                  transform: previewRotation ? `rotate(${previewRotation}deg)` : undefined,
+                  transformOrigin: 'top center'
+                }}
+                onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedFieldId(null); }}
+              >
+                {/* PDF / image layer */}
+                {previewIsPdf && (pdfPreviewSrc || previewPdfData) && !pdfPreviewFailed ? (
+                  <div className="absolute inset-0 pointer-events-none">
+                    <PdfEditViewer
+                      key={`full-${pdfPreviewSrc}-${previewPdfData?.byteLength}`}
+                      src={pdfPreviewSrc}
+                      pdfData={previewPdfData}
+                      locked
+                      virtualWidth={virtualWidth}
+                      scale={FULL_SCALE}
+                      pageGap={0}
+                      className="bg-transparent"
+                      onError={() => setPdfPreviewFailed(true)}
+                    />
+                  </div>
+                ) : previewUrl && !previewIsPdf ? (
+                  <img
+                    src={previewUrl}
+                    alt="Preview fullscreen"
+                    className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                   />
-                </div>
-              ) : previewUrl && !previewIsPdf ? (
-                <img
-                  src={previewUrl}
-                  alt="Preview fullscreen"
-                  className="absolute inset-0 w-full h-full object-contain"
-                  style={{ transform: `rotate(${previewRotation}deg)`, transformOrigin: 'center center' }}
-                />
-              ) : null}
-              {previewItemsVisible.map((field) => {
-                const scaleX = virtualWidth * 0.82 / virtualWidth;
-                const scaleY = resolvedVirtualHeight * 0.82 / resolvedVirtualHeight;
-                return (
-                  <div
-                    key={`full-${field.id}`}
-                    className="absolute border border-blue-400/80 bg-blue-100/40 text-[10px] text-blue-900 px-1 group"
-                    style={{
-                      left: field.x * scaleX,
-                      top: field.y * scaleY,
-                      width: field.width * scaleX,
-                      height: field.height * scaleY
-                    }}
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setDragState({
-                        id: field.id,
-                        startX: event.clientX,
-                        startY: event.clientY,
-                        originX: field.x,
-                        originY: field.y
-                      });
-                    }}
-                  >
-                    {field.metadata?.label || 'Campo'}
-                    <button
-                      type="button"
-                      className="absolute -top-5 -right-5 h-4 w-4 rounded-sm border border-gray-300 bg-white text-gray-600 opacity-0 group-hover:opacity-100"
-                      title="Eliminar campo"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setWizardFields((prev) => prev.filter((item) => item.id !== field.id));
+                ) : null}
+
+                {/* Batch group frames — dashed crosshatch border, draggable */}
+                {Array.from(batchBoundingBoxes.entries()).map(([batchKey, box]) => {
+                  const pad = 8;
+                  const leadField = previewItemsVisible.find((f) => (f.batchId || f.id) === batchKey);
+                  return (
+                    <div
+                      key={`batch-frame-${batchKey}`}
+                      className="absolute cursor-move"
+                      style={{
+                        left: (box.x - pad) * FULL_SCALE,
+                        top: box.y * FULL_SCALE - pad,
+                        width: (box.w + pad * 2) * FULL_SCALE,
+                        height: box.h * FULL_SCALE + pad * 2,
+                        border: '2px dashed rgba(59,130,246,0.45)',
+                        borderRadius: 6,
+                        backgroundImage:
+                          'repeating-linear-gradient(45deg,rgba(59,130,246,0.04) 0px,rgba(59,130,246,0.04) 1px,transparent 1px,transparent 7px)',
+                        zIndex: 10
                       }}
-                    >
-                      ×
-                    </button>
-                    <button
-                      type="button"
-                      className="absolute -bottom-2 -right-2 h-3.5 w-3.5 rounded-sm border border-gray-300 bg-white text-[9px] text-gray-600 opacity-0 group-hover:opacity-100 cursor-se-resize"
-                      title="Cambiar tamaño"
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setResizeState({
-                          id: field.id,
-                          startX: event.clientX,
-                          startY: event.clientY,
-                          originW: field.width,
-                          originH: field.height
+                      title="Mover todos los campos de este firmante"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!leadField) return;
+                        setSelectedFieldId(leadField.id);
+                        setDragState({
+                          id: leadField.id,
+                          batchId: batchKey,
+                          moveBatch: true,
+                          startX: e.clientX,
+                          startY: e.clientY,
+                          originX: leadField.x,
+                          originY: leadField.y
                         });
                       }}
+                    />
+                  );
+                })}
+
+                {/* Individual field overlays */}
+                {previewItemsVisible.map((field) => {
+                  const pageOffsetY = (field.page - 1) * resolvedVirtualHeight * FULL_SCALE;
+                  const isSelected = selectedFieldId === field.id;
+                  return (
+                    <div
+                      key={`full-${field.id}`}
+                      className={`absolute select-none group ${
+                        isSelected
+                          ? 'border-2 border-blue-600'
+                          : 'border border-blue-400/70 hover:border-blue-500'
+                      }`}
+                      style={{
+                        left: field.x * FULL_SCALE,
+                        top: pageOffsetY + field.y * FULL_SCALE,
+                        width: field.width * FULL_SCALE,
+                        height: field.height * FULL_SCALE,
+                        backgroundColor: isSelected ? 'rgba(219,234,254,0.5)' : 'rgba(219,234,254,0.3)',
+                        borderRadius: 3,
+                        zIndex: 20
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setSelectedFieldId(field.id);
+                      }}
                     >
-                      ↘
-                    </button>
-                  </div>
-                );
-              })}
+                      {/* Label */}
+                      <span className="absolute top-0.5 left-1.5 text-[9px] font-medium text-blue-700 pointer-events-none leading-tight select-none">
+                        {field.metadata?.label || 'Campo'}
+                      </span>
+
+                      {/* Individual drag handle — center of field */}
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center cursor-move transition-opacity ${
+                          isSelected ? 'opacity-50' : 'opacity-0 group-hover:opacity-40'
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedFieldId(field.id);
+                          setDragState({
+                            id: field.id,
+                            batchId: field.batchId,
+                            moveBatch: false,
+                            startX: e.clientX,
+                            startY: e.clientY,
+                            originX: field.x,
+                            originY: field.y
+                          });
+                        }}
+                      >
+                        <Move className="w-4 h-4 text-blue-500 pointer-events-none" />
+                      </div>
+
+                      {/* Resize handle — inside bottom-right corner */}
+                      <div
+                        className={`absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-center justify-center transition-opacity ${
+                          isSelected ? 'opacity-80' : 'opacity-0 group-hover:opacity-60'
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedFieldId(field.id);
+                          setResizeState({
+                            id: field.id,
+                            startX: e.clientX,
+                            startY: e.clientY,
+                            originW: field.width,
+                            originH: field.height
+                          });
+                        }}
+                      >
+                        <svg viewBox="0 0 10 10" className="w-3 h-3 text-blue-500 pointer-events-none">
+                          <path d="M9 1L1 9M5 9L9 9L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

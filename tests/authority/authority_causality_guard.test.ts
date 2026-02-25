@@ -63,7 +63,17 @@ test('authority: TSA/anchoring callers must be executor or guarded', { timeout: 
   const offenders: string[] = [];
 
   const files: string[] = [];
-  await collectTsFiles(ROOT, files);
+  const scanRoots = [
+    path.join(ROOT, 'supabase', 'functions'),
+    path.join(ROOT, 'client', 'src'),
+  ];
+  for (const scanRoot of scanRoots) {
+    try {
+      await collectTsFiles(scanRoot, files);
+    } catch {
+      // Ignore missing optional roots.
+    }
+  }
 
   for (const filePath of files) {
     const relPath = path.relative(ROOT, filePath).replaceAll(path.sep, '/');

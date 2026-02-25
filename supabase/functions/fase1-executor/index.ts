@@ -10,6 +10,7 @@ import {
   type ProtectV2Job,
 } from '../_shared/protectDocumentV2PipelineDecision.ts';
 import { syncFlagsToDatabase } from '../_shared/flagSync.ts';
+import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 type ExecutorJob = {
   id: string;
@@ -453,6 +454,11 @@ Deno.serve(async (req) => {
 
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  if (!auth.ok) {
+    return jsonResponse({ error: 'Forbidden' }, 403);
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

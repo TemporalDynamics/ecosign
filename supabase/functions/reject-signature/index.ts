@@ -1,10 +1,10 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
-import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts'
 import { shouldRejectSignature } from '../../../packages/authority/src/decisions/rejectSignature.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -40,18 +40,6 @@ function normalizeRejectionPhase(phase?: Payload['rejectionPhase']): CanonicalRe
     default:
       return 'pre_identity'
   }
-}
-
-const isTokenHash = (value?: string | null) =>
-  !!value && /^[a-f0-9]{64}$/i.test(value)
-
-async function hashToken(token: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(token)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
 }
 
 async function attemptRejectionReceiptTsa(
@@ -120,23 +108,27 @@ serve(async (req) => {
     if (!body?.signerId) return jsonResponse({ error: 'signerId is required' }, 400, corsHeaders)
     if (!body?.accessToken) return jsonResponse({ error: 'accessToken is required' }, 400, corsHeaders)
 
-    const { data: signer, error: signerError } = await supabase
-      .from('workflow_signers')
-      .select('id, email, workflow_id, signing_order, status, access_token_hash')
-      .eq('id', body.signerId)
-      .single()
+    const signerValidation = await validateSignerAccessToken<{
+      id: string
+      email: string | null
+      workflow_id: string
+      signing_order: number | null
+      status: string | null
+      access_token_hash: string | null
+      token_expires_at: string | null
+      token_revoked_at: string | null
+    }>(
+      supabase,
+      body.signerId,
+      body.accessToken,
+      'id, email, workflow_id, signing_order, status, access_token_hash, token_expires_at, token_revoked_at',
+    )
 
-    if (signerError || !signer) {
-      return jsonResponse({ error: 'Signer not found' }, 404, corsHeaders)
+    if (!signerValidation.ok) {
+      return jsonResponse({ error: signerValidation.error }, signerValidation.status, corsHeaders)
     }
 
-    const providedTokenHash = isTokenHash(body.accessToken)
-      ? body.accessToken
-      : await hashToken(body.accessToken)
-
-    if (!signer.access_token_hash || signer.access_token_hash !== providedTokenHash) {
-      return jsonResponse({ error: 'Invalid or expired access token' }, 403, corsHeaders)
-    }
+    const signer = signerValidation.signer
 
     // Obtener workflow para shadow mode
     const { data: workflow } = await supabase

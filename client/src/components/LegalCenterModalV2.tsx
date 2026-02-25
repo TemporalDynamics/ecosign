@@ -446,19 +446,33 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     setWorkflowAssignmentConfirmed(workflowAssignmentStatus.isComplete);
   }, [workflowEnabled, workflowAssignmentStatus.isComplete]);
 
-  const openSignerFieldsWizard = () => {
+  const ensurePreviewPdfData = async () => {
+    if (!file || file.type !== 'application/pdf') return;
+    if (documentPreviewPdfData) return;
+    try {
+      const buffer = await file.arrayBuffer();
+      setDocumentPreviewPdfData(buffer);
+      setPdfEditError(false);
+    } catch (error) {
+      console.warn('No se pudo preparar pdfData para wizard:', error);
+    }
+  };
+
+  const openSignerFieldsWizard = async () => {
     setFlowPanelOpen(true);
+    await ensurePreviewPdfData();
     setShowSignerFieldsWizard(true);
     setTimeout(() => {
       workflowAssignmentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 0);
   };
 
-  const openMySignatureWizard = () => {
+  const openMySignatureWizard = async () => {
     if (!ownerEmail) {
       showToast('Necesitás iniciar sesión para firmar tu documento.', { type: 'error' });
       return;
     }
+    await ensurePreviewPdfData();
     setShowSignerFieldsWizard(true);
   };
 
@@ -516,7 +530,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const PREVIEW_BASE_HEIGHT = 'h-[400px]';
   const previewBaseHeight = isMobile ? 'h-[40vh]' : PREVIEW_BASE_HEIGHT;
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
+  const [documentPreviewPdfData, setDocumentPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const [workflowPreviewUrl, setWorkflowPreviewUrl] = useState<string | null>(null);
+  const [workflowPreviewPdfData, setWorkflowPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const workflowPreviewKeyRef = useRef<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('compact'); // 'compact' | 'expanded' | 'fullscreen'
@@ -622,6 +638,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     // Generar preview según el tipo de archivo
     if (selectedFile.type.startsWith('image/')) {
+      setDocumentPreviewPdfData(null);
       const reader = new FileReader();
       reader.onload = (event: ProgressEvent<FileReader>) => {
         const result = event?.target?.result;
@@ -634,9 +651,15 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       // Para PDFs, usar el URL directo
       const url = URL.createObjectURL(selectedFile);
       setDocumentPreview(url);
+      selectedFile.arrayBuffer().then((buffer) => {
+        setDocumentPreviewPdfData(buffer);
+      }).catch(() => {
+        setDocumentPreviewPdfData(null);
+      });
     } else {
       // Para otros tipos, mostrar icono genérico
       setDocumentPreview(null);
+      setDocumentPreviewPdfData(null);
     }
 
     // CONSTITUCIÓN: Toast unificado "Documento listo"
@@ -866,11 +889,17 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      const ok = await applySelectedFile(selectedFile, { resetInput: () => { e.target.value = ''; } });
-      if (ok) {
-        runPostFileSelectionEffects(selectedFile);
-      }
+    if (!selectedFile) return;
+
+    if (selectedFile.type !== 'application/pdf') {
+      showToast('Solo se admiten documentos PDF.', { type: 'error', duration: 4000 });
+      e.target.value = '';
+      return;
+    }
+
+    const ok = await applySelectedFile(selectedFile, { resetInput: () => { e.target.value = ''; } });
+    if (ok) {
+      runPostFileSelectionEffects(selectedFile);
     }
   };
   // Cleanup de URLs de preview para evitar fugas
@@ -902,6 +931,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     if (!shouldBuildPreview) {
       revoke(workflowPreviewUrl);
       setWorkflowPreviewUrl(null);
+      setWorkflowPreviewPdfData(null);
       workflowPreviewKeyRef.current = null;
       return () => {
         cancelled = true;
@@ -933,13 +963,17 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         const signaturePage = await appendSignaturePage(currentFile, workflowPageSizeMode);
         if (cancelled) return;
         const url = URL.createObjectURL(signaturePage.blob);
+        const buffer = await signaturePage.blob.arrayBuffer();
+        if (cancelled) return;
         revoke(workflowPreviewUrl);
         workflowPreviewKeyRef.current = key;
         setWorkflowPreviewUrl(url);
+        setWorkflowPreviewPdfData(buffer);
       } catch (err) {
         console.warn('No se pudo generar preview con página de firmas:', err);
         revoke(workflowPreviewUrl);
         setWorkflowPreviewUrl(null);
+        setWorkflowPreviewPdfData(null);
         workflowPreviewKeyRef.current = null;
       }
     })();
@@ -951,17 +985,18 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
   useEffect(() => {
     if (!previewContainerRef.current) return;
+    const recalcScale = (width: number) => {
+      const availableWidth = Math.max(0, width - 16);
+      const breathing = 0.98;
+      const fitScale = availableWidth / VIRTUAL_PAGE_WIDTH;
+      const scale = Math.min(1, fitScale * breathing);
+      setVirtualScale(Math.max(0.2, scale));
+    };
+
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentRect?.width) {
-          // Fit-to-width: el documento debe ocupar el ancho disponible sin scroll horizontal
-          // Solo restamos 16px (8px por lado) para un margen mínimo
-          const availableWidth = Math.max(0, entry.contentRect.width - 16);
-          // Breathing de 0.98 para llenar casi todo el espacio (antes era 0.9)
-          const breathing = 0.98;
-          const fitScale = availableWidth / VIRTUAL_PAGE_WIDTH;
-          const scale = Math.min(1, fitScale) * breathing;
-          setVirtualScale(Math.max(0.5, scale));
+          recalcScale(entry.contentRect.width);
         }
       }
     });
@@ -970,10 +1005,32 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   }, []);
 
   useEffect(() => {
+    // Recalcular autofit cuando cambia layout del modal/paneles.
+    const run = () => {
+      const width = previewContainerRef.current?.getBoundingClientRect().width ?? 0;
+      if (!width) return;
+      const availableWidth = Math.max(0, width - 16);
+      const breathing = 0.98;
+      const fitScale = availableWidth / VIRTUAL_PAGE_WIDTH;
+      const scale = Math.min(1, fitScale * breathing);
+      setVirtualScale(Math.max(0.2, scale));
+    };
+    const raf = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(raf);
+  }, [isOpen, previewMode, focusView, flowPanelOpen, ndaPanelOpen, isMobile, documentPreviewPdfData, workflowPreviewPdfData]);
+
+  useEffect(() => {
     if (documentPreview || workflowPreviewUrl) {
       setPdfEditError(false);
     }
   }, [documentPreview, workflowPreviewUrl]);
+
+  useEffect(() => {
+    // Cuando ya tenemos binario en memoria, habilitamos de nuevo el viewer.
+    if (documentPreviewPdfData || workflowPreviewPdfData) {
+      setPdfEditError(false);
+    }
+  }, [documentPreviewPdfData, workflowPreviewPdfData]);
 
   useEffect(() => {
     setNdaPanelOpen(ndaEnabled);
@@ -1188,11 +1245,11 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     const errors: string[] = [];
 
     emailInputs.forEach((input, idx) => {
-      const trimmed = input.email.trim();
+      const trimmed = input.email.trim().toLowerCase();
       if (!trimmed) return; // Campo vacío, ignorar
 
       const validation = isValidEmail(trimmed);
-      
+
       if (!validation.valid) {
         errors.push(`Email ${idx + 1}: ${validation.error}`);
         return;
@@ -1342,10 +1399,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
   const handleCertify = async () => {
     if (!file) return;
-    if (!file.type?.toLowerCase().includes('pdf')) {
-      toast.error('Subí un PDF para proteger y certificar (otros formatos no son compatibles).', {
-        position: 'bottom-right'
-      });
+    if (file.type !== 'application/pdf') {
+      toast.error('Solo se admiten documentos PDF.', { position: 'bottom-right' });
       return;
     }
 
@@ -3062,13 +3117,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const isDocumentFocus = focusView === 'document';
   const isViewerLocked = true;
   const activePreviewUrl = workflowPreviewUrl ?? documentPreview;
-  const isPdfPreview =
-    !!activePreviewUrl &&
-    (file?.type?.toLowerCase().includes('pdf') ||
-      (file?.name?.toLowerCase().endsWith('.pdf') ?? false) ||
-      activePreviewUrl.startsWith('blob:') ||
-      activePreviewUrl.toLowerCase().includes('.pdf'));
-  const usePdfEditMode = isPdfPreview && !pdfEditError;
+  const activePreviewPdfData = workflowPreviewPdfData ?? documentPreviewPdfData;
+  const isPdfPreview = file?.type === 'application/pdf';
+  const usePdfEditMode = isPdfPreview && (!pdfEditError || Boolean(activePreviewPdfData));
 
   const createFieldId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `field-${Date.now()}`);
   const VIRTUAL_PAGE_WIDTH = 1000;
@@ -3771,7 +3822,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                         type="file"
                                         className="hidden"
                                         onChange={handleFileSelect}
-                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt"
+                                        accept="application/pdf"
                                       />
                                       {/* Título principal */}
                                       <p className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
@@ -3781,7 +3832,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                       <FileText className="w-12 h-12 text-gray-900 mx-auto mb-4" />
                                       {/* Texto de formatos */}
       <p className="text-xs text-gray-500 mt-2">
-        PDF, Word, Excel, imágenes (máx 50MB)
+        Solo PDF (máx 50MB)
       </p>
                                       <div className="mt-6 pt-4 border-t border-gray-200">
                                         {/* Texto de privacidad */}
@@ -3864,7 +3915,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             type="file"
                             className="hidden"
                             onChange={handleFileSelect}
-                            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                            accept="application/pdf"
                           />
                           <FileUp className="w-3.5 h-3.5" />
                         </label>
@@ -3891,7 +3942,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             <img
                               src={documentPreview}
                               alt="Preview"
-                              className="max-w-full max-h-full object-contain"
+                              className="block w-full h-auto max-w-full object-contain"
                             />
                           )}
                           
@@ -3900,6 +3951,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                               {(
                                   <PdfEditViewer
                                     src={activePreviewUrl}
+                                    pdfData={activePreviewPdfData}
                                     locked={isViewerLocked}
                                     virtualWidth={VIRTUAL_PAGE_WIDTH}
                                     scale={virtualScale}
@@ -5047,8 +5099,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       detectedVirtualHeight={VIRTUAL_PAGE_HEIGHT}
       totalPages={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}
       detectedPageLabel={detectedPageLabel}
-      previewUrl={documentPreview}
-      previewIsPdf={Boolean(documentPreview && file?.type === 'application/pdf')}
+      previewUrl={activePreviewUrl}
+      previewPdfData={activePreviewPdfData}
+      previewIsPdf={isPdfPreview}
       previewPage={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}
       onApply={(result) => {
         const fields = result.fields;

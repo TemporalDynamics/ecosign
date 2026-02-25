@@ -45,13 +45,45 @@ serve(async (req) => {
   if (!isAllowed) {
     return new Response('CORS not allowed', { status: 403, headers: corsHeaders });
   }
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders });
+  }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    const authHeader = req.headers.get('authorization') ?? req.headers.get('Authorization') ?? ''
+
+    if (!supabaseUrl || !supabaseServiceRoleKey || !supabaseAnonKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing Supabase environment configuration' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const requesterClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    const { data: requesterData, error: requesterError } = await requesterClient.auth.getUser();
+    const requester = requesterData?.user;
+
+    if (requesterError || !requester) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Crear cliente Supabase con service role key
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     // Obtener datos del request
     const parsed = await parseJsonBody(req, CreateSignerLinkSchema);
@@ -114,6 +146,19 @@ serve(async (req) => {
       );
     }
 
+    if (document.user_id !== requester.id) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'No autorizado para este documento'
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     // Generar token único
     const token = crypto.randomUUID();
 
@@ -122,7 +167,7 @@ serve(async (req) => {
       .from('signer_links')
       .insert({
         document_id: resolvedDocumentId,
-        owner_id: document.user_id,
+        owner_id: requester.id,
         signer_email: signerEmail,
         signer_name: signerName || null,
         token: token,

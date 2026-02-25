@@ -20,6 +20,7 @@ interface DocumentViewerProps {
   encryptionKey?: string | null
   workflowId?: string
   signerId?: string
+  accessToken?: string
   signedUrl?: string | null
   stamps?: Array<{
     kind?: 'signature' | 'text' | 'date'
@@ -39,6 +40,7 @@ export default function DocumentViewer({
   encryptionKey,
   workflowId,
   signerId,
+  accessToken,
   signedUrl,
   stamps,
   onContinue,
@@ -185,17 +187,20 @@ export default function DocumentViewer({
               eventType: 'document_decrypted'
             })
 
-            try {
-              const supabase = getSupabase()
-              await supabase.functions.invoke('log-workflow-event', {
-                body: {
-                  workflowId,
-                  signerId,
-                  eventType: 'document.decrypted'
-                }
-              })
-            } catch (err) {
-              console.warn('workflow_events document.decrypted failed', err)
+            if (accessToken) {
+              try {
+                const supabase = getSupabase()
+                await supabase.functions.invoke('log-workflow-event', {
+                  body: {
+                    workflowId,
+                    signerId,
+                    accessToken,
+                    eventType: 'document.decrypted'
+                  }
+                })
+              } catch (err) {
+                console.warn('workflow_events document.decrypted failed', err)
+              }
             }
           }
         } else {
@@ -234,7 +239,7 @@ export default function DocumentViewer({
         objectUrlRef.current = null
       }
     }
-  }, [documentPath, encryptionKey, logEvent, signerId, workflowId, signedUrl, stamps])
+  }, [accessToken, documentPath, encryptionKey, logEvent, signerId, workflowId, signedUrl, stamps])
 
   if (loading) {
     return (

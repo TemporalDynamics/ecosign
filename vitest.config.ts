@@ -10,8 +10,11 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['client/src/**/*', 'netlify/functions/**/*'],
+      include: ['client/src/**/*.{ts,tsx,js,jsx}', 'netlify/functions/**/*.{ts,tsx,js,jsx}'],
       exclude: [
+        'client/src/_deprecated/**/*',
+        'client/src/**/*.html',
+        'client/src/**/*.md',
         'client/src/**/*.test.{ts,tsx}',
         'tests/**/*',
         'node_modules/**/*',

@@ -77,7 +77,7 @@ export function generateWorkflowFieldsFromWizard(
   // P1: deterministic, no drag required.
   const gap = 10;
 
-  const signatureSize = { w: 260, h: 80 };
+  const signatureSize = { w: 220, h: 64 };
   const textSize = { w: 220, h: 36 };
   const dateSize = { w: 160, h: 36 };
 
@@ -99,10 +99,14 @@ export function generateWorkflowFieldsFromWizard(
   );
   const startY = virtualHeight - paddingY - blockHeight;
 
+  // Center blocks horizontally within the page
+  const totalBlocksWidth = cols * blockWidth + (cols - 1) * colGap;
+  const startX = Math.max(paddingX, Math.floor((usableWidth - totalBlocksWidth) / 2) + paddingX);
+
   const placeBlock = (index: number) => {
     const col = index % cols;
     const row = Math.floor(index / cols);
-    const x = paddingX + col * (blockWidth + colGap);
+    const x = startX + col * (blockWidth + colGap);
     const y = startY - row * (blockHeight + rowGap);
     return { x, y };
   };

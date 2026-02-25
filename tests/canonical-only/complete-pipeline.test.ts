@@ -20,7 +20,7 @@ describe('Canonical-only pipeline proof', () => {
       payload: { confirmed_at: '2026-02-16T00:01:00.000Z' },
     });
     const d2 = decideProtectDocumentV2Pipeline(events);
-    expect(d2.jobs.sort()).toEqual(['submit_anchor_bitcoin', 'submit_anchor_polygon']);
+    expect(d2.jobs.sort()).toEqual(['build_artifact', 'submit_anchor_bitcoin', 'submit_anchor_polygon']);
 
     events.push({
       kind: 'anchor.confirmed',
@@ -28,7 +28,7 @@ describe('Canonical-only pipeline proof', () => {
       payload: { network: 'polygon', confirmed_at: '2026-02-16T00:02:00.000Z' },
     });
     const d3 = decideProtectDocumentV2Pipeline(events);
-    expect(d3.jobs).toEqual(['submit_anchor_bitcoin']);
+    expect(d3.jobs.sort()).toEqual(['build_artifact', 'submit_anchor_bitcoin']);
 
     events.push({
       kind: 'anchor.confirmed',

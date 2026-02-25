@@ -44,6 +44,8 @@ Thumbs.db
 .tmp/
 temp/
 tmp/
+tests/canonical-only/evidence/*.json
+!tests/canonical-only/evidence/.gitkeep
 
 # Analysis and temporary documentation
 ANALISIS_*.md
@@ -68,6 +70,21 @@ MONITORING_*.md
 PERFORMANCE_*.md
 POST_MVP_*.md
 POST_MVP_PRIVATE_MANIFESTO.md
+docs/private/
+docs/**/INTERNAL_*.md
+docs/**/_internal/
+docs/ECO_ECOX_EXECUTIVE_SUMMARY.md
+docs/SUPER_REPORTE_ECO_ECOX_TECNICO.md
+
+# Aggressive documentation seal (patent-safe)
+docs/**
+!docs/public/
+!docs/public/**
+!docs/beta/
+!docs/beta/**
+!docs/legal/
+!docs/legal/nda/
+!docs/legal/nda/v1.txt
 
 # Vite cache
 .vite/

@@ -4,6 +4,7 @@ import { parseJsonBody } from '../_shared/validation.ts'
 import { AcceptWorkflowNdaSchema } from '../_shared/schemas.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { NDA_VERSION, normalizeNdaText, resolveNdaTemplateMetadata } from '../_shared/nda/text.ts'
+import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 
 const computeSha256 = async (input: string): Promise<string> => {
   const data = new TextEncoder().encode(input);
@@ -51,15 +52,28 @@ serve(async (req) => {
     if (!parsed.ok) {
       return json({ error: parsed.error, details: parsed.details }, 400)
     }
-    const { signer_id, signer_email } = parsed.data
+    const { signer_id, signer_email, access_token } = parsed.data
 
-    const { data: signer, error } = await supabase
-      .from('workflow_signers')
-      .select('id, email, nda_accepted, workflow_id')
-      .eq('id', signer_id)
-      .single()
+    const signerValidation = await validateSignerAccessToken<{
+      id: string
+      email: string
+      nda_accepted: boolean
+      workflow_id: string
+      access_token_hash: string | null
+      token_expires_at: string | null
+      token_revoked_at: string | null
+    }>(
+      supabase,
+      signer_id,
+      access_token,
+      'id, email, nda_accepted, workflow_id, access_token_hash, token_expires_at, token_revoked_at',
+    )
 
-    if (error || !signer) return json({ error: 'Signer not found' }, 404)
+    if (!signerValidation.ok) {
+      return json({ error: signerValidation.error }, signerValidation.status)
+    }
+
+    const signer = signerValidation.signer
 
     const { data: workflow, error: workflowError } = await supabase
       .from('signature_workflows')
@@ -79,7 +93,8 @@ serve(async (req) => {
     const ndaHash = await computeSha256(ndaText);
     const templateMeta = resolveNdaTemplateMetadata(ndaText);
 
-    const emailMatches = signer.email.toLowerCase() === signer_email.toLowerCase()
+    const signerEmailNormalized = typeof signer.email === 'string' ? signer.email.toLowerCase() : ''
+    const emailMatches = signerEmailNormalized !== '' && signerEmailNormalized === signer_email.toLowerCase()
     const legacyDecision = Boolean(emailMatches && !signer.nda_accepted)
     const canonicalDecision = Boolean(emailMatches && !signer.nda_accepted)
 

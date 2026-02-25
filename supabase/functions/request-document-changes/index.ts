@@ -1,8 +1,8 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
-import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { shouldRequestDocumentChanges } from '../../../packages/authority/src/decisions/requestDocumentChanges.ts'
+import { createTokenHash } from '../_shared/cryptoHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -51,13 +51,30 @@ async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   }
 }
 
-async function hashToken(token: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(token)
+const isTokenHash = (value?: string | null) =>
+  Boolean(value && /^[a-f0-9]{64}$/i.test(value))
+
+async function sha256Hex(value: string): Promise<string> {
+  const data = new TextEncoder().encode(value)
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
   return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
+    .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
+}
+
+async function buildTokenHashCandidates(accessToken: string): Promise<string[]> {
+  const normalized = accessToken.trim()
+  if (!normalized) return []
+  if (isTokenHash(normalized)) return [normalized.toLowerCase()]
+
+  const candidates = new Set<string>()
+  try {
+    candidates.add((await createTokenHash(normalized)).toLowerCase())
+  } catch {
+    // Compatibility fallback for legacy SHA-256 hashes.
+  }
+  candidates.add((await sha256Hex(normalized)).toLowerCase())
+  return Array.from(candidates)
 }
 
 serve(async (req) => {
@@ -111,17 +128,21 @@ serve(async (req) => {
       }, 400)
     }
 
-    // 1. Buscar signer por token
-    const tokenHash = await hashToken(accessToken)
-
-    const { data: signer, error: signerError } = await supabase
+    // 1. Buscar signer por token (HMAC actual + fallback SHA-256 legacy)
+    const tokenHashCandidates = await buildTokenHashCandidates(accessToken)
+    if (tokenHashCandidates.length === 0) {
+      return jsonResponse({ error: 'Invalid access token' }, 400)
+    }
+    const { data: signerRows, error: signerError } = await supabase
       .from('workflow_signers')
       .select(`
         *,
         workflow:signature_workflows!inner(*)
       `)
-      .eq('access_token_hash', tokenHash)
-      .single()
+      .in('access_token_hash', tokenHashCandidates)
+      .limit(2)
+
+    const signer = Array.isArray(signerRows) ? signerRows[0] : null
 
     if (signerError || !signer) {
       const legacyDecision = false
@@ -150,6 +171,21 @@ serve(async (req) => {
       }
 
       return jsonResponse({ error: 'Invalid or expired access token' }, 404)
+    }
+
+    if (Array.isArray(signerRows) && signerRows.length > 1) {
+      console.warn('request-document-changes: ambiguous token hash match', {
+        signerCount: signerRows.length
+      })
+      return jsonResponse({ error: 'Invalid access token state' }, 409)
+    }
+
+    if (signer.token_revoked_at) {
+      return jsonResponse({ error: 'Invalid or expired access token' }, 403)
+    }
+
+    if (signer.token_expires_at && new Date(signer.token_expires_at) < new Date()) {
+      return jsonResponse({ error: 'Invalid or expired access token' }, 403)
     }
 
     // 2. Validar que sea su turno

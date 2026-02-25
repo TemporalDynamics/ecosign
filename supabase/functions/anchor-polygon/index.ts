@@ -20,9 +20,10 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { ethers } from 'npm:ethers@6.9.0'
 import { createLogger } from '../_shared/logger.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { requireInternalAuth } from '../_shared/internalAuth.ts'
 
 export const config = {
-  verify_jwt: false
+  verify_jwt: true
 }
 
 const logger = createLogger('anchor-polygon')
@@ -58,6 +59,14 @@ serve(async (req) => {
     return new Response(null, {
       status: 204,
       headers: corsHeaders
+    })
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true })
+  if (!auth.ok) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 

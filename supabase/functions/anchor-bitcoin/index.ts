@@ -22,9 +22,10 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { createLogger } from '../_shared/logger.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { requireInternalAuth } from '../_shared/internalAuth.ts'
 
 export const config = {
-  verify_jwt: false
+  verify_jwt: true
 }
 
 const logger = createLogger('anchor-bitcoin')
@@ -77,6 +78,11 @@ serve(async (req) => {
 
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders)
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true })
+  if (!auth.ok) {
+    return jsonResponse({ error: 'Forbidden' }, 403, corsHeaders)
   }
 
   try {

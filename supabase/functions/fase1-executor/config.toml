@@ -1,2 +1,2 @@
 [functions.fase1-executor]
-verify_jwt = false
+verify_jwt = true

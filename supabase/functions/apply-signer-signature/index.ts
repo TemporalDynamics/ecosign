@@ -10,6 +10,7 @@ import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts'
 import { attemptRekorProof } from '../_shared/rekorProof.ts'
 import { decryptToken } from '../_shared/cryptoHelper.ts'
 import { decideAnchorPolicyByStage, resolveOwnerAnchorPlan } from '../_shared/anchorPlanPolicy.ts'
+import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
@@ -30,6 +31,26 @@ async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
     })
   } catch (error) {
     console.warn('send-pending-emails invoke failed', error)
+  }
+}
+
+async function wakeExecutionEngine(supabase: ReturnType<typeof createClient>, source: string) {
+  try {
+    const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    if (!serviceRole) return
+
+    await Promise.allSettled([
+      supabase.functions.invoke('fase1-executor', {
+        headers: { Authorization: `Bearer ${serviceRole}` },
+        body: { source, limit: 5 },
+      }),
+      supabase.functions.invoke('orchestrator', {
+        headers: { Authorization: `Bearer ${serviceRole}` },
+        body: { source },
+      }),
+    ])
+  } catch (error) {
+    console.warn('wake execution engine failed (best-effort)', error)
   }
 }
 
@@ -345,98 +366,64 @@ serve(async (req) => {
     let ecoSnapshotPath: string | null = null
     let ecoSnapshotUrl: string | null = null
 
-    if (!signerId && !accessToken) {
-      return json({ error: 'Missing signerId or accessToken' }, 400)
+    if (!signerId) {
+      return json({ error: 'Missing signerId' }, 400)
     }
-    if (signerId && !workflowId) {
-      return json({ error: 'Missing workflowId for signerId flow' }, 400)
+    if (!workflowId) {
+      return json({ error: 'Missing workflowId' }, 400)
+    }
+    if (!accessToken || typeof accessToken !== 'string' || accessToken.trim().length === 0) {
+      return json({ error: 'Missing accessToken' }, 400)
     }
 
-    // Resolve signer
-    let signer: any = null
+    const signerValidation = await validateSignerAccessToken<{
+      id: string
+      workflow_id: string
+      email: string | null
+      name: string | null
+      signing_order: number | null
+      status: string | null
+      access_token_hash: string | null
+      token_expires_at: string | null
+      token_revoked_at: string | null
+      require_login: boolean | null
+      quick_access: boolean | null
+      signer_otps: Array<{ verified_at: string | null }> | { verified_at: string | null } | null
+    }>(
+      supabase,
+      signerId,
+      accessToken,
+      `
+        id,
+        workflow_id,
+        email,
+        name,
+        signing_order,
+        status,
+        access_token_hash,
+        token_expires_at,
+        token_revoked_at,
+        require_login,
+        quick_access,
+        signer_otps(verified_at)
+      `
+    )
 
-    if (signerId) {
-      console.log('apply-signer-signature: Looking for signerId:', signerId)
+    if (!signerValidation.ok) {
+      console.error('apply-signer-signature: signer validation failed', {
+        signerId,
+        status: signerValidation.status,
+        error: signerValidation.error
+      })
+      return json({ error: signerValidation.error }, signerValidation.status)
+    }
 
-      const { data, error } = await supabase
-        .from('workflow_signers')
-        .select(`
-          id,
-          workflow_id,
-          email,
-          name,
-          signing_order,
-          status,
-          access_token_hash,
-          token_expires_at,
-          token_revoked_at,
-          require_login,
-          quick_access,
-          signer_otps(verified_at)
-        `)
-        .eq('id', signerId)
-        .single()
-
-      console.log('apply-signer-signature: Query result:', { data, error })
-
-      if (error || !data) {
-        console.error('apply-signer-signature: Signer not found', { signerId, error })
-        return json({ error: 'Signer not found' }, 404)
-      }
-
-      // Map the joined data to match expected structure
-      // Note: signer_otps is returned as an array due to the join
-      const otpData = Array.isArray(data.signer_otps) ? data.signer_otps[0] : data.signer_otps
-      signer = {
-        ...data,
-        otp_verified: otpData?.verified_at != null,
-        signer_otps: otpData
-      }
-    } else if (accessToken) {
-      // accessToken may be raw or already hashed
-      const tokenHash = /^[a-f0-9]{64}$/i.test(accessToken) ? accessToken : await (async () => {
-        const enc = new TextEncoder()
-        const buf = enc.encode(accessToken)
-        const hash = await crypto.subtle.digest('SHA-256', buf)
-        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
-      })()
-
-      console.log('apply-signer-signature: Looking for accessToken (hash):', tokenHash.substring(0, 10) + '...')
-
-      const { data, error } = await supabase
-        .from('workflow_signers')
-        .select(`
-          id,
-          workflow_id,
-          email,
-          name,
-          signing_order,
-          status,
-          access_token_hash,
-          token_expires_at,
-          token_revoked_at,
-          require_login,
-          quick_access,
-          signer_otps(verified_at)
-        `)
-        .eq('access_token_hash', tokenHash)
-        .single()
-
-      console.log('apply-signer-signature: Query result (token):', { data, error })
-
-      if (error || !data) {
-        console.error('apply-signer-signature: Signer not found for token', { tokenHash: tokenHash.substring(0, 10) + '...', error })
-        return json({ error: 'Signer not found for token' }, 404)
-      }
-
-      // Map the joined data to match expected structure
-      // Note: signer_otps is returned as an array due to the join
-      const otpData = Array.isArray(data.signer_otps) ? data.signer_otps[0] : data.signer_otps
-      signer = {
-        ...data,
-        otp_verified: otpData?.verified_at != null,
-        signer_otps: otpData
-      }
+    const signerData = signerValidation.signer
+    const otpData = Array.isArray(signerData.signer_otps) ? signerData.signer_otps[0] : signerData.signer_otps
+    const signer: any = {
+      ...signerData,
+      otp_verified: otpData?.verified_at != null,
+      signer_otps: otpData
     }
 
     // IDEMPOTENCY CHECK: Check if this signer has already signed this workflow.
@@ -1220,6 +1207,7 @@ serve(async (req) => {
 
       // Ensure document.protected.requested exists for TSA pipeline (idempotent).
       if (workflow.document_entity_id) {
+        let appendedInitialProtectionRequest = false
         try {
           const { data: existingEntity } = await supabase
             .from('document_entities')
@@ -1228,8 +1216,13 @@ serve(async (req) => {
             .single()
 
           const eventsArr = Array.isArray((existingEntity as any)?.events) ? (existingEntity as any).events : []
-          const alreadyRequested = eventsArr.some((e: any) => e?.kind === 'document.protected.requested')
-          if (!alreadyRequested) {
+          const alreadyRequestedForWitness = eventsArr.some((e: any) =>
+            e?.kind === 'document.protected.requested' &&
+            e?.payload?.flow_type === 'SIGNATURE_FLOW' &&
+            (e?.payload?.anchor_stage === 'initial' || !e?.payload?.anchor_stage) &&
+            e?.payload?.witness_hash === hashHex
+          )
+          if (!alreadyRequestedForWitness) {
             const cfg = (workflow as any)?.forensic_config ?? {}
             const planPolicy = await resolveOwnerAnchorPlan(supabase as any, workflow.owner_id ?? null)
             const initialAnchorPolicy = decideAnchorPolicyByStage({
@@ -1245,7 +1238,7 @@ serve(async (req) => {
               policySource: planPolicy.policySource,
             })
             const requiredEvidence = [...initialAnchorPolicy.protection]
-            await appendEvent(
+            const appendProtectionResult = await appendEvent(
               supabase as any,
               workflow.document_entity_id,
               {
@@ -1254,6 +1247,7 @@ serve(async (req) => {
                 payload: {
                   document_entity_id: workflow.document_entity_id,
                   workflow_id: workflow.id,
+                  witness_hash: hashHex,
                   flow_type: 'SIGNATURE_FLOW',
                   required_evidence: requiredEvidence,
                   protection: requiredEvidence,
@@ -1271,35 +1265,20 @@ serve(async (req) => {
               },
               'apply-signer-signature'
             )
+            if (appendProtectionResult.success) {
+              appendedInitialProtectionRequest = true
+            } else {
+              console.warn(
+                'apply-signer-signature: initial document.protected.requested append failed',
+                appendProtectionResult.error
+              )
+            }
           }
         } catch (protectErr) {
           console.warn('apply-signer-signature: document.protected.requested append failed', protectErr)
         }
-      }
-
-      // Enqueue TSA job for this witness hash (always, per signer).
-      if (workflow.document_entity_id) {
-        try {
-          await supabase
-            .from('executor_jobs')
-            .insert({
-              type: 'run_tsa',
-              enqueue_source: 'compat_direct',
-              entity_type: 'document',
-              entity_id: workflow.document_entity_id,
-              correlation_id: workflow.document_entity_id,
-              dedupe_key: `${workflow.document_entity_id}:run_tsa:${hashHex}`,
-              payload: {
-                document_entity_id: workflow.document_entity_id,
-                witness_hash: hashHex,
-                workflow_id: workflow.id,
-                signer_id: signer.id
-              },
-              status: 'queued',
-              run_at: new Date().toISOString()
-            })
-        } catch (tsaErr) {
-          console.warn('apply-signer-signature: failed to enqueue run_tsa', tsaErr)
+        if (appendedInitialProtectionRequest) {
+          await wakeExecutionEngine(supabase as any, 'apply-signer-signature:initial-protection-request')
         }
       }
 
@@ -1598,6 +1577,7 @@ serve(async (req) => {
 
         if (workflow.document_entity_id) {
           const finalStepIndex = signer.signing_order ?? 0
+          let appendedFinalProtectionRequest = false
           try {
             const { data: finalEntity } = await supabase
               .from('document_entities')
@@ -1609,11 +1589,12 @@ serve(async (req) => {
             const hasFinalProtectionRequest = finalEvents.some((event: any) =>
               event?.kind === 'document.protected.requested' &&
               event?.payload?.flow_type === 'SIGNATURE_FLOW' &&
-              event?.payload?.anchor_stage === 'final'
+              event?.payload?.anchor_stage === 'final' &&
+              event?.payload?.witness_hash === hashHex
             )
 
             if (!hasFinalProtectionRequest) {
-              await appendEvent(
+              const appendFinalProtectionResult = await appendEvent(
                 supabase as any,
                 workflow.document_entity_id,
                 {
@@ -1622,6 +1603,7 @@ serve(async (req) => {
                   payload: {
                     document_entity_id: workflow.document_entity_id,
                     workflow_id: signer.workflow_id,
+                    witness_hash: hashHex,
                     flow_type: 'SIGNATURE_FLOW',
                     required_evidence: finalProtection,
                     protection: finalProtection,
@@ -1640,39 +1622,20 @@ serve(async (req) => {
                 },
                 'apply-signer-signature'
               )
+              if (appendFinalProtectionResult.success) {
+                appendedFinalProtectionRequest = true
+              } else {
+                console.warn(
+                  'apply-signer-signature: final protection policy append failed',
+                  appendFinalProtectionResult.error
+                )
+              }
             }
           } catch (appendFinalPolicyErr) {
             console.warn('apply-signer-signature: final protection policy append failed (best-effort)', appendFinalPolicyErr)
           }
-
-          const finalProtectDedupe = `${workflow.document_entity_id}:protect_document_v2:final:${finalStepIndex}`
-          const { error: enqueueFinalProtectErr } = await supabase
-            .from('executor_jobs')
-            .insert({
-              type: 'protect_document_v2',
-              enqueue_source: 'compat_direct',
-              entity_type: 'document',
-              entity_id: workflow.document_entity_id,
-              correlation_id: workflow.document_entity_id,
-              dedupe_key: finalProtectDedupe,
-              payload: {
-                document_entity_id: workflow.document_entity_id,
-                workflow_id: signer.workflow_id,
-                witness_hash: hashHex,
-                flow_type: 'SIGNATURE_FLOW',
-                protection: finalProtection,
-                required_evidence: finalProtection,
-                anchor_stage: 'final',
-                step_index: finalStepIndex,
-                plan_key: finalAnchorPolicy.plan_key,
-                policy_source: finalAnchorPolicy.policy_source
-              },
-              status: 'queued',
-              run_at: new Date().toISOString()
-            })
-
-          if (enqueueFinalProtectErr && enqueueFinalProtectErr.code !== '23505') {
-            console.warn('apply-signer-signature: enqueue final protect_document_v2 failed', enqueueFinalProtectErr)
+          if (appendedFinalProtectionRequest) {
+            await wakeExecutionEngine(supabase as any, 'apply-signer-signature:final-protection-request')
           }
         }
       } catch (completionStatusErr) {

@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { shouldConfirmIdentity } from '../../../packages/authority/src/decisions/confirmIdentity.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 
 const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
@@ -12,6 +13,7 @@ const json = (data: unknown, status = 200, headers: Record<string, string> = {})
 
 interface Payload {
   signerId: string
+  accessToken: string
   firstName: string
   lastName: string
   email: string
@@ -40,6 +42,7 @@ serve(async (req) => {
 
     const body = (await req.json()) as Payload
     if (!body?.signerId) return json({ error: 'signerId is required' }, 400, corsHeaders)
+    if (!body?.accessToken?.trim()) return json({ error: 'accessToken is required' }, 400, corsHeaders)
     if (!body?.firstName?.trim() || !body?.lastName?.trim()) {
       return json({ error: 'Nombre y apellido son obligatorios' }, 400, corsHeaders)
     }
@@ -47,15 +50,28 @@ serve(async (req) => {
       return json({ error: 'Se requiere confirmación de identidad y registro' }, 400, corsHeaders)
     }
 
-    const { data: signer, error: signerError } = await supabase
-      .from('workflow_signers')
-      .select('id, email, name, workflow_id, signing_order, status')
-      .eq('id', body.signerId)
-      .single()
+    const signerValidation = await validateSignerAccessToken<{
+      id: string
+      email: string
+      name: string | null
+      workflow_id: string
+      signing_order: number | null
+      status: string | null
+      access_token_hash: string | null
+      token_expires_at: string | null
+      token_revoked_at: string | null
+    }>(
+      supabase,
+      body.signerId,
+      body.accessToken,
+      'id, email, name, workflow_id, signing_order, status, access_token_hash, token_expires_at, token_revoked_at',
+    )
 
-    if (signerError || !signer) {
-      return json({ error: 'Signer not found' }, 404, corsHeaders)
+    if (!signerValidation.ok) {
+      return json({ error: signerValidation.error }, signerValidation.status, corsHeaders)
     }
+
+    const signer = signerValidation.signer
 
     const fullName = `${body.firstName.trim()} ${body.lastName.trim()}`
 

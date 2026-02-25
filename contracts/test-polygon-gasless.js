@@ -6,8 +6,18 @@
 
 import crypto from 'crypto';
 
-const SUPABASE_URL = 'https://uiyojopjbhooxrmamaiw.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://uiyojopjbhooxrmamaiw.supabase.co';
+const INTERNAL_API_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/anchor-polygon`;
+
+function buildHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (INTERNAL_API_KEY) {
+    headers.Authorization = `Bearer ${INTERNAL_API_KEY}`;
+    headers.apikey = INTERNAL_API_KEY;
+  }
+  return headers;
+}
 
 // Generar hash de prueba (SHA-256 de un string aleatorio)
 function generateTestHash() {
@@ -27,9 +37,7 @@ async function testPolygonGasless() {
 
     const response = await fetch(FUNCTION_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: buildHeaders(),
       body: JSON.stringify({
         documentHash: testHash1,
         documentId: null,
@@ -92,7 +100,7 @@ async function runMultipleTests() {
     try {
       const response = await fetch(FUNCTION_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildHeaders(),
         body: JSON.stringify({
           documentHash: testHash,
           userEmail: 'test@ecosign.app',

@@ -24,6 +24,7 @@ export type NdaContext = 'share-link' | 'signature-flow' | 'internal-review';
 export interface NdaAcceptanceMetadata {
   token?: string;              // Para share-link legacy
   signerId?: string;            // Para signature-flow
+  accessToken?: string;         // Token del firmante para validar aceptación
   context: NdaContext;
   ndaText: string;
   signerName: string;
@@ -145,6 +146,9 @@ export async function acceptSignatureFlowNda(
   if (!metadata.signerId) {
     return { success: false, error: 'signerId es requerido para signature-flow' };
   }
+  if (!metadata.accessToken) {
+    return { success: false, error: 'accessToken es requerido para signature-flow' };
+  }
 
   const supabase = getSupabase();
 
@@ -154,6 +158,7 @@ export async function acceptSignatureFlowNda(
       body: {
         signer_id: metadata.signerId,
         signer_email: metadata.signerEmail,
+        access_token: metadata.accessToken,
       },
     });
 

@@ -1,11 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import fs from 'node:fs';
-import { transformSync } from 'esbuild';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 
 const loadFlowStatus = async () => {
-  const source = fs.readFileSync(new URL('../src/lib/flowStatus.ts', import.meta.url), 'utf8');
-  const { code } = transformSync(source, { loader: 'ts', format: 'esm' });
+  const entryPoint = fileURLToPath(new URL('../src/lib/flowStatus.ts', import.meta.url));
+  const result = await build({
+    entryPoints: [entryPoint],
+    bundle: true,
+    format: 'esm',
+    platform: 'browser',
+    write: false,
+    target: 'es2020',
+  });
+  const code = result.outputFiles?.[0]?.text ?? '';
   const moduleUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`;
   return import(moduleUrl);
 };

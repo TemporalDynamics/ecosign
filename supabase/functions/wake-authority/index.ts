@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.182.0/http/server.ts";
+import { requireInternalAuth } from "../_shared/internalAuth.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -37,6 +38,11 @@ serve(async (req) => {
 
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  if (!auth.ok) {
+    return jsonResponse({ error: "Forbidden" }, 403);
   }
 
   try {

@@ -11,6 +11,7 @@
 
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { createLogger } from '../_shared/logger.ts';
+import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 // Orchestrator ejecuta jobs y marca estado en executor_jobs.
 // Los hechos canónicos (TSA/anchors/artifact) los emiten las funciones específicas.
@@ -494,15 +495,25 @@ async function pollJobs(): Promise<void> {
 
 // Handler para Supabase Edge Function
 Deno.serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
+      headers: corsHeaders,
     });
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  if (!auth.ok) {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 
   if (req.method === 'GET') {

@@ -9,6 +9,8 @@ export default [
     ignores: [
       'dist',
       'node_modules',
+      '.vercel',
+      '.vercel/**',
       '*.config.js',
       'vite.config.js',
       'postcss.config.js',

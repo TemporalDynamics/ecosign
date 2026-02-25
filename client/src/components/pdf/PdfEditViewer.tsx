@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/build/pdf';
+import { getDocument } from 'pdfjs-dist/build/pdf';
 import type { PDFDocumentProxy, PDFPageProxy, PageViewport, RenderTask } from 'pdfjs-dist/build/pdf';
+import { ensurePdfJsWorkerConfigured } from './pdfjsRuntime';
 
-GlobalWorkerOptions.workerSrc =
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+ensurePdfJsWorkerConfigured();
 
 export type PdfPageMetrics = {
   pageNumber: number;
@@ -14,7 +14,8 @@ export type PdfPageMetrics = {
 type RenderPageOverlay = (pageNumber: number, metrics: PdfPageMetrics) => React.ReactNode;
 
 type PdfEditViewerProps = {
-  src: string;
+  src?: string | null;
+  pdfData?: ArrayBuffer | null;
   className?: string;
   locked?: boolean;
   virtualWidth?: number;
@@ -32,10 +33,12 @@ type RenderedPage = {
   viewport: PageViewport;
   width: number;
   height: number;
+  canonicalHeight: number;
 };
 
 export const PdfEditViewer = ({
-  src,
+  src = null,
+  pdfData = null,
   className,
   locked = false,
   virtualWidth = 1000,
@@ -57,9 +60,22 @@ export const PdfEditViewer = ({
     let cancelled = false;
     const load = async () => {
       try {
-        const response = await fetch(src);
-        const data = await response.arrayBuffer();
-        const pdfDoc = await getDocument({ data }).promise;
+        if (!pdfData && !src) {
+          throw new Error('PDF source missing');
+        }
+        let pdfDoc: PDFDocumentProxy | null = null;
+
+        // 1) Preferir binario en memoria para evitar restricciones SES/CSP con blob URL.
+        if (pdfData) {
+          const data = pdfData.slice(0);
+          pdfDoc = await getDocument({ data }).promise;
+        } else if (src) {
+          // 2) Fallback a URL cuando no hay binario disponible.
+          pdfDoc = await getDocument(src).promise;
+        } else {
+          throw new Error('PDF source unavailable');
+        }
+
         if (cancelled) return;
         setDoc(pdfDoc);
         setLoadError(null);
@@ -75,7 +91,7 @@ export const PdfEditViewer = ({
     return () => {
       cancelled = true;
     };
-  }, [src]);
+  }, [src, pdfData]);
 
   useEffect(() => {
     if (!doc) return;
@@ -88,6 +104,7 @@ export const PdfEditViewer = ({
         const page = await doc.getPage(pageNumber);
         if (cancelled) return;
         const baseViewport = page.getViewport({ scale: 1 });
+        const canonicalScale = virtualWidth / baseViewport.width;
         const pageScale = effectiveWidth / baseViewport.width;
         const viewport = page.getViewport({ scale: pageScale });
         rendered.push({
@@ -95,7 +112,8 @@ export const PdfEditViewer = ({
           page,
           viewport,
           width: viewport.width,
-          height: viewport.height
+          height: viewport.height,
+          canonicalHeight: baseViewport.height * canonicalScale
         });
       }
 
@@ -105,7 +123,7 @@ export const PdfEditViewer = ({
         rendered.map((item) => ({
           pageNumber: item.pageNumber,
           width: virtualWidth,
-          height: item.height
+          height: item.canonicalHeight
         }))
       );
     };

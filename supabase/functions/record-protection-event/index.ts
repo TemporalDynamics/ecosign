@@ -217,41 +217,6 @@ serve(withRateLimit('record', async (req) => {
       throw new Error('Failed to record document.protected event: ' + protectedResult.error)
     }
 
-    const dedupeKey = `${documentEntityId}:${flowVersion === 'v2' ? 'protect_document_v2' : 'document.protected'}`;
-    const { error: enqueueError } = await supabase
-      .from('executor_jobs')
-      .insert({
-        type: flowVersion === 'v2' ? 'protect_document_v2' : FASE1_EVENT_KINDS.DOCUMENT_PROTECTED,
-        enqueue_source: 'compat_direct',
-        entity_type: 'document',
-        entity_id: documentEntityId,
-        correlation_id: documentEntityId,  // NUEVO: canonical correlation
-        dedupe_key: dedupeKey,
-        payload: {
-          document_entity_id: documentEntityId,
-          document_id: userDocumentId,
-          document_hash: doc.document_hash,
-          witness_hash: effectiveWitnessHash,
-          flow_type: 'DIRECT_PROTECTION',
-          required_evidence: requiredEvidence,
-          protection: protectionMethods,
-          anchor_stage: 'initial',
-          step_index: 0,
-          plan_key: anchorPolicy.plan_key,
-          policy_source: anchorPolicy.policy_source
-        },
-        status: 'queued',
-        run_at: new Date().toISOString()
-      })
-
-    if (enqueueError) {
-      console.error('Failed to enqueue executor job:', enqueueError.message)
-      // If dedupe_key already exists, treat as idempotent success.
-      if (!enqueueError.message?.toLowerCase().includes('duplicate')) {
-        throw new Error('Failed to enqueue executor job: ' + enqueueError.message)
-      }
-    }
-
     // Best-effort: wake the execution engine immediately (so user doesn't wait for next cron tick).
     // Keep it non-blocking (short timeouts) and ignore failures.
     try {

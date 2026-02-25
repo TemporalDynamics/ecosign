@@ -17,8 +17,11 @@ if (process.env.VITE_SUPABASE_ANON_KEY && !process.env.SUPABASE_ANON_KEY) {
   process.env.SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
 }
 
-if (process.env.VITE_SERVICE_ROL_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.VITE_SERVICE_ROL_KEY;
+const viteServiceRoleKey =
+  process.env.VITE_SERVICE_ROLE_KEY ||
+  process.env.VITE_SERVICE_ROL_KEY;
+if (viteServiceRoleKey && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  process.env.SUPABASE_SERVICE_ROLE_KEY = viteServiceRoleKey;
 }
 
 // --- Environment Variable Validation ---

@@ -3,13 +3,15 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { sendEmail, buildSignerOtpEmail } from '../_shared/email.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
-import { createTokenHash } from '../_shared/cryptoHelper.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 
 interface RequestPayload {
   signerId: string
-  accessToken?: string
+  accessToken: string
 }
+
+const OTP_RESEND_COOLDOWN_MS = 30_000
 
 const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
@@ -26,13 +28,6 @@ const hashCode = async (code: string) => {
 
 const generateCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString()
-}
-
-const requireCronSecret = (req: Request) => {
-  const cronSecret = Deno.env.get('CRON_SECRET') ?? ''
-  const provided = req.headers.get('x-cron-secret') ?? ''
-  if (cronSecret && provided === cronSecret) return null
-  return new Response('Forbidden', { status: 403 })
 }
 
 serve(async (req) => {
@@ -56,42 +51,35 @@ serve(async (req) => {
 
     const { signerId, accessToken } = (await req.json()) as RequestPayload
     if (!signerId) return json({ error: 'signerId is required' }, 400, corsHeaders)
+    if (!accessToken?.trim()) return json({ error: 'accessToken is required' }, 400, corsHeaders)
 
-    const authError = requireCronSecret(req)
-    if (authError) {
-      if (!accessToken) return authError
-    }
-
-    // Fetch signer info
-    const tokenHash = accessToken
-      ? (/^[a-f0-9]{64}$/i.test(accessToken) ? accessToken : await createTokenHash(accessToken))
-      : null
-
-    let signerQuery = supabase
-      .from('workflow_signers')
-      .select(`
+    const signerValidation = await validateSignerAccessToken<{
+      id: string
+      email: string | null
+      name: string | null
+      token_expires_at: string | null
+      token_revoked_at: string | null
+      workflow: { id: string; title: string | null } | null
+      access_token_hash: string | null
+    }>(
+      supabase,
+      signerId,
+      accessToken,
+      `
         id,
         email,
         name,
         token_expires_at,
         token_revoked_at,
+        access_token_hash,
         workflow:signature_workflows (id, title)
-      `)
-      .eq('id', signerId)
+      `
+    )
 
-    if (tokenHash) {
-      signerQuery = signerQuery.eq('access_token_hash', tokenHash)
+    if (!signerValidation.ok) {
+      return json({ error: signerValidation.error }, signerValidation.status, corsHeaders)
     }
-
-    const { data: signer, error: signerErr } = await signerQuery.single()
-
-    if (signerErr || !signer) {
-      return json(
-        { error: 'Signer not found', details: signerErr?.message || 'signer_missing' },
-        404,
-        corsHeaders
-      )
-    }
+    const signer = signerValidation.signer
 
     if (!signer.email) {
       return json(
@@ -115,6 +103,34 @@ serve(async (req) => {
         500,
         corsHeaders
       )
+    }
+
+    const { data: existingOtp, error: existingOtpError } = await supabase
+      .from('signer_otps')
+      .select('last_sent_at')
+      .eq('signer_id', signer.id)
+      .maybeSingle()
+
+    if (existingOtpError) {
+      console.warn('send-signer-otp existing record check failed', existingOtpError)
+    } else if (existingOtp?.last_sent_at) {
+      const lastSentAtMs = new Date(existingOtp.last_sent_at).getTime()
+      if (Number.isFinite(lastSentAtMs)) {
+        const elapsedMs = Date.now() - lastSentAtMs
+        if (elapsedMs >= 0 && elapsedMs < OTP_RESEND_COOLDOWN_MS) {
+          const retryAfterSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - elapsedMs) / 1000)
+          return json(
+            {
+              success: false,
+              error: 'OTP recently sent',
+              retry_after_seconds: retryAfterSeconds,
+              retryable: true
+            },
+            429,
+            corsHeaders
+          )
+        }
+      }
     }
 
     const code = generateCode()

@@ -463,7 +463,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
     confirmedRecipient: boolean
     acceptedLogging: boolean
   }) => {
-    if (!signerData) return
+    if (!signerData || !token) return
     const supabase = getSupabase();
     setError(null)
     setPreAccessSubmitting(true)
@@ -472,6 +472,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       const { error } = await supabase.functions.invoke('confirm-signer-identity', {
         body: {
           signerId: signerData.signer_id,
+          accessToken: token,
           firstName: payload.firstName,
           lastName: payload.lastName,
           email: signerData.email,
@@ -564,7 +565,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       setVerifyingOtp(true)
       setError(null)
       const { data, error } = await supabase.functions.invoke('verify-signer-otp', {
-        body: { signerId: signerData.signer_id, otp: otpCode.trim() }
+        body: { signerId: signerData.signer_id, accessToken: token, otp: otpCode.trim() }
       })
       if (error || !data?.success) {
         const backendMessage = (data as any)?.error || error?.message
@@ -610,14 +611,15 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
   }
 
   const handleNDAAccept = async () => {
-    if (!signerData) return
+    if (!signerData || !token) return
     const supabase = getSupabase();
     setError(null)
     try {
       const { data, error } = await supabase.functions.invoke('accept-workflow-nda', {
         body: {
           signer_id: signerData.signer_id,
-          signer_email: signerData.email
+          signer_email: signerData.email,
+          access_token: token
         }
       })
 
@@ -660,6 +662,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       const { data, error } = await supabase.functions.invoke('apply-signer-signature', {
         body: {
           signerId: signerData.signer_id,
+          accessToken: token,
           workflowId: signerData.workflow_id,
           witness_pdf_hash: signerData.workflow.document_hash,
           applied_at: new Date().toISOString(),
@@ -1090,6 +1093,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
             encryptionKey={signerData.workflow.encryption_key}
             workflowId={signerData.workflow_id}
             signerId={signerData.signer_id}
+            accessToken={token}
             signedUrl={signerData.encrypted_pdf_url}
             stamps={signerData.prior_signature_stamps}
             onContinue={handleDocumentViewed}

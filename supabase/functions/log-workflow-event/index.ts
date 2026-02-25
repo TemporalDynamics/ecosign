@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
@@ -13,6 +14,7 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 interface Payload {
   workflowId: string
   signerId?: string
+  accessToken?: string
   eventType: string
   payload?: Record<string, unknown>
 }
@@ -49,16 +51,30 @@ serve(async (req) => {
       return jsonResponse({ error: 'eventType not allowed' }, 403, corsHeaders)
     }
     if (!body.signerId) return jsonResponse({ error: 'signerId is required' }, 400, corsHeaders)
+    if (!body.accessToken?.trim()) {
+      return jsonResponse({ error: 'accessToken is required' }, 400, corsHeaders)
+    }
 
-    const { data: signer, error: signerError } = await supabase
-      .from('workflow_signers')
-      .select('id, workflow_id')
-      .eq('id', body.signerId)
-      .eq('workflow_id', body.workflowId)
-      .single()
+    const signerValidation = await validateSignerAccessToken<{
+      id: string
+      workflow_id: string
+      access_token_hash: string | null
+      token_expires_at: string | null
+      token_revoked_at: string | null
+    }>(
+      supabase,
+      body.signerId,
+      body.accessToken,
+      'id, workflow_id, access_token_hash, token_expires_at, token_revoked_at'
+    )
 
-    if (signerError || !signer) {
-      return jsonResponse({ error: 'Signer not found for workflow' }, 404, corsHeaders)
+    if (!signerValidation.ok) {
+      return jsonResponse({ error: signerValidation.error }, signerValidation.status, corsHeaders)
+    }
+
+    const signer = signerValidation.signer
+    if (signer.workflow_id !== body.workflowId) {
+      return jsonResponse({ error: 'Signer does not belong to workflow' }, 403, corsHeaders)
     }
 
     const { data: otpRecord } = await supabase

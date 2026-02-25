@@ -6,6 +6,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
 import { sendResendEmail } from '../_shared/email.ts';
 import { appendEvent } from '../_shared/eventHelper.ts';
+import { requireInternalAuth } from '../_shared/internalAuth.ts';
 import { Buffer } from 'node:buffer';
 
 const corsHeaders = {
@@ -304,6 +305,11 @@ async function sendConfirmationEmail(
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  if (!auth.ok) {
+    return jsonResponse({ error: 'Forbidden' }, 403);
   }
 
   if (!supabaseAdmin) {

@@ -169,7 +169,7 @@ const mapEcoV2Result = (
   signedAuthorityRef?: Record<string, unknown> | null,
   onlineRevocation?: OnlineRevocationState
 ): VerificationBaseResult => {
-  const valid = result.status === 'valid' || result.status === 'incomplete';
+  const valid = result.status === 'valid';
   const errors =
     result.status === 'tampered'
       ? ['Archivo .ECO inconsistente.']

@@ -4,6 +4,7 @@ import { appendEvent } from '../_shared/eventHelper.ts';
 import { processArtifact, type ArtifactInput } from '../../../packages/artifact-processor/src/index.ts';
 import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate.ts';
 import { signFinalEcoInstitutionally } from '../_shared/ecoInstitutionalSignature.ts';
+import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 type BuildArtifactRequest = {
   document_entity_id: string;
@@ -41,6 +42,11 @@ serve(async (req) => {
 
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  if (!auth.ok) {
+    return jsonResponse({ error: 'Forbidden' }, 403);
   }
 
   const body = (await req.json().catch(() => ({}))) as Partial<BuildArtifactRequest>;

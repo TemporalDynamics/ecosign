@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { requireInternalAuth } from '../_shared/internalAuth.ts'
 
 
 interface TimestampRequestBody {
@@ -230,6 +231,11 @@ serve(async (req) => {
 
   if (req.method !== 'POST') {
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405, corsHeaders)
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true })
+  if (!auth.ok) {
+    return jsonResponse({ success: false, error: 'Forbidden' }, 403, corsHeaders)
   }
 
   try {

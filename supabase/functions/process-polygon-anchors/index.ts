@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
 import { ethers } from 'npm:ethers@6.9.0'
 import { appendEvent } from '../_shared/eventHelper.ts'
+import { requireInternalAuth } from '../_shared/internalAuth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,6 +79,11 @@ async function insertNotification(anchor: any, txHash: string, blockNumber?: num
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true })
+  if (!auth.ok) {
+    return jsonResponse({ error: 'Forbidden' }, 403)
   }
 
   if (!supabaseAdmin || !provider) {

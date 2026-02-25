@@ -4,9 +4,11 @@ import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 
 interface RequestPayload {
   signerId: string
+  accessToken: string
   otp: string
 }
 
@@ -51,13 +53,42 @@ serve(async (req) => {
       session_id: crypto.randomUUID()
     }
 
-    const { signerId, otp } = (await req.json()) as RequestPayload
+    const { signerId, accessToken, otp } = (await req.json()) as RequestPayload
     if (!signerId || !otp) return json({ error: 'signerId and otp are required' }, 400, corsHeaders)
+    if (!accessToken?.trim()) return json({ error: 'accessToken is required' }, 400, corsHeaders)
+
+    const signerValidation = await validateSignerAccessToken<{
+      id: string
+      workflow_id: string
+      access_token_hash: string | null
+      token_expires_at: string | null
+      token_revoked_at: string | null
+    }>(
+      supabase,
+      signerId,
+      accessToken,
+      'id, workflow_id, access_token_hash, token_expires_at, token_revoked_at'
+    )
+
+    if (!signerValidation.ok) {
+      return json(
+        {
+          success: false,
+          error_code: 'TOKEN_INVALID',
+          message: signerValidation.error,
+          retryable: false
+        },
+        signerValidation.status,
+        corsHeaders
+      )
+    }
+
+    const validatedSignerId = signerValidation.signer.id
 
     const { data: record, error: otpErr } = await supabase
       .from('signer_otps')
       .select('signer_id, workflow_id, otp_hash, expires_at, attempts, verified_at')
-      .eq('signer_id', signerId)
+      .eq('signer_id', validatedSignerId)
       .single()
 
     if (otpErr || !record) return json({ 
@@ -100,7 +131,7 @@ serve(async (req) => {
         attempts: record.attempts + 1,
         verified_at: isValid ? new Date().toISOString() : null
       })
-      .eq('signer_id', signerId)
+      .eq('signer_id', validatedSignerId)
 
     if (updateErr) {
       console.error('verify-signer-otp update failed', updateErr)
@@ -121,7 +152,7 @@ serve(async (req) => {
       const { data: signer } = await supabase
         .from('workflow_signers')
         .select('email, name')
-        .eq('id', signerId)
+        .eq('id', validatedSignerId)
         .single()
 
       const { data: workflow } = await supabase
@@ -172,7 +203,7 @@ serve(async (req) => {
       await supabase.functions.invoke('log-ecox-event', {
         body: {
           workflow_id: record.workflow_id,
-          signer_id: signerId,
+          signer_id: validatedSignerId,
           event_type: 'otp.verified',
           details: { method: 'email_otp' }
         }
@@ -187,7 +218,7 @@ serve(async (req) => {
       {
         event_type: 'otp.verified',
         workflow_id: record.workflow_id,
-        signer_id: signerId,
+        signer_id: validatedSignerId,
         payload: { attempts: record.attempts + 1 }
       },
       'verify-signer-otp'

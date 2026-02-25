@@ -266,6 +266,15 @@ verify_jwt = true
 [functions.process-bitcoin-anchors]
 verify_jwt = true
 
+[functions.presential-verification-start-session]
+verify_jwt = true
+
+[functions.presential-verification-confirm-presence]
+verify_jwt = true
+
+[functions.presential-verification-close-session]
+verify_jwt = true
+
 # Configure MFA via WebAuthn
 # [auth.mfa.web_authn]
 # enroll_enabled = true

@@ -10,6 +10,9 @@ generate-signature-evidence
 legal-timestamp
 log-workflow-event
 orchestrator
+presential-verification-start-session
+presential-verification-confirm-presence
+presential-verification-close-session
 process-bitcoin-anchors
 process-polygon-anchors
 reject-signature

@@ -1,17 +1,29 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
+import { appendEvent } from '../_shared/eventHelper.ts';
 
 interface ConfirmPresenceRequest {
   session_id: string;
   snapshot_hash: string;
   signer_id?: string;
-  email?: string;
   confirmation_method?: 'otp' | 'selfie' | 'dni';
   otp?: string;
 }
 
+type AuthUser = {
+  id: string;
+  email: string | null;
+};
+
+type SnapshotSigner = {
+  signerId: string;
+  email: string;
+};
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+const MAX_OTP_ATTEMPTS = 5;
 
 const jsonResponse = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -19,10 +31,17 @@ const jsonResponse = (data: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-/**
- * Extract user ID from Authorization header (JWT)
- */
-async function verifyAuth(authHeader: string | null): Promise<string | null> {
+function normalizeEmail(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+function parseTimestamp(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function verifyAuthUser(authHeader: string | null): Promise<AuthUser | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
@@ -32,50 +51,65 @@ async function verifyAuth(authHeader: string | null): Promise<string | null> {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data, error } = await supabase.auth.getUser(token);
-    return error || !data.user ? null : data.user.id;
+    if (error || !data.user) return null;
+    return { id: data.user.id, email: data.user.email ?? null };
   } catch {
     return null;
   }
 }
 
-/**
- * Verify OTP (basic implementation - just check format)
- * In production, use Redis or similar for OTP validation
- */
-async function verifyOTP(email: string, otp: string): Promise<boolean> {
-  // TODO: Implement real OTP verification (Redis + SMS/Email service)
-  // For now, accept any 6-digit OTP
-  return /^\d{6}$/.test(otp);
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
-/**
- * Get or create identity binding for persistent user tracking
- */
 async function getOrCreateIdentityBinding(supabase: any, email: string): Promise<string> {
-  // Try to find existing binding
+  const normalizedEmail = normalizeEmail(email);
+
   const { data: existing } = await supabase
     .from('identity_bindings')
     .select('id')
-    .eq('email', email)
+    .eq('email', normalizedEmail)
     .single()
     .catch(() => ({ data: null }));
 
-  if (existing) {
+  if (existing?.id) {
+    await supabase
+      .from('identity_bindings')
+      .update({ verified_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
     return existing.id;
   }
 
-  // Create new binding
-  const { data: newBinding, error } = await supabase
+  const { data: created, error } = await supabase
     .from('identity_bindings')
-    .insert({ email: email })
+    .insert({ email: normalizedEmail, verified_at: new Date().toISOString() })
     .select('id')
     .single();
 
-  if (error) {
-    throw new Error(`Failed to create identity binding: ${error.message}`);
+  if (error || !created?.id) {
+    throw new Error(`Failed to create identity binding: ${error?.message ?? 'unknown'}`);
   }
 
-  return newBinding.id;
+  return created.id;
+}
+
+function resolveSignerFromSnapshot(
+  snapshotSigners: SnapshotSigner[],
+  authEmail: string,
+  requestedSignerId?: string,
+): SnapshotSigner | null {
+  if (requestedSignerId) {
+    const byId = snapshotSigners.find((s) => s.signerId === requestedSignerId);
+    if (!byId) return null;
+    if (normalizeEmail(byId.email) !== authEmail) return null;
+    return byId;
+  }
+
+  return snapshotSigners.find((s) => normalizeEmail(s.email) === authEmail) ?? null;
 }
 
 serve(async (req) => {
@@ -89,33 +123,34 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    const userId = await verifyAuth(authHeader);
+    const authUser = await verifyAuthUser(authHeader);
 
-    if (!userId) {
+    if (!authUser) {
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    const body = (await req.json().catch(() => ({}))) as Partial<ConfirmPresenceRequest>;
-    const sessionId = String(body.session_id ?? '');
-    const snapshotHash = String(body.snapshot_hash ?? '');
-    const signerId = body.signer_id || userId;
-    const email = String(body.email ?? '');
-    const confirmationMethod = body.confirmation_method ?? 'otp';
-    const otp = String(body.otp ?? '');
+    const authEmail = normalizeEmail(authUser.email);
+    if (!authEmail) {
+      return jsonResponse({ error: 'Authenticated user has no email' }, 403);
+    }
 
-    console.log('[presential-confirm-presence] start', {
-      session_id: sessionId,
-      signer_id: signerId,
-      method: confirmationMethod,
-    });
+    const body = (await req.json().catch(() => ({}))) as Partial<ConfirmPresenceRequest>;
+    const sessionId = String(body.session_id ?? '').trim();
+    const snapshotHash = String(body.snapshot_hash ?? '').trim();
+    const signerIdFromBody = body.signer_id?.trim();
+    const confirmationMethod = body.confirmation_method ?? 'otp';
+    const otp = String(body.otp ?? '').trim();
 
     if (!sessionId || !snapshotHash) {
       return jsonResponse({ error: 'session_id and snapshot_hash required' }, 400);
     }
 
+    if (confirmationMethod === 'otp' && !otp) {
+      return jsonResponse({ error: 'OTP required' }, 400);
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Fetch session
     const { data: session, error: sessionError } = await supabase
       .from('presential_verification_sessions')
       .select('*')
@@ -126,136 +161,165 @@ serve(async (req) => {
       return jsonResponse({ error: 'Session not found' }, 404);
     }
 
-    // Check session is active
+    const now = Date.now();
+    const sessionExpiresAtMs = parseTimestamp(session.expires_at);
+
     if (session.status !== 'active') {
       return jsonResponse({ error: 'Session not active' }, 400);
     }
 
-    // Verify snapshot hash matches
+    if (sessionExpiresAtMs !== null && sessionExpiresAtMs < now) {
+      await supabase
+        .from('presential_verification_sessions')
+        .update({ status: 'expired', updated_at: new Date().toISOString() })
+        .eq('id', session.id);
+      return jsonResponse({ error: 'Session expired' }, 409);
+    }
+
     if (session.snapshot_hash !== snapshotHash) {
-      return jsonResponse(
-        { error: 'Snapshot mismatch - state changed' },
-        409
-      );
+      return jsonResponse({ error: 'Snapshot mismatch - state changed' }, 409);
     }
 
-    // Verify signer is in operation snapshot
-    const snapshotSigners = session.snapshot_data.signers || [];
-    const signerInSnapshot = snapshotSigners.find(
-      (s: any) => s.signerId === signerId || s.email === email
-    );
+    const snapshotSigners = Array.isArray(session?.snapshot_data?.signers)
+      ? (session.snapshot_data.signers as SnapshotSigner[])
+      : [];
 
+    const signerInSnapshot = resolveSignerFromSnapshot(snapshotSigners, authEmail, signerIdFromBody);
     if (!signerInSnapshot) {
-      return jsonResponse({ error: 'Signer not in operation' }, 403);
+      return jsonResponse({ error: 'Signer identity mismatch for authenticated user' }, 403);
     }
 
-    // Verify identity based on method
-    let identityBindingId = null;
+    const signerId = signerInSnapshot.signerId || authUser.id;
+    const signerEmail = normalizeEmail(signerInSnapshot.email);
 
-    if (confirmationMethod === 'otp') {
-      if (!otp) {
-        return jsonResponse({ error: 'OTP required' }, 400);
-      }
-
-      const isValid = await verifyOTP(email || signerInSnapshot.email, otp);
-      if (!isValid) {
-        return jsonResponse({ error: 'Invalid OTP' }, 401);
-      }
-
-      identityBindingId = await getOrCreateIdentityBinding(
-        supabase,
-        email || signerInSnapshot.email
-      );
-    } else {
-      // For selfie/dni, just create binding for now
-      identityBindingId = await getOrCreateIdentityBinding(
-        supabase,
-        email || signerInSnapshot.email
-      );
+    const existingConfirmation = session.confirmations?.[signerId];
+    if (existingConfirmation?.confirmedAt) {
+      return jsonResponse({
+        success: true,
+        status: 'already_confirmed',
+        signerId,
+        sessionId,
+        confirmedAt: existingConfirmation.confirmedAt,
+      });
     }
 
-    // Create event in document_entities (append-only)
+    const { data: otpRecord, error: otpFetchError } = await supabase
+      .from('presential_verification_otps')
+      .select('id, otp_hash, expires_at, attempts, verified_at')
+      .eq('session_id', session.id)
+      .eq('signer_email', signerEmail)
+      .single();
+
+    if (otpFetchError || !otpRecord) {
+      return jsonResponse({ error: 'OTP challenge not found for signer' }, 404);
+    }
+
+    if (otpRecord.verified_at) {
+      return jsonResponse({ error: 'OTP already used for this signer' }, 409);
+    }
+
+    if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
+      return jsonResponse({ error: 'Too many OTP attempts' }, 429);
+    }
+
+    const otpExpiresAtMs = parseTimestamp(otpRecord.expires_at);
+    if (otpExpiresAtMs !== null && otpExpiresAtMs < now) {
+      return jsonResponse({ error: 'OTP expired' }, 409);
+    }
+
+    const otpHash = await sha256Hex(otp);
+    const isValidOtp = otpHash === String(otpRecord.otp_hash ?? '').toLowerCase();
+
+    await supabase
+      .from('presential_verification_otps')
+      .update({
+        attempts: otpRecord.attempts + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', otpRecord.id);
+
+    if (!isValidOtp) {
+      return jsonResponse({ error: 'Invalid OTP' }, 401);
+    }
+
+    const identityBindingId = await getOrCreateIdentityBinding(supabase, signerEmail);
+
     const confirmEvent = {
       kind: 'identity.session.presence.confirmed',
       at: new Date().toISOString(),
       actor: 'signer',
-      correlation_id: session.operation_id,
       payload: {
-        sessionId: session.session_id,
-        signerId: signerId,
-        snapshotHash: session.snapshot_hash,
-        confirmationMethod: confirmationMethod,
-        identityBindingId: identityBindingId,
-        timestampConfirmed: new Date().toISOString(),
-        geoLocation: null,
-        deviceFingerprint: req.headers.get('user-agent'),
+        session_id: session.session_id,
+        signer_id: signerId,
+        signer_email: signerEmail,
+        snapshot_hash: session.snapshot_hash,
+        confirmation_method: confirmationMethod,
+        identity_binding_id: identityBindingId,
+        timestamp_confirmed: new Date().toISOString(),
+        user_agent: req.headers.get('user-agent') ?? null,
       },
     };
 
-    // Append event to all documents in operation
-    const documentIds = (session.snapshot_data.documents || []).map((d: any) => d.entityId);
+    const documentIds = Array.isArray(session?.snapshot_data?.documents)
+      ? session.snapshot_data.documents
+        .map((d: any) => String(d?.entityId ?? '').trim())
+        .filter((id: string) => id.length > 0)
+      : [];
 
+    const appendErrors: string[] = [];
     for (const docId of documentIds) {
-      // Fetch current events
-      const { data: currentDoc, error: fetchError } = await supabase
-        .from('document_entities')
-        .select('events')
-        .eq('id', docId)
-        .single();
-
-      if (fetchError) {
-        console.warn(`[presential-confirm-presence] failed to fetch events for ${docId}:`, fetchError);
-        continue;
-      }
-
-      // Append new event
-      const updatedEvents = Array.isArray(currentDoc?.events) ? [...currentDoc.events, confirmEvent] : [confirmEvent];
-
-      const { error: appendError } = await supabase
-        .from('document_entities')
-        .update({ events: updatedEvents })
-        .eq('id', docId);
-
-      if (appendError) {
-        console.warn(`[presential-confirm-presence] failed to append event to ${docId}:`, appendError);
+      const result = await appendEvent(
+        supabase,
+        docId,
+        confirmEvent,
+        'presential-verification-confirm-presence',
+      );
+      if (!result.success) {
+        appendErrors.push(`${docId}: ${result.error ?? 'unknown append error'}`);
       }
     }
 
-    // Update confirmations in session
+    if (appendErrors.length > 0) {
+      return jsonResponse({ error: 'Failed to append canonical events', details: appendErrors }, 500);
+    }
+
     const updatedConfirmations = {
-      ...session.confirmations,
+      ...(session.confirmations ?? {}),
       [signerId]: {
         confirmedAt: new Date().toISOString(),
         method: confirmationMethod,
-        identityBindingId: identityBindingId,
+        identityBindingId,
+        signerEmail,
       },
     };
 
     const { error: updateError } = await supabase
       .from('presential_verification_sessions')
-      .update({ confirmations: updatedConfirmations })
+      .update({ confirmations: updatedConfirmations, updated_at: new Date().toISOString() })
       .eq('id', session.id);
 
     if (updateError) {
-      console.error('[presential-confirm-presence] failed to update confirmations:', updateError);
       return jsonResponse({ error: 'Failed to record confirmation' }, 500);
     }
 
-    console.log('[presential-confirm-presence] confirmed', {
-      session_id: sessionId,
-      signer_id: signerId,
-    });
+    const { error: otpFinalizeError } = await supabase
+      .from('presential_verification_otps')
+      .update({ verified_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', otpRecord.id);
+
+    if (otpFinalizeError) {
+      return jsonResponse({ error: 'Failed to finalize OTP verification' }, 500);
+    }
 
     return jsonResponse({
       success: true,
       status: 'confirmed',
-      signerId: signerId,
-      sessionId: sessionId,
+      signerId,
+      sessionId,
       confirmedAt: new Date().toISOString(),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[presential-confirm-presence] error:', message);
     return jsonResponse({ error: message }, 500);
   }
 });

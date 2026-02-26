@@ -3,8 +3,6 @@ import { X, Plus, Trash2, ChevronDown, ChevronRight, RotateCw, Maximize2, Minimi
 import type { SignatureField } from '../../../types/signature-fields';
 import { generateWorkflowFieldsFromWizard, type RepetitionRule, type WizardTemplate } from '../../../lib/workflowFieldTemplate';
 import { PdfEditViewer } from '../../../components/pdf/PdfEditViewer';
-import { getDocument } from 'pdfjs-dist/build/pdf';
-import type { PDFDocumentProxy } from 'pdfjs-dist/build/pdf';
 import { ensurePdfJsWorkerConfigured } from '../../../components/pdf/pdfjsRuntime';
 
 ensurePdfJsWorkerConfigured();
@@ -88,21 +86,21 @@ export function SignerFieldsWizard({
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [pdfPreviewFailed, setPdfPreviewFailed] = useState(false);
-  const [pdfPreviewThumb, setPdfPreviewThumb] = useState<string | null>(null);
   const [wizardFields, setWizardFields] = useState<SignatureField[]>([]);
   const [dragState, setDragState] = useState<{
     id: string;
     batchId?: string;
     moveBatch: boolean;
-    startX: number;
-    startY: number;
+    anchorContentX: number;
+    anchorContentY: number;
     originX: number;
-    originY: number;
+    originAbsoluteY: number;
+    batchOrigins?: Record<string, { x: number; absoluteY: number; width: number; height: number }>;
   } | null>(null);
   const [resizeState, setResizeState] = useState<{
     id: string;
-    startX: number;
-    startY: number;
+    anchorContentX: number;
+    anchorContentY: number;
     originW: number;
     originH: number;
   } | null>(null);
@@ -113,7 +111,12 @@ export function SignerFieldsWizard({
   });
   const [personalizeBySigner, setPersonalizeBySigner] = useState(false);
   const fullscreenScrollRef = useRef<HTMLDivElement | null>(null);
-  const FULL_SCALE = 0.82;
+  const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const autoScrollRafRef = useRef<number | null>(null);
+  const FULL_SCALE_MAX = 0.82;
+  const [fullscreenScale, setFullscreenScale] = useState(FULL_SCALE_MAX);
+  const AUTO_SCROLL_EDGE_PX = 56;
+  const AUTO_SCROLL_MAX_STEP_PX = 18;
   const [openSignatureBlock, setOpenSignatureBlock] = useState<'final' | 'perPage' | null>('final');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
@@ -399,59 +402,12 @@ export function SignerFieldsWizard({
   const pdfPreviewSrc = previewIsPdf && previewUrl ? previewUrl : null;
   const miniPreviewWidth = 250;
   const miniPreviewHeight = Math.max(150, Math.round((miniPreviewWidth * resolvedVirtualHeight) / virtualWidth));
+  const miniPreviewScale = miniPreviewWidth / Math.max(1, virtualWidth);
 
   useEffect(() => {
     // Reset when source changes / wizard reopens.
     setPdfPreviewFailed(false);
-    setPdfPreviewThumb(null);
   }, [pdfPreviewSrc, previewPdfData, previewIsPdf, isOpen]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!previewIsPdf || !previewPdfData) {
-      setPdfPreviewThumb(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const buildThumb = async () => {
-      try {
-        const doc: PDFDocumentProxy = await getDocument({ data: previewPdfData.slice(0) }).promise;
-        if (!doc) {
-          setPdfPreviewThumb(null);
-          return;
-        }
-        const page = await doc.getPage(1);
-        const base = page.getViewport({ scale: 1 });
-        const thumbWidth = miniPreviewWidth;
-        const scale = thumbWidth / Math.max(1, base.width);
-        const viewport = page.getViewport({ scale });
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        const context = canvas.getContext('2d');
-        if (!context) {
-          setPdfPreviewThumb(null);
-          return;
-        }
-        await page.render({ canvasContext: context, viewport }).promise;
-        if (cancelled) return;
-        setPdfPreviewThumb(canvas.toDataURL('image/jpeg', 0.75));
-      } catch {
-        if (!cancelled) {
-          setPdfPreviewThumb(null);
-          setPdfPreviewFailed(true);
-        }
-      }
-    };
-
-    buildThumb();
-    return () => {
-      cancelled = true;
-    };
-  }, [previewIsPdf, previewPdfData, miniPreviewWidth]);
 
   const evaluateWizardValidation = () => {
     const errors: string[] = [];
@@ -490,53 +446,111 @@ export function SignerFieldsWizard({
       return Math.max(max, (f.page - 1) * resolvedVirtualHeight + f.y + f.height);
     }, 0);
     const containerH = fullscreenScrollRef.current.clientHeight;
-    const targetScroll = lowestAbsY * FULL_SCALE - containerH * 0.7;
+    const targetScroll = lowestAbsY * fullscreenScale - containerH * 0.7;
     fullscreenScrollRef.current.scrollTop = Math.max(0, targetScroll);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewFullscreen]);
+  }, [previewFullscreen, fullscreenScale]);
+
+  // Fit-to-width en fullscreen para evitar scroll horizontal.
+  useEffect(() => {
+    if (!previewFullscreen) {
+      setFullscreenScale(FULL_SCALE_MAX);
+      return;
+    }
+
+    const recalc = () => {
+      const container = fullscreenScrollRef.current;
+      if (!container) return;
+      const fitScale = (container.clientWidth - 24) / Math.max(1, virtualWidth);
+      setFullscreenScale(Math.max(0.28, Math.min(FULL_SCALE_MAX, fitScale)));
+    };
+
+    recalc();
+    const container = fullscreenScrollRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => recalc());
+    observer.observe(container);
+    window.addEventListener('resize', recalc);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', recalc);
+    };
+  }, [previewFullscreen, virtualWidth]);
 
   useEffect(() => {
     if (!previewFullscreen) return;
+
     const maxXBase = virtualWidth;
-    const maxYBase = resolvedVirtualHeight;
-    const onMove = (event: MouseEvent) => {
+    const pagesCount = Math.max(1, totalPages ?? 1);
+    const totalDocHeight = pagesCount * resolvedVirtualHeight;
+
+    const stopAutoScrollLoop = () => {
+      if (autoScrollRafRef.current !== null) {
+        cancelAnimationFrame(autoScrollRafRef.current);
+        autoScrollRafRef.current = null;
+      }
+    };
+
+    const toContentCoords = (clientX: number, clientY: number) => {
+      const container = fullscreenScrollRef.current;
+      if (!container) return null;
+      const rect = container.getBoundingClientRect();
+      return {
+        x: (clientX - rect.left + container.scrollLeft) / fullscreenScale,
+        y: (clientY - rect.top + container.scrollTop) / fullscreenScale
+      };
+    };
+
+    const fromAbsoluteY = (absoluteY: number, fieldHeight: number) => {
+      const maxAbsY = Math.max(0, totalDocHeight - fieldHeight);
+      const clampedAbsY = Math.max(0, Math.min(maxAbsY, absoluteY));
+      const page = Math.min(pagesCount, Math.floor(clampedAbsY / resolvedVirtualHeight) + 1);
+      const pageTop = (page - 1) * resolvedVirtualHeight;
+      const y = clampedAbsY - pageTop;
+      return { page, y };
+    };
+
+    const applyPointerMovement = (clientX: number, clientY: number) => {
+      const pointer = toContentCoords(clientX, clientY);
+      if (!pointer) return;
+
       if (dragState) {
-        const dx = (event.clientX - dragState.startX) / FULL_SCALE;
-        const dy = (event.clientY - dragState.startY) / FULL_SCALE;
-        if (dragState.moveBatch && dragState.batchId) {
-          setWizardFields((prev) => {
-            const batchFields = prev.filter((f) => f.batchId === dragState.batchId);
-            // Compute max delta that keeps every field in bounds
-            let clampedDx = dx;
-            let clampedDy = dy;
-            for (const f of batchFields) {
-              clampedDx = Math.max(-f.x, Math.min(clampedDx, maxXBase - f.width - f.x));
-              clampedDy = Math.max(-f.y, Math.min(clampedDy, maxYBase - f.height - f.y));
-            }
-            return prev.map((field) => {
+        const dx = pointer.x - dragState.anchorContentX;
+        const dy = pointer.y - dragState.anchorContentY;
+
+        if (dragState.moveBatch && dragState.batchId && dragState.batchOrigins) {
+          let clampedDx = dx;
+          let clampedDy = dy;
+          for (const origin of Object.values(dragState.batchOrigins)) {
+            clampedDx = Math.max(-origin.x, Math.min(clampedDx, maxXBase - origin.width - origin.x));
+            clampedDy = Math.max(-origin.absoluteY, Math.min(clampedDy, totalDocHeight - origin.height - origin.absoluteY));
+          }
+
+          setWizardFields((prev) =>
+            prev.map((field) => {
               if (field.batchId !== dragState.batchId) return field;
-              return { ...field, x: field.x + clampedDx, y: field.y + clampedDy };
-            });
-          });
-          setDragState((current) =>
-            current ? { ...current, startX: event.clientX, startY: event.clientY } : current
+              const origin = dragState.batchOrigins?.[field.id];
+              if (!origin) return field;
+              const nextX = Math.max(0, Math.min(maxXBase - field.width, origin.x + clampedDx));
+              const { page, y } = fromAbsoluteY(origin.absoluteY + clampedDy, field.height);
+              return { ...field, x: nextX, y, page };
+            })
           );
         } else {
           setWizardFields((prev) =>
             prev.map((field) => {
               if (field.id !== dragState.id) return field;
-              return {
-                ...field,
-                x: Math.max(0, Math.min(maxXBase - field.width, dragState.originX + dx)),
-                y: Math.max(0, Math.min(maxYBase - field.height, dragState.originY + dy))
-              };
+              const nextX = Math.max(0, Math.min(maxXBase - field.width, dragState.originX + dx));
+              const { page, y } = fromAbsoluteY(dragState.originAbsoluteY + dy, field.height);
+              return { ...field, x: nextX, y, page };
             })
           );
         }
       }
+
       if (resizeState) {
-        const dx = (event.clientX - resizeState.startX) / FULL_SCALE;
-        const dy = (event.clientY - resizeState.startY) / FULL_SCALE;
+        const dx = pointer.x - resizeState.anchorContentX;
+        const dy = pointer.y - resizeState.anchorContentY;
         setWizardFields((prev) =>
           prev.map((field) => {
             if (field.id !== resizeState.id) return field;
@@ -547,17 +561,63 @@ export function SignerFieldsWizard({
         );
       }
     };
+
+    const autoScrollStep = () => {
+      autoScrollRafRef.current = null;
+      const container = fullscreenScrollRef.current;
+      const pointer = dragPointerRef.current;
+      if (!container || !pointer || (!dragState && !resizeState)) return;
+
+      const rect = container.getBoundingClientRect();
+      const topZone = rect.top + AUTO_SCROLL_EDGE_PX;
+      const bottomZone = rect.bottom - AUTO_SCROLL_EDGE_PX;
+      let deltaY = 0;
+
+      if (pointer.y < topZone) {
+        const ratio = Math.min(1, (topZone - pointer.y) / AUTO_SCROLL_EDGE_PX);
+        deltaY = -Math.max(1, Math.round(AUTO_SCROLL_MAX_STEP_PX * ratio));
+      } else if (pointer.y > bottomZone) {
+        const ratio = Math.min(1, (pointer.y - bottomZone) / AUTO_SCROLL_EDGE_PX);
+        deltaY = Math.max(1, Math.round(AUTO_SCROLL_MAX_STEP_PX * ratio));
+      }
+
+      if (deltaY !== 0) {
+        const prevScrollTop = container.scrollTop;
+        const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+        container.scrollTop = Math.max(0, Math.min(maxScrollTop, prevScrollTop + deltaY));
+        if (container.scrollTop !== prevScrollTop) {
+          applyPointerMovement(pointer.x, pointer.y);
+          autoScrollRafRef.current = requestAnimationFrame(autoScrollStep);
+          return;
+        }
+      }
+
+      stopAutoScrollLoop();
+    };
+
+    const onMove = (event: MouseEvent) => {
+      dragPointerRef.current = { x: event.clientX, y: event.clientY };
+      applyPointerMovement(event.clientX, event.clientY);
+      if (autoScrollRafRef.current === null) {
+        autoScrollRafRef.current = requestAnimationFrame(autoScrollStep);
+      }
+    };
+
     const onUp = () => {
       setDragState(null);
       setResizeState(null);
+      dragPointerRef.current = null;
+      stopAutoScrollLoop();
     };
+
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      stopAutoScrollLoop();
     };
-  }, [previewFullscreen, dragState, resizeState, virtualWidth, resolvedVirtualHeight]);
+  }, [previewFullscreen, dragState, resizeState, virtualWidth, resolvedVirtualHeight, totalPages, fullscreenScale]);
 
   if (!isOpen) return null;
 
@@ -874,17 +934,50 @@ export function SignerFieldsWizard({
                         <Maximize2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    {previewIsPdf && !pdfPreviewFailed ? (
-                      pdfPreviewThumb ? (
-                        <img
-                          src={pdfPreviewThumb}
-                          alt="Preview PDF"
-                          className="absolute inset-0 w-full h-full object-contain"
-                          style={{ transform: `rotate(${previewRotation}deg)`, transformOrigin: 'center center' }}
+                    {previewIsPdf && (pdfPreviewSrc || previewPdfData) && !pdfPreviewFailed ? (
+                      <div
+                        className="absolute inset-0"
+                        style={{ transform: `rotate(${previewRotation}deg)`, transformOrigin: 'center center' }}
+                      >
+                        <PdfEditViewer
+                          key={`mini-pages-${pdfPreviewSrc}-${previewPdfData?.byteLength ?? 0}`}
+                          src={pdfPreviewSrc}
+                          pdfData={previewPdfData}
+                          locked={false}
+                          virtualWidth={virtualWidth}
+                          scale={miniPreviewScale}
+                          pageGap={8}
+                          className="h-full bg-transparent"
+                          onError={(error) => {
+                            console.warn('[SignerFieldsWizard] Mini paged preview error', error);
+                            setPdfPreviewFailed(true);
+                          }}
+                          renderPageOverlay={(pageNumber, metrics) => (
+                            <div className="absolute inset-0 pointer-events-none">
+                              {previewItemsVisible
+                                .filter((field) => field.page === pageNumber)
+                                .map((field) => {
+                                  const scaleX = metrics.width / virtualWidth;
+                                  const scaleY = metrics.height / resolvedVirtualHeight;
+                                  return (
+                                    <div
+                                      key={`mini-field-${field.id}`}
+                                      className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
+                                      style={{
+                                        left: field.x * scaleX,
+                                        top: field.y * scaleY,
+                                        width: field.width * scaleX,
+                                        height: field.height * scaleY
+                                      }}
+                                    >
+                                      {field.metadata?.label || 'Campo'}
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          )}
                         />
-                      ) : (
-                        <div className="absolute inset-0 bg-gray-50" />
-                      )
+                      </div>
                     ) : previewUrl && !previewIsPdf ? (
                       <img
                         src={previewUrl}
@@ -893,29 +986,35 @@ export function SignerFieldsWizard({
                         style={{ transform: `rotate(${previewRotation}deg)`, transformOrigin: 'center center' }}
                       />
                     ) : null}
-                    {previewItemsVisible.map((field) => {
-                      const scaleX = miniPreviewWidth / virtualWidth;
-                      const scaleY = miniPreviewHeight / resolvedVirtualHeight;
-                      return (
-                        <div
-                          key={field.id}
-                          className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
-                          style={{
-                            left: field.x * scaleX,
-                            top: field.y * scaleY,
-                            width: field.width * scaleX,
-                            height: field.height * scaleY
-                          }}
-                        >
-                          {field.metadata?.label || 'Campo'}
-                        </div>
-                      );
-                    })}
+                    {!previewIsPdf &&
+                      previewItemsVisible
+                        .filter((field) => field.page === 1)
+                        .map((field) => {
+                          const scaleX = miniPreviewWidth / virtualWidth;
+                          const scaleY = miniPreviewHeight / resolvedVirtualHeight;
+                          return (
+                            <div
+                              key={field.id}
+                              className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
+                              style={{
+                                left: field.x * scaleX,
+                                top: field.y * scaleY,
+                                width: field.width * scaleX,
+                                height: field.height * scaleY
+                              }}
+                            >
+                              {field.metadata?.label || 'Campo'}
+                            </div>
+                          );
+                        })}
                   </div>
                   <div className="text-[11px] text-gray-500 pt-1">
                     {personalizeBySigner && activeSignerEmail
                       ? `Vista de ${activeSignerEmail}`
                       : 'Vista de todos los firmantes'}
+                    <p className="mt-2 text-[10px] text-gray-500">
+                      Para mover o redimensionar campos, usá pantalla completa.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -997,8 +1096,8 @@ export function SignerFieldsWizard({
               <div
                 className="relative mx-auto"
                 style={{
-                  width: virtualWidth * FULL_SCALE,
-                  minHeight: (totalPages ?? 1) * resolvedVirtualHeight * FULL_SCALE,
+                  width: virtualWidth * fullscreenScale,
+                  minHeight: (totalPages ?? 1) * resolvedVirtualHeight * fullscreenScale,
                   transform: previewRotation ? `rotate(${previewRotation}deg)` : undefined,
                   transformOrigin: 'top center'
                 }}
@@ -1013,7 +1112,7 @@ export function SignerFieldsWizard({
                       pdfData={previewPdfData}
                       locked
                       virtualWidth={virtualWidth}
-                      scale={FULL_SCALE}
+                      scale={fullscreenScale}
                       pageGap={0}
                       className="bg-transparent"
                       onError={() => setPdfPreviewFailed(true)}
@@ -1036,10 +1135,10 @@ export function SignerFieldsWizard({
                       key={`batch-frame-${batchKey}`}
                       className="absolute cursor-move"
                       style={{
-                        left: (box.x - pad) * FULL_SCALE,
-                        top: box.y * FULL_SCALE - pad,
-                        width: (box.w + pad * 2) * FULL_SCALE,
-                        height: box.h * FULL_SCALE + pad * 2,
+                        left: (box.x - pad) * fullscreenScale,
+                        top: box.y * fullscreenScale - pad,
+                        width: (box.w + pad * 2) * fullscreenScale,
+                        height: box.h * fullscreenScale + pad * 2,
                         border: '2px dashed rgba(59,130,246,0.45)',
                         borderRadius: 6,
                         backgroundImage:
@@ -1051,15 +1150,34 @@ export function SignerFieldsWizard({
                         e.preventDefault();
                         e.stopPropagation();
                         if (!leadField) return;
+                        const container = fullscreenScrollRef.current;
+                        if (!container) return;
+                        const rect = container.getBoundingClientRect();
+                        const anchorContentX = (e.clientX - rect.left + container.scrollLeft) / fullscreenScale;
+                        const anchorContentY = (e.clientY - rect.top + container.scrollTop) / fullscreenScale;
+                        const batchOrigins = Object.fromEntries(
+                          wizardFields
+                            .filter((field) => field.batchId === batchKey)
+                            .map((field) => [
+                              field.id,
+                              {
+                                x: field.x,
+                                absoluteY: (field.page - 1) * resolvedVirtualHeight + field.y,
+                                width: field.width,
+                                height: field.height
+                              }
+                            ])
+                        );
                         setSelectedFieldId(leadField.id);
                         setDragState({
                           id: leadField.id,
                           batchId: batchKey,
                           moveBatch: true,
-                          startX: e.clientX,
-                          startY: e.clientY,
+                          anchorContentX,
+                          anchorContentY,
                           originX: leadField.x,
-                          originY: leadField.y
+                          originAbsoluteY: (leadField.page - 1) * resolvedVirtualHeight + leadField.y,
+                          batchOrigins
                         });
                       }}
                     />
@@ -1068,7 +1186,7 @@ export function SignerFieldsWizard({
 
                 {/* Individual field overlays */}
                 {previewItemsVisible.map((field) => {
-                  const pageOffsetY = (field.page - 1) * resolvedVirtualHeight * FULL_SCALE;
+                  const pageOffsetY = (field.page - 1) * resolvedVirtualHeight * fullscreenScale;
                   const isSelected = selectedFieldId === field.id;
                   return (
                     <div
@@ -1079,10 +1197,10 @@ export function SignerFieldsWizard({
                           : 'border border-blue-400/70 hover:border-blue-500'
                       }`}
                       style={{
-                        left: field.x * FULL_SCALE,
-                        top: pageOffsetY + field.y * FULL_SCALE,
-                        width: field.width * FULL_SCALE,
-                        height: field.height * FULL_SCALE,
+                        left: field.x * fullscreenScale,
+                        top: pageOffsetY + field.y * fullscreenScale,
+                        width: field.width * fullscreenScale,
+                        height: field.height * fullscreenScale,
                         backgroundColor: isSelected ? 'rgba(219,234,254,0.5)' : 'rgba(219,234,254,0.3)',
                         borderRadius: 3,
                         zIndex: 20
@@ -1105,15 +1223,20 @@ export function SignerFieldsWizard({
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          const container = fullscreenScrollRef.current;
+                          if (!container) return;
+                          const rect = container.getBoundingClientRect();
+                          const anchorContentX = (e.clientX - rect.left + container.scrollLeft) / fullscreenScale;
+                          const anchorContentY = (e.clientY - rect.top + container.scrollTop) / fullscreenScale;
                           setSelectedFieldId(field.id);
                           setDragState({
                             id: field.id,
                             batchId: field.batchId,
                             moveBatch: false,
-                            startX: e.clientX,
-                            startY: e.clientY,
+                            anchorContentX,
+                            anchorContentY,
                             originX: field.x,
-                            originY: field.y
+                            originAbsoluteY: (field.page - 1) * resolvedVirtualHeight + field.y
                           });
                         }}
                       >
@@ -1128,11 +1251,16 @@ export function SignerFieldsWizard({
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          const container = fullscreenScrollRef.current;
+                          if (!container) return;
+                          const rect = container.getBoundingClientRect();
+                          const anchorContentX = (e.clientX - rect.left + container.scrollLeft) / fullscreenScale;
+                          const anchorContentY = (e.clientY - rect.top + container.scrollTop) / fullscreenScale;
                           setSelectedFieldId(field.id);
                           setResizeState({
                             id: field.id,
-                            startX: e.clientX,
-                            startY: e.clientY,
+                            anchorContentX,
+                            anchorContentY,
                             originW: field.width,
                             originH: field.height
                           });

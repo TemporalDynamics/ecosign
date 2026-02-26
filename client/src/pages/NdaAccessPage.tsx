@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Shield, Clock, FileText, AlertTriangle, CheckCircle, Download, User, Mail, Building2, Briefcase, Lock } from 'lucide-react';
 import { getSupabase } from '../lib/supabaseClient';
 import { trackEvent } from '../lib/analytics';
+import { PdfEditViewer } from '../components/pdf/PdfEditViewer';
 
 type LinkData = {
   valid?: boolean;
@@ -396,9 +397,9 @@ function NdaAccessPage() {
 
             {pdfUrl ? (
               <div className="rounded-lg border border-gray-200 overflow-hidden mb-4">
-                <iframe
-                  title="Documento"
+                <PdfEditViewer
                   src={pdfUrl}
+                  locked
                   className="w-full h-96"
                 />
               </div>

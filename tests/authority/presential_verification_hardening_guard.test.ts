@@ -128,6 +128,22 @@ test('public acta endpoint must be exposed by hash and unauthenticated', async (
   expect(configContent).toContain('verify_jwt = false');
 });
 
+test('presential CORS preflight must not use 204 with body', async () => {
+  const [startContent, confirmContent, closeContent] = await Promise.all([
+    fs.readFile(START_FILE, 'utf8'),
+    fs.readFile(CONFIRM_FILE, 'utf8'),
+    fs.readFile(CLOSE_FILE, 'utf8'),
+  ]);
+
+  expect(startContent).toContain("new Response('ok', { status: 200");
+  expect(confirmContent).toContain("new Response('ok', { status: 200");
+  expect(closeContent).toContain("new Response('ok', { status: 200");
+
+  expect(startContent).not.toContain("new Response('ok', { status: 204");
+  expect(confirmContent).not.toContain("new Response('ok', { status: 204");
+  expect(closeContent).not.toContain("new Response('ok', { status: 204");
+});
+
 test('client TSA validation must not call external TSA directly (CSP-safe)', async () => {
   const content = await fs.readFile(TSA_VALIDATION_FILE, 'utf8');
 

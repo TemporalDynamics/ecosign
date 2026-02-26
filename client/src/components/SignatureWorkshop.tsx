@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Trash2, PenLine, Upload, User, Mail, FileText } from 'lucide-react';
 import { requestSignNowIntegration } from '../utils/integrationUtils';
+import { PdfEditViewer } from './pdf/PdfEditViewer';
 
 interface SignatureWorkshopProps {
   originalFile: File | null;
@@ -455,11 +456,13 @@ const SignatureWorkshop: React.FC<SignatureWorkshopProps> = ({
             className="relative w-full h-64 border border-dashed border-blue-200 rounded-lg overflow-hidden bg-slate-50"
           >
             {documentPreviewUrl ? (
-              <object data={documentPreviewUrl} type="application/pdf" className="w-full h-full">
-                <p className="text-center text-xs text-gray-500 mt-8 px-2">
-                  Tu navegador no puede previsualizar el PDF, pero igual enviaremos la posición de la firma.
-                </p>
-              </object>
+              <div className="absolute inset-0 pointer-events-none">
+                <PdfEditViewer
+                  src={documentPreviewUrl}
+                  locked
+                  className="w-full h-full"
+                />
+              </div>
             ) : (
               <div className="flex items-center justify-center h-full text-sm text-gray-500 px-4 text-center">
                 Adjunta el PDF original para poder posicionar la firma.

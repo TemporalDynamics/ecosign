@@ -1,5 +1,6 @@
 import React from 'react';
 import { Mail, Users, Shield } from 'lucide-react';
+import { PdfEditViewer } from '@/components/pdf/PdfEditViewer';
 
 interface FlowSceneProps {
   file: File | null;
@@ -133,10 +134,10 @@ export function FlowScene({
       <div className="space-y-3">
         <div className="border-2 border-gray-200 rounded-xl overflow-hidden min-h-[480px] bg-gray-50">
           {filePreviewUrl ? (
-            <iframe
+            <PdfEditViewer
               src={filePreviewUrl}
+              locked
               className="w-full h-[600px]"
-              title="Document Preview"
             />
           ) : (
             <div className="flex items-center justify-center h-[600px]">

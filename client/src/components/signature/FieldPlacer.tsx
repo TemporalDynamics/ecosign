@@ -6,6 +6,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { SignatureField } from '../../types/signature-fields';
+import { PdfEditViewer } from '../pdf/PdfEditViewer';
 
 interface FieldPlacerProps {
   pdfUrl: string;
@@ -130,23 +131,26 @@ export function FieldPlacer({
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
-        {/* PDF Preview */}
-        <iframe
-          src={pdfUrl}
-          className="w-full h-full"
-          style={{ minHeight: '600px' }}
-        />
-
-        {/* Campos posicionados */}
-        {fields.map(field => (
-          <DraggableField
-            key={field.id}
-            field={field}
-            onMove={handleFieldMove}
-            onDelete={handleFieldDelete}
-            containerRef={containerRef}
+        <div className="absolute inset-0 pointer-events-none">
+          <PdfEditViewer
+            src={pdfUrl}
+            locked
+            className="w-full h-full"
           />
-        ))}
+        </div>
+
+        <div className="relative z-10" style={{ minHeight: '600px' }}>
+          {/* Campos posicionados */}
+          {fields.map(field => (
+            <DraggableField
+              key={field.id}
+              field={field}
+              onMove={handleFieldMove}
+              onDelete={handleFieldDelete}
+              containerRef={containerRef}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Acciones rápidas */}

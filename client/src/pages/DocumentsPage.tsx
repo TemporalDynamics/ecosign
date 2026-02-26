@@ -18,6 +18,7 @@ import SectionToggle from "../components/SectionToggle";
 import OperationRow from "../components/OperationRow";
 import DocumentRow from "../components/DocumentRow";
 import DocumentStateInfo from "../components/DocumentStateInfo";
+import { PdfEditViewer } from "../components/pdf/PdfEditViewer";
 import { GRID_TOKENS } from "../config/gridTokens";
 import { deriveDocumentState } from "../lib/deriveDocumentState";
 import { ProtectedBadge } from "../components/ProtectedBadge";
@@ -2921,9 +2922,11 @@ function DocumentsPage() {
                 {!previewLoading && !previewError && previewUrl && (
                   <>
                     {previewDoc.document_name.toLowerCase().endsWith(".pdf") ? (
-                      <object data={previewUrl} type="application/pdf" className="w-full h-[60vh]">
-                        <div className="p-4 text-sm text-gray-600">No pudimos mostrar el PDF.</div>
-                      </object>
+                      <PdfEditViewer
+                        src={previewUrl}
+                        locked
+                        className="w-full h-[60vh]"
+                      />
                     ) : (
                       <img src={previewUrl} alt="Preview" className="w-full h-full object-contain p-4" />
                     )}
@@ -3303,9 +3306,11 @@ function DocumentsPage() {
                 {!previewDraftLoading && !previewDraftError && previewDraftUrl && (
                   <>
                     {previewDraft.name.toLowerCase().endsWith(".pdf") ? (
-                      <object data={previewDraftUrl} type="application/pdf" className="w-full h-[50vh]">
-                        <div className="p-4 text-sm text-gray-600">No pudimos mostrar el PDF.</div>
-                      </object>
+                      <PdfEditViewer
+                        src={previewDraftUrl}
+                        locked
+                        className="w-full h-[50vh]"
+                      />
                     ) : (
                       <img src={previewDraftUrl} alt="Preview" className="w-full h-full object-contain p-4" />
                     )}

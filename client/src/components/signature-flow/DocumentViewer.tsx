@@ -3,7 +3,7 @@
 // ============================================
 // Fetches the PDF from Supabase Storage, decrypts
 // it in-browser (if encryptionKey provided), and
-// renders it inside an iframe. Logs forensic
+// renders it in a canvas-based PDF viewer. Logs forensic
 // events when decryption happens.
 // ============================================
 
@@ -14,6 +14,7 @@ import { decryptFile } from '@/utils/encryption'
 import { useEcoxLogger } from '@/hooks/useEcoxLogger'
 import { getSupabase } from '@/lib/supabaseClient'
 import { FileText, RefreshCcw, ShieldCheck } from 'lucide-react'
+import { PdfEditViewer } from '@/components/pdf/PdfEditViewer'
 
 interface DocumentViewerProps {
   documentPath: string | null
@@ -215,10 +216,7 @@ export default function DocumentViewer({
         }
 
         if (isMounted) {
-          // Ensure the PDF viewer fits width by requesting page-width zoom when possible.
-          // Appending a PDF fragment (#zoom=page-width) hints to browsers' PDF viewers to fit horizontally.
-          const fitUrl = newObjectUrl ? `${newObjectUrl}#zoom=page-width` : null
-          setPdfUrl(fitUrl)
+          setPdfUrl(newObjectUrl)
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'No se pudo cargar el documento'
@@ -297,12 +295,13 @@ export default function DocumentViewer({
 
           {/* PDF Viewer - Full height */}
           <div className="flex-1 bg-white">
-            <iframe
-              src={pdfUrl}
-              title="Documento para firmar"
-              className="h-[calc(100vh-200px)] w-full border-0"
-              allow="clipboard-write"
-            />
+            <div className="h-[calc(100vh-200px)] w-full">
+              <PdfEditViewer
+                src={pdfUrl}
+                locked
+                className="h-full w-full"
+              />
+            </div>
           </div>
 
           {/* Sticky bottom action bar */}
@@ -355,12 +354,13 @@ export default function DocumentViewer({
 
         {/* PDF Viewer */}
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <iframe
-            src={pdfUrl}
-            title="Documento para firmar"
-            className="h-[75vh] w-full"
-            allow="clipboard-write"
-          />
+          <div className="h-[75vh] w-full">
+            <PdfEditViewer
+              src={pdfUrl}
+              locked
+              className="h-full w-full"
+            />
+          </div>
         </div>
 
         {/* Actions */}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { NdaPanel } from '@/centro-legal/modules/nda';
+import { PdfEditViewer } from '@/components/pdf/PdfEditViewer';
 
 interface NdaSceneProps {
   file: File | null;
@@ -41,10 +42,10 @@ export function NdaScene({
       <div className="space-y-3">
         <div className="border-2 border-gray-200 rounded-xl overflow-hidden min-h-[480px] bg-gray-50">
           {filePreviewUrl ? (
-            <iframe
+            <PdfEditViewer
               src={filePreviewUrl}
+              locked
               className="w-full h-[600px]"
-              title="Document Preview"
             />
           ) : (
             <div className="flex items-center justify-center h-[600px]">

@@ -346,7 +346,7 @@ serve(async (req) => {
     if (!isAllowed) {
       return new Response('Forbidden', { status: 403, headers: corsHeaders });
     }
-    return new Response('ok', { status: 204, headers: corsHeaders });
+    return new Response('ok', { status: 200, headers: corsHeaders });
   }
 
   if (!isAllowed) {

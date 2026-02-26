@@ -9,6 +9,7 @@ import { useEffect, useState, useRef } from 'react';
 import { X, Shield } from 'lucide-react';
 import { accessSharedDocument } from '../lib/storage';
 import type { AccessSharedDocumentOptions } from '../lib/storage';
+import { PdfEditViewer } from './pdf/PdfEditViewer';
 
 interface OTPAccessModalProps {
   isOpen: boolean;
@@ -190,9 +191,9 @@ export function OTPAccessModal({
               El documento se abre acá mismo. Podés descargarlo si lo necesitás.
             </p>
             <div className="w-full h-[60vh] rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
-              <iframe
-                title="Documento compartido"
+              <PdfEditViewer
                 src={successUrl}
+                locked
                 className="w-full h-full"
               />
             </div>

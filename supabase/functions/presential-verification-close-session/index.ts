@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts';
 import { signFinalEcoInstitutionally } from '../_shared/ecoInstitutionalSignature.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 interface CloseSessionRequest {
   session_id: string;
@@ -62,10 +63,10 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const FUNCTIONS_URL = `${SUPABASE_URL.replace(/\/+$/, '')}/functions/v1`;
 
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   });
 
 function parseTimestamp(value: string | null | undefined): number | null {
@@ -339,12 +340,21 @@ async function attemptActaTimestamp(hashHex: string): Promise<ActaTimestampEvide
 }
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 204 });
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+    return new Response('ok', { status: 204, headers: corsHeaders });
+  }
+
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders);
   }
 
   if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+    return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders);
   }
 
   try {
@@ -352,14 +362,14 @@ serve(async (req) => {
     const authUser = await verifyAuthUser(authHeader);
 
     if (!authUser) {
-      return jsonResponse({ error: 'Unauthorized' }, 401);
+      return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders);
     }
 
     const body = (await req.json().catch(() => ({}))) as Partial<CloseSessionRequest>;
     const sessionId = String(body.session_id ?? '').trim();
 
     if (!sessionId) {
-      return jsonResponse({ error: 'session_id required' }, 400);
+      return jsonResponse({ error: 'session_id required' }, 400, corsHeaders);
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -371,11 +381,11 @@ serve(async (req) => {
       .single();
 
     if (sessionError || !session) {
-      return jsonResponse({ error: 'Session not found' }, 404);
+      return jsonResponse({ error: 'Session not found' }, 404, corsHeaders);
     }
 
     if (session.created_by !== authUser.id) {
-      return jsonResponse({ error: 'Not authorized to close this session' }, 403);
+      return jsonResponse({ error: 'Not authorized to close this session' }, 403, corsHeaders);
     }
 
     if (session.status === 'closed') {
@@ -386,7 +396,7 @@ serve(async (req) => {
         actaHash: session.acta_hash ?? null,
         acta: session.acta_payload ?? null,
         timestamps: Array.isArray(session.acta_timestamps) ? session.acta_timestamps : [],
-      });
+      }, 200, corsHeaders);
     }
 
     const now = Date.now();
@@ -394,7 +404,7 @@ serve(async (req) => {
     const effectiveStatus = sessionExpiresAtMs !== null && sessionExpiresAtMs < now ? 'expired' : session.status;
 
     if (effectiveStatus !== 'active' && effectiveStatus !== 'expired') {
-      return jsonResponse({ error: 'Session not closable' }, 409);
+      return jsonResponse({ error: 'Session not closable' }, 409, corsHeaders);
     }
 
     const closedAt = new Date().toISOString();
@@ -484,7 +494,7 @@ serve(async (req) => {
     }
 
     if (appendErrors.length > 0) {
-      return jsonResponse({ error: 'Failed to append canonical close events', details: appendErrors }, 500);
+      return jsonResponse({ error: 'Failed to append canonical close events', details: appendErrors }, 500, corsHeaders);
     }
 
     const { error: updateError } = await supabase
@@ -500,7 +510,7 @@ serve(async (req) => {
       .eq('id', session.id);
 
     if (updateError) {
-      return jsonResponse({ error: 'Failed to close session' }, 500);
+      return jsonResponse({ error: 'Failed to close session' }, 500, corsHeaders);
     }
 
     return jsonResponse({
@@ -511,9 +521,9 @@ serve(async (req) => {
       trenza: trenzaStatus,
       timestamps: timestampEvidence,
       acta: actaPayload,
-    });
+    }, 200, corsHeaders);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return jsonResponse({ error: message }, 500);
+    return jsonResponse({ error: message }, 500, corsHeaders);
   }
 });

@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { sendEmail, buildSignerOtpEmail } from '../_shared/email.ts';
 import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 interface StartSessionRequest {
   operation_id: string;
@@ -36,10 +37,10 @@ const SITE_URL = (Deno.env.get('SITE_URL') ?? 'https://ecosign.app').replace(/\/
 const SESSION_TTL_MINUTES = 30;
 const OTP_TTL_MINUTES = 10;
 
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   });
 
 function normalizeEmail(value: string | null | undefined): string {
@@ -253,12 +254,21 @@ async function captureOperationSnapshot(
 }
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 204 });
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+    return new Response('ok', { status: 204, headers: corsHeaders });
+  }
+
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders);
   }
 
   if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+    return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders);
   }
 
   try {
@@ -266,7 +276,7 @@ serve(async (req) => {
     const authUser = await verifyAuthUser(authHeader);
 
     if (!authUser) {
-      return jsonResponse({ error: 'Unauthorized' }, 401);
+      return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders);
     }
 
     const body = (await req.json().catch(() => ({}))) as Partial<StartSessionRequest>;
@@ -274,7 +284,7 @@ serve(async (req) => {
     const witnessEmails = parseWitnessEmails(body);
 
     if (!operationId) {
-      return jsonResponse({ error: 'operation_id required' }, 400);
+      return jsonResponse({ error: 'operation_id required' }, 400, corsHeaders);
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -286,11 +296,11 @@ serve(async (req) => {
       .single();
 
     if (opError || !operation) {
-      return jsonResponse({ error: 'Operation not found' }, 404);
+      return jsonResponse({ error: 'Operation not found' }, 404, corsHeaders);
     }
 
     if (operation.created_by !== authUser.id) {
-      return jsonResponse({ error: 'Not authorized to manage this operation' }, 403);
+      return jsonResponse({ error: 'Not authorized to manage this operation' }, 403, corsHeaders);
     }
 
     const snapshot = await captureOperationSnapshot(supabase, operationId, witnessEmails);
@@ -326,7 +336,7 @@ serve(async (req) => {
       .single();
 
     if (insertError || !session) {
-      return jsonResponse({ error: 'Failed to create session' }, 500);
+      return jsonResponse({ error: 'Failed to create session' }, 500, corsHeaders);
     }
 
     const otpExpiresAt = new Date(nowMs + OTP_TTL_MINUTES * 60_000).toISOString();
@@ -370,7 +380,7 @@ serve(async (req) => {
 
       if (otpError) {
         await supabase.from('presential_verification_sessions').delete().eq('id', session.id);
-        return jsonResponse({ error: `Failed to create OTP challenge for ${participant.email}` }, 500);
+        return jsonResponse({ error: `Failed to create OTP challenge for ${participant.email}` }, 500, corsHeaders);
       }
 
       const emailPayload = await buildSignerOtpEmail({
@@ -389,7 +399,7 @@ serve(async (req) => {
       if (!emailResult.success) {
         await supabase.from('presential_verification_sessions').delete().eq('id', session.id);
         await supabase.from('presential_verification_otps').delete().eq('session_id', session.id);
-        return jsonResponse({ error: `Failed to send OTP to ${participant.email}` }, 500);
+        return jsonResponse({ error: `Failed to send OTP to ${participant.email}` }, 500, corsHeaders);
       }
     }
 
@@ -406,9 +416,9 @@ serve(async (req) => {
       signersNotified: signerCount,
       witnessesNotified: witnessCount,
       participantsNotified: participantsCount,
-    });
+    }, 200, corsHeaders);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return jsonResponse({ error: message }, 500);
+    return jsonResponse({ error: message }, 500, corsHeaders);
   }
 });

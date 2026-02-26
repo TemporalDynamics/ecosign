@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 interface ConfirmPresenceRequest {
   session_id: string;
@@ -70,10 +71,10 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const MAX_OTP_ATTEMPTS = 5;
 
-const jsonResponse = (data: unknown, status = 200) =>
+const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   });
 
 function normalizeEmail(value: string | null | undefined): string {
@@ -268,12 +269,21 @@ async function buildTrenzaAttestation(input: {
 }
 
 serve(async (req) => {
+  const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 204 });
+    if (!isAllowed) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+    return new Response('ok', { status: 204, headers: corsHeaders });
+  }
+
+  if (!isAllowed) {
+    return jsonResponse({ error: 'Origin not allowed' }, 403, corsHeaders);
   }
 
   if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+    return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders);
   }
 
   try {
@@ -287,11 +297,11 @@ serve(async (req) => {
     const otp = String(body.otp ?? '').trim();
 
     if (!sessionId || !snapshotHash) {
-      return jsonResponse({ error: 'session_id and snapshot_hash required' }, 400);
+      return jsonResponse({ error: 'session_id and snapshot_hash required' }, 400, corsHeaders);
     }
 
     if (confirmationMethod === 'otp' && !otp) {
-      return jsonResponse({ error: 'OTP required' }, 400);
+      return jsonResponse({ error: 'OTP required' }, 400, corsHeaders);
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -301,11 +311,11 @@ serve(async (req) => {
     const usingParticipantToken = Boolean(participantToken);
 
     if (!usingParticipantToken && !authUser) {
-      return jsonResponse({ error: 'Unauthorized: provide account session or participant_token' }, 401);
+      return jsonResponse({ error: 'Unauthorized: provide account session or participant_token' }, 401, corsHeaders);
     }
 
     if (!usingParticipantToken && !authEmail) {
-      return jsonResponse({ error: 'Authenticated user has no email' }, 403);
+      return jsonResponse({ error: 'Authenticated user has no email' }, 403, corsHeaders);
     }
 
     const { data: session, error: sessionError } = await supabase
@@ -315,14 +325,14 @@ serve(async (req) => {
       .single();
 
     if (sessionError || !session) {
-      return jsonResponse({ error: 'Session not found' }, 404);
+      return jsonResponse({ error: 'Session not found' }, 404, corsHeaders);
     }
 
     const now = Date.now();
     const sessionExpiresAtMs = parseTimestamp(session.expires_at);
 
     if (session.status !== 'active') {
-      return jsonResponse({ error: 'Session not active' }, 400);
+      return jsonResponse({ error: 'Session not active' }, 400, corsHeaders);
     }
 
     if (sessionExpiresAtMs !== null && sessionExpiresAtMs < now) {
@@ -330,11 +340,11 @@ serve(async (req) => {
         .from('presential_verification_sessions')
         .update({ status: 'expired', updated_at: new Date().toISOString() })
         .eq('id', session.id);
-      return jsonResponse({ error: 'Session expired' }, 409);
+      return jsonResponse({ error: 'Session expired' }, 409, corsHeaders);
     }
 
     if (session.snapshot_hash !== snapshotHash) {
-      return jsonResponse({ error: 'Snapshot mismatch - state changed' }, 409);
+      return jsonResponse({ error: 'Snapshot mismatch - state changed' }, 409, corsHeaders);
     }
 
     const snapshotParticipants = buildSnapshotParticipants(session?.snapshot_data);
@@ -354,16 +364,16 @@ serve(async (req) => {
         .single();
 
       if (tokenOtpError || !tokenOtpRecord) {
-        return jsonResponse({ error: 'Invalid participant token' }, 403);
+        return jsonResponse({ error: 'Invalid participant token' }, 403, corsHeaders);
       }
 
       if (tokenOtpRecord.token_revoked_at) {
-        return jsonResponse({ error: 'Participant token revoked' }, 403);
+        return jsonResponse({ error: 'Participant token revoked' }, 403, corsHeaders);
       }
 
       const tokenExpiresAtMs = parseTimestamp(tokenOtpRecord.token_expires_at);
       if (tokenExpiresAtMs !== null && tokenExpiresAtMs < now) {
-        return jsonResponse({ error: 'Participant token expired' }, 403);
+        return jsonResponse({ error: 'Participant token expired' }, 403, corsHeaders);
       }
 
       otpRecord = tokenOtpRecord as SessionOtpRecord;
@@ -374,7 +384,7 @@ serve(async (req) => {
         requestedSignerId: signerIdFromBody,
       });
       if (!participant) {
-        return jsonResponse({ error: 'Participant token does not match session participant' }, 403);
+        return jsonResponse({ error: 'Participant token does not match session participant' }, 403, corsHeaders);
       }
     } else {
       participant = resolveParticipantFromSnapshot(
@@ -385,12 +395,12 @@ serve(async (req) => {
       );
 
       if (!participant) {
-        return jsonResponse({ error: 'Participant identity mismatch for authenticated user' }, 403);
+        return jsonResponse({ error: 'Participant identity mismatch for authenticated user' }, 403, corsHeaders);
       }
     }
 
     if (!participant) {
-      return jsonResponse({ error: 'Participant resolution failed' }, 403);
+      return jsonResponse({ error: 'Participant resolution failed' }, 403, corsHeaders);
     }
 
     const participantId = participant.participantId;
@@ -405,7 +415,7 @@ serve(async (req) => {
         role: participant.role,
         sessionId,
         confirmedAt: existingConfirmation.confirmedAt,
-      });
+      }, 200, corsHeaders);
     }
 
     if (!otpRecord) {
@@ -419,27 +429,27 @@ serve(async (req) => {
         .single();
 
       if (otpFetchError || !fetchedOtpRecord) {
-        return jsonResponse({ error: 'OTP challenge not found for participant' }, 404);
+        return jsonResponse({ error: 'OTP challenge not found for participant' }, 404, corsHeaders);
       }
 
       otpRecord = fetchedOtpRecord as SessionOtpRecord;
     }
 
     if (!otpRecord) {
-      return jsonResponse({ error: 'OTP challenge not found for participant' }, 404);
+      return jsonResponse({ error: 'OTP challenge not found for participant' }, 404, corsHeaders);
     }
 
     if (otpRecord.verified_at) {
-      return jsonResponse({ error: 'OTP already used for this participant' }, 409);
+      return jsonResponse({ error: 'OTP already used for this participant' }, 409, corsHeaders);
     }
 
     if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
-      return jsonResponse({ error: 'Too many OTP attempts' }, 429);
+      return jsonResponse({ error: 'Too many OTP attempts' }, 429, corsHeaders);
     }
 
     const otpExpiresAtMs = parseTimestamp(otpRecord.expires_at);
     if (otpExpiresAtMs !== null && otpExpiresAtMs < now) {
-      return jsonResponse({ error: 'OTP expired' }, 409);
+      return jsonResponse({ error: 'OTP expired' }, 409, corsHeaders);
     }
 
     const otpHash = await sha256Hex(otp);
@@ -454,7 +464,7 @@ serve(async (req) => {
       .eq('id', otpRecord.id);
 
     if (!isValidOtp) {
-      return jsonResponse({ error: 'Invalid OTP' }, 401);
+      return jsonResponse({ error: 'Invalid OTP' }, 401, corsHeaders);
     }
 
     const identityBindingId = await getOrCreateIdentityBinding(supabase, participantEmail);
@@ -517,7 +527,7 @@ serve(async (req) => {
     }
 
     if (appendErrors.length > 0) {
-      return jsonResponse({ error: 'Failed to append canonical events', details: appendErrors }, 500);
+      return jsonResponse({ error: 'Failed to append canonical events', details: appendErrors }, 500, corsHeaders);
     }
 
     const updatedConfirmations = {
@@ -553,7 +563,7 @@ serve(async (req) => {
       .eq('id', session.id);
 
     if (updateError) {
-      return jsonResponse({ error: 'Failed to record confirmation' }, 500);
+      return jsonResponse({ error: 'Failed to record confirmation' }, 500, corsHeaders);
     }
 
     const { error: otpFinalizeError } = await supabase
@@ -562,7 +572,7 @@ serve(async (req) => {
       .eq('id', otpRecord.id);
 
     if (otpFinalizeError) {
-      return jsonResponse({ error: 'Failed to finalize OTP verification' }, 500);
+      return jsonResponse({ error: 'Failed to finalize OTP verification' }, 500, corsHeaders);
     }
 
     return jsonResponse({
@@ -574,9 +584,9 @@ serve(async (req) => {
       sessionId,
       confirmedAt,
       attestationHash: attestation.attestation_hash,
-    });
+    }, 200, corsHeaders);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return jsonResponse({ error: message }, 500);
+    return jsonResponse({ error: message }, 500, corsHeaders);
   }
 });

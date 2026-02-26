@@ -1362,14 +1362,13 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       const tsaAvailable = await validateTSAConnectivity().catch(() => false);
       setIsValidatingTSA(false);
       if (!tsaAvailable) {
-        toast.error(
-          'No se pudo conectar con timestamping en este intento. Reintentá en unos minutos.',
+        toast(
+          'No se pudo validar timestamping en este momento. Continuamos y se intentará server-side.',
           {
             duration: 5000,
             position: 'bottom-right'
           }
         );
-        return;
       }
     }
 

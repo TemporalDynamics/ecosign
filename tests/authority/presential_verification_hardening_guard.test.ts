@@ -36,6 +36,7 @@ const INVITED_TOKENS_MIGRATION_FILE = path.join(
   'supabase/migrations/20260301000300_presential_invited_tokens.sql',
 );
 const SUPABASE_CONFIG_FILE = path.join(ROOT, 'supabase/config.toml');
+const TSA_VALIDATION_FILE = path.join(ROOT, 'client/src/lib/tsaValidation.ts');
 
 test('presential confirm must use persisted OTP and canonical append helper', async () => {
   const content = await fs.readFile(CONFIRM_FILE, 'utf8');
@@ -125,4 +126,11 @@ test('public acta endpoint must be exposed by hash and unauthenticated', async (
 
   expect(configContent).toContain('[functions.presential-verification-get-acta]');
   expect(configContent).toContain('verify_jwt = false');
+});
+
+test('client TSA validation must not call external TSA directly (CSP-safe)', async () => {
+  const content = await fs.readFile(TSA_VALIDATION_FILE, 'utf8');
+
+  expect(content).not.toContain('https://freetsa.org/tsr');
+  expect(content).toContain('/functions/v1/health-check');
 });

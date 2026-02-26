@@ -8,36 +8,33 @@
  */
 
 /**
- * P0.3: Validate TSA connectivity
+ * P0.3: Validate TSA connectivity (server-side path)
  *
- * Quick health check to FreeTSA before enabling protection.
- * Prevents: User enables protection → configures → TSA fails at certify
- * Now: User gets immediate feedback at toggle
+ * IMPORTANT:
+ * - TSA requests are executed server-side via Edge Functions/jobs.
+ * - Browser must NOT call external TSA domains directly (CSP/CORS risk).
+ *
+ * This client-side check only verifies that our backend function domain is reachable.
  */
 export async function validateTSAConnectivity(): Promise<boolean> {
   try {
-    // Simple connectivity check to FreeTSA
-    // We don't need to send a full TSA request, just verify endpoint is reachable
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (!supabaseUrl) return false;
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-    const response = await fetch('https://freetsa.org/tsr', {
-      method: 'HEAD',
-      signal: controller.signal,
-      // Add headers to make it a valid request
-      headers: {
-        'Content-Type': 'application/timestamp-query'
-      }
-    });
-
-    clearTimeout(timeoutId);
-
-    // If we get any response (even 400/405 for HEAD), TSA is reachable
-    // We're not testing if it works, just if it's up
-    return true;
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/health-check`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      // Reachability check only: even 401/403/500 means network path is alive.
+      return response.status > 0;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   } catch (error) {
-    // Network errors, timeouts, CORS issues = TSA not reachable
-    console.error('TSA connectivity check failed:', error);
+    console.error('TSA backend reachability check failed:', error);
     return false;
   }
 }

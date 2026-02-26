@@ -556,11 +556,11 @@ function DocumentsPage() {
 
   const handleStartPresentialSession = async (operation: Operation) => {
     if (isGuestMode()) {
-      toast("Modo invitado: firma presencial disponible solo con cuenta.", { position: "top-right" });
+      toast("Modo invitado: sesión probatoria reforzada disponible solo con cuenta.", { position: "top-right" });
       return;
     }
     if (startingPresentialOperationId) {
-      toast("Ya estamos iniciando otra sesión presencial. Esperá un momento.", { position: "top-right" });
+      toast("Ya estamos iniciando otra sesión probatoria. Esperá un momento.", { position: "top-right" });
       return;
     }
 
@@ -570,11 +570,11 @@ function DocumentsPage() {
     const docCount =
       typeof docCountFromList === "number" ? docCountFromList : docCountFromPreview;
     if (docCount === 0) {
-      toast.error("No podés iniciar sesión presencial en una operación sin documentos.", { position: "top-right" });
+      toast.error("No podés iniciar sesión probatoria en una operación sin documentos.", { position: "top-right" });
       return;
     }
 
-    const loadingToastId = toast.loading(`Iniciando sesión presencial en "${operation.name}"...`, {
+    const loadingToastId = toast.loading(`Iniciando sesión probatoria en "${operation.name}"...`, {
       position: "top-right",
     });
     setStartingPresentialOperationId(operation.id);
@@ -604,23 +604,16 @@ function DocumentsPage() {
       const message =
         err instanceof Error
           ? err.message
-          : "No se pudo iniciar la sesión presencial.";
+          : "No se pudo iniciar la sesión probatoria.";
       toast.error(message, { id: loadingToastId, position: "top-right" });
     } finally {
       setStartingPresentialOperationId(null);
     }
   };
 
-  const handleDocumentInPersonNotAvailable = (doc: DocumentRecord) => {
-    toast(
-      `La firma presencial se inicia por operación. Agregá "${doc.document_name}" a una operación para continuar.`,
-      { position: "top-right", duration: 5000 }
-    );
-  };
-
   const handleClosePresentialSession = async () => {
     if (!presentialSessionSummary) {
-      toast.error("No hay sesión presencial activa para cerrar.", { position: "top-right" });
+      toast.error("No hay sesión probatoria activa para cerrar.", { position: "top-right" });
       return;
     }
 
@@ -631,7 +624,7 @@ function DocumentsPage() {
     }
 
     if (closingPresentialSessionId) {
-      toast("Ya estamos cerrando una sesión presencial. Esperá un momento.", { position: "top-right" });
+      toast("Ya estamos cerrando una sesión probatoria. Esperá un momento.", { position: "top-right" });
       return;
     }
 
@@ -650,7 +643,7 @@ function DocumentsPage() {
       const message =
         err instanceof Error
           ? err.message
-          : "No se pudo cerrar la sesión presencial.";
+          : "No se pudo cerrar la sesión probatoria.";
       toast.error(message, { id: loadingToastId, position: "top-right" });
     } finally {
       setClosingPresentialSessionId(null);
@@ -2692,7 +2685,6 @@ function DocumentsPage() {
                       onDownloadOriginal={(d) => handleOriginalDownload(d)}
                       onVerify={(d) => handleVerifyDoc(d)}
                       onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
-                      onInPerson={(d) => handleDocumentInPersonNotAvailable(d)}
                       selectable={activeSelection === "documents"}
                       selected={selectedDocumentIds.has(doc.id)}
                       onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
@@ -2725,15 +2717,14 @@ function DocumentsPage() {
                         onCancelFlow={(d) => handleCancelFlow(d)}
                         onResumeFlow={(d) => handleResumeFlow(d)}
                         onDownloadEco={(d) => handleEcoDownload(d)}
-                        onDownloadPdf={(d) => handlePdfDownload(d)}
-                        onDownloadOriginal={(d) => handleOriginalDownload(d)}
-                        onVerify={(d) => handleVerifyDoc(d)}
-                        onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
-                        onInPerson={(d) => handleDocumentInPersonNotAvailable(d)}
-                        selectable={activeSelection === "documents"}
-                        selected={selectedDocumentIds.has(doc.id)}
-                        onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
-                      />
+                      onDownloadPdf={(d) => handlePdfDownload(d)}
+                      onDownloadOriginal={(d) => handleOriginalDownload(d)}
+                      onVerify={(d) => handleVerifyDoc(d)}
+                      onMove={(d) => setMoveDoc({ ...d, document_entity_id: d.document_entity_id ?? d.id })}
+                      selectable={activeSelection === "documents"}
+                      selected={selectedDocumentIds.has(doc.id)}
+                      onSelect={(checked) => toggleDocumentSelection(doc.id, checked)}
+                    />
                     </div>
                   ))}
                 </div>
@@ -3122,13 +3113,6 @@ function DocumentsPage() {
                             setPreviewOperation(null);
                             setPreviewDoc(d);
                           }}
-                          onInPerson={(d) => {
-                            if (!previewOperation) {
-                              handleDocumentInPersonNotAvailable(d);
-                              return;
-                            }
-                            handleStartPresentialSession(previewOperation);
-                          }}
                         />
                       ))}
                     </div>
@@ -3255,7 +3239,7 @@ function DocumentsPage() {
                     onClick={() => handleStartPresentialSession(previewOperation)}
                     className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
                   >
-                    {startingPresentialOperationId === previewOperation.id ? "Iniciando sesión..." : "Firma presencial"}
+                    {startingPresentialOperationId === previewOperation.id ? "Iniciando sesión..." : "Sesión probatoria reforzada"}
                   </button>
                 </div>
 
@@ -3361,7 +3345,7 @@ function DocumentsPage() {
           <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">Sesión presencial iniciada</h3>
+                <h3 className="text-xl font-semibold text-gray-900">Sesión probatoria iniciada</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Operación: <span className="font-medium">{presentialSessionSummary.operationName}</span>
                 </p>
@@ -3413,7 +3397,7 @@ function DocumentsPage() {
                   ? "Cerrando sesión..."
                   : closeResultForSession
                     ? "Sesión cerrada"
-                    : "Cerrar sesión presencial"}
+                    : "Cerrar sesión probatoria"}
               </button>
               <button
                 type="button"

@@ -260,7 +260,7 @@ export default function OperationRow({
                       className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
                     >
                       <FolderOpen className="w-4 h-4 text-gray-600" />
-                      Firma presencial
+                      Sesión probatoria reforzada
                     </button>
                   )}
 
@@ -386,7 +386,6 @@ export default function OperationRow({
                         asRow
                         context="operation"
                         onOpen={() => onOpenDocument?.(mapped.id)}
-                        onInPerson={onInPerson ? () => onInPerson() : undefined}
                         selectable={docSelectMode}
                         selected={selectedDocIds.has(mapped.id)}
                         onSelect={(checked) => toggleDocSelection(mapped.id, checked)}
@@ -560,7 +559,7 @@ export default function OperationRow({
                     className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
                   >
                     <FolderOpen className="w-4 h-4 text-gray-600" />
-                    Firma presencial
+                    Sesión probatoria reforzada
                   </button>
                 )}
 
@@ -708,7 +707,6 @@ export default function OperationRow({
                     document={mapped}
                     context="operation"
                     onOpen={() => onOpenDocument?.(mapped.id)}
-                    onInPerson={onInPerson ? () => onInPerson() : undefined}
                     selectable={docSelectMode}
                     selected={selectedDocIds.has(mapped.id)}
                     onSelect={(checked) => toggleDocSelection(mapped.id, checked)}

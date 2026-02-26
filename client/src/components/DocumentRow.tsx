@@ -17,7 +17,6 @@ export default function DocumentRow({
   onDownloadOriginal,
   onVerify,
   onMove,
-  onInPerson,
   onCancelFlow,
   onResumeFlow,
   selectable = false,
@@ -35,7 +34,6 @@ export default function DocumentRow({
   onDownloadOriginal?: (doc: any) => void;
   onVerify?: (doc: any) => void;
   onMove?: (doc: any) => void;
-  onInPerson?: (doc: any) => void;
   onCancelFlow?: (doc: any) => void;
   onResumeFlow?: (doc: any) => void;
   selectable?: boolean;
@@ -160,9 +158,6 @@ export default function DocumentRow({
                   >
                     Continuar firma
                   </button>
-                )}
-                {onInPerson && (
-                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onInPerson(document)}>Firma presencial</button>
                 )}
               </div>
             )}
@@ -310,14 +305,6 @@ export default function DocumentRow({
                 </button>
               )}
 
-              {onInPerson && (
-                <button
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                  onClick={() => onInPerson(document)}
-                >
-                  Firma presencial
-                </button>
-              )}
             </div>
           )}
         </div>

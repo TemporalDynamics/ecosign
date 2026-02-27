@@ -1,6 +1,6 @@
 // Background worker to process Bitcoin anchoring via OpenTimestamps
 // This function should be called periodically (e.g., every 5 minutes via cron)
-// Enhanced to support user_documents bitcoin_status tracking
+// Enhanced to support canonical anchor state tracking
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
@@ -499,7 +499,7 @@ serve(async (req) => {
             }
           }
 
-          // NOTE: user_documents updates removed - now handled by projection authority (Fase 2)
+          // NOTE: legacy projection updates removed; canonical events are the source of truth.
           // Legacy updates removed to ensure single source of truth in events[]
 
           failed++;
@@ -534,7 +534,7 @@ serve(async (req) => {
               parsed.height = blockData.blockHeight;
             }
             if (blockData.confirmedAt) {
-              // Update anchor directly (no user_documents updates - handled by projection authority)
+              // Update anchor directly (projection side effects are derived from canonical state).
               const confirmedAt = blockData.confirmedAt;
               
               const metadata = {
@@ -572,7 +572,7 @@ serve(async (req) => {
             }
           }
 
-          // Update anchor record only (no user_documents updates - handled by projection authority)
+          // Update anchor record only (projection side effects are derived from canonical state).
           const confirmedAt = new Date().toISOString();
           const otsBytes = base64ToBytes(verification.upgradedProof || anchor.ots_proof);
 
@@ -583,7 +583,7 @@ serve(async (req) => {
             calendar_url: anchor.ots_calendar_url
           };
 
-          // Update anchor directly (projection authority will handle user_documents in Fase 2)
+          // Update anchor directly; projection stays derived from canonical authority.
           const { error: updateConfirmedError } = await supabaseAdmin
             .from('anchors')
             .update({

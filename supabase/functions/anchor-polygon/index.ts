@@ -5,7 +5,7 @@
  * Creates a record in the `anchors` table and submits a transaction.
  *
  * Called by:
- * - Database trigger (on_user_documents_blockchain_anchoring)
+ * - Database trigger (legacy anchoring trigger)
  * - Manual invocation for retry/recovery
  *
  * Contract: docs/contratos/ANCHOR_EVENT_RULES.md

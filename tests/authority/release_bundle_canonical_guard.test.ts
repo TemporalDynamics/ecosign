@@ -19,6 +19,11 @@ const EVENT_HELPER_FILE = path.join(
 const LEGACY_READ_PATTERNS = [
   /\.from\(\s*['"]user_documents['"]\s*\)/,
   /user_documents!inner/,
+  /user_documents/,
+];
+
+const FORBIDDEN_DOCUMENTS_SENSITIVE_SELECT = [
+  /\.from\(\s*['"]documents['"]\s*\)\s*\.select\(([^)]|[\n\r])*(encrypted_path|wrapped_key|wrap_iv|pdf_storage_path|eco_data)/s,
 ];
 
 test('release bundle functions must not read user_documents or use legacy bridge', async () => {
@@ -43,6 +48,12 @@ test('release bundle functions must not read user_documents or use legacy bridge
     for (const pattern of LEGACY_READ_PATTERNS) {
       if (pattern.test(content)) {
         offenders.push(`${fnName}: matches forbidden legacy read pattern ${pattern}`);
+      }
+    }
+
+    for (const pattern of FORBIDDEN_DOCUMENTS_SENSITIVE_SELECT) {
+      if (pattern.test(content)) {
+        offenders.push(`${fnName}: reads sensitive runtime fields from documents via ${pattern}`);
       }
     }
 

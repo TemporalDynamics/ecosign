@@ -39,6 +39,7 @@ resolución ambigua por `document_id` y forzar contrato estricto por
 2. `supabase/functions/create-signer-link/index.ts`
 3. `supabase/functions/verify-invite-access/index.ts`
 4. `tests/authority/legacy_compat_decommission_guard.test.ts`
+5. `docs/beta/PRELAUNCH_LEGACY_NULL_ENTITY_CHECK_LOG.md`
 
 ## Criterio de aceptación
 1. Guard de decommission en verde.

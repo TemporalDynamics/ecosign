@@ -63,6 +63,8 @@ test('release ritual execute path must force prelaunch null-entity check with ex
   const content = await fs.readFile(RELEASE_BETA_RITUAL_FILE, 'utf8');
 
   expect(content).toContain('DATABASE_URL o SUPABASE_DB_URL');
+  expect(content).toContain('Mandatory pre-launch legacy null-entity check');
+  expect(content).toContain('npm run diag:prelaunch-legacy-null-check');
   expect(content).toContain('PRELAUNCH_LEGACY_NULL_CHECK=true');
   expect(content).toContain('scripts/diagnostics/prebeta_fire_drill.sh');
 });

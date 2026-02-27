@@ -158,6 +158,10 @@ if [[ "${SKIP_PREBETA}" != "true" ]]; then
     exit 2
   fi
 
+  echo
+  echo "=== Mandatory pre-launch legacy null-entity check ==="
+  npm run diag:prelaunch-legacy-null-check
+
   PRELAUNCH_LEGACY_NULL_CHECK=true bash scripts/diagnostics/prebeta_fire_drill.sh
 fi
 

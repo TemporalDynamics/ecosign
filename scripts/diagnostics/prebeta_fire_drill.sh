@@ -131,6 +131,59 @@ run_optional_user_documents_freeze_smoke() {
   esac
 }
 
+run_optional_prelaunch_legacy_null_check() {
+  local mode="${PRELAUNCH_LEGACY_NULL_CHECK:-auto}"
+  case "${mode}" in
+    true)
+      run_step "Pre-launch legacy null-entity check" npm run diag:prelaunch-legacy-null-check
+      ;;
+    auto)
+      if ! command -v psql >/dev/null 2>&1; then
+        echo
+        echo "=== Pre-launch legacy null-entity check ==="
+        echo "skipped (psql not installed)"
+        return 0
+      fi
+
+      if [[ -n "${DATABASE_URL:-}" || -n "${SUPABASE_DB_URL:-}" ]]; then
+        run_step "Pre-launch legacy null-entity check (auto)" npm run diag:prelaunch-legacy-null-check
+        return 0
+      fi
+
+      if command -v supabase >/dev/null 2>&1; then
+        local status_raw=""
+        local local_db_url=""
+        status_raw="$(supabase status --output json 2>&1 || true)"
+        if command -v jq >/dev/null 2>&1; then
+          local_db_url="$(printf '%s\n' "${status_raw}" | jq -r '.DB_URL // empty' 2>/dev/null || true)"
+        fi
+        if [[ -z "${local_db_url}" ]]; then
+          local_db_url="$(printf '%s\n' "${status_raw}" | sed -n 's/.*"DB_URL":[[:space:]]*"\([^"]*\)".*/\1/p' | tail -n 1)"
+        fi
+        if [[ -n "${local_db_url}" ]]; then
+          run_step "Pre-launch legacy null-entity check (auto)" npm run diag:prelaunch-legacy-null-check
+          return 0
+        fi
+      fi
+
+      echo
+      echo "=== Pre-launch legacy null-entity check ==="
+      echo "skipped (no DATABASE_URL/SUPABASE_DB_URL and local supabase DB_URL unavailable)"
+      ;;
+    false|"")
+      echo
+      echo "=== Pre-launch legacy null-entity check ==="
+      echo "skipped (PRELAUNCH_LEGACY_NULL_CHECK=false)"
+      ;;
+    *)
+      echo
+      echo "=== Pre-launch legacy null-entity check ==="
+      echo "ERROR: PRELAUNCH_LEGACY_NULL_CHECK='${mode}' inválido. Valores permitidos: true, false, auto."
+      return 2
+      ;;
+  esac
+}
+
 run_step "Typecheck" npm run typecheck
 run_step "Lint" npm run lint
 run_step "Client smoke" npm --prefix client run test:smoke
@@ -156,6 +209,7 @@ run_step "Docs public surface guard" npm run test -- tests/authority/docs_public
 run_step "Phase1 gate" npm run phase1:gate
 run_step "Client build" npm --prefix client run build:skip-validation
 run_optional_user_documents_freeze_smoke
+run_optional_prelaunch_legacy_null_check
 run_optional_deno_check
 
 if [[ "${PREBETA_INCLUDE_FULL_TESTS:-false}" == "true" ]]; then

@@ -7,6 +7,13 @@ Cerrar fallback legacy en endpoints públicos de invite/link para evitar
 resolución ambigua por `document_id` y forzar contrato estricto por
 `document_entity_id`.
 
+## Política pre-launch
+- El sistema está en pre-launch sin usuarios externos activos.
+- Este cambio se trata como **breaking change pre-launch**.
+- No se ofrece compatibilidad legacy ni backfill obligatorio para invites/links
+  previos.
+- Datos internos legacy de prueba pueden descartarse.
+
 ## Alcance Stage 1
 1. `create-signer-link`
 - Request schema estricto: `documentEntityId` obligatorio.
@@ -37,3 +44,7 @@ resolución ambigua por `document_id` y forzar contrato estricto por
 1. Guard de decommission en verde.
 2. Suite `tests/authority` en verde.
 3. `prebeta_fire_drill` ejecuta el guard de decommission.
+4. Chequeo rápido de estado legacy interno ejecutado antes del release:
+   - invites sin `document_entity_id`
+   - signer_links sin `document_entity_id`
+   - document_shares sin `document_entity_id`

@@ -17,10 +17,13 @@ test('legacy compat decommission stage1 doc must exist with strict entity-id sco
   const content = await fs.readFile(MILESTONE_DOC, 'utf8');
 
   expect(content).toContain('Legacy Compatibility Decommission — Stage 1');
+  expect(content).toContain('breaking change pre-launch');
+  expect(content).toContain('No se ofrece compatibilidad legacy ni backfill obligatorio');
   expect(content).toContain('create-signer-link');
   expect(content).toContain('verify-invite-access');
   expect(content).toContain('document_entity_id');
   expect(content).toContain('legacy_invite_missing_document_entity_id');
+  expect(content).toContain('invites sin `document_entity_id`');
 });
 
 test('create-signer-link schema and handler must require documentEntityId and avoid legacy resolver', async () => {

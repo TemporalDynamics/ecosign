@@ -98,6 +98,7 @@ run_step "Anchors canonical guard" npm run test -- tests/authority/anchors_canon
 run_step "Non-critical canonical guard" npm run test -- tests/authority/noncritical_endpoints_canonical_guard.test.ts
 run_step "Release bundle canonical guard" npm run test -- tests/authority/release_bundle_canonical_guard.test.ts
 run_step "Non-legacy user_documents guard" npm run test -- tests/authority/nonlegacy_user_documents_guard.test.ts
+run_step "user_documents freeze guard" npm run test -- tests/authority/user_documents_freeze_guard.test.ts
 run_step "Presential verifier parser unit" npm run test -- tests/unit/presentialEvidence.test.ts
 run_step "Docs public surface guard" npm run test -- tests/authority/docs_public_surface_guard.test.ts
 run_step "Phase1 gate" npm run phase1:gate

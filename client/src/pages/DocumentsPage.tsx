@@ -131,25 +131,25 @@ const PROBATIVE_STATES = {
     tooltip: "No hay evidencia probatoria registrada."
   },
   base: {
-    label: "Integridad\nverificada",
+    label: "Protección\nen proceso",
     color: "text-gray-800",
     bg: "bg-gray-100",
-    tooltip: "La integridad criptográfica del documento está verificada."
+    tooltip: "Se está consolidando la evidencia probatoria inicial."
   },
   active: {
-    label: "Protección\ncertificada",
+    label: "Protección\ngarantizada",
     color: "text-emerald-700",
     bg: "bg-emerald-100",
-    tooltip: "Sello de tiempo verificable (TSA) y huella digital única confirmados."
+    tooltip: "Integridad y fecha cierta confirmadas."
   },
   reinforced: {
     label: "Protección\nreforzada",
     color: "text-blue-700",
     bg: "bg-blue-100",
-    tooltip: "Registro digital inmutable en red pública independiente."
+    tooltip: "Refuerzo probatorio adicional confirmado."
   },
   total: {
-    label: "Protección\ntotal",
+    label: "Protección\nmáxima",
     color: "text-gray-700",
     bg: "bg-gray-100",
     tooltip: "Máxima fortaleza probatoria con verificación independiente adicional."
@@ -780,43 +780,65 @@ function DocumentsPage() {
         console.warn('Skipping workflow enrichment:', workflowJoinErr);
       }
 
-      // Enriquecer con user_documents para fallback de preview/descarga cifrada
-      // (especialmente útil en documentos históricos donde witness_current_storage_path esté vacío).
+      // Enriquecer con runtime canónico en document_entities.metadata.ecox.runtime
+      // para preview/descarga cifrada sin depender de user_documents.
       try {
         const entityIds = mapped
           .map((doc) => doc.document_entity_id ?? doc.id)
           .filter((id) => typeof id === 'string' && id.length > 0);
 
         if (entityIds.length > 0) {
-          const { data: userDocs, error: userDocsError } = await supabase
-            .from('user_documents')
-            .select('document_entity_id, encrypted_path, wrapped_key, wrap_iv, pdf_storage_path, created_at')
-            .in('document_entity_id', entityIds)
-            .order('created_at', { ascending: false });
+          const { data: entities, error: entitiesError } = await supabase
+            .from('document_entities')
+            .select('id, metadata, source_storage_path, witness_current_storage_path')
+            .in('id', entityIds);
 
-          if (!userDocsError && userDocs) {
-            const latestByEntity = new Map<string, any>();
-            for (const row of userDocs as any[]) {
-              const entityId = row?.document_entity_id;
-              if (!entityId || latestByEntity.has(entityId)) continue;
-              latestByEntity.set(entityId, row);
+          if (!entitiesError && entities) {
+            const byEntityId = new Map<string, any>();
+            for (const row of entities as any[]) {
+              const entityId = typeof row?.id === 'string' ? row.id : null;
+              if (!entityId) continue;
+              byEntityId.set(entityId, row);
             }
+
+            const asObject = (value: unknown): Record<string, unknown> | null =>
+              value && typeof value === 'object' && !Array.isArray(value)
+                ? (value as Record<string, unknown>)
+                : null;
 
             mapped.forEach((doc) => {
               const entityId = doc.document_entity_id ?? doc.id;
-              const row = latestByEntity.get(entityId);
-              if (!row) return;
-              doc.encrypted_path = row.encrypted_path ?? doc.encrypted_path ?? null;
-              doc.wrapped_key = row.wrapped_key ?? doc.wrapped_key ?? null;
-              doc.wrap_iv = row.wrap_iv ?? doc.wrap_iv ?? null;
+              const entity = byEntityId.get(entityId);
+              if (!entity) return;
+
+              const metadata = asObject(entity.metadata) ?? {};
+              const ecox = asObject(metadata.ecox) ?? {};
+              const runtime = asObject(ecox.runtime) ?? {};
+
+              doc.encrypted_path =
+                (typeof runtime.encrypted_path === 'string' && runtime.encrypted_path) ||
+                doc.encrypted_path ||
+                null;
+              doc.wrapped_key =
+                (typeof runtime.wrapped_key === 'string' && runtime.wrapped_key) ||
+                doc.wrapped_key ||
+                null;
+              doc.wrap_iv =
+                (typeof runtime.wrap_iv === 'string' && runtime.wrap_iv) ||
+                doc.wrap_iv ||
+                null;
+
               if (!doc.pdf_storage_path) {
-                doc.pdf_storage_path = row.pdf_storage_path ?? null;
+                doc.pdf_storage_path =
+                  (typeof entity.witness_current_storage_path === 'string' && entity.witness_current_storage_path) ||
+                  (typeof entity.source_storage_path === 'string' && entity.source_storage_path) ||
+                  null;
               }
             });
           }
         }
-      } catch (userDocsJoinErr) {
-        console.warn('Skipping user_documents enrichment:', userDocsJoinErr);
+      } catch (runtimeJoinErr) {
+        console.warn('Skipping canonical runtime enrichment:', runtimeJoinErr);
       }
 
       // UX rule: Documents list shows only documents not assigned to any operation.
@@ -2042,7 +2064,7 @@ function DocumentsPage() {
       matchesContent,
       hash: normalizedHash,
       source,
-      extended: isTotal ? "Protección total confirmada." : null
+      extended: isTotal ? "Protección máxima confirmada." : null
     };
   };
 

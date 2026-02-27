@@ -1042,66 +1042,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     setFlowPanelOpen(workflowEnabled);
   }, [workflowEnabled]);
 
-  // ✅ Realtime subscription: Update protection_level badge when workers complete
-  // Listens to user_documents table changes and updates certificateData
-  // (Ya no necesario porque no hay Step 2)
-  useEffect(() => {
-    if (!certificateData?.documentId) return;
-
-    const supabase = getSupabase();
-    const documentId = certificateData.documentId;
-
-    console.log('👂 Subscribing to protection_level changes for document:', documentId);
-
-    // Subscribe to changes on this specific document
-    const channel = supabase
-      .channel(`protection-level-${documentId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'user_documents',
-          filter: `id=eq.${documentId}`
-        },
-        (payload: { new?: { protection_level?: ProtectionLevel }; old?: { protection_level?: ProtectionLevel } }) => {
-          console.log('🔄 Protection level update received:', payload);
-
-          const newProtectionLevel = payload.new?.protection_level;
-          const oldProtectionLevel = payload.old?.protection_level;
-
-          // Only update if protection_level actually changed
-          if (newProtectionLevel && newProtectionLevel !== oldProtectionLevel) {
-            console.log(`✨ Protection level upgraded: ${oldProtectionLevel} → ${newProtectionLevel}`);
-
-            setCertificateData(prev => prev ? ({
-              ...prev,
-              protectionLevel: newProtectionLevel
-            }) : prev);
-
-            // Show toast notification
-            const levelNames: Record<string, string> = {
-              ACTIVE: 'Protección Activa',
-              REINFORCED: 'Protección Reforzada',
-              TOTAL: 'Protección Total'
-            };
-
-            showToast(`🛡️ ${levelNames[newProtectionLevel] || newProtectionLevel} confirmada`, {
-              type: 'success',
-              duration: 4000,
-              position: 'top-right'
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    // Cleanup subscription when component unmounts or step changes
-    return () => {
-      console.log('🔇 Unsubscribing from protection_level changes');
-      supabase.removeChannel(channel);
-    };
-  }, [certificateData?.documentId, step]);
+  // Legacy realtime subscription on user_documents removed.
+  // Canonical protection state is derived from document_entities events.
 
   const handleAddEmailField = () => {
     if (workflowAssignmentConfirmed) {
@@ -2484,6 +2426,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           const { data, error } = await supabase.functions.invoke('record-protection-event', {
             body: {
               document_id: savedDoc.id,
+              document_entity_id: canonicalDocumentId || null,
               flow_version: useProtectV2 ? 'v2' : 'v1',
               protection_details: {
                 signature_type: signatureType || 'none',
@@ -2571,7 +2514,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         ecoDownloadUrl: URL.createObjectURL(new Blob([ecoBuffer.slice().buffer], { type: 'application/octet-stream' })),
         ecoFileName,
         fileName: certResult.fileName || fileToProcess.name,
-        documentId: savedDoc?.id,
+        documentId: canonicalDocumentId || savedDoc?.id,
         downloadEnabled: true, // ✅ Siempre true
         protectionLevel: `${savedDoc?.protection_level || 'ACTIVE'}`
       });
@@ -2868,20 +2811,26 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         return false;
       }
 
-      const { data: existingDoc, error: existingError } = await supabase
-        .from('user_documents')
-        .select('pdf_storage_path')
+      const { data: existingEntity, error: existingError } = await supabase
+        .from('document_entities')
+        .select('witness_current_storage_path, source_storage_path')
         .eq('id', documentId)
-        .single();
+        .maybeSingle();
 
       if (existingError) {
         console.warn('Error verificando PDF guardado:', existingError);
       }
 
-      if (existingDoc?.pdf_storage_path) {
+      const existingPath =
+        (typeof existingEntity?.witness_current_storage_path === 'string' &&
+          existingEntity.witness_current_storage_path) ||
+        (typeof existingEntity?.source_storage_path === 'string' && existingEntity.source_storage_path) ||
+        null;
+
+      if (existingPath) {
         setCertificateData(prev => prev ? ({
           ...prev,
-          pdfStoragePath: existingDoc.pdf_storage_path
+          pdfStoragePath: existingPath
         }) : prev);
         return true;
       }
@@ -2925,16 +2874,14 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
       const finalPath = uploadData?.path || storagePath;
       const { error: updateError } = await supabase
-        .from('user_documents')
+        .from('document_entities')
         .update({
-          pdf_storage_path: finalPath,
-          zero_knowledge_opt_out: false,
-          last_event_at: new Date().toISOString()
+          witness_current_storage_path: finalPath,
         })
         .eq('id', documentId);
 
       if (updateError) {
-        console.error('Error actualizando pdf_storage_path:', updateError);
+        console.error('Error actualizando witness_current_storage_path:', updateError);
         showToast('No se pudo actualizar el documento guardado.', { type: 'error' });
         return false;
       }

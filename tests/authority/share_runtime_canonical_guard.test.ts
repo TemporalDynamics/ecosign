@@ -31,6 +31,10 @@ const SHARE_RUNTIME_MIGRATION_FILE = path.join(
   ROOT,
   'supabase/migrations/20260301000700_document_shares_entity_and_ecox_runtime.sql',
 );
+const SHARE_CANON_LOCK_MIGRATION_FILE = path.join(
+  ROOT,
+  'supabase/migrations/20260301001100_document_shares_canonical_lock.sql',
+);
 
 const expectNoLegacyUserDocumentsRead = (content: string) => {
   expect(content).not.toMatch(/user_documents!inner/);
@@ -73,11 +77,12 @@ test('share event endpoints must not use user_document bridge helper', async () 
 test('client sharing must persist canonical document_entity_id and ECOX runtime', async () => {
   const content = await fs.readFile(CLIENT_DOCUMENT_SHARING_FILE, 'utf8');
 
-  expect(content).toContain('document_entity_id: doc.document_entity_id ?? null');
+  expect(content).toContain('document_entity_id: doc.document_entity_id');
   expect(content).toContain('upsertEntityEcoxRuntime(');
   expect(content).toContain('ecox');
   expect(content).toContain('runtime');
   expect(content).toContain('encrypted_path');
+  expect(content).toContain("throw new Error('missing_document_entity_id')");
 });
 
 test('migration must add share entity pointer and backfill ECOX runtime metadata', async () => {
@@ -88,4 +93,14 @@ test('migration must add share entity pointer and backfill ECOX runtime metadata
   expect(content).toContain('{ecox,runtime,encrypted_path}');
   expect(content).toContain('{ecox,runtime,wrapped_key}');
   expect(content).toContain('{ecox,runtime,wrap_iv}');
+});
+
+test('canonical lock migration must decouple document_shares from legacy user_documents', async () => {
+  const content = await fs.readFile(SHARE_CANON_LOCK_MIGRATION_FILE, 'utf8');
+
+  expect(content).toContain('DROP CONSTRAINT IF EXISTS document_shares_document_id_fkey');
+  expect(content).toContain('document_shares_document_entity_required');
+  expect(content).toContain('uniq_document_shares_pending_entity_recipient');
+  expect(content).toContain('FROM public.document_entities de');
+  expect(content).toContain("status = 'accessed'");
 });

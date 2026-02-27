@@ -80,9 +80,11 @@ test('record-protection-event must stay canonical-only by document_entity_id', a
   const content = await fs.readFile(RECORD_PROTECTION_FILE, 'utf8');
 
   expect(content).toContain(".from('document_entities')");
-  expect(content).toContain('.from(\'documents\')');
   expect(content).toContain('document_entity_id');
+  expect(content).toContain('document_id is no longer accepted; use document_entity_id');
   expect(content).toContain('appendEvent(');
+  expect(content).not.toContain(".from('documents')");
+  expect(content).not.toContain('getDocumentEntityId(');
   expect(content).not.toContain('getUserDocumentId(');
 });
 

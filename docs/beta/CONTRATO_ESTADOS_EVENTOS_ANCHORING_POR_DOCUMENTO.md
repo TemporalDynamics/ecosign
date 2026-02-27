@@ -69,9 +69,12 @@ Nota: `awaiting_*` se usa para dedupe/enqueue de jobs. No es columna de estado p
   - `job.submit-anchor-bitcoin.required` (si `required_evidence` incluye `bitcoin` y no esta confirmado).
   - `anchor.submitted`
   - `anchor.confirmed`
+  - `anchor.timeout`
   - `anchor.failed`
 - Guardrails:
   - `submit-anchor-*` rechaza con `precondition_failed:missing_tsa_for_witness_hash` si no existe TSA para ese `witness_hash`.
+  - `anchor.timeout` es terminal para el intento en curso y debe incluir red + witness + intento + limite.
+  - `anchor.failed` puede representar error terminal no-timeout o timeout (`failure_code='timeout'`).
 
 ### 3) `awaiting_artifact`
 - Evento de entrada requerido:
@@ -94,6 +97,16 @@ Regla canonica del decision engine:
 Cuando se cumplen 1+2+3:
 - Se decide job `submit_anchor_polygon` y/o `submit_anchor_bitcoin`.
 - El executor emite `job.submit-anchor-polygon.required` y/o `job.submit-anchor-bitcoin.required`.
+
+## Estados terminales de anchoring por red
+
+Para cada red solicitada (`polygon`, `bitcoin`), el intento activo termina en uno de estos eventos:
+
+1. `anchor.confirmed`: confirmacion probatoria valida en cadena.
+2. `anchor.timeout`: timeout determinista del worker (sin confirmacion dentro de la ventana definida).
+3. `anchor.failed`: error terminal del provider o validacion (por ejemplo `missing_tx_hash`, `max_attempts`).
+
+Regla operativa: no debe existir estado "solicitado infinito" una vez que el worker procesa el intento y supera su ventana/limite.
 
 Fuente principal:
 - `supabase/functions/_shared/decisionEngineCanonical.ts`
@@ -163,4 +176,3 @@ where has_anchor_confirmed = true
 - `supabase/functions/process-polygon-anchors/index.ts`
 - `supabase/functions/process-bitcoin-anchors/index.ts`
 - `supabase/functions/build-artifact/index.ts`
-

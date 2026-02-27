@@ -13,6 +13,14 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const rpcUrl = Deno.env.get('POLYGON_RPC_URL') ?? Deno.env.get('ALCHEMY_RPC_URL')
+const MAX_POLYGON_ATTEMPTS = (() => {
+  const parsed = Number.parseInt(String(Deno.env.get('POLYGON_MAX_VERIFY_ATTEMPTS') ?? '20'), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 20
+})()
+const POLYGON_PENDING_TIMEOUT_MINUTES = (() => {
+  const parsed = Number.parseInt(String(Deno.env.get('POLYGON_PENDING_TIMEOUT_MINUTES') ?? '30'), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 30
+})()
 
 const provider = rpcUrl ? new ethers.JsonRpcProvider(rpcUrl) : null
 const supabaseAdmin = (supabaseUrl && supabaseServiceKey)
@@ -43,6 +51,86 @@ async function markFailed(anchorId: string, message: string, attempts: number) {
   if (error) {
     throw new Error(`markFailed(${anchorId}) failed: ${error.message}`)
   }
+}
+
+const getAnchorStage = (anchor: any): string =>
+  typeof anchor?.metadata?.anchor_stage === 'string' ? anchor.metadata.anchor_stage : 'initial'
+
+const getStepIndex = (anchor: any): number => {
+  const raw = anchor?.metadata?.step_index
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+  if (typeof raw === 'string') {
+    const parsed = Number.parseInt(raw, 10)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return 0
+}
+
+const getAnchorSubmittedAt = (anchor: any): string | null => {
+  const candidate = anchor?.metadata?.submittedAt ?? anchor?.created_at ?? anchor?.updated_at
+  if (typeof candidate !== 'string' || candidate.length === 0) return null
+  const dt = new Date(candidate)
+  return Number.isNaN(dt.getTime()) ? null : dt.toISOString()
+}
+
+const getPendingAgeMinutes = (anchor: any): number | null => {
+  const submittedAt = getAnchorSubmittedAt(anchor)
+  if (!submittedAt) return null
+  const elapsedMs = Date.now() - new Date(submittedAt).getTime()
+  if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return 0
+  return Math.floor(elapsedMs / 60_000)
+}
+
+async function emitAnchorFailedEvent(anchor: any, reason: string, attempts: number, retryable: boolean, failureCode?: string) {
+  if (!supabaseAdmin || !anchor.document_entity_id) return
+
+  try {
+    await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
+      kind: 'anchor.failed',
+      at: new Date().toISOString(),
+      anchor: {
+        network: 'polygon',
+        witness_hash: anchor.document_hash,
+        reason,
+        retryable,
+        attempt: attempts,
+        provider: 'polygon',
+        anchor_stage: getAnchorStage(anchor),
+        step_index: getStepIndex(anchor),
+        ...(failureCode ? { failure_code: failureCode } : {}),
+      }
+    }, 'process-polygon-anchors')
+  } catch (eventError) {
+    console.error('Failed to emit anchor.failed event:', eventError)
+  }
+}
+
+async function emitAnchorTimeoutEvent(anchor: any, reason: string, attempts: number, pendingAgeMinutes: number | null) {
+  if (!supabaseAdmin || !anchor.document_entity_id) return
+
+  try {
+    await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
+      kind: 'anchor.timeout',
+      at: new Date().toISOString(),
+      anchor: {
+        network: 'polygon',
+        witness_hash: anchor.document_hash,
+        reason,
+        retryable: true,
+        attempt: attempts,
+        max_attempts: MAX_POLYGON_ATTEMPTS,
+        timeout_minutes: POLYGON_PENDING_TIMEOUT_MINUTES,
+        pending_age_minutes: pendingAgeMinutes,
+        provider: 'polygon',
+        anchor_stage: getAnchorStage(anchor),
+        step_index: getStepIndex(anchor),
+      }
+    }, 'process-polygon-anchors')
+  } catch (eventError) {
+    console.error('Failed to emit anchor.timeout event:', eventError)
+  }
+
+  await emitAnchorFailedEvent(anchor, reason, attempts, true, 'timeout')
 }
 
 async function insertNotification(anchor: any, txHash: string, blockNumber?: number | null, blockHash?: string | null, confirmedAt?: string | null) {
@@ -123,16 +211,30 @@ serve(async (req) => {
     for (const anchor of anchors) {
       const txHash = anchor.polygon_tx_hash ?? anchor.metadata?.txHash
       const attempts = (anchor.polygon_attempts ?? 0) + 1
+      const pendingAgeMinutes = getPendingAgeMinutes(anchor)
 
       if (!txHash) {
-        await markFailed(anchor.id, 'Missing polygon_tx_hash', attempts)
+        const reason = 'Missing polygon_tx_hash'
+        await emitAnchorFailedEvent(anchor, reason, attempts, false, 'missing_tx_hash')
+        await markFailed(anchor.id, reason, attempts)
         failed++
         processed++
         continue
       }
 
-      if (attempts > 20) {
-        await markFailed(anchor.id, 'Max attempts reached', attempts)
+      if (attempts > MAX_POLYGON_ATTEMPTS) {
+        const reason = `Polygon confirmation max attempts reached (${attempts}/${MAX_POLYGON_ATTEMPTS})`
+        await emitAnchorFailedEvent(anchor, reason, attempts, false, 'max_attempts')
+        await markFailed(anchor.id, reason, attempts)
+        failed++
+        processed++
+        continue
+      }
+
+      if (pendingAgeMinutes !== null && pendingAgeMinutes >= POLYGON_PENDING_TIMEOUT_MINUTES) {
+        const reason = `Polygon confirmation timeout after ${pendingAgeMinutes} minutes (limit: ${POLYGON_PENDING_TIMEOUT_MINUTES})`
+        await emitAnchorTimeoutEvent(anchor, reason, attempts, pendingAgeMinutes)
+        await markFailed(anchor.id, reason, attempts)
         failed++
         processed++
         continue
@@ -162,7 +264,9 @@ serve(async (req) => {
         }
 
         if (receipt.status !== 1) {
-          await markFailed(anchor.id, `Receipt status ${receipt.status}`, attempts)
+          const reason = `Receipt status ${receipt.status}`
+          await emitAnchorFailedEvent(anchor, reason, attempts, false, 'receipt_status')
+          await markFailed(anchor.id, reason, attempts)
           failed++
           processed++
           continue
@@ -240,26 +344,12 @@ serve(async (req) => {
       } catch (anchorError) {
         console.error(`Error processing anchor ${anchor.id}:`, anchorError)
         
-        // Emit anchor.failed event
-        if (anchor.document_entity_id) {
-          // Note: anchor.document_hash IS the witness_hash being anchored
-          try {
-            await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
-              kind: 'anchor.failed',
-              at: new Date().toISOString(),
-              anchor: {
-                network: 'polygon',
-                witness_hash: anchor.document_hash,
-                reason: anchorError instanceof Error ? anchorError.message : String(anchorError),
-                retryable: attempts < 20,
-                attempt: attempts,
-                provider: 'polygon',
-              }
-            }, 'process-polygon-anchors')
-          } catch (eventError) {
-            console.error(`Failed to emit anchor.failed event:`, eventError)
-          }
-        }
+        await emitAnchorFailedEvent(
+          anchor,
+          anchorError instanceof Error ? anchorError.message : String(anchorError),
+          attempts,
+          attempts < MAX_POLYGON_ATTEMPTS,
+        )
         
         await markFailed(anchor.id, anchorError instanceof Error ? anchorError.message : String(anchorError), attempts)
         failed++

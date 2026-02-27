@@ -5,9 +5,9 @@
  *
  * Layers:
  * - NONE: Sin protección
- * - ACTIVE: TSA (RFC 3161)
- * - REINFORCED: TSA + Polygon
- * - TOTAL: TSA + Polygon + Bitcoin
+ * - ACTIVE: Protección garantizada
+ * - REINFORCED: Protección reforzada
+ * - TOTAL: Protección máxima
  */
 
 import React from 'react';
@@ -41,46 +41,28 @@ export function ProtectionLayerBadge({
     ACTIVE: {
       color: 'blue',
       icon: '🔵',
-      label: 'TSA',
-      description: 'Sellado de tiempo RFC 3161'
+      label: 'Protección garantizada',
+      description: 'Integridad y fecha cierta confirmadas'
     },
     REINFORCED: {
       color: 'purple',
       icon: '🟣',
-      label: 'TSA + Polygon',
-      description: 'Anclado en blockchain Polygon'
+      label: 'Protección reforzada',
+      description: 'Refuerzo probatorio adicional confirmado'
     },
     TOTAL: {
       color: 'green',
       icon: '🟢',
-      label: 'Protección Total',
-      description: 'Anclado en Polygon + Bitcoin'
+      label: 'Protección máxima',
+      description: 'Máxima fortaleza probatoria disponible'
     }
   };
 
   const config = layerConfig[layer];
-
-  const renderAnchorStatus = (network: 'Polygon' | 'Bitcoin', status: AnchorStatus) => {
-    if (!status) return null;
-
-    const statusConfig = {
-      confirmed: { icon: '✅', label: 'Confirmado', className: 'status-confirmed' },
-      pending: { icon: '⏳', label: 'Confirmando...', className: 'status-pending' },
-      failed: { icon: '❌', label: 'Falló', className: 'status-failed' }
-    };
-
-    const { icon, label, className: statusClass } = statusConfig[status];
-
-    return (
-      <div className={`status-item ${statusClass}`}>
-        <span className="network-name">{network}:</span>
-        <span className="status-label">{icon} {label}</span>
-        {network === 'Bitcoin' && status === 'pending' && (
-          <small className="status-note">(puede tardar horas)</small>
-        )}
-      </div>
-    );
-  };
+  const statuses = [polygonStatus, bitcoinStatus].filter(Boolean) as Exclude<AnchorStatus, null>[];
+  const confirmedCount = statuses.filter((status) => status === 'confirmed').length;
+  const pendingCount = statuses.filter((status) => status === 'pending').length;
+  const failedCount = statuses.filter((status) => status === 'failed').length;
 
   return (
     <div className={`protection-layer-badge layer-${config.color} ${className}`}>
@@ -93,10 +75,23 @@ export function ProtectionLayerBadge({
       {showDetails && (
         <div className="layer-details">
           <p className="layer-description">{config.description}</p>
-          <div className="anchor-statuses">
-            {polygonStatus && renderAnchorStatus('Polygon', polygonStatus)}
-            {bitcoinStatus && renderAnchorStatus('Bitcoin', bitcoinStatus)}
-          </div>
+          {statuses.length > 0 && (
+            <div className="anchor-statuses">
+              <div className="status-item status-confirmed">
+                <span className="status-label">✅ Refuerzos confirmados: {confirmedCount}/{statuses.length}</span>
+              </div>
+              {pendingCount > 0 && (
+                <div className="status-item status-pending">
+                  <span className="status-label">⏳ Refuerzos pendientes: {pendingCount}</span>
+                </div>
+              )}
+              {failedCount > 0 && (
+                <div className="status-item status-failed">
+                  <span className="status-label">❌ Refuerzos con fallo: {failedCount}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -183,20 +178,10 @@ export function ProtectionLayerBadge({
           font-size: 0.75rem;
         }
 
-        .network-name {
-          font-weight: 600;
-          min-width: 4rem;
-        }
-
         .status-label {
           display: flex;
           align-items: center;
           gap: 0.25rem;
-        }
-
-        .status-note {
-          opacity: 0.7;
-          font-style: italic;
         }
 
         .status-confirmed {

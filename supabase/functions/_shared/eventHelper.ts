@@ -51,6 +51,7 @@ export const EVENT_CLASS: Record<string, EventClass> = {
 
   // Eventos de seguimiento/fallo (requieren _source verificable)
   'anchor.pending': 'tracking',
+  'anchor.timeout': 'tracking',
   'tsa.failed': 'tracking',
   'anchor.failed': 'tracking',
   'artifact.failed': 'tracking',
@@ -109,7 +110,7 @@ export async function appendEvent(
 
     // 3. IDEMPOTENCE: Check for duplicate anchor events before appending
     // Only for anchor events - check if same (witness_hash, network, anchor_stage, step_index) exists
-    if (event.kind === 'anchor.confirmed' || event.kind === 'anchor.submitted' || event.kind === 'anchor.failed') {
+    if (event.kind === 'anchor.confirmed' || event.kind === 'anchor.submitted' || event.kind === 'anchor.failed' || event.kind === 'anchor.timeout') {
       const anchorData = event.anchor;
       if (anchorData?.witness_hash && anchorData?.network) {
         const { data: entity, error: fetchError } = await supabase

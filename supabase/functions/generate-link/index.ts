@@ -11,93 +11,13 @@ import { parseJsonBody } from '../_shared/validation.ts'
 import { GenerateLinkSchema } from '../_shared/schemas.ts'
 import { appendEvent } from '../_shared/eventHelper.ts'
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const isUuid = (value: string | undefined | null): value is string =>
-  typeof value === 'string' && UUID_RE.test(value)
-
-async function resolveDocumentRefs(
-  supabase: any,
-  documentId?: string,
-  documentEntityId?: string,
-): Promise<{ documentEntityId: string | null; legacyDocumentId: string | null }> {
-  let resolvedEntityId = isUuid(documentEntityId) ? documentEntityId : null
-  let resolvedLegacyId = isUuid(documentId) ? documentId : null
-
-  if (resolvedLegacyId) {
-    const { data: byDocumentId } = await supabase
-      .from('documents')
-      .select('id, document_entity_id')
-      .eq('id', resolvedLegacyId)
-      .maybeSingle()
-
-    if (byDocumentId) {
-      resolvedLegacyId = byDocumentId.id as string
-      if (!resolvedEntityId && typeof (byDocumentId as any).document_entity_id === 'string') {
-        resolvedEntityId = String((byDocumentId as any).document_entity_id)
-      }
-    } else if (!resolvedEntityId) {
-      resolvedEntityId = resolvedLegacyId
-      resolvedLegacyId = null
-    }
-  }
-
-  if (resolvedEntityId && !resolvedLegacyId) {
-    const { data: byEntity } = await supabase
-      .from('documents')
-      .select('id')
-      .eq('document_entity_id', resolvedEntityId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (byEntity?.id) {
-      resolvedLegacyId = String(byEntity.id)
-    }
-  }
-
-  return {
-    documentEntityId: resolvedEntityId,
-    legacyDocumentId: resolvedLegacyId,
-  }
-}
-
 async function ensureDocumentRow(
   supabase: any,
   userId: string,
   documentEntityId: string,
-  preferredDocumentId: string | null,
   documentName: string,
   ecoHash: string,
 ): Promise<{ id: string; title: string | null; original_filename: string | null; eco_hash: string | null; status: string }> {
-  if (preferredDocumentId) {
-    const { data: byId } = await supabase
-      .from('documents')
-      .select('id, owner_id, title, original_filename, eco_hash, status, document_entity_id')
-      .eq('id', preferredDocumentId)
-      .maybeSingle()
-
-    if (byId) {
-      if ((byId as any).owner_id !== userId) {
-        throw new Error('Not authorized to share this document')
-      }
-
-      if ((byId as any).document_entity_id !== documentEntityId) {
-        await supabase
-          .from('documents')
-          .update({ document_entity_id: documentEntityId })
-          .eq('id', preferredDocumentId)
-      }
-
-      return {
-        id: String((byId as any).id),
-        title: ((byId as any).title ?? null) as string | null,
-        original_filename: ((byId as any).original_filename ?? null) as string | null,
-        eco_hash: ((byId as any).eco_hash ?? null) as string | null,
-        status: String((byId as any).status ?? 'active'),
-      }
-    }
-  }
-
   const { data: byEntity } = await supabase
     .from('documents')
     .select('id, owner_id, title, original_filename, eco_hash, status')
@@ -127,7 +47,6 @@ async function ensureDocumentRow(
     status: 'active',
     document_entity_id: documentEntityId,
   }
-  if (preferredDocumentId) insertPayload.id = preferredDocumentId
 
   const { data: created, error: createError } = await supabase
     .from('documents')
@@ -192,7 +111,6 @@ serve(withRateLimit('generate', async (req) => {
       )
     }
     const {
-      document_id,
       document_entity_id,
       recipient_email,
       expires_in_hours = 72, // Default 3 days
@@ -200,15 +118,12 @@ serve(withRateLimit('generate', async (req) => {
       nda_text = null
     } = parsed.data
 
-    const refs = await resolveDocumentRefs(supabase, document_id, document_entity_id)
-    if (!refs.documentEntityId) {
-      throw new Error('Document not found')
-    }
+    const documentEntityId = document_entity_id
 
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
       .select('id, owner_id, source_name, source_hash, witness_hash, signed_hash')
-      .eq('id', refs.documentEntityId)
+      .eq('id', documentEntityId)
       .single()
 
     if (entityError || !entity) {
@@ -224,14 +139,13 @@ serve(withRateLimit('generate', async (req) => {
       (entity as any).signed_hash ||
       (entity as any).witness_hash ||
       (entity as any).source_hash ||
-      refs.documentEntityId,
+      documentEntityId,
     )
 
     const doc = await ensureDocumentRow(
       supabase,
       user.id,
-      refs.documentEntityId,
-      refs.legacyDocumentId,
+      documentEntityId,
       canonicalDocumentName,
       canonicalEcoHash,
     )
@@ -266,7 +180,7 @@ serve(withRateLimit('generate', async (req) => {
       .from('recipients')
       .insert({
         document_id: doc.id,
-        document_entity_id: refs.documentEntityId,
+        document_entity_id: documentEntityId,
         email: recipient_email,
         recipient_id: recipientIdHex
       })
@@ -283,7 +197,7 @@ serve(withRateLimit('generate', async (req) => {
       .from('links')
       .insert({
         document_id: doc.id,
-        document_entity_id: refs.documentEntityId,
+        document_entity_id: documentEntityId,
         recipient_id: recipient.id, // Direct link to recipient for correct attribution
         token_hash: tokenHash,
         expires_at: expiresAt,
@@ -305,13 +219,13 @@ serve(withRateLimit('generate', async (req) => {
     const accessUrl = `${appUrl}/nda/${token}`
 
     // Log the link creation event
-    console.log(`Link created: ${link.id} for entity ${refs.documentEntityId} to ${recipient_email}`)
+    console.log(`Link created: ${link.id} for entity ${documentEntityId} to ${recipient_email}`)
 
     // === PROBATORY EVENT: share.created ===
     // Register that this document was shared (goes to .eco)
     const eventResult = await appendEvent(
       supabase,
-      refs.documentEntityId,
+      documentEntityId,
       {
         kind: 'share.created',
         at: new Date().toISOString(),

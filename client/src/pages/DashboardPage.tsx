@@ -25,7 +25,6 @@ function DashboardPage() {
       try {
         setLoading(true);
         setError(null);
-        // TODO(legacy-cleanup): replace with document_entities adapter when dashboard migrates off user_documents.
         const docs = await getUserDocuments();
         if (isMounted) {
           setDocuments(docs);
@@ -53,7 +52,6 @@ function DashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      // TODO(legacy-cleanup): replace with document_entities adapter when dashboard migrates off user_documents.
       const docs = await getUserDocuments();
       setDocuments(docs);
     } catch (err) {

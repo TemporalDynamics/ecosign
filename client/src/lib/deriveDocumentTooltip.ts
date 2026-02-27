@@ -70,15 +70,15 @@ export function deriveDocumentTooltip(
   }
 
   if (protectionLevel === 'ONE_CHAIN_CONFIRMED') {
-    return 'Protección reforzada\n\nRegistro en red pública adicional';
+    return 'Protección reforzada\n\nRefuerzo probatorio adicional confirmado';
   }
 
   if (protectionLevel === 'TSA_REKOR_CONFIRMED') {
-    return 'Protección transparente\n\nTSA + Rekor confirmados';
+    return 'Protección garantizada\n\nIntegridad y fecha cierta confirmadas';
   }
 
   if (protectionLevel === 'TSA_CONFIRMED') {
-    return 'Documento protegido\n\nSello de tiempo confirmado';
+    return 'Protección garantizada\n\nIntegridad y fecha cierta confirmadas';
   }
 
   // Protegiendo

@@ -154,27 +154,27 @@ export function deriveDocumentState(
 
   const protectionLevel: ProtectionLevel = deriveProtectionLevel((document.events ?? []) as Event[]);
 
-  // 3a. Dos chains confirmadas → GRIS (final)
+  // 3a. Dos refuerzos confirmados → GRIS (final)
   if (protectionLevel === 'TWO_CHAINS_CONFIRMED') {
     return {
-      label: 'Protección máxima',
+      label: 'Protegido',
       phase: 'gray'
     };
   }
 
-  // 3b. Una chain confirmada → AZUL (activa)
+  // 3b. Un refuerzo confirmado → GRIS (protegido)
   if (protectionLevel === 'ONE_CHAIN_CONFIRMED') {
     return {
-      label: 'Protección reforzada',
-      phase: 'blue'
+      label: 'Protegido',
+      phase: 'gray'
     };
   }
 
-  // 3c. TSA+Rekor confirmado → AZUL (activa)
+  // 3c. TSA+Rekor confirmado → GRIS (protegido)
   if (protectionLevel === 'TSA_REKOR_CONFIRMED') {
     return {
-      label: 'TSA + Rekor confirmado',
-      phase: 'blue'
+      label: 'Protegido',
+      phase: 'gray'
     };
   }
 

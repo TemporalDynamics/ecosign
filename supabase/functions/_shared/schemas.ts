@@ -6,16 +6,12 @@ export const VerifyAccessSchema = z.object({
 });
 
 export const GenerateLinkSchema = z.object({
-  document_id: z.string().uuid().optional(),
-  document_entity_id: z.string().uuid().optional(),
+  document_entity_id: z.string().uuid(),
   recipient_email: z.string().email(),
   expires_in_hours: z.coerce.number().int().min(1).max(720).optional(),
   require_nda: z.boolean().optional(),
   nda_text: z.string().max(10000).nullable().optional(),
-}).refine(
-  (data) => Boolean(data.document_id || data.document_entity_id),
-  { message: 'document_id or document_entity_id is required', path: ['document_id'] }
-);
+}).strict();
 
 export const CreateSignerLinkSchema = z.object({
   documentId: z.string().uuid().optional(),

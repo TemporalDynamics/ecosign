@@ -11,7 +11,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { withRateLimit } from '../_shared/ratelimit.ts'
-import { appendEvent, getDocumentEntityId } from '../_shared/eventHelper.ts'
+import { appendEvent } from '../_shared/eventHelper.ts'
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { decideAnchorPolicyByStage, resolveOwnerAnchorPlan } from '../_shared/anchorPlanPolicy.ts'
@@ -84,30 +84,13 @@ serve(withRateLimit('record', async (req) => {
       console.warn('[record-protection-event] flow_version=v1 (legacy). Consider upgrading to v2.');
     }
 
-    if (!document_id && !document_entity_id) {
-      throw new Error('Missing required field: document_id or document_entity_id')
+    if (document_id) {
+      throw new Error('document_id is no longer accepted; use document_entity_id')
     }
 
     documentEntityId = document_entity_id ?? null
-    let legacyDocumentId = document_id ?? null
-
-    if (!documentEntityId && legacyDocumentId) {
-      documentEntityId = await getDocumentEntityId(supabase, legacyDocumentId)
-    }
-
-    if (!legacyDocumentId && documentEntityId) {
-      const { data: latestDocument } = await supabase
-        .from('documents')
-        .select('id')
-        .eq('document_entity_id', documentEntityId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      legacyDocumentId = latestDocument?.id ?? null
-    }
-
     if (!documentEntityId) {
-      throw new Error('Document entity not found for document_id: ' + (document_id ?? 'null'))
+      throw new Error('Missing required field: document_entity_id')
     }
 
     const { data: entity, error: entityError } = await supabase
@@ -164,7 +147,6 @@ serve(withRateLimit('record', async (req) => {
           success: true,
           event_recorded: false,
           idempotent: true,
-          document_id: legacyDocumentId,
           document_entity_id: documentEntityId,
           protection_methods: protectionMethods,
         }),
@@ -177,7 +159,7 @@ serve(withRateLimit('record', async (req) => {
       at: new Date().toISOString(),
       payload: {
         document_entity_id: documentEntityId,
-        document_id: legacyDocumentId,
+        document_id: null,
         document_hash: entity.source_hash || effectiveWitnessHash,
         witness_hash: effectiveWitnessHash,
         flow_type: 'DIRECT_PROTECTION',
@@ -244,13 +226,12 @@ serve(withRateLimit('record', async (req) => {
       console.warn('[record-protection-event] wake execution engine failed (non-critical):', wakeErr);
     }
 
-    console.log(`✅ ${requestEventKind} recorded for document ${legacyDocumentId ?? documentEntityId}`)
+    console.log(`✅ ${requestEventKind} recorded for entity ${documentEntityId}`)
 
     return new Response(
       JSON.stringify({
         success: true,
         event_recorded: true,
-        document_id: legacyDocumentId,
         document_entity_id: documentEntityId,
         protection_methods: protectionMethods
       }),

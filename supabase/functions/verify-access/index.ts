@@ -96,7 +96,6 @@ serve(withRateLimit('verify', async (req) => {
       .from('links')
       .select(`
         id,
-        document_id,
         document_entity_id,
         recipient_id,
         expires_at,
@@ -151,18 +150,34 @@ serve(withRateLimit('verify', async (req) => {
       )
     }
 
-    // Get document info (legacy projection), if available.
-    const { data: document, error: docError } = await supabase
-      .from('documents')
-      .select('id, title, original_filename, eco_hash, status, document_entity_id')
-      .eq('id', link.document_id)
-      .maybeSingle()
+    const documentEntityId = typeof (link as any).document_entity_id === 'string' && (link as any).document_entity_id.length > 0
+      ? String((link as any).document_entity_id)
+      : null
 
-    if (docError) {
-      console.warn('verify-access documents lookup warning:', docError.message)
+    if (!documentEntityId) {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          error: 'legacy_link_missing_document_entity_id'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 409
+        }
+      )
     }
 
-    if (document && document.status !== 'active') {
+    const { data: entity, error: entityError } = await supabase
+      .from('document_entities')
+      .select('id, source_name, source_storage_path, witness_current_storage_path, lifecycle_status, events')
+      .eq('id', documentEntityId)
+      .single()
+
+    if (entityError || !entity) {
+      throw new Error('Document entity not found')
+    }
+
+    if ((entity as any).lifecycle_status === 'revoked' || (entity as any).lifecycle_status === 'archived') {
       return new Response(
         JSON.stringify({
           valid: false,
@@ -175,59 +190,24 @@ serve(withRateLimit('verify', async (req) => {
       )
     }
 
-    const documentEntityId = typeof (link as any).document_entity_id === 'string' && (link as any).document_entity_id.length > 0
-      ? String((link as any).document_entity_id)
-      : (typeof (document as any)?.document_entity_id === 'string' && (document as any).document_entity_id.length > 0
-        ? String((document as any).document_entity_id)
-        : null)
-
-    if (!documentEntityId) {
-      throw new Error('Document entity not found')
+    if (!link.recipient_id) {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          error: 'legacy_link_missing_recipient_id'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 409
+        }
+      )
     }
 
-    const { data: entity, error: entityError } = await supabase
-      .from('document_entities')
-      .select('id, source_name, source_storage_path, witness_current_storage_path, events')
-      .eq('id', documentEntityId)
+    const { data: recipient, error: recipientError } = await supabase
+      .from('recipients')
+      .select('id, email, recipient_id')
+      .eq('id', link.recipient_id)
       .single()
-
-    if (entityError || !entity) {
-      throw new Error('Document entity not found')
-    }
-
-    // Get recipient info using direct link (fixed attribution bug)
-    let recipient = null
-    let recipientError = null
-
-    // First try to get recipient from direct link reference (new links)
-    if (link.recipient_id) {
-      const { data: recipientData, error: recipientErr } = await supabase
-        .from('recipients')
-        .select('id, email, recipient_id')
-        .eq('id', link.recipient_id)
-        .single()
-
-      recipient = recipientData
-      recipientError = recipientErr
-    }
-
-    // Fallback for old links without recipient_id (backward compatibility)
-    if (!recipient) {
-      const { data: fallbackRecipient, error: fallbackError } = await supabase
-        .from('recipients')
-        .select('id, email, recipient_id')
-        .eq('document_id', link.document_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      recipient = fallbackRecipient
-      recipientError = fallbackError
-
-      if (recipient) {
-        console.warn(`Using fallback recipient lookup for link ${link.id} - consider running migration`)
-      }
-    }
 
     if (recipientError || !recipient) {
       throw new Error('Recipient not found')
@@ -331,14 +311,20 @@ serve(withRateLimit('verify', async (req) => {
     }
 
     // Return link status and document metadata
+    const ecoHash =
+      (entity as any).signed_hash ??
+      (entity as any).witness_hash ??
+      (entity as any).source_hash ??
+      null
+
     return new Response(
       JSON.stringify({
         valid: true,
         document_entity_id: documentEntityId,
         document: {
-          title: document?.title ?? (entity as any).source_name,
-          original_filename: document?.original_filename ?? (entity as any).source_name,
-          eco_hash: document?.eco_hash ?? null
+          title: (entity as any).source_name,
+          original_filename: (entity as any).source_name,
+          eco_hash: ecoHash
         },
         recipient_email: recipient.email,
         require_nda: link.require_nda,

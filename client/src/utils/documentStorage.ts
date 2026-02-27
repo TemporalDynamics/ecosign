@@ -65,6 +65,12 @@ type DownloadResult = {
   error: string | null;
 };
 
+type JsonObject = Record<string, unknown>;
+const asObject = (value: unknown): JsonObject | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as JsonObject)
+    : null;
+
 type PersistSignedPdfResult = {
   storagePath: string;
 };
@@ -112,7 +118,7 @@ const toUint8Array = (input: ArrayBuffer | ArrayBufferView<ArrayBufferLike>): Ui
 };
 
 /**
- * Upload a signed PDF to Supabase Storage and create a user_documents record
+ * Upload a signed PDF to Supabase Storage and persist canonical runtime metadata
  * @param pdfFile - The signed PDF file
  * @param ecoData - The ECO certificate data (manifest + signatures + metadata)
  * @param options - Additional options
@@ -247,107 +253,99 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
     }
   }
 
-  // Determine file type from MIME type
-  const getFileType = (mimeType?: string | null) => {
-    if (!mimeType) return 'pdf';
-    if (mimeType.includes('pdf')) return 'pdf';
-    if (mimeType.includes('word') || mimeType.includes('document')) return 'docx';
-    if (mimeType.includes('image')) return 'img';
-    return 'pdf';
-  };
-
-  // Protection level is derived from canonical events.
-  // Do NOT write ACTIVE optimistically; DB enforces that ACTIVE implies proof events exist.
-  // Leave NULL on creation and let workers/derived views decide level from events.
-  const protectionLevel: string | null = null;
-
-  // ✅ Set anchor statuses to PENDING when requested
-  // Workers will resolve these and upgrade protection_level accordingly
-  const polygonStatus = hasPolygonAnchor ? 'pending' : null;
-  const bitcoinStatusFinal = hasBitcoinAnchor ? (bitcoinStatus || 'pending') : null;
-
-  // =====================================================
-  // FIELD SEPARATION (DO NOT MIX RESPONSIBILITIES)
-  // =====================================================
-  // overall_status: Document lifecycle state
-  //   - Values: draft, sent, pending, signed, rejected, expired, certified
-  //   - Purpose: Functional workflow status (signatures, completion)
-  //   - Never derive from protection_level
-  //
-  // protection_level: Probatory hierarchy (NEVER decreases)
-  //   - Values: ACTIVE, REINFORCED, TOTAL
-  //   - Purpose: Legal/cryptographic strength of evidence
-  //   - Only increases based on CONFIRMED blockchain anchors
-  //   - Never derive from overall_status
-  // =====================================================
-
-  // Create record in 'user_documents' table
-  const { data: docData, error: docError} = await supabase
-    .from('user_documents')
-    .insert({
-      user_id: user.id,
-      document_entity_id: documentEntityId,
-      document_name: pdfFile.name,
-      document_hash: documentHash,
-      document_size: pdfFile.size,
-      mime_type: pdfFile.type || 'application/pdf',
-      pdf_storage_path: storagePath,
-      // E2E Encryption fields
-      encrypted: true,
-      encrypted_path: encryptedPath,
-      wrapped_key: wrappedKey, // Already base64 from wrapDocumentKey
-      wrap_iv: wrapIv, // Already hex from wrapDocumentKey
-      eco_data: ecoData, // Store the complete ECO manifest
-      status: initialStatus, // Signature workflow status
-      overall_status: overallStatus, // Document lifecycle state
-      protection_level: protectionLevel, // Probatory hierarchy (ACTIVE/REINFORCED/TOTAL)
-      polygon_status: polygonStatus, // Polygon anchor state (null/pending/confirmed/failed)
-      bitcoin_status: bitcoinStatusFinal, // Bitcoin anchor state (null/pending/confirmed/failed)
-      bitcoin_anchor_id: bitcoinAnchorId,
-      download_enabled: downloadEnabled, // Controls if .eco can be downloaded
-      eco_file_data: ecoFileDataBuffer, // Store .eco buffer for deferred download
-      eco_storage_path: ecoStoragePath, // Path to ECO in storage (null if upload failed)
-      file_type: getFileType(pdfFile.type),
-      last_event_at: new Date().toISOString(),
-      has_legal_timestamp: hasLegalTimestamp,
-      // ✅ VERDAD CONSERVADORA: Never set anchor flags optimistically
-      // Workers will set these to true ONLY when blockchain confirms
-      has_bitcoin_anchor: false,  // Will be set by process-bitcoin-anchors worker
-      has_polygon_anchor: false,  // Will be set by process-polygon-anchors worker
-      signnow_document_id: signNowDocumentId,
-      signnow_status: signNowStatus,
-      signed_at: signedAt,
-      eco_hash: documentHash,
-      zero_knowledge_opt_out: !storePdf || zeroKnowledgeOptOut
-    })
-    .select()
-    .single();
-
-  if (docError) {
-    // If DB insert fails, try to clean up the uploaded encrypted file
+  if (!documentEntityId) {
     if (encryptedPath) {
-      await supabase.storage.from('user-documents').remove([encryptedPath]);
+      await supabase.storage.from('user-documents').remove([encryptedPath]).catch(() => undefined);
     }
-    console.error('Error creating document record:', docError);
-    throw new Error(`Error al guardar el registro: ${docError.message}`);
+    throw new Error('documentEntityId is required for canonical persistence');
   }
 
-  // ✅ BLOCKCHAIN ANCHORING: Server-Side Driven (Database Trigger)
-  // 
-  // Los anchors de Polygon y Bitcoin NO se invocan desde el cliente.
-  // El cliente solo guarda el documento con polygon_status='pending' y bitcoin_status='pending'.
-  // Un database trigger detecta el INSERT y dispara las edge functions automáticamente.
-  // 
-  // Esto evita:
-  // - Errores HTTP 500 en consola del usuario
-  // - Dependencia de que el cliente permanezca conectado
-  // - Race conditions y timeouts que afectan UX
-  // - Logs rojos confusos durante la certificación
-  // 
-  // El documento YA tiene validez probatoria con TSA.
-  // Polygon y Bitcoin son blindajes progresivos server-side.
-  // 
-  // Ver: supabase/migrations/YYYYMMDD_blockchain_anchoring_trigger.sql
+  const { data: entity, error: entityError } = await supabase
+    .from('document_entities')
+    .select('id, owner_id, metadata')
+    .eq('id', documentEntityId)
+    .single();
+
+  if (entityError || !entity) {
+    if (encryptedPath) {
+      await supabase.storage.from('user-documents').remove([encryptedPath]).catch(() => undefined);
+    }
+    throw new Error(`Document entity not found: ${entityError?.message ?? 'missing'}`);
+  }
+
+  if ((entity as any).owner_id !== user.id) {
+    if (encryptedPath) {
+      await supabase.storage.from('user-documents').remove([encryptedPath]).catch(() => undefined);
+    }
+    throw new Error('Access denied');
+  }
+
+  const root = asObject((entity as any).metadata) ?? {};
+  const ecox = asObject(root.ecox) ?? {};
+  const runtimeCurrent = asObject(ecox.runtime) ?? {};
+  const nowIso = new Date().toISOString();
+
+  const nextMetadata = {
+    ...root,
+    ecox: {
+      ...ecox,
+      runtime: {
+        ...runtimeCurrent,
+        encrypted_path: encryptedPath,
+        wrapped_key: wrappedKey,
+        wrap_iv: wrapIv,
+        storage_bucket: 'user-documents',
+        updated_at: nowIso,
+      },
+    },
+  };
+
+  const updatePayload: Record<string, unknown> = {
+    metadata: nextMetadata,
+  };
+  if (storePdf) {
+    updatePayload.custody_mode = 'encrypted_custody';
+  }
+
+  const { error: updateError } = await supabase
+    .from('document_entities')
+    .update(updatePayload)
+    .eq('id', documentEntityId);
+
+  if (updateError) {
+    if (encryptedPath) {
+      await supabase.storage.from('user-documents').remove([encryptedPath]).catch(() => undefined);
+    }
+    throw new Error(`Error al actualizar metadata canónica: ${updateError.message}`);
+  }
+
+  const docData: SaveUserDocumentResult = {
+    id: documentEntityId,
+    user_id: user.id,
+    document_entity_id: documentEntityId,
+    document_name: pdfFile.name,
+    document_hash: documentHash,
+    pdf_storage_path: storagePath,
+    encrypted_path: encryptedPath,
+    wrapped_key: wrappedKey,
+    wrap_iv: wrapIv,
+    eco_storage_path: ecoStoragePath,
+    eco_file_data: ecoFileDataBuffer,
+    has_legal_timestamp: hasLegalTimestamp,
+    has_bitcoin_anchor: false,
+    has_polygon_anchor: false,
+    bitcoin_anchor_id: bitcoinAnchorId,
+    bitcoin_status: hasBitcoinAnchor ? (bitcoinStatus || 'pending') : null,
+    polygon_status: hasPolygonAnchor ? 'pending' : null,
+    status: initialStatus,
+    overall_status: overallStatus,
+    protection_level: null,
+    signnow_document_id: signNowDocumentId,
+    signnow_status: signNowStatus,
+    signed_at: signedAt,
+    download_enabled: downloadEnabled,
+    zero_knowledge_opt_out: !storePdf || zeroKnowledgeOptOut,
+  };
 
   return docData;
 }
@@ -363,31 +361,23 @@ export async function getUserDocuments(): Promise<any[]> {
     throw new Error('Usuario no autenticado');
   }
 
-  // Query user_documents table with only essential related data to reduce payload
-  const { data, error } = await supabase
-    .from('user_documents')
+  const { data: entities, error } = await supabase
+    .from('document_entities')
     .select(`
       id,
-      document_name,
-      document_entity_id,
-      document_hash,
+      source_name,
+      source_hash,
+      source_captured_at,
+      source_storage_path,
+      witness_current_storage_path,
+      signed_hash,
+      lifecycle_status,
+      metadata,
+      events,
       created_at,
-      updated_at,
-      certified_at,
-      has_legal_timestamp,
-      has_bitcoin_anchor,
-      signnow_document_id,
-      signed_at,
-      status,
-      overall_status,
-      notes,
-      file_type,
-      document_size,
-      document_entity:document_entities(
-        events
-      )
+      updated_at
     `)
-    .eq('user_id', user.id)
+    .eq('owner_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -395,12 +385,106 @@ export async function getUserDocuments(): Promise<any[]> {
     throw new Error(`Error al obtener documentos: ${error.message}`);
   }
 
-  // Flatten canonical events for UI status (DocumentRow expects document.events)
-  const rows = (data || []).map((row: any) => {
-    const events = row?.document_entity?.events;
+  const entityIds = (entities || [])
+    .map((row: any) => (typeof row?.id === 'string' ? row.id : null))
+    .filter((id: string | null): id is string => Boolean(id));
+
+  const latestWorkflowByEntity = new Map<
+    string,
+    { id: string; status?: string | null; created_at?: string | null; updated_at?: string | null }
+  >();
+
+  if (entityIds.length > 0) {
+    const { data: workflows, error: workflowsError } = await supabase
+      .from('signature_workflows')
+      .select('id, document_entity_id, status, created_at, updated_at')
+      .in('document_entity_id', entityIds);
+
+    if (workflowsError) {
+      console.warn('Error fetching signature workflows for dashboard:', workflowsError.message);
+    } else {
+      for (const workflow of workflows || []) {
+        const entityId = typeof (workflow as any)?.document_entity_id === 'string'
+          ? String((workflow as any).document_entity_id)
+          : null;
+        if (!entityId) continue;
+
+        const current = latestWorkflowByEntity.get(entityId);
+        const candidateIso = String((workflow as any)?.updated_at || (workflow as any)?.created_at || '');
+        const currentIso = String(current?.updated_at || current?.created_at || '');
+
+        if (!current || candidateIso.localeCompare(currentIso) >= 0) {
+          latestWorkflowByEntity.set(entityId, {
+            id: String((workflow as any).id),
+            status: typeof (workflow as any)?.status === 'string' ? String((workflow as any).status) : null,
+            created_at: typeof (workflow as any)?.created_at === 'string' ? String((workflow as any).created_at) : null,
+            updated_at: typeof (workflow as any)?.updated_at === 'string' ? String((workflow as any).updated_at) : null,
+          });
+        }
+      }
+    }
+  }
+
+  const rows = (entities || []).map((row: any) => {
+    const events = Array.isArray(row?.events) ? row.events : [];
+    const metadata = asObject(row?.metadata) ?? {};
+    const ecox = asObject(metadata.ecox) ?? {};
+    const runtime = asObject(ecox.runtime) ?? {};
+    const workflow = latestWorkflowByEntity.get(String(row.id));
+
+    const hasTsa = events.some((event: any) => event?.kind === 'tsa.confirmed');
+    const hasBitcoinAnchor = events.some((event: any) => {
+      if (event?.kind !== 'anchor' && event?.kind !== 'anchor.confirmed') {
+        return false;
+      }
+      const network = event?.anchor?.network ?? event?.payload?.network;
+      const confirmedAt = event?.anchor?.confirmed_at ?? event?.payload?.confirmed_at;
+      return network === 'bitcoin' && typeof confirmedAt === 'string';
+    });
+
+    const lastSignatureEvent = [...events]
+      .reverse()
+      .find((event: any) => event?.kind === 'signature.completed' || event?.kind === 'document.signed');
+    const signedAtFromEvent =
+      typeof lastSignatureEvent?.at === 'string'
+        ? String(lastSignatureEvent.at)
+        : null;
+
+    const latestTimedEvent = [...events]
+      .reverse()
+      .find((event: any) => typeof event?.at === 'string');
+    const certifiedAt = typeof latestTimedEvent?.at === 'string' ? String(latestTimedEvent.at) : null;
+
+    const signedAt =
+      workflow?.status === 'completed'
+        ? (workflow.updated_at || workflow.created_at || signedAtFromEvent)
+        : signedAtFromEvent;
+
+    const status = hasTsa ? 'verified' : 'pending';
+
     return {
-      ...row,
-      events: Array.isArray(events) ? events : [],
+      id: row.id,
+      document_entity_id: row.id,
+      document_name: row.source_name,
+      document_hash: row.signed_hash || row.source_hash,
+      created_at: row.created_at || row.source_captured_at,
+      updated_at: row.updated_at || row.source_captured_at,
+      certified_at: certifiedAt || row.updated_at || row.created_at || row.source_captured_at,
+      has_legal_timestamp: hasTsa,
+      has_bitcoin_anchor: hasBitcoinAnchor,
+      signnow_document_id: workflow?.id ?? null,
+      signed_at: signedAt ?? null,
+      status,
+      overall_status: status,
+      notes: null,
+      file_type: 'application/pdf',
+      document_size: null,
+      lifecycle_status: row.lifecycle_status ?? null,
+      pdf_storage_path: row.witness_current_storage_path || row.source_storage_path || null,
+      encrypted_path: typeof runtime.encrypted_path === 'string' ? runtime.encrypted_path : null,
+      wrapped_key: typeof runtime.wrapped_key === 'string' ? runtime.wrapped_key : null,
+      wrap_iv: typeof runtime.wrap_iv === 'string' ? runtime.wrap_iv : null,
+      events,
     };
   });
 
@@ -421,14 +505,30 @@ export async function updateDocumentStatus(documentId: string, newStatus: string
     throw new Error(`Invalid status: ${newStatus}`);
   }
 
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    throw new Error('Usuario no autenticado');
+  }
+
+  const lifecycleByLegacyStatus: Record<string, string> = {
+    draft: 'needs_witness',
+    sent: 'in_signature_flow',
+    pending: 'in_signature_flow',
+    signed: 'signed',
+    rejected: 'revoked',
+    expired: 'archived',
+  };
+
+  const lifecycleStatus = lifecycleByLegacyStatus[newStatus];
   const { data, error } = await supabase
-    .from('user_documents')
+    .from('document_entities')
     .update({
-      status: newStatus,
-      last_event_at: new Date().toISOString()
+      lifecycle_status: lifecycleStatus,
+      updated_at: new Date().toISOString(),
     })
     .eq('id', documentId)
-    .select()
+    .eq('owner_id', user.id)
+    .select('id, lifecycle_status, updated_at')
     .single();
 
   if (error) {
@@ -436,7 +536,12 @@ export async function updateDocumentStatus(documentId: string, newStatus: string
     throw new Error(`Error al actualizar estado: ${error.message}`);
   }
 
-  return data;
+  return {
+    id: data.id,
+    status: newStatus,
+    lifecycle_status: data.lifecycle_status,
+    last_event_at: data.updated_at,
+  };
 }
 
 /**
@@ -515,37 +620,52 @@ export async function deleteUserDocument(documentId: string): Promise<void> {
     throw new Error('Usuario no autenticado');
   }
 
-  // TEMP FIX: Use 'documents' table
-  // Get document info including storage path
   const { data: doc, error: fetchError } = await supabase
-    .from('user_documents')
-    .select('id, pdf_storage_path')
+    .from('document_entities')
+    .select('id, owner_id, source_storage_path, witness_current_storage_path, metadata')
     .eq('id', documentId)
-    .eq('user_id', user.id)
+    .eq('owner_id', user.id)
     .single();
 
   if (fetchError) {
     throw new Error(`Error al obtener el documento: ${fetchError.message}`);
   }
 
-  // Delete from storage if path exists
-  if (doc.pdf_storage_path) {
+  const metadata = asObject((doc as any)?.metadata) ?? {};
+  const ecox = asObject(metadata.ecox) ?? {};
+  const runtime = asObject(ecox.runtime) ?? {};
+  const runtimeBucket =
+    typeof runtime.storage_bucket === 'string' && runtime.storage_bucket.length > 0
+      ? runtime.storage_bucket
+      : 'user-documents';
+  const runtimePath =
+    typeof runtime.encrypted_path === 'string' && runtime.encrypted_path.length > 0
+      ? runtime.encrypted_path
+      : null;
+
+  const candidatePaths = [
+    runtimePath,
+    (doc as any)?.witness_current_storage_path ?? null,
+    (doc as any)?.source_storage_path ?? null,
+  ].filter((path): path is string => typeof path === 'string' && path.length > 0);
+
+  if (candidatePaths.length > 0) {
+    const uniquePaths = [...new Set(candidatePaths)];
     const { error: storageError } = await supabase.storage
-      .from('user-documents')
-      .remove([doc.pdf_storage_path]);
+      .from(runtimeBucket)
+      .remove(uniquePaths);
 
     if (storageError) {
       console.warn('Error deleting from storage:', storageError);
-      // Continue with DB deletion even if storage fails
+      // Continue with DB deletion even if storage cleanup fails
     }
   }
 
-  // Delete from database
   const { error: deleteError } = await supabase
-    .from('user_documents')
+    .from('document_entities')
     .delete()
     .eq('id', documentId)
-    .eq('user_id', user.id);
+    .eq('owner_id', user.id);
 
   if (deleteError) {
     throw new Error(`Error al eliminar el documento: ${deleteError.message}`);

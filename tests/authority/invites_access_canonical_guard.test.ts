@@ -13,6 +13,7 @@ const CREATE_SIGNER_LINK_FILE = path.join(ROOT, 'supabase/functions/create-signe
 const GENERATE_LINK_FILE = path.join(ROOT, 'supabase/functions/generate-link/index.ts');
 const VERIFY_ACCESS_FILE = path.join(ROOT, 'supabase/functions/verify-access/index.ts');
 const VERIFY_INVITE_ACCESS_FILE = path.join(ROOT, 'supabase/functions/verify-invite-access/index.ts');
+const SHARED_SCHEMAS_FILE = path.join(ROOT, 'supabase/functions/_shared/schemas.ts');
 const MIGRATION_FILE = path.join(
   ROOT,
   'supabase/migrations/20260301000800_invites_access_entity_canonical.sql',
@@ -76,6 +77,29 @@ test('invites/access endpoints must use document_entity_id references', async ()
   expect(verifyAccess).toContain('document_entity_id');
   expect(verifyInviteAccess).toContain('document_entity_id');
   expect(verifyAccess).toContain('getLatestEcoStoragePath');
+});
+
+test('public invite/link/access endpoints must enforce document_entity_id strict mode', async () => {
+  const [schemasContent, createInvite, generateLink, verifyAccess] = await Promise.all([
+    fs.readFile(SHARED_SCHEMAS_FILE, 'utf8'),
+    fs.readFile(CREATE_INVITE_FILE, 'utf8'),
+    fs.readFile(GENERATE_LINK_FILE, 'utf8'),
+    fs.readFile(VERIFY_ACCESS_FILE, 'utf8'),
+  ]);
+
+  expect(schemasContent).toContain('document_entity_id: z.string().uuid()');
+  expect(schemasContent).toContain('GenerateLinkSchema');
+  expect(schemasContent).toContain('}).strict();');
+
+  expect(createInvite).toContain('documentId is no longer accepted; use documentEntityId');
+
+  expect(generateLink).not.toContain('resolveDocumentRefs(');
+  expect(generateLink).not.toContain('document_id,');
+
+  expect(verifyAccess).toContain('legacy_link_missing_document_entity_id');
+  expect(verifyAccess).toContain('legacy_link_missing_recipient_id');
+  expect(verifyAccess).not.toContain(".from('documents')");
+  expect(verifyAccess).not.toContain(".eq('document_id', link.document_id)");
 });
 
 test('migration must add canonical document_entity_id pointers for invites/access tables', async () => {

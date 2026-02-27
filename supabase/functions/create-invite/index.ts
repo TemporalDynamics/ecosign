@@ -21,53 +21,6 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const isUuid = (value: string | undefined | null): value is string =>
   typeof value === 'string' && UUID_RE.test(value);
 
-async function resolveDocumentRefs(
-  supabase: any,
-  documentId?: string,
-  documentEntityId?: string,
-): Promise<{ documentEntityId: string | null; legacyDocumentId: string | null }> {
-  let resolvedEntityId = isUuid(documentEntityId) ? documentEntityId : null;
-  let resolvedLegacyId = isUuid(documentId) ? documentId : null;
-
-  if (resolvedLegacyId) {
-    const { data: byDocumentId } = await supabase
-      .from('documents')
-      .select('id, document_entity_id')
-      .eq('id', resolvedLegacyId)
-      .maybeSingle();
-
-    if (byDocumentId) {
-      resolvedLegacyId = byDocumentId.id as string;
-      if (!resolvedEntityId && typeof (byDocumentId as any).document_entity_id === 'string') {
-        resolvedEntityId = String((byDocumentId as any).document_entity_id);
-      }
-    } else if (!resolvedEntityId) {
-      // Legacy callers may send a document_entity_id in documentId.
-      resolvedEntityId = resolvedLegacyId;
-      resolvedLegacyId = null;
-    }
-  }
-
-  if (resolvedEntityId && !resolvedLegacyId) {
-    const { data: byEntity } = await supabase
-      .from('documents')
-      .select('id')
-      .eq('document_entity_id', resolvedEntityId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (byEntity?.id) {
-      resolvedLegacyId = String(byEntity.id);
-    }
-  }
-
-  return {
-    documentEntityId: resolvedEntityId,
-    legacyDocumentId: resolvedLegacyId,
-  };
-}
-
 serve(withRateLimit('invite', async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -108,10 +61,25 @@ serve(withRateLimit('invite', async (req) => {
     const body: CreateInviteRequest = await req.json();
     const { documentId, documentEntityId, email, role, expiresInDays = 30 } = body;
 
-    // Validate inputs
-    if ((!documentId && !documentEntityId) || !email || !role) {
+    // Strict canonical mode: public API accepts only document_entity_id.
+    if (documentId) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: documentId or documentEntityId, email, role' }),
+        JSON.stringify({ error: 'documentId is no longer accepted; use documentEntityId' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate inputs
+    if (!documentEntityId || !email || !role) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: documentEntityId, email, role' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!isUuid(documentEntityId)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid documentEntityId format' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -123,18 +91,10 @@ serve(withRateLimit('invite', async (req) => {
       );
     }
 
-    const refs = await resolveDocumentRefs(supabase, documentId, documentEntityId);
-    if (!refs.documentEntityId) {
-      return new Response(
-        JSON.stringify({ error: 'Document entity not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
       .select('id, owner_id, source_name')
-      .eq('id', refs.documentEntityId)
+      .eq('id', documentEntityId)
       .single();
 
     if (entityError || !entity) {
@@ -169,12 +129,21 @@ serve(withRateLimit('invite', async (req) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
+    // Optional legacy pointer for compatibility; authority remains document_entity_id.
+    const { data: legacyDoc } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('document_entity_id', documentEntityId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     // Create invite
     const { data: invite, error: inviteError } = await supabase
       .from('invites')
       .insert({
-        document_id: refs.legacyDocumentId,
-        document_entity_id: refs.documentEntityId,
+        document_id: legacyDoc?.id ?? null,
+        document_entity_id: documentEntityId,
         email: email.toLowerCase().trim(),
         role,
         token: token_value,

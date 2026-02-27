@@ -47,12 +47,16 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
   const polygonConfirmed = getAnchorEvent(events as any, 'polygon') !== null;
   const bitcoinConfirmed = getAnchorEvent(events as any, 'bitcoin') !== null;
   const confirmedAnchors = (polygonConfirmed ? 1 : 0) + (bitcoinConfirmed ? 1 : 0);
+  const requestedAnchorCount = requiredEvidence.filter((item) => item === 'polygon' || item === 'bitcoin').length;
+  const pendingAnchors = Math.max(requestedAnchorCount - confirmedAnchors, 0);
+  const timeoutAnchors = events.filter((e: any) => e?.kind === 'anchor.timeout').length;
+  const failedAnchors = events.filter((e: any) => e?.kind === 'anchor.failed').length;
 
   const level = (() => {
     if (!tsaConfirmed) return { label: 'Sin protección probatoria', badge: 'Sin protección', tone: 'gray' as const };
     if (confirmedAnchors >= 2) return { label: 'Protección máxima', badge: 'Máxima', tone: 'blue' as const };
     if (confirmedAnchors === 1) return { label: 'Protección reforzada', badge: 'Reforzada', tone: 'emerald' as const };
-    return { label: 'Protección base', badge: 'Base', tone: 'amber' as const };
+    return { label: 'Protección garantizada', badge: 'Garantizada', tone: 'amber' as const };
   })();
 
   const toneClasses = {
@@ -61,12 +65,6 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
     emerald: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     blue: 'bg-blue-100 text-blue-800 border-blue-200',
   }[level.tone];
-
-  const statusFor = (name: 'tsa' | 'polygon' | 'bitcoin', confirmed: boolean) => {
-    if (confirmed) return 'confirmado';
-    if (requiredEvidence.length > 0 && !requiredEvidence.includes(name)) return 'no requerido';
-    return 'pendiente';
-  };
 
   // Colores según la fase
   const getBorderColor = () => {
@@ -128,9 +126,19 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
           Informativo: no bloquea el flujo de firmas.
         </div>
         <div className="mt-2 grid gap-1 text-[11px] text-gray-600">
-          <div>TSA: {statusFor('tsa', tsaConfirmed)}</div>
-          <div>Polygon: {statusFor('polygon', polygonConfirmed)}</div>
-          <div>Bitcoin: {statusFor('bitcoin', bitcoinConfirmed)}</div>
+          <div>TSA: {tsaConfirmed ? 'confirmado' : 'pendiente'}</div>
+          {requestedAnchorCount > 0 && (
+            <div>Refuerzos confirmados: {confirmedAnchors}/{requestedAnchorCount}</div>
+          )}
+          {pendingAnchors > 0 && (
+            <div>Refuerzos asincrónicos pendientes: {pendingAnchors}</div>
+          )}
+          {timeoutAnchors > 0 && (
+            <div>Uno o más refuerzos excedieron la ventana automática.</div>
+          )}
+          {failedAnchors > timeoutAnchors && (
+            <div>Uno o más refuerzos finalizaron con error.</div>
+          )}
         </div>
       </div>
     </div>

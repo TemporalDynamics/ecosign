@@ -23,9 +23,9 @@ const mempoolApiUrl = Deno.env.get('MEMPOOL_API_URL') || 'https://mempool.space/
 
 // 288 attempts × 5 min = 24 hours (matches user promise of 4-24h)
 const MAX_VERIFY_ATTEMPTS = 288;
-const CONFIRM_WITHOUT_TX_THRESHOLD = 5;
 // Alert threshold: warn at 20 hours (240 attempts)
 const ALERT_THRESHOLD = 240;
+const BITCOIN_TIMEOUT_HOURS = 24;
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing Supabase credentials');
@@ -216,18 +216,6 @@ async function fetchBitcoinBlockData(txid: string): Promise<{ blockHeight?: numb
   }
 }
 
-/**
- * Convert base64 OTS proof to bytea for database storage
- */
-function base64ToBytes(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
 async function insertBitcoinNotification(anchor: any, txid?: string, blockHeight?: number, confirmedAt?: string | null) {
   if (!supabaseAdmin) return;
   if (!anchor.document_id || !anchor.user_email) return;
@@ -256,6 +244,103 @@ async function insertBitcoinNotification(anchor: any, txid?: string, blockHeight
       delivery_status: 'pending',
       error_message: null,
     });
+}
+
+const getAnchorStage = (anchor: any): string =>
+  typeof anchor?.metadata?.anchor_stage === 'string' ? anchor.metadata.anchor_stage : 'initial';
+
+const getStepIndex = (anchor: any): number => {
+  const raw = anchor?.metadata?.step_index;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string') {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+};
+
+async function emitAnchorConfirmedEvent(
+  anchor: any,
+  txid: string | null,
+  blockHeight: number | null,
+  confirmedAt: string,
+) {
+  if (!supabaseAdmin || !anchor.document_entity_id) {
+    console.warn(`⚠️ No document_entity_id for anchor ${anchor.id}, cannot emit canonical event`);
+    return;
+  }
+
+  try {
+    await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
+      kind: 'anchor.confirmed',
+      at: confirmedAt,
+      anchor: {
+        network: 'bitcoin',
+        witness_hash: anchor.document_hash,
+        txid,
+        block_height: blockHeight,
+        confirmed_at: confirmedAt,
+        anchor_stage: getAnchorStage(anchor),
+        step_index: getStepIndex(anchor),
+        provider: 'opentimestamps',
+      }
+    }, 'process-bitcoin-anchors');
+    console.log(`✅ Emitted anchor.confirmed for document_entity ${anchor.document_entity_id}`);
+  } catch (eventError) {
+    console.error('Failed to emit anchor.confirmed event:', eventError);
+  }
+}
+
+async function emitAnchorTimeoutEvent(
+  anchor: any,
+  reason: string,
+  attempts: number,
+) {
+  if (!supabaseAdmin || !anchor.document_entity_id) return;
+
+  const nowIso = new Date().toISOString();
+  const anchorStage = getAnchorStage(anchor);
+  const stepIndex = getStepIndex(anchor);
+  const basePayload = {
+    network: 'bitcoin',
+    witness_hash: anchor.document_hash,
+    reason,
+    attempt: attempts,
+    max_attempts: MAX_VERIFY_ATTEMPTS,
+    timeout_hours: BITCOIN_TIMEOUT_HOURS,
+    provider: 'opentimestamps',
+    anchor_stage: anchorStage,
+    step_index: stepIndex,
+  };
+
+  try {
+    await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
+      kind: 'anchor.timeout',
+      at: nowIso,
+      anchor: {
+        ...basePayload,
+        retryable: true,
+      }
+    }, 'process-bitcoin-anchors');
+    console.log(`✅ Emitted anchor.timeout for document_entity ${anchor.document_entity_id}`);
+  } catch (eventError) {
+    console.error('Failed to emit anchor.timeout event:', eventError);
+  }
+
+  try {
+    await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
+      kind: 'anchor.failed',
+      at: nowIso,
+      anchor: {
+        ...basePayload,
+        retryable: true,
+        failure_code: 'timeout',
+      }
+    }, 'process-bitcoin-anchors');
+    console.log(`✅ Emitted anchor.failed(timeout) for document_entity ${anchor.document_entity_id}`);
+  } catch (eventError) {
+    console.error('Failed to emit anchor.failed(timeout) event:', eventError);
+  }
 }
 
 /**
@@ -460,7 +545,7 @@ serve(async (req) => {
         }
 
         if (attempts > MAX_VERIFY_ATTEMPTS) {
-          const errorMessage = `Bitcoin verification timeout after 24 hours (${attempts} attempts). OpenTimestamps may still confirm later - you can retry verification manually.`;
+          const errorMessage = `Bitcoin verification timeout after ${BITCOIN_TIMEOUT_HOURS} hours (${attempts} attempts). OpenTimestamps may still confirm later - you can retry verification manually.`;
           console.error(`❌ ${errorMessage} - Anchor ID: ${anchor.id}`);
 
           // Marcar anchor de Bitcoin como failed
@@ -477,27 +562,7 @@ serve(async (req) => {
             throw new Error(`Failed to set failed(timeout) for anchor ${anchor.id}: ${timeoutFailedError.message}`);
           }
 
-          // Emit anchor.failed event to document_entities.events[] (CANONICAL)
-          if (anchor.document_entity_id) {
-            // Note: anchor.document_hash IS the witness_hash being anchored
-            try {
-              await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
-                kind: 'anchor.failed',
-                at: new Date().toISOString(),
-                anchor: {
-                  network: 'bitcoin',
-                  witness_hash: anchor.document_hash,
-                  reason: errorMessage,
-                  retryable: true,
-                  attempt: attempts,
-                  provider: 'opentimestamps',
-                }
-              }, 'process-bitcoin-anchors')
-              console.log(`✅ Emitted anchor.failed for document_entity ${anchor.document_entity_id}`)
-            } catch (eventError) {
-              console.error(`Failed to emit anchor.failed event:`, eventError)
-            }
-          }
+          await emitAnchorTimeoutEvent(anchor, errorMessage, attempts);
 
           // NOTE: legacy projection updates removed; canonical events are the source of truth.
           // Legacy updates removed to ensure single source of truth in events[]
@@ -562,9 +627,8 @@ serve(async (req) => {
               }
 
               console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
-
+              await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
               await notifyAnchorConfirmed(anchor, txid || null, blockHeight || null);
-
               await insertBitcoinNotification(anchor, txid, blockHeight ?? undefined, blockData.confirmedAt ?? null);
               confirmed++;
               processed++;
@@ -574,8 +638,6 @@ serve(async (req) => {
 
           // Update anchor record only (projection side effects are derived from canonical state).
           const confirmedAt = new Date().toISOString();
-          const otsBytes = base64ToBytes(verification.upgradedProof || anchor.ots_proof);
-
           const metadata = {
             bitcoin_tx: txid,
             block: blockHeight,
@@ -602,41 +664,10 @@ serve(async (req) => {
           }
 
           console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
-
+          await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
           await notifyAnchorConfirmed(anchor, txid || null, blockHeight || null);
 
           await insertBitcoinNotification(anchor, txid, blockHeight ?? undefined, confirmedAt);
-          
-          // Emit anchor.confirmed event to document_entities.events[] (CANONICAL)
-          if (anchor.document_entity_id) {
-            // Note: anchor.document_hash IS the witness_hash being anchored
-            const witnessHash = anchor.document_hash
-            const anchorStage = anchor.metadata?.anchor_stage ?? 'initial'
-            const stepIndex = anchor.metadata?.step_index ?? 0
-            
-            try {
-              await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
-                kind: 'anchor.confirmed',
-                at: confirmedAt,
-                anchor: {
-                  network: 'bitcoin',
-                  witness_hash: witnessHash,
-                  txid: txid ?? null,
-                  block_height: blockHeight ?? null,
-                  confirmed_at: confirmedAt,
-                  anchor_stage: anchorStage,
-                  step_index: stepIndex,
-                  provider: 'opentimestamps',
-                }
-              }, 'process-bitcoin-anchors')
-              console.log(`✅ Emitted anchor.confirmed for document_entity ${anchor.document_entity_id}`)
-            } catch (eventError) {
-              console.error(`Failed to emit anchor.confirmed event:`, eventError)
-            }
-          } else {
-            console.warn(`⚠️ No document_entity_id for anchor ${anchor.id}, cannot emit canonical event`)
-          }
-          
           confirmed++;
         } else {
           // Still pending - update status to 'processing' if not already

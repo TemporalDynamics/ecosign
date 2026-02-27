@@ -118,14 +118,26 @@ serve(withRateLimit('verify', async (req) => {
       return jsonResponse({ success: false, error: 'download_unavailable' }, 500, corsHeaders)
     }
 
-    // Update last accessed timestamp (best-effort)
-    try {
-      await supabaseAdmin
-        .from('document_shares')
-        .update({ accessed_at: new Date().toISOString() })
-        .eq('id', shareId)
-    } catch (err) {
-      console.warn('verify-share-otp: failed to update accessed_at', err)
+    // One-time claim: only one request can transition pending -> accessed.
+    // If another request already consumed it, return invalid/expired.
+    const { data: claimedRows, error: claimError } = await supabaseAdmin
+      .from('document_shares')
+      .update({
+        status: 'accessed',
+        accessed_at: new Date().toISOString(),
+      })
+      .eq('id', shareId)
+      .eq('status', 'pending')
+      .select('id')
+      .limit(1)
+
+    if (claimError) {
+      console.error('verify-share-otp: failed to claim share', claimError)
+      return jsonResponse({ success: false, error: 'share_claim_failed' }, 500, corsHeaders)
+    }
+
+    if (!claimedRows || claimedRows.length === 0) {
+      return jsonResponse({ success: false, error: 'invalid_or_expired' }, 403, corsHeaders)
     }
 
     // Emit probatory event otp.verified (best-effort)

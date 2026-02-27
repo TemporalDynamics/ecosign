@@ -145,6 +145,7 @@ run_step "Anchor timeout state-machine guard" npm run test -- tests/authority/an
 run_step "Anchor layer sealed guard" npm run test -- tests/authority/anchor_layer_sealed_guard.test.ts
 run_step "Document authority layer sealed guard" npm run test -- tests/authority/document_authority_layer_sealed_guard.test.ts
 run_step "Canonical path complete sealed guard" npm run test -- tests/authority/canonical_path_complete_sealed_guard.test.ts
+run_step "Legacy compat decommission guard" npm run test -- tests/authority/legacy_compat_decommission_guard.test.ts
 run_step "Non-critical canonical guard" npm run test -- tests/authority/noncritical_endpoints_canonical_guard.test.ts
 run_step "Release bundle canonical guard" npm run test -- tests/authority/release_bundle_canonical_guard.test.ts
 run_step "Non-legacy user_documents guard" npm run test -- tests/authority/nonlegacy_user_documents_guard.test.ts

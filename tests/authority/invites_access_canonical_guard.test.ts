@@ -48,11 +48,12 @@ test('invites/access endpoints must not read legacy user_documents', async () =>
 });
 
 test('invites/access endpoints must not use user_document bridge helpers', async () => {
-  const [createInvite, createSignerLink, generateLink, verifyAccess] = await Promise.all([
+  const [createInvite, createSignerLink, generateLink, verifyAccess, verifyInviteAccess] = await Promise.all([
     fs.readFile(CREATE_INVITE_FILE, 'utf8'),
     fs.readFile(CREATE_SIGNER_LINK_FILE, 'utf8'),
     fs.readFile(GENERATE_LINK_FILE, 'utf8'),
     fs.readFile(VERIFY_ACCESS_FILE, 'utf8'),
+    fs.readFile(VERIFY_INVITE_ACCESS_FILE, 'utf8'),
   ]);
 
   for (const content of [createInvite, createSignerLink, generateLink]) {
@@ -60,6 +61,8 @@ test('invites/access endpoints must not use user_document bridge helpers', async
   }
 
   expect(verifyAccess).not.toContain('getDocumentEntityId(');
+  expect(verifyInviteAccess).not.toContain(".from('documents')");
+  expect(verifyInviteAccess).toContain('legacy_invite_missing_document_entity_id');
 });
 
 test('invites/access endpoints must use document_entity_id references', async () => {
@@ -88,10 +91,13 @@ test('public invite/link/access endpoints must enforce document_entity_id strict
   ]);
 
   expect(schemasContent).toContain('document_entity_id: z.string().uuid()');
+  expect(schemasContent).toContain('CreateSignerLinkSchema');
+  expect(schemasContent).toContain('documentEntityId: z.string().uuid()');
   expect(schemasContent).toContain('GenerateLinkSchema');
   expect(schemasContent).toContain('}).strict();');
 
   expect(createInvite).toContain('documentId is no longer accepted; use documentEntityId');
+  expect(schemasContent).not.toContain('documentId: z.string().uuid().optional()');
 
   expect(generateLink).not.toContain('resolveDocumentRefs(');
   expect(generateLink).not.toContain('document_id,');
@@ -100,6 +106,22 @@ test('public invite/link/access endpoints must enforce document_entity_id strict
   expect(verifyAccess).toContain('legacy_link_missing_recipient_id');
   expect(verifyAccess).not.toContain(".from('documents')");
   expect(verifyAccess).not.toContain(".eq('document_id', link.document_id)");
+});
+
+test('create-signer-link must require documentEntityId and avoid legacy resolver fallback', async () => {
+  const [createSignerLink, schemasContent] = await Promise.all([
+    fs.readFile(CREATE_SIGNER_LINK_FILE, 'utf8'),
+    fs.readFile(SHARED_SCHEMAS_FILE, 'utf8'),
+  ]);
+
+  expect(createSignerLink).not.toContain('resolveDocumentRefs(');
+  expect(createSignerLink).not.toContain('documentId');
+  expect(createSignerLink).toContain('documentEntityId');
+  expect(createSignerLink).toContain(".eq('id', documentEntityId)");
+
+  expect(schemasContent).toContain('CreateSignerLinkSchema');
+  expect(schemasContent).toContain('documentEntityId: z.string().uuid()');
+  expect(schemasContent).toContain('}).strict();');
 });
 
 test('migration must add canonical document_entity_id pointers for invites/access tables', async () => {

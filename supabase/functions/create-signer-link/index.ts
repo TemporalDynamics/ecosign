@@ -5,7 +5,7 @@
  *
  * Request Body:
  * {
- *   documentId: string (UUID del documento)
+ *   documentEntityId: string (UUID canónico del document_entities.id)
  *   signerEmail: string (email del firmante)
  *   signerName?: string (nombre prellenado, opcional)
  * }
@@ -28,56 +28,6 @@ import { sendEmail, buildSignerInvitationEmail } from '../_shared/email.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { parseJsonBody } from '../_shared/validation.ts';
 import { CreateSignerLinkSchema } from '../_shared/schemas.ts';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const isUuid = (value: string | undefined | null): value is string =>
-  typeof value === 'string' && UUID_RE.test(value);
-
-async function resolveDocumentRefs(
-  supabase: any,
-  documentId?: string,
-  documentEntityId?: string,
-): Promise<{ documentEntityId: string | null; legacyDocumentId: string | null }> {
-  let resolvedEntityId = isUuid(documentEntityId) ? documentEntityId : null;
-  let resolvedLegacyId = isUuid(documentId) ? documentId : null;
-
-  if (resolvedLegacyId) {
-    const { data: byDocumentId } = await supabase
-      .from('documents')
-      .select('id, document_entity_id')
-      .eq('id', resolvedLegacyId)
-      .maybeSingle();
-
-    if (byDocumentId) {
-      resolvedLegacyId = byDocumentId.id as string;
-      if (!resolvedEntityId && typeof (byDocumentId as any).document_entity_id === 'string') {
-        resolvedEntityId = String((byDocumentId as any).document_entity_id);
-      }
-    } else if (!resolvedEntityId) {
-      resolvedEntityId = resolvedLegacyId;
-      resolvedLegacyId = null;
-    }
-  }
-
-  if (resolvedEntityId && !resolvedLegacyId) {
-    const { data: byEntity } = await supabase
-      .from('documents')
-      .select('id')
-      .eq('document_entity_id', resolvedEntityId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (byEntity?.id) {
-      resolvedLegacyId = String(byEntity.id);
-    }
-  }
-
-  return {
-    documentEntityId: resolvedEntityId,
-    legacyDocumentId: resolvedLegacyId,
-  };
-}
 
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
@@ -147,33 +97,18 @@ serve(async (req) => {
         }
       );
     }
-    const { documentId, documentEntityId, signerEmail, signerName } = parsed.data;
+    const { documentEntityId, signerEmail, signerName } = parsed.data;
 
     console.log('📧 [create-signer-link] Request:', {
-      documentId,
       documentEntityId,
       signerEmail,
       signerName: signerName || '(sin prellenar)'
     });
 
-    const refs = await resolveDocumentRefs(supabase, documentId, documentEntityId);
-    if (!refs.documentEntityId) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Documento no encontrado'
-        }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
       .select('id, owner_id, source_name')
-      .eq('id', refs.documentEntityId)
+      .eq('id', documentEntityId)
       .single();
 
     if (entityError || !entity) {
@@ -203,6 +138,15 @@ serve(async (req) => {
       );
     }
 
+    // Optional legacy pointer for compatibility (authority remains document_entity_id).
+    const { data: legacyDoc } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('document_entity_id', documentEntityId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     // Generar token único
     const token = crypto.randomUUID();
 
@@ -210,8 +154,8 @@ serve(async (req) => {
     const { data: signerLink, error: linkError } = await supabase
       .from('signer_links')
       .insert({
-        document_id: refs.legacyDocumentId,
-        document_entity_id: refs.documentEntityId,
+        document_id: legacyDoc?.id ?? null,
+        document_entity_id: documentEntityId,
         owner_id: requester.id,
         signer_email: signerEmail,
         signer_name: signerName || null,
@@ -242,11 +186,11 @@ serve(async (req) => {
     });
 
     // Registrar evento 'sent' en la tabla events
-    if (refs.legacyDocumentId) {
+    if (legacyDoc?.id) {
       const { error: eventError } = await supabase
         .from('events')
         .insert({
-          document_id: refs.legacyDocumentId,
+          document_id: legacyDoc.id,
           event_type: 'sent',
           signer_link_id: signerLink.id,
           actor_email: signerEmail,

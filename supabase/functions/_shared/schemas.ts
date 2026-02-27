@@ -14,14 +14,10 @@ export const GenerateLinkSchema = z.object({
 }).strict();
 
 export const CreateSignerLinkSchema = z.object({
-  documentId: z.string().uuid().optional(),
-  documentEntityId: z.string().uuid().optional(),
+  documentEntityId: z.string().uuid(),
   signerEmail: z.string().email(),
   signerName: z.string().min(1).max(200).optional(),
-}).refine(
-  (data) => Boolean(data.documentId || data.documentEntityId),
-  { message: 'documentId or documentEntityId is required', path: ['documentId'] }
-);
+}).strict();
 
 export const AcceptNdaSchema = z.object({
   token: z.string().regex(/^[a-f0-9]{64}$/i, 'Invalid token format'),

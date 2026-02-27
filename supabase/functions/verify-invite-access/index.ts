@@ -158,20 +158,12 @@ serve(async (req) => {
       );
     }
 
-    let documentEntityId = asNonEmptyString((invite as any).document_entity_id);
-    if (!documentEntityId && asNonEmptyString((invite as any).document_id)) {
-      const { data: documentRow } = await supabase
-        .from('documents')
-        .select('document_entity_id')
-        .eq('id', String((invite as any).document_id))
-        .maybeSingle();
-      documentEntityId = asNonEmptyString((documentRow as any)?.document_entity_id);
-    }
+    const documentEntityId = asNonEmptyString((invite as any).document_entity_id);
 
     if (!documentEntityId) {
       return new Response(
-        JSON.stringify({ error: 'Document entity not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'legacy_invite_missing_document_entity_id' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

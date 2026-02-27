@@ -17,6 +17,7 @@ Required for --execute:
 Environment flags:
   PREBETA_INCLUDE_FULL_TESTS=true   # opcional, ejecuta npm test dentro del gate
   DENO_CHECK=true|false|auto        # opcional para prebeta_fire_drill.sh (default: auto)
+  DATABASE_URL o SUPABASE_DB_URL    # requerido en --execute para check pre-launch obligatorio
 
 Function bundle source:
   scripts/diagnostics/release_beta_functions.txt
@@ -152,7 +153,12 @@ if [[ -z "${ROTATION_TICKET:-}" ]]; then
 fi
 
 if [[ "${SKIP_PREBETA}" != "true" ]]; then
-  bash scripts/diagnostics/prebeta_fire_drill.sh
+  if [[ -z "${DATABASE_URL:-}" && -z "${SUPABASE_DB_URL:-}" ]]; then
+    echo "ERROR: DATABASE_URL o SUPABASE_DB_URL es requerido en --execute para el check pre-launch legacy null-entity." >&2
+    exit 2
+  fi
+
+  PRELAUNCH_LEGACY_NULL_CHECK=true bash scripts/diagnostics/prebeta_fire_drill.sh
 fi
 
 (

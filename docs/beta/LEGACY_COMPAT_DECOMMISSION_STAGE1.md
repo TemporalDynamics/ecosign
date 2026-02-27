@@ -48,3 +48,4 @@ resolución ambigua por `document_id` y forzar contrato estricto por
    - invites sin `document_entity_id`
    - signer_links sin `document_entity_id`
    - document_shares sin `document_entity_id`
+5. En `release_beta_ritual --execute`, el chequeo pre-launch legacy null-entity corre en modo obligatorio (`PRELAUNCH_LEGACY_NULL_CHECK=true`) con `DATABASE_URL` o `SUPABASE_DB_URL` explícita.

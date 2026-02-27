@@ -12,6 +12,7 @@ const SHARED_SCHEMAS_FILE = path.join(ROOT, 'supabase/functions/_shared/schemas.
 const CREATE_SIGNER_LINK_FILE = path.join(ROOT, 'supabase/functions/create-signer-link/index.ts');
 const VERIFY_INVITE_ACCESS_FILE = path.join(ROOT, 'supabase/functions/verify-invite-access/index.ts');
 const PREBETA_FIRE_DRILL_FILE = path.join(ROOT, 'scripts/diagnostics/prebeta_fire_drill.sh');
+const RELEASE_BETA_RITUAL_FILE = path.join(ROOT, 'scripts/diagnostics/release_beta_ritual.sh');
 
 test('legacy compat decommission stage1 doc must exist with strict entity-id scope', async () => {
   const content = await fs.readFile(MILESTONE_DOC, 'utf8');
@@ -56,4 +57,12 @@ test('prebeta fire drill must include legacy compat decommission guard', async (
 
   expect(content).toContain('Legacy compat decommission guard');
   expect(content).toContain('tests/authority/legacy_compat_decommission_guard.test.ts');
+});
+
+test('release ritual execute path must force prelaunch null-entity check with explicit DB url', async () => {
+  const content = await fs.readFile(RELEASE_BETA_RITUAL_FILE, 'utf8');
+
+  expect(content).toContain('DATABASE_URL o SUPABASE_DB_URL');
+  expect(content).toContain('PRELAUNCH_LEGACY_NULL_CHECK=true');
+  expect(content).toContain('scripts/diagnostics/prebeta_fire_drill.sh');
 });

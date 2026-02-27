@@ -350,7 +350,9 @@ inspector_port = 8083
 deno_version = 2
 
 [edge_runtime.secrets]
-ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+FASE = "1"
+ALLOWED_ORIGIN = "*"
+ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175"
 # Token security (cryptoHelper.ts)
 TOKEN_SECRET = "dev-secret-token-hmac-sha256-key-for-local-development-only"
 TOKEN_ENCRYPTION_KEY = "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY="

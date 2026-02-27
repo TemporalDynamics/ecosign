@@ -198,6 +198,15 @@ const signNowClientSecret = Deno.env.get("SIGNNOW_CLIENT_SECRET") || "";
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
+function normalizeLocalSignedUrl(url: string): string {
+  // In local Supabase, Storage may return internal Docker host (kong:8000).
+  // Rewrite to the externally reachable API URL.
+  if (url.includes("http://kong:8000")) {
+    return url.replace("http://kong:8000", "http://127.0.0.1:54321");
+  }
+  return url;
+}
+
 async function hashToken(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(token);
@@ -553,6 +562,9 @@ serve(async (req) => {
               signed.signedUrl.includes("?") ? "&" : "?"
             }${cacheBust}`
             : null;
+          if (encryptedPdfUrl) {
+            encryptedPdfUrl = normalizeLocalSignedUrl(encryptedPdfUrl);
+          }
         }
       } catch (signedErr) {
         console.warn("signer-access: signed url generation threw", signedErr);

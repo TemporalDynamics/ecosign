@@ -10,6 +10,25 @@ function normalizeOrigin(value: string): string | null {
   }
 }
 
+function isLocalHostOrigin(value: string): boolean {
+  try {
+    const origin = new URL(value);
+    const host = origin.hostname.toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+  } catch {
+    return false;
+  }
+}
+
+function isLocalDevRuntime(): boolean {
+  const hints = [
+    Deno.env.get('SUPABASE_URL') || '',
+    Deno.env.get('SITE_URL') || '',
+    Deno.env.get('FRONTEND_URL') || '',
+  ];
+  return hints.some((value) => value.includes('127.0.0.1') || value.includes('localhost'));
+}
+
 function getAllowedOrigins(): string[] {
   const raw =
     Deno.env.get('ALLOWED_ORIGINS') ||
@@ -33,18 +52,28 @@ function getAllowedOrigins(): string[] {
 }
 
 export function getCorsHeaders(origin?: string) {
+  const allowAllOrigins =
+    [Deno.env.get('ALLOWED_ORIGINS') || '', Deno.env.get('ALLOWED_ORIGIN') || '']
+      .some((raw) => raw.split(',').map((s) => s.trim()).includes('*'));
   const allowedOrigins = getAllowedOrigins();
   const normalizedOrigin = origin ? normalizeOrigin(origin) : null;
   const isNullOrigin = normalizedOrigin === 'null';
+  const localDevOriginAllowed =
+    normalizedOrigin !== null &&
+    normalizedOrigin.length > 0 &&
+    isLocalDevRuntime() &&
+    isLocalHostOrigin(normalizedOrigin);
   const isAllowed =
+    allowAllOrigins ||
     !normalizedOrigin ||
     isNullOrigin ||
-    allowedOrigins.includes(normalizedOrigin);
+    allowedOrigins.includes(normalizedOrigin) ||
+    localDevOriginAllowed;
 
   // In some contexts (file://, sandboxed iframes, opaque origins), browsers use Origin: null.
   // Using '*' here avoids brittle mismatches while still requiring auth for protected endpoints.
   const allowOrigin =
-    !normalizedOrigin || isNullOrigin
+    allowAllOrigins || !normalizedOrigin || isNullOrigin
       ? '*'
       : (isAllowed ? normalizedOrigin : 'null');
 

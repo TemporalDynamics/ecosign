@@ -164,6 +164,8 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
       const rawMessage = err instanceof Error ? err.message : 'Error al generar el enlace';
       const message = rawMessage === 'share_source_unavailable'
         ? 'No pudimos preparar este documento para compartir con OTP. Reintentá en unos segundos o abrí el documento y volvé a intentar.'
+        : rawMessage === 'share_pending_exists'
+          ? 'Este documento ya tiene un acceso OTP activo. Revocalo o esperá que expire antes de crear otro.'
         : rawMessage;
       setError(message);
     } finally {

@@ -22,6 +22,7 @@ import { downloadDocument } from '@/utils/documentStorage'
 import { decryptFile } from '@/utils/encryption'
 import { encryptFile, generateEncryptionKey } from '@/utils/encryption'
 import { deriveKeyFromOTP, unwrapDocumentKey, decryptFile as decryptFileE2E, hexToBytes } from '@/lib/e2e'
+import { clearSignFlowContext, readSignFlowContext, type SignFlowContext } from '@/lib/signFlowContext'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 
@@ -155,14 +156,27 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
   const [isLastSigner, setIsLastSigner] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [rejecting, setRejecting] = useState(false)
+  const [signFlowContext, setSignFlowContext] = useState<SignFlowContext | null>(null)
 
   const homePath = isSignerMode ? '/firma' : '/documentos'
+  const showReturnToOrigin = !isSignerMode && signFlowContext?.flowType === 'my_signature'
+  const completionDestination =
+    showReturnToOrigin && signFlowContext?.originRoute
+      ? signFlowContext.originRoute
+      : homePath
 
   const handleCloseAction = () => {
     if (isSignerMode && typeof window !== 'undefined') {
       window.close()
     }
     navigate(homePath)
+  }
+
+  const handleCompletionClose = () => {
+    if (token) {
+      clearSignFlowContext(token)
+    }
+    navigate(completionDestination)
   }
 
   const mapOtpErrorMessage = (errorCodeOrMessage?: string | null) => {
@@ -215,6 +229,10 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       setError('Token de firma inválido')
       setStep('error')
     }
+  }, [token])
+
+  useEffect(() => {
+    setSignFlowContext(readSignFlowContext(token))
   }, [token])
 
   // Check if user is authenticated
@@ -270,6 +288,17 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({} as any))
+
+        if (String(body?.error || '').toLowerCase() === 'disabled') {
+          setError('El servicio de firma está deshabilitado en este entorno (FASE).')
+          setStep('error')
+          return null
+        }
+        if (String(body?.error || '').toLowerCase().includes('origin not allowed')) {
+          setError('Origen no permitido para esta función. Revisá configuración local de CORS.')
+          setStep('error')
+          return null
+        }
         
         // Handle structured error codes
         if (body?.error_code) {
@@ -851,6 +880,9 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
   const handleDownloadEco = async () => {
     try {
       let url = ecoUrl
+      if (!url && !ecoPath) {
+        throw new Error('La evidencia ECO aún se está preparando. Reintentá en unos segundos.')
+      }
       if (!url && ecoPath && signerData) {
         const supabase = getSupabase()
         const { data, error } = await supabase.functions.invoke('get-eco-url', {
@@ -885,7 +917,10 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       URL.revokeObjectURL(blobUrl)
     } catch (err) {
       console.error('Error downloading ECO:', err)
-      window.alert('No se pudo descargar el ECO. Intentá nuevamente.')
+      const message = err instanceof Error && err.message
+        ? err.message
+        : 'No se pudo descargar el ECO. Intentá nuevamente.'
+      window.alert(message)
     }
   }
 
@@ -1199,11 +1234,11 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
           <CompletionScreen
             workflowTitle={signerData.workflow.title}
             onDownloadPdf={handleDownloadSignedPdf}
-            onDownloadEco={(ecoUrl || ecoPath) ? handleDownloadEco : undefined}
+            onDownloadEco={handleDownloadEco}
             isLastSigner={isLastSigner}
-            onClose={() => navigate(homePath)}
-            showCloseAction={false}
-            closeLabel="Cerrar"
+            onClose={handleCompletionClose}
+            showCloseAction={showReturnToOrigin}
+            closeLabel="Volver al origen"
           />
         )}
       </div>

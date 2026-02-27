@@ -42,7 +42,11 @@ export default function CompletionScreen({
   }
 
   const handleEcoClick = async () => {
-    if (!onDownloadEco || downloadingEco) return
+    if (downloadingEco) return
+    if (!onDownloadEco) {
+      window.alert('La evidencia ECO aún se está preparando. Reintentá en unos segundos.')
+      return
+    }
     try {
       setDownloadingEco(true)
       await Promise.resolve(onDownloadEco())
@@ -76,16 +80,14 @@ export default function CompletionScreen({
             <FileText className="h-5 w-5" />
             {downloadingPdf ? 'Preparando descarga...' : 'Descargar copia fiel (PDF)'}
           </button>
-          {onDownloadEco && (
-            <button
-              onClick={handleEcoClick}
-              disabled={downloadingEco}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              <FileText className="h-5 w-5" />
-              {downloadingEco ? 'Preparando descarga...' : 'Descargar .ECO'}
-            </button>
-          )}
+          <button
+            onClick={handleEcoClick}
+            disabled={downloadingEco}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            <FileText className="h-5 w-5" />
+            {downloadingEco ? 'Preparando descarga...' : 'Descargar evidencia (.ECO)'}
+          </button>
           {showCloseAction && (
             <button
               onClick={onClose}

@@ -103,7 +103,32 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
     if (error) {
       console.error('Error en start-signature-workflow:', error);
       console.error('Error completo:', JSON.stringify(error, null, 2));
-      throw error;
+
+      let edgeErrorPayload: unknown = null;
+      const maybeContext = (error as any)?.context;
+      if (maybeContext && typeof maybeContext === 'object') {
+        try {
+          const response = maybeContext as Response;
+          const cloned = typeof response.clone === 'function' ? response.clone() : response;
+          const contentType = cloned.headers?.get?.('content-type') || '';
+          edgeErrorPayload = contentType.includes('application/json')
+            ? await cloned.json()
+            : await cloned.text();
+        } catch (parseError) {
+          console.warn('No se pudo parsear el payload de error de Edge Function', parseError);
+        }
+      }
+
+      if (edgeErrorPayload) {
+        console.error('Payload de error de Edge Function:', edgeErrorPayload);
+      }
+
+      const extractedMessage =
+        typeof edgeErrorPayload === 'object' && edgeErrorPayload
+          ? (edgeErrorPayload as any).error || (edgeErrorPayload as any).message || (edgeErrorPayload as any).details
+          : (typeof edgeErrorPayload === 'string' ? edgeErrorPayload : null);
+
+      throw extractedMessage ? new Error(String(extractedMessage)) : error;
     }
 
     console.log('Respuesta de start-signature-workflow:', data);

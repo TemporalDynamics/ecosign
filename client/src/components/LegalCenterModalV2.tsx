@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { ChangeEvent } from 'react';
 import { X, ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, FileCheck, FileText, HelpCircle, Highlighter, Loader2, Maximize2, Minimize2, Shield, Type, Upload, Users, RefreshCw, MoreVertical, FileUp, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -43,6 +43,7 @@ import { convertToOverlaySpec } from '../utils/overlaySpecConverter';
 import { loadDraftFile, saveDraftOperation } from '../lib/draftOperationsService';
 import { saveWorkflowFields, loadWorkflowFields } from '../lib/workflowFieldsService';
 import { resolveBatchAssignments } from '../lib/batches';
+import { storeSignFlowContext } from '../lib/signFlowContext';
 
 // PASO 3: Módulos refactorizados
 import { 
@@ -166,6 +167,7 @@ interface LegalCenterModalProps {
 const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, initialAction = null }) => {
   // Router navigation (soft navigation without page reload)
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Estados del flujo
   const [step, setStep] = useState<number>(1); // 1: Elegir y Configurar, 2: Guardar/Descargar
@@ -1758,6 +1760,12 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             const tokenPart = signUrl.split('/sign/')[1] || '';
             const tokenOnly = tokenPart.split('?')[0];
             if (tokenOnly) {
+              const originRoute = `${location.pathname}${location.search}${location.hash}`;
+              storeSignFlowContext(tokenOnly, {
+                flowType: 'my_signature',
+                originRoute,
+                createdAt: new Date().toISOString()
+              });
               resetAndClose();
               onClose();
               setLoading(false);

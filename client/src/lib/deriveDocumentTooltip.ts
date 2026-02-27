@@ -4,7 +4,7 @@
 // ========================================
 
 import type { DocumentEntityRow } from './eco/v2';
-import { deriveProtectionLevel } from './protectionLevel';
+import { deriveAnchorProbativeState } from './anchorProbativeState';
 import type { SimpleSigner } from './deriveDocumentState';
 
 /**
@@ -63,21 +63,24 @@ export function deriveDocumentTooltip(
   // 3. NIVEL DE PROTECCIÓN
   // ========================================
 
-  const protectionLevel = deriveProtectionLevel((document.events ?? []) as any);
+  const probative = deriveAnchorProbativeState({
+    events: (document.events ?? []) as any[],
+    hasPrimaryHash: Boolean(
+      (document as any)?.signed_hash ||
+      (document as any)?.witness_current_hash ||
+      (document as any)?.source_hash
+    ),
+  });
 
-  if (protectionLevel === 'TWO_CHAINS_CONFIRMED') {
+  if (probative.level === 'total') {
     return 'Protección máxima completada\n\nMáxima fortaleza probatoria';
   }
 
-  if (protectionLevel === 'ONE_CHAIN_CONFIRMED') {
+  if (probative.level === 'reinforced') {
     return 'Protección reforzada\n\nRefuerzo probatorio adicional confirmado';
   }
 
-  if (protectionLevel === 'TSA_REKOR_CONFIRMED') {
-    return 'Protección garantizada\n\nIntegridad y fecha cierta confirmadas';
-  }
-
-  if (protectionLevel === 'TSA_CONFIRMED') {
+  if (probative.level === 'active') {
     return 'Protección garantizada\n\nIntegridad y fecha cierta confirmadas';
   }
 

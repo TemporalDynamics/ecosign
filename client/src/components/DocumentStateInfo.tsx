@@ -6,7 +6,7 @@
 import React from 'react';
 import { deriveDocumentState } from '../lib/deriveDocumentState';
 import type { DocumentEntityRow } from '../lib/eco/v2';
-import { getAnchorEvent, hasTsaConfirmed } from '../lib/protectionLevel';
+import { deriveAnchorProbativeState } from '../lib/anchorProbativeState';
 
 interface DocumentStateInfoProps {
   document: any; // DocumentRecord (legacy) o DocumentEntityRow
@@ -35,36 +35,21 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
   );
   const isFinalized = state.phase === 'gray';
 
-  const latestProtectionRequest = [...events]
-    .reverse()
-    .find((e: any) => e?.kind === 'document.protected.requested');
-  const requiredEvidenceRaw = latestProtectionRequest?.payload?.required_evidence;
-  const requiredEvidence = Array.isArray(requiredEvidenceRaw)
-    ? requiredEvidenceRaw.filter((item: unknown): item is string => typeof item === 'string')
-    : [];
-
-  const tsaConfirmed = hasTsaConfirmed(events);
-  const polygonConfirmed = getAnchorEvent(events as any, 'polygon') !== null;
-  const bitcoinConfirmed = getAnchorEvent(events as any, 'bitcoin') !== null;
-  const confirmedAnchors = (polygonConfirmed ? 1 : 0) + (bitcoinConfirmed ? 1 : 0);
-  const requestedAnchorCount = requiredEvidence.filter((item) => item === 'polygon' || item === 'bitcoin').length;
-  const pendingAnchors = Math.max(requestedAnchorCount - confirmedAnchors, 0);
-  const timeoutAnchors = events.filter((e: any) => e?.kind === 'anchor.timeout').length;
-  const failedAnchors = events.filter((e: any) => e?.kind === 'anchor.failed').length;
-
-  const level = (() => {
-    if (!tsaConfirmed) return { label: 'Sin protección probatoria', badge: 'Sin protección', tone: 'gray' as const };
-    if (confirmedAnchors >= 2) return { label: 'Protección máxima', badge: 'Máxima', tone: 'blue' as const };
-    if (confirmedAnchors === 1) return { label: 'Protección reforzada', badge: 'Reforzada', tone: 'emerald' as const };
-    return { label: 'Protección garantizada', badge: 'Garantizada', tone: 'amber' as const };
-  })();
+  const probative = deriveAnchorProbativeState({
+    events,
+    hasPrimaryHash: Boolean(
+      document?.content_hash ||
+      document?.eco_hash ||
+      document?.document_hash
+    ),
+  });
 
   const toneClasses = {
     gray: 'bg-gray-100 text-gray-700 border-gray-200',
     amber: 'bg-amber-100 text-amber-800 border-amber-200',
     emerald: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     blue: 'bg-blue-100 text-blue-800 border-blue-200',
-  }[level.tone];
+  }[probative.config.tone];
 
   // Colores según la fase
   const getBorderColor = () => {
@@ -116,27 +101,27 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-semibold text-gray-700">Estado probatorio</div>
           <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${toneClasses}`}>
-            {level.badge}
+            {probative.config.badge}
           </span>
         </div>
         <div className="text-xs text-gray-600 mt-1">
-          {level.label}
+          {probative.config.detailLabel}
         </div>
         <div className="text-[11px] text-gray-500 mt-1">
           Informativo: no bloquea el flujo de firmas.
         </div>
         <div className="mt-2 grid gap-1 text-[11px] text-gray-600">
-          <div>TSA: {tsaConfirmed ? 'confirmado' : 'pendiente'}</div>
-          {requestedAnchorCount > 0 && (
-            <div>Refuerzos confirmados: {confirmedAnchors}/{requestedAnchorCount}</div>
+          <div>TSA: {probative.tsaConfirmed ? 'confirmado' : 'pendiente'}</div>
+          {probative.requestedAnchors > 0 && (
+            <div>Refuerzos confirmados: {probative.confirmedAnchors}/{probative.requestedAnchors}</div>
           )}
-          {pendingAnchors > 0 && (
-            <div>Refuerzos asincrónicos pendientes: {pendingAnchors}</div>
+          {probative.pendingAnchors > 0 && (
+            <div>Refuerzos asincrónicos pendientes: {probative.pendingAnchors}</div>
           )}
-          {timeoutAnchors > 0 && (
+          {probative.timeoutAnchors > 0 && (
             <div>Uno o más refuerzos excedieron la ventana automática.</div>
           )}
-          {failedAnchors > timeoutAnchors && (
+          {probative.failedAnchors > 0 && (
             <div>Uno o más refuerzos finalizaron con error.</div>
           )}
         </div>

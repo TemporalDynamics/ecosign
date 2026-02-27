@@ -9,15 +9,26 @@ const ROOT = path.resolve(__dirname, '..', '..');
 
 const PROCESS_BITCOIN_FILE = path.join(ROOT, 'supabase/functions/process-bitcoin-anchors/index.ts');
 const PROCESS_POLYGON_FILE = path.join(ROOT, 'supabase/functions/process-polygon-anchors/index.ts');
+const SHARED_STATE_MACHINE_FILE = path.join(ROOT, 'supabase/functions/_shared/anchorStateMachine.ts');
+const UI_PROBATIVE_HELPER_FILE = path.join(ROOT, 'client/src/lib/anchorProbativeState.ts');
+const UI_DOCUMENT_INFO_FILE = path.join(ROOT, 'client/src/components/DocumentStateInfo.tsx');
+const UI_TOOLTIP_FILE = path.join(ROOT, 'client/src/lib/deriveDocumentTooltip.ts');
 
 test('bitcoin worker must emit explicit timeout events and canonical confirmed event helper', async () => {
   const content = await fs.readFile(PROCESS_BITCOIN_FILE, 'utf8');
 
   expect(content).toContain('MAX_VERIFY_ATTEMPTS');
   expect(content).toContain('BITCOIN_TIMEOUT_HOURS');
+  expect(content).toContain('BITCOIN_RETRY_SCHEDULE_MINUTES');
+  expect(content).toContain('BITCOIN_RETRY_POLICY');
+  expect(content).toContain('isRetryDue(');
+  expect(content).toContain('evaluateTimeout(');
+  expect(content).toContain('projectRetry(');
+  expect(content).toContain('projectSubmitted(');
+  expect(content).toContain('nextRetryAt');
   expect(content).toContain('emitAnchorTimeoutEvent(');
   expect(content).toContain("kind: 'anchor.timeout'");
-  expect(content).toContain("failure_code: 'timeout'");
+  expect(content).toMatch(/failure_code:\s*timeoutBy === 'max_attempts' \? 'max_attempts' : 'timeout'/);
   expect(content).toContain('emitAnchorConfirmedEvent(');
 });
 
@@ -26,8 +37,47 @@ test('polygon worker must enforce deterministic timeout and max-attempt terminal
 
   expect(content).toContain('MAX_POLYGON_ATTEMPTS');
   expect(content).toContain('POLYGON_PENDING_TIMEOUT_MINUTES');
+  expect(content).toContain('POLYGON_RETRY_SCHEDULE_MINUTES');
+  expect(content).toContain('POLYGON_RETRY_POLICY');
+  expect(content).toContain('isRetryDue(');
+  expect(content).toContain('evaluateTimeout(');
+  expect(content).toContain('projectRetry(');
+  expect(content).toContain('nextRetryAt');
   expect(content).toContain('emitAnchorTimeoutEvent(');
   expect(content).toContain("kind: 'anchor.timeout'");
-  expect(content).toMatch(/emitAnchorFailedEvent\(\s*anchor,\s*reason,\s*attempts,\s*true,\s*'timeout'\s*\)/s);
-  expect(content).toContain('pendingAgeMinutes');
+  expect(content).toContain("timeoutBy === 'max_attempts' ? 'max_attempts' : 'timeout'");
+  expect(content).toContain('timeoutEvaluation.pendingAgeMinutes');
+});
+
+test('shared anchor state machine helper must define retry projection and timeout evaluation', async () => {
+  const content = await fs.readFile(SHARED_STATE_MACHINE_FILE, 'utf8');
+
+  expect(content).toContain("export type AnchorNetwork = 'bitcoin' | 'polygon'");
+  expect(content).toContain('export interface AnchorRetryPolicy');
+  expect(content).toContain('parseRetryScheduleMinutes(');
+  expect(content).toContain('isRetryDue(');
+  expect(content).toContain('evaluateTimeout(');
+  expect(content).toContain('projectRetry(');
+  expect(content).toContain('projectSubmitted(');
+  expect(content).toContain('nextRetryAt');
+  expect(content).toContain("retryPolicyVersion: 'anchor-sm-v1'");
+});
+
+test('ui derivation must use the shared probative helper (single source)', async () => {
+  const [probativeContent, infoContent, tooltipContent] = await Promise.all([
+    fs.readFile(UI_PROBATIVE_HELPER_FILE, 'utf8'),
+    fs.readFile(UI_DOCUMENT_INFO_FILE, 'utf8'),
+    fs.readFile(UI_TOOLTIP_FILE, 'utf8'),
+  ]);
+
+  expect(probativeContent).toContain('export const PROBATIVE_STATES');
+  expect(probativeContent).toContain('deriveAnchorProbativeState(');
+  expect(probativeContent).toContain("kind === 'anchor.timeout'");
+  expect(probativeContent).toContain("kind === 'anchor.failed'");
+
+  expect(infoContent).toContain("from '../lib/anchorProbativeState'");
+  expect(infoContent).toContain('deriveAnchorProbativeState(');
+
+  expect(tooltipContent).toContain("from './anchorProbativeState'");
+  expect(tooltipContent).toContain('deriveAnchorProbativeState(');
 });

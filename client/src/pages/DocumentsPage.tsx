@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom";
 import { getSupabase } from "../lib/supabaseClient";
 import { getLatestTsaEvent, formatTsaTimestamp } from "../lib/events/tsa";
-import { deriveProtectionLevel, getAnchorEvent } from "../lib/protectionLevel";
+import { deriveAnchorProbativeState } from "../lib/anchorProbativeState";
 import { AlertCircle, ArrowRightCircle, CheckCircle, Clock, Copy, Download, Eye, FilePlus, FileText, Folder, FolderPlus, MoreVertical, Search, Share2, Shield, X } from "lucide-react";
 import toast from "react-hot-toast";
 import Header from "../components/Header";
@@ -122,107 +122,6 @@ type VerificationResult = {
 };
 
 type VerificationMode = "source" | "witness" | "signed";
-
-const PROBATIVE_STATES = {
-  none: {
-    label: "Sin protección",
-    color: "text-gray-600",
-    bg: "bg-gray-100",
-    tooltip: "No hay evidencia probatoria registrada."
-  },
-  base: {
-    label: "Protección\nen proceso",
-    color: "text-gray-800",
-    bg: "bg-gray-100",
-    tooltip: "Se está consolidando la evidencia probatoria inicial."
-  },
-  active: {
-    label: "Protección\ngarantizada",
-    color: "text-emerald-700",
-    bg: "bg-emerald-100",
-    tooltip: "Integridad y fecha cierta confirmadas."
-  },
-  reinforced: {
-    label: "Protección\nreforzada",
-    color: "text-blue-700",
-    bg: "bg-blue-100",
-    tooltip: "Refuerzo probatorio adicional confirmado."
-  },
-  total: {
-    label: "Protección\nmáxima",
-    color: "text-gray-700",
-    bg: "bg-gray-100",
-    tooltip: "Máxima fortaleza probatoria con verificación independiente adicional."
-  }
-} as const;
-
-type ProbativeLevel = keyof typeof PROBATIVE_STATES;
-type ProbativeStateResult = {
-  level: ProbativeLevel;
-  config: (typeof PROBATIVE_STATES)[ProbativeLevel];
-  ecoAvailable: boolean;
-  ecoxAvailable: boolean;
-  bitcoinConfirmed: boolean;
-  ecoxPlanAllowed: boolean;
-};
-
-const deriveProbativeState = (doc: DocumentRecord, planTier: PlanTier): ProbativeStateResult => {
-  // ✅ CANONICAL DERIVATION: Read ONLY from events[] (no legacy fallbacks)
-  const events = doc.events || [];
-
-  // TSA: canonical from events[]
-  const tsa = getLatestTsaEvent(events);
-  const hasTsa = tsa.present;
-
-  // Polygon: canonical from events[] ONLY
-  const polygonAnchor = getAnchorEvent(events, 'polygon');
-  const hasPolygon = polygonAnchor !== null;
-
-  // Bitcoin: canonical from events[] ONLY
-  const bitcoinAnchor = getAnchorEvent(events, 'bitcoin');
-  const hasBitcoin = bitcoinAnchor !== null;
-
-  const ecoAvailable = !!(
-    doc.eco_storage_path ||
-    doc.eco_file_data ||
-    doc.eco_hash ||
-    doc.content_hash
-  );
-
-  // Derive level using canonical algorithm (matches PROTECTION_LEVEL_RULES.md v2)
-  // - NONE: No TSA
-  // - BASE: Has hash but no TSA
-  // - ACTIVE: Has TSA
-  // - REINFORCED: Has TSA + first anchor (Polygon OR Bitcoin)
-  // - TOTAL: Has TSA + both anchors (Polygon AND Bitcoin)
-  let level: ProbativeLevel = (doc.content_hash || doc.eco_hash) ? "base" : "none";
-
-  if (hasTsa) {
-    level = "active";
-  }
-
-  // REINFORCED: TSA + first anchor (either one)
-  if (hasTsa && (hasPolygon || hasBitcoin)) {
-    level = "reinforced";
-  }
-
-  // TOTAL: TSA + both anchors
-  if (hasTsa && hasPolygon && hasBitcoin) {
-    level = "total";
-  }
-
-  const ecoxPlanAllowed = ["business", "enterprise"].includes((planTier || "").toLowerCase());
-  const ecoxAvailable = ecoxPlanAllowed && !!doc.ecox_storage_path;
-
-  return {
-    level,
-    config: PROBATIVE_STATES[level],
-    ecoAvailable,
-    ecoxAvailable,
-    bitcoinConfirmed: hasBitcoin,
-    ecoxPlanAllowed
-  };
-};
 
 const formatDate = (date: string | number | Date | null | undefined) => {
   if (!date) return "—";
@@ -350,7 +249,7 @@ function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [processingHintStartByEntityId, setProcessingHintStartByEntityId] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [planTier, setPlanTier] = useState<PlanTier>(null); // free | pro | business | enterprise
+  const [, setPlanTier] = useState<PlanTier>(null); // free | pro | business | enterprise
   const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
   const [pendingOpenEntityId, setPendingOpenEntityId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -2051,12 +1950,12 @@ function DocumentsPage() {
       : null;
     const matches = matchesDocument ?? matchesContent ?? null;
 
-    // Check protection level from events[] (canonical)
-    const events = doc.events || [];
-    const hasTsa = getLatestTsaEvent(events).present;
-    const hasPolygon = getAnchorEvent(events, 'polygon') !== null;
-    const hasBitcoin = getAnchorEvent(events, 'bitcoin') !== null;
-    const isTotal = hasTsa && hasPolygon && hasBitcoin;
+    // Check protection level from canonical probative derivation.
+    const derived = deriveAnchorProbativeState({
+      events: doc.events || [],
+      hasPrimaryHash: Boolean(doc.content_hash || doc.eco_hash || doc.document_hash),
+    });
+    const isTotal = derived.level === 'total';
 
     return {
       matches,

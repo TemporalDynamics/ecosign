@@ -7,6 +7,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
 import { sendResendEmail } from '../_shared/email.ts';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import {
+  type AnchorRetryPolicy,
+  evaluateTimeout,
+  isRetryDue,
+  parseRetryScheduleMinutes,
+  projectRetry,
+  projectSubmitted,
+} from '../_shared/anchorStateMachine.ts';
 import { Buffer } from 'node:buffer';
 
 const corsHeaders = {
@@ -21,11 +29,29 @@ const resendApiKey = Deno.env.get('RESEND_API_KEY');
 const defaultFrom = Deno.env.get('DEFAULT_FROM') || 'EcoSign <no-reply@email.ecosign.app>';
 const mempoolApiUrl = Deno.env.get('MEMPOOL_API_URL') || 'https://mempool.space/api';
 
-// 288 attempts × 5 min = 24 hours (matches user promise of 4-24h)
-const MAX_VERIFY_ATTEMPTS = 288;
-// Alert threshold: warn at 20 hours (240 attempts)
-const ALERT_THRESHOLD = 240;
-const BITCOIN_TIMEOUT_HOURS = 24;
+// 24h timeout with deterministic backoff.
+const MAX_VERIFY_ATTEMPTS = (() => {
+  const parsed = Number.parseInt(String(Deno.env.get('BITCOIN_MAX_VERIFY_ATTEMPTS') ?? '24'), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
+})();
+const BITCOIN_TIMEOUT_HOURS = (() => {
+  const parsed = Number.parseInt(String(Deno.env.get('BITCOIN_TIMEOUT_HOURS') ?? '24'), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
+})();
+const ALERT_THRESHOLD_HOURS = (() => {
+  const parsed = Number.parseInt(String(Deno.env.get('BITCOIN_ALERT_THRESHOLD_HOURS') ?? '20'), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
+})();
+const BITCOIN_RETRY_SCHEDULE_MINUTES = parseRetryScheduleMinutes(
+  Deno.env.get('BITCOIN_RETRY_SCHEDULE_MINUTES'),
+  [15, 30, 60, 120, 240, 360],
+);
+const BITCOIN_RETRY_POLICY: AnchorRetryPolicy = {
+  network: 'bitcoin',
+  maxAttempts: MAX_VERIFY_ATTEMPTS,
+  timeoutMs: BITCOIN_TIMEOUT_HOURS * 60 * 60 * 1000,
+  retryScheduleMinutes: BITCOIN_RETRY_SCHEDULE_MINUTES,
+};
 
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing Supabase credentials');
@@ -295,6 +321,8 @@ async function emitAnchorTimeoutEvent(
   anchor: any,
   reason: string,
   attempts: number,
+  pendingAgeMinutes: number,
+  timeoutBy: 'elapsed' | 'max_attempts',
 ) {
   if (!supabaseAdmin || !anchor.document_entity_id) return;
 
@@ -308,6 +336,10 @@ async function emitAnchorTimeoutEvent(
     attempt: attempts,
     max_attempts: MAX_VERIFY_ATTEMPTS,
     timeout_hours: BITCOIN_TIMEOUT_HOURS,
+    pending_age_minutes: pendingAgeMinutes,
+    pending_age_hours: Number((pendingAgeMinutes / 60).toFixed(2)),
+    timeout_by: timeoutBy,
+    retry_schedule_minutes: BITCOIN_RETRY_SCHEDULE_MINUTES,
     provider: 'opentimestamps',
     anchor_stage: anchorStage,
     step_index: stepIndex,
@@ -334,12 +366,12 @@ async function emitAnchorTimeoutEvent(
       anchor: {
         ...basePayload,
         retryable: true,
-        failure_code: 'timeout',
+        failure_code: timeoutBy === 'max_attempts' ? 'max_attempts' : 'timeout',
       }
     }, 'process-bitcoin-anchors');
-    console.log(`✅ Emitted anchor.failed(timeout) for document_entity ${anchor.document_entity_id}`);
+    console.log(`✅ Emitted anchor.failed(${timeoutBy}) for document_entity ${anchor.document_entity_id}`);
   } catch (eventError) {
-    console.error('Failed to emit anchor.failed(timeout) event:', eventError);
+    console.error('Failed to emit anchor.failed(timeout/max_attempts) event:', eventError);
   }
 }
 
@@ -459,6 +491,7 @@ serve(async (req) => {
     let confirmed = 0;
     let failed = 0;
     let waiting = 0;
+    let skippedDue = 0;
 
     // STEP 1: Process newly queued anchors (submit to OpenTimestamps)
     const { data: queuedAnchors, error: queuedError } = await supabaseAdmin
@@ -477,13 +510,16 @@ serve(async (req) => {
         const result = await submitToOpenTimestamps(anchor.document_hash);
 
         if (result.success) {
+          const nowIso = new Date().toISOString();
+          const submittedProjection = projectSubmitted(anchor, BITCOIN_RETRY_POLICY, nowIso);
           const { error: updateSubmittedError } = await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'pending',
               ots_proof: result.otsProof,
               ots_calendar_url: result.calendarUrl,
-              updated_at: new Date().toISOString()
+              metadata: submittedProjection.metadata,
+              updated_at: nowIso,
             })
             .eq('id', anchor.id);
           if (updateSubmittedError) {
@@ -536,33 +572,50 @@ serve(async (req) => {
           continue;
         }
 
-        const attempts = (anchor.bitcoin_attempts ?? 0) + 1;
-
-        // Alert when approaching timeout (20 hours)
-        if (attempts > ALERT_THRESHOLD && attempts <= MAX_VERIFY_ATTEMPTS) {
-          const hoursElapsed = (attempts * 5) / 60;
-          console.warn(`⚠️ Anchor ${anchor.id} has been pending for ${hoursElapsed.toFixed(1)} hours (${attempts}/${MAX_VERIFY_ATTEMPTS} attempts)`);
+        if (!isRetryDue(anchor)) {
+          waiting++;
+          skippedDue++;
+          continue;
         }
 
-        if (attempts > MAX_VERIFY_ATTEMPTS) {
-          const errorMessage = `Bitcoin verification timeout after ${BITCOIN_TIMEOUT_HOURS} hours (${attempts} attempts). OpenTimestamps may still confirm later - you can retry verification manually.`;
+        const attempts = (anchor.bitcoin_attempts ?? 0) + 1;
+        const timeoutEvaluation = evaluateTimeout(anchor, BITCOIN_RETRY_POLICY, attempts);
+
+        // Alert when approaching timeout window.
+        if (!timeoutEvaluation.timedOut && timeoutEvaluation.pendingAgeHours >= ALERT_THRESHOLD_HOURS) {
+          console.warn(
+            `⚠️ Anchor ${anchor.id} pending ${timeoutEvaluation.pendingAgeHours.toFixed(1)}h ` +
+            `(${attempts}/${MAX_VERIFY_ATTEMPTS} attempts, timeout ${BITCOIN_TIMEOUT_HOURS}h)`,
+          );
+        }
+
+        if (timeoutEvaluation.timedOut) {
+          const errorMessage = timeoutEvaluation.reason
+            ?? `Bitcoin verification timeout after ${BITCOIN_TIMEOUT_HOURS} hours (${attempts} attempts).`;
           console.error(`❌ ${errorMessage} - Anchor ID: ${anchor.id}`);
 
           // Marcar anchor de Bitcoin como failed
+          const nowIso = new Date().toISOString();
           const { error: timeoutFailedError } = await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'failed',
               bitcoin_error_message: errorMessage,
               bitcoin_attempts: attempts,
-              updated_at: new Date().toISOString()
+              updated_at: nowIso,
             })
             .eq('id', anchor.id);
           if (timeoutFailedError) {
             throw new Error(`Failed to set failed(timeout) for anchor ${anchor.id}: ${timeoutFailedError.message}`);
           }
 
-          await emitAnchorTimeoutEvent(anchor, errorMessage, attempts);
+          await emitAnchorTimeoutEvent(
+            anchor,
+            errorMessage,
+            attempts,
+            timeoutEvaluation.pendingAgeMinutes,
+            timeoutEvaluation.timeoutBy ?? 'elapsed',
+          );
 
           // NOTE: legacy projection updates removed; canonical events are the source of truth.
           // Legacy updates removed to ensure single source of truth in events[]
@@ -616,7 +669,12 @@ serve(async (req) => {
                   bitcoin_block_height: blockHeight ?? anchor.bitcoin_block_height,
                   anchor_status: 'confirmed',
                   ots_proof: verification.upgradedProof || anchor.ots_proof,
-                  metadata: { ...anchor.metadata, ...metadata },
+                  metadata: {
+                    ...anchor.metadata,
+                    ...metadata,
+                    nextRetryAt: null,
+                    retryPolicyVersion: 'anchor-sm-v1',
+                  },
                   bitcoin_attempts: attempts,
                   confirmed_at: confirmedAt,
                   updated_at: new Date().toISOString(),
@@ -653,7 +711,12 @@ serve(async (req) => {
               bitcoin_block_height: blockHeight ?? anchor.bitcoin_block_height,
               anchor_status: 'confirmed',
               ots_proof: verification.upgradedProof || anchor.ots_proof,
-              metadata: { ...anchor.metadata, ...metadata },
+              metadata: {
+                ...anchor.metadata,
+                ...metadata,
+                nextRetryAt: null,
+                retryPolicyVersion: 'anchor-sm-v1',
+              },
               bitcoin_attempts: attempts,
               confirmed_at: confirmedAt,
               updated_at: new Date().toISOString(),
@@ -671,12 +734,15 @@ serve(async (req) => {
           confirmed++;
         } else {
           // Still pending - update status to 'processing' if not already
+          const nowIso = new Date().toISOString();
+          const retryProjection = projectRetry(anchor, BITCOIN_RETRY_POLICY, attempts, nowIso);
           const { error: updateProcessingError } = await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'processing',
               bitcoin_attempts: attempts,
-              updated_at: new Date().toISOString()
+              metadata: retryProjection.metadata,
+              updated_at: nowIso,
             })
             .eq('id', anchor.id);
           if (updateProcessingError) {
@@ -697,7 +763,8 @@ serve(async (req) => {
       confirmed,
       failed,
       waiting,
-      message: `Processed ${processed} anchors: ${submitted} submitted, ${confirmed} confirmed, ${waiting} waiting, ${failed} failed`
+      skipped_due: skippedDue,
+      message: `Processed ${processed} anchors: ${submitted} submitted, ${confirmed} confirmed, ${waiting} waiting (${skippedDue} not-due), ${failed} failed`
     };
 
     console.log('✅ Processing complete:', summary);

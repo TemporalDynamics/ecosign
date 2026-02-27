@@ -3,6 +3,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
 import { ethers } from 'npm:ethers@6.9.0'
 import { appendEvent } from '../_shared/eventHelper.ts'
 import { requireInternalAuth } from '../_shared/internalAuth.ts'
+import {
+  type AnchorRetryPolicy,
+  evaluateTimeout,
+  isRetryDue,
+  parseRetryScheduleMinutes,
+  projectRetry,
+} from '../_shared/anchorStateMachine.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,6 +28,16 @@ const POLYGON_PENDING_TIMEOUT_MINUTES = (() => {
   const parsed = Number.parseInt(String(Deno.env.get('POLYGON_PENDING_TIMEOUT_MINUTES') ?? '30'), 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 30
 })()
+const POLYGON_RETRY_SCHEDULE_MINUTES = parseRetryScheduleMinutes(
+  Deno.env.get('POLYGON_RETRY_SCHEDULE_MINUTES'),
+  [5, 10, 20, 30, 60],
+)
+const POLYGON_RETRY_POLICY: AnchorRetryPolicy = {
+  network: 'polygon',
+  maxAttempts: MAX_POLYGON_ATTEMPTS,
+  timeoutMs: POLYGON_PENDING_TIMEOUT_MINUTES * 60_000,
+  retryScheduleMinutes: POLYGON_RETRY_SCHEDULE_MINUTES,
+}
 
 const provider = rpcUrl ? new ethers.JsonRpcProvider(rpcUrl) : null
 const supabaseAdmin = (supabaseUrl && supabaseServiceKey)
@@ -66,21 +83,6 @@ const getStepIndex = (anchor: any): number => {
   return 0
 }
 
-const getAnchorSubmittedAt = (anchor: any): string | null => {
-  const candidate = anchor?.metadata?.submittedAt ?? anchor?.created_at ?? anchor?.updated_at
-  if (typeof candidate !== 'string' || candidate.length === 0) return null
-  const dt = new Date(candidate)
-  return Number.isNaN(dt.getTime()) ? null : dt.toISOString()
-}
-
-const getPendingAgeMinutes = (anchor: any): number | null => {
-  const submittedAt = getAnchorSubmittedAt(anchor)
-  if (!submittedAt) return null
-  const elapsedMs = Date.now() - new Date(submittedAt).getTime()
-  if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return 0
-  return Math.floor(elapsedMs / 60_000)
-}
-
 async function emitAnchorFailedEvent(anchor: any, reason: string, attempts: number, retryable: boolean, failureCode?: string) {
   if (!supabaseAdmin || !anchor.document_entity_id) return
 
@@ -105,7 +107,13 @@ async function emitAnchorFailedEvent(anchor: any, reason: string, attempts: numb
   }
 }
 
-async function emitAnchorTimeoutEvent(anchor: any, reason: string, attempts: number, pendingAgeMinutes: number | null) {
+async function emitAnchorTimeoutEvent(
+  anchor: any,
+  reason: string,
+  attempts: number,
+  pendingAgeMinutes: number,
+  timeoutBy: 'elapsed' | 'max_attempts',
+) {
   if (!supabaseAdmin || !anchor.document_entity_id) return
 
   try {
@@ -121,6 +129,9 @@ async function emitAnchorTimeoutEvent(anchor: any, reason: string, attempts: num
         max_attempts: MAX_POLYGON_ATTEMPTS,
         timeout_minutes: POLYGON_PENDING_TIMEOUT_MINUTES,
         pending_age_minutes: pendingAgeMinutes,
+        pending_age_hours: Number((pendingAgeMinutes / 60).toFixed(2)),
+        timeout_by: timeoutBy,
+        retry_schedule_minutes: POLYGON_RETRY_SCHEDULE_MINUTES,
         provider: 'polygon',
         anchor_stage: getAnchorStage(anchor),
         step_index: getStepIndex(anchor),
@@ -130,7 +141,7 @@ async function emitAnchorTimeoutEvent(anchor: any, reason: string, attempts: num
     console.error('Failed to emit anchor.timeout event:', eventError)
   }
 
-  await emitAnchorFailedEvent(anchor, reason, attempts, true, 'timeout')
+  await emitAnchorFailedEvent(anchor, reason, attempts, true, timeoutBy === 'max_attempts' ? 'max_attempts' : 'timeout')
 }
 
 async function insertNotification(anchor: any, txHash: string, blockNumber?: number | null, blockHash?: string | null, confirmedAt?: string | null) {
@@ -190,6 +201,7 @@ serve(async (req) => {
     let confirmed = 0
     let failed = 0
     let waiting = 0
+    let skippedDue = 0
 
     const { data: anchors, error } = await supabaseAdmin
       .from('anchors')
@@ -210,8 +222,14 @@ serve(async (req) => {
 
     for (const anchor of anchors) {
       const txHash = anchor.polygon_tx_hash ?? anchor.metadata?.txHash
+      if (!isRetryDue(anchor)) {
+        waiting++
+        skippedDue++
+        continue
+      }
+
       const attempts = (anchor.polygon_attempts ?? 0) + 1
-      const pendingAgeMinutes = getPendingAgeMinutes(anchor)
+      const timeoutEvaluation = evaluateTimeout(anchor, POLYGON_RETRY_POLICY, attempts)
 
       if (!txHash) {
         const reason = 'Missing polygon_tx_hash'
@@ -222,18 +240,16 @@ serve(async (req) => {
         continue
       }
 
-      if (attempts > MAX_POLYGON_ATTEMPTS) {
-        const reason = `Polygon confirmation max attempts reached (${attempts}/${MAX_POLYGON_ATTEMPTS})`
-        await emitAnchorFailedEvent(anchor, reason, attempts, false, 'max_attempts')
-        await markFailed(anchor.id, reason, attempts)
-        failed++
-        processed++
-        continue
-      }
-
-      if (pendingAgeMinutes !== null && pendingAgeMinutes >= POLYGON_PENDING_TIMEOUT_MINUTES) {
-        const reason = `Polygon confirmation timeout after ${pendingAgeMinutes} minutes (limit: ${POLYGON_PENDING_TIMEOUT_MINUTES})`
-        await emitAnchorTimeoutEvent(anchor, reason, attempts, pendingAgeMinutes)
+      if (timeoutEvaluation.timedOut) {
+        const reason = timeoutEvaluation.reason
+          ?? `Polygon confirmation timeout after ${timeoutEvaluation.pendingAgeMinutes} minutes (limit: ${POLYGON_PENDING_TIMEOUT_MINUTES})`
+        await emitAnchorTimeoutEvent(
+          anchor,
+          reason,
+          attempts,
+          timeoutEvaluation.pendingAgeMinutes,
+          timeoutEvaluation.timeoutBy ?? 'elapsed',
+        )
         await markFailed(anchor.id, reason, attempts)
         failed++
         processed++
@@ -245,13 +261,16 @@ serve(async (req) => {
 
         if (!receipt) {
           // Still pending in mempool
+          const nowIso = new Date().toISOString()
+          const retryProjection = projectRetry(anchor, POLYGON_RETRY_POLICY, attempts, nowIso)
           const { error: updateProcessingError } = await supabaseAdmin
             .from('anchors')
             .update({
               anchor_status: 'processing',
               polygon_status: 'processing',
               polygon_attempts: attempts,
-              updated_at: new Date().toISOString(),
+              metadata: retryProjection.metadata,
+              updated_at: nowIso,
             })
             .eq('id', anchor.id)
           if (updateProcessingError) {
@@ -299,7 +318,11 @@ serve(async (req) => {
             polygon_confirmed_at: confirmedAt,
             polygon_attempts: attempts,
             confirmed_at: confirmedAt,
-            metadata: updatedMetadata,
+            metadata: {
+              ...updatedMetadata,
+              nextRetryAt: null,
+              retryPolicyVersion: 'anchor-sm-v1',
+            },
           })
           .eq('id', anchor.id)
         if (updateConfirmedError) {
@@ -343,15 +366,35 @@ serve(async (req) => {
         processed++
       } catch (anchorError) {
         console.error(`Error processing anchor ${anchor.id}:`, anchorError)
-        
-        await emitAnchorFailedEvent(
-          anchor,
-          anchorError instanceof Error ? anchorError.message : String(anchorError),
-          attempts,
-          attempts < MAX_POLYGON_ATTEMPTS,
-        )
-        
-        await markFailed(anchor.id, anchorError instanceof Error ? anchorError.message : String(anchorError), attempts)
+
+        const reason = anchorError instanceof Error ? anchorError.message : String(anchorError)
+        const retryable = attempts < MAX_POLYGON_ATTEMPTS
+
+        await emitAnchorFailedEvent(anchor, reason, attempts, retryable, 'transient_error')
+
+        if (retryable) {
+          const nowIso = new Date().toISOString()
+          const retryProjection = projectRetry(anchor, POLYGON_RETRY_POLICY, attempts, nowIso)
+          const { error: keepPendingError } = await supabaseAdmin
+            .from('anchors')
+            .update({
+              anchor_status: 'processing',
+              polygon_status: 'processing',
+              polygon_attempts: attempts,
+              polygon_error_message: reason,
+              metadata: retryProjection.metadata,
+              updated_at: nowIso,
+            })
+            .eq('id', anchor.id)
+          if (keepPendingError) {
+            throw new Error(`Failed to keep anchor ${anchor.id} in processing: ${keepPendingError.message}`)
+          }
+          waiting++
+          processed++
+          continue
+        }
+
+        await markFailed(anchor.id, reason, attempts)
         failed++
         processed++
       }
@@ -363,7 +406,8 @@ serve(async (req) => {
       confirmed,
       failed,
       waiting,
-      message: `Polygon anchors processed: ${processed} (confirmed ${confirmed}, waiting ${waiting}, failed ${failed})`,
+      skipped_due: skippedDue,
+      message: `Polygon anchors processed: ${processed} (confirmed ${confirmed}, waiting ${waiting}, failed ${failed}, not-due ${skippedDue})`,
     })
   } catch (err) {
     console.error('process-polygon-anchors fatal error:', err)

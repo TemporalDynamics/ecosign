@@ -41,6 +41,61 @@ type AnchorRequest = {
   metadata?: Record<string, unknown>
 }
 
+async function resolveAnchorContext(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    documentEntityId: string | null
+    documentId: string | null
+    userId: string | null
+    userEmail: string | null
+  },
+): Promise<{
+  documentId: string | null
+  userId: string | null
+  userEmail: string | null
+}> {
+  let documentId = input.documentId
+  let userId = input.userId
+  let userEmail = input.userEmail
+
+  if (!input.documentEntityId) {
+    return { documentId, userId, userEmail }
+  }
+
+  if (!documentId) {
+    const { data: doc } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('document_entity_id', input.documentEntityId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (doc?.id) {
+      documentId = String(doc.id)
+    }
+  }
+
+  if (!userId) {
+    const { data: entity } = await supabase
+      .from('document_entities')
+      .select('owner_id')
+      .eq('id', input.documentEntityId)
+      .maybeSingle()
+    if (entity?.owner_id) {
+      userId = String(entity.owner_id)
+    }
+  }
+
+  if (!userEmail && userId) {
+    const { data: userData } = await supabase.auth.admin.getUserById(userId)
+    if (userData?.user?.email) {
+      userEmail = userData.user.email
+    }
+  }
+
+  return { documentId, userId, userEmail }
+}
+
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
     return new Response(null, { status: 204 });
@@ -225,7 +280,7 @@ serve(async (req) => {
       sponsorAddress
     })
 
-    // Resolve missing data from user_documents if available
+    // Resolve missing canonical context from document_entity_id/documents.
     let finalDocumentId = documentId
     let finalUserEmail = userEmail
     let finalUserId = userId
@@ -237,33 +292,21 @@ serve(async (req) => {
       : null
     let documentEntityId: string | null = requestDocumentEntityId || metadataDocumentEntityId
 
-    if (userDocumentId && (!documentId || !userEmail || !projectId || !finalUserId)) {
-      const { data: userDoc } = await supabase
-        .from('user_documents')
-        .select('document_id, user_id, eco_data, document_entity_id')
-        .eq('id', userDocumentId)
-        .single()
+    const resolvedContext = await resolveAnchorContext(supabase as any, {
+      documentEntityId,
+      documentId: finalDocumentId,
+      userId: finalUserId,
+      userEmail: finalUserEmail,
+    })
+    finalDocumentId = resolvedContext.documentId
+    finalUserId = resolvedContext.userId
+    finalUserEmail = resolvedContext.userEmail
 
-      if (userDoc) {
-        finalDocumentId = finalDocumentId || userDoc.document_id
-        finalUserId = finalUserId || userDoc.user_id
-        documentEntityId = userDoc.document_entity_id
-
-        if (!projectId) {
-          const ecoData = userDoc.eco_data as Record<string, unknown> | null
-          const manifest = (ecoData?.['manifest'] as Record<string, unknown>) || null
-          const manifestProjectId = manifest?.['projectId']
-          projectId = typeof manifestProjectId === 'string' ? manifestProjectId : projectId
-        }
-
-        // Fetch user email if needed
-        if (!userEmail && userDoc.user_id) {
-          const { data: userData } = await supabase.auth.admin.getUserById(userDoc.user_id)
-          if (userData?.user?.email) {
-            finalUserEmail = userData.user.email
-          }
-        }
-      }
+    if (userDocumentId) {
+      logger.info('legacy_user_document_id_received', {
+        userDocumentId,
+        note: 'ignored_in_canonical_mode',
+      })
     }
 
     const anchorPayload = {
@@ -342,24 +385,6 @@ serve(async (req) => {
 
       if (stateError) {
         logger.warn('anchor_state_upsert_failed', { projectId, error: stateError.message })
-      }
-    }
-
-    // Update user_documents status to indicate anchoring in progress
-    if (userDocumentId && shouldUpdateStatus) {
-      const { error: updateError } = await supabase
-        .from('user_documents')
-        .update({
-          overall_status: 'pending_anchor',
-          polygon_anchor_id: anchorData.id,
-        })
-        .eq('id', userDocumentId)
-
-      if (updateError) {
-        logger.warn('user_document_update_failed', {
-          userDocumentId,
-          error: updateError.message
-        })
       }
     }
 

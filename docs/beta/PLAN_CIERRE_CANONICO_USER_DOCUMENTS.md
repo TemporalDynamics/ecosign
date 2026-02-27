@@ -43,11 +43,14 @@ Objetivo: eliminar incendios de producto cuando `user_documents` esta vacia.
 
 ## Fases siguientes (orden recomendado)
 
-1. PR2 - Invites/NDA/access canonicos  
+1. PR2 - Invites/NDA/access canonicos (completado)  
    `create-invite`, `verify-access`, `accept-invite-nda`, `create-signer-link`, `generate-link`
 
-2. PR3 - Anchors canonicos  
-   `anchor-bitcoin`, `anchor-polygon`, `process-bitcoin-anchors`, `process-polygon-anchors`
+2. PR3 - Anchors canonicos (en progreso, slice principal completado)  
+   completado:
+   `anchor-bitcoin`, `anchor-polygon`, `process-bitcoin-anchors`  
+   pendiente de cierre global del plan:
+   `process-polygon-anchors` (ya sin acople a `user_documents`, mantener guard)
 
 3. PR4 - Endpoints operativos/diagnostico  
    `health-check`, `notify-document-certified`, `log-event`, `record-protection-event`, `repair-missing-anchor-events`

@@ -50,6 +50,61 @@ type AnchorRequest = {
   metadata?: Record<string, unknown>
 }
 
+async function resolveAnchorContext(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    documentEntityId: string | null
+    documentId: string | null
+    userId: string | null
+    userEmail: string | null
+  },
+): Promise<{
+  documentId: string | null
+  userId: string | null
+  userEmail: string | null
+}> {
+  let documentId = input.documentId
+  let userId = input.userId
+  let userEmail = input.userEmail
+
+  if (!input.documentEntityId) {
+    return { documentId, userId, userEmail }
+  }
+
+  if (!documentId) {
+    const { data: doc } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('document_entity_id', input.documentEntityId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (doc?.id) {
+      documentId = String(doc.id)
+    }
+  }
+
+  if (!userId) {
+    const { data: entity } = await supabase
+      .from('document_entities')
+      .select('owner_id')
+      .eq('id', input.documentEntityId)
+      .maybeSingle()
+    if (entity?.owner_id) {
+      userId = String(entity.owner_id)
+    }
+  }
+
+  if (!userEmail && userId) {
+    const { data: userData } = await supabase.auth.admin.getUserById(userId)
+    if (userData?.user?.email) {
+      userEmail = userData.user.email
+    }
+  }
+
+  return { documentId, userId, userEmail }
+}
+
 const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
     status,
@@ -195,33 +250,15 @@ serve(async (req) => {
       }, 200, corsHeaders)
     }
 
-    if (userDocumentId && (!documentId || !userEmail || !projectId || !finalUserId)) {
-      const { data: userDoc } = await supabaseAdmin
-        .from('user_documents')
-        .select('document_id, user_id, eco_data, document_entity_id')
-        .eq('id', userDocumentId)
-        .single()
-
-      if (userDoc) {
-        finalDocumentId = finalDocumentId || userDoc.document_id
-        finalUserId = finalUserId || userDoc.user_id
-        documentEntityId = userDoc.document_entity_id
-
-        if (!projectId) {
-          const ecoData = userDoc.eco_data as Record<string, unknown> | null
-          const manifest = (ecoData?.['manifest'] as Record<string, unknown>) || null
-          const manifestProjectId = manifest?.['projectId']
-          projectId = typeof manifestProjectId === 'string' ? manifestProjectId : projectId
-        }
-
-        if (!userEmail && userDoc.user_id) {
-          const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userDoc.user_id)
-          if (userData?.user?.email) {
-            finalUserEmail = userData.user.email
-          }
-        }
-      }
-    }
+    const resolvedContext = await resolveAnchorContext(supabaseAdmin as any, {
+      documentEntityId,
+      documentId: finalDocumentId,
+      userId: finalUserId,
+      userEmail: finalUserEmail,
+    })
+    finalDocumentId = resolvedContext.documentId
+    finalUserId = resolvedContext.userId
+    finalUserEmail = resolvedContext.userEmail
 
     const anchorPayload = {
       document_hash: documentHash,
@@ -293,23 +330,11 @@ serve(async (req) => {
       }
     }
 
-    // Update user_documents to reflect Bitcoin anchoring has started
-    if (userDocumentId && (!existingAnchor || existingAnchor.anchor_status === 'failed')) {
-      const { error: updateError } = await supabaseAdmin
-        .from('user_documents')
-        .update({
-          overall_status: 'pending_anchor',
-          bitcoin_status: 'pending',
-          bitcoin_anchor_id: data.id,
-        })
-        .eq('id', userDocumentId)
-
-      if (updateError) {
-        logger.warn('user_document_update_failed', {
-          userDocumentId,
-          error: updateError.message
-        })
-      }
+    if (userDocumentId) {
+      logger.info('legacy_user_document_id_received', {
+        userDocumentId,
+        note: 'ignored_in_canonical_mode',
+      })
     }
 
     return jsonResponse({

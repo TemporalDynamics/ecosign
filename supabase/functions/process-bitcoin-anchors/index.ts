@@ -302,6 +302,49 @@ async function sendConfirmationEmail(
   return true;
 }
 
+async function notifyAnchorConfirmed(
+  anchor: any,
+  txid: string | null,
+  blockHeight: number | null,
+) {
+  if (!supabaseAdmin || anchor.notification_sent) return;
+
+  const recipients = new Set<string>();
+  if (typeof anchor.user_email === 'string' && anchor.user_email.trim().length > 0) {
+    recipients.add(anchor.user_email.trim());
+  }
+
+  if (anchor.user_id) {
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(anchor.user_id);
+    if (!userError && userData?.user?.email) {
+      recipients.add(userData.user.email);
+    }
+  }
+
+  if (recipients.size === 0) return;
+
+  let success = false;
+  for (const email of recipients) {
+    const sent = await sendConfirmationEmail(
+      email,
+      anchor.document_hash,
+      txid,
+      blockHeight,
+    );
+    success = success || sent;
+  }
+
+  if (success) {
+    await supabaseAdmin
+      .from('anchors')
+      .update({
+        notification_sent: true,
+        notification_sent_at: new Date().toISOString(),
+      })
+      .eq('id', anchor.id);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -520,68 +563,7 @@ serve(async (req) => {
 
               console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
 
-              // Send notifications after successful atomic update
-              if (anchor.user_document_id) {
-                const { data: docData } = await supabaseAdmin
-                  .from('user_documents')
-                  .select('id, document_name, user_id')
-                  .eq('id', anchor.user_document_id)
-                  .single();
-
-                if (docData) {
-                  const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(docData.user_id);
-
-                  if (!userError && user && user.email && !anchor.notification_sent) {
-                    const emailSent = await sendConfirmationEmail(
-                      user.email,
-                      anchor.document_hash,
-                      txid || null,
-                      blockHeight || null
-                    );
-
-                    if (anchor.user_email && anchor.user_email !== user.email) {
-                      await sendConfirmationEmail(
-                        anchor.user_email,
-                        anchor.document_hash,
-                        txid || null,
-                        blockHeight || null
-                      );
-                    }
-
-                    if (emailSent) {
-                      await supabaseAdmin
-                        .from('anchors')
-                        .update({
-                          notification_sent: true,
-                          notification_sent_at: new Date().toISOString()
-                        })
-                        .eq('id', anchor.id);
-
-                      console.log(`📧 Sent Bitcoin confirmation email to ${user.email}`);
-                    }
-                  }
-                }
-              }
-
-              // Legacy: Send notification for old anchors without user_document_id
-              if (!anchor.user_document_id && anchor.user_email && !anchor.notification_sent) {
-                const emailSent = await sendConfirmationEmail(
-                  anchor.user_email,
-                  anchor.document_hash,
-                  txid || null,
-                  blockHeight || null
-                );
-
-                if (emailSent) {
-                  await supabaseAdmin
-                    .from('anchors')
-                    .update({
-                      notification_sent: true,
-                      notification_sent_at: new Date().toISOString()
-                    })
-                    .eq('id', anchor.id);
-                }
-              }
+              await notifyAnchorConfirmed(anchor, txid || null, blockHeight || null);
 
               await insertBitcoinNotification(anchor, txid, blockHeight ?? undefined, blockData.confirmedAt ?? null);
               confirmed++;
@@ -621,68 +603,7 @@ serve(async (req) => {
 
           console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
 
-          // Send notifications after successful atomic update
-          if (anchor.user_document_id) {
-            const { data: docData } = await supabaseAdmin
-              .from('user_documents')
-              .select('id, document_name, user_id')
-              .eq('id', anchor.user_document_id)
-              .single();
-
-            if (docData) {
-              const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(docData.user_id);
-
-              if (!userError && user && user.email && !anchor.notification_sent) {
-                const emailSent = await sendConfirmationEmail(
-                  user.email,
-                  anchor.document_hash,
-                  txid || null,
-                  blockHeight || null
-                );
-
-                if (anchor.user_email && anchor.user_email !== user.email) {
-                  await sendConfirmationEmail(
-                    anchor.user_email,
-                    anchor.document_hash,
-                    txid || null,
-                    blockHeight || null
-                  );
-                }
-
-                if (emailSent) {
-                  await supabaseAdmin
-                    .from('anchors')
-                    .update({
-                      notification_sent: true,
-                      notification_sent_at: new Date().toISOString()
-                    })
-                    .eq('id', anchor.id);
-
-                  console.log(`📧 Sent Bitcoin confirmation email to ${user.email}`);
-                }
-              }
-            }
-          }
-
-          // Legacy: Send notification for old anchors without user_document_id
-          if (!anchor.user_document_id && anchor.user_email && !anchor.notification_sent) {
-            const emailSent = await sendConfirmationEmail(
-              anchor.user_email,
-              anchor.document_hash,
-              txid || null,
-              blockHeight || null
-            );
-
-            if (emailSent) {
-              await supabaseAdmin
-                .from('anchors')
-                .update({
-                  notification_sent: true,
-                  notification_sent_at: new Date().toISOString()
-                })
-                .eq('id', anchor.id);
-            }
-          }
+          await notifyAnchorConfirmed(anchor, txid || null, blockHeight || null);
 
           await insertBitcoinNotification(anchor, txid, blockHeight ?? undefined, confirmedAt);
           

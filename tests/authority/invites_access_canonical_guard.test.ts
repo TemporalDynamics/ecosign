@@ -96,7 +96,8 @@ test('public invite/link/access endpoints must enforce document_entity_id strict
   expect(schemasContent).toContain('GenerateLinkSchema');
   expect(schemasContent).toContain('}).strict();');
 
-  expect(createInvite).toContain('documentId is no longer accepted; use documentEntityId');
+  expect(createInvite).not.toContain('documentId');
+  expect(createInvite).not.toContain(".from('documents')");
   expect(schemasContent).not.toContain('documentId: z.string().uuid().optional()');
 
   expect(generateLink).not.toContain('resolveDocumentRefs(');

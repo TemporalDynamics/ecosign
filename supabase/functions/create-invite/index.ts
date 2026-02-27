@@ -3,7 +3,6 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { withRateLimit } from '../_shared/ratelimit.ts';
 
 interface CreateInviteRequest {
-  documentId?: string;
   documentEntityId?: string;
   email: string;
   role: 'viewer' | 'signer';
@@ -59,15 +58,7 @@ serve(withRateLimit('invite', async (req) => {
 
     // Parse request body
     const body: CreateInviteRequest = await req.json();
-    const { documentId, documentEntityId, email, role, expiresInDays = 30 } = body;
-
-    // Strict canonical mode: public API accepts only document_entity_id.
-    if (documentId) {
-      return new Response(
-        JSON.stringify({ error: 'documentId is no longer accepted; use documentEntityId' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const { documentEntityId, email, role, expiresInDays = 30 } = body;
 
     // Validate inputs
     if (!documentEntityId || !email || !role) {
@@ -129,20 +120,10 @@ serve(withRateLimit('invite', async (req) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
-    // Optional legacy pointer for compatibility; authority remains document_entity_id.
-    const { data: legacyDoc } = await supabase
-      .from('documents')
-      .select('id')
-      .eq('document_entity_id', documentEntityId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
     // Create invite
     const { data: invite, error: inviteError } = await supabase
       .from('invites')
       .insert({
-        document_id: legacyDoc?.id ?? null,
         document_entity_id: documentEntityId,
         email: email.toLowerCase().trim(),
         role,

@@ -23,18 +23,17 @@ integraciones externas:
 1. `accept-nda` — flujo NDA legacy aún depende de `documents`.
 2. `anchor-bitcoin` — compatibilidad de payload legacy y puntero `documents`.
 3. `anchor-polygon` — compatibilidad de payload legacy y puntero `documents`.
-4. `create-invite` — escribe puntero legacy opcional `document_id`.
-5. `create-signer-link` — escribe puntero legacy opcional `document_id`.
-6. `generate-link` — mantiene proyección en `documents` para enlaces/recipients.
-7. `log-event` — endpoint legacy acepta `documentId` además de `documentEntityId`.
-8. `new-document-canonical-trigger` — trigger de proyección desde tabla `documents`.
-9. `notify-document-certified` — compatibilidad de entrada `documentId`.
-10. `notify-document-signed` — payload email usa `documentId` referencial.
-11. `signer-access` — `documentId` refiere documento externo de SignNow.
-12. `signnow` — `documentId` refiere documento externo de SignNow.
-13. `signnow-webhook` — payload legado de integración usa `documentId`.
-14. `submit-anchor-bitcoin` — forward de `document_id` legacy a anchor worker.
-15. `submit-anchor-polygon` — forward de `document_id` legacy a anchor worker.
+4. `create-signer-link` — escribe puntero legacy opcional `document_id`.
+5. `generate-link` — mantiene proyección en `documents` para enlaces/recipients.
+6. `log-event` — endpoint legacy acepta `documentId` además de `documentEntityId`.
+7. `new-document-canonical-trigger` — trigger de proyección desde tabla `documents`.
+8. `notify-document-certified` — compatibilidad de entrada `documentId`.
+9. `notify-document-signed` — payload email usa `documentId` referencial.
+10. `signer-access` — `documentId` refiere documento externo de SignNow.
+11. `signnow` — `documentId` refiere documento externo de SignNow.
+12. `signnow-webhook` — payload legado de integración usa `documentId`.
+13. `submit-anchor-bitcoin` — forward de `document_id` legacy a anchor worker.
+14. `submit-anchor-polygon` — forward de `document_id` legacy a anchor worker.
 
 ## Criterio de aceptación
 1. Guard de frontera pública en verde.

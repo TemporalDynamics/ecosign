@@ -12,65 +12,51 @@ import { appendEvent } from '../_shared/eventHelper.ts';
 // y debe escribir directamente en document_entities.events[]
 
 export async function handleNewDocumentCreated(documentId: string, metadata: any) {
-  // 1. Obtener el user_document para obtener el hash
+  // 1. Resolver documento y su entidad canónica
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  const { data: userDoc, error: docError } = await supabase
-    .from('user_documents')
-    .select('id, document_hash, user_id')
+  const { data: document, error: docError } = await supabase
+    .from('documents')
+    .select('id, owner_id, title, original_filename, document_entity_id')
     .eq('id', documentId)
-    .single();
+    .maybeSingle();
 
-  if (docError || !userDoc) {
+  if (docError || !document) {
     throw new Error(`Documento no encontrado: ${documentId}`);
   }
 
-  // 2. Buscar o crear el document_entity correspondiente
-  let documentEntityId: string;
-  
-  // Intentar encontrar el entity existente
-  const { data: existingEntity } = await supabase
-    .from('document_entities')
-    .select('id')
-    .eq('source_hash', userDoc.document_hash)
-    .single();
-
-  if (existingEntity) {
-    documentEntityId = existingEntity.id;
-  } else {
-    // Crear nuevo document_entity
-    const { data: newEntity, error: createError } = await supabase
-      .from('document_entities')
-      .insert({
-        source_hash: userDoc.document_hash,
-        witness_hash: userDoc.document_hash, // o calcular el witness hash real
-        events: [],
-        created_at: new Date().toISOString()
-      })
-      .select('id')
-      .single();
-
-    if (createError) {
-      throw new Error(`Error creando document_entity: ${createError.message}`);
-    }
-    
-    documentEntityId = newEntity.id;
+  const documentEntityId = document.document_entity_id ?? metadata?.document_entity_id ?? null;
+  if (!documentEntityId) {
+    throw new Error(`documents.document_entity_id faltante para ${documentId}`);
   }
 
-  // 3. Crear el evento canónico
+  const { data: entity, error: entityError } = await supabase
+    .from('document_entities')
+    .select('id')
+    .eq('id', documentEntityId)
+    .maybeSingle();
+
+  if (entityError || !entity) {
+    throw new Error(`Document entity no encontrado: ${documentEntityId}`);
+  }
+
+  // 2. Crear el evento canónico
   const canonicalEvent = {
     kind: 'document.created',
     at: new Date().toISOString(),
     payload: {
       ...metadata,
       document_id: documentId,
-      user_id: userDoc.user_id
+      document_entity_id: documentEntityId,
+      owner_id: document.owner_id,
+      title: document.title ?? null,
+      original_filename: document.original_filename ?? null,
     }
   };
 
-  // 4. Agregar el evento canónico al document_entity
+  // 3. Agregar el evento canónico al document_entity
   const result = await appendEvent(
     supabase,
     documentEntityId,
@@ -86,7 +72,7 @@ export async function handleNewDocumentCreated(documentId: string, metadata: any
   
   return {
     documentEntityId,
-    eventId: result.eventId
+    success: true,
   };
 }
 
@@ -116,13 +102,14 @@ Deno.serve(async (req) => {
     const result = await handleNewDocumentCreated(documentId, metadata);
     
     return new Response(
-      JSON.stringify({ success: true, ...result }),
+      JSON.stringify(result),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Error en trigger de documento:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }

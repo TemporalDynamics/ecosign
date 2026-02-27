@@ -15,24 +15,26 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { getUserDocumentId } from '../_shared/eventHelper.ts';
-
-// TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
+import { appendEvent, getDocumentEntityId } from '../_shared/eventHelper.ts';
 
 
-// Valid event types (must match client/src/utils/eventLogger.js)
-const VALID_EVENT_TYPES = [
-  'created',
-  'sent',
-  'opened',
-  'identified',
-  'signed',
-  'anchored_polygon',
-  'anchored_bitcoin',
-  'verified',
-  'downloaded',
-  'expired'
-];
+const LEGACY_TO_CANONICAL_KIND: Record<string, string> = {
+  created: 'legacy.created',
+  sent: 'legacy.sent',
+  opened: 'legacy.opened',
+  identified: 'legacy.identified',
+  signed: 'legacy.signed',
+  anchored_polygon: 'legacy.anchored.polygon',
+  anchored_bitcoin: 'legacy.anchored.bitcoin',
+  verified: 'legacy.verified',
+  downloaded: 'legacy.downloaded',
+  expired: 'legacy.expired',
+  'anchor.attempt': 'anchor.attempt',
+  'anchor.confirmed': 'anchor.confirmed',
+  'anchor.failed': 'anchor.failed',
+};
+
+const VALID_EVENT_TYPES = Object.keys(LEGACY_TO_CANONICAL_KIND);
 
 interface LogEventRequest {
   eventType: string;
@@ -115,24 +117,23 @@ serve(async (req: Request) => {
       );
     }
 
-    const resolvedDocumentId = documentId
-      ?? (documentEntityId ? await getUserDocumentId(supabaseAdmin, documentEntityId) : null);
+    const resolvedDocumentEntityId = documentEntityId
+      ?? (documentId ? await getDocumentEntityId(supabaseAdmin, documentId) : null);
 
-    if (!resolvedDocumentId) {
+    if (!resolvedDocumentEntityId) {
       return new Response(
         JSON.stringify({ error: 'Document not found or access denied' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verify document ownership (user must own the document)
-    const { data: document, error: docError } = await supabaseClient
-      .from('user_documents')
-      .select('id, user_id')
-      .eq('id', resolvedDocumentId)
-      .single();
+    const { data: entity, error: entityError } = await supabaseAdmin
+      .from('document_entities')
+      .select('id, owner_id')
+      .eq('id', resolvedDocumentEntityId)
+      .maybeSingle();
 
-    if (docError || !document) {
+    if (entityError || !entity || entity.owner_id !== user.id) {
       return new Response(
         JSON.stringify({ error: 'Document not found or access denied' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -146,44 +147,55 @@ serve(async (req: Request) => {
     const userAgent = req.headers.get('user-agent') || 'Unknown';
     const timestamp = new Date().toISOString();
 
-    // Prepare event data
+    const canonicalKind = LEGACY_TO_CANONICAL_KIND[eventType];
     const eventData = {
-      document_id: resolvedDocumentId,
-      event_type: eventType,
+      kind: canonicalKind,
       timestamp,
-      ip_address: ipAddress,
-      user_agent: userAgent,
-      user_id: userId || user.id,
-      signer_link_id: signerLinkId || null,
+      document_entity_id: resolvedDocumentEntityId,
+      document_id: documentId ?? null,
       actor_email: actorEmail || user.email || null,
       actor_name: actorName || null,
-      metadata: {
-        ...(metadata || {}),
-        ...(documentEntityId ? { document_entity_id: documentEntityId } : {})
-      },
+      signer_link_id: signerLinkId || null,
+      user_id: userId || user.id,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+      metadata: metadata || {},
     };
 
-    console.log(`📝 Logging event: ${eventType} for document ${resolvedDocumentId}`);
+    const result = await appendEvent(
+      supabaseAdmin,
+      resolvedDocumentEntityId,
+      {
+        kind: canonicalKind,
+        at: timestamp,
+        actor: user.id,
+        legacy: {
+          event_type: eventType,
+          ...eventData,
+        },
+      },
+      'log-event'
+    );
 
-    // Insert event using SERVICE_ROLE_KEY (bypasses RLS)
-    const { data, error } = await supabaseAdmin
-      .from('events')
-      .insert(eventData)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('❌ Error inserting event:', error);
+    if (!result.success) {
+      console.error('❌ Error appending event:', result.error);
       return new Response(
-        JSON.stringify({ error: 'Failed to log event', details: error instanceof Error ? error.message : String(error) }),
+        JSON.stringify({ error: 'Failed to log event', details: result.error }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`✅ Event logged successfully:`, data);
+    console.log(`✅ Event logged successfully: ${eventType} for ${resolvedDocumentEntityId}`);
 
     return new Response(
-      JSON.stringify({ success: true, data }),
+      JSON.stringify({
+        success: true,
+        data: {
+          ...eventData,
+          at: timestamp,
+          kind: canonicalKind,
+        }
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

@@ -174,45 +174,54 @@ async function captureOperationSnapshot(
   operationId: string,
   witnessEmails: string[],
 ) {
-  const { data: documents, error: docError } = await supabase
-    .from('user_documents')
-    .select('id, name, document_entity_id')
+  const { data: operationDocuments, error: docError } = await supabase
+    .from('operation_documents')
+    .select('id, document_entity_id')
     .eq('operation_id', operationId);
 
-  if (docError || !documents) {
+  if (docError || !operationDocuments) {
     throw new Error('Failed to fetch operation documents');
   }
 
-  const documentSnapshots = (await Promise.all(
-    documents.map(async (doc: any) => {
-      const { data: entity, error: entError } = await supabase
-        .from('document_entities')
-        .select('id, events')
-        .eq('id', doc.document_entity_id)
-        .single();
+  if (operationDocuments.length === 0) {
+    throw new Error('Operation has no documents');
+  }
 
-      if (entError || !entity) {
-        return {
-          documentId: doc.id,
-          name: doc.name,
-          entityId: doc.document_entity_id,
-          currentHash: 'unknown',
-          state: 'unknown',
-        };
-      }
+  const entityIds = operationDocuments
+    .map((doc: any) => String(doc.document_entity_id ?? ''))
+    .filter((id: string) => id.length > 0);
 
-      const events = Array.isArray(entity.events) ? entity.events : [];
+  const { data: entities, error: entError } = await supabase
+    .from('document_entities')
+    .select('id, source_name, events')
+    .in('id', entityIds);
+
+  if (entError) {
+    throw new Error(`Failed to fetch document entities: ${entError.message}`);
+  }
+
+  const entityById = new Map<string, any>();
+  for (const entity of entities || []) {
+    entityById.set(String((entity as any).id), entity);
+  }
+
+  const documentSnapshots = operationDocuments
+    .map((doc: any) => {
+      const entityId = String(doc.document_entity_id ?? '');
+      const entity = entityById.get(entityId);
+      const events = Array.isArray(entity?.events) ? entity.events : [];
       const lastEvent = events.length > 0 ? events[events.length - 1] : null;
 
       return {
-        documentId: doc.id,
-        name: doc.name,
-        entityId: entity.id,
+        documentId: entityId,
+        operationDocumentId: String(doc.id ?? ''),
+        name: typeof entity?.source_name === 'string' ? entity.source_name : 'Documento',
+        entityId,
         currentHash: lastEvent?.payload?.witness_hash || lastEvent?.witness_hash || 'unknown',
         state: lastEvent?.kind || 'unknown',
       };
-    }),
-  )).sort((a, b) => String(a.entityId).localeCompare(String(b.entityId)));
+    })
+    .sort((a, b) => String(a.entityId).localeCompare(String(b.entityId)));
 
   const { data: signers, error: sigError } = await supabase
     .from('operation_signers')
@@ -289,17 +298,34 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { data: operation, error: opError } = await supabase
+    let operation: Record<string, unknown> | null = null;
+    let opError: any = null;
+
+    const ownerQuery = await supabase
       .from('operations')
-      .select('id, created_by')
+      .select('id, owner_id')
       .eq('id', operationId)
       .single();
+    if (!ownerQuery.error && ownerQuery.data) {
+      operation = ownerQuery.data as Record<string, unknown>;
+    } else if (String(ownerQuery.error?.message ?? '').toLowerCase().includes('owner_id')) {
+      const createdByQuery = await supabase
+        .from('operations')
+        .select('id, created_by')
+        .eq('id', operationId)
+        .single();
+      operation = (createdByQuery.data as Record<string, unknown> | null) ?? null;
+      opError = createdByQuery.error;
+    } else {
+      opError = ownerQuery.error;
+    }
 
     if (opError || !operation) {
       return jsonResponse({ error: 'Operation not found' }, 404, corsHeaders);
     }
 
-    if (operation.created_by !== authUser.id) {
+    const operationOwnerId = (operation as any).owner_id ?? (operation as any).created_by ?? null;
+    if (operationOwnerId !== authUser.id) {
       return jsonResponse({ error: 'Not authorized to manage this operation' }, 403, corsHeaders);
     }
 

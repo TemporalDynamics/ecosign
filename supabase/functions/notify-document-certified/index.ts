@@ -2,9 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail, buildDocumentCertifiedEmail } from '../_shared/email.ts';
-import { getUserDocumentId } from '../_shared/eventHelper.ts';
-
-// TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
+import { getDocumentEntityId } from '../_shared/eventHelper.ts';
 
 
 serve(async (req: Request) => {
@@ -41,43 +39,72 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get document info
-    const resolvedDocumentId = documentId
-      ?? (documentEntityId ? await getUserDocumentId(supabase, documentEntityId) : null);
+    const { data: legacyDocument } = documentId
+      ? await supabase
+        .from('documents')
+        .select('id, owner_id, title, document_entity_id, created_at')
+        .eq('id', documentId)
+        .maybeSingle()
+      : { data: null as any };
 
-    if (!resolvedDocumentId) {
-      throw new Error('Document not found');
+    const resolvedDocumentEntityId = documentEntityId
+      ?? legacyDocument?.document_entity_id
+      ?? (documentId ? await getDocumentEntityId(supabase, documentId) : null);
+
+    if (!resolvedDocumentEntityId) {
+      throw new Error('Document entity not found');
     }
 
-    const { data: document, error: docError } = await supabase
-      .from('user_documents')
-      .select('id, document_name, user_id, created_at, eco_data')
-      .eq('id', resolvedDocumentId)
+    const { data: entity, error: entityError } = await supabase
+      .from('document_entities')
+      .select('id, owner_id, source_name, metadata, events, created_at')
+      .eq('id', resolvedDocumentEntityId)
       .single();
 
-    if (docError || !document) {
-      throw new Error(`Document not found: ${docError?.message}`);
+    if (entityError || !entity) {
+      throw new Error(`Document entity not found: ${entityError?.message}`);
     }
 
     // Get owner info
-    const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(document.user_id);
+    const ownerId = entity.owner_id ?? legacyDocument?.owner_id ?? null;
+    if (!ownerId) {
+      throw new Error('Document owner not found');
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(ownerId);
 
     if (userError || !user || !user.email) {
       throw new Error(`Owner not found: ${userError?.message}`);
     }
 
-    // Extract forensic info from eco_data
-    const hasForensicHardening = document.eco_data?.metadata?.forensicEnabled === true;
-    const hasLegalTimestamp = document.eco_data?.signatures?.[0]?.legalTimestamp !== null;
-    const hasPolygonAnchor = document.eco_data?.metadata?.anchoring?.polygon === true;
+    const events = Array.isArray(entity.events) ? entity.events : [];
+    const protectedRequested = events.find((event: any) => event?.kind === 'document.protected.requested');
+
+    // Extract forensic signals from canonical metadata/events.
+    const hasForensicHardening = entity.metadata?.forensicEnabled === true
+      || protectedRequested?.payload?.protection_details?.forensic_enabled === true;
+    const hasLegalTimestamp = events.some((event: any) => event?.kind === 'tsa.confirmed' || event?.kind === 'tsa');
+    const hasPolygonAnchor = events.some((event: any) => {
+      if (!event || (event.kind !== 'anchor' && event.kind !== 'anchor.confirmed')) return false;
+      const network = event.anchor?.network ?? event.payload?.network ?? null;
+      return network === 'polygon';
+    });
+
+    const resolvedDocumentName = entity.source_name
+      ?? legacyDocument?.title
+      ?? `Documento ${resolvedDocumentEntityId.slice(0, 8)}`;
+    const resolvedCertifiedAt = protectedRequested?.at
+      ?? entity.created_at
+      ?? legacyDocument?.created_at
+      ?? new Date().toISOString();
 
     // Build and send email
     const emailPayload = await buildDocumentCertifiedEmail({
       ownerEmail: user.email,
       ownerName: user.user_metadata?.full_name || user.user_metadata?.name,
-      documentName: document.document_name,
-      certifiedAt: document.created_at,
-      documentId: document.id,
+      documentName: resolvedDocumentName,
+      certifiedAt: resolvedCertifiedAt,
+      documentId: documentId ?? resolvedDocumentEntityId,
       hasForensicHardening,
       hasLegalTimestamp,
       hasPolygonAnchor,

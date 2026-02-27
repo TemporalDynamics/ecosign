@@ -107,15 +107,15 @@ serve(async (req) => {
     }
 
     // ========================================================================
-    // 2. Check pending documents
+    // 2. Check pending anchors (canonical source)
     // ========================================================================
-    const { data: pendingDocs } = await supabase
-      .from('user_documents')
-      .select('polygon_status, bitcoin_status')
-      .or('polygon_status.eq.pending,bitcoin_status.eq.pending');
+    const { data: pendingAnchors } = await supabase
+      .from('anchors')
+      .select('anchor_type, anchor_status')
+      .in('anchor_status', ['queued', 'pending', 'processing']);
 
-    const polygonPending = pendingDocs?.filter(d => d.polygon_status === 'pending').length || 0;
-    const bitcoinPending = pendingDocs?.filter(d => d.bitcoin_status === 'pending').length || 0;
+    const polygonPending = pendingAnchors?.filter((a: any) => a.anchor_type === 'polygon').length || 0;
+    const bitcoinPending = pendingAnchors?.filter((a: any) => a.anchor_type === 'opentimestamps' || a.anchor_type === 'bitcoin').length || 0;
 
     if (polygonPending > 50) {
       issues.push(`High number of pending Polygon documents: ${polygonPending}`);
@@ -131,11 +131,11 @@ serve(async (req) => {
 
     const { data: recentAnchors } = await supabase
       .from('anchors')
-      .select('blockchain, anchor_status, created_at')
+      .select('anchor_type, anchor_status, created_at')
       .gte('created_at', oneDayAgo);
 
-    const polygonAnchors24h = recentAnchors?.filter(a => a.blockchain === 'polygon').length || 0;
-    const bitcoinAnchors24h = recentAnchors?.filter(a => a.blockchain === 'bitcoin').length || 0;
+    const polygonAnchors24h = recentAnchors?.filter((a: any) => a.anchor_type === 'polygon').length || 0;
+    const bitcoinAnchors24h = recentAnchors?.filter((a: any) => a.anchor_type === 'opentimestamps' || a.anchor_type === 'bitcoin').length || 0;
 
     // ========================================================================
     // 4. Check last successful anchor per network
@@ -143,7 +143,7 @@ serve(async (req) => {
     const { data: lastPolygonAnchor } = await supabase
       .from('anchors')
       .select('confirmed_at')
-      .eq('blockchain', 'polygon')
+      .eq('anchor_type', 'polygon')
       .eq('anchor_status', 'confirmed')
       .order('confirmed_at', { ascending: false })
       .limit(1)
@@ -152,7 +152,7 @@ serve(async (req) => {
     const { data: lastBitcoinAnchor } = await supabase
       .from('anchors')
       .select('confirmed_at')
-      .eq('blockchain', 'bitcoin')
+      .in('anchor_type', ['opentimestamps', 'bitcoin'])
       .eq('anchor_status', 'confirmed')
       .order('confirmed_at', { ascending: false })
       .limit(1)

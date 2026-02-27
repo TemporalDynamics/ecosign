@@ -105,7 +105,7 @@ serve(async (req) => {
     // ============================================================================
     const { data: documentEntity, error: docError } = await supabaseAdmin
       .from('document_entities')
-      .select('id, witness_hash, events')
+      .select('id, witness_hash, source_hash, events')
       .eq('id', documentEntityId)
       .single();
 
@@ -121,9 +121,11 @@ serve(async (req) => {
     // STEP 2: Check if anchor event already exists (idempotence)
     // ============================================================================
     const events = Array.isArray(documentEntity.events) ? documentEntity.events : [];
-    const existingAnchor = events.find(
-      (e: any) => e.kind === 'anchor' && e.anchor?.network === network
-    );
+    const existingAnchor = events.find((e: any) => {
+      if (!e || (e.kind !== 'anchor' && e.kind !== 'anchor.confirmed')) return false;
+      const eventNetwork = e.anchor?.network ?? e.payload?.network ?? null;
+      return eventNetwork === network;
+    });
 
     if (existingAnchor) {
       return jsonResponse({
@@ -137,77 +139,82 @@ serve(async (req) => {
     }
 
     // ============================================================================
-    // STEP 3: Fetch anchor data from legacy tables
+    // STEP 3: Fetch anchor data from anchors table
     // ============================================================================
     let anchorData: AnchorData | null = null;
 
     if (network === 'polygon') {
-      const { data: anchors, error: anchorError } = await supabaseAdmin
+      const { data: anchor, error: anchorError } = await supabaseAdmin
         .from('anchors')
-        .select('id, polygon_tx_hash, polygon_block_number, polygon_confirmed_at')
+        .select('id, polygon_tx_hash, polygon_block_number, polygon_confirmed_at, confirmed_at, metadata, document_hash')
+        .eq('document_entity_id', documentEntityId)
         .eq('anchor_type', 'polygon')
         .eq('anchor_status', 'confirmed')
-        .not('polygon_confirmed_at', 'is', null)
-        .limit(1);
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (anchorError || !anchors || anchors.length === 0) {
+      if (anchorError || !anchor) {
         return jsonResponse({
-          error: 'No confirmed polygon anchor found in legacy tables',
+          error: 'No confirmed polygon anchor found',
           document_entity_id: documentEntityId,
           details: anchorError?.message
         }, 404);
       }
 
-      const anchor = anchors[0];
+      const metadata = (anchor.metadata as Record<string, any> | null) ?? {};
+      const confirmedAt = anchor.polygon_confirmed_at || anchor.confirmed_at || metadata.confirmed_at || null;
+      if (!confirmedAt) {
+        return jsonResponse({
+          error: 'No polygon confirmation timestamp found',
+          document_entity_id: documentEntityId,
+          anchor_id: anchor.id,
+        }, 404);
+      }
+
       anchorData = {
         anchor_id: anchor.id,
-        txid: anchor.polygon_tx_hash,
+        txid: anchor.polygon_tx_hash || metadata.txid || 'unknown',
         block_number: anchor.polygon_block_number,
-        confirmed_at: anchor.polygon_confirmed_at,
-        witness_hash: documentEntity.witness_hash
+        confirmed_at: confirmedAt,
+        witness_hash: documentEntity.witness_hash || documentEntity.source_hash || anchor.document_hash
       };
     } else if (network === 'bitcoin') {
-      // Bitcoin data is stored across anchors table and user_documents table
-      const { data: anchors, error: anchorError } = await supabaseAdmin
+      const { data: anchor, error: anchorError } = await supabaseAdmin
         .from('anchors')
-        .select('id, metadata, user_document_id')
-        .eq('anchor_type', 'bitcoin')
+        .select('id, metadata, bitcoin_tx_id, bitcoin_block_height, confirmed_at, document_hash')
+        .eq('document_entity_id', documentEntityId)
+        .in('anchor_type', ['bitcoin', 'opentimestamps'])
         .eq('anchor_status', 'confirmed')
-        .limit(1);
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (anchorError || !anchors || anchors.length === 0) {
+      if (anchorError || !anchor) {
         return jsonResponse({
-          error: 'No confirmed bitcoin anchor found in legacy tables',
+          error: 'No confirmed bitcoin anchor found',
           document_entity_id: documentEntityId,
           details: anchorError?.message
         }, 404);
       }
 
-      const anchor = anchors[0];
       const metadata = anchor.metadata as Record<string, any> || {};
+      const confirmedAt = anchor.confirmed_at || metadata.confirmed_at || null;
 
-      // Get confirmation timestamp from user_documents (where it's actually stored)
-      const { data: userDoc, error: userDocError } = await supabaseAdmin
-        .from('user_documents')
-        .select('bitcoin_confirmed_at')
-        .eq('id', anchor.user_document_id)
-        .single();
-
-      if (userDocError || !userDoc || !userDoc.bitcoin_confirmed_at) {
+      if (!confirmedAt) {
         return jsonResponse({
           error: 'No bitcoin confirmation timestamp found',
           document_entity_id: documentEntityId,
           anchor_id: anchor.id,
-          details: userDocError?.message
         }, 404);
       }
 
       anchorData = {
         anchor_id: anchor.id,
-        txid: metadata.bitcoin_tx || 'unknown',
-        block_number: metadata.block || null,
-        confirmed_at: userDoc.bitcoin_confirmed_at,
-        witness_hash: documentEntity.witness_hash
+        txid: anchor.bitcoin_tx_id || metadata.bitcoin_tx || metadata.txid || 'unknown',
+        block_number: anchor.bitcoin_block_height || metadata.block || null,
+        confirmed_at: confirmedAt,
+        witness_hash: documentEntity.witness_hash || documentEntity.source_hash || anchor.document_hash
       };
     }
 
@@ -215,6 +222,14 @@ serve(async (req) => {
       return jsonResponse({
         error: 'Failed to resolve anchor data',
         document_entity_id: documentEntityId
+      }, 500);
+    }
+
+    if (!anchorData.witness_hash) {
+      return jsonResponse({
+        error: 'Missing witness_hash for anchor repair',
+        document_entity_id: documentEntityId,
+        anchor_id: anchorData.anchor_id,
       }, 500);
     }
 
@@ -243,7 +258,7 @@ serve(async (req) => {
     // STEP 5: REPAIR - Append anchor event (canonical helper)
     // ============================================================================
     const repairResult = await appendAnchorEventFromEdge(
-      supabaseAdmin,
+      supabaseAdmin as any,
       documentEntityId,
       {
         network: network,

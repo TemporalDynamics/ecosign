@@ -196,25 +196,35 @@ export async function appendEvent(
 }
 
 /**
- * Utility: Get document_entity_id from user_documents.id
+ * Utility: Get document_entity_id from legacy document id.
  *
- * Many edge functions work with user_documents.id, but events[] lives
- * in document_entities. This helper bridges the gap.
+ * Canonical lookup uses `documents` projection.
+ * If caller already passes a document_entity_id, return it directly.
  *
  * @param supabase - Supabase client
- * @param userDocumentId - user_documents.id
+ * @param legacyDocumentId - legacy document identifier
  * @returns document_entity_id or null
  */
 export async function getDocumentEntityId(
   supabase: any,
-  userDocumentId: string
+  legacyDocumentId: string
 ): Promise<string | null> {
   try {
+    const { data: entityById } = await supabase
+      .from('document_entities')
+      .select('id')
+      .eq('id', legacyDocumentId)
+      .maybeSingle();
+
+    if (entityById?.id) {
+      return String(entityById.id);
+    }
+
     const { data, error } = await supabase
-      .from('user_documents')
+      .from('documents')
       .select('document_entity_id')
-      .eq('id', userDocumentId)
-      .single();
+      .eq('id', legacyDocumentId)
+      .maybeSingle();
 
     if (error || !data || !data.document_entity_id) {
       console.error('Failed to get document_entity_id:', error?.message);
@@ -229,14 +239,14 @@ export async function getDocumentEntityId(
 }
 
 /**
- * Utility: Get user_documents.id from document_entities.id
+ * Utility: Get legacy document id from document_entities.id
  *
  * Used for dual-read migration when callers only know document_entity_id
- * but legacy tables still require user_documents.id.
+ * but legacy tables still require a legacy document id.
  *
  * @param supabase - Supabase client
  * @param documentEntityId - document_entities.id
- * @returns user_documents.id or null
+ * @returns documents.id or null
  */
 export async function getUserDocumentId(
   supabase: any,
@@ -244,10 +254,12 @@ export async function getUserDocumentId(
 ): Promise<string | null> {
   try {
     const { data, error } = await supabase
-      .from('user_documents')
+      .from('documents')
       .select('id')
       .eq('document_entity_id', documentEntityId)
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (error || !data?.id) {
       console.error('Failed to get user_document_id:', error?.message);

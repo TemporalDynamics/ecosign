@@ -38,7 +38,7 @@ const DEFAULT_CAPABILITIES: AnchorPlanCapabilities = {
 
 export function normalizeForensicConfig(
   value: ForensicConfigInput | null | undefined,
-): Required<ForensicConfigInput> {
+): { rfc3161: boolean; polygon: boolean; bitcoin: boolean } {
   return {
     rfc3161: Boolean(value?.rfc3161 ?? true),
     polygon: Boolean(value?.polygon),

@@ -8,7 +8,7 @@ import { withRateLimit } from '../_shared/ratelimit.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { parseJsonBody } from '../_shared/validation.ts'
 import { AcceptNdaSchema } from '../_shared/schemas.ts'
-import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
+import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 import { resolveNdaTemplateMetadata } from '../_shared/nda/text.ts'
 
 serve(withRateLimit('accept', async (req) => {
@@ -54,7 +54,7 @@ serve(withRateLimit('accept', async (req) => {
 
     const { data: link, error: linkError } = await supabase
       .from('links')
-      .select('id, recipient_id, nda_text')
+      .select('id, recipient_id, nda_text, document_entity_id')
       .eq('token_hash', tokenHash)
       .single()
 
@@ -65,7 +65,7 @@ serve(withRateLimit('accept', async (req) => {
     // Verify recipient exists
     const { data: recipient, error: recipientError } = await supabase
       .from('recipients')
-      .select('id, email, document_id')
+      .select('id, email, document_id, document_entity_id')
       .eq('id', link.recipient_id)
       .single()
 
@@ -211,7 +211,24 @@ serve(withRateLimit('accept', async (req) => {
     // === PROBATORY EVENT: nda.accepted ===
     // Register NDA acceptance in canonical events ledger (goes to .eco)
     try {
-      const documentEntityId = await getDocumentEntityId(supabase, recipient.document_id)
+      let documentEntityId =
+        (typeof (recipient as any)?.document_entity_id === 'string' && (recipient as any).document_entity_id.length > 0)
+          ? String((recipient as any).document_entity_id)
+          : ((typeof (link as any)?.document_entity_id === 'string' && (link as any).document_entity_id.length > 0)
+            ? String((link as any).document_entity_id)
+            : null)
+
+      if (!documentEntityId && recipient.document_id) {
+        const { data: documentRef } = await supabase
+          .from('documents')
+          .select('document_entity_id')
+          .eq('id', recipient.document_id)
+          .maybeSingle()
+        if (documentRef?.document_entity_id) {
+          documentEntityId = String(documentRef.document_entity_id)
+        }
+      }
+
       if (documentEntityId) {
         const ipHash = ipAddress ? await hashIP(ipAddress) : null
         const browserFamily = getBrowserFamily(userAgent)
@@ -247,7 +264,7 @@ serve(withRateLimit('accept', async (req) => {
           console.error('Failed to append nda.accepted event:', eventResult.error)
         }
       } else {
-        console.warn(`Could not get document_entity_id for document ${recipient.document_id}, nda.accepted event not recorded`)
+        console.warn(`Could not resolve document_entity_id for recipient ${recipient.id}, nda.accepted event not recorded`)
       }
     } catch (e) {
       console.warn('accept-nda probatory event recording failed', e)

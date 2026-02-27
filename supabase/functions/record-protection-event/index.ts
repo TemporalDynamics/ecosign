@@ -11,7 +11,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { withRateLimit } from '../_shared/ratelimit.ts'
-import { appendEvent, getDocumentEntityId, getUserDocumentId } from '../_shared/eventHelper.ts'
+import { appendEvent, getDocumentEntityId } from '../_shared/eventHelper.ts'
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { decideAnchorPolicyByStage, resolveOwnerAnchorPlan } from '../_shared/anchorPlanPolicy.ts'
@@ -89,38 +89,30 @@ serve(withRateLimit('record', async (req) => {
     }
 
     documentEntityId = document_entity_id ?? null
-    let userDocumentId = document_id ?? null
+    let legacyDocumentId = document_id ?? null
 
-    if (!documentEntityId && userDocumentId) {
-      documentEntityId = await getDocumentEntityId(supabase, userDocumentId)
+    if (!documentEntityId && legacyDocumentId) {
+      documentEntityId = await getDocumentEntityId(supabase, legacyDocumentId)
     }
 
-    if (!userDocumentId && documentEntityId) {
-      userDocumentId = await getUserDocumentId(supabase, documentEntityId)
+    if (!legacyDocumentId && documentEntityId) {
+      const { data: latestDocument } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('document_entity_id', documentEntityId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      legacyDocumentId = latestDocument?.id ?? null
     }
 
     if (!documentEntityId) {
       throw new Error('Document entity not found for document_id: ' + (document_id ?? 'null'))
     }
 
-    if (!userDocumentId) {
-      throw new Error('User document not found for document_entity_id: ' + documentEntityId)
-    }
-
-    // Get document info for event context
-    const { data: doc, error: docError } = await supabase
-      .from('user_documents')
-      .select('id, document_hash, eco_hash, protection_level, polygon_status, bitcoin_status')
-      .eq('id', userDocumentId)
-      .single()
-
-    if (docError || !doc) {
-      throw new Error('Document not found')
-    }
-
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
-      .select('id, owner_id, witness_hash, source_hash')
+      .select('id, owner_id, witness_hash, source_hash, composite_hash')
       .eq('id', documentEntityId)
       .single()
 
@@ -130,6 +122,7 @@ serve(withRateLimit('record', async (req) => {
 
     // Use witness_hash if available, otherwise fall back to source_hash
     const effectiveWitnessHash = entity.witness_hash || entity.source_hash
+    const contractHash = entity.composite_hash || effectiveWitnessHash || entity.source_hash
 
     const ownerId = (entity as any).owner_id ?? userId ?? null
     const planPolicy = await resolveOwnerAnchorPlan(supabase as any, ownerId)
@@ -171,7 +164,7 @@ serve(withRateLimit('record', async (req) => {
           success: true,
           event_recorded: false,
           idempotent: true,
-          document_id: userDocumentId,
+          document_id: legacyDocumentId,
           document_entity_id: documentEntityId,
           protection_methods: protectionMethods,
         }),
@@ -184,8 +177,8 @@ serve(withRateLimit('record', async (req) => {
       at: new Date().toISOString(),
       payload: {
         document_entity_id: documentEntityId,
-        document_id: userDocumentId,
-        document_hash: doc.document_hash,
+        document_id: legacyDocumentId,
+        document_hash: entity.source_hash || effectiveWitnessHash,
         witness_hash: effectiveWitnessHash,
         flow_type: 'DIRECT_PROTECTION',
         required_evidence: requiredEvidence,
@@ -200,7 +193,7 @@ serve(withRateLimit('record', async (req) => {
           tsa_requested: anchorPolicy.allowed.tsa,
           polygon_requested: anchorPolicy.allowed.polygon,
           bitcoin_requested: anchorPolicy.allowed.bitcoin,
-          contract_hash: doc.eco_hash || doc.document_hash,
+          contract_hash: contractHash,
         },
       }
     }
@@ -251,13 +244,13 @@ serve(withRateLimit('record', async (req) => {
       console.warn('[record-protection-event] wake execution engine failed (non-critical):', wakeErr);
     }
 
-    console.log(`✅ ${requestEventKind} recorded for document ${userDocumentId}`)
+    console.log(`✅ ${requestEventKind} recorded for document ${legacyDocumentId ?? documentEntityId}`)
 
     return new Response(
       JSON.stringify({
         success: true,
         event_recorded: true,
-        document_id: userDocumentId,
+        document_id: legacyDocumentId,
         document_entity_id: documentEntityId,
         protection_methods: protectionMethods
       }),

@@ -28,6 +28,7 @@
     "diag:entrypoint-guard": "bash scripts/diagnostics/check-executor-entrypoints.sh",
     "diag:canonical-readiness": "bash scripts/diagnostics/check-canonical-readiness.sh",
     "diag:decision-path-clean": "bash scripts/diagnostics/check-decision-path-clean.sh",
+    "diag:user-documents-freeze-smoke": "bash scripts/diagnostics/smoke-user-documents-freeze.sh",
     "governance:build-input": "node scripts/governance/build-input.mjs",
     "check:governance-shadow": "node scripts/governance/run-shadow.mjs",
     "epi:capture-run": "bash scripts/diagnostics/capture-e2e-run.sh",

@@ -85,6 +85,52 @@ run_optional_deno_check() {
   esac
 }
 
+run_optional_user_documents_freeze_smoke() {
+  local mode="${USER_DOCUMENTS_FREEZE_SMOKE:-auto}"
+  case "${mode}" in
+    true)
+      run_step "user_documents freeze smoke" npm run diag:user-documents-freeze-smoke
+      ;;
+    auto)
+      if ! command -v psql >/dev/null 2>&1; then
+        echo
+        echo "=== user_documents freeze smoke ==="
+        echo "skipped (psql not installed)"
+        return 0
+      fi
+
+      if [[ -n "${DATABASE_URL:-}" || -n "${SUPABASE_DB_URL:-}" ]]; then
+        run_step "user_documents freeze smoke (auto)" npm run diag:user-documents-freeze-smoke
+        return 0
+      fi
+
+      if command -v supabase >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+        local local_db_url=""
+        local_db_url="$(supabase status --output json 2>/dev/null | jq -r '.DB_URL // empty' || true)"
+        if [[ -n "${local_db_url}" ]]; then
+          run_step "user_documents freeze smoke (auto)" npm run diag:user-documents-freeze-smoke
+          return 0
+        fi
+      fi
+
+      echo
+      echo "=== user_documents freeze smoke ==="
+      echo "skipped (no DATABASE_URL/SUPABASE_DB_URL and local supabase DB_URL unavailable)"
+      ;;
+    false|"")
+      echo
+      echo "=== user_documents freeze smoke ==="
+      echo "skipped (USER_DOCUMENTS_FREEZE_SMOKE=false)"
+      ;;
+    *)
+      echo
+      echo "=== user_documents freeze smoke ==="
+      echo "ERROR: USER_DOCUMENTS_FREEZE_SMOKE='${mode}' inválido. Valores permitidos: true, false, auto."
+      return 2
+      ;;
+  esac
+}
+
 run_step "Typecheck" npm run typecheck
 run_step "Lint" npm run lint
 run_step "Client smoke" npm --prefix client run test:smoke
@@ -99,10 +145,12 @@ run_step "Non-critical canonical guard" npm run test -- tests/authority/noncriti
 run_step "Release bundle canonical guard" npm run test -- tests/authority/release_bundle_canonical_guard.test.ts
 run_step "Non-legacy user_documents guard" npm run test -- tests/authority/nonlegacy_user_documents_guard.test.ts
 run_step "user_documents freeze guard" npm run test -- tests/authority/user_documents_freeze_guard.test.ts
+run_step "user_documents freeze smoke guard" npm run test -- tests/authority/user_documents_freeze_smoke_guard.test.ts
 run_step "Presential verifier parser unit" npm run test -- tests/unit/presentialEvidence.test.ts
 run_step "Docs public surface guard" npm run test -- tests/authority/docs_public_surface_guard.test.ts
 run_step "Phase1 gate" npm run phase1:gate
 run_step "Client build" npm --prefix client run build:skip-validation
+run_optional_user_documents_freeze_smoke
 run_optional_deno_check
 
 if [[ "${PREBETA_INCLUDE_FULL_TESTS:-false}" == "true" ]]; then

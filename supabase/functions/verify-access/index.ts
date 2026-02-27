@@ -8,15 +8,52 @@ import { withRateLimit } from '../_shared/ratelimit.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { parseJsonBody } from '../_shared/validation.ts'
 import { VerifyAccessSchema } from '../_shared/schemas.ts'
-import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
-
-// TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
+import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 
 interface AccessMetadata {
   ip_address?: string
   user_agent?: string
   country?: string
   session_id?: string
+}
+
+type EventLike = { kind?: string; payload?: Record<string, unknown> };
+
+function getLatestEcoStoragePath(events: unknown): string | null {
+  if (!Array.isArray(events)) return null;
+  for (let idx = events.length - 1; idx >= 0; idx -= 1) {
+    const event = events[idx] as EventLike;
+    if (event?.kind !== 'artifact.finalized') continue;
+    const payload = event.payload;
+    const ecoPath = payload?.eco_storage_path;
+    if (typeof ecoPath === 'string' && ecoPath.trim().length > 0) {
+      return ecoPath;
+    }
+  }
+  return null;
+}
+
+async function createSignedUrlWithFallback(
+  supabase: any,
+  path: string,
+  primaryBucket: string,
+  fallbackBucket?: string,
+): Promise<string | null> {
+  const primary = await supabase.storage.from(primaryBucket).createSignedUrl(path, 3600);
+  if (!primary.error && primary.data?.signedUrl) {
+    return primary.data.signedUrl;
+  }
+
+  if (!fallbackBucket) {
+    return null;
+  }
+
+  const fallback = await supabase.storage.from(fallbackBucket).createSignedUrl(path, 3600);
+  if (!fallback.error && fallback.data?.signedUrl) {
+    return fallback.data.signedUrl;
+  }
+
+  return null;
 }
 
 serve(withRateLimit('verify', async (req) => {
@@ -60,6 +97,7 @@ serve(withRateLimit('verify', async (req) => {
       .select(`
         id,
         document_id,
+        document_entity_id,
         recipient_id,
         expires_at,
         revoked_at,
@@ -113,18 +151,18 @@ serve(withRateLimit('verify', async (req) => {
       )
     }
 
-    // Get document info
+    // Get document info (legacy projection), if available.
     const { data: document, error: docError } = await supabase
       .from('documents')
-      .select('id, title, original_filename, eco_hash, status')
+      .select('id, title, original_filename, eco_hash, status, document_entity_id')
       .eq('id', link.document_id)
-      .single()
+      .maybeSingle()
 
-    if (docError || !document) {
-      throw new Error('Document not found')
+    if (docError) {
+      console.warn('verify-access documents lookup warning:', docError.message)
     }
 
-    if (document.status !== 'active') {
+    if (document && document.status !== 'active') {
       return new Response(
         JSON.stringify({
           valid: false,
@@ -135,6 +173,26 @@ serve(withRateLimit('verify', async (req) => {
           status: 403
         }
       )
+    }
+
+    const documentEntityId = typeof (link as any).document_entity_id === 'string' && (link as any).document_entity_id.length > 0
+      ? String((link as any).document_entity_id)
+      : (typeof (document as any)?.document_entity_id === 'string' && (document as any).document_entity_id.length > 0
+        ? String((document as any).document_entity_id)
+        : null)
+
+    if (!documentEntityId) {
+      throw new Error('Document entity not found')
+    }
+
+    const { data: entity, error: entityError } = await supabase
+      .from('document_entities')
+      .select('id, source_name, source_storage_path, witness_current_storage_path, events')
+      .eq('id', documentEntityId)
+      .single()
+
+    if (entityError || !entity) {
+      throw new Error('Document entity not found')
     }
 
     // Get recipient info using direct link (fixed attribution bug)
@@ -203,45 +261,38 @@ serve(withRateLimit('verify', async (req) => {
       console.error('Error logging access event:', eventError)
       // Don't fail the request if logging fails
     } else {
-      console.log(`Access logged: ${event_type} for document ${document.id}`)
+      console.log(`Access logged: ${event_type} for entity ${documentEntityId}`)
     }
-
-    const documentEntityId = await getDocumentEntityId(supabase, link.document_id);
 
     // === PROBATORY EVENT: share.opened ===
     // Register that someone opened this share link (goes to .eco)
-    if (documentEntityId) {
-      const ipHash = metadata.ip_address ? await hashIP(metadata.ip_address) : null;
-      const browserFamily = getBrowserFamily(metadata.user_agent);
+    const ipHash = metadata.ip_address ? await hashIP(metadata.ip_address) : null;
+    const browserFamily = getBrowserFamily(metadata.user_agent);
 
-      const eventResult = await appendEvent(
-        supabase,
-        documentEntityId,
-        {
-          kind: 'share.opened',
-          at: new Date().toISOString(),
-          share: {
-            link_id: link.id,
-            recipient_email: recipient.email,
-            via: 'link',
-            event_type: event_type, // view, download, forward
-          },
-          context: {
-            ip_hash: ipHash,
-            geo: metadata.country || null,
-            browser: browserFamily,
-            session_id: metadata.session_id,
-          }
+    const eventResult = await appendEvent(
+      supabase,
+      documentEntityId,
+      {
+        kind: 'share.opened',
+        at: new Date().toISOString(),
+        share: {
+          link_id: link.id,
+          recipient_email: recipient.email,
+          via: 'link',
+          event_type: event_type, // view, download, forward
         },
-        'verify-access'
-      );
+        context: {
+          ip_hash: ipHash,
+          geo: metadata.country || null,
+          browser: browserFamily,
+          session_id: metadata.session_id,
+        }
+      },
+      'verify-access'
+    );
 
-      if (!eventResult.success) {
-        console.error('Failed to append share.opened event:', eventResult.error);
-        // Don't fail the request, but log it
-      }
-    } else {
-      console.warn(`Could not get document_entity_id for document ${link.document_id}, share.opened event not recorded`);
+    if (!eventResult.success) {
+      console.error('Failed to append share.opened event:', eventResult.error);
     }
 
     // Check if NDA was already accepted
@@ -260,34 +311,22 @@ serve(withRateLimit('verify', async (req) => {
     let ecoSignedUrl: string | null = null
 
     if (allowAccess) {
-      const { data: userDoc, error: userDocError } = await supabase
-        .from('user_documents')
-        .select('pdf_storage_path, eco_storage_path')
-        .eq('id', link.document_id)
-        .single()
+      if (entity.witness_current_storage_path) {
+        pdfSignedUrl = await createSignedUrlWithFallback(
+          supabase,
+          entity.witness_current_storage_path,
+          'user-documents',
+        )
+      }
 
-      if (!userDocError && userDoc) {
-        if (userDoc.pdf_storage_path) {
-          const { data: pdfUrlData, error: pdfUrlError } = await supabase
-            .storage
-            .from('user-documents')
-            .createSignedUrl(userDoc.pdf_storage_path, 3600)
-
-          if (!pdfUrlError) {
-            pdfSignedUrl = pdfUrlData?.signedUrl || null
-          }
-        }
-
-        if (userDoc.eco_storage_path) {
-          const { data: ecoUrlData, error: ecoUrlError } = await supabase
-            .storage
-            .from('user-documents')
-            .createSignedUrl(userDoc.eco_storage_path, 3600)
-
-          if (!ecoUrlError) {
-            ecoSignedUrl = ecoUrlData?.signedUrl || null
-          }
-        }
+      const ecoStoragePath = getLatestEcoStoragePath((entity as any).events)
+      if (ecoStoragePath) {
+        ecoSignedUrl = await createSignedUrlWithFallback(
+          supabase,
+          ecoStoragePath,
+          'artifacts',
+          'user-documents',
+        )
       }
     }
 
@@ -297,9 +336,9 @@ serve(withRateLimit('verify', async (req) => {
         valid: true,
         document_entity_id: documentEntityId,
         document: {
-          title: document.title,
-          original_filename: document.original_filename,
-          eco_hash: document.eco_hash
+          title: document?.title ?? (entity as any).source_name,
+          original_filename: document?.original_filename ?? (entity as any).source_name,
+          eco_hash: document?.eco_hash ?? null
         },
         recipient_email: recipient.email,
         require_nda: link.require_nda,
@@ -318,10 +357,11 @@ serve(withRateLimit('verify', async (req) => {
     )
   } catch (error) {
     console.error('Error in verify-access:', error)
+    const message = error instanceof Error ? error.message : String(error)
     return new Response(
       JSON.stringify({
         valid: false,
-        error: error.message || 'Internal server error'
+        error: message || 'Internal server error'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

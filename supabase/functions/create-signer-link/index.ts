@@ -25,12 +25,59 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { sendEmail, buildSignerInvitationEmail } from '../_shared/email.ts';
-import { getUserDocumentId } from '../_shared/eventHelper.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { parseJsonBody } from '../_shared/validation.ts';
 import { CreateSignerLinkSchema } from '../_shared/schemas.ts';
 
-// TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isUuid = (value: string | undefined | null): value is string =>
+  typeof value === 'string' && UUID_RE.test(value);
+
+async function resolveDocumentRefs(
+  supabase: any,
+  documentId?: string,
+  documentEntityId?: string,
+): Promise<{ documentEntityId: string | null; legacyDocumentId: string | null }> {
+  let resolvedEntityId = isUuid(documentEntityId) ? documentEntityId : null;
+  let resolvedLegacyId = isUuid(documentId) ? documentId : null;
+
+  if (resolvedLegacyId) {
+    const { data: byDocumentId } = await supabase
+      .from('documents')
+      .select('id, document_entity_id')
+      .eq('id', resolvedLegacyId)
+      .maybeSingle();
+
+    if (byDocumentId) {
+      resolvedLegacyId = byDocumentId.id as string;
+      if (!resolvedEntityId && typeof (byDocumentId as any).document_entity_id === 'string') {
+        resolvedEntityId = String((byDocumentId as any).document_entity_id);
+      }
+    } else if (!resolvedEntityId) {
+      resolvedEntityId = resolvedLegacyId;
+      resolvedLegacyId = null;
+    }
+  }
+
+  if (resolvedEntityId && !resolvedLegacyId) {
+    const { data: byEntity } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('document_entity_id', resolvedEntityId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (byEntity?.id) {
+      resolvedLegacyId = String(byEntity.id);
+    }
+  }
+
+  return {
+    documentEntityId: resolvedEntityId,
+    legacyDocumentId: resolvedLegacyId,
+  };
+}
 
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
@@ -109,11 +156,8 @@ serve(async (req) => {
       signerName: signerName || '(sin prellenar)'
     });
 
-    // Obtener información del documento
-    const resolvedDocumentId = documentId
-      ?? (documentEntityId ? await getUserDocumentId(supabase, documentEntityId) : null);
-
-    if (!resolvedDocumentId) {
+    const refs = await resolveDocumentRefs(supabase, documentId, documentEntityId);
+    if (!refs.documentEntityId) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -126,14 +170,14 @@ serve(async (req) => {
       );
     }
 
-    const { data: document, error: docError } = await supabase
-      .from('user_documents')
-      .select('user_id, document_name')
-      .eq('id', resolvedDocumentId)
+    const { data: entity, error: entityError } = await supabase
+      .from('document_entities')
+      .select('id, owner_id, source_name')
+      .eq('id', refs.documentEntityId)
       .single();
 
-    if (docError || !document) {
-      console.error('❌ [create-signer-link] Documento no encontrado:', docError);
+    if (entityError || !entity) {
+      console.error('❌ [create-signer-link] Documento no encontrado:', entityError);
       return new Response(
         JSON.stringify({
           success: false,
@@ -146,7 +190,7 @@ serve(async (req) => {
       );
     }
 
-    if (document.user_id !== requester.id) {
+    if ((entity as any).owner_id !== requester.id) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -166,7 +210,8 @@ serve(async (req) => {
     const { data: signerLink, error: linkError } = await supabase
       .from('signer_links')
       .insert({
-        document_id: resolvedDocumentId,
+        document_id: refs.legacyDocumentId,
+        document_entity_id: refs.documentEntityId,
         owner_id: requester.id,
         signer_email: signerEmail,
         signer_name: signerName || null,
@@ -197,24 +242,25 @@ serve(async (req) => {
     });
 
     // Registrar evento 'sent' en la tabla events
-    const { error: eventError } = await supabase
-      .from('events')
-      .insert({
-        document_id: resolvedDocumentId,
-        event_type: 'sent',
-        signer_link_id: signerLink.id,
-        actor_email: signerEmail,
-        actor_name: signerName || null,
-        metadata: {
-          linkToken: token,
-          expiresAt: signerLink.expires_at,
-          documentName: document.document_name
-        }
-      });
+    if (refs.legacyDocumentId) {
+      const { error: eventError } = await supabase
+        .from('events')
+        .insert({
+          document_id: refs.legacyDocumentId,
+          event_type: 'sent',
+          signer_link_id: signerLink.id,
+          actor_email: signerEmail,
+          actor_name: signerName || null,
+          metadata: {
+            linkToken: token,
+            expiresAt: signerLink.expires_at,
+            documentName: (entity as any).source_name
+          }
+        });
 
-    if (eventError) {
-      console.warn('⚠️ [create-signer-link] Error al registrar evento:', eventError);
-      // No fallar la request por esto, solo logear
+      if (eventError) {
+        console.warn('⚠️ [create-signer-link] Error al registrar evento:', eventError);
+      }
     }
 
     // Construir URL del link
@@ -227,7 +273,7 @@ serve(async (req) => {
     const emailPayload = await buildSignerInvitationEmail({
       signerEmail: signerEmail,
       signerName: signerName || null,
-      documentName: document.document_name,
+      documentName: (entity as any).source_name || 'Documento',
       signLink: signLink,
       expiresAt: signerLink.expires_at,
       senderName: signerName || undefined,
@@ -260,10 +306,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ [create-signer-link] Error inesperado:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Error inesperado: ' + error.message
+        error: 'Error inesperado: ' + message
       }),
       {
         status: 500,

@@ -9,9 +9,145 @@ import { withRateLimit } from '../_shared/ratelimit.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { parseJsonBody } from '../_shared/validation.ts'
 import { GenerateLinkSchema } from '../_shared/schemas.ts'
-import { appendEvent, getDocumentEntityId, getUserDocumentId } from '../_shared/eventHelper.ts'
+import { appendEvent } from '../_shared/eventHelper.ts'
 
-// TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const isUuid = (value: string | undefined | null): value is string =>
+  typeof value === 'string' && UUID_RE.test(value)
+
+async function resolveDocumentRefs(
+  supabase: any,
+  documentId?: string,
+  documentEntityId?: string,
+): Promise<{ documentEntityId: string | null; legacyDocumentId: string | null }> {
+  let resolvedEntityId = isUuid(documentEntityId) ? documentEntityId : null
+  let resolvedLegacyId = isUuid(documentId) ? documentId : null
+
+  if (resolvedLegacyId) {
+    const { data: byDocumentId } = await supabase
+      .from('documents')
+      .select('id, document_entity_id')
+      .eq('id', resolvedLegacyId)
+      .maybeSingle()
+
+    if (byDocumentId) {
+      resolvedLegacyId = byDocumentId.id as string
+      if (!resolvedEntityId && typeof (byDocumentId as any).document_entity_id === 'string') {
+        resolvedEntityId = String((byDocumentId as any).document_entity_id)
+      }
+    } else if (!resolvedEntityId) {
+      resolvedEntityId = resolvedLegacyId
+      resolvedLegacyId = null
+    }
+  }
+
+  if (resolvedEntityId && !resolvedLegacyId) {
+    const { data: byEntity } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('document_entity_id', resolvedEntityId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (byEntity?.id) {
+      resolvedLegacyId = String(byEntity.id)
+    }
+  }
+
+  return {
+    documentEntityId: resolvedEntityId,
+    legacyDocumentId: resolvedLegacyId,
+  }
+}
+
+async function ensureDocumentRow(
+  supabase: any,
+  userId: string,
+  documentEntityId: string,
+  preferredDocumentId: string | null,
+  documentName: string,
+  ecoHash: string,
+): Promise<{ id: string; title: string | null; original_filename: string | null; eco_hash: string | null; status: string }> {
+  if (preferredDocumentId) {
+    const { data: byId } = await supabase
+      .from('documents')
+      .select('id, owner_id, title, original_filename, eco_hash, status, document_entity_id')
+      .eq('id', preferredDocumentId)
+      .maybeSingle()
+
+    if (byId) {
+      if ((byId as any).owner_id !== userId) {
+        throw new Error('Not authorized to share this document')
+      }
+
+      if ((byId as any).document_entity_id !== documentEntityId) {
+        await supabase
+          .from('documents')
+          .update({ document_entity_id: documentEntityId })
+          .eq('id', preferredDocumentId)
+      }
+
+      return {
+        id: String((byId as any).id),
+        title: ((byId as any).title ?? null) as string | null,
+        original_filename: ((byId as any).original_filename ?? null) as string | null,
+        eco_hash: ((byId as any).eco_hash ?? null) as string | null,
+        status: String((byId as any).status ?? 'active'),
+      }
+    }
+  }
+
+  const { data: byEntity } = await supabase
+    .from('documents')
+    .select('id, owner_id, title, original_filename, eco_hash, status')
+    .eq('document_entity_id', documentEntityId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (byEntity) {
+    if ((byEntity as any).owner_id !== userId) {
+      throw new Error('Not authorized to share this document')
+    }
+    return {
+      id: String((byEntity as any).id),
+      title: ((byEntity as any).title ?? null) as string | null,
+      original_filename: ((byEntity as any).original_filename ?? null) as string | null,
+      eco_hash: ((byEntity as any).eco_hash ?? null) as string | null,
+      status: String((byEntity as any).status ?? 'active'),
+    }
+  }
+
+  const insertPayload: Record<string, unknown> = {
+    owner_id: userId,
+    title: documentName,
+    original_filename: documentName,
+    eco_hash: ecoHash,
+    status: 'active',
+    document_entity_id: documentEntityId,
+  }
+  if (preferredDocumentId) insertPayload.id = preferredDocumentId
+
+  const { data: created, error: createError } = await supabase
+    .from('documents')
+    .insert(insertPayload)
+    .select('id, title, original_filename, eco_hash, status')
+    .single()
+
+  if (createError || !created) {
+    console.error('Error creating canonical document row:', createError)
+    throw new Error('Failed to create document record')
+  }
+
+  return {
+    id: String((created as any).id),
+    title: ((created as any).title ?? null) as string | null,
+    original_filename: ((created as any).original_filename ?? null) as string | null,
+    eco_hash: ((created as any).eco_hash ?? null) as string | null,
+    status: String((created as any).status ?? 'active'),
+  }
+}
 
 serve(withRateLimit('generate', async (req) => {
   const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined)
@@ -64,55 +200,41 @@ serve(withRateLimit('generate', async (req) => {
       nda_text = null
     } = parsed.data
 
-    const resolvedDocumentId = document_id
-      ?? (document_entity_id ? await getUserDocumentId(supabase, document_entity_id) : null)
-
-    if (!resolvedDocumentId) {
+    const refs = await resolveDocumentRefs(supabase, document_id, document_entity_id)
+    if (!refs.documentEntityId) {
       throw new Error('Document not found')
     }
 
-    const documentEntityId = document_entity_id
-      ?? await getDocumentEntityId(supabase, resolvedDocumentId)
-
-    // Verify document belongs to user
-    const { data: doc, error: docError } = await supabase
-      .from('user_documents')
-      .select('id, user_id, document_name, document_hash, eco_hash')
-      .eq('id', resolvedDocumentId)
+    const { data: entity, error: entityError } = await supabase
+      .from('document_entities')
+      .select('id, owner_id, source_name, source_hash, witness_hash, signed_hash')
+      .eq('id', refs.documentEntityId)
       .single()
 
-    if (docError || !doc) {
+    if (entityError || !entity) {
       throw new Error('Document not found')
     }
 
-    if (doc.user_id !== user.id) {
+    if ((entity as any).owner_id !== user.id) {
       throw new Error('Not authorized to share this document')
     }
 
-    // Ensure a documents row exists for link/recipient FKs (legacy table)
-    const { data: legacyDoc, error: legacyError } = await supabase
-      .from('documents')
-      .select('id, owner_id')
-      .eq('id', resolvedDocumentId)
-      .single()
+    const canonicalDocumentName = String((entity as any).source_name || 'Documento')
+    const canonicalEcoHash = String(
+      (entity as any).signed_hash ||
+      (entity as any).witness_hash ||
+      (entity as any).source_hash ||
+      refs.documentEntityId,
+    )
 
-    if (legacyError || !legacyDoc) {
-      const { error: insertLegacyError } = await supabase
-        .from('documents')
-        .insert({
-          id: resolvedDocumentId,
-          owner_id: user.id,
-          title: doc.document_name,
-          original_filename: doc.document_name,
-          eco_hash: doc.eco_hash || doc.document_hash,
-          status: 'active'
-        })
-
-      if (insertLegacyError) {
-        console.error('Error creating legacy document record:', insertLegacyError)
-        throw new Error('Failed to create document record')
-      }
-    }
+    const doc = await ensureDocumentRow(
+      supabase,
+      user.id,
+      refs.documentEntityId,
+      refs.legacyDocumentId,
+      canonicalDocumentName,
+      canonicalEcoHash,
+    )
 
     // Generate secure random token (32 bytes = 64 hex chars)
     const tokenBytes = crypto.getRandomValues(new Uint8Array(32))
@@ -143,7 +265,8 @@ serve(withRateLimit('generate', async (req) => {
     const { data: recipient, error: recipientError } = await supabase
       .from('recipients')
       .insert({
-        document_id: resolvedDocumentId,
+        document_id: doc.id,
+        document_entity_id: refs.documentEntityId,
         email: recipient_email,
         recipient_id: recipientIdHex
       })
@@ -159,7 +282,8 @@ serve(withRateLimit('generate', async (req) => {
     const { data: link, error: linkError } = await supabase
       .from('links')
       .insert({
-        document_id: resolvedDocumentId,
+        document_id: doc.id,
+        document_entity_id: refs.documentEntityId,
         recipient_id: recipient.id, // Direct link to recipient for correct attribution
         token_hash: tokenHash,
         expires_at: expiresAt,
@@ -181,34 +305,29 @@ serve(withRateLimit('generate', async (req) => {
     const accessUrl = `${appUrl}/nda/${token}`
 
     // Log the link creation event
-    console.log(`Link created: ${link.id} for document ${resolvedDocumentId} to ${recipient_email}`)
+    console.log(`Link created: ${link.id} for entity ${refs.documentEntityId} to ${recipient_email}`)
 
     // === PROBATORY EVENT: share.created ===
     // Register that this document was shared (goes to .eco)
-    if (documentEntityId) {
-      const eventResult = await appendEvent(
-        supabase,
-        documentEntityId,
-        {
-          kind: 'share.created',
-          at: new Date().toISOString(),
-          share: {
-            link_id: link.id,
-            recipient_email: recipient_email,
-            method: 'link',
-            otp_required: require_nda,
-            expires_at: expiresAt,
-          }
-        },
-        'generate-link'
-      );
+    const eventResult = await appendEvent(
+      supabase,
+      refs.documentEntityId,
+      {
+        kind: 'share.created',
+        at: new Date().toISOString(),
+        share: {
+          link_id: link.id,
+          recipient_email: recipient_email,
+          method: 'link',
+          otp_required: require_nda,
+          expires_at: expiresAt,
+        }
+      },
+      'generate-link'
+    );
 
-      if (!eventResult.success) {
-        console.error('Failed to append share.created event:', eventResult.error);
-        // Don't fail the request, but log it
-      }
-    } else {
-      console.warn(`Could not get document_entity_id for document ${document_id}, share.created event not recorded`);
+    if (!eventResult.success) {
+      console.error('Failed to append share.created event:', eventResult.error);
     }
 
     // --- Send Email Invitation ---
@@ -218,7 +337,7 @@ serve(withRateLimit('generate', async (req) => {
       const emailPayload = await buildSignerInvitationEmail({
         signerEmail: recipient_email,
         signerName: null,
-        documentName: doc.document_name,
+        documentName: canonicalDocumentName,
         signLink: accessUrl,
         expiresAt: expiresAt || '', // Ensure expiresAt is a string
         senderName: senderName,
@@ -243,7 +362,7 @@ serve(withRateLimit('generate', async (req) => {
         access_url: accessUrl,
         expires_at: expiresAt,
         require_nda,
-        document_title: doc.document_name,
+        document_title: canonicalDocumentName,
         recipient_email,
         email_sent: emailSent // Indicate if email was sent
       }),
@@ -254,14 +373,15 @@ serve(withRateLimit('generate', async (req) => {
     )
   } catch (error) {
     console.error('Error in generate-link:', error)
+    const message = error instanceof Error ? error.message : String(error)
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Internal server error'
+        error: message || 'Internal server error'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: error.message === 'Unauthorized' ? 401 : 400
+        status: message === 'Unauthorized' ? 401 : 400
       }
     )
   }

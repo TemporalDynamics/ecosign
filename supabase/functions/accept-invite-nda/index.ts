@@ -50,7 +50,7 @@ serve(async (req) => {
     // Find invite by token
     const { data: invite, error: inviteError } = await supabase
       .from('invites')
-      .select('*, user_documents(id, document_name, user_id)')
+      .select('id, document_id, document_entity_id, email, role, expires_at, revoked_at, nda_accepted_at')
       .eq('token', token)
       .single();
 

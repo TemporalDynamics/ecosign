@@ -1,9 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { withRateLimit } from '../_shared/ratelimit.ts';
-import { getUserDocumentId } from '../_shared/eventHelper.ts';
-
-// TODO(canon): support document_entity_id (see docs/EDGE_CANON_MIGRATION_PLAN.md)
 
 interface CreateInviteRequest {
   documentId?: string;
@@ -19,6 +16,57 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400'
 };
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isUuid = (value: string | undefined | null): value is string =>
+  typeof value === 'string' && UUID_RE.test(value);
+
+async function resolveDocumentRefs(
+  supabase: any,
+  documentId?: string,
+  documentEntityId?: string,
+): Promise<{ documentEntityId: string | null; legacyDocumentId: string | null }> {
+  let resolvedEntityId = isUuid(documentEntityId) ? documentEntityId : null;
+  let resolvedLegacyId = isUuid(documentId) ? documentId : null;
+
+  if (resolvedLegacyId) {
+    const { data: byDocumentId } = await supabase
+      .from('documents')
+      .select('id, document_entity_id')
+      .eq('id', resolvedLegacyId)
+      .maybeSingle();
+
+    if (byDocumentId) {
+      resolvedLegacyId = byDocumentId.id as string;
+      if (!resolvedEntityId && typeof (byDocumentId as any).document_entity_id === 'string') {
+        resolvedEntityId = String((byDocumentId as any).document_entity_id);
+      }
+    } else if (!resolvedEntityId) {
+      // Legacy callers may send a document_entity_id in documentId.
+      resolvedEntityId = resolvedLegacyId;
+      resolvedLegacyId = null;
+    }
+  }
+
+  if (resolvedEntityId && !resolvedLegacyId) {
+    const { data: byEntity } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('document_entity_id', resolvedEntityId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (byEntity?.id) {
+      resolvedLegacyId = String(byEntity.id);
+    }
+  }
+
+  return {
+    documentEntityId: resolvedEntityId,
+    legacyDocumentId: resolvedLegacyId,
+  };
+}
 
 serve(withRateLimit('invite', async (req) => {
   if (req.method === 'OPTIONS') {
@@ -75,31 +123,28 @@ serve(withRateLimit('invite', async (req) => {
       );
     }
 
-    // Verify user owns the document
-    const resolvedDocumentId = documentId
-      ?? (documentEntityId ? await getUserDocumentId(supabase, documentEntityId) : null);
-
-    if (!resolvedDocumentId) {
+    const refs = await resolveDocumentRefs(supabase, documentId, documentEntityId);
+    if (!refs.documentEntityId) {
       return new Response(
-        JSON.stringify({ error: 'Document not found' }),
+        JSON.stringify({ error: 'Document entity not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { data: document, error: docError } = await supabase
-      .from('user_documents')
-      .select('id, document_name, user_id')
-      .eq('id', resolvedDocumentId)
+    const { data: entity, error: entityError } = await supabase
+      .from('document_entities')
+      .select('id, owner_id, source_name')
+      .eq('id', refs.documentEntityId)
       .single();
 
-    if (docError || !document) {
+    if (entityError || !entity) {
       return new Response(
-        JSON.stringify({ error: 'Document not found' }),
+        JSON.stringify({ error: 'Document entity not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (document.user_id !== user.id) {
+    if ((entity as any).owner_id !== user.id) {
       return new Response(
         JSON.stringify({ error: 'You do not own this document' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -128,7 +173,8 @@ serve(withRateLimit('invite', async (req) => {
     const { data: invite, error: inviteError } = await supabase
       .from('invites')
       .insert({
-        document_id: resolvedDocumentId,
+        document_id: refs.legacyDocumentId,
+        document_entity_id: refs.documentEntityId,
         email: email.toLowerCase().trim(),
         role,
         token: token_value,

@@ -469,45 +469,63 @@ serve(async (req) => {
       console.log(`Found ${queuedAnchors.length} queued anchors to submit`);
 
       for (const anchor of queuedAnchors) {
-        const result = await submitToOpenTimestamps(anchor.document_hash);
+        try {
+          const result = await submitToOpenTimestamps(anchor.document_hash);
 
-        if (result.success) {
-          const nowIso = new Date().toISOString();
-          const submittedProjection = projectSubmitted(anchor, BITCOIN_RETRY_POLICY, nowIso);
-          const { error: updateSubmittedError } = await supabaseAdmin
-            .from('anchors')
-            .update({
-              anchor_status: 'pending',
-              ots_proof: result.otsProof,
-              ots_calendar_url: result.calendarUrl,
-              metadata: submittedProjection.metadata,
-              updated_at: nowIso,
-            })
-            .eq('id', anchor.id);
-          if (updateSubmittedError) {
-            throw new Error(`Failed to set pending for anchor ${anchor.id}: ${updateSubmittedError.message}`);
+          if (result.success) {
+            const nowIso = new Date().toISOString();
+            const submittedProjection = projectSubmitted(anchor, BITCOIN_RETRY_POLICY, nowIso);
+            const { error: updateSubmittedError } = await supabaseAdmin
+              .from('anchors')
+              .update({
+                anchor_status: 'pending',
+                ots_proof: result.otsProof,
+                ots_calendar_url: result.calendarUrl,
+                metadata: submittedProjection.metadata,
+                updated_at: nowIso,
+              })
+              .eq('id', anchor.id);
+            if (updateSubmittedError) {
+              throw new Error(`Failed to set pending for anchor ${anchor.id}: ${updateSubmittedError.message}`);
+            }
+
+            submitted++;
+            console.log(`✅ Submitted anchor ${anchor.id}`);
+          } else {
+            const { error: updateFailedSubmitError } = await supabaseAdmin
+              .from('anchors')
+              .update({
+                anchor_status: 'failed',
+                error_message: result.error,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', anchor.id);
+            if (updateFailedSubmitError) {
+              throw new Error(`Failed to set failed(submit) for anchor ${anchor.id}: ${updateFailedSubmitError.message}`);
+            }
+
+            failed++;
+            console.log(`❌ Failed to submit anchor ${anchor.id}: ${result.error}`);
           }
-
-          submitted++;
-          console.log(`✅ Submitted anchor ${anchor.id}`);
-        } else {
-          const { error: updateFailedSubmitError } = await supabaseAdmin
-            .from('anchors')
-            .update({
-              anchor_status: 'failed',
-              error_message: result.error,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', anchor.id);
-          if (updateFailedSubmitError) {
-            throw new Error(`Failed to set failed(submit) for anchor ${anchor.id}: ${updateFailedSubmitError.message}`);
+        } catch (anchorSubmitError) {
+          const reason = anchorSubmitError instanceof Error ? anchorSubmitError.message : String(anchorSubmitError);
+          console.error(`Error submitting queued bitcoin anchor ${anchor.id}:`, reason);
+          try {
+            await supabaseAdmin
+              .from('anchors')
+              .update({
+                anchor_status: 'failed',
+                error_message: reason,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', anchor.id);
+          } catch (markErr) {
+            console.error(`Failed to mark queued bitcoin anchor ${anchor.id} as failed:`, markErr);
           }
-
           failed++;
-          console.log(`❌ Failed to submit anchor ${anchor.id}: ${result.error}`);
+        } finally {
+          processed++;
         }
-
-        processed++;
       }
     }
 
@@ -521,187 +539,214 @@ serve(async (req) => {
       console.log(`Checking ${pendingAnchors.length} pending anchors for confirmation`);
 
       for (const anchor of pendingAnchors) {
-        if (!anchor.ots_proof || !anchor.ots_calendar_url) {
-          continue;
-        }
-
-        if (!isRetryDue(anchor)) {
-          waiting++;
-          skippedDue++;
-          continue;
-        }
-
         const attempts = (anchor.bitcoin_attempts ?? 0) + 1;
-        const timeoutEvaluation = evaluateTimeout(anchor, BITCOIN_RETRY_POLICY, attempts);
 
-        // Alert when approaching timeout window.
-        if (!timeoutEvaluation.timedOut && timeoutEvaluation.pendingAgeHours >= ALERT_THRESHOLD_HOURS) {
-          console.warn(
-            `⚠️ Anchor ${anchor.id} pending ${timeoutEvaluation.pendingAgeHours.toFixed(1)}h ` +
-            `(${attempts}/${MAX_VERIFY_ATTEMPTS} attempts, timeout ${BITCOIN_TIMEOUT_HOURS}h)`,
-          );
-        }
-
-        if (timeoutEvaluation.timedOut) {
-          const errorMessage = timeoutEvaluation.reason
-            ?? `Bitcoin verification timeout after ${BITCOIN_TIMEOUT_HOURS} hours (${attempts} attempts).`;
-          console.error(`❌ ${errorMessage} - Anchor ID: ${anchor.id}`);
-
-          // Marcar anchor de Bitcoin como failed
-          const nowIso = new Date().toISOString();
-          const { error: timeoutFailedError } = await supabaseAdmin
-            .from('anchors')
-            .update({
-              anchor_status: 'failed',
-              bitcoin_error_message: errorMessage,
-              bitcoin_attempts: attempts,
-              updated_at: nowIso,
-            })
-            .eq('id', anchor.id);
-          if (timeoutFailedError) {
-            throw new Error(`Failed to set failed(timeout) for anchor ${anchor.id}: ${timeoutFailedError.message}`);
+        try {
+          if (!anchor.ots_proof || !anchor.ots_calendar_url) {
+            continue;
           }
 
-          await emitAnchorTimeoutEvent(
-            anchor,
-            errorMessage,
-            attempts,
-            timeoutEvaluation.pendingAgeMinutes,
-            timeoutEvaluation.timeoutBy ?? 'elapsed',
+          if (!isRetryDue(anchor)) {
+            waiting++;
+            skippedDue++;
+            continue;
+          }
+
+          const timeoutEvaluation = evaluateTimeout(anchor, BITCOIN_RETRY_POLICY, attempts);
+
+          // Alert when approaching timeout window.
+          if (!timeoutEvaluation.timedOut && timeoutEvaluation.pendingAgeHours >= ALERT_THRESHOLD_HOURS) {
+            console.warn(
+              `⚠️ Anchor ${anchor.id} pending ${timeoutEvaluation.pendingAgeHours.toFixed(1)}h ` +
+              `(${attempts}/${MAX_VERIFY_ATTEMPTS} attempts, timeout ${BITCOIN_TIMEOUT_HOURS}h)`,
+            );
+          }
+
+          if (timeoutEvaluation.timedOut) {
+            const errorMessage = timeoutEvaluation.reason
+              ?? `Bitcoin verification timeout after ${BITCOIN_TIMEOUT_HOURS} hours (${attempts} attempts).`;
+            console.error(`❌ ${errorMessage} - Anchor ID: ${anchor.id}`);
+
+            // Marcar anchor de Bitcoin como failed
+            const nowIso = new Date().toISOString();
+            const { error: timeoutFailedError } = await supabaseAdmin
+              .from('anchors')
+              .update({
+                anchor_status: 'failed',
+                bitcoin_error_message: errorMessage,
+                bitcoin_attempts: attempts,
+                updated_at: nowIso,
+              })
+              .eq('id', anchor.id);
+            if (timeoutFailedError) {
+              throw new Error(`Failed to set failed(timeout) for anchor ${anchor.id}: ${timeoutFailedError.message}`);
+            }
+
+            await emitAnchorTimeoutEvent(
+              anchor,
+              errorMessage,
+              attempts,
+              timeoutEvaluation.pendingAgeMinutes,
+              timeoutEvaluation.timeoutBy ?? 'elapsed',
+            );
+
+            // NOTE: legacy projection updates removed; canonical events are the source of truth.
+            // Legacy updates removed to ensure single source of truth in events[]
+
+            failed++;
+            continue;
+          }
+
+          const verification = await verifyOpenTimestamps(
+            anchor.ots_proof,
+            anchor.ots_calendar_url
           );
 
-          // NOTE: legacy projection updates removed; canonical events are the source of truth.
-          // Legacy updates removed to ensure single source of truth in events[]
+          if (verification.confirmed) {
+            // Try to extract txid/height from the upgraded proof
+            const parsed = verification.upgradedProof
+              ? await extractBitcoinTxFromOts(verification.upgradedProof)
+              : await extractBitcoinTxFromOts(anchor.ots_proof);
 
-          failed++;
-          processed++;
-          continue;
-        }
+            let txid = parsed.txid || verification.bitcoinTxId;
+            let blockHeight = parsed.height || verification.blockHeight;
 
-        const verification = await verifyOpenTimestamps(
-          anchor.ots_proof,
-          anchor.ots_calendar_url
-        );
-
-        if (verification.confirmed) {
-          // Try to extract txid/height from the upgraded proof
-          const parsed = verification.upgradedProof
-            ? await extractBitcoinTxFromOts(verification.upgradedProof)
-            : await extractBitcoinTxFromOts(anchor.ots_proof);
-
-          let txid = parsed.txid || verification.bitcoinTxId;
-          let blockHeight = parsed.height || verification.blockHeight;
-
-          // Optional: fetch block data from mempool if txid is available
-          if (txid) {
-            const blockData = await fetchBitcoinBlockData(txid);
-            blockHeight = blockHeight ?? blockData.blockHeight;
-            verification.confirmed = true;
-            verification.bitcoinTxId = txid;
-            verification.blockHeight = blockHeight ?? verification.blockHeight;
-            verification.upgradedProof = verification.upgradedProof || anchor.ots_proof;
-            verification.upgraded = verification.upgraded ?? true;
-            if (!parsed.height && blockData.blockHeight) {
-              parsed.height = blockData.blockHeight;
-            }
-            if (blockData.confirmedAt) {
-              // Update anchor directly (projection side effects are derived from canonical state).
-              const confirmedAt = blockData.confirmedAt;
-              
-              const metadata = {
-                bitcoin_tx: txid,
-                block: blockHeight,
-                confirmed_at: confirmedAt,
-                calendar_url: anchor.ots_calendar_url
-              };
-
-              const { error: updateConfirmedFastError } = await supabaseAdmin
-                .from('anchors')
-                .update({
-                  bitcoin_tx_id: txid ?? anchor.bitcoin_tx_id,
-                  bitcoin_block_height: blockHeight ?? anchor.bitcoin_block_height,
-                  anchor_status: 'confirmed',
-                  ots_proof: verification.upgradedProof || anchor.ots_proof,
-                  metadata: {
-                    ...anchor.metadata,
-                    ...metadata,
-                    nextRetryAt: null,
-                    retryPolicyVersion: 'anchor-sm-v1',
-                  },
-                  bitcoin_attempts: attempts,
-                  confirmed_at: confirmedAt,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', anchor.id);
-              if (updateConfirmedFastError) {
-                throw new Error(`Failed to set confirmed(fast) for anchor ${anchor.id}: ${updateConfirmedFastError.message}`);
+            // Optional: fetch block data from mempool if txid is available
+            if (txid) {
+              const blockData = await fetchBitcoinBlockData(txid);
+              blockHeight = blockHeight ?? blockData.blockHeight;
+              verification.confirmed = true;
+              verification.bitcoinTxId = txid;
+              verification.blockHeight = blockHeight ?? verification.blockHeight;
+              verification.upgradedProof = verification.upgradedProof || anchor.ots_proof;
+              verification.upgraded = verification.upgraded ?? true;
+              if (!parsed.height && blockData.blockHeight) {
+                parsed.height = blockData.blockHeight;
               }
+              if (blockData.confirmedAt) {
+                // Update anchor directly (projection side effects are derived from canonical state).
+                const confirmedAt = blockData.confirmedAt;
+                
+                const metadata = {
+                  bitcoin_tx: txid,
+                  block: blockHeight,
+                  confirmed_at: confirmedAt,
+                  calendar_url: anchor.ots_calendar_url
+                };
 
-              console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
-              await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
-              await enqueueBitcoinNotifications(anchor, txid, blockHeight ?? undefined, blockData.confirmedAt ?? null);
-              confirmed++;
-              processed++;
-              continue;
+                const { error: updateConfirmedFastError } = await supabaseAdmin
+                  .from('anchors')
+                  .update({
+                    bitcoin_tx_id: txid ?? anchor.bitcoin_tx_id,
+                    bitcoin_block_height: blockHeight ?? anchor.bitcoin_block_height,
+                    anchor_status: 'confirmed',
+                    ots_proof: verification.upgradedProof || anchor.ots_proof,
+                    metadata: {
+                      ...anchor.metadata,
+                      ...metadata,
+                      nextRetryAt: null,
+                      retryPolicyVersion: 'anchor-sm-v1',
+                    },
+                    bitcoin_attempts: attempts,
+                    confirmed_at: confirmedAt,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', anchor.id);
+                if (updateConfirmedFastError) {
+                  throw new Error(`Failed to set confirmed(fast) for anchor ${anchor.id}: ${updateConfirmedFastError.message}`);
+                }
+
+                console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
+                await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
+                await enqueueBitcoinNotifications(anchor, txid, blockHeight ?? undefined, blockData.confirmedAt ?? null);
+                confirmed++;
+                continue;
+              }
             }
-          }
 
-          // Update anchor record only (projection side effects are derived from canonical state).
-          const confirmedAt = new Date().toISOString();
-          const metadata = {
-            bitcoin_tx: txid,
-            block: blockHeight,
-            confirmed_at: confirmedAt,
-            calendar_url: anchor.ots_calendar_url
-          };
-
-          // Update anchor directly; projection stays derived from canonical authority.
-          const { error: updateConfirmedError } = await supabaseAdmin
-            .from('anchors')
-            .update({
-              bitcoin_tx_id: txid ?? anchor.bitcoin_tx_id,
-              bitcoin_block_height: blockHeight ?? anchor.bitcoin_block_height,
-              anchor_status: 'confirmed',
-              ots_proof: verification.upgradedProof || anchor.ots_proof,
-              metadata: {
-                ...anchor.metadata,
-                ...metadata,
-                nextRetryAt: null,
-                retryPolicyVersion: 'anchor-sm-v1',
-              },
-              bitcoin_attempts: attempts,
+            // Update anchor record only (projection side effects are derived from canonical state).
+            const confirmedAt = new Date().toISOString();
+            const metadata = {
+              bitcoin_tx: txid,
+              block: blockHeight,
               confirmed_at: confirmedAt,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', anchor.id);
-          if (updateConfirmedError) {
-            throw new Error(`Failed to set confirmed for anchor ${anchor.id}: ${updateConfirmedError.message}`);
-          }
+              calendar_url: anchor.ots_calendar_url
+            };
 
-          console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
-          await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
-          await enqueueBitcoinNotifications(anchor, txid, blockHeight ?? undefined, confirmedAt);
-          confirmed++;
-        } else {
-          // Still pending - update status to 'processing' if not already
+            // Update anchor directly; projection stays derived from canonical authority.
+            const { error: updateConfirmedError } = await supabaseAdmin
+              .from('anchors')
+              .update({
+                bitcoin_tx_id: txid ?? anchor.bitcoin_tx_id,
+                bitcoin_block_height: blockHeight ?? anchor.bitcoin_block_height,
+                anchor_status: 'confirmed',
+                ots_proof: verification.upgradedProof || anchor.ots_proof,
+                metadata: {
+                  ...anchor.metadata,
+                  ...metadata,
+                  nextRetryAt: null,
+                  retryPolicyVersion: 'anchor-sm-v1',
+                },
+                bitcoin_attempts: attempts,
+                confirmed_at: confirmedAt,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', anchor.id);
+            if (updateConfirmedError) {
+              throw new Error(`Failed to set confirmed for anchor ${anchor.id}: ${updateConfirmedError.message}`);
+            }
+
+            console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
+            await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
+            await enqueueBitcoinNotifications(anchor, txid, blockHeight ?? undefined, confirmedAt);
+            confirmed++;
+          } else {
+            // Still pending - update status to 'processing' if not already
+            const nowIso = new Date().toISOString();
+            const retryProjection = projectRetry(anchor, BITCOIN_RETRY_POLICY, attempts, nowIso);
+            const { error: updateProcessingError } = await supabaseAdmin
+              .from('anchors')
+              .update({
+                anchor_status: 'processing',
+                bitcoin_attempts: attempts,
+                metadata: retryProjection.metadata,
+                updated_at: nowIso,
+              })
+              .eq('id', anchor.id);
+            if (updateProcessingError) {
+              throw new Error(`Failed to set processing for anchor ${anchor.id}: ${updateProcessingError.message}`);
+            }
+            waiting++;
+          }
+        } catch (anchorError) {
+          const reason = anchorError instanceof Error ? anchorError.message : String(anchorError);
+          console.error(`Error processing bitcoin anchor ${anchor.id}:`, reason);
+
           const nowIso = new Date().toISOString();
           const retryProjection = projectRetry(anchor, BITCOIN_RETRY_POLICY, attempts, nowIso);
-          const { error: updateProcessingError } = await supabaseAdmin
-            .from('anchors')
-            .update({
-              anchor_status: 'processing',
-              bitcoin_attempts: attempts,
-              metadata: retryProjection.metadata,
-              updated_at: nowIso,
-            })
-            .eq('id', anchor.id);
-          if (updateProcessingError) {
-            throw new Error(`Failed to set processing for anchor ${anchor.id}: ${updateProcessingError.message}`);
-          }
-          waiting++;
-        }
+          try {
+            const { error: recoverError } = await supabaseAdmin
+              .from('anchors')
+              .update({
+                anchor_status: 'processing',
+                bitcoin_attempts: attempts,
+                bitcoin_error_message: reason,
+                metadata: retryProjection.metadata,
+                updated_at: nowIso,
+              })
+              .eq('id', anchor.id);
 
-        processed++;
+            if (recoverError) {
+              console.error(`Failed to persist retry state for bitcoin anchor ${anchor.id}:`, recoverError);
+            } else {
+              waiting++;
+            }
+          } catch (recoverErr) {
+            console.error(`Failed to recover bitcoin anchor ${anchor.id}:`, recoverErr);
+          }
+        } finally {
+          processed++;
+        }
       }
     }
 

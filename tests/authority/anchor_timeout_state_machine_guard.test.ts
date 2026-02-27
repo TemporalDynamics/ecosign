@@ -38,6 +38,10 @@ test('bitcoin worker must emit explicit timeout events and canonical confirmed e
   expect(content).toContain("kind: 'anchor.timeout'");
   expect(content).toMatch(/failure_code:\s*timeoutBy === 'max_attempts' \? 'max_attempts' : 'timeout'/);
   expect(content).toContain('emitAnchorConfirmedEvent(');
+  expect(content).toContain('for (const anchor of queuedAnchors)');
+  expect(content).toContain('catch (anchorSubmitError)');
+  expect(content).toContain('for (const anchor of pendingAnchors)');
+  expect(content).toContain('catch (anchorError)');
 });
 
 test('polygon worker must enforce deterministic timeout and max-attempt terminal states', async () => {

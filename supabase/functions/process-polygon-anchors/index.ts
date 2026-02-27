@@ -53,6 +53,22 @@ const jsonResponse = (data: unknown, status = 200) =>
     },
   })
 
+async function claimAnchorBatch(limit: number): Promise<any[]> {
+  if (!supabaseAdmin) return []
+
+  const { data, error } = await supabaseAdmin.rpc('claim_anchor_batch', {
+    p_network: 'polygon',
+    p_phase: 'pending',
+    p_limit: limit,
+  })
+
+  if (error) {
+    throw new Error(`claim_anchor_batch(polygon/pending) failed: ${error.message}`)
+  }
+
+  return Array.isArray(data) ? data : []
+}
+
 async function markFailed(anchorId: string, message: string, attempts: number) {
   if (!supabaseAdmin) return
   const { error } = await supabaseAdmin
@@ -163,7 +179,7 @@ async function insertNotification(anchor: any, txHash: string, blockNumber?: num
 
   await supabaseAdmin
     .from('workflow_notifications')
-    .insert({
+    .upsert({
       workflow_id: anchor.document_id,
       recipient_email: anchor.user_email,
       recipient_type: 'owner',
@@ -172,6 +188,9 @@ async function insertNotification(anchor: any, txHash: string, blockNumber?: num
       body_html,
       delivery_status: 'pending',
       error_message: null,
+    }, {
+      onConflict: 'workflow_id,recipient_email,notification_type',
+      ignoreDuplicates: true,
     })
 }
 
@@ -203,19 +222,7 @@ serve(async (req) => {
     let waiting = 0
     let skippedDue = 0
 
-    const { data: anchors, error } = await supabaseAdmin
-      .from('anchors')
-      .select('*')
-      .eq('anchor_type', 'polygon')
-      .or('polygon_status.eq.pending,polygon_status.eq.processing,anchor_status.eq.pending,anchor_status.eq.processing')
-      .order('created_at', { ascending: true })
-      .limit(25)
-
-    if (error) {
-      console.error('Error fetching polygon anchors:', error)
-      return jsonResponse({ error: 'Failed to fetch polygon anchors', details: error.message }, 500)
-    }
-
+    const anchors = await claimAnchorBatch(25)
     if (!anchors || anchors.length === 0) {
       return jsonResponse({ success: true, message: 'No polygon anchors to process', processed })
     }

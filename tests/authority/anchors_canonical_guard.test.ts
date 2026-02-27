@@ -40,6 +40,8 @@ test('process-bitcoin-anchors must not fetch notification recipients from user_d
 
   expectNoLegacyUserDocumentsReads(bitcoinContent);
   expectNoLegacyUserDocumentsReads(polygonContent);
-  expect(bitcoinContent).toContain('notifyAnchorConfirmed(');
+  expect(bitcoinContent).toContain('enqueueBitcoinNotifications(');
   expect(bitcoinContent).toContain("supabaseAdmin.auth.admin.getUserById(anchor.user_id)");
+  expect(bitcoinContent).toContain("onConflict: 'workflow_id,recipient_email,notification_type'");
+  expect(polygonContent).toContain("onConflict: 'workflow_id,recipient_email,notification_type'");
 });

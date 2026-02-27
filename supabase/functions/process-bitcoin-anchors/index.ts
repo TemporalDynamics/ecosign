@@ -4,7 +4,6 @@
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
-import { sendResendEmail } from '../_shared/email.ts';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { requireInternalAuth } from '../_shared/internalAuth.ts';
 import {
@@ -25,8 +24,6 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-const resendApiKey = Deno.env.get('RESEND_API_KEY');
-const defaultFrom = Deno.env.get('DEFAULT_FROM') || 'EcoSign <no-reply@email.ecosign.app>';
 const mempoolApiUrl = Deno.env.get('MEMPOOL_API_URL') || 'https://mempool.space/api';
 
 // 24h timeout with deterministic backoff.
@@ -242,9 +239,43 @@ async function fetchBitcoinBlockData(txid: string): Promise<{ blockHeight?: numb
   }
 }
 
-async function insertBitcoinNotification(anchor: any, txid?: string, blockHeight?: number, confirmedAt?: string | null) {
+async function claimAnchorBatch(phase: 'queued' | 'pending', limit: number): Promise<any[]> {
+  if (!supabaseAdmin) return [];
+
+  const { data, error } = await supabaseAdmin.rpc('claim_anchor_batch', {
+    p_network: 'bitcoin',
+    p_phase: phase,
+    p_limit: limit,
+  });
+
+  if (error) {
+    throw new Error(`claim_anchor_batch(bitcoin/${phase}) failed: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+async function resolveNotificationRecipients(anchor: any): Promise<string[]> {
+  if (!supabaseAdmin) return [];
+
+  const recipients = new Set<string>();
+  if (typeof anchor.user_email === 'string' && anchor.user_email.trim().length > 0) {
+    recipients.add(anchor.user_email.trim());
+  }
+
+  if (anchor.user_id) {
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(anchor.user_id);
+    if (!userError && userData?.user?.email) {
+      recipients.add(userData.user.email);
+    }
+  }
+
+  return [...recipients];
+}
+
+async function enqueueBitcoinNotification(anchor: any, recipientEmail: string, txid?: string, blockHeight?: number, confirmedAt?: string | null) {
   if (!supabaseAdmin) return;
-  if (!anchor.document_id || !anchor.user_email) return;
+  if (!anchor.document_id || !recipientEmail) return;
 
   const explorerUrl = txid ? `${mempoolApiUrl.replace('/api', '')}/tx/${txid}` : undefined;
   const subject = '✅ Documento anclado en Bitcoin';
@@ -258,18 +289,44 @@ async function insertBitcoinNotification(anchor: any, txid?: string, blockHeight
     <p>Fecha de confirmación: ${confirmedAt ?? 'pendiente'}</p>
   `;
 
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from('workflow_notifications')
-    .insert({
+    .upsert({
       workflow_id: anchor.document_id,
-      recipient_email: anchor.user_email,
+      recipient_email: recipientEmail,
       recipient_type: 'owner',
       notification_type: 'bitcoin_confirmed',
       subject,
       body_html,
       delivery_status: 'pending',
       error_message: null,
+    }, {
+      onConflict: 'workflow_id,recipient_email,notification_type',
+      ignoreDuplicates: true,
     });
+
+  if (error) {
+    throw new Error(`enqueue bitcoin_confirmed notification failed: ${error.message}`);
+  }
+}
+
+async function enqueueBitcoinNotifications(anchor: any, txid?: string, blockHeight?: number, confirmedAt?: string | null) {
+  if (!supabaseAdmin) return;
+
+  const recipients = await resolveNotificationRecipients(anchor);
+  if (recipients.length === 0) return;
+
+  for (const recipientEmail of recipients) {
+    await enqueueBitcoinNotification(anchor, recipientEmail, txid, blockHeight, confirmedAt);
+  }
+
+  await supabaseAdmin
+    .from('anchors')
+    .update({
+      notification_sent: true,
+      notification_sent_at: new Date().toISOString(),
+    })
+    .eq('id', anchor.id);
 }
 
 const getAnchorStage = (anchor: any): string =>
@@ -375,93 +432,6 @@ async function emitAnchorTimeoutEvent(
   }
 }
 
-/**
- * Send email notification when anchor is confirmed
- */
-async function sendConfirmationEmail(
-  email: string,
-  documentHash: string,
-  bitcoinTxId: string | null,
-  blockHeight: number | null
-): Promise<boolean> {
-  if (!resendApiKey || !email) {
-    console.warn('Email notification skipped: missing API key or email');
-    return false;
-  }
-
-  const subject = '✅ Anclaje Bitcoin confirmado';
-  const html = `
-    <h2>🔗 Anclaje en Bitcoin Confirmado</h2>
-    <p>Tu documento ha sido anclado exitosamente en la blockchain de Bitcoin.</p>
-    <h3>Detalles:</h3>
-    <ul>
-      <li><strong>Hash:</strong> <code>${documentHash}</code></li>
-      ${bitcoinTxId ? `<li><strong>Transacción:</strong> <code>${bitcoinTxId}</code></li>` : ''}
-      ${blockHeight ? `<li><strong>Bloque:</strong> ${blockHeight}</li>` : ''}
-    </ul>
-    <p>Tu certificado .ECO ya está disponible para descarga en tu cuenta.</p>
-    <p style="color: #666; font-size: 12px;">Mensaje automático de VerifySign.</p>
-  `;
-
-  const result = await sendResendEmail({
-    from: defaultFrom,
-    to: email,
-    subject,
-    html
-  });
-
-  if (!result.ok) {
-    console.error('Failed to send email:', result.error || result.body);
-    return false;
-  }
-
-  console.log(`✅ Confirmation email sent to ${email}`);
-  return true;
-}
-
-async function notifyAnchorConfirmed(
-  anchor: any,
-  txid: string | null,
-  blockHeight: number | null,
-) {
-  if (!supabaseAdmin || anchor.notification_sent) return;
-
-  const recipients = new Set<string>();
-  if (typeof anchor.user_email === 'string' && anchor.user_email.trim().length > 0) {
-    recipients.add(anchor.user_email.trim());
-  }
-
-  if (anchor.user_id) {
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(anchor.user_id);
-    if (!userError && userData?.user?.email) {
-      recipients.add(userData.user.email);
-    }
-  }
-
-  if (recipients.size === 0) return;
-
-  let success = false;
-  for (const email of recipients) {
-    const sent = await sendConfirmationEmail(
-      email,
-      anchor.document_hash,
-      txid,
-      blockHeight,
-    );
-    success = success || sent;
-  }
-
-  if (success) {
-    await supabaseAdmin
-      .from('anchors')
-      .update({
-        notification_sent: true,
-        notification_sent_at: new Date().toISOString(),
-      })
-      .eq('id', anchor.id);
-  }
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -494,16 +464,8 @@ serve(async (req) => {
     let skippedDue = 0;
 
     // STEP 1: Process newly queued anchors (submit to OpenTimestamps)
-    const { data: queuedAnchors, error: queuedError } = await supabaseAdmin
-      .from('anchors')
-      .select('*')
-      .eq('anchor_status', 'queued')
-      .order('created_at', { ascending: true })
-      .limit(50);
-
-    if (queuedError) {
-      console.error('Error fetching queued anchors:', queuedError);
-    } else if (queuedAnchors && queuedAnchors.length > 0) {
+    const queuedAnchors = await claimAnchorBatch('queued', 50);
+    if (queuedAnchors.length > 0) {
       console.log(`Found ${queuedAnchors.length} queued anchors to submit`);
 
       for (const anchor of queuedAnchors) {
@@ -554,17 +516,8 @@ serve(async (req) => {
     // - Prioritize anchors with fewer attempts first to avoid starvation.
     // - Then process the least recently updated first.
     // - Larger batch to reduce backlog drain time.
-    const { data: pendingAnchors, error: pendingError } = await supabaseAdmin
-      .from('anchors')
-      .select('*')
-      .in('anchor_status', ['pending', 'processing'])
-      .order('bitcoin_attempts', { ascending: true })
-      .order('updated_at', { ascending: true })
-      .limit(100);
-
-    if (pendingError) {
-      console.error('Error fetching pending anchors:', pendingError);
-    } else if (pendingAnchors && pendingAnchors.length > 0) {
+    const pendingAnchors = await claimAnchorBatch('pending', 100);
+    if (pendingAnchors.length > 0) {
       console.log(`Checking ${pendingAnchors.length} pending anchors for confirmation`);
 
       for (const anchor of pendingAnchors) {
@@ -686,8 +639,7 @@ serve(async (req) => {
 
               console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
               await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
-              await notifyAnchorConfirmed(anchor, txid || null, blockHeight || null);
-              await insertBitcoinNotification(anchor, txid, blockHeight ?? undefined, blockData.confirmedAt ?? null);
+              await enqueueBitcoinNotifications(anchor, txid, blockHeight ?? undefined, blockData.confirmedAt ?? null);
               confirmed++;
               processed++;
               continue;
@@ -728,9 +680,7 @@ serve(async (req) => {
 
           console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
           await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
-          await notifyAnchorConfirmed(anchor, txid || null, blockHeight || null);
-
-          await insertBitcoinNotification(anchor, txid, blockHeight ?? undefined, confirmedAt);
+          await enqueueBitcoinNotifications(anchor, txid, blockHeight ?? undefined, confirmedAt);
           confirmed++;
         } else {
           // Still pending - update status to 'processing' if not already

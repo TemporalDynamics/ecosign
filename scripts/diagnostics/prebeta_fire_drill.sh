@@ -96,6 +96,7 @@ run_step "Share runtime canonical guard" npm run test -- tests/authority/share_r
 run_step "Invites/access canonical guard" npm run test -- tests/authority/invites_access_canonical_guard.test.ts
 run_step "Anchors canonical guard" npm run test -- tests/authority/anchors_canonical_guard.test.ts
 run_step "Non-critical canonical guard" npm run test -- tests/authority/noncritical_endpoints_canonical_guard.test.ts
+run_step "Release bundle canonical guard" npm run test -- tests/authority/release_bundle_canonical_guard.test.ts
 run_step "Presential verifier parser unit" npm run test -- tests/unit/presentialEvidence.test.ts
 run_step "Docs public surface guard" npm run test -- tests/authority/docs_public_surface_guard.test.ts
 run_step "Phase1 gate" npm run phase1:gate

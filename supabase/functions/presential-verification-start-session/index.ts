@@ -213,7 +213,7 @@ async function captureOperationSnapshot(
       const lastEvent = events.length > 0 ? events[events.length - 1] : null;
 
       return {
-        documentId: entityId,
+        documentEntityId: entityId,
         operationDocumentId: String(doc.id ?? ''),
         name: typeof entity?.source_name === 'string' ? entity.source_name : 'Documento',
         entityId,

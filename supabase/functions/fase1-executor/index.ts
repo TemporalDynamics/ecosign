@@ -394,7 +394,7 @@ async function handleBuildArtifact(
   job: ExecutorJob,
 ): Promise<void> {
   const documentEntityId = String(job.payload?.['document_entity_id'] ?? '');
-  const documentId = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
+  const legacyDocumentRef = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
 
   if (!documentEntityId) {
     throw new Error('document_entity_id missing in payload');
@@ -402,7 +402,7 @@ async function handleBuildArtifact(
 
   await callFunction('build-artifact', {
     document_entity_id: documentEntityId,
-    document_id: documentId,
+    document_id: legacyDocumentRef,
   });
 }
 
@@ -411,7 +411,7 @@ async function handleSubmitAnchorPolygon(
   job: ExecutorJob,
 ): Promise<void> {
   const documentEntityId = String(job.payload?.['document_entity_id'] ?? '');
-  const documentId = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
+  const legacyDocumentRef = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
 
   if (!documentEntityId) {
     throw new Error('document_entity_id missing in payload');
@@ -419,7 +419,7 @@ async function handleSubmitAnchorPolygon(
 
   await callFunction('submit-anchor-polygon', {
     document_entity_id: documentEntityId,
-    document_id: documentId,
+    document_id: legacyDocumentRef,
     witness_hash: job.payload?.['witness_hash'] ?? null,
   });
 }
@@ -429,7 +429,7 @@ async function handleSubmitAnchorBitcoin(
   job: ExecutorJob,
 ): Promise<void> {
   const documentEntityId = String(job.payload?.['document_entity_id'] ?? '');
-  const documentId = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
+  const legacyDocumentRef = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
 
   if (!documentEntityId) {
     throw new Error('document_entity_id missing in payload');
@@ -437,7 +437,7 @@ async function handleSubmitAnchorBitcoin(
 
   await callFunction('submit-anchor-bitcoin', {
     document_entity_id: documentEntityId,
-    document_id: documentId,
+    document_id: legacyDocumentRef,
     witness_hash: job.payload?.['witness_hash'] ?? null,
   });
 }

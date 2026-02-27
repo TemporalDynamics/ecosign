@@ -44,7 +44,7 @@ serve(withRateLimit('verify', async (req) => {
 
     const { data: share, error: shareError } = await supabaseAdmin
       .from('document_shares')
-      .select('id, document_id, nda_enabled, nda_text, nda_accepted_at, expires_at, status, user_documents!inner(document_name)')
+      .select('id, document_id, document_entity_id, nda_enabled, nda_text, nda_accepted_at, expires_at, status')
       .eq('id', shareId)
       .single()
 
@@ -60,6 +60,24 @@ serve(withRateLimit('verify', async (req) => {
       return jsonResponse({ success: false, error: 'invalid_or_expired' }, 404, corsHeaders)
     }
 
+    const documentEntityId = typeof (share as any)?.document_entity_id === 'string' && (share as any).document_entity_id.length > 0
+      ? String((share as any).document_entity_id)
+      : null
+
+    let documentName = 'Documento'
+    if (!documentEntityId) {
+      return jsonResponse({ success: false, error: 'missing_document_entity_id' }, 409, corsHeaders)
+    }
+
+    const { data: entity } = await supabaseAdmin
+      .from('document_entities')
+      .select('source_name')
+      .eq('id', documentEntityId)
+      .single()
+    if (entity && typeof (entity as any).source_name === 'string' && (entity as any).source_name.trim()) {
+      documentName = (entity as any).source_name
+    }
+
     return jsonResponse(
       {
         success: true,
@@ -68,7 +86,7 @@ serve(withRateLimit('verify', async (req) => {
         nda_text: share.nda_text ?? '',
         nda_accepted: Boolean(share.nda_accepted_at),
         expires_at: share.expires_at,
-        document_name: (share as any).user_documents?.document_name ?? 'Documento',
+        document_name: documentName,
       },
       200,
       corsHeaders,

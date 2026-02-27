@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { getCorsHeaders } from '../_shared/cors.ts'
-import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
+import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
 
 const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -58,7 +58,7 @@ serve(withRateLimit('record', async (req) => {
     // Load share
     const { data: share, error: shareError } = await supabaseAdmin
       .from('document_shares')
-      .select('id, document_id, created_by, expires_at, nda_enabled')
+      .select('id, document_id, document_entity_id, created_by, expires_at, nda_enabled')
       .eq('id', share_id)
       .single()
 
@@ -86,7 +86,9 @@ serve(withRateLimit('record', async (req) => {
       }
     }
 
-    const documentEntityId = await getDocumentEntityId(supabaseAdmin, share.document_id)
+    const documentEntityId = typeof (share as any)?.document_entity_id === 'string' && (share as any).document_entity_id.length > 0
+      ? String((share as any).document_entity_id)
+      : null
     if (!documentEntityId) {
       return jsonResponse({ success: false, error: 'missing_document_entity_id' }, 409, corsHeaders)
     }

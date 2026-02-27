@@ -92,6 +92,7 @@ run_step "Canonical E2E" npm run test:canonical-e2e
 run_step "Authority guard (targeted)" npm run test -- tests/authority/authority_causality_guard.test.ts
 run_step "No compat_direct in critical paths" npm run test -- tests/authority/no_compat_direct_critical_paths.test.ts
 run_step "Presential verification hardening guard" npm run test -- tests/authority/presential_verification_hardening_guard.test.ts
+run_step "Share runtime canonical guard" npm run test -- tests/authority/share_runtime_canonical_guard.test.ts
 run_step "Presential verifier parser unit" npm run test -- tests/unit/presentialEvidence.test.ts
 run_step "Docs public surface guard" npm run test -- tests/authority/docs_public_surface_guard.test.ts
 run_step "Phase1 gate" npm run phase1:gate

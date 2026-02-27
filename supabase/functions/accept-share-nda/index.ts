@@ -13,7 +13,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
-import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
+import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 import { parseJsonBody } from '../_shared/validation.ts'
 import { AcceptShareNdaSchema } from '../_shared/schemas.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
@@ -62,7 +62,7 @@ serve(withRateLimit('accept', async (req) => {
     // Get share data
     const { data: share, error: shareError } = await supabase
       .from('document_shares')
-      .select('id, document_id, recipient_email, nda_text, nda_enabled, nda_accepted_at')
+      .select('id, document_id, document_entity_id, recipient_email, nda_text, nda_enabled, nda_accepted_at')
       .eq('id', share_id)
       .single()
 
@@ -183,7 +183,9 @@ serve(withRateLimit('accept', async (req) => {
 
     // === PROBATORY EVENT: nda.accepted ===
     // Register NDA acceptance in canonical events ledger
-    const documentEntityId = await getDocumentEntityId(supabase, share.document_id);
+    const documentEntityId = typeof (share as any)?.document_entity_id === 'string' && (share as any).document_entity_id.length > 0
+      ? String((share as any).document_entity_id)
+      : null;
     if (documentEntityId) {
       const ipHash = ipAddress ? await hashIP(ipAddress) : null;
       const browserFamily = getBrowserFamily(userAgent);

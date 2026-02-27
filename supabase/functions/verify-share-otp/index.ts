@@ -2,7 +2,8 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { withRateLimit } from '../_shared/ratelimit.ts'
-import { appendEvent, getDocumentEntityId, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
+import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
+import { readEcoxRuntimeMetadata } from '../_shared/ecoxRuntime.ts'
 
 const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
@@ -65,7 +66,7 @@ serve(withRateLimit('verify', async (req) => {
 
     const { data: share, error: shareError } = await supabaseAdmin
       .from('document_shares')
-      .select('id, document_id, otp_hash, wrapped_key, wrap_iv, recipient_salt, nda_enabled, nda_accepted_at, expires_at, status, user_documents!inner(document_name, encrypted_path)')
+      .select('id, document_id, document_entity_id, otp_hash, wrapped_key, wrap_iv, recipient_salt, nda_enabled, nda_accepted_at, expires_at, status')
       .eq('id', shareId)
       .eq('otp_hash', otpHash)
       .eq('status', 'pending')
@@ -84,15 +85,33 @@ serve(withRateLimit('verify', async (req) => {
       return jsonResponse({ success: false, error: 'nda_required' }, 403, corsHeaders)
     }
 
-    const encryptedPath = (share as any).user_documents?.encrypted_path
-    if (!encryptedPath) {
+    const documentEntityId = typeof (share as any)?.document_entity_id === 'string' && (share as any).document_entity_id.length > 0
+      ? String((share as any).document_entity_id)
+      : null
+
+    if (!documentEntityId) {
+      return jsonResponse({ success: false, error: 'missing_document_entity_id' }, 409, corsHeaders)
+    }
+
+    const { data: entity, error: entityError } = await supabaseAdmin
+      .from('document_entities')
+      .select('id, source_name, metadata')
+      .eq('id', documentEntityId)
+      .single()
+
+    if (entityError || !entity) {
+      return jsonResponse({ success: false, error: 'document_entity_not_found' }, 404, corsHeaders)
+    }
+
+    const runtime = readEcoxRuntimeMetadata((entity as any).metadata ?? null)
+    if (!runtime.encrypted_path) {
       return jsonResponse({ success: false, error: 'missing_encrypted_path' }, 409, corsHeaders)
     }
 
     const { data: signed, error: signedErr } = await supabaseAdmin
       .storage
-      .from('user-documents')
-      .createSignedUrl(encryptedPath, 3600)
+      .from(runtime.storage_bucket)
+      .createSignedUrl(runtime.encrypted_path, 3600)
 
     if (signedErr || !signed?.signedUrl) {
       console.error('verify-share-otp signed url failed', signedErr)
@@ -111,33 +130,30 @@ serve(withRateLimit('verify', async (req) => {
 
     // Emit probatory event otp.verified (best-effort)
     try {
-      const documentEntityId = await getDocumentEntityId(supabaseAdmin as any, share.document_id)
-      if (documentEntityId) {
-        const ipAddress =
-          req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-          req.headers.get('x-real-ip') ||
-          req.headers.get('cf-connecting-ip') ||
-          null
-        const userAgent = req.headers.get('user-agent') || null
-        const ipHash = ipAddress ? await hashIP(ipAddress) : null
-        const browserFamily = getBrowserFamily(userAgent)
-        await appendEvent(
-          supabaseAdmin as any,
-          documentEntityId,
-          {
-            kind: 'otp.verified',
-            at: new Date().toISOString(),
-            share: {
-              share_id: shareId,
-            },
-            context: {
-              ip_hash: ipHash,
-              browser: browserFamily,
-            }
-          } as any,
-          'verify-share-otp'
-        )
-      }
+      const ipAddress =
+        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+        req.headers.get('x-real-ip') ||
+        req.headers.get('cf-connecting-ip') ||
+        null
+      const userAgent = req.headers.get('user-agent') || null
+      const ipHash = ipAddress ? await hashIP(ipAddress) : null
+      const browserFamily = getBrowserFamily(userAgent)
+      await appendEvent(
+        supabaseAdmin as any,
+        documentEntityId,
+        {
+          kind: 'otp.verified',
+          at: new Date().toISOString(),
+          share: {
+            share_id: shareId,
+          },
+          context: {
+            ip_hash: ipHash,
+            browser: browserFamily,
+          }
+        } as any,
+        'verify-share-otp'
+      )
     } catch (err) {
       console.warn('verify-share-otp: otp.verified append failed (best-effort)', err)
     }
@@ -145,7 +161,7 @@ serve(withRateLimit('verify', async (req) => {
     return jsonResponse(
       {
         success: true,
-        document_name: (share as any).user_documents?.document_name ?? 'Documento',
+        document_name: (entity as any).source_name ?? 'Documento',
         encrypted_signed_url: signed.signedUrl,
         recipient_salt: share.recipient_salt,
         wrapped_key: share.wrapped_key,

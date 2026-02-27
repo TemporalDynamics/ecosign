@@ -30,6 +30,13 @@ export interface ShareDocumentOptions {
   pdfStoragePath?: string | null;
 }
 
+type JsonObject = Record<string, unknown>;
+
+const asObject = (value: unknown): JsonObject | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as JsonObject)
+    : null;
+
 export interface ShareDocumentResult {
   shareId: string;
   otp: string;
@@ -89,6 +96,21 @@ export async function shareDocument(
       throw new Error('Access denied');
     }
 
+    // Canonical runtime metadata for share/OTP download path (best-effort).
+    if (doc.document_entity_id && doc.encrypted_path) {
+      await upsertEntityEcoxRuntime(
+        supabase,
+        doc.document_entity_id,
+        {
+          encrypted_path: doc.encrypted_path,
+          wrapped_key: doc.wrapped_key ?? null,
+          wrap_iv: doc.wrap_iv ?? null,
+          storage_bucket: 'user-documents',
+        },
+        user.id,
+      );
+    }
+
     // 2. Unwrap document key with owner's session key
     console.log('🔓 Attempting to unwrap document key...');
     console.log('  - Document ID:', documentId);
@@ -133,6 +155,7 @@ export async function shareDocument(
     const { error: shareError } = await supabase.from('document_shares').insert({
       id: shareId,
       document_id: resolvedDocumentId,
+      document_entity_id: doc.document_entity_id ?? null,
       // NOTE: Share OTP es un capability; recipient_email no representa identidad.
       // Se mantiene por constraints legacy y trazabilidad interna.
       recipient_email: recipientEmail,
@@ -148,6 +171,10 @@ export async function shareDocument(
     });
 
     if (shareError) {
+      // UNIQUE(document_id, recipient_email, status): one active pending share per document/capability.
+      if (String((shareError as any)?.code ?? '') === '23505') {
+        throw new Error('share_pending_exists');
+      }
       throw new Error(`Failed to create share: ${shareError.message}`);
     }
 
@@ -291,11 +318,12 @@ async function resolveShareableUserDocument(
   document_entity_id?: string | null;
   document_name?: string | null;
   encrypted?: boolean | null;
+  encrypted_path?: string | null;
   wrapped_key?: string | null;
   wrap_iv?: string | null;
   user_id?: string | null;
 } | null> {
-  const selectCols = 'id, document_entity_id, document_name, encrypted, wrapped_key, wrap_iv, user_id';
+  const selectCols = 'id, document_entity_id, document_name, encrypted, encrypted_path, wrapped_key, wrap_iv, user_id';
   const queryFirst = async (
     column: 'id' | 'document_entity_id' | 'pdf_storage_path' | 'encrypted_path',
     value: string
@@ -313,6 +341,7 @@ async function resolveShareableUserDocument(
         document_entity_id?: string | null;
         document_name?: string | null;
         encrypted?: boolean | null;
+        encrypted_path?: string | null;
         wrapped_key?: string | null;
         wrap_iv?: string | null;
         user_id?: string | null;
@@ -338,7 +367,9 @@ async function resolveShareableUserDocument(
   if (byPdfPath?.row) return byPdfPath.row;
   if (byEncryptedPath?.row) return byEncryptedPath.row;
 
-  // Legacy fallback: resolve by latest row bound to document_entity_id, then latest encrypted row.
+  // Legacy fallback: resolve by latest row bound to document_entity_id only.
+  // IMPORTANT: never fallback to "latest encrypted by owner" because that can
+  // bind a share to the wrong document and make different docs look identical.
   try {
     const { data: byEntityLatest, error: byEntityLatestError } = await supabase
       .from('user_documents')
@@ -349,20 +380,6 @@ async function resolveShareableUserDocument(
 
     if (!byEntityLatestError && byEntityLatest && byEntityLatest.length > 0) {
       return byEntityLatest[0] as any;
-    }
-
-    if (ownerUserId) {
-      const { data: byOwnerEncrypted, error: byOwnerEncryptedError } = await supabase
-        .from('user_documents')
-        .select(selectCols)
-        .eq('user_id', ownerUserId)
-        .eq('encrypted', true)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (!byOwnerEncryptedError && byOwnerEncrypted && byOwnerEncrypted.length > 0) {
-        return byOwnerEncrypted[0] as any;
-      }
     }
   } catch (fallbackErr) {
     console.warn('Share: fallback resolution failed', fallbackErr);
@@ -417,6 +434,60 @@ async function resolvePreferredSharePath(
   }
 
   return fallbackPath ?? null;
+}
+
+async function upsertEntityEcoxRuntime(
+  supabase: ReturnType<typeof getSupabase>,
+  documentEntityId: string,
+  runtime: {
+    encrypted_path: string;
+    wrapped_key: string | null;
+    wrap_iv: string | null;
+    storage_bucket: string;
+  },
+  ownerUserId: string,
+): Promise<void> {
+  try {
+    const { data: entity, error } = await supabase
+      .from('document_entities')
+      .select('id, owner_id, metadata')
+      .eq('id', documentEntityId)
+      .single();
+
+    if (error || !entity) {
+      return;
+    }
+
+    if ((entity as any).owner_id !== ownerUserId) {
+      return;
+    }
+
+    const root = asObject((entity as any).metadata) ?? {};
+    const ecox = asObject(root.ecox) ?? {};
+    const runtimeCurrent = asObject(ecox.runtime) ?? {};
+
+    const nextMetadata = {
+      ...root,
+      ecox: {
+        ...ecox,
+        runtime: {
+          ...runtimeCurrent,
+          encrypted_path: runtime.encrypted_path,
+          wrapped_key: runtime.wrapped_key,
+          wrap_iv: runtime.wrap_iv,
+          storage_bucket: runtime.storage_bucket,
+          updated_at: new Date().toISOString(),
+        },
+      },
+    };
+
+    await supabase
+      .from('document_entities')
+      .update({ metadata: nextMetadata })
+      .eq('id', documentEntityId);
+  } catch (error) {
+    console.warn('Share: failed to upsert canonical ECOX runtime metadata', error);
+  }
 }
 
 /**

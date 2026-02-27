@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
+import { readEcoxRuntimeMetadata } from '../_shared/ecoxRuntime.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -7,6 +8,55 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400'
 };
+
+const asNonEmptyString = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const looksLikePdfPath = (value: unknown): value is string => {
+  const path = asNonEmptyString(value);
+  if (!path) return false;
+  return path.toLowerCase().includes('.pdf');
+};
+
+const mapLegacyStatuses = (lifecycleStatus: unknown): { status: string; overallStatus: string } => {
+  const status = asNonEmptyString(lifecycleStatus);
+  switch (status) {
+    case 'anchored':
+      return { status: 'signed', overallStatus: 'certified' };
+    case 'signed':
+      return { status: 'signed', overallStatus: 'pending_anchor' };
+    case 'revoked':
+      return { status: 'rejected', overallStatus: 'revoked' };
+    case 'archived':
+      return { status: 'expired', overallStatus: 'archived' };
+    case 'in_signature_flow':
+      return { status: 'pending', overallStatus: 'pending' };
+    case 'needs_witness':
+    case 'witness_ready':
+    case 'protected':
+    default:
+      return { status: 'pending', overallStatus: 'pending' };
+  }
+};
+
+async function createSignedUrlWithFallback(
+  supabase: any,
+  path: string,
+): Promise<string | null> {
+  const buckets = ['user-documents', 'documents'];
+  for (const bucket of buckets) {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, 3600);
+    if (!error && data?.signedUrl) {
+      return data.signedUrl;
+    }
+  }
+  return null;
+}
 
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
@@ -61,20 +111,7 @@ serve(async (req) => {
     // Find invite by token
     const { data: invite, error: inviteError } = await supabase
       .from('invites')
-      .select(`
-        *,
-        user_documents (
-          document_entity_id,
-          document_name,
-          document_hash,
-          pdf_storage_path,
-          eco_data,
-          status,
-          overall_status,
-          created_at,
-          user_id
-        )
-      `)
+      .select('id, token, email, role, document_id, document_entity_id, expires_at, revoked_at, nda_accepted_at, accepted_at, accessed_at')
       .eq('token', inviteToken)
       .single();
 
@@ -121,6 +158,54 @@ serve(async (req) => {
       );
     }
 
+    let documentEntityId = asNonEmptyString((invite as any).document_entity_id);
+    if (!documentEntityId && asNonEmptyString((invite as any).document_id)) {
+      const { data: documentRow } = await supabase
+        .from('documents')
+        .select('document_entity_id')
+        .eq('id', String((invite as any).document_id))
+        .maybeSingle();
+      documentEntityId = asNonEmptyString((documentRow as any)?.document_entity_id);
+    }
+
+    if (!documentEntityId) {
+      return new Response(
+        JSON.stringify({ error: 'Document entity not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: entity, error: entityError } = await supabase
+      .from('document_entities')
+      .select(`
+        id,
+        source_name,
+        source_hash,
+        witness_hash,
+        signed_hash,
+        lifecycle_status,
+        created_at,
+        source_storage_path,
+        witness_current_storage_path,
+        metadata
+      `)
+      .eq('id', documentEntityId)
+      .single();
+
+    if (entityError || !entity) {
+      return new Response(
+        JSON.stringify({ error: 'Document not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if ((entity as any).lifecycle_status === 'revoked' || (entity as any).lifecycle_status === 'archived') {
+      return new Response(
+        JSON.stringify({ error: 'Document is no longer available' }),
+        { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Mark as accepted if not already
     if (!invite.accepted_at) {
       await supabase
@@ -138,14 +223,33 @@ serve(async (req) => {
         .eq('id', invite.id);
     }
 
-    // Get signed URL for PDF if path exists
+    const runtime = readEcoxRuntimeMetadata((entity as any).metadata ?? {});
+    const pdfCandidates = [
+      looksLikePdfPath((entity as any).witness_current_storage_path)
+        ? String((entity as any).witness_current_storage_path)
+        : null,
+      looksLikePdfPath((entity as any).source_storage_path)
+        ? String((entity as any).source_storage_path)
+        : null,
+      looksLikePdfPath(runtime.encrypted_path)
+        ? runtime.encrypted_path
+        : null,
+    ].filter((value): value is string => typeof value === 'string' && value.length > 0);
+
     let pdfUrl = null;
-    if (invite.user_documents.pdf_storage_path) {
-      const { data: urlData } = await supabase.storage
-        .from('user-documents')
-        .createSignedUrl(invite.user_documents.pdf_storage_path, 3600);
-      pdfUrl = urlData?.signedUrl || null;
+    for (const path of [...new Set(pdfCandidates)]) {
+      const signed = await createSignedUrlWithFallback(supabase, path);
+      if (signed) {
+        pdfUrl = signed;
+        break;
+      }
     }
+
+    const documentHash =
+      asNonEmptyString((entity as any).signed_hash)
+      ?? asNonEmptyString((entity as any).witness_hash)
+      ?? asNonEmptyString((entity as any).source_hash);
+    const statuses = mapLegacyStatuses((entity as any).lifecycle_status);
 
     return new Response(
       JSON.stringify({
@@ -155,12 +259,12 @@ serve(async (req) => {
           canView: true,
           canSign: invite.role === 'signer',
           document: {
-            document_entity_id: invite.user_documents.document_entity_id,
-            name: invite.user_documents.document_name,
-            hash: invite.user_documents.document_hash,
-            status: invite.user_documents.status,
-            overallStatus: invite.user_documents.overall_status,
-            createdAt: invite.user_documents.created_at,
+            document_entity_id: documentEntityId,
+            name: asNonEmptyString((entity as any).source_name) ?? `Documento ${documentEntityId.slice(0, 8)}`,
+            hash: documentHash,
+            status: statuses.status,
+            overallStatus: statuses.overallStatus,
+            createdAt: (entity as any).created_at,
             pdfUrl
           },
           invite: {

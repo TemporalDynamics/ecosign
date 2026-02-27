@@ -12,6 +12,7 @@ const ACCEPT_INVITE_NDA_FILE = path.join(ROOT, 'supabase/functions/accept-invite
 const CREATE_SIGNER_LINK_FILE = path.join(ROOT, 'supabase/functions/create-signer-link/index.ts');
 const GENERATE_LINK_FILE = path.join(ROOT, 'supabase/functions/generate-link/index.ts');
 const VERIFY_ACCESS_FILE = path.join(ROOT, 'supabase/functions/verify-access/index.ts');
+const VERIFY_INVITE_ACCESS_FILE = path.join(ROOT, 'supabase/functions/verify-invite-access/index.ts');
 const MIGRATION_FILE = path.join(
   ROOT,
   'supabase/migrations/20260301000800_invites_access_entity_canonical.sql',
@@ -23,13 +24,14 @@ const expectNoLegacyUserDocumentsRead = (content: string) => {
 };
 
 test('invites/access endpoints must not read legacy user_documents', async () => {
-  const [createInvite, acceptInviteNda, createSignerLink, generateLink, verifyAccess] =
+  const [createInvite, acceptInviteNda, createSignerLink, generateLink, verifyAccess, verifyInviteAccess] =
     await Promise.all([
       fs.readFile(CREATE_INVITE_FILE, 'utf8'),
       fs.readFile(ACCEPT_INVITE_NDA_FILE, 'utf8'),
       fs.readFile(CREATE_SIGNER_LINK_FILE, 'utf8'),
       fs.readFile(GENERATE_LINK_FILE, 'utf8'),
       fs.readFile(VERIFY_ACCESS_FILE, 'utf8'),
+      fs.readFile(VERIFY_INVITE_ACCESS_FILE, 'utf8'),
     ]);
 
   for (const content of [
@@ -38,6 +40,7 @@ test('invites/access endpoints must not read legacy user_documents', async () =>
     createSignerLink,
     generateLink,
     verifyAccess,
+    verifyInviteAccess,
   ]) {
     expectNoLegacyUserDocumentsRead(content);
   }
@@ -59,17 +62,19 @@ test('invites/access endpoints must not use user_document bridge helpers', async
 });
 
 test('invites/access endpoints must use document_entity_id references', async () => {
-  const [createInvite, createSignerLink, generateLink, verifyAccess] = await Promise.all([
+  const [createInvite, createSignerLink, generateLink, verifyAccess, verifyInviteAccess] = await Promise.all([
     fs.readFile(CREATE_INVITE_FILE, 'utf8'),
     fs.readFile(CREATE_SIGNER_LINK_FILE, 'utf8'),
     fs.readFile(GENERATE_LINK_FILE, 'utf8'),
     fs.readFile(VERIFY_ACCESS_FILE, 'utf8'),
+    fs.readFile(VERIFY_INVITE_ACCESS_FILE, 'utf8'),
   ]);
 
   expect(createInvite).toContain('document_entity_id');
   expect(createSignerLink).toContain('document_entity_id');
   expect(generateLink).toContain('document_entity_id');
   expect(verifyAccess).toContain('document_entity_id');
+  expect(verifyInviteAccess).toContain('document_entity_id');
   expect(verifyAccess).toContain('getLatestEcoStoragePath');
 });
 

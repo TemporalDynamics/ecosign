@@ -35,6 +35,12 @@ const requireCronSecret = (req: Request) => {
   return null;
 };
 
+const asNonEmptyString = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
     return new Response('disabled', { status: 204 });
@@ -73,24 +79,10 @@ serve(async (req) => {
       );
     }
 
-    // Obtener información completa del signer_link y documento
+    // Obtener información del signer_link
     const { data: signerLink, error: linkError } = await supabase
       .from('signer_links')
-      .select(`
-        id,
-        signer_email,
-        signer_name,
-        signed_at,
-        status,
-        user_documents (
-          id,
-          document_name,
-          user_id,
-          auth.users (
-            email
-          )
-        )
-      `)
+      .select('id, signer_email, signer_name, signed_at, status, document_id, document_entity_id')
       .eq('id', signerLinkId)
       .single();
 
@@ -122,14 +114,67 @@ serve(async (req) => {
       );
     }
 
-    // Obtener email del owner
-    const { data: owner } = await supabase
-      .from('auth.users')
-      .select('email')
-      .eq('id', signerLink.user_documents.user_id)
+    let documentEntityId = asNonEmptyString((signerLink as any).document_entity_id);
+    if (!documentEntityId && asNonEmptyString((signerLink as any).document_id)) {
+      const { data: documentRef } = await supabase
+        .from('documents')
+        .select('document_entity_id')
+        .eq('id', String((signerLink as any).document_id))
+        .maybeSingle();
+      documentEntityId = asNonEmptyString((documentRef as any)?.document_entity_id);
+    }
+
+    if (!documentEntityId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'document_entity_id no disponible para signer_link'
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const { data: entity, error: entityError } = await supabase
+      .from('document_entities')
+      .select('id, owner_id, source_name')
+      .eq('id', documentEntityId)
       .single();
 
-    if (!owner?.email) {
+    if (entityError || !entity) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Document entity no encontrada'
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const ownerId = asNonEmptyString((entity as any).owner_id);
+    if (!ownerId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Owner no disponible para document_entity'
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Obtener email del owner desde Auth Admin API
+    const { data: ownerData, error: ownerError } = await supabase.auth.admin.getUserById(ownerId);
+    const owner = ownerData?.user;
+
+    if (ownerError || !owner?.email) {
       console.warn('⚠️ [notify-document-signed] Owner email no encontrado');
       return new Response(
         JSON.stringify({
@@ -146,11 +191,11 @@ serve(async (req) => {
     // Preparar email
     const emailPayload = await buildDocumentSignedEmail({
       ownerEmail: owner.email,
-      documentName: signerLink.user_documents.document_name,
+      documentName: asNonEmptyString((entity as any).source_name) ?? 'Documento',
       signerName: signerLink.signer_name || 'Firmante',
       signerEmail: signerLink.signer_email,
       signedAt: signerLink.signed_at,
-      documentId: signerLink.user_documents.id,
+      documentId: asNonEmptyString((signerLink as any).document_id) ?? documentEntityId,
       siteUrl: Deno.env.get('SITE_URL')
     });
 
@@ -189,10 +234,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ [notify-document-signed] Error inesperado:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Error inesperado: ' + error.message
+        error: 'Error inesperado: ' + message
       }),
       {
         status: 500,

@@ -11,63 +11,6 @@ import { parseJsonBody } from '../_shared/validation.ts'
 import { GenerateLinkSchema } from '../_shared/schemas.ts'
 import { appendEvent } from '../_shared/eventHelper.ts'
 
-async function ensureDocumentRow(
-  supabase: any,
-  userId: string,
-  documentEntityId: string,
-  documentName: string,
-  ecoHash: string,
-): Promise<{ id: string; title: string | null; original_filename: string | null; eco_hash: string | null; status: string }> {
-  const { data: byEntity } = await supabase
-    .from('documents')
-    .select('id, owner_id, title, original_filename, eco_hash, status')
-    .eq('document_entity_id', documentEntityId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (byEntity) {
-    if ((byEntity as any).owner_id !== userId) {
-      throw new Error('Not authorized to share this document')
-    }
-    return {
-      id: String((byEntity as any).id),
-      title: ((byEntity as any).title ?? null) as string | null,
-      original_filename: ((byEntity as any).original_filename ?? null) as string | null,
-      eco_hash: ((byEntity as any).eco_hash ?? null) as string | null,
-      status: String((byEntity as any).status ?? 'active'),
-    }
-  }
-
-  const insertPayload: Record<string, unknown> = {
-    owner_id: userId,
-    title: documentName,
-    original_filename: documentName,
-    eco_hash: ecoHash,
-    status: 'active',
-    document_entity_id: documentEntityId,
-  }
-
-  const { data: created, error: createError } = await supabase
-    .from('documents')
-    .insert(insertPayload)
-    .select('id, title, original_filename, eco_hash, status')
-    .single()
-
-  if (createError || !created) {
-    console.error('Error creating canonical document row:', createError)
-    throw new Error('Failed to create document record')
-  }
-
-  return {
-    id: String((created as any).id),
-    title: ((created as any).title ?? null) as string | null,
-    original_filename: ((created as any).original_filename ?? null) as string | null,
-    eco_hash: ((created as any).eco_hash ?? null) as string | null,
-    status: String((created as any).status ?? 'active'),
-  }
-}
-
 serve(withRateLimit('generate', async (req) => {
   const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined)
 
@@ -122,7 +65,7 @@ serve(withRateLimit('generate', async (req) => {
 
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
-      .select('id, owner_id, source_name, source_hash, witness_hash, signed_hash')
+      .select('id, owner_id, source_name')
       .eq('id', documentEntityId)
       .single()
 
@@ -135,21 +78,6 @@ serve(withRateLimit('generate', async (req) => {
     }
 
     const canonicalDocumentName = String((entity as any).source_name || 'Documento')
-    const canonicalEcoHash = String(
-      (entity as any).signed_hash ||
-      (entity as any).witness_hash ||
-      (entity as any).source_hash ||
-      documentEntityId,
-    )
-
-    const doc = await ensureDocumentRow(
-      supabase,
-      user.id,
-      documentEntityId,
-      canonicalDocumentName,
-      canonicalEcoHash,
-    )
-
     // Generate secure random token (32 bytes = 64 hex chars)
     const tokenBytes = crypto.getRandomValues(new Uint8Array(32))
     const token = Array.from(tokenBytes)
@@ -179,7 +107,6 @@ serve(withRateLimit('generate', async (req) => {
     const { data: recipient, error: recipientError } = await supabase
       .from('recipients')
       .insert({
-        document_id: doc.id,
         document_entity_id: documentEntityId,
         email: recipient_email,
         recipient_id: recipientIdHex
@@ -196,7 +123,6 @@ serve(withRateLimit('generate', async (req) => {
     const { data: link, error: linkError } = await supabase
       .from('links')
       .insert({
-        document_id: doc.id,
         document_entity_id: documentEntityId,
         recipient_id: recipient.id, // Direct link to recipient for correct attribution
         token_hash: tokenHash,

@@ -18,6 +18,10 @@ const MIGRATION_FILE = path.join(
   ROOT,
   'supabase/migrations/20260301000800_invites_access_entity_canonical.sql',
 );
+const LINKS_RECIPIENTS_ENTITY_ONLY_MIGRATION_FILE = path.join(
+  ROOT,
+  'supabase/migrations/20260301001200_links_recipients_entity_only.sql',
+);
 
 const expectNoLegacyUserDocumentsRead = (content: string) => {
   expect(content).not.toMatch(/user_documents!inner/);
@@ -101,6 +105,7 @@ test('public invite/link/access endpoints must enforce document_entity_id strict
   expect(schemasContent).not.toContain('documentId: z.string().uuid().optional()');
 
   expect(generateLink).not.toContain('resolveDocumentRefs(');
+  expect(generateLink).not.toContain(".from('documents')");
   expect(generateLink).not.toContain('document_id,');
 
   expect(verifyAccess).toContain('legacy_link_missing_document_entity_id');
@@ -135,4 +140,13 @@ test('migration must add canonical document_entity_id pointers for invites/acces
   expect(content).toContain('ALTER TABLE public.signer_links');
   expect(content).toContain('UPDATE public.links l');
   expect(content).toContain('UPDATE public.recipients r');
+});
+
+test('links/recipients migration must allow entity-only records without document_id', async () => {
+  const content = await fs.readFile(LINKS_RECIPIENTS_ENTITY_ONLY_MIGRATION_FILE, 'utf8');
+
+  expect(content).toContain('ALTER TABLE public.links');
+  expect(content).toContain('ALTER COLUMN document_id DROP NOT NULL');
+  expect(content).toContain('ALTER TABLE public.recipients');
+  expect(content).toContain('ALTER COLUMN document_id DROP NOT NULL');
 });

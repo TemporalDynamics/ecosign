@@ -18,15 +18,14 @@ const PREBETA_FIRE_DRILL_FILE = path.join(
 const FUNCTIONS_ROOT = path.join(ROOT, 'supabase/functions');
 
 const ALLOWLIST = new Map<string, string>([
-  ['accept-nda', 'nda legacy compatibility'],
-  ['anchor-bitcoin', 'legacy payload compatibility + documents pointer'],
-  ['anchor-polygon', 'legacy payload compatibility + documents pointer'],
   ['new-document-canonical-trigger', 'canonical trigger reads documents projection'],
   ['signer-access', 'external SignNow documentId'],
   ['signnow', 'external SignNow documentId'],
   ['signnow-webhook', 'legacy integration payload'],
   ['submit-anchor-bitcoin', 'forwards legacy document_id to anchor'],
   ['submit-anchor-polygon', 'forwards legacy document_id to anchor'],
+  ['anchor-bitcoin', 'legacy payload compatibility + documents pointer'],
+  ['anchor-polygon', 'legacy payload compatibility + documents pointer'],
 ]);
 
 const FORBIDDEN_PATTERNS: Array<{ label: string; regex: RegExp }> = [

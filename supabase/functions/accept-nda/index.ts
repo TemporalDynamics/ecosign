@@ -218,53 +218,43 @@ serve(withRateLimit('accept', async (req) => {
             ? String((link as any).document_entity_id)
             : null)
 
-      if (!documentEntityId && recipient.document_id) {
-        const { data: documentRef } = await supabase
-          .from('documents')
-          .select('document_entity_id')
-          .eq('id', recipient.document_id)
-          .maybeSingle()
-        if (documentRef?.document_entity_id) {
-          documentEntityId = String(documentRef.document_entity_id)
-        }
+      if (!documentEntityId) {
+        console.warn(`Could not resolve document_entity_id for recipient ${recipient.id}, nda.accepted event not recorded`)
+        return
       }
 
-      if (documentEntityId) {
-        const ipHash = ipAddress ? await hashIP(ipAddress) : null
-        const browserFamily = getBrowserFamily(userAgent)
+      const ipHash = ipAddress ? await hashIP(ipAddress) : null
+      const browserFamily = getBrowserFamily(userAgent)
 
-        const eventResult = await appendEvent(
-          supabase,
-          documentEntityId,
-          {
-            kind: 'nda.accepted',
-            at: ndaAcceptance.accepted_at || new Date().toISOString(),
-            nda: {
-              link_id: link.id,
-              acceptance_id: ndaAcceptance.id,
-              recipient_email: signer_email,
-              signer_name,
-              nda_hash: ndaHash,
-              nda_source: templateMeta.nda_source,
-              template_id: templateMeta.template_id,
-              template_version: templateMeta.template_version,
-              acceptance_method: 'checkbox'
-            },
-            context: {
-              ip_hash: ipHash,
-              geo: null,
-              browser: browserFamily,
-              session_id: `nda-${ndaAcceptance.id}`
-            }
+      const eventResult = await appendEvent(
+        supabase,
+        documentEntityId,
+        {
+          kind: 'nda.accepted',
+          at: ndaAcceptance.accepted_at || new Date().toISOString(),
+          nda: {
+            link_id: link.id,
+            acceptance_id: ndaAcceptance.id,
+            recipient_email: signer_email,
+            signer_name,
+            nda_hash: ndaHash,
+            nda_source: templateMeta.nda_source,
+            template_id: templateMeta.template_id,
+            template_version: templateMeta.template_version,
+            acceptance_method: 'checkbox'
           },
-          'accept-nda'
-        )
+          context: {
+            ip_hash: ipHash,
+            geo: null,
+            browser: browserFamily,
+            session_id: `nda-${ndaAcceptance.id}`
+          }
+        },
+        'accept-nda'
+      )
 
-        if (!eventResult.success) {
-          console.error('Failed to append nda.accepted event:', eventResult.error)
-        }
-      } else {
-        console.warn(`Could not resolve document_entity_id for recipient ${recipient.id}, nda.accepted event not recorded`)
+      if (!eventResult.success) {
+        console.error('Failed to append nda.accepted event:', eventResult.error)
       }
     } catch (e) {
       console.warn('accept-nda probatory event recording failed', e)

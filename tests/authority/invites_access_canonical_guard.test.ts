@@ -20,7 +20,7 @@ const MIGRATION_FILE = path.join(
 );
 const LINKS_RECIPIENTS_ENTITY_ONLY_MIGRATION_FILE = path.join(
   ROOT,
-  'supabase/migrations/20260301001200_links_recipients_entity_only.sql',
+  'supabase/migrations/20260301001300_links_recipients_entity_only.sql',
 );
 
 const expectNoLegacyUserDocumentsRead = (content: string) => {

@@ -138,23 +138,13 @@ serve(async (req) => {
       );
     }
 
-    // Optional legacy pointer for compatibility (authority remains document_entity_id).
-    const { data: legacyDoc } = await supabase
-      .from('documents')
-      .select('id')
-      .eq('document_entity_id', documentEntityId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
     // Generar token único
     const token = crypto.randomUUID();
 
-    // Crear signer_link en la base de datos
+    // Crear signer_link en la base de datos (entity-only, sin document_id)
     const { data: signerLink, error: linkError } = await supabase
       .from('signer_links')
       .insert({
-        document_id: legacyDoc?.id ?? null,
         document_entity_id: documentEntityId,
         owner_id: requester.id,
         signer_email: signerEmail,
@@ -185,26 +175,24 @@ serve(async (req) => {
       expiresAt: signerLink.expires_at
     });
 
-    // Registrar evento 'sent' en la tabla events
-    if (legacyDoc?.id) {
-      const { error: eventError } = await supabase
-        .from('events')
-        .insert({
-          document_id: legacyDoc.id,
-          event_type: 'sent',
-          signer_link_id: signerLink.id,
-          actor_email: signerEmail,
-          actor_name: signerName || null,
-          metadata: {
-            linkToken: token,
-            expiresAt: signerLink.expires_at,
-            documentName: (entity as any).source_name
-          }
-        });
+    // Registrar evento 'sent' en la tabla events (entity-based)
+    const { error: eventError } = await supabase
+      .from('events')
+      .insert({
+        document_entity_id: documentEntityId,
+        event_type: 'sent',
+        signer_link_id: signerLink.id,
+        actor_email: signerEmail,
+        actor_name: signerName || null,
+        metadata: {
+          linkToken: token,
+          expiresAt: signerLink.expires_at,
+          documentName: (entity as any).source_name
+        }
+      });
 
-      if (eventError) {
-        console.warn('⚠️ [create-signer-link] Error al registrar evento:', eventError);
-      }
+    if (eventError) {
+      console.warn('⚠️ [create-signer-link] Error al registrar evento:', eventError);
     }
 
     // Construir URL del link

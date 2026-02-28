@@ -22,6 +22,10 @@ const LINKS_RECIPIENTS_ENTITY_ONLY_MIGRATION_FILE = path.join(
   ROOT,
   'supabase/migrations/20260301001300_links_recipients_entity_only.sql',
 );
+const SIGNER_LINKS_ENTITY_ONLY_MIGRATION_FILE = path.join(
+  ROOT,
+  'supabase/migrations/20260301001400_signer_links_entity_only.sql',
+);
 
 const expectNoLegacyUserDocumentsRead = (content: string) => {
   expect(content).not.toMatch(/user_documents!inner/);
@@ -148,5 +152,12 @@ test('links/recipients migration must allow entity-only records without document
   expect(content).toContain('ALTER TABLE public.links');
   expect(content).toContain('ALTER COLUMN document_id DROP NOT NULL');
   expect(content).toContain('ALTER TABLE public.recipients');
+  expect(content).toContain('ALTER COLUMN document_id DROP NOT NULL');
+});
+
+test('signer_links migration must allow entity-only records without document_id', async () => {
+  const content = await fs.readFile(SIGNER_LINKS_ENTITY_ONLY_MIGRATION_FILE, 'utf8');
+
+  expect(content).toContain('ALTER TABLE public.signer_links');
   expect(content).toContain('ALTER COLUMN document_id DROP NOT NULL');
 });

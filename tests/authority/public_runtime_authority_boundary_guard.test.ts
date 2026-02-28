@@ -21,7 +21,6 @@ const ALLOWLIST = new Map<string, string>([
   ['accept-nda', 'nda legacy compatibility'],
   ['anchor-bitcoin', 'legacy payload compatibility + documents pointer'],
   ['anchor-polygon', 'legacy payload compatibility + documents pointer'],
-  ['create-signer-link', 'legacy document_id pointer (optional)'],
   ['log-event', 'legacy endpoint accepts documentId'],
   ['new-document-canonical-trigger', 'canonical trigger reads documents projection'],
   ['notify-document-certified', 'legacy input compatibility'],

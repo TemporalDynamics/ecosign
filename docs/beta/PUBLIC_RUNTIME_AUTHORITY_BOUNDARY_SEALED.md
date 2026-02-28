@@ -24,12 +24,11 @@ integraciones externas:
 2. `anchor-bitcoin` — compatibilidad de payload legacy y puntero `documents`.
 3. `anchor-polygon` — compatibilidad de payload legacy y puntero `documents`.
 4. `new-document-canonical-trigger` — trigger de proyección desde tabla `documents`.
-5. `notify-document-signed` — payload email usa `documentId` referencial.
-6. `signer-access` — `documentId` refiere documento externo de SignNow.
-7. `signnow` — `documentId` refiere documento externo de SignNow.
-8. `signnow-webhook` — payload legado de integración usa `documentId`.
-9. `submit-anchor-bitcoin` — forward de `document_id` legacy a anchor worker.
-10. `submit-anchor-polygon` — forward de `document_id` legacy a anchor worker.
+5. `signer-access` — `documentId` refiere documento externo de SignNow.
+6. `signnow` — `documentId` refiere documento externo de SignNow.
+7. `signnow-webhook` — payload legado de integración usa `documentId`.
+8. `submit-anchor-bitcoin` — forward de `document_id` legacy a anchor worker.
+9. `submit-anchor-polygon` — forward de `document_id` legacy a anchor worker.
 
 ## Criterio de aceptación
 1. Guard de frontera pública en verde.

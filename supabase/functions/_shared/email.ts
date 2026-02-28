@@ -162,7 +162,7 @@ export async function buildDocumentSignedEmail({
   signerName,
   signerEmail,
   signedAt,
-  documentId,
+  documentEntityId,
   siteUrl,
 }: {
   ownerEmail: string;
@@ -170,7 +170,7 @@ export async function buildDocumentSignedEmail({
   signerName?: string | null;
   signerEmail: string;
   signedAt: string;
-  documentId: string;
+  documentEntityId: string;
   siteUrl?: string | null;
 }) {
   const when = new Date(signedAt).toLocaleString('es-AR');
@@ -187,7 +187,7 @@ export async function buildDocumentSignedEmail({
         signer_email: signerEmail,
         document_name: documentName,
         signed_at: when,
-        document_id: documentId,
+        document_id: documentEntityId,
       },
     }),
   };

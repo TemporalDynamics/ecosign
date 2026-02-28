@@ -115,14 +115,6 @@ serve(async (req) => {
     }
 
     let documentEntityId = asNonEmptyString((signerLink as any).document_entity_id);
-    if (!documentEntityId && asNonEmptyString((signerLink as any).document_id)) {
-      const { data: documentRef } = await supabase
-        .from('documents')
-        .select('document_entity_id')
-        .eq('id', String((signerLink as any).document_id))
-        .maybeSingle();
-      documentEntityId = asNonEmptyString((documentRef as any)?.document_entity_id);
-    }
 
     if (!documentEntityId) {
       return new Response(
@@ -195,7 +187,7 @@ serve(async (req) => {
       signerName: signerLink.signer_name || 'Firmante',
       signerEmail: signerLink.signer_email,
       signedAt: signerLink.signed_at,
-      documentId: asNonEmptyString((signerLink as any).document_id) ?? documentEntityId,
+      documentEntityId: documentEntityId,
       siteUrl: Deno.env.get('SITE_URL')
     });
 

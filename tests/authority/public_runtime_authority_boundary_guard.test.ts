@@ -22,7 +22,6 @@ const ALLOWLIST = new Map<string, string>([
   ['anchor-bitcoin', 'legacy payload compatibility + documents pointer'],
   ['anchor-polygon', 'legacy payload compatibility + documents pointer'],
   ['new-document-canonical-trigger', 'canonical trigger reads documents projection'],
-  ['notify-document-certified', 'legacy input compatibility'],
   ['notify-document-signed', 'documentId payload for signed email template'],
   ['signer-access', 'external SignNow documentId'],
   ['signnow', 'external SignNow documentId'],

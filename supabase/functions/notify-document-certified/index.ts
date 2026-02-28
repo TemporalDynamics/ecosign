@@ -2,7 +2,6 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail, buildDocumentCertifiedEmail } from '../_shared/email.ts';
-import { getDocumentEntityId } from '../_shared/eventHelper.ts';
 
 
 serve(async (req: Request) => {
@@ -27,10 +26,10 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { documentId, documentEntityId } = await req.json();
+    const { documentEntityId } = await req.json();
 
-    if (!documentId && !documentEntityId) {
-      throw new Error('documentId or documentEntityId is required');
+    if (!documentEntityId) {
+      throw new Error('documentEntityId is required');
     }
 
     // Create Supabase client
@@ -39,26 +38,10 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: legacyDocument } = documentId
-      ? await supabase
-        .from('documents')
-        .select('id, owner_id, title, document_entity_id, created_at')
-        .eq('id', documentId)
-        .maybeSingle()
-      : { data: null as any };
-
-    const resolvedDocumentEntityId = documentEntityId
-      ?? legacyDocument?.document_entity_id
-      ?? (documentId ? await getDocumentEntityId(supabase, documentId) : null);
-
-    if (!resolvedDocumentEntityId) {
-      throw new Error('Document entity not found');
-    }
-
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
       .select('id, owner_id, source_name, metadata, events, created_at')
-      .eq('id', resolvedDocumentEntityId)
+      .eq('id', documentEntityId)
       .single();
 
     if (entityError || !entity) {
@@ -66,7 +49,7 @@ serve(async (req: Request) => {
     }
 
     // Get owner info
-    const ownerId = entity.owner_id ?? legacyDocument?.owner_id ?? null;
+    const ownerId = entity.owner_id;
     if (!ownerId) {
       throw new Error('Document owner not found');
     }
@@ -90,13 +73,8 @@ serve(async (req: Request) => {
       return network === 'polygon';
     });
 
-    const resolvedDocumentName = entity.source_name
-      ?? legacyDocument?.title
-      ?? `Documento ${resolvedDocumentEntityId.slice(0, 8)}`;
-    const resolvedCertifiedAt = protectedRequested?.at
-      ?? entity.created_at
-      ?? legacyDocument?.created_at
-      ?? new Date().toISOString();
+    const resolvedDocumentName = entity.source_name ?? `Documento ${documentEntityId.slice(0, 8)}`;
+    const resolvedCertifiedAt = protectedRequested?.at ?? entity.created_at ?? new Date().toISOString();
 
     // Build and send email
     const emailPayload = await buildDocumentCertifiedEmail({
@@ -104,7 +82,7 @@ serve(async (req: Request) => {
       ownerName: user.user_metadata?.full_name || user.user_metadata?.name,
       documentName: resolvedDocumentName,
       certifiedAt: resolvedCertifiedAt,
-      documentId: documentId ?? resolvedDocumentEntityId,
+      documentEntityId: documentEntityId,
       hasForensicHardening,
       hasLegalTimestamp,
       hasPolygonAnchor,

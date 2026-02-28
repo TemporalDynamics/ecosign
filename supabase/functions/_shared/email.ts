@@ -232,7 +232,7 @@ export async function buildDocumentCertifiedEmail({
   ownerName,
   documentName,
   certifiedAt,
-  documentId,
+  documentEntityId,
   hasForensicHardening,
   hasLegalTimestamp,
   hasPolygonAnchor,
@@ -242,7 +242,7 @@ export async function buildDocumentCertifiedEmail({
   ownerName?: string | null;
   documentName: string;
   certifiedAt: string;
-  documentId: string;
+  documentEntityId: string;
   hasForensicHardening: boolean;
   hasLegalTimestamp: boolean;
   hasPolygonAnchor: boolean;
@@ -261,7 +261,7 @@ export async function buildDocumentCertifiedEmail({
         owner_name: name,
         document_name: documentName,
         certified_at: new Date(certifiedAt).toLocaleString('es-AR'),
-        document_id: documentId,
+        document_id: documentEntityId,
         hardening: hasForensicHardening ? 'Si' : 'No',
         legal_timestamp: hasLegalTimestamp ? 'Si' : 'No',
         polygon_anchor: hasPolygonAnchor ? 'Si' : 'No',

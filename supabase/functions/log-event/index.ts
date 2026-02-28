@@ -15,7 +15,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { appendEvent, getDocumentEntityId } from '../_shared/eventHelper.ts';
+import { appendEvent } from '../_shared/eventHelper.ts';
 
 
 const LEGACY_TO_CANONICAL_KIND: Record<string, string> = {
@@ -38,8 +38,7 @@ const VALID_EVENT_TYPES = Object.keys(LEGACY_TO_CANONICAL_KIND);
 
 interface LogEventRequest {
   eventType: string;
-  documentId?: string;
-  documentEntityId?: string;
+  documentEntityId: string;
   userId?: string;
   signerLinkId?: string;
   actorEmail?: string;
@@ -99,7 +98,7 @@ serve(async (req: Request) => {
 
     // Parse request body
     const body: LogEventRequest = await req.json();
-    const { eventType, documentId, documentEntityId, userId, signerLinkId, actorEmail, actorName, metadata } = body;
+    const { eventType, documentEntityId, userId, signerLinkId, actorEmail, actorName, metadata } = body;
 
     // Validate event type
     if (!VALID_EVENT_TYPES.includes(eventType)) {
@@ -109,28 +108,18 @@ serve(async (req: Request) => {
       );
     }
 
-    // Validate documentId
-    if (!documentId && !documentEntityId) {
+    // Validate documentEntityId is required
+    if (!documentEntityId) {
       return new Response(
-        JSON.stringify({ error: 'documentId or documentEntityId is required' }),
+        JSON.stringify({ error: 'documentEntityId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const resolvedDocumentEntityId = documentEntityId
-      ?? (documentId ? await getDocumentEntityId(supabaseAdmin, documentId) : null);
-
-    if (!resolvedDocumentEntityId) {
-      return new Response(
-        JSON.stringify({ error: 'Document not found or access denied' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const { data: entity, error: entityError } = await supabaseAdmin
       .from('document_entities')
       .select('id, owner_id')
-      .eq('id', resolvedDocumentEntityId)
+      .eq('id', documentEntityId)
       .maybeSingle();
 
     if (entityError || !entity || entity.owner_id !== user.id) {
@@ -151,8 +140,7 @@ serve(async (req: Request) => {
     const eventData = {
       kind: canonicalKind,
       timestamp,
-      document_entity_id: resolvedDocumentEntityId,
-      document_id: documentId ?? null,
+      document_entity_id: documentEntityId,
       actor_email: actorEmail || user.email || null,
       actor_name: actorName || null,
       signer_link_id: signerLinkId || null,
@@ -164,7 +152,7 @@ serve(async (req: Request) => {
 
     const result = await appendEvent(
       supabaseAdmin,
-      resolvedDocumentEntityId,
+      documentEntityId,
       {
         kind: canonicalKind,
         at: timestamp,
@@ -185,7 +173,7 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`✅ Event logged successfully: ${eventType} for ${resolvedDocumentEntityId}`);
+    console.log(`✅ Event logged successfully: ${eventType} for ${documentEntityId}`);
 
     return new Response(
       JSON.stringify({

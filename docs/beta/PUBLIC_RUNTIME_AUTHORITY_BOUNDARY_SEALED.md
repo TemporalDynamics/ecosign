@@ -23,15 +23,14 @@ integraciones externas:
 1. `accept-nda` — flujo NDA legacy aún depende de `documents`.
 2. `anchor-bitcoin` — compatibilidad de payload legacy y puntero `documents`.
 3. `anchor-polygon` — compatibilidad de payload legacy y puntero `documents`.
-4. `log-event` — endpoint legacy acepta `documentId` además de `documentEntityId`.
-5. `new-document-canonical-trigger` — trigger de proyección desde tabla `documents`.
-6. `notify-document-certified` — compatibilidad de entrada `documentId`.
-7. `notify-document-signed` — payload email usa `documentId` referencial.
-8. `signer-access` — `documentId` refiere documento externo de SignNow.
-9. `signnow` — `documentId` refiere documento externo de SignNow.
-10. `signnow-webhook` — payload legado de integración usa `documentId`.
-11. `submit-anchor-bitcoin` — forward de `document_id` legacy a anchor worker.
-12. `submit-anchor-polygon` — forward de `document_id` legacy a anchor worker.
+4. `new-document-canonical-trigger` — trigger de proyección desde tabla `documents`.
+5. `notify-document-certified` — compatibilidad de entrada `documentId`.
+6. `notify-document-signed` — payload email usa `documentId` referencial.
+7. `signer-access` — `documentId` refiere documento externo de SignNow.
+8. `signnow` — `documentId` refiere documento externo de SignNow.
+9. `signnow-webhook` — payload legado de integración usa `documentId`.
+10. `submit-anchor-bitcoin` — forward de `document_id` legacy a anchor worker.
+11. `submit-anchor-polygon` — forward de `document_id` legacy a anchor worker.
 
 ## Criterio de aceptación
 1. Guard de frontera pública en verde.

@@ -60,11 +60,13 @@ test('log-event must append canonical events to document_entities', async () => 
   const content = await fs.readFile(LOG_EVENT_FILE, 'utf8');
 
   expect(content).toContain('appendEvent(');
-  expect(content).toContain('getDocumentEntityId(');
+  expect(content).toContain('documentEntityId');
   expect(content).toContain(".from('document_entities')");
   expect(content).not.toMatch(
     /\.from\(\s*['"]events['"]\s*\)\s*\.insert\(/s,
   );
+  expect(content).not.toContain('getDocumentEntityId(');
+  expect(content).not.toContain('documentId');
 });
 
 test('notify-document-certified must derive evidence from canonical entity/events', async () => {

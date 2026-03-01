@@ -23,7 +23,7 @@ jobs:
           ./verify_epi_invariants_local.sh | tee epi-local-guardrail.out
       - name: Upload EPI guardrail output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: epi-local-guardrail-output
           path: epi-local-guardrail.out
@@ -59,7 +59,7 @@ jobs:
         run: npm run check:governance-shadow
       - name: Upload governance shadow artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: governance-shadow-output
           path: reports/governance/

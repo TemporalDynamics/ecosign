@@ -169,6 +169,109 @@ async function verifyForRekor(
   return await verifier.verify(signature, message, pubkey);
 }
 
+type RekorProtectionStatement = {
+  type: 'ecosign.protection.v1.0';
+  hash: string;
+  document_entity_id: string;
+  issued_at: string;
+};
+
+export async function attemptRekorProofForProtection(params: {
+  witness_hash: string;
+  document_entity_id: string;
+  timeout_ms: number;
+}): Promise<RekorProofResult> {
+  const startedAtMs = Date.now();
+  const attemptedAt = new Date().toISOString();
+  const provider = 'rekor.sigstore.dev';
+
+  if (!params.witness_hash) {
+    return { kind: 'rekor', status: 'attempted', provider, ref: null, attempted_at: attemptedAt, elapsed_ms: Date.now() - startedAtMs, reason: 'no_witness_hash' };
+  }
+
+  const priv = getPrivateKeyBytes();
+  if (!priv) {
+    return { kind: 'rekor', status: 'attempted', provider, ref: null, attempted_at: attemptedAt, elapsed_ms: Date.now() - startedAtMs, reason: 'no_key_configured' };
+  }
+
+  try {
+    const issuedAt = new Date().toISOString();
+    const statement: RekorProtectionStatement = {
+      type: 'ecosign.protection.v1.0',
+      hash: params.witness_hash,
+      document_entity_id: params.document_entity_id,
+      issued_at: issuedAt,
+    };
+
+    const statementJson = canonicalize(statement);
+    const statementHash = await sha256Hex(statementJson);
+    const statementBytes = new TextEncoder().encode(statementJson);
+    const payloadType = 'application/vnd.in-toto+json';
+    const pae = buildDssePae(payloadType, statementBytes);
+    const signature = await signForRekor(pae, priv);
+    const pubkey = await ed.getPublicKey(priv);
+    const localSignatureValid = await verifyForRekor(signature, pae, pubkey);
+    if (!localSignatureValid) {
+      return { kind: 'rekor', status: 'failed', provider, ref: null, attempted_at: attemptedAt, elapsed_ms: Date.now() - startedAtMs, reason: 'local_verify_failed', statement_hash: statementHash, statement_type: statement.type };
+    }
+
+    const pubkeyB64 = bytesToBase64(pubkey);
+    const pemB64 = utf8ToBase64(ed25519PublicKeyPem(pubkey));
+    const payloadB64 = bytesToBase64(statementBytes);
+    const signatureB64 = bytesToBase64(signature);
+    const envelopeForHash = { payloadType, payload: payloadB64, signatures: [{ sig: signatureB64, publicKey: pemB64 }] };
+    const envelopeHash = await sha256Hex(canonicalize(envelopeForHash));
+    const envelope: DsseEnvelope = {
+      payloadType,
+      payload: utf8ToBase64(payloadB64),
+      signatures: [{ sig: utf8ToBase64(signatureB64), publicKey: pemB64 }],
+    };
+
+    const rekorPayload = {
+      apiVersion: '0.0.2',
+      kind: 'intoto',
+      spec: { content: { envelope, hash: { algorithm: 'sha256', value: envelopeHash }, payloadHash: { algorithm: 'sha256', value: statementHash } } },
+    };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), params.timeout_ms);
+    const resp = await fetch(`https://${provider}/api/v1/log/entries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rekorPayload),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timer));
+
+    if (!resp.ok) {
+      let snippet = '';
+      try { snippet = (await resp.text()).slice(0, 200).replace(/\s+/g, ' ').trim(); } catch { /* ignore */ }
+      return { kind: 'rekor', status: 'failed', provider, ref: null, attempted_at: attemptedAt, elapsed_ms: Date.now() - startedAtMs, reason: snippet ? `http_${resp.status}:${snippet}` : `http_${resp.status}`, statement_hash: statementHash, statement_type: statement.type };
+    }
+
+    const data = await resp.json().catch(() => ({}));
+    const uuid = data && typeof data === 'object' ? Object.keys(data)[0] : null;
+    const entry = uuid ? (data as any)[uuid] : null;
+    const logIndex = typeof entry?.logIndex === 'number' ? entry.logIndex : null;
+    const integratedTime = typeof entry?.integratedTime === 'number' ? entry.integratedTime : null;
+    return {
+      kind: 'rekor',
+      status: uuid ? 'confirmed' : 'failed',
+      provider,
+      ref: uuid,
+      attempted_at: attemptedAt,
+      elapsed_ms: Date.now() - startedAtMs,
+      statement_hash: statementHash,
+      statement_type: statement.type,
+      public_key_b64: pubkeyB64,
+      log_index: logIndex ?? undefined,
+      integrated_time: integratedTime ?? undefined,
+    };
+  } catch (err) {
+    const normalized = normalizeRekorError(err);
+    return { kind: 'rekor', status: normalized.status, provider, ref: null, attempted_at: attemptedAt, elapsed_ms: Date.now() - startedAtMs, reason: normalized.reason };
+  }
+}
+
 export async function attemptRekorProof(params: {
   witness_hash: string;
   workflow_id: string;

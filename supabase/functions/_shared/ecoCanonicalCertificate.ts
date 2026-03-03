@@ -186,7 +186,24 @@ export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
 
   const polygonProof = findAnchorProof(events, 'polygon');
   const bitcoinProof = findAnchorProof(events, 'bitcoin');
-  const proofs = [tsaProof, polygonProof, bitcoinProof].filter(Boolean);
+
+  const rekorEvent = findLatest(events, 'rekor.confirmed');
+  const rekorProof = rekorEvent
+    ? {
+        kind: 'rekor',
+        status: 'confirmed',
+        provider: 'rekor.sigstore.dev',
+        ref: rekorEvent.payload?.['ref'] ?? null,
+        attempted_at: rekorEvent.at ?? null,
+        statement_hash: rekorEvent.payload?.['statement_hash'] ?? null,
+        statement_type: rekorEvent.payload?.['statement_type'] ?? null,
+        public_key_b64: rekorEvent.payload?.['public_key_b64'] ?? null,
+        log_index: rekorEvent.payload?.['log_index'] ?? null,
+        witness_hash: rekorEvent.payload?.['witness_hash'] ?? null,
+      }
+    : null;
+
+  const proofs = [tsaProof, rekorProof, polygonProof, bitcoinProof].filter(Boolean);
 
   return {
     format: 'eco',

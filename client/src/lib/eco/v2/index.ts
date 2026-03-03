@@ -54,7 +54,13 @@ export type AnchorEvent = {
   payload?: Record<string, unknown>;
 };
 
-export type EventEntry = TsaEvent | AnchorEvent;
+export type RekorEvent = {
+  kind: 'rekor.confirmed';
+  at: string;
+  payload?: Record<string, unknown>;
+};
+
+export type EventEntry = TsaEvent | AnchorEvent | RekorEvent;
 
 export type EcoV2 = {
   version: 'eco.v2';
@@ -280,6 +286,21 @@ const buildProofsFromEvents = (events: EventEntry[], witnessHash?: string) => {
       attempted_at: tsa.at ?? null,
       token_b64: tsa.tsa?.token_b64 ?? null,
       witness_hash: witnessHash ?? tsa.witness_hash ?? null,
+    });
+  }
+
+  const rekor = findLatestEvent(events, 'rekor.confirmed');
+  if (rekor) {
+    proofs.push({
+      kind: 'rekor',
+      status: 'confirmed',
+      provider: 'rekor.sigstore.dev',
+      ref: (rekor.payload?.['ref'] as string | undefined) ?? null,
+      attempted_at: rekor.at ?? null,
+      statement_hash: (rekor.payload?.['statement_hash'] as string | undefined) ?? null,
+      public_key_b64: (rekor.payload?.['public_key_b64'] as string | undefined) ?? null,
+      log_index: (rekor.payload?.['log_index'] as number | undefined) ?? null,
+      witness_hash: (rekor.payload?.['witness_hash'] as string | undefined) ?? witnessHash ?? null,
     });
   }
 
@@ -759,6 +780,25 @@ const verifyTsaEvents = (
   };
 };
 
+const verifyRekorEvents = (
+  events: EventEntry[],
+  witnessHash: string | undefined
+): { present: boolean; valid?: boolean; ref?: string; witness_hash?: string } => {
+  const rekorEvents = events.filter((e) => e.kind === 'rekor.confirmed');
+  if (rekorEvents.length === 0) return { present: false };
+
+  const last = rekorEvents[rekorEvents.length - 1];
+  const rekorWitness = last.payload?.['witness_hash'] as string | undefined;
+  const ref = last.payload?.['ref'] as string | undefined;
+
+  // EPI invariant: rekor.witness_hash must match canonical hash_chain.witness_hash
+  if (witnessHash && rekorWitness && rekorWitness !== witnessHash) {
+    return { present: true, valid: false, ref, witness_hash: rekorWitness };
+  }
+
+  return { present: true, valid: true, ref, witness_hash: rekorWitness };
+};
+
 export const verifyEcoV2 = (eco: unknown): VerificationResult => {
   if (!eco || typeof eco !== 'object') {
     return { status: 'unknown' };
@@ -890,6 +930,16 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
   // If TSA present but invalid → tampered
   if (tsaVerification.present && tsaVerification.valid === false) {
     return { status: 'tampered', tsa: tsaVerification };
+  }
+
+  // Verify Rekor events consistency (EPI: witness_hash must match hash_chain)
+  const rekorVerification = verifyRekorEvents(
+    candidate.events ?? [],
+    candidate.hash_chain.witness_hash
+  );
+
+  if (rekorVerification.present && rekorVerification.valid === false) {
+    return { status: 'tampered', tsa: tsaVerification, hash_chain_mismatch: 'rekor_witness_hash_mismatch' };
   }
 
   if (isIncomplete(candidate)) {

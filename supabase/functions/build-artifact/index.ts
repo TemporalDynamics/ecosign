@@ -4,6 +4,7 @@ import { appendEvent } from '../_shared/eventHelper.ts';
 import { processArtifact, type ArtifactInput } from '../../../packages/artifact-processor/src/index.ts';
 import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate.ts';
 import { signFinalEcoInstitutionally } from '../_shared/ecoInstitutionalSignature.ts';
+import { attemptRekorProofForProtection } from '../_shared/rekorProof.ts';
 import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 type BuildArtifactRequest = {
@@ -213,13 +214,51 @@ serve(async (req) => {
       return jsonResponse({ error: 'eco_certificate_upload_failed' }, 500);
     }
 
+    // Best-effort Rekor proof for protection documents.
+    // Non-blocking: if Rekor is down or times out, artifact generation still succeeds.
+    const witnessHash = entity.witness_hash ?? entity.source_hash ?? null;
+    if (witnessHash) {
+      try {
+        const rekorTimeoutMs = Math.max(3000, Math.min(
+          Number.parseInt(String(Deno.env.get('REKOR_TIMEOUT_MS') || '12000'), 10) || 12000,
+          30000
+        ));
+        const rekorResult = await attemptRekorProofForProtection({
+          witness_hash: witnessHash,
+          document_entity_id: documentEntityId,
+          timeout_ms: rekorTimeoutMs,
+        });
+        if (rekorResult.status === 'confirmed') {
+          await appendEvent(supabase, documentEntityId, {
+            kind: 'rekor.confirmed',
+            at: rekorResult.attempted_at,
+            payload: {
+              ref: rekorResult.ref,
+              statement_hash: rekorResult.statement_hash ?? null,
+              statement_type: rekorResult.statement_type ?? null,
+              public_key_b64: rekorResult.public_key_b64 ?? null,
+              log_index: rekorResult.log_index ?? null,
+              integrated_time: rekorResult.integrated_time ?? null,
+              witness_hash: witnessHash,
+              elapsed_ms: rekorResult.elapsed_ms ?? null,
+            },
+          }, 'build-artifact');
+          console.log(`✅ rekor.confirmed for entity ${documentEntityId} ref=${rekorResult.ref}`);
+        } else {
+          console.warn(`[build-artifact] Rekor non-critical: ${rekorResult.status} reason=${rekorResult.reason ?? 'none'}`);
+        }
+      } catch (rekorErr) {
+        console.warn('[build-artifact] Rekor attempt threw (non-critical):', rekorErr);
+      }
+    }
+
     await emitEvent(
       supabase,
       documentEntityId,
       {
         kind: 'artifact.finalized',
         at: finalizedAt,
-        correlation_id: correlationId,  // NUEVO: heredado del job
+        correlation_id: correlationId,
         payload: {
           artifact_storage_path: artifactPath,
           eco_storage_path: ecoPath,

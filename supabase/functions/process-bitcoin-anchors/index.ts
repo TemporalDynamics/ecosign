@@ -374,6 +374,39 @@ async function emitAnchorConfirmedEvent(
   }
 }
 
+async function emitAnchorPendingEvent(
+  anchor: any,
+  reason: string,
+  attempts: number,
+  pendingAgeMinutes: number,
+) {
+  if (!supabaseAdmin || !anchor.document_entity_id) return;
+
+  const nowIso = new Date().toISOString();
+  const anchorStage = getAnchorStage(anchor);
+  const stepIndex = getStepIndex(anchor);
+
+  try {
+    await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
+      kind: 'anchor.pending',
+      at: nowIso,
+      anchor: {
+        network: 'bitcoin',
+        witness_hash: anchor.document_hash,
+        reason,
+        attempt: attempts,
+        pending_age_minutes: pendingAgeMinutes,
+        pending_age_hours: Number((pendingAgeMinutes / 60).toFixed(2)),
+        provider: 'opentimestamps',
+        anchor_stage: anchorStage,
+        step_index: stepIndex,
+      }
+    }, 'process-bitcoin-anchors');
+  } catch (eventError) {
+    console.error('Failed to emit anchor.pending event:', eventError);
+  }
+}
+
 async function emitAnchorTimeoutEvent(
   anchor: any,
   reason: string,
@@ -610,6 +643,37 @@ serve(async (req) => {
 
             let txid = parsed.txid || verification.bitcoinTxId;
             let blockHeight = parsed.height || verification.blockHeight;
+
+            if (!txid) {
+              const nowIso = new Date().toISOString();
+              const retryProjection = projectRetry(anchor, BITCOIN_RETRY_POLICY, attempts, nowIso);
+              const { error: updatePendingError } = await supabaseAdmin
+                .from('anchors')
+                .update({
+                  anchor_status: 'processing',
+                  bitcoin_attempts: attempts,
+                  bitcoin_error_message: 'txid_pending_extraction',
+                  ots_proof: verification.upgradedProof || anchor.ots_proof,
+                  metadata: {
+                    ...retryProjection.metadata,
+                    confirmation_pending_txid: true,
+                    calendar_url: anchor.ots_calendar_url,
+                  },
+                  updated_at: nowIso,
+                })
+                .eq('id', anchor.id);
+              if (updatePendingError) {
+                throw new Error(`Failed to persist pending-txid state for anchor ${anchor.id}: ${updatePendingError.message}`);
+              }
+              await emitAnchorPendingEvent(
+                anchor,
+                'txid_pending_extraction',
+                attempts,
+                timeoutEvaluation.pendingAgeMinutes,
+              );
+              waiting++;
+              continue;
+            }
 
             // Optional: fetch block data from mempool if txid is available
             if (txid) {

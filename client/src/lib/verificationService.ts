@@ -212,6 +212,10 @@ const mapEcoV2Result = (
     }
   }
 
+  if (result.hash_chain_mismatch) {
+    errors.push(`Hash chain inconsistente (${result.hash_chain_mismatch}).`);
+  }
+
   let finalValid = valid;
   let finalSignatureValid = !!result.signed_hash;
   if (onlineRevocation?.checked) {

@@ -11,8 +11,15 @@ const { createClient } = require('@supabase/supabase-js');
 
 // Config
 const SUPABASE_URL = process.env.SUPABASE_URL || 'http://127.0.0.1:54321';
-const SERVICE_ROLE_KEY = process.env.SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || 'super-secret-jwt-token-with-at-least-32-characters-long';
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY;
+const JWT_SECRET =
+  process.env.SUPABASE_JWT_SECRET ||
+  process.env.JWT_SECRET ||
+  'super-secret-jwt-token-with-at-least-32-characters-long';
+
+if (!SERVICE_ROLE_KEY) {
+  throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY (or SERVICE_ROLE_KEY)');
+}
 
 // Test IDs
 const OWNER_ID = '11111111-1111-1111-1111-111111111111';

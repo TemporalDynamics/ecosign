@@ -889,7 +889,8 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
           body: {
             path: ecoPath,
             workflowId: signerData.workflow_id,
-            signerId: signerData.signer_id
+            signerId: signerData.signer_id,
+            accessToken: token
           }
         })
         if (error || !data?.success || !data?.signed_url) {

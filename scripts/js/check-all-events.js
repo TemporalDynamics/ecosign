@@ -1,25 +1,37 @@
 #!/usr/bin/env node
-const fetch = require('node-fetch');
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://uiyojopjbhooxrmamaiw.supabase.co';
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-const URL = 'https://uiyojopjbhooxrmamaiw.supabase.co/rest/v1/events?select=event_type,timestamp&order=timestamp.desc&limit=10';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzY3MDIxNSwiZXhwIjoyMDc5MjQ2MjE1fQ.p2BGhgKApeNNqwyr-62Rvk_6lqIAt7y9UVstw6XlNCQ';
+if (!KEY) {
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY in environment.');
+  process.exit(1);
+}
 
 async function checkEvents() {
-  const res = await fetch(URL, {
+  const url = `${SUPABASE_URL}/rest/v1/events?select=event_type,timestamp&order=timestamp.desc&limit=10`;
+  const res = await fetch(url, {
     headers: {
-      'apikey': KEY,
-      'Authorization': `Bearer ${KEY}`
-    }
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+    },
   });
 
   const events = await res.json();
+  if (!Array.isArray(events)) {
+    console.log('Unexpected response:', events);
+    return;
+  }
+
   console.log('✅ Total eventos en tabla:', events.length);
   if (events.length > 0) {
     console.log('\nÚltimos 10 eventos:');
-    events.forEach(e => {
-      console.log(`  ${new Date(e.timestamp).toLocaleString()} | ${e.event_type}`);
+    events.forEach((event) => {
+      console.log(`  ${new Date(event.timestamp).toLocaleString()} | ${event.event_type}`);
     });
   }
 }
 
-checkEvents().catch(console.error);
+checkEvents().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

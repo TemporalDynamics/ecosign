@@ -163,9 +163,18 @@ const computeHash = async (
   return await hashSigned(buffer);
 };
 
+const getEcoStoragePathFromEvents = (events?: any[]): string | null => {
+  if (!events || events.length === 0) return null;
+  const finalized = [...events]
+    .reverse()
+    .find((e: any) => e?.kind === 'artifact.finalized');
+  return finalized?.payload?.eco_storage_path ?? null;
+};
+
 const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord => {
   const documentHash = entity.signed_hash || entity.witness_current_hash || entity.source_hash;
   const tsaInfo = getLatestTsaEvent(entity.events as any[]);
+  const ecoStoragePath = getEcoStoragePathFromEvents(entity.events as any[]);
   return {
     id: entity.id,
     document_entity_id: entity.id,
@@ -181,6 +190,7 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     has_legal_timestamp: tsaInfo.present,
     has_polygon_anchor: false,
     has_bitcoin_anchor: false,
+    eco_storage_path: ecoStoragePath,
     events: Array.isArray(entity.events) ? entity.events : [],
     signer_links: []
   };
@@ -1209,22 +1219,40 @@ function DocumentsPage() {
       : `No se pudo descargar el archivo (código ${status}).`;
   };
 
-  const getBucketCandidates = (storagePath: string, preferredBucket?: 'custody' | 'user-documents') => {
+  const getBucketCandidates = (
+    storagePath: string,
+    preferredBucket?: 'custody' | 'user-documents' | 'artifacts'
+  ) => {
     const isLikelyCustodyPath =
       storagePath.includes('/encrypted_witness/') ||
       storagePath.includes('/encrypted_source/');
-    const ordered: Array<'custody' | 'user-documents'> = preferredBucket
-      ? [preferredBucket, preferredBucket === 'custody' ? 'user-documents' : 'custody']
-      : isLikelyCustodyPath
-        ? ['custody', 'user-documents']
-        : ['user-documents', 'custody'];
+    const isLikelyArtifactPath =
+      storagePath.startsWith('artifacts/') ||
+      storagePath.endsWith('.eco') ||
+      storagePath.endsWith('.eco.json') ||
+      storagePath.endsWith('.ecox') ||
+      storagePath.endsWith('.ecox.json');
+    const ordered: Array<'custody' | 'user-documents' | 'artifacts'> = preferredBucket
+      ? [
+          preferredBucket,
+          preferredBucket === 'custody'
+            ? 'user-documents'
+            : preferredBucket === 'artifacts'
+              ? 'user-documents'
+              : 'custody',
+        ]
+      : isLikelyArtifactPath
+        ? ['artifacts', 'user-documents', 'custody']
+        : isLikelyCustodyPath
+          ? ['custody', 'user-documents', 'artifacts']
+          : ['user-documents', 'custody', 'artifacts'];
     return Array.from(new Set(ordered));
   };
 
   const createSignedUrlWithFallback = async (
     storagePath: string,
     expiresInSeconds = 3600,
-    preferredBucket?: 'custody' | 'user-documents'
+    preferredBucket?: 'custody' | 'user-documents' | 'artifacts'
   ) => {
     const supabase = getSupabase();
     const candidates = getBucketCandidates(storagePath, preferredBucket);

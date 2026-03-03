@@ -1,8 +1,20 @@
 #!/usr/bin/env node
-const fetch = require('node-fetch');
+/**
+ * Legacy table smoke check.
+ *
+ * Required env:
+ * - SUPABASE_SERVICE_ROLE_KEY
+ * Optional env:
+ * - SUPABASE_URL
+ */
 
-const URL = 'https://uiyojopjbhooxrmamaiw.supabase.co/rest/v1/events';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzY3MDIxNSwiZXhwIjoyMDc5MjQ2MjE1fQ.p2BGhgKApeNNqwyr-62Rvk_6lqIAt7y9UVstw6XlNCQ';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://uiyojopjbhooxrmamaiw.supabase.co';
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+if (!KEY) {
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY in environment.');
+  process.exit(1);
+}
 
 async function testInsert() {
   console.log('🧪 Probando insert de anchor.attempt event...\n');
@@ -14,32 +26,30 @@ async function testInsert() {
       network: 'polygon',
       witness_hash: 'test-hash',
       status: 'pending',
-      attempted_at: new Date().toISOString()
+      attempted_at: new Date().toISOString(),
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 
-  const res = await fetch(URL, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/events`, {
     method: 'POST',
     headers: {
-      'apikey': KEY,
-      'Authorization': `Bearer ${KEY}`,
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
       'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
+      Prefer: 'return=representation',
     },
-    body: JSON.stringify(testEvent)
+    body: JSON.stringify(testEvent),
   });
 
   const text = await res.text();
 
   console.log('Status:', res.status);
   console.log('Response:', text);
-
-  if (res.ok) {
-    console.log('\n✅ INSERT funcionó correctamente');
-  } else {
-    console.log('\n❌ INSERT falló - probablemente RLS bloqueando');
-  }
+  console.log(res.ok ? '\n✅ INSERT funcionó correctamente' : '\n❌ INSERT falló (posible RLS o tabla legacy)');
 }
 
-testInsert().catch(console.error);
+testInsert().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

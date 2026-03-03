@@ -24,8 +24,19 @@ BEGIN
 
   -- Step 2: Invoke orchestrator worker
   supabase_url := 'https://uiyojopjbhooxrmamaiw.supabase.co';
-  -- Public project anon key (JWT)
-  anon_key := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzAyMTUsImV4cCI6MjA3OTI0NjIxNX0.3xQ3db1dmTyAsbOtdJt4zpplG8RcnkxqCQR5wWkvFxk';
+  BEGIN
+    SELECT decrypted_secret INTO anon_key
+    FROM vault.decrypted_secrets
+    WHERE name = 'SUPABASE_ANON_KEY';
+  EXCEPTION
+    WHEN undefined_table OR invalid_schema_name THEN
+      anon_key := NULL;
+  END;
+
+  anon_key := COALESCE(anon_key, NULLIF(current_setting('app.settings.anon_key', true), ''));
+  IF anon_key IS NULL THEN
+    RAISE EXCEPTION 'Missing anon key for cron HTTP call (SUPABASE_ANON_KEY)';
+  END IF;
 
   SELECT net.http_post(
     url := supabase_url || '/functions/v1/orchestrator',
@@ -45,7 +56,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION process_orchestrator_jobs() IS
-  'Calls orchestrator via HTTP (cron). Reclaims stale jobs first. Uses public anon key to satisfy gateway apikey.';
+  'Calls orchestrator via HTTP (cron). Reclaims stale jobs first. Resolves anon key from vault/app.settings.';
 
 -- Update wake_execution_engine() to call reclaim first
 CREATE OR REPLACE FUNCTION public.wake_execution_engine()
@@ -69,8 +80,19 @@ BEGIN
 
   -- Step 2: Invoke fase1-executor worker
   supabase_url := 'https://uiyojopjbhooxrmamaiw.supabase.co';
-  -- Public project anon key (JWT)
-  anon_key := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzAyMTUsImV4cCI6MjA3OTI0NjIxNX0.3xQ3db1dmTyAsbOtdJt4zpplG8RcnkxqCQR5wWkvFxk';
+  BEGIN
+    SELECT decrypted_secret INTO anon_key
+    FROM vault.decrypted_secrets
+    WHERE name = 'SUPABASE_ANON_KEY';
+  EXCEPTION
+    WHEN undefined_table OR invalid_schema_name THEN
+      anon_key := NULL;
+  END;
+
+  anon_key := COALESCE(anon_key, NULLIF(current_setting('app.settings.anon_key', true), ''));
+  IF anon_key IS NULL THEN
+    RAISE EXCEPTION 'Missing anon key for cron HTTP call (SUPABASE_ANON_KEY)';
+  END IF;
 
   SELECT net.http_post(
     url := supabase_url || '/functions/v1/fase1-executor',
@@ -90,4 +112,4 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION public.wake_execution_engine() IS
-  'Calls fase1-executor via HTTP (cron). Reclaims stale jobs first. Uses public anon key to satisfy gateway apikey.';
+  'Calls fase1-executor via HTTP (cron). Reclaims stale jobs first. Resolves anon key from vault/app.settings.';

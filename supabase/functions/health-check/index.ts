@@ -78,26 +78,45 @@ serve(async (req) => {
     const issues: string[] = [];
 
     // ========================================================================
-    // 1. Check cron jobs
+    // 1. Check cron jobs (real runtime status)
     // ========================================================================
-    // Note: Cron job status monitoring simplified due to RPC limitations
-    // We infer cron health from recent anchor activity instead
+    const { data: cronRuntimeRows, error: cronRuntimeError } = await supabase
+      .rpc('get_cron_runtime_status');
 
-    // Assume crons are active (they were created via migration)
-    const polygonCron = { active: true };
-    const bitcoinCron = { active: true };
+    const cronRows = Array.isArray(cronRuntimeRows) ? cronRuntimeRows : [];
+    const readCron = (jobname: string) =>
+      cronRows.find((row: any) => row?.jobname === jobname) ?? null;
 
-    // We'll infer health from pending documents and recent activity
-    const polygonLastRun = null;
-    const bitcoinLastRun = null;
+    const runtimeTick = readCron('runtime-tick');
+    const polygonProcessCron = readCron('process-polygon-anchors');
+    const bitcoinProcessCron = readCron('process-bitcoin-anchors');
+
+    const polygonCron = {
+      active: Boolean(polygonProcessCron?.active),
+      last_run: (polygonProcessCron?.last_run as string | null) ?? null,
+    };
+    const bitcoinCron = {
+      active: Boolean(bitcoinProcessCron?.active),
+      last_run: (bitcoinProcessCron?.last_run as string | null) ?? null,
+    };
+
+    const polygonLastRun = polygonCron.last_run ? { start_time: polygonCron.last_run, status: 'unknown' } : null;
+    const bitcoinLastRun = bitcoinCron.last_run ? { start_time: bitcoinCron.last_run, status: 'unknown' } : null;
     const polygonFailures = 0;
     const bitcoinFailures = 0;
 
+    if (cronRuntimeError) {
+      issues.push(`Unable to read cron runtime status: ${cronRuntimeError.message}`);
+    }
+
     if (!polygonCron?.active) {
-      issues.push('Polygon worker is not active');
+      issues.push('Polygon confirmation cron is not active');
     }
     if (!bitcoinCron?.active) {
-      issues.push('Bitcoin worker is not active');
+      issues.push('Bitcoin confirmation cron is not active');
+    }
+    if (runtimeTick?.active && (!polygonCron.active || !bitcoinCron.active)) {
+      issues.push('runtime-tick is active but anchor confirmation crons are disabled');
     }
     if (polygonFailures > 5) {
       issues.push(`Polygon worker has ${polygonFailures}/10 recent failures`);

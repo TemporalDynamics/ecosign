@@ -11,6 +11,7 @@
 
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 interface DeadJobReport {
   summary: {
@@ -115,11 +116,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validar autorización (requiere service_role)
-    const authHeader = req.headers.get('Authorization');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!authHeader || !serviceRoleKey || !authHeader.includes(serviceRoleKey)) {
+    const auth = requireInternalAuth(req, { allowCronSecret: false });
+    if (!auth.ok) {
       return new Response(JSON.stringify({ error: 'Unauthorized - service_role required' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -135,6 +133,7 @@ Deno.serve(async (req) => {
 
     // Inicializar Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Build query - derive dead condition instead of relying on status='dead'

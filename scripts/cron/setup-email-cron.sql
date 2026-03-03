@@ -22,7 +22,7 @@ SELECT cron.schedule(
       url := 'https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/send-pending-emails',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzAyMTUsImV4cCI6MjA3OTI0NjIxNX0.3xQ3db1dmTyAsbOtdJt4zpplG8RcnkxqCQR5wWkvFxk'
+        'Authorization', 'Bearer <YOUR-ANON-KEY>'
       ),
       body := '{}'::jsonb
     ) as request_id;

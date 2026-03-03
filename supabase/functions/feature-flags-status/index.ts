@@ -8,6 +8,7 @@
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { withRateLimit } from '../_shared/ratelimit.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 Deno.serve(withRateLimit('feature-flags-status', async (req) => {
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
@@ -28,11 +29,8 @@ Deno.serve(withRateLimit('feature-flags-status', async (req) => {
   }
 
   try {
-    // Validar autorización (requiere service_role)
-    const authHeader = req.headers.get('Authorization');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!authHeader || !serviceRoleKey || !authHeader.includes(serviceRoleKey)) {
+    const auth = requireInternalAuth(req, { allowCronSecret: false });
+    if (!auth.ok) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -41,6 +39,7 @@ Deno.serve(withRateLimit('feature-flags-status', async (req) => {
 
     // Inicializar Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // Obtener flags desde la base de datos

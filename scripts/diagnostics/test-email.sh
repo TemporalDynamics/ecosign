@@ -3,13 +3,20 @@
 # Reemplaza TU_EMAIL con tu email real antes de ejecutar
 
 EMAIL_DESTINO="tu-email@gmail.com"  # ← CAMBIA ESTO
+SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
+
+if [ -z "$SUPABASE_ANON_KEY" ]; then
+  echo "❌ Falta SUPABASE_ANON_KEY en el entorno"
+  exit 1
+fi
 
 echo "🧪 Creando notificación de prueba..."
 echo "📧 Email destino: $EMAIL_DESTINO"
 echo ""
 
 curl -X POST "https://uiyojopjbhooxrmamaiw.supabase.co/rest/v1/workflow_notifications" \
-  -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0" \
+  -H "apikey: $SUPABASE_ANON_KEY" \
+  -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
   -H "Content-Type: application/json" \
   -H "Prefer: return=representation" \
   -d "{

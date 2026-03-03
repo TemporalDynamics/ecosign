@@ -4,11 +4,11 @@
 -- Why this exists:
 -- - Some environments cannot persist app.settings.* via ALTER DATABASE.
 -- - Cron jobs must still be able to call Edge Functions through the gateway.
--- - Supabase anon key is public and safe to embed.
+-- - Cron wrappers should resolve anon key at runtime (vault or app.settings).
 --
 -- IMPORTANT:
--- - This key must match the project ref (uiyojopjbhooxrmamaiw).
--- - Rotate if project keys are regenerated.
+-- - Key is resolved from `vault.decrypted_secrets` (SUPABASE_ANON_KEY) first.
+-- - Fallback is `app.settings.anon_key`.
 
 CREATE OR REPLACE FUNCTION process_orchestrator_jobs()
 RETURNS void AS $$
@@ -18,8 +18,19 @@ DECLARE
   request_id BIGINT;
 BEGIN
   supabase_url := 'https://uiyojopjbhooxrmamaiw.supabase.co';
-  -- Public project anon key (JWT)
-  anon_key := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzAyMTUsImV4cCI6MjA3OTI0NjIxNX0.3xQ3db1dmTyAsbOtdJt4zpplG8RcnkxqCQR5wWkvFxk';
+  BEGIN
+    SELECT decrypted_secret INTO anon_key
+    FROM vault.decrypted_secrets
+    WHERE name = 'SUPABASE_ANON_KEY';
+  EXCEPTION
+    WHEN undefined_table OR invalid_schema_name THEN
+      anon_key := NULL;
+  END;
+
+  anon_key := COALESCE(anon_key, NULLIF(current_setting('app.settings.anon_key', true), ''));
+  IF anon_key IS NULL THEN
+    RAISE EXCEPTION 'Missing anon key for cron HTTP call (SUPABASE_ANON_KEY)';
+  END IF;
 
   SELECT net.http_post(
     url := supabase_url || '/functions/v1/orchestrator',
@@ -39,7 +50,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION process_orchestrator_jobs() IS
-  'Calls orchestrator via HTTP (cron). Uses public anon key to satisfy gateway apikey.';
+  'Calls orchestrator via HTTP (cron). Resolves anon key from vault/app.settings.';
 
 CREATE OR REPLACE FUNCTION public.wake_execution_engine()
 RETURNS void AS $$
@@ -49,8 +60,19 @@ DECLARE
   request_id BIGINT;
 BEGIN
   supabase_url := 'https://uiyojopjbhooxrmamaiw.supabase.co';
-  -- Public project anon key (JWT)
-  anon_key := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzAyMTUsImV4cCI6MjA3OTI0NjIxNX0.3xQ3db1dmTyAsbOtdJt4zpplG8RcnkxqCQR5wWkvFxk';
+  BEGIN
+    SELECT decrypted_secret INTO anon_key
+    FROM vault.decrypted_secrets
+    WHERE name = 'SUPABASE_ANON_KEY';
+  EXCEPTION
+    WHEN undefined_table OR invalid_schema_name THEN
+      anon_key := NULL;
+  END;
+
+  anon_key := COALESCE(anon_key, NULLIF(current_setting('app.settings.anon_key', true), ''));
+  IF anon_key IS NULL THEN
+    RAISE EXCEPTION 'Missing anon key for cron HTTP call (SUPABASE_ANON_KEY)';
+  END IF;
 
   SELECT net.http_post(
     url := supabase_url || '/functions/v1/fase1-executor',
@@ -70,4 +92,4 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION public.wake_execution_engine() IS
-  'Calls fase1-executor via HTTP (cron). Uses public anon key to satisfy gateway apikey.';
+  'Calls fase1-executor via HTTP (cron). Resolves anon key from vault/app.settings.';

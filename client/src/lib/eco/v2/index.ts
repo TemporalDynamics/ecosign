@@ -209,7 +209,6 @@ const buildHashChainFallback = (row: DocumentEntityRow): HashChain => {
 export const projectEcoV2FromDocumentEntity = (row: DocumentEntityRow): EcoV2 => {
   const hashChainPrimary = parseJsonObject(row.hash_chain) as HashChain | null;
   const hashChainFallback = buildHashChainFallback(row);
-  // TODO(contract): if hash_chain exists and differs from fallback, verifier must flag.
   const hashChain = hashChainPrimary ?? hashChainFallback;
 
   const eco: EcoV2 = {
@@ -412,6 +411,7 @@ export type VerificationResult = {
   witness_hash?: string;
   signed_hash?: string;
   authoritative?: boolean;
+  hash_chain_mismatch?: string;
   institutional_signature?: {
     present: boolean;
     valid?: boolean;
@@ -684,6 +684,34 @@ const isIncomplete = (eco: EcoV2): boolean => {
   return false;
 };
 
+const getHashChainMismatch = (eco: EcoV2): string | null => {
+  const chain = eco.hash_chain;
+  if (!chain) return null;
+
+  const sourceHash = eco.source?.hash;
+  if (sourceHash && chain.source_hash && chain.source_hash !== sourceHash) {
+    return 'source_hash_mismatch';
+  }
+
+  const witnessHash = eco.witness?.hash;
+  if (chain.witness_hash && witnessHash && chain.witness_hash !== witnessHash) {
+    return 'witness_hash_mismatch';
+  }
+  if (chain.witness_hash && !witnessHash) {
+    return 'witness_hash_missing_in_document';
+  }
+
+  const signedHash = eco.signed?.hash;
+  if (chain.signed_hash && signedHash && chain.signed_hash !== signedHash) {
+    return 'signed_hash_mismatch';
+  }
+  if (chain.signed_hash && !signedHash) {
+    return 'signed_hash_missing_in_document';
+  }
+
+  return null;
+};
+
 const verifyTsaEvents = (
   events: EventEntry[],
   witnessHash: string | undefined
@@ -804,6 +832,17 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
 
   if (!candidate.hash_chain || !candidate.source?.hash) {
     return { status: 'unknown' };
+  }
+
+  const hashChainMismatch = getHashChainMismatch(candidate);
+  if (hashChainMismatch) {
+    return {
+      status: 'tampered',
+      source_hash: candidate.source?.hash,
+      witness_hash: candidate.hash_chain.witness_hash,
+      signed_hash: candidate.hash_chain.signed_hash,
+      hash_chain_mismatch: hashChainMismatch,
+    };
   }
 
   if (candidate.source.hash !== candidate.hash_chain.source_hash) {

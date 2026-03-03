@@ -1,34 +1,43 @@
 #!/usr/bin/env node
-const fetch = require('node-fetch');
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://uiyojopjbhooxrmamaiw.supabase.co';
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-const URL = 'https://uiyojopjbhooxrmamaiw.supabase.co/rest/v1/events?select=event_type,timestamp,metadata&order=timestamp.desc&limit=30';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeW9qb3BqYmhvb3hybWFtYWl3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzY3MDIxNSwiZXhwIjoyMDc5MjQ2MjE1fQ.p2BGhgKApeNNqwyr-62Rvk_6lqIAt7y9UVstw6XlNCQ';
+if (!KEY) {
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY in environment.');
+  process.exit(1);
+}
 
 async function checkEvents() {
-  const res = await fetch(URL, {
+  const url = `${SUPABASE_URL}/rest/v1/events?select=event_type,timestamp,metadata&order=timestamp.desc&limit=30`;
+  const res = await fetch(url, {
     headers: {
-      'apikey': KEY,
-      'Authorization': `Bearer ${KEY}`
-    }
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+    },
   });
 
   const events = await res.json();
-  const anchorEvents = events.filter(e => e.event_type && e.event_type.startsWith('anchor'));
+  const anchorEvents = Array.isArray(events)
+    ? events.filter((event) => event.event_type && event.event_type.startsWith('anchor'))
+    : [];
 
-  console.log(`\n📊 Anchor Events (últimos 30):\n`);
+  console.log('\n📊 Anchor Events (últimos 30):\n');
 
   if (anchorEvents.length === 0) {
     console.log('❌ No se encontraron eventos de anchoring');
   } else {
-    anchorEvents.forEach(e => {
-      const network = e.metadata?.network || '?';
-      const status = e.metadata?.status || '?';
-      const time = new Date(e.timestamp).toLocaleString();
-      console.log(`${time} | ${e.event_type} | ${network} | ${status}`);
+    anchorEvents.forEach((event) => {
+      const network = event.metadata?.network || '?';
+      const status = event.metadata?.status || '?';
+      const time = new Date(event.timestamp).toLocaleString();
+      console.log(`${time} | ${event.event_type} | ${network} | ${status}`);
     });
   }
 
   console.log(`\n✅ Total: ${anchorEvents.length} eventos`);
 }
 
-checkEvents().catch(console.error);
+checkEvents().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

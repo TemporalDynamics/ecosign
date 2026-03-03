@@ -19,41 +19,73 @@ interface AccessMetadata {
 
 type EventLike = { kind?: string; payload?: Record<string, unknown> };
 
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function getLatestEcoStoragePath(events: unknown): string | null {
   if (!Array.isArray(events)) return null;
   for (let idx = events.length - 1; idx >= 0; idx -= 1) {
     const event = events[idx] as EventLike;
     if (event?.kind !== 'artifact.finalized') continue;
     const payload = event.payload;
-    const ecoPath = payload?.eco_storage_path;
-    if (typeof ecoPath === 'string' && ecoPath.trim().length > 0) {
-      return ecoPath;
-    }
+    const ecoPath = asNonEmptyString(payload?.eco_storage_path);
+    if (ecoPath) return ecoPath;
   }
   return null;
+}
+
+function buildPathCandidates(rawPath: string, bucket: string): string[] {
+  const path = rawPath.trim();
+  const noLeadingSlash = path.replace(/^\/+/, '');
+  const bucketPrefix = `${bucket}/`;
+  const withoutBucketPrefix = noLeadingSlash.startsWith(bucketPrefix)
+    ? noLeadingSlash.slice(bucketPrefix.length)
+    : null;
+
+  const candidates = [path, noLeadingSlash, withoutBucketPrefix].filter((v): v is string => !!v && v.length > 0);
+  return Array.from(new Set(candidates));
 }
 
 async function createSignedUrlWithFallback(
   supabase: any,
   path: string,
-  primaryBucket: string,
-  fallbackBucket?: string,
+  buckets: string[],
 ): Promise<string | null> {
-  const primary = await supabase.storage.from(primaryBucket).createSignedUrl(path, 3600);
-  if (!primary.error && primary.data?.signedUrl) {
-    return primary.data.signedUrl;
+  for (const bucket of buckets) {
+    const candidates = buildPathCandidates(path, bucket);
+    for (const candidate of candidates) {
+      const attempt = await supabase.storage.from(bucket).createSignedUrl(candidate, 3600);
+      if (!attempt.error && attempt.data?.signedUrl) {
+        return attempt.data.signedUrl;
+      }
+    }
   }
-
-  if (!fallbackBucket) {
-    return null;
-  }
-
-  const fallback = await supabase.storage.from(fallbackBucket).createSignedUrl(path, 3600);
-  if (!fallback.error && fallback.data?.signedUrl) {
-    return fallback.data.signedUrl;
-  }
-
   return null;
+}
+
+async function getEcoStoragePathFromProjection(
+  supabase: any,
+  documentEntityId: string,
+): Promise<string | null> {
+  const byDocumentEntity = await supabase
+    .from('user_documents')
+    .select('eco_storage_path')
+    .eq('document_entity_id', documentEntityId)
+    .maybeSingle();
+
+  const firstPath = asNonEmptyString(byDocumentEntity.data?.eco_storage_path);
+  if (firstPath) return firstPath;
+
+  const byId = await supabase
+    .from('user_documents')
+    .select('eco_storage_path')
+    .eq('id', documentEntityId)
+    .maybeSingle();
+
+  return asNonEmptyString(byId.data?.eco_storage_path);
 }
 
 serve(withRateLimit('verify', async (req) => {
@@ -295,17 +327,19 @@ serve(withRateLimit('verify', async (req) => {
         pdfSignedUrl = await createSignedUrlWithFallback(
           supabase,
           entity.witness_current_storage_path,
-          'user-documents',
+          ['user-documents', 'documents'],
         )
       }
 
-      const ecoStoragePath = getLatestEcoStoragePath((entity as any).events)
+      let ecoStoragePath = getLatestEcoStoragePath((entity as any).events)
+      if (!ecoStoragePath) {
+        ecoStoragePath = await getEcoStoragePathFromProjection(supabase, documentEntityId)
+      }
       if (ecoStoragePath) {
         ecoSignedUrl = await createSignedUrlWithFallback(
           supabase,
           ecoStoragePath,
-          'artifacts',
-          'user-documents',
+          ['artifacts', 'user-documents', 'documents'],
         )
       }
     }

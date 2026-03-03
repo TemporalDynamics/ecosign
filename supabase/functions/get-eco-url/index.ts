@@ -79,12 +79,11 @@ serve(async (req) => {
         return jsonResponse({ error: 'eco_not_ready' }, 404)
       }
 
-      // Normalize: strip leading bucket prefix if present
-      const normalizedPath = ecoStoragePath.replace(/^artifacts\//, '')
-
+      // eco_storage_path is stored as "artifacts/{id}/v1.eco.json" — this IS the path
+      // within the artifacts bucket. Use it directly without stripping any prefix.
       const { data, error } = await supabase.storage
         .from('artifacts')
-        .createSignedUrl(normalizedPath, 60 * 60)
+        .createSignedUrl(ecoStoragePath, 60 * 60)
 
       if (error || !data?.signedUrl) {
         return jsonResponse({ error: error?.message || 'signed_url_failed' }, 500)

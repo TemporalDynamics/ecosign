@@ -2424,7 +2424,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         if (forensicEnabled) {
           const { data, error } = await supabase.functions.invoke('record-protection-event', {
             body: {
-              document_id: savedDoc.id,
               document_entity_id: canonicalDocumentId || null,
               flow_version: useProtectV2 ? 'v2' : 'v1',
               protection_details: {

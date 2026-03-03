@@ -1582,6 +1582,7 @@ function DocumentsPage() {
       toast("Modo invitado: regeneración disponible solo con cuenta.", { position: "top-right" });
       return;
     }
+    const loadingToastId = toast.loading("Solicitando regeneración…", { position: "top-right" });
     try {
       const supabase = getSupabase();
       const { error } = await supabase.rpc("request_certificate_regeneration", {
@@ -1597,24 +1598,27 @@ function DocumentsPage() {
     } catch (err) {
       console.error("Error solicitando regeneración:", err);
       window.alert("No pudimos solicitar la regeneración. Probá de nuevo en unos segundos.");
+    } finally {
+      toast.dismiss(loadingToastId);
     }
   };
 
   const performEcoDownload = async (doc: DocumentRecord | null) => {
     if (!doc) return;
+    const targetDocumentId = doc.document_entity_id || doc.id;
 
     if (doc.eco_storage_path) {
       const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
-      downloadFromPath(doc.eco_storage_path, ecoName);
+      await downloadFromPath(doc.eco_storage_path, ecoName);
       return;
     }
     if (doc.eco_hash) {
-      requestRegeneration(doc.id, "eco");
+      await requestRegeneration(targetDocumentId, "eco");
       return;
     }
     // Frontend must not issue authoritative ECO certificates.
     // If canonical path is absent, request backend regeneration.
-    requestRegeneration(doc.id, "eco");
+    await requestRegeneration(targetDocumentId, "eco");
     window.alert("Todavía no hay certificado .ECO para este documento. Puede estar generándose; reintentá en unos minutos.");
   };
 
@@ -2965,10 +2969,9 @@ function DocumentsPage() {
                     className={`px-3 py-2 rounded-lg text-sm font-semibold ${
                       ecoAvailable
                         ? 'bg-black text-white hover:bg-gray-800'
-                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
-                    disabled={!ecoAvailable}
-                    title={ecoAvailable ? 'Descargar evidencia ECO' : 'ECO no disponible para este documento'}
+                    title={ecoAvailable ? 'Descargar evidencia ECO' : 'Solicitar regeneración de ECO'}
                   >
                     Descargar ECO
                     <span className="ml-2 text-xs opacity-70">evidencia verificable</span>

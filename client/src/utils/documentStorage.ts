@@ -303,9 +303,6 @@ export async function saveUserDocument(pdfFile: File, ecoData: unknown, options:
   const updatePayload: Record<string, unknown> = {
     metadata: nextMetadata,
   };
-  if (storePdf) {
-    updatePayload.custody_mode = 'encrypted_custody';
-  }
 
   const { error: updateError } = await supabase
     .from('document_entities')

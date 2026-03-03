@@ -2,7 +2,6 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { captureAndApplySignature } from '../_shared/signatureCapture.ts'
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1'
-import { shouldApplySignerSignature } from '../../../packages/authority/src/decisions/applySignerSignature.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { appendEvent } from '../_shared/eventHelper.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
@@ -532,69 +531,6 @@ serve(async (req) => {
         signerId: signer.id,
         otpVerifiedAt: signer.signer_otps?.verified_at
       })
-    }
-
-    const legacyDecision = Boolean(
-      (signerId || accessToken) &&
-      (!signerId || workflowId) &&
-      signer &&
-      !workflowIdMismatch &&
-      workflow &&
-      !tokenRevoked &&
-      !tokenExpired &&
-      !signerTerminal &&
-      (otpRequired ? otpVerified : true)
-    )
-
-    const canonicalDecision = shouldApplySignerSignature({
-      signer: signer ? {
-        id: signer.id,
-        workflow_id: signer.workflow_id,
-        status: signer.status,
-        token_expires_at: signer.token_expires_at ?? null,
-        token_revoked_at: signer.token_revoked_at ?? null,
-        otp_verified: otpRequired ? otpVerified : true,
-        require_login: signer.require_login ?? null,
-        quick_access: signer.quick_access ?? null
-      } : null,
-      workflow: workflow ? {
-        id: workflow.id,
-        document_entity_id: workflow.document_entity_id ?? null
-      } : null,
-      payload: {
-        signerId,
-        accessToken,
-        workflowId
-      }
-    })
-
-    const logWorkflowId = workflow?.id ?? (typeof workflowId === 'string' ? workflowId : null)
-    const logSignerId = signer?.id ?? (typeof signerId === 'string' ? signerId : null)
-    const isUuid = (value: string | null) => Boolean(value && /^[0-9a-fA-F-]{36}$/.test(value))
-
-    if (isUuid(logWorkflowId) || isUuid(logSignerId)) {
-      try {
-        await supabase.from('shadow_decision_logs').insert({
-          decision_code: 'D12_APPLY_SIGNER_SIGNATURE',
-          workflow_id: isUuid(logWorkflowId) ? logWorkflowId : null,
-          signer_id: isUuid(logSignerId) ? logSignerId : null,
-          legacy_decision: legacyDecision,
-          canonical_decision: canonicalDecision,
-          context: {
-            operation: 'apply-signer-signature',
-            workflow_id: signer?.workflow_id ?? null,
-            signer_status: signer?.status ?? null,
-            workflow_status: workflow?.status ?? null,
-            token_revoked_at: signer?.token_revoked_at ?? null,
-            token_expires_at: signer?.token_expires_at ?? null,
-            otp_verified: otpVerified,
-            workflow_id_mismatch: workflowIdMismatch,
-            phase: 'PASO_2_SHADOW_MODE_D12'
-          }
-        })
-      } catch (logError) {
-        console.warn('shadow log insert failed (D12)', logError)
-      }
     }
 
     if (workflowIdMismatch) {

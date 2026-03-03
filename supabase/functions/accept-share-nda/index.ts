@@ -70,31 +70,6 @@ serve(withRateLimit('accept', async (req) => {
       throw new Error('Share not found')
     }
 
-    // Share es un capability: no se ata a una identidad.
-    // El email/nombre que se registra es declarativo (self-reported) y NO se valida contra el share.
-    const legacyDecision = Boolean(share.nda_enabled && !share.nda_accepted_at)
-    const canonicalDecision = Boolean(share.nda_enabled && !share.nda_accepted_at)
-
-    try {
-      await supabase.from('shadow_decision_logs').insert({
-        decision_code: 'D19_ACCEPT_SHARE_NDA',
-        workflow_id: null,
-        signer_id: null,
-        legacy_decision: legacyDecision,
-        canonical_decision: canonicalDecision,
-        context: {
-          operation: 'accept-share-nda',
-          share_id,
-          nda_enabled: share.nda_enabled,
-          nda_accepted_at: share.nda_accepted_at,
-          email_matches: null,
-          phase: 'PASO_2_SHADOW_MODE_D19'
-        }
-      })
-    } catch (logError) {
-      console.warn('[D19 SHADOW] Log insert failed', logError)
-    }
-
     // Check if NDA is required
     if (!share.nda_enabled) {
       return new Response(

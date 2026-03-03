@@ -1,7 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
-import { shouldRequestDocumentChanges } from '../../../packages/authority/src/decisions/requestDocumentChanges.ts'
 import { createTokenHash } from '../_shared/cryptoHelper.ts'
 
 const corsHeaders = {
@@ -98,31 +97,6 @@ serve(async (req) => {
     const { accessToken, annotations, generalNotes } = body
 
     if (!accessToken || !annotations || annotations.length === 0) {
-      const legacyDecision = false
-      const canonicalDecision = shouldRequestDocumentChanges({
-        signer: null,
-        workflow: null,
-        payload: { accessToken, annotations }
-      })
-
-      try {
-        await supabase.from('shadow_decision_logs').insert({
-          decision_code: 'D14_REQUEST_DOCUMENT_CHANGES',
-          workflow_id: null,
-          signer_id: null,
-          legacy_decision: legacyDecision,
-          canonical_decision: canonicalDecision,
-          context: {
-            operation: 'request-document-changes',
-            phase: 'PASO_2_SHADOW_MODE_D14',
-            reason: 'missing_required_fields',
-            annotations_count: annotations ? annotations.length : 0
-          }
-        })
-      } catch (logError) {
-        console.warn('shadow log insert failed (D14)', logError)
-      }
-
       return jsonResponse({
         error: 'Access token and at least one annotation are required'
       }, 400)
@@ -145,31 +119,6 @@ serve(async (req) => {
     const signer = Array.isArray(signerRows) ? signerRows[0] : null
 
     if (signerError || !signer) {
-      const legacyDecision = false
-      const canonicalDecision = shouldRequestDocumentChanges({
-        signer: null,
-        workflow: null,
-        payload: { accessToken, annotations }
-      })
-
-      try {
-        await supabase.from('shadow_decision_logs').insert({
-          decision_code: 'D14_REQUEST_DOCUMENT_CHANGES',
-          workflow_id: null,
-          signer_id: null,
-          legacy_decision: legacyDecision,
-          canonical_decision: canonicalDecision,
-          context: {
-            operation: 'request-document-changes',
-            phase: 'PASO_2_SHADOW_MODE_D14',
-            reason: 'invalid_token',
-            annotations_count: annotations.length
-          }
-        })
-      } catch (logError) {
-        console.warn('shadow log insert failed (D14)', logError)
-      }
-
       return jsonResponse({ error: 'Invalid or expired access token' }, 404)
     }
 
@@ -190,38 +139,6 @@ serve(async (req) => {
 
     // 2. Validar que sea su turno
     if (signer.status !== 'ready_to_sign') {
-      const legacyDecision = false
-      const canonicalDecision = shouldRequestDocumentChanges({
-        signer: {
-          id: signer.id,
-          status: signer.status,
-          change_request_status: signer.change_request_status
-        },
-        workflow: {
-          status: signer.workflow?.status ?? null
-        },
-        payload: { accessToken, annotations }
-      })
-
-      try {
-        await supabase.from('shadow_decision_logs').insert({
-          decision_code: 'D14_REQUEST_DOCUMENT_CHANGES',
-          workflow_id: signer.workflow_id,
-          signer_id: signer.id,
-          legacy_decision: legacyDecision,
-          canonical_decision: canonicalDecision,
-          context: {
-            operation: 'request-document-changes',
-            phase: 'PASO_2_SHADOW_MODE_D14',
-            reason: 'not_ready_to_sign',
-            signer_status: signer.status,
-            annotations_count: annotations.length
-          }
-        })
-      } catch (logError) {
-        console.warn('shadow log insert failed (D14)', logError)
-      }
-
       return jsonResponse({
         error: 'Not your turn to review the document',
         currentStatus: signer.status
@@ -229,38 +146,6 @@ serve(async (req) => {
     }
 
     const workflow = signer.workflow as any
-
-    const legacyDecision = true
-    const canonicalDecision = shouldRequestDocumentChanges({
-      signer: {
-        id: signer.id,
-        status: signer.status,
-        change_request_status: signer.change_request_status
-      },
-      workflow: {
-        status: workflow?.status ?? null
-      },
-      payload: { accessToken, annotations }
-    })
-
-    try {
-      await supabase.from('shadow_decision_logs').insert({
-        decision_code: 'D14_REQUEST_DOCUMENT_CHANGES',
-        workflow_id: signer.workflow_id,
-        signer_id: signer.id,
-        legacy_decision: legacyDecision,
-        canonical_decision: canonicalDecision,
-        context: {
-          operation: 'request-document-changes',
-          phase: 'PASO_2_SHADOW_MODE_D14',
-          annotations_count: annotations.length,
-          signer_status: signer.status,
-          workflow_status: workflow?.status ?? null
-        }
-      })
-    } catch (logError) {
-      console.warn('shadow log insert failed (D14)', logError)
-    }
 
     // 3. Actualizar signer con solicitud de cambios
     await supabase

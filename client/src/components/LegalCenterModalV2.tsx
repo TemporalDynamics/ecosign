@@ -1489,7 +1489,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           const { error: updateError } = await supabase
             .from('document_entities')
             .update({
-              custody_mode: 'encrypted_custody',
               source_storage_path: storagePath
             })
             .eq('id', canonicalDocumentId);

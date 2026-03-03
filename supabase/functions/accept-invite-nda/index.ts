@@ -66,29 +66,6 @@ serve(async (req) => {
     const isRevoked = Boolean(invite.revoked_at);
     const alreadyAccepted = Boolean(invite.nda_accepted_at);
 
-    const legacyDecision = Boolean(!isExpired && !isRevoked && !alreadyAccepted);
-    const canonicalDecision = Boolean(!isExpired && !isRevoked && !alreadyAccepted);
-
-    try {
-      await supabase.from('shadow_decision_logs').insert({
-        decision_code: 'D18_ACCEPT_INVITE_NDA',
-        workflow_id: null,
-        signer_id: null,
-        legacy_decision: legacyDecision,
-        canonical_decision: canonicalDecision,
-        context: {
-          operation: 'accept-invite-nda',
-          invite_id: invite.id,
-          expires_at: invite.expires_at,
-          revoked_at: invite.revoked_at,
-          nda_accepted_at: invite.nda_accepted_at,
-          phase: 'PASO_2_SHADOW_MODE_D18'
-        }
-      })
-    } catch (logError) {
-      console.warn('[D18 SHADOW] Log insert failed', logError)
-    }
-
     // Check if invite is expired
     if (isExpired) {
       return new Response(

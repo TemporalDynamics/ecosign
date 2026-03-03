@@ -1253,16 +1253,20 @@ function DocumentsPage() {
     rawStoragePath: string,
     bucket: 'custody' | 'user-documents' | 'artifacts'
   ) => {
+    const KNOWN_BUCKET_PREFIXES = ['artifacts', 'user-documents', 'custody'] as const;
     const trimmed = rawStoragePath.trim();
     const noLeadingSlash = trimmed.replace(/^\/+/, "");
     const bucketPrefix = `${bucket}/`;
     const withoutBucketPrefix = noLeadingSlash.startsWith(bucketPrefix)
       ? noLeadingSlash.slice(bucketPrefix.length)
       : null;
+    const withoutKnownPrefixes = KNOWN_BUCKET_PREFIXES.map((prefix) =>
+      noLeadingSlash.startsWith(`${prefix}/`) ? noLeadingSlash.slice(prefix.length + 1) : null
+    );
 
     return Array.from(
       new Set(
-        [trimmed, noLeadingSlash, withoutBucketPrefix].filter(
+        [trimmed, noLeadingSlash, withoutBucketPrefix, ...withoutKnownPrefixes].filter(
           (value): value is string => Boolean(value && value.length > 0)
         )
       )
@@ -1292,12 +1296,12 @@ function DocumentsPage() {
     throw lastError || new Error('No pudimos crear una URL firmada para este archivo.');
   };
 
-  const downloadFromPath = async (storagePath: string | null | undefined, fileName: string | null = null) => {
+  const downloadFromPath = async (storagePath: string | null | undefined, fileName: string | null = null): Promise<boolean> => {
     if (isGuestMode()) {
       toast("Modo invitado: descarga disponible solo con cuenta.", { position: "top-right" });
-      return;
+      return false;
     }
-    if (!storagePath) return;
+    if (!storagePath) return false;
     try {
       const { signedUrl, bucket } = await createSignedUrlWithFallback(storagePath, 3600);
       console.log('[downloadFromPath] Using bucket:', bucket, 'for path:', storagePath);
@@ -1307,7 +1311,7 @@ function DocumentsPage() {
         const body = await response.text().catch(() => '');
         console.error("Error descargando archivo:", response.status, response.statusText, body);
         window.alert(mapStorageHttpError(response.status, 'download'));
-        return;
+        return false;
       }
 
       const blob = await response.blob();
@@ -1321,7 +1325,7 @@ function DocumentsPage() {
       if (blob.size === 0) {
         console.error('[downloadFromPath] Downloaded blob is empty!');
         window.alert("El archivo descargado está vacío.");
-        return;
+        return false;
       }
 
       // Verificar primeros bytes para detectar tipo de archivo
@@ -1336,9 +1340,11 @@ function DocumentsPage() {
 
       const fallbackName = storagePath.split("/").pop() || "archivo.eco";
       triggerDownload(blob, fileName || fallbackName);
+      return true;
     } catch (err) {
       console.error("Error descargando:", err);
       window.alert("No pudimos completar la descarga. Revisá tu conexión e intentá de nuevo.");
+      return false;
     }
   };
 
@@ -1609,7 +1615,10 @@ function DocumentsPage() {
 
     if (doc.eco_storage_path) {
       const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
-      await downloadFromPath(doc.eco_storage_path, ecoName);
+      const downloaded = await downloadFromPath(doc.eco_storage_path, ecoName);
+      if (downloaded) return;
+      await requestRegeneration(targetDocumentId, "eco");
+      window.alert("No encontramos el ECO en storage. Solicitamos regeneración automática.");
       return;
     }
     if (doc.eco_hash) {

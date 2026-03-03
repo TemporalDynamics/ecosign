@@ -61,7 +61,7 @@ export async function logEvent(eventType: EventType, documentId: string, options
 
     const eventData = {
       eventType,
-      documentId,
+      documentEntityId: documentId,
       userId: options.userId || null,
       signerLinkId: options.signerLinkId || null,
       actorEmail: options.actorEmail || null,

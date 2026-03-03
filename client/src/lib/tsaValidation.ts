@@ -19,6 +19,7 @@
 export async function validateTSAConnectivity(): Promise<boolean> {
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
     if (!supabaseUrl) return false;
 
     const controller = new AbortController();
@@ -26,6 +27,12 @@ export async function validateTSAConnectivity(): Promise<boolean> {
     try {
       const response = await fetch(`${supabaseUrl}/functions/v1/health-check`, {
         method: 'GET',
+        headers: anonKey
+          ? {
+              apikey: anonKey,
+              Authorization: `Bearer ${anonKey}`,
+            }
+          : undefined,
         signal: controller.signal,
       });
       // Reachability check only: even 401/403/500 means network path is alive.

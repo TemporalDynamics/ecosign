@@ -2479,10 +2479,10 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       // - NO más triggers frontend - confiabilidad server-side garantizada
 
       // 4. Enviar notificación por email (no bloqueante)
-      if (savedDoc?.id && !hasWorkflowIntent) {
+      if ((canonicalDocumentId || savedDoc?.id) && !hasWorkflowIntent) {
         console.log('📧 Enviando notificación por email...');
         supabase.functions.invoke('notify-document-certified', {
-          body: { documentId: savedDoc.id }
+          body: { documentEntityId: canonicalDocumentId || savedDoc.id }
         }).then(({ data, error }) => {
           if (error) {
             console.warn('⚠️ Error al enviar email (no crítico):', error);

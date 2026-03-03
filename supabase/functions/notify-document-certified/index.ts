@@ -26,17 +26,34 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { documentEntityId } = await req.json();
+    const body = await req.json();
+    const documentEntityId = body?.documentEntityId || body?.documentId;
 
     if (!documentEntityId) {
       throw new Error('documentEntityId is required');
     }
 
     // Create Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+      }
+    );
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    const { data: { user: authUser }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !authUser) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
@@ -54,9 +71,16 @@ serve(async (req: Request) => {
       throw new Error('Document owner not found');
     }
 
-    const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(ownerId);
+    if (ownerId !== authUser.id) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    if (userError || !user || !user.email) {
+    const { data: { user: ownerUser }, error: userError } = await supabase.auth.admin.getUserById(ownerId);
+
+    if (userError || !ownerUser || !ownerUser.email) {
       throw new Error(`Owner not found: ${userError?.message}`);
     }
 
@@ -78,8 +102,8 @@ serve(async (req: Request) => {
 
     // Build and send email
     const emailPayload = await buildDocumentCertifiedEmail({
-      ownerEmail: user.email,
-      ownerName: user.user_metadata?.full_name || user.user_metadata?.name,
+      ownerEmail: ownerUser.email,
+      ownerName: ownerUser.user_metadata?.full_name || ownerUser.user_metadata?.name,
       documentName: resolvedDocumentName,
       certifiedAt: resolvedCertifiedAt,
       documentEntityId: documentEntityId,

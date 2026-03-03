@@ -830,7 +830,21 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
     return { status: 'unknown' };
   }
 
-  if (!candidate.hash_chain || !candidate.source?.hash) {
+  if (!candidate.hash_chain) {
+    const hasDigestData = Boolean(candidate.source?.hash || candidate.witness?.hash || candidate.signed?.hash);
+    if (hasDigestData) {
+      return {
+        status: 'tampered',
+        source_hash: candidate.source?.hash,
+        witness_hash: candidate.witness?.hash,
+        signed_hash: candidate.signed?.hash,
+        hash_chain_mismatch: 'hash_chain_missing',
+      };
+    }
+    return { status: 'unknown' };
+  }
+
+  if (!candidate.source?.hash) {
     return { status: 'unknown' };
   }
 

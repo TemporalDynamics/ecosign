@@ -50,6 +50,10 @@ const BITCOIN_RETRY_POLICY: AnchorRetryPolicy = {
   retryScheduleMinutes: BITCOIN_RETRY_SCHEDULE_MINUTES,
 };
 
+function isBitcoinTxId(value: string | undefined | null): value is string {
+  return typeof value === 'string' && /^[a-fA-F0-9]{64}$/.test(value);
+}
+
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing Supabase credentials');
 }
@@ -174,8 +178,8 @@ async function verifyOpenTimestamps(otsProof: string, calendarUrl: string): Prom
       confirmed: wasUpgraded,
       upgraded: wasUpgraded,
       upgradedProof: wasUpgraded ? upgradedProof : otsProof,
-      bitcoinTxId: wasUpgraded ? 'pending-extraction' : undefined,
-      blockHeight: wasUpgraded ? 0 : undefined
+      bitcoinTxId: undefined,
+      blockHeight: undefined
     };
 
   } catch (error) {
@@ -643,6 +647,14 @@ serve(async (req) => {
 
             let txid = parsed.txid || verification.bitcoinTxId;
             let blockHeight = parsed.height || verification.blockHeight;
+
+            if (txid && !isBitcoinTxId(txid)) {
+              console.warn(`Invalid Bitcoin txid format for anchor ${anchor.id}: ${txid}`);
+              txid = undefined;
+            }
+            if (typeof blockHeight === 'number' && blockHeight <= 0) {
+              blockHeight = undefined;
+            }
 
             if (!txid) {
               const nowIso = new Date().toISOString();

@@ -32,8 +32,68 @@ serve(async (req) => {
       workflowId?: string
       signerId?: string
       accessToken?: string
+      document_entity_id?: string
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, serviceRole) as any
+
+    // --- Protection ECO mode: owner downloads their own ECO ---
+    if (body.document_entity_id) {
+      const authHeader = req.headers.get('Authorization')
+      if (!authHeader) {
+        return jsonResponse({ error: 'Unauthorized' }, 401)
+      }
+
+      const userClient = createClient(
+        supabaseUrl,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      ) as any
+
+      const { data: { user }, error: authError } = await userClient.auth.getUser()
+      if (authError || !user) {
+        return jsonResponse({ error: 'Unauthorized' }, 401)
+      }
+
+      const { data: entity, error: entityError } = await supabase
+        .from('document_entities')
+        .select('id, owner_id, events')
+        .eq('id', body.document_entity_id)
+        .single()
+
+      if (entityError || !entity) {
+        return jsonResponse({ error: 'Document not found' }, 404)
+      }
+
+      if (entity.owner_id !== user.id) {
+        return jsonResponse({ error: 'Forbidden' }, 403)
+      }
+
+      const events = Array.isArray(entity.events) ? entity.events : []
+      const finalizedEvent = [...events].reverse().find((e: any) => e?.kind === 'artifact.finalized')
+      const ecoStoragePath: string | null = finalizedEvent?.payload?.eco_storage_path ?? null
+
+      if (!ecoStoragePath) {
+        return jsonResponse({ error: 'eco_not_ready' }, 404)
+      }
+
+      // Normalize: strip leading bucket prefix if present
+      const normalizedPath = ecoStoragePath.replace(/^artifacts\//, '')
+
+      const { data, error } = await supabase.storage
+        .from('artifacts')
+        .createSignedUrl(normalizedPath, 60 * 60)
+
+      if (error || !data?.signedUrl) {
+        return jsonResponse({ error: error?.message || 'signed_url_failed' }, 500)
+      }
+
+      return jsonResponse({ success: true, signed_url: data.signedUrl })
+    }
+
+    // --- Workflow ECO mode: signer downloads evidence file ---
     const path = String(body.path || '')
     const workflowId = String(body.workflowId || '')
     const signerId = String(body.signerId || '')
@@ -47,10 +107,6 @@ serve(async (req) => {
     if (!path.startsWith(expectedPrefix)) {
       return jsonResponse({ error: 'invalid_path' }, 403)
     }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, serviceRole) as any
 
     const signerValidation = await validateSignerAccessToken<{
       id: string

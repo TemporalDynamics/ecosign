@@ -1613,10 +1613,38 @@ function DocumentsPage() {
     if (!doc) return;
     const targetDocumentId = doc.document_entity_id || doc.id;
 
-    if (doc.eco_storage_path) {
+    if (doc.eco_storage_path || doc.document_entity_id) {
+      const entityId = doc.document_entity_id;
       const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
-      const downloaded = await downloadFromPath(doc.eco_storage_path, ecoName);
-      if (downloaded) return;
+
+      if (entityId) {
+        try {
+          const supabase = getSupabase();
+          const session = (await supabase.auth.getSession()).data.session;
+          const { data, error } = await supabase.functions.invoke('get-eco-url', {
+            body: { document_entity_id: entityId },
+            headers: session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {},
+          });
+          if (!error && data?.signed_url) {
+            const response = await fetch(data.signed_url);
+            if (response.ok) {
+              const blob = await response.blob();
+              triggerDownload(blob, ecoName);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('get-eco-url failed:', err);
+        }
+      }
+
+      if (doc.eco_storage_path) {
+        const downloaded = await downloadFromPath(doc.eco_storage_path, ecoName);
+        if (downloaded) return;
+      }
+
       await requestRegeneration(targetDocumentId, "eco");
       window.alert("No encontramos el ECO en storage. Solicitamos regeneración automática.");
       return;

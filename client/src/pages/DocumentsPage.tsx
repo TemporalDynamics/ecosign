@@ -1249,6 +1249,26 @@ function DocumentsPage() {
     return Array.from(new Set(ordered));
   };
 
+  const buildStoragePathCandidates = (
+    rawStoragePath: string,
+    bucket: 'custody' | 'user-documents' | 'artifacts'
+  ) => {
+    const trimmed = rawStoragePath.trim();
+    const noLeadingSlash = trimmed.replace(/^\/+/, "");
+    const bucketPrefix = `${bucket}/`;
+    const withoutBucketPrefix = noLeadingSlash.startsWith(bucketPrefix)
+      ? noLeadingSlash.slice(bucketPrefix.length)
+      : null;
+
+    return Array.from(
+      new Set(
+        [trimmed, noLeadingSlash, withoutBucketPrefix].filter(
+          (value): value is string => Boolean(value && value.length > 0)
+        )
+      )
+    );
+  };
+
   const createSignedUrlWithFallback = async (
     storagePath: string,
     expiresInSeconds = 3600,
@@ -1259,11 +1279,14 @@ function DocumentsPage() {
     let lastError: any = null;
 
     for (const bucket of candidates) {
-      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(storagePath, expiresInSeconds);
-      if (!error && data?.signedUrl) {
-        return { signedUrl: data.signedUrl as string, bucket };
+      const pathCandidates = buildStoragePathCandidates(storagePath, bucket);
+      for (const candidatePath of pathCandidates) {
+        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(candidatePath, expiresInSeconds);
+        if (!error && data?.signedUrl) {
+          return { signedUrl: data.signedUrl as string, bucket };
+        }
+        lastError = error;
       }
-      lastError = error;
     }
 
     throw lastError || new Error('No pudimos crear una URL firmada para este archivo.');

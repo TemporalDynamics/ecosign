@@ -46,7 +46,7 @@ Esta checklist es la versión ejecutable del plan. Marcar ítems solo cuando el 
 
 - [ ] `document_id` eliminado completamente (código + tipos)
 - [ ] CI GitHub Actions en verde por PR
-- [ ] Email de cierre workflow sin duplicados
+- [x] Email de cierre workflow sin duplicados
 - [x] UI muestra modo firma (secuencial/paralelo)
 - [x] UI muestra estado EPI (nivel 1 vs 2)
 - [ ] UI muestra progreso de anclaje (TSA → Rekor → Polygon)

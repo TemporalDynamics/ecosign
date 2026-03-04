@@ -1887,13 +1887,16 @@ serve(async (req) => {
           .eq('workflow_id', signer.workflow_id)
 
         const recipients = new Map<string, { email: string; signer_id?: string | null; recipient_type: 'owner' | 'signer' }>()
-        if (owner?.email) {
-          recipients.set(owner.email, { email: owner.email, recipient_type: 'owner' })
+        const normalizeRecipientEmail = (value: string | null | undefined) => (value ?? '').trim().toLowerCase()
+        const ownerEmailNormalized = normalizeRecipientEmail(owner?.email ?? null)
+        if (ownerEmailNormalized) {
+          recipients.set(ownerEmailNormalized, { email: ownerEmailNormalized, recipient_type: 'owner' })
         }
         for (const s of allSigners ?? []) {
-          if (!s?.email) continue
-          if (!recipients.has(s.email)) {
-            recipients.set(s.email, { email: s.email, recipient_type: 'signer', signer_id: s.id })
+          const signerEmail = normalizeRecipientEmail(s?.email ?? null)
+          if (!signerEmail) continue
+          if (!recipients.has(signerEmail)) {
+            recipients.set(signerEmail, { email: signerEmail, recipient_type: 'signer', signer_id: s.id })
           }
         }
 
@@ -1916,7 +1919,10 @@ serve(async (req) => {
         }))
 
         if (notifications.length > 0) {
-          await supabase.from('workflow_notifications').insert(notifications)
+          await supabase.from('workflow_notifications').upsert(notifications, {
+            onConflict: 'workflow_id,recipient_email,notification_type,step',
+            ignoreDuplicates: true,
+          })
         }
       } catch (completionErr) {
         console.warn('apply-signer-signature: workflow_completed_simple enqueue failed (best-effort)', completionErr)

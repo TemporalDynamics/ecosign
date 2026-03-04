@@ -11,6 +11,7 @@ import {
 } from '../_shared/protectDocumentV2PipelineDecision.ts';
 import { syncFlagsToDatabase } from '../_shared/flagSync.ts';
 import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { logExecutorDecision, hashEvents } from '../_shared/decisionLogger.ts';
 
 type ExecutorJob = {
   id: string;
@@ -258,6 +259,19 @@ async function handleDocumentProtected(
       ? String(payload['witness_hash'])
       : String(entity.witness_hash ?? '');
   const decision = decideProtectDocumentV2Pipeline(events);
+
+  // Best-effort: log decision para auditabilidad. Nunca bloquea el executor.
+  hashEvents(events).then(eventsHash =>
+    logExecutorDecision(supabase, {
+      document_entity_id: documentEntityId,
+      policy_version: 'v1',
+      events_hash: eventsHash,
+      decision: decision.jobs,
+      reason: decision.reason,
+      metadata: { handler: 'handleDocumentProtected', job_id: job.id },
+    })
+  ).catch(err => console.warn('[fase1-executor] logExecutorDecision failed (non-critical):', err));
+
   const requiresAnchor = decision.jobs.includes('submit_anchor_polygon') || decision.jobs.includes('submit_anchor_bitcoin');
   if (requiresAnchor && !requestedWitnessHash) {
     throw new Error(`[precondition_failed] anchor submission requires witness_hash (job=${job.id}, entity=${documentEntityId})`);
@@ -312,6 +326,19 @@ async function handleProtectDocumentV2(
       : String(entity.witness_hash ?? '');
 
   const decision = decideProtectDocumentV2Pipeline(events);
+
+  // Best-effort: log decision para auditabilidad. Nunca bloquea el executor.
+  hashEvents(events).then(eventsHash =>
+    logExecutorDecision(supabase, {
+      document_entity_id: documentEntityId,
+      policy_version: 'v1',
+      events_hash: eventsHash,
+      decision: decision.jobs,
+      reason: decision.reason,
+      metadata: { handler: 'handleProtectDocumentV2', job_id: job.id },
+    })
+  ).catch(err => console.warn('[fase1-executor] logExecutorDecision failed (non-critical):', err));
+
   if (decision.reason === 'noop_missing_request') {
     console.log(`[fase1-executor] NOOP protect_document_v2 (no request event) for job ${job.id}`);
     return;

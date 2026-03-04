@@ -20,6 +20,30 @@ const jsonResponse = (data: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   })
 
+async function verifyUploadedEcoHash(
+  supabase: ReturnType<typeof createClient>,
+  ecoStoragePath: string,
+  expectedHash: string
+): Promise<void> {
+  const { data: fileResp, error: fileErr } = await supabase.storage
+    .from('artifacts')
+    .download(ecoStoragePath)
+
+  if (fileErr || !fileResp) {
+    throw new Error(`eco_download_failed: ${fileErr?.message ?? 'storage error'}`)
+  }
+
+  const ab = await fileResp.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', new Uint8Array(ab))
+  const actualHash = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+
+  if (actualHash !== expectedHash) {
+    throw new Error(`eco_hash_mismatch: expected ${expectedHash} got ${actualHash}`)
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { status: 204 })
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
@@ -155,6 +179,20 @@ serve(async (req) => {
     if (uploadErr) {
       console.error('[finalize-document] ECO upload failed:', uploadErr)
       return jsonResponse({ error: 'eco_upload_failed', details: uploadErr.message }, 500)
+    }
+
+    try {
+      await verifyUploadedEcoHash(supabase, ecoStoragePath, ecoHash)
+    } catch (verifyErr: any) {
+      console.error('[finalize-document] ECO hash mismatch after upload:', verifyErr)
+      return jsonResponse(
+        {
+          error: 'eco_hash_mismatch',
+          details: verifyErr?.message || 'Uploaded ECO does not match expected hash',
+          retryable: true,
+        },
+        500
+      )
     }
 
     // Emit artifact.finalized — canonical closure event.

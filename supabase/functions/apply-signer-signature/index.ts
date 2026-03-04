@@ -93,6 +93,21 @@ async function uploadWorkflowPdf(
   }
 }
 
+async function verifyUploadedPdfHash(
+  supabase: ReturnType<typeof createClient>,
+  documentPath: string,
+  expectedHash: string,
+  context: string
+): Promise<void> {
+  const downloadedBytes = await loadWorkflowPdf(supabase, documentPath)
+  const actualHash = await sha256Hex(downloadedBytes)
+  if (actualHash !== expectedHash) {
+    throw new Error(
+      `hash mismatch for ${context}: expected ${expectedHash} got ${actualHash}`
+    )
+  }
+}
+
 function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; isPng: boolean } {
   const [meta, b64] = dataUrl.split(',')
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
@@ -847,9 +862,6 @@ serve(async (req) => {
         fields: (signerFields ?? []) as any
       })
 
-      // Always overwrite workflow.document_path so the next signer sees the latest witness PDF.
-      await uploadWorkflowPdf(supabase, workflow.document_path, stampedBytes)
-
       const hashBuf = await crypto.subtle.digest('SHA-256', stampedBytes)
       const hashHex = Array.from(new Uint8Array(hashBuf))
         .map((b) => b.toString(16).padStart(2, '0'))
@@ -857,6 +869,28 @@ serve(async (req) => {
 
       // Canonical witness hash for this act.
       witnessHashForEvent = hashHex
+
+      // Always overwrite workflow.document_path so the next signer sees the latest witness PDF.
+      await uploadWorkflowPdf(supabase, workflow.document_path, stampedBytes)
+      try {
+        await verifyUploadedPdfHash(
+          supabase,
+          workflow.document_path,
+          hashHex,
+          'workflow.document_path'
+        )
+      } catch (verifyErr) {
+        console.error('apply-signer-signature: workflow PDF hash mismatch after upload', verifyErr)
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error_code: 'EPI_STORAGE_HASH_MISMATCH',
+            message: 'El PDF subido no coincide con el hash esperado.',
+            retryable: true
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
+      }
 
       // Also store a per-signer witness PDF (immutable path) for delivery + audit.
       signedPdfPath = `signed/${workflow.id}/${signer.id}/${hashHex}.pdf`
@@ -870,6 +904,25 @@ serve(async (req) => {
             success: false, 
             error_code: 'EPI_IMMUTABLE_UPLOAD_FAILED',
             message: 'Failed to upload immutable signed witness PDF',
+            retryable: true
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
+      }
+      try {
+        await verifyUploadedPdfHash(
+          supabase,
+          signedPdfPath,
+          hashHex,
+          'signed witness PDF'
+        )
+      } catch (verifyErr) {
+        console.error('apply-signer-signature: signed PDF hash mismatch after upload', verifyErr)
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error_code: 'EPI_STORAGE_HASH_MISMATCH',
+            message: 'El PDF firmado subido no coincide con el hash esperado.',
             retryable: true
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

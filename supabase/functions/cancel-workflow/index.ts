@@ -81,7 +81,7 @@ serve(async (req) => {
     }
 
     // Hard-revoke signer access tokens and mark pending signers as cancelled.
-    await supabase
+    const { error: revokeErr } = await supabase
       .from('workflow_signers')
       .update({
         status: 'cancelled',
@@ -91,7 +91,10 @@ serve(async (req) => {
         updated_at: new Date().toISOString()
       })
       .eq('workflow_id', workflowId)
-      .not('status', 'in', '("signed","cancelled")')
+      .not('status', 'in', '(signed,cancelled)')
+    if (revokeErr) {
+      console.error('cancel-workflow: failed to hard-revoke signers', revokeErr)
+    }
 
     await appendCanonicalEvent(
       supabase,

@@ -7,6 +7,7 @@
 
 import { Ratelimit } from 'https://esm.sh/@upstash/ratelimit@1.0.0';
 import { Redis } from 'https://esm.sh/@upstash/redis@1.28.0';
+import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { getCorsHeaders } from './cors.ts';
 
 /**
@@ -23,6 +24,12 @@ const RATE_LIMITS = {
 } as const;
 
 export type RateLimitType = keyof typeof RATE_LIMITS;
+export type RateLimitIdentityKind = 'workspace' | 'user' | 'ip';
+export type RateLimitIdentity = { kind: RateLimitIdentityKind; key: string };
+type UserLike = {
+  id?: string;
+  app_metadata?: Record<string, unknown>;
+};
 
 /**
  * Initialize Redis client (lazy initialization)
@@ -30,6 +37,7 @@ export type RateLimitType = keyof typeof RATE_LIMITS;
 let redis: Redis | null = null;
 let redisWarningLogged = false;
 const memoryBuckets = new Map<string, { count: number; reset: number }>();
+let authClient: ReturnType<typeof createClient> | null = null;
 
 function getRedis(): Redis {
   if (!redis) {
@@ -43,6 +51,24 @@ function getRedis(): Redis {
     redis = new Redis({ url, token });
   }
   return redis;
+}
+
+function getAuthClient(): ReturnType<typeof createClient> | null {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  if (!authClient) {
+    authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: { 'X-Client-Info': 'ecosign-ratelimit' },
+      },
+    });
+  }
+  return authClient;
 }
 
 function checkMemoryRateLimit(key: string, limit: number) {
@@ -65,6 +91,67 @@ function checkMemoryRateLimit(key: string, limit: number) {
   };
 }
 
+export function deriveRateLimitIdentity(input: {
+  workspaceId?: string | null;
+  userId?: string | null;
+  ip?: string | null;
+}): RateLimitIdentity {
+  const workspaceId = typeof input.workspaceId === 'string' ? input.workspaceId.trim() : '';
+  if (workspaceId) {
+    return { kind: 'workspace', key: `workspace:${workspaceId}` };
+  }
+  const userId = typeof input.userId === 'string' ? input.userId.trim() : '';
+  if (userId) {
+    return { kind: 'user', key: `user:${userId}` };
+  }
+  const ip = typeof input.ip === 'string' && input.ip.trim().length > 0
+    ? input.ip.trim()
+    : 'anonymous';
+  return { kind: 'ip', key: `ip:${ip}` };
+}
+
+async function resolveUserFromRequest(
+  req: Request,
+  resolveUser?: (token: string) => Promise<UserLike | null>
+): Promise<UserLike | null> {
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return null;
+
+  if (resolveUser) {
+    return resolveUser(token);
+  }
+
+  const client = getAuthClient();
+  if (!client) return null;
+
+  const { data, error } = await client.auth.getUser(token);
+  if (error) return null;
+  return (data?.user as UserLike) ?? null;
+}
+
+export async function resolveRateLimitIdentity(
+  req: Request,
+  options?: { resolveUser?: (token: string) => Promise<UserLike | null> }
+): Promise<RateLimitIdentity> {
+  const ip = req.headers.get('x-forwarded-for') ||
+    req.headers.get('x-real-ip') ||
+    'anonymous';
+
+  try {
+    const user = await resolveUserFromRequest(req, options?.resolveUser);
+    const workspaceId = typeof user?.app_metadata?.workspace_id === 'string'
+      ? (user?.app_metadata?.workspace_id as string)
+      : null;
+    const userId = typeof user?.id === 'string' ? user?.id : null;
+
+    return deriveRateLimitIdentity({ workspaceId, userId, ip });
+  } catch (error) {
+    console.warn('Rate limit identity resolution failed, fallback to IP', error);
+    return deriveRateLimitIdentity({ ip });
+  }
+}
+
 /**
  * Check if request is within rate limit
  * 
@@ -77,12 +164,8 @@ export async function checkRateLimit(
   type: RateLimitType = 'default'
 ) {
   const limit = RATE_LIMITS[type] ?? RATE_LIMITS.default;
-
-  // Get identifier (IP address or fallback to anonymous)
-  const ip = req.headers.get('x-forwarded-for') ||
-             req.headers.get('x-real-ip') ||
-             'anonymous';
-  const key = `${type}:${ip}`;
+  const identity = await resolveRateLimitIdentity(req);
+  const key = `${type}:${identity.key}`;
 
   try {
     const redis = getRedis();
@@ -95,7 +178,7 @@ export async function checkRateLimit(
     });
 
     // Check rate limit
-    const result = await ratelimit.limit(ip);
+    const result = await ratelimit.limit(key);
 
     return {
       success: result.success,

@@ -31,6 +31,7 @@ interface StartWorkflowRequest {
   signatureType?: 'ECOSIGN' | 'SIGNNOW'
   ndaText?: string | null
   ndaEnabled?: boolean
+  requireSequential?: boolean
   signers: Signer[]
   forensicConfig: {
     rfc3161: boolean
@@ -137,10 +138,15 @@ serve(withRateLimit('workflow', async (req) => {
       forensicConfig,
       deliveryMode = 'email', // Default to email for backwards compatibility
       finalDocumentVisibility = 'owner_only',
+      requireSequential = true,
     } = body
 
     if (!documentUrl || !documentHash || !originalFilename || !signers || signers.length === 0) {
       return jsonResponse({ error: 'Missing required fields' }, 400)
+    }
+
+    if (typeof requireSequential !== 'boolean') {
+      return jsonResponse({ error: 'Invalid requireSequential. Must be boolean' }, 400)
     }
 
     // Validate deliveryMode if provided
@@ -182,6 +188,7 @@ serve(withRateLimit('workflow', async (req) => {
       document_path: documentPath ?? null,
       document_hash: documentHash,
       status: 'active',
+      require_sequential: requireSequential,
       forensic_config: forensicConfig,
       nda_text: trimmedNda || null,
       delivery_mode: deliveryMode, // 'email' or 'link' - immutable after creation
@@ -250,7 +257,7 @@ serve(withRateLimit('workflow', async (req) => {
         require_nda: requireNda,
         quick_access: quickAccess,
         // Status will be promoted to ready_to_sign only after batch binding succeeds.
-        status: 'invited',
+        status: requireSequential ? 'invited' : 'ready_to_sign',
         access_token_hash: tokenHash,
         access_token_ciphertext: ciphertext,
         access_token_nonce: nonce,
@@ -471,25 +478,27 @@ serve(withRateLimit('workflow', async (req) => {
       }, 409)
     }
 
-    // Promote first signer to ready_to_sign only after binding succeeds.
-    const first = (insertedSigners || []).find((s: any) => s.signing_order === 1)
-    if (first) {
-      const { error: promoteErr } = await supabase
-        .from('workflow_signers')
-        .update({ status: 'ready_to_sign' })
-        .eq('id', first.id)
-      if (promoteErr) {
-        console.error('Failed to promote first signer to ready_to_sign', promoteErr)
-        await cleanupWorkflow()
-        return jsonResponse({ error: 'failed_to_start', details: promoteErr.message }, 500)
+    // Promote first signer to ready_to_sign only after binding succeeds (sequential flow).
+    if (requireSequential) {
+      const first = (insertedSigners || []).find((s: any) => s.signing_order === 1)
+      if (first) {
+        const { error: promoteErr } = await supabase
+          .from('workflow_signers')
+          .update({ status: 'ready_to_sign' })
+          .eq('id', first.id)
+        if (promoteErr) {
+          console.error('Failed to promote first signer to ready_to_sign', promoteErr)
+          await cleanupWorkflow()
+          return jsonResponse({ error: 'failed_to_start', details: promoteErr.message }, 500)
+        }
       }
     }
 
-    // Create notification only for the first signer (sequential flow)
+    // Create notification only for the first signer (sequential flow) or all signers (parallel)
     const notifications = []
     if (deliveryMode === 'email') {
       for (const insertedSigner of insertedSigners) {
-        if (insertedSigner.signing_order !== 1) continue
+        if (requireSequential && insertedSigner.signing_order !== 1) continue
 
         const token = accessTokens[insertedSigner.email]?.token
         if (!token) continue
@@ -561,7 +570,9 @@ serve(withRateLimit('workflow', async (req) => {
     }
 
     const notificationMessage = deliveryMode === 'email'
-      ? `Workflow started. ${signers.length} signer(s) added. First signer notified by email.`
+      ? requireSequential
+        ? `Workflow started. ${signers.length} signer(s) added. First signer notified by email.`
+        : `Workflow started. ${signers.length} signer(s) added. All signers notified by email.`
       : `Workflow started. ${signers.length} signer(s) added. Share the link manually (no email sent).`
 
     return jsonResponse({

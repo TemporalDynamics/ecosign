@@ -59,7 +59,7 @@ serve(async (req) => {
       name: string | null
       token_expires_at: string | null
       token_revoked_at: string | null
-      workflow: { id: string; title: string | null } | null
+      workflow: { id: string; title: string | null; status: string | null } | null
       access_token_hash: string | null
     }>(
       supabase,
@@ -72,7 +72,7 @@ serve(async (req) => {
         token_expires_at,
         token_revoked_at,
         access_token_hash,
-        workflow:signature_workflows (id, title)
+        workflow:signature_workflows (id, title, status)
       `
     )
 
@@ -101,6 +101,13 @@ serve(async (req) => {
       return json(
         { error: 'Workflow not found for signer', details: 'workflow_missing' },
         500,
+        corsHeaders
+      )
+    }
+    if (signer.workflow.status && signer.workflow.status !== 'active') {
+      return json(
+        { error: `Workflow is not active (status=${signer.workflow.status})` },
+        403,
         corsHeaders
       )
     }

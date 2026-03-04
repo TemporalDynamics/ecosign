@@ -71,6 +71,15 @@ serve(async (req) => {
       }
 
       const isOwner = entity.owner_id === user.id
+      const { data: workflowForEntity } = await supabase
+        .from('signature_workflows')
+        .select('id, status, final_document_visibility')
+        .eq('document_entity_id', body.document_entity_id)
+        .maybeSingle()
+
+      if (workflowForEntity?.status && workflowForEntity.status !== 'active' && workflowForEntity.status !== 'completed') {
+        return jsonResponse({ error: `Workflow is not active (status=${workflowForEntity.status})` }, 403)
+      }
 
       // Owner-for-signer mode: owner fetches a specific signer's evidence URL.
       // Only the document owner can request this — no participant elevation.
@@ -128,17 +137,11 @@ serve(async (req) => {
       //   1. workflow.final_document_visibility = 'participants'
       //   2. user's email is a signed signer on the linked workflow
       if (!isOwner) {
-        const { data: workflow } = await supabase
-          .from('signature_workflows')
-          .select('id, final_document_visibility')
-          .eq('document_entity_id', body.document_entity_id)
-          .maybeSingle()
-
-        if (!workflow) {
+        if (!workflowForEntity) {
           return jsonResponse({ error: 'Forbidden' }, 403)
         }
 
-        if (workflow.final_document_visibility !== 'participants') {
+        if (workflowForEntity.final_document_visibility !== 'participants') {
           return jsonResponse({ error: 'final_document_restricted_to_owner' }, 403)
         }
 
@@ -151,7 +154,7 @@ serve(async (req) => {
         const { data: signer } = await supabase
           .from('workflow_signers')
           .select('id')
-          .eq('workflow_id', workflow.id)
+          .eq('workflow_id', workflowForEntity.id)
           .ilike('email', userEmail)
           .eq('status', 'signed')
           .maybeSingle()
@@ -215,6 +218,16 @@ serve(async (req) => {
       return jsonResponse({ error: 'Signer does not belong to workflow' }, 403)
     }
 
+    const { data: workflowStatus } = await supabase
+      .from('signature_workflows')
+      .select('status, document_entity_id')
+      .eq('id', workflowId)
+      .single()
+
+    if (workflowStatus?.status && workflowStatus.status !== 'active' && workflowStatus.status !== 'completed') {
+      return jsonResponse({ error: `Workflow is not active (status=${workflowStatus.status})` }, 403)
+    }
+
     const { data, error } = await supabase.storage
       .from('artifacts')
       .createSignedUrl(path, 60 * 60)
@@ -225,20 +238,14 @@ serve(async (req) => {
 
     // Best-effort: record ECO download event in entity ledger
     try {
-      const { data: workflow } = await supabase
-        .from('signature_workflows')
-        .select('document_entity_id')
-        .eq('id', workflowId)
-        .single()
-
-      if (workflow?.document_entity_id) {
+      if (workflowStatus?.document_entity_id) {
         // Extract witness_hash from path: evidence/{workflowId}/{signerId}/{witnessHash}.eco.json
         const filename = path.split('/').pop() ?? ''
         const witnessHash = filename.replace(/\.eco\.json$/, '') || null
 
         await appendEvent(
           supabase,
-          workflow.document_entity_id,
+          workflowStatus.document_entity_id,
           {
             kind: 'signature.evidence.downloaded',
             at: new Date().toISOString(),

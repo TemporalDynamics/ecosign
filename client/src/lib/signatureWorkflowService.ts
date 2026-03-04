@@ -8,6 +8,8 @@ import { getSupabase } from './supabaseClient';
  * @param {string} params.originalFilename - Nombre del archivo original
  * @param {Array} params.signers - Lista de firmantes ordenados
  * @param {Object} params.forensicConfig - Configuración de blindaje forense
+ * @param {boolean} params.requireSequential - Firma secuencial (true) o paralela (false)
+ * @param {'owner_only' | 'participants'} params.finalDocumentVisibility - Visibilidad del documento final
  * @returns {Promise<Object>} - Resultado del workflow creado
  */
 type WorkflowSigner = {
@@ -34,6 +36,8 @@ type StartWorkflowParams = {
   deliveryMode?: 'email' | 'link';
   ndaText?: string | null;
   ndaEnabled?: boolean;
+  requireSequential?: boolean;
+  finalDocumentVisibility?: 'owner_only' | 'participants';
   signers: WorkflowSigner[];
   forensicConfig?: ForensicConfig;
 };
@@ -48,6 +52,8 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
     deliveryMode,
     ndaText,
     ndaEnabled,
+    requireSequential,
+    finalDocumentVisibility,
     signers,
     forensicConfig = {
       rfc3161: true,
@@ -95,6 +101,8 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
         deliveryMode,
         ndaText,
         ndaEnabled,
+        requireSequential,
+        finalDocumentVisibility,
         signers,
         forensicConfig
       }

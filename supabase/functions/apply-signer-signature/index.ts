@@ -442,7 +442,10 @@ serve(async (req) => {
       return json({ error: 'Could not verify signer idempotency' }, 500)
     }
     const signerAlreadySigned = Boolean(existingSignedEvent)
-    const allowIdempotentRepair = signerAlreadySigned && signer.status === 'signed'
+    const allowIdempotentRepair = signerAlreadySigned
+    const signingLockId = crypto.randomUUID()
+    let signingLockClaimed = false
+    let workflowLockClaimed = false
 
     const workflowIdMismatch = Boolean(workflowId && signer.workflow_id !== workflowId)
     if (workflowIdMismatch) {
@@ -456,7 +459,7 @@ serve(async (req) => {
     // Fetch workflow early for canonical decision and batching
     const { data: workflow, error: wfError } = await supabase
       .from('signature_workflows')
-      .select('id, owner_id, document_entity_id, status, delivery_mode, original_filename, document_path, document_hash, forensic_config, fields_schema_hash, fields_schema_version')
+      .select('id, owner_id, document_entity_id, status, delivery_mode, require_sequential, original_filename, document_path, document_hash, forensic_config, fields_schema_hash, fields_schema_version')
       .eq('id', signer.workflow_id)
       .single()
 
@@ -566,6 +569,7 @@ serve(async (req) => {
     if (workflow.status !== 'active') {
       return json({ error: `Workflow is not active (status=${workflow.status})` }, 403)
     }
+    const requireSequential = (workflow as any)?.require_sequential !== false
 
     if (!workflow.document_entity_id) {
       // Contract: signature flow must be bound to a document_entity_id.
@@ -583,7 +587,96 @@ serve(async (req) => {
       )
     }
 
+    if (signer.status === 'ready_to_sign') {
+      const { data: lockData, error: lockErr } = await supabase.rpc('claim_signer_for_signing', {
+        p_signer_id: signer.id,
+        p_lock_id: signingLockId,
+        p_lock_ttl_seconds: 300
+      })
+
+      if (lockErr) {
+        console.error('apply-signer-signature: failed to claim signer lock', lockErr)
+        return json({ error: 'Could not claim signing lock', details: lockErr.message }, 500)
+      }
+
+      const lockRow = Array.isArray(lockData) ? lockData[0] : lockData
+      if (!lockRow?.claimed) {
+        const status = lockRow?.status ?? signer.status
+        if (status === 'signed') {
+          return json({
+            success: true,
+            idempotent: true,
+            message: 'Signer has already signed this workflow'
+          })
+        }
+        if (status !== 'ready_to_sign') {
+          return json({ error: `Cannot sign: signer is not ready_to_sign (status=${status})` }, 403)
+        }
+        return json({ error: 'Signer signing already in progress' }, 409)
+      }
+
+      signingLockClaimed = true
+      if (!requireSequential) {
+        workflowLockClaimed = true
+      }
+    }
+
+    try {
     if (signerAlreadySigned) {
+      const { data: entityForRepair, error: entityForRepairErr } = await supabase
+        .from('document_entities')
+        .select('events, witness_history')
+        .eq('id', workflow.document_entity_id)
+        .single()
+
+      if (entityForRepairErr) {
+        console.error('apply-signer-signature: failed to load document entity for idempotent repair', entityForRepairErr)
+        return json({ error: 'Could not verify document ledger for idempotent repair' }, 500)
+      }
+
+      const eventsArr = Array.isArray((entityForRepair as any)?.events) ? (entityForRepair as any).events : []
+      const hasSignatureCompleted = eventsArr.some((e: any) =>
+        e?.kind === 'signature.completed' &&
+        (e?.signer?.id === signer.id || e?.payload?.signer_id === signer.id)
+      )
+
+      if (!hasSignatureCompleted) {
+        const history = Array.isArray((entityForRepair as any)?.witness_history)
+          ? (entityForRepair as any).witness_history
+          : []
+        const historyEntry = [...history].reverse().find((h: any) => h?.signer_id === signer.id && h?.hash)
+        const witnessHashForRepair = historyEntry?.hash ?? witness_pdf_hash ?? workflow.document_hash ?? null
+        const appendResult = await appendEvent(
+          supabase as any,
+          workflow.document_entity_id,
+          {
+            kind: 'signature.completed',
+            at: signer.signed_at || new Date().toISOString(),
+            signer: {
+              id: signer.id,
+              email: signer.email ?? null,
+              name: signer.name ?? null,
+              order: signer.signing_order ?? null
+            },
+            workflow: {
+              id: signer.workflow_id,
+              document_entity_id: workflow.document_entity_id
+            },
+            evidence: {
+              witness_pdf_hash: witnessHashForRepair,
+              identity_level: identityLevel.canonical_level,
+              identity_operational_level: identityLevel.operational_level,
+              batches_signed: []
+            }
+          },
+          'apply-signer-signature:idempotent-repair'
+        )
+        if (!appendResult.success) {
+          console.error('apply-signer-signature: signature.completed repair append failed', appendResult.error)
+          return json({ error: 'Could not append signature.completed', details: appendResult.error }, 500)
+        }
+      }
+
       const { data: entity, error: entityReadError } = await supabase
         .from('document_entities')
         .select('witness_current_storage_path')
@@ -593,6 +686,35 @@ serve(async (req) => {
       if (!entityReadError) {
         const currentPath = (entity as any)?.witness_current_storage_path as string | null
         if (currentPath && currentPath.startsWith(`signed/${workflow.id}/`)) {
+          if (signer.status !== 'signed') {
+            const signerUpdate: Record<string, any> = {
+              status: 'signed',
+              signed_at: new Date().toISOString(),
+              signing_lock_id: null,
+              signing_lock_at: null
+            }
+            if (signatureData !== undefined) {
+              signerUpdate.signature_data = signatureData || null
+            }
+            const { error: signerUpdErr } = await supabase
+              .from('workflow_signers')
+              .update(signerUpdate)
+              .eq('id', signer.id)
+
+            if (signerUpdErr) {
+              console.error('apply-signer-signature: idempotent signer update failed', signerUpdErr)
+              return json({ error: 'Could not update signer', details: signerUpdErr.message }, 500)
+            }
+
+            if (requireSequential) {
+              try {
+                await supabase.rpc('advance_workflow', { p_workflow_id: signer.workflow_id })
+              } catch (advanceErr) {
+                console.warn('advance_workflow failed (idempotent repair)', advanceErr)
+              }
+            }
+          }
+
           console.log(
             `apply-signer-signature: signer ${signer.id} already signed and canonical witness already set`
           )
@@ -1327,42 +1449,52 @@ serve(async (req) => {
       console.log('apply-signer-signature: skipping signer.signed insert (idempotent)')
     }
 
-    // Probatario (document_entities.events[]) - best effort; must not block.
-    try {
-      await appendEvent(
-        supabase as any,
-        workflow.document_entity_id,
-        {
-          kind: 'signature.completed',
-          at: applied_at || new Date().toISOString(),
-          signer: {
-            id: signer.id,
-            email: signer.email ?? null,
-            name: signer.name ?? null,
-            order: signer.signing_order ?? null
-          },
-          workflow: {
-            id: signer.workflow_id,
-            document_entity_id: workflow.document_entity_id
-          },
-          evidence: {
-            witness_pdf_hash: eventPayload.witness_pdf_hash || null,
-            identity_level: identityLevel.canonical_level,
-            identity_operational_level: identityLevel.operational_level,
-            batches_signed: batches.map((b: any) => b.id)
-          }
+    // Probatario (document_entities.events[]) - fail hard.
+    const sigCompletedResult = await appendEvent(
+      supabase as any,
+      workflow.document_entity_id,
+      {
+        kind: 'signature.completed',
+        at: applied_at || new Date().toISOString(),
+        signer: {
+          id: signer.id,
+          email: signer.email ?? null,
+          name: signer.name ?? null,
+          order: signer.signing_order ?? null
         },
-        'apply-signer-signature'
-      )
-    } catch (eventErr) {
-      console.warn('apply-signer-signature: signature.completed append failed (best-effort)', eventErr)
+        workflow: {
+          id: signer.workflow_id,
+          document_entity_id: workflow.document_entity_id
+        },
+        evidence: {
+          witness_pdf_hash: eventPayload.witness_pdf_hash || null,
+          identity_level: identityLevel.canonical_level,
+          identity_operational_level: identityLevel.operational_level,
+          batches_signed: batches.map((b: any) => b.id)
+        }
+      },
+      'apply-signer-signature'
+    )
+    if (!sigCompletedResult.success) {
+      console.error('apply-signer-signature: signature.completed append failed', sigCompletedResult.error)
+      return json({ error: 'Could not append signature.completed', details: sigCompletedResult.error }, 500)
     }
 
     // Update signer status and persist signature data
-    if (!signerAlreadySigned) {
+    if (signer.status !== 'signed') {
+      const signerUpdate: Record<string, any> = {
+        status: 'signed',
+        signed_at: new Date().toISOString(),
+        signing_lock_id: null,
+        signing_lock_at: null
+      }
+      if (!signerAlreadySigned || signatureData !== undefined) {
+        signerUpdate.signature_data = signatureData || null
+      }
+
       const { error: signerUpdErr } = await supabase
         .from('workflow_signers')
-        .update({ status: 'signed', signed_at: new Date().toISOString(), signature_data: signatureData || null })
+        .update(signerUpdate)
         .eq('id', signer.id)
 
       if (signerUpdErr) {
@@ -1376,10 +1508,12 @@ serve(async (req) => {
 
     // Advance sequential flow (best-effort): promote next signer to ready_to_sign.
     // This MUST NOT block the successful signature record.
-    try {
-      await supabase.rpc('advance_workflow', { p_workflow_id: signer.workflow_id })
-    } catch (advanceErr) {
-      console.warn('advance_workflow failed', advanceErr)
+    if (requireSequential) {
+      try {
+        await supabase.rpc('advance_workflow', { p_workflow_id: signer.workflow_id })
+      } catch (advanceErr) {
+        console.warn('advance_workflow failed', advanceErr)
+      }
     }
 
     let nextSignerRecord: any | null = null
@@ -1396,9 +1530,10 @@ serve(async (req) => {
       console.warn('apply-signer-signature: failed to resolve last signer flag', lastErr)
     }
     // Create next signer notification (idempotent) if delivery_mode=email.
-    try {
-      const deliveryMode = (workflow as any)?.delivery_mode || 'email'
-      if (deliveryMode === 'email') {
+    if (requireSequential) {
+      try {
+        const deliveryMode = (workflow as any)?.delivery_mode || 'email'
+        if (deliveryMode === 'email') {
         const { data: nextSigner } = await supabase
           .from('workflow_signers')
           .select('id, email, name, signing_order, access_token_hash, access_token_ciphertext, access_token_nonce, status')
@@ -1467,15 +1602,15 @@ serve(async (req) => {
             }
           }
         }
+        }
+      } catch (notifErr) {
+        console.warn('apply-signer-signature: next signer notification failed (best-effort)', notifErr)
       }
-    } catch (notifErr) {
-      console.warn('apply-signer-signature: next signer notification failed (best-effort)', notifErr)
     }
 
-    // If there is no next signer, force terminal workflow status (defensive)
+    // If this was the last signer, force terminal workflow status (defensive)
     // and enqueue workflow_completed_simple for owner + signers.
-    if (!nextSignerRecord) {
-      isLastSigner = true
+    if (isLastSigner) {
       const completedAt = new Date().toISOString()
       const workflowForensicConfig = (workflow as any)?.forensic_config ?? {}
       const planPolicy = await resolveOwnerAnchorPlan(supabase as any, workflow.owner_id ?? null)
@@ -1684,6 +1819,26 @@ serve(async (req) => {
       eco_path: ecoSnapshotPath,
       is_last_signer: isLastSigner
     })
+    } finally {
+      if (signingLockClaimed) {
+        const { error: releaseErr } = await supabase.rpc('release_signer_signing_lock', {
+          p_signer_id: signer.id,
+          p_lock_id: signingLockId
+        })
+        if (releaseErr) {
+          console.warn('apply-signer-signature: failed to release signer lock', releaseErr)
+        }
+      }
+      if (workflowLockClaimed) {
+        const { error: workflowReleaseErr } = await supabase.rpc('release_workflow_signing_lock', {
+          p_workflow_id: signer.workflow_id,
+          p_lock_id: signingLockId
+        })
+        if (workflowReleaseErr) {
+          console.warn('apply-signer-signature: failed to release workflow lock', workflowReleaseErr)
+        }
+      }
+    }
 
   } catch (err: any) {
     console.error('apply-signer-signature error', err)

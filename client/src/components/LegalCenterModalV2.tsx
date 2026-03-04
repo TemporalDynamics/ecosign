@@ -236,6 +236,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [emailInputs, setEmailInputs] = useState<EmailInput[]>([
     { email: '', name: '', requireLogin: true, requireNda: true }
   ]); // 1 campo por defecto - usuarios agregan más según necesiten
+  const [workflowSigningMode, setWorkflowSigningMode] = useState<'sequential' | 'parallel'>('sequential');
+  const [workflowFinalVisibility, setWorkflowFinalVisibility] = useState<'owner_only' | 'participants'>('owner_only');
 
   // Placeholder para campos de firma visual (SceneRenderer los consumirá)
   const [signatureFields, setSignatureFields] = useState<SignatureField[]>([]);
@@ -1688,6 +1690,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             deliveryMode: 'link',
             ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
             ndaEnabled,
+            requireSequential: workflowSigningMode === 'sequential',
+            finalDocumentVisibility: workflowFinalVisibility,
             signers: [selfSigner],
             forensicConfig: {
               rfc3161: forensicEnabled && forensicConfig.useLegalTimestamp,
@@ -1958,6 +1962,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               : undefined,
             ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
             ndaEnabled,
+            requireSequential: workflowSigningMode === 'sequential',
+            finalDocumentVisibility: workflowFinalVisibility,
             signers: validSigners,
             forensicConfig: {
               rfc3161: forensicEnabled && forensicConfig.useLegalTimestamp,
@@ -5055,6 +5061,10 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       previewPdfData={activePreviewPdfData}
       previewIsPdf={isPdfPreview}
       previewPage={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}
+      signingMode={workflowSigningMode}
+      onSigningModeChange={setWorkflowSigningMode}
+      finalDocumentVisibility={workflowFinalVisibility}
+      onFinalDocumentVisibilityChange={setWorkflowFinalVisibility}
       onApply={(result) => {
         const fields = result.fields;
         if (signatureFields.length > 0) {

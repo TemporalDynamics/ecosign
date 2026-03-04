@@ -157,9 +157,18 @@ serve(async (req) => {
 
       const { data: workflow } = await supabase
         .from('signature_workflows')
-        .select('id, document_entity_id')
+        .select('id, document_entity_id, status')
         .eq('id', record.workflow_id)
         .single()
+
+      if (workflow?.status && workflow.status !== 'active') {
+        return json({
+          success: false,
+          error_code: 'FLOW_NOT_ACTIVE',
+          message: `Workflow is not active (status=${workflow.status})`,
+          retryable: false
+        }, 403, corsHeaders)
+      }
 
       if (workflow?.document_entity_id && signer) {
         const ipHash = metadata.ip_address ? await hashIP(metadata.ip_address) : null

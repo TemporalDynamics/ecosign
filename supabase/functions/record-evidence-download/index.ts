@@ -69,9 +69,17 @@ serve(async (req) => {
 
     const { data: workflow } = await supabase
       .from('signature_workflows')
-      .select('document_entity_id')
+      .select('document_entity_id, status')
       .eq('id', workflowId)
       .single()
+
+    if (workflow?.status && workflow.status !== 'active' && workflow.status !== 'completed') {
+      return jsonResponse(
+        { error: `Workflow is not active (status=${workflow.status})` },
+        403,
+        corsHeaders
+      )
+    }
 
     if (!workflow?.document_entity_id) {
       // Workflow has no entity — record is a no-op but not an error for the client

@@ -209,6 +209,25 @@ serve(withRateLimit('verify', async (req) => {
       throw new Error('Document entity not found')
     }
 
+    const { data: workflow } = await supabase
+      .from('signature_workflows')
+      .select('id, status')
+      .eq('document_entity_id', documentEntityId)
+      .maybeSingle()
+
+    if (workflow?.status && workflow.status !== 'active' && workflow.status !== 'completed') {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          error: `Workflow is not active (status=${workflow.status})`
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 403
+        }
+      )
+    }
+
     if ((entity as any).lifecycle_status === 'revoked' || (entity as any).lifecycle_status === 'archived') {
       return new Response(
         JSON.stringify({

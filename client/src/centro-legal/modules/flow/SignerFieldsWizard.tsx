@@ -19,6 +19,10 @@ type Props = {
   previewPdfData?: ArrayBuffer | null;
   previewIsPdf?: boolean;
   previewPage?: number | null;
+  signingMode?: 'sequential' | 'parallel';
+  onSigningModeChange?: (mode: 'sequential' | 'parallel') => void;
+  finalDocumentVisibility?: 'owner_only' | 'participants';
+  onFinalDocumentVisibilityChange?: (value: 'owner_only' | 'participants') => void;
   onApply: (result: {
     fields: SignatureField[];
     template: WizardTemplate;
@@ -69,6 +73,10 @@ export function SignerFieldsWizard({
   previewPdfData = null,
   previewIsPdf = false,
   previewPage,
+  signingMode,
+  onSigningModeChange,
+  finalDocumentVisibility,
+  onFinalDocumentVisibilityChange,
   onApply
 }: Props) {
   const [includeFinalSignature, setIncludeFinalSignature] = useState(true);
@@ -118,6 +126,8 @@ export function SignerFieldsWizard({
   const AUTO_SCROLL_EDGE_PX = 56;
   const AUTO_SCROLL_MAX_STEP_PX = 18;
   const [openSignatureBlock, setOpenSignatureBlock] = useState<'final' | 'perPage' | null>('final');
+  const effectiveSigningMode = signingMode ?? 'sequential';
+  const effectiveFinalVisibility = finalDocumentVisibility ?? 'owner_only';
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const validSigners = useMemo(
@@ -1021,6 +1031,57 @@ export function SignerFieldsWizard({
             )}
           </div>
         </div>
+
+        {(onSigningModeChange || onFinalDocumentVisibilityChange) && (
+          <div className="mx-5 mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div className="text-sm font-semibold text-gray-900 mb-3">Configuración final del flujo</div>
+            <div className="space-y-3">
+              {onSigningModeChange && signers.length > 1 && (
+                <div>
+                  <div className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">Orden de firma</div>
+                  <label className="flex items-center gap-2 text-sm text-gray-800 mb-2">
+                    <input
+                      type="radio"
+                      name="signing-mode"
+                      checked={effectiveSigningMode === 'sequential'}
+                      onChange={() => onSigningModeChange('sequential')}
+                      className="eco-checkbox rounded-full border-gray-300"
+                    />
+                    Secuencial (cada firmante espera su turno)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-800">
+                    <input
+                      type="radio"
+                      name="signing-mode"
+                      checked={effectiveSigningMode === 'parallel'}
+                      onChange={() => onSigningModeChange('parallel')}
+                      className="eco-checkbox rounded-full border-gray-300"
+                    />
+                    Paralelo (todos pueden firmar desde el inicio)
+                  </label>
+                </div>
+              )}
+              {onFinalDocumentVisibilityChange && (
+                <label className="flex items-start gap-2 text-sm text-gray-800">
+                  <input
+                    type="checkbox"
+                    checked={effectiveFinalVisibility === 'participants'}
+                    onChange={(e) =>
+                      onFinalDocumentVisibilityChange(e.target.checked ? 'participants' : 'owner_only')
+                    }
+                    className="eco-checkbox rounded border-gray-300 mt-0.5"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900">Permitir descarga final a firmantes</div>
+                    <div className="text-xs text-gray-600">
+                      Al cerrar el flujo, cada firmante podrá descargar el PDF final y el ECO desde el verificador público.
+                    </div>
+                  </div>
+                </label>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
           {validationErrors.length > 0 && (

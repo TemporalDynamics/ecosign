@@ -78,12 +78,15 @@ serve(async (req) => {
 
     const { data: workflow, error: workflowError } = await supabase
       .from('signature_workflows')
-      .select('id, nda_text, document_entity_id')
+      .select('id, nda_text, document_entity_id, status')
       .eq('id', signer.workflow_id)
       .single()
 
     if (workflowError || !workflow) {
       return json({ error: 'Workflow not found' }, 404)
+    }
+    if (workflow.status && workflow.status !== 'active') {
+      return json({ error: `Workflow is not active (status=${workflow.status})` }, 403)
     }
 
     const ndaText = normalizeNdaText(workflow.nda_text || '')

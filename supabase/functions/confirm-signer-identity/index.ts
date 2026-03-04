@@ -71,6 +71,19 @@ serve(async (req) => {
     }
 
     const signer = signerValidation.signer
+    const { data: workflow } = await supabase
+      .from('signature_workflows')
+      .select('status')
+      .eq('id', signer.workflow_id)
+      .single()
+
+    if (workflow?.status && workflow.status !== 'active') {
+      return json(
+        { error: `Workflow is not active (status=${workflow.status})` },
+        403,
+        corsHeaders
+      )
+    }
 
     const fullName = `${body.firstName.trim()} ${body.lastName.trim()}`
 

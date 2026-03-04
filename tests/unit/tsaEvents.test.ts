@@ -26,11 +26,10 @@ const baseRow = (): DocumentEntityRow => ({
   events: [],
 });
 
-// TODO A3: strict forensic TSA validations are under development — skip these tests until implementation matches the A3 rules
-describe.skip('TSA Events in ECO v2', () => {
+describe('TSA Events in ECO v2', () => {
   test('projects TSA event correctly', () => {
     const tsaEvent: TsaEvent = {
-      kind: 'tsa',
+      kind: 'tsa.confirmed',
       at: '2026-01-06T10:05:00.000Z',
       witness_hash: 'b'.repeat(64),
       tsa: {
@@ -55,7 +54,7 @@ describe.skip('TSA Events in ECO v2', () => {
 
   test('verifies TSA event with matching witness_hash as valid', () => {
     const tsaEvent: TsaEvent = {
-      kind: 'tsa',
+      kind: 'tsa.confirmed',
       at: '2026-01-06T10:05:00.000Z',
       witness_hash: 'b'.repeat(64),
       tsa: {
@@ -87,10 +86,9 @@ describe.skip('TSA Events in ECO v2', () => {
     expect(result.tsa?.witness_hash).toBe('b'.repeat(64));
   });
 
-  // TODO A3: strict forensic validation — test currently skipped until implementation matches A3 rules
-  test.skip('detects TSA event with mismatched witness_hash as tampered', () => {
+  test('detects TSA event with mismatched witness_hash as tampered', () => {
     const tsaEvent: TsaEvent = {
-      kind: 'tsa',
+      kind: 'tsa.confirmed',
       at: '2026-01-06T10:05:00.000Z',
       witness_hash: 'x'.repeat(64), // WRONG HASH
       tsa: {
@@ -132,10 +130,9 @@ describe.skip('TSA Events in ECO v2', () => {
     expect(result.tsa?.present).toBe(false);
   });
 
-  // TODO A3: behavior for multiple TSA events (last-wins) — skipped until A3 rules implemented
-  test.skip('handles multiple TSA events (uses last one)', () => {
+  test('handles multiple TSA events (uses last one)', () => {
     const tsaEvent1: TsaEvent = {
-      kind: 'tsa',
+      kind: 'tsa.confirmed',
       at: '2026-01-06T10:05:00.000Z',
       witness_hash: 'b'.repeat(64),
       tsa: {
@@ -146,7 +143,7 @@ describe.skip('TSA Events in ECO v2', () => {
     };
 
     const tsaEvent2: TsaEvent = {
-      kind: 'tsa',
+      kind: 'tsa.confirmed',
       at: '2026-01-06T11:00:00.000Z',
       witness_hash: 'b'.repeat(64),
       tsa: {
@@ -175,10 +172,9 @@ describe.skip('TSA Events in ECO v2', () => {
     expect(result.tsa?.gen_time).toBe('2026-01-06T11:00:00Z'); // LAST one
   });
 
-  // TODO A3: missing token_b64 should be considered invalid — skip until strict validation is implemented
-  test.skip('detects missing token_b64 as invalid', () => {
+  test('detects missing token_b64 as invalid', () => {
     const tsaEvent: TsaEvent = {
-      kind: 'tsa',
+      kind: 'tsa.confirmed',
       at: '2026-01-06T10:05:00.000Z',
       witness_hash: 'b'.repeat(64),
       tsa: {
@@ -208,7 +204,7 @@ describe.skip('TSA Events in ECO v2', () => {
 
   test('TSA event with minimal fields is valid', () => {
     const tsaEvent: TsaEvent = {
-      kind: 'tsa',
+      kind: 'tsa.confirmed',
       at: '2026-01-06T10:05:00.000Z',
       witness_hash: 'b'.repeat(64),
       tsa: {

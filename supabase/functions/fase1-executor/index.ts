@@ -124,10 +124,7 @@ async function emitArtifactChainPendingIfNeeded(
   if (jobs.includes('submit_anchor_polygon')) pendingNetworks.push('polygon');
   if (jobs.includes('submit_anchor_bitcoin')) pendingNetworks.push('bitcoin');
 
-  const requestEvent = events.find((event) => event.kind === 'document.protected.requested');
-  const requiredEvidence = Array.isArray(requestEvent?.payload?.['required_evidence'])
-    ? (requestEvent?.payload?.['required_evidence'] as unknown[]).filter((item): item is string => typeof item === 'string')
-    : [];
+  const requiredEvidence = getRequiredEvidenceFromEvents(events);
 
   await emitEvent(
     supabase,

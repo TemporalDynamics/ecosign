@@ -1135,6 +1135,34 @@ serve(async (req) => {
               },
               'apply-signer-signature'
             )
+
+            // Also append to document_entities.events[] so the final ECO can
+            // reconstruct per-signer Rekor proofs from the entity ledger.
+            if (workflow.document_entity_id) {
+              try {
+                await appendEvent(
+                  supabase as any,
+                  workflow.document_entity_id,
+                  {
+                    kind: 'signer.rekor.confirmed',
+                    at: new Date().toISOString(),
+                    payload: {
+                      ref: rekorConfirmed.ref ?? null,
+                      log_index: rekorConfirmed.log_index ?? null,
+                      integrated_time: rekorConfirmed.integrated_time ?? null,
+                      statement_hash: rekorConfirmed.statement_hash ?? null,
+                      public_key_b64: rekorConfirmed.public_key_b64 ?? null,
+                      witness_hash: canonicalWitnessHash || null,
+                      step_index: signer.signing_order ?? null,
+                      signer_id: signer.id,
+                    },
+                  },
+                  'apply-signer-signature'
+                )
+              } catch (signerRekorEntityErr) {
+                console.warn('signer.rekor.confirmed entity append failed (best-effort)', signerRekorEntityErr)
+              }
+            }
           }
         }
       } catch (ecoErr) {

@@ -122,11 +122,11 @@ export const decideProtectDocumentV2Pipeline = (
     jobs.push('submit_anchor_bitcoin');
   }
 
-  // Snapshots (signature flow pre-terminal) never emit final ECO artifact.
+  // Snapshots (signature flow pre-terminal) never emit final artifact closure.
   if (isSignatureTerminal) {
-    // ECO final is TSA-gated, while chain anchors are best-effort strengthening.
-    jobs.unshift('build_artifact');
-    return { jobs, reason: 'needs_artifact' };
+    // Finalization is handled by the Bitcoin worker via finalize-document after
+    // anchor.confirmed or anchor.final_failed. No build_artifact job needed.
+    return { jobs, reason: jobs.length > 0 ? 'needs_anchors' : 'noop_complete' };
   }
 
   return jobs.length > 0 ? { jobs, reason: 'needs_anchors' } : { jobs: [], reason: 'noop_complete' };

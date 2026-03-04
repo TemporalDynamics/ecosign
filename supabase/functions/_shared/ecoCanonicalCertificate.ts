@@ -205,6 +205,67 @@ export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
 
   const proofs = [tsaProof, rekorProof, polygonProof, bitcoinProof].filter(Boolean);
 
+  // Per-signer workflow evidence: collect signature.completed + signer.rekor.confirmed
+  // and join by step_index (primary) or witness_hash (fallback).
+  const signerCompletedEvents = events.filter((e) => e.kind === 'signature.completed');
+  const signerRekorEvents = events.filter((e) => e.kind === 'signer.rekor.confirmed');
+  const signersEvidence = signerCompletedEvents.length > 0
+    ? signerCompletedEvents.map((e) => {
+        const eAny = e as any;
+        const stepIndex = eAny.signer?.order ?? e.payload?.['step_index'] ?? null;
+        const witnessHash = eAny.evidence?.witness_pdf_hash ?? e.payload?.['witness_hash'] ?? null;
+        const rekorForSigner = signerRekorEvents.find((r) =>
+          (stepIndex !== null && r.payload?.['step_index'] === stepIndex) ||
+          (witnessHash && r.payload?.['witness_hash'] === witnessHash)
+        );
+        return {
+          step_index: stepIndex,
+          signer_id: eAny.signer?.id ?? null,
+          signer_email: eAny.signer?.email ?? null,
+          signer_name: eAny.signer?.name ?? null,
+          witness_hash: witnessHash,
+          identity_level: eAny.evidence?.identity_level ?? null,
+          signed_at: e.at ?? null,
+          rekor: rekorForSigner
+            ? {
+                ref: rekorForSigner.payload?.['ref'] ?? null,
+                log_index: rekorForSigner.payload?.['log_index'] ?? null,
+                integrated_time: rekorForSigner.payload?.['integrated_time'] ?? null,
+                witness_hash: rekorForSigner.payload?.['witness_hash'] ?? null,
+              }
+            : null,
+        };
+      }).sort((a, b) => (a.step_index ?? 0) - (b.step_index ?? 0))
+    : null;
+
+  // NDA acceptances: collect all nda.accepted events across all flows
+  // (share link, invite, workflow signer). Privacy-preserving: only ip_hash, not raw IP.
+  const ndaAcceptedEvents = events.filter((e) => e.kind === 'nda.accepted');
+  const ndaEvidence = ndaAcceptedEvents.length > 0
+    ? ndaAcceptedEvents.map((e) => {
+        const eAny = e as any;
+        const nda = eAny.nda ?? {};
+        const context = eAny.context ?? {};
+        return {
+          accepted_at: e.at ?? null,
+          recipient_email: nda.recipient_email ?? null,
+          nda_hash: nda.nda_hash ?? null,
+          acceptance_method: nda.acceptance_method ?? null,
+          ip_hash: context.ip_hash ?? null,
+          browser: context.browser ?? null,
+          geo: context.geo ?? null,
+          // Source context (one of share_id, invite_id, or workflow_id+signer_id)
+          share_id: nda.share_id ?? null,
+          invite_id: nda.invite_id ?? null,
+          workflow_id: nda.workflow_id ?? null,
+          signer_id: nda.signer_id ?? null,
+          nda_source: nda.nda_source ?? null,
+          template_id: nda.template_id ?? null,
+          template_version: nda.template_version ?? null,
+        };
+      })
+    : null;
+
   return {
     format: 'eco',
     format_version: '2.0',
@@ -283,6 +344,8 @@ export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
       ciphertext_hash: signatureCapture.ciphertext_hash ?? null,
     },
     proofs,
+    ...(signersEvidence !== null ? { signers_evidence: signersEvidence } : {}),
+    ...(ndaEvidence !== null ? { nda_evidence: ndaEvidence } : {}),
     system: {
       schema: 'eco.canonical.certificate.v1',
       workflow_id: input.workflow_id ?? null,

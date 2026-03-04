@@ -443,29 +443,81 @@ async function emitAnchorTimeoutEvent(
     await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
       kind: 'anchor.timeout',
       at: nowIso,
-      anchor: {
-        ...basePayload,
-        retryable: true,
-      }
+      anchor: { ...basePayload, retryable: false },
     }, 'process-bitcoin-anchors');
     console.log(`✅ Emitted anchor.timeout for document_entity ${anchor.document_entity_id}`);
   } catch (eventError) {
     console.error('Failed to emit anchor.timeout event:', eventError);
   }
 
+  // anchor.final_failed: definitive closure signal — retryable: false
   try {
     await appendEvent(supabaseAdmin as any, anchor.document_entity_id, {
-      kind: 'anchor.failed',
+      kind: 'anchor.final_failed',
       at: nowIso,
       anchor: {
         ...basePayload,
-        retryable: true,
+        retryable: false,
         failure_code: timeoutBy === 'max_attempts' ? 'max_attempts' : 'timeout',
-      }
+      },
     }, 'process-bitcoin-anchors');
-    console.log(`✅ Emitted anchor.failed(${timeoutBy}) for document_entity ${anchor.document_entity_id}`);
+    console.log(`✅ Emitted anchor.final_failed(${timeoutBy}) for document_entity ${anchor.document_entity_id}`);
   } catch (eventError) {
-    console.error('Failed to emit anchor.failed(timeout/max_attempts) event:', eventError);
+    console.error('Failed to emit anchor.final_failed event:', eventError);
+  }
+}
+
+async function triggerFinalization(
+  documentEntityId: string,
+  closureTrigger: 'bitcoin_confirmed' | 'bitcoin_final_failed',
+): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey || !supabaseAdmin) {
+    console.warn('[triggerFinalization] Missing env vars, skipping.');
+    return;
+  }
+  try {
+    // Re-read events immediately after the triggering appendEvent committed.
+    // This is a fresh READ COMMITTED transaction — PostgreSQL guarantees it
+    // sees all committed data on any connection, regardless of PgBouncer pooling.
+    // No sleep needed: we're reading AFTER our own await, so our commit is done.
+    const { data: freshEntity, error: readError } = await supabaseAdmin
+      .from('document_entities')
+      .select('events')
+      .eq('id', documentEntityId)
+      .single();
+
+    if (readError || !freshEntity) {
+      console.warn(`[triggerFinalization] Could not re-read entity ${documentEntityId}:`, readError?.message);
+      return;
+    }
+
+    // Pass the fresh events snapshot to finalize-document.
+    // The function uses this directly — no DB re-read needed, no race condition.
+    const url = `${supabaseUrl}/functions/v1/finalize-document`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        document_entity_id: documentEntityId,
+        closure_trigger: closureTrigger,
+        events_snapshot: freshEntity.events,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.warn(`[triggerFinalization] finalize-document responded ${resp.status}: ${text}`);
+    } else {
+      console.log(`✅ finalize-document triggered for ${documentEntityId} (${closureTrigger})`);
+    }
+  } catch (err) {
+    // Best-effort: finalization failure is non-blocking for the anchor worker
+    console.warn('[triggerFinalization] non-critical error:', err);
   }
 }
 
@@ -627,8 +679,9 @@ serve(async (req) => {
               timeoutEvaluation.timeoutBy ?? 'elapsed',
             );
 
-            // NOTE: legacy projection updates removed; canonical events are the source of truth.
-            // Legacy updates removed to ensure single source of truth in events[]
+            if (anchor.document_entity_id) {
+              await triggerFinalization(anchor.document_entity_id, 'bitcoin_final_failed');
+            }
 
             failed++;
             continue;
@@ -735,6 +788,9 @@ serve(async (req) => {
                 console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
                 await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
                 await enqueueBitcoinNotifications(anchor, txid, blockHeight ?? undefined, blockData.confirmedAt ?? null);
+                if (anchor.document_entity_id) {
+                  await triggerFinalization(anchor.document_entity_id, 'bitcoin_confirmed');
+                }
                 confirmed++;
                 continue;
               }
@@ -775,6 +831,9 @@ serve(async (req) => {
             console.log(`✅ Anchor ${anchor.id} confirmed in Bitcoin!`);
             await emitAnchorConfirmedEvent(anchor, txid || null, blockHeight || null, confirmedAt);
             await enqueueBitcoinNotifications(anchor, txid, blockHeight ?? undefined, confirmedAt);
+            if (anchor.document_entity_id) {
+              await triggerFinalization(anchor.document_entity_id, 'bitcoin_confirmed');
+            }
             confirmed++;
           } else {
             // Still pending - update status to 'processing' if not already

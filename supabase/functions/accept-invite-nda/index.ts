@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { parseJsonBody } from '../_shared/validation.ts';
 import { AcceptInviteNdaSchema } from '../_shared/schemas.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts';
 
 serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
@@ -123,6 +124,50 @@ serve(async (req) => {
         JSON.stringify({ error: 'Failed to accept NDA' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // === PROBATORY EVENT: nda.accepted → document_entities.events[] ===
+    // Best-effort: does not block the response if it fails.
+    const documentEntityId = typeof invite.document_entity_id === 'string' && invite.document_entity_id.length > 0
+      ? invite.document_entity_id
+      : null;
+    if (documentEntityId) {
+      try {
+        const acceptedAt = new Date().toISOString();
+        const ndaAcceptanceData = JSON.stringify({
+          invite_id: invite.id,
+          email: invite.email,
+          timestamp: acceptedAt,
+          ip_address: clientIP,
+          user_agent: userAgent,
+        });
+        const ndaHashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ndaAcceptanceData));
+        const ndaHash = Array.from(new Uint8Array(ndaHashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        const ipHash = clientIP !== 'unknown' ? await hashIP(clientIP) : null;
+        const browserFamily = getBrowserFamily(userAgent);
+
+        await appendEvent(
+          supabase,
+          documentEntityId,
+          {
+            kind: 'nda.accepted',
+            at: acceptedAt,
+            nda: {
+              invite_id: invite.id,
+              recipient_email: invite.email,
+              nda_hash: ndaHash,
+              acceptance_method: 'checkbox',
+            },
+            context: {
+              ip_hash: ipHash,
+              browser: browserFamily,
+            },
+          },
+          'accept-invite-nda'
+        );
+      } catch (ndaEventErr) {
+        console.warn('nda.accepted entity append failed (best-effort):', ndaEventErr);
+      }
     }
 
     return new Response(

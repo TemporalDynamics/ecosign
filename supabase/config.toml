@@ -260,6 +260,15 @@ verify_enabled = false
 enroll_enabled = false
 verify_enabled = false
 
+[functions.signing-keys]
+verify_jwt = false
+
+[functions.get-eco]
+verify_jwt = false
+
+[functions.finalize-document]
+verify_jwt = false
+
 [functions.process-polygon-anchors]
 verify_jwt = true
 

@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/.well-known/ecosign-keys.json",
+      "destination": "https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/signing-keys"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

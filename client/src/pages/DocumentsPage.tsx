@@ -1611,52 +1611,41 @@ function DocumentsPage() {
 
   const performEcoDownload = async (doc: DocumentRecord | null) => {
     if (!doc) return;
-    const targetDocumentId = doc.document_entity_id || doc.id;
-
-    if (doc.eco_storage_path || doc.document_entity_id) {
-      const entityId = doc.document_entity_id;
-      const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
-
-      if (entityId) {
-        try {
-          const supabase = getSupabase();
-          const session = (await supabase.auth.getSession()).data.session;
-          const { data, error } = await supabase.functions.invoke('get-eco-url', {
-            body: { document_entity_id: entityId },
-            headers: session?.access_token
-              ? { Authorization: `Bearer ${session.access_token}` }
-              : {},
-          });
-          if (!error && data?.signed_url) {
-            const response = await fetch(data.signed_url);
-            if (response.ok) {
-              const blob = await response.blob();
-              triggerDownload(blob, ecoName);
-              return;
-            }
-          }
-        } catch (err) {
-          console.error('get-eco-url failed:', err);
-        }
-      }
-
-      if (doc.eco_storage_path) {
-        const downloaded = await downloadFromPath(doc.eco_storage_path, ecoName);
-        if (downloaded) return;
-      }
-
-      await requestRegeneration(targetDocumentId, "eco");
-      window.alert("No encontramos el ECO en storage. Solicitamos regeneración automática.");
+    const entityId = doc.document_entity_id;
+    if (!entityId) {
+      window.alert("Todavía no hay certificado .ECO para este documento.");
       return;
     }
-    if (doc.eco_hash) {
-      await requestRegeneration(targetDocumentId, "eco");
-      return;
+
+    const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
+
+    try {
+      const supabase = getSupabase();
+      const session = (await supabase.auth.getSession()).data.session;
+      const { data, error } = await supabase.functions.invoke('get-eco', {
+        body: { document_entity_id: entityId },
+        headers: session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {},
+      });
+
+      if (error) {
+        console.error('get-eco error:', error);
+        window.alert("No se pudo generar el ECO. Reintentá en unos minutos.");
+        return;
+      }
+
+      if (data?.error === 'eco_not_ready') {
+        window.alert("El ECO todavía no está listo: el proceso de certificación está en curso. Reintentá en unos minutos.");
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      triggerDownload(blob, ecoName);
+    } catch (err) {
+      console.error('get-eco failed:', err);
+      window.alert("Error al descargar el ECO. Reintentá en unos minutos.");
     }
-    // Frontend must not issue authoritative ECO certificates.
-    // If canonical path is absent, request backend regeneration.
-    await requestRegeneration(targetDocumentId, "eco");
-    window.alert("Todavía no hay certificado .ECO para este documento. Puede estar generándose; reintentá en unos minutos.");
   };
 
   const performEcoxDownload = (doc: DocumentRecord | null) => {

@@ -5,6 +5,7 @@ import { AcceptWorkflowNdaSchema } from '../_shared/schemas.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { NDA_VERSION, normalizeNdaText, resolveNdaTemplateMetadata } from '../_shared/nda/text.ts'
 import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
+import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
 
 const computeSha256 = async (input: string): Promise<string> => {
   const data = new TextEncoder().encode(input);
@@ -77,7 +78,7 @@ serve(async (req) => {
 
     const { data: workflow, error: workflowError } = await supabase
       .from('signature_workflows')
-      .select('id, nda_text')
+      .select('id, nda_text, document_entity_id')
       .eq('id', signer.workflow_id)
       .single()
 
@@ -153,6 +154,49 @@ serve(async (req) => {
         console.error('Failed to rollback NDA acceptance after ecox error', rollbackError);
       }
       return json({ error: 'Failed to register NDA acceptance event' }, 500);
+    }
+
+    // === PROBATORY EVENT: nda.accepted → document_entities.events[] ===
+    // Best-effort: ECOx is the authoritative audit record (fail-hard above).
+    // This append makes the NDA acceptance visible in the ECO for the document owner.
+    const documentEntityId = typeof (workflow as any)?.document_entity_id === 'string'
+      ? (workflow as any).document_entity_id
+      : null;
+    if (documentEntityId) {
+      try {
+        const sourceIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+          || req.headers.get('x-real-ip')
+          || null;
+        const userAgent = req.headers.get('user-agent') || null;
+        const ipHash = sourceIp ? await hashIP(sourceIp) : null;
+        const browserFamily = getBrowserFamily(userAgent || '');
+
+        await appendEvent(
+          supabase,
+          documentEntityId,
+          {
+            kind: 'nda.accepted',
+            at: acceptedAt,
+            nda: {
+              workflow_id: signer.workflow_id,
+              signer_id: signer.id,
+              recipient_email: signer.email ?? null,
+              nda_hash: ndaHash,
+              nda_source: templateMeta.nda_source,
+              template_id: templateMeta.template_id,
+              template_version: templateMeta.template_version,
+              acceptance_method: 'checkbox',
+            },
+            context: {
+              ip_hash: ipHash,
+              browser: browserFamily,
+            },
+          },
+          'accept-workflow-nda'
+        );
+      } catch (ndaEntityErr) {
+        console.warn('nda.accepted entity append failed (best-effort):', ndaEntityErr);
+      }
     }
 
     return json({

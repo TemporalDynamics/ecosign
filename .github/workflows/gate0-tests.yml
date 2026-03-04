@@ -31,4 +31,4 @@ jobs:
           SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
         run: |
           echo "Running Gate-0 tests"
-          npx vitest tests/gate0 --run
+          npx vitest --config vitest.gate0.config.ts --run

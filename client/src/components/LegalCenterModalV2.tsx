@@ -477,54 +477,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     setWorkflowAssignmentConfirmed(workflowAssignmentStatus.isComplete);
   }, [workflowEnabled, workflowAssignmentStatus.isComplete]);
 
-  const ensureSignaturePdf = useCallback(async () => {
-    if (!file) return null;
-    if (file.type === 'application/pdf') return file;
-    const baseFile = sourceFile ?? file;
-    try {
-      const converted = await convertToPDF(baseFile, 'signature_workflow');
-      setFile(converted);
-      updatePreviewForFile(converted);
-      return converted;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'No se pudo convertir el documento a PDF';
-      showToast(message, { type: 'error', duration: 5000 });
-      return null;
-    }
-  }, [file, sourceFile, updatePreviewForFile, showToast]);
-
-  const ensurePreviewPdfData = async () => {
-    if (!file || file.type !== 'application/pdf') return;
-    if (documentPreviewPdfData) return;
-    try {
-      const buffer = await file.arrayBuffer();
-      setDocumentPreviewPdfData(buffer);
-      setPdfEditError(false);
-    } catch (error) {
-      console.warn('No se pudo preparar pdfData para wizard:', error);
-    }
-  };
-
-  const openSignerFieldsWizard = async () => {
-    setFlowPanelOpen(true);
-    await ensureSignaturePdf();
-    await ensurePreviewPdfData();
-    setShowSignerFieldsWizard(true);
-    setTimeout(() => {
-      workflowAssignmentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 0);
-  };
-
-  const openMySignatureWizard = async () => {
-    if (!ownerEmail) {
-      showToast('Necesitás iniciar sesión para firmar tu documento.', { type: 'error' });
-      return;
-    }
-    await ensureSignaturePdf();
-    await ensurePreviewPdfData();
-    setShowSignerFieldsWizard(true);
-  };
-
   // Handlers para el modal de bienvenida
   const handleWelcomeAccept = () => {
     setShowWelcomeModal(false);
@@ -712,6 +664,54 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     setDocumentPreviewPdfData(null);
   }, []);
 
+  const ensureSignaturePdf = useCallback(async () => {
+    if (!file) return null;
+    if (file.type === 'application/pdf') return file;
+    const baseFile = sourceFile ?? file;
+    try {
+      const converted = await convertToPDF(baseFile, 'signature_workflow');
+      setFile(converted);
+      updatePreviewForFile(converted);
+      return converted;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo convertir el documento a PDF';
+      showToast(message, { type: 'error', duration: 5000 });
+      return null;
+    }
+  }, [file, sourceFile, updatePreviewForFile, showToast]);
+
+  const ensurePreviewPdfData = async () => {
+    if (!file || file.type !== 'application/pdf') return;
+    if (documentPreviewPdfData) return;
+    try {
+      const buffer = await file.arrayBuffer();
+      setDocumentPreviewPdfData(buffer);
+      setPdfEditError(false);
+    } catch (error) {
+      console.warn('No se pudo preparar pdfData para wizard:', error);
+    }
+  };
+
+  const openSignerFieldsWizard = async () => {
+    setFlowPanelOpen(true);
+    await ensureSignaturePdf();
+    await ensurePreviewPdfData();
+    setShowSignerFieldsWizard(true);
+    setTimeout(() => {
+      workflowAssignmentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  };
+
+  const openMySignatureWizard = async () => {
+    if (!ownerEmail) {
+      showToast('Necesitás iniciar sesión para firmar tu documento.', { type: 'error' });
+      return;
+    }
+    await ensureSignaturePdf();
+    await ensurePreviewPdfData();
+    setShowSignerFieldsWizard(true);
+  };
+
   const runPostFileSelectionEffects = useCallback((selectedFile: File, previewFile: File) => {
     // BLOQUE 1: Toast inicial si protección está activa
     if (forensicEnabled) {
@@ -894,7 +894,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           return;
         }
         const mode: ConvertToPdfMode =
-          mySignature || workflowEnabled || initialAction === 'sign' || initialAction === 'workflow'
+          mySignature || workflowEnabled
             ? 'signature_workflow'
             : 'protection_only';
         let workingFile = file;

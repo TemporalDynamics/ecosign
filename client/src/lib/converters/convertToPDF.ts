@@ -56,7 +56,12 @@ const imageToPdf = async (imageFile: File): Promise<File> => {
   page.drawImage(embedded, { x: 0, y: 0, width, height })
 
   const pdfBytes = await pdf.save()
-  return new File([pdfBytes], toPdfFilename(imageFile.name), { type: 'application/pdf' })
+  const pdfBuffer = pdfBytes.buffer.slice(
+    pdfBytes.byteOffset,
+    pdfBytes.byteOffset + pdfBytes.byteLength
+  ) as ArrayBuffer
+  const pdfBlob = new Blob([pdfBuffer], { type: 'application/pdf' })
+  return new File([pdfBlob], toPdfFilename(imageFile.name), { type: 'application/pdf' })
 }
 
 const textToPdf = async (textFile: File): Promise<File> => {
@@ -90,7 +95,12 @@ const textToPdf = async (textFile: File): Promise<File> => {
   }
 
   const pdfBytes = await pdf.save()
-  return new File([pdfBytes], toPdfFilename(textFile.name), { type: 'application/pdf' })
+  const pdfBuffer = pdfBytes.buffer.slice(
+    pdfBytes.byteOffset,
+    pdfBytes.byteOffset + pdfBytes.byteLength
+  ) as ArrayBuffer
+  const pdfBlob = new Blob([pdfBuffer], { type: 'application/pdf' })
+  return new File([pdfBlob], toPdfFilename(textFile.name), { type: 'application/pdf' })
 }
 
 export const convertToPDF = async (

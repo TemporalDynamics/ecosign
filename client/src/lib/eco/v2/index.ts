@@ -471,6 +471,8 @@ export type VerificationResult = {
   };
 };
 
+type EpiVerification = NonNullable<VerificationResult['epi']>;
+
 const getViteEnv = (name: string): string => {
   try {
     const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
@@ -873,7 +875,7 @@ const buildEpiRoot = (epi: EpiBlock): string | null => {
   return hashes[0] ?? null;
 };
 
-const verifyEpiBlock = (epi: unknown): VerificationResult['epi'] => {
+const verifyEpiBlock = (epi: unknown): EpiVerification => {
   if (!epi || typeof epi !== 'object') {
     return { level: 1, status: 'unknown' };
   }

@@ -15,6 +15,7 @@ import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
 import { getSupabase } from '../lib/supabaseClient';
 import { hashSource, hashSigned, hashWitness } from '../lib/canonicalHashing';
+import { convertToPDF, type ConvertToPdfMode } from '../lib/converters/convertToPDF';
 import {
   createSourceTruth,
   ensureWitnessCurrent,
@@ -172,6 +173,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   // Estados del flujo
   const [step, setStep] = useState<number>(1); // 1: Elegir y Configurar, 2: Guardar/Descargar
   const [file, setFile] = useState<File | null>(null);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [documentLoaded, setDocumentLoaded] = useState(false); // CONSTITUCIÓN: Control de visibilidad de acciones
   const [loading, setLoading] = useState(false);
   const [certificateData, setCertificateData] = useState<CertificateData | null>(null);
@@ -450,6 +452,22 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     setWorkflowAssignmentConfirmed(workflowAssignmentStatus.isComplete);
   }, [workflowEnabled, workflowAssignmentStatus.isComplete]);
 
+  const ensureSignaturePdf = useCallback(async () => {
+    if (!file) return null;
+    if (file.type === 'application/pdf') return file;
+    const baseFile = sourceFile ?? file;
+    try {
+      const converted = await convertToPDF(baseFile, 'signature_workflow');
+      setFile(converted);
+      updatePreviewForFile(converted);
+      return converted;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo convertir el documento a PDF';
+      showToast(message, { type: 'error', duration: 5000 });
+      return null;
+    }
+  }, [file, sourceFile, updatePreviewForFile, showToast]);
+
   const ensurePreviewPdfData = async () => {
     if (!file || file.type !== 'application/pdf') return;
     if (documentPreviewPdfData) return;
@@ -464,6 +482,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
   const openSignerFieldsWizard = async () => {
     setFlowPanelOpen(true);
+    await ensureSignaturePdf();
     await ensurePreviewPdfData();
     setShowSignerFieldsWizard(true);
     setTimeout(() => {
@@ -476,6 +495,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       showToast('Necesitás iniciar sesión para firmar tu documento.', { type: 'error' });
       return;
     }
+    await ensureSignaturePdf();
     await ensurePreviewPdfData();
     setShowSignerFieldsWizard(true);
   };
@@ -535,6 +555,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const previewBaseHeight = isMobile ? 'h-[40vh]' : PREVIEW_BASE_HEIGHT;
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
   const [documentPreviewPdfData, setDocumentPreviewPdfData] = useState<ArrayBuffer | null>(null);
+  const [documentPreviewText, setDocumentPreviewText] = useState<string | null>(null);
   const [workflowPreviewUrl, setWorkflowPreviewUrl] = useState<string | null>(null);
   const [workflowPreviewPdfData, setWorkflowPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const workflowPreviewKeyRef = useRef<string | null>(null);
@@ -624,7 +645,49 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
   if (!isOpen) return null;
 
-  const runPostFileSelectionEffects = useCallback((selectedFile: File) => {
+  const updatePreviewForFile = useCallback((previewFile: File) => {
+    setDocumentPreviewText(null);
+
+    if (previewFile.type.startsWith('image/')) {
+      setDocumentPreviewPdfData(null);
+      const reader = new FileReader();
+      reader.onload = (event: ProgressEvent<FileReader>) => {
+        const result = event?.target?.result;
+        if (typeof result === 'string') {
+          setDocumentPreview(result);
+        }
+      };
+      reader.readAsDataURL(previewFile);
+      return;
+    }
+
+    if (previewFile.type === 'application/pdf') {
+      const url = URL.createObjectURL(previewFile);
+      setDocumentPreview(url);
+      previewFile.arrayBuffer().then((buffer) => {
+        setDocumentPreviewPdfData(buffer);
+      }).catch(() => {
+        setDocumentPreviewPdfData(null);
+      });
+      return;
+    }
+
+    if (previewFile.type === 'text/plain') {
+      setDocumentPreview(null);
+      setDocumentPreviewPdfData(null);
+      previewFile.text().then((text) => {
+        setDocumentPreviewText(text);
+      }).catch(() => {
+        setDocumentPreviewText(null);
+      });
+      return;
+    }
+
+    setDocumentPreview(null);
+    setDocumentPreviewPdfData(null);
+  }, []);
+
+  const runPostFileSelectionEffects = useCallback((selectedFile: File, previewFile: File) => {
     // BLOQUE 1: Toast inicial si protección está activa
     if (forensicEnabled) {
       toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
@@ -640,31 +703,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       fileName: selectedFile.name.split('.').pop() || 'unknown' // solo extensión
     });
 
-    // Generar preview según el tipo de archivo
-    if (selectedFile.type.startsWith('image/')) {
-      setDocumentPreviewPdfData(null);
-      const reader = new FileReader();
-      reader.onload = (event: ProgressEvent<FileReader>) => {
-        const result = event?.target?.result;
-        if (typeof result === 'string') {
-          setDocumentPreview(result);
-        }
-      };
-      reader.readAsDataURL(selectedFile);
-    } else if (selectedFile.type === 'application/pdf') {
-      // Para PDFs, usar el URL directo
-      const url = URL.createObjectURL(selectedFile);
-      setDocumentPreview(url);
-      selectedFile.arrayBuffer().then((buffer) => {
-        setDocumentPreviewPdfData(buffer);
-      }).catch(() => {
-        setDocumentPreviewPdfData(null);
-      });
-    } else {
-      // Para otros tipos, mostrar icono genérico
-      setDocumentPreview(null);
-      setDocumentPreviewPdfData(null);
-    }
+    updatePreviewForFile(previewFile);
 
     // CONSTITUCIÓN: Toast unificado "Documento listo"
     showToast('Documento listo.\nEcoSign no ve tu documento.\nLa certificación está activada por defecto.', {
@@ -684,12 +723,16 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         duration: 3000
       });
     }
-  }, [forensicEnabled, initialAction, mySignature, showToast, openMySignatureWizard]);
+  }, [forensicEnabled, initialAction, mySignature, showToast, openMySignatureWizard, updatePreviewForFile]);
 
-  const applySelectedFile = useCallback(async (selectedFile: File, opts?: { resetInput?: () => void }) => {
+  const applySelectedFile = useCallback(async (
+    selectedFile: File,
+    workingFile: File,
+    opts?: { resetInput?: () => void }
+  ) => {
     // Detectar si es un PDF encriptado
-    if (selectedFile.type === 'application/pdf') {
-      const isEncrypted = await isPDFEncrypted(selectedFile);
+    if (workingFile.type === 'application/pdf') {
+      const isEncrypted = await isPDFEncrypted(workingFile);
       if (isEncrypted) {
         toast.error(
           'Documento bloqueado\n\nEste archivo tiene una contraseña.\n\nLos documentos protegidos no pueden usarse para generar evidencia digital verificable.\n\nSubí una versión sin contraseña para continuar.',
@@ -707,7 +750,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       }
 
       // P0.1: Validar estructura PDF (antes de continuar)
-      const isPDFValid = await validatePDFStructure(selectedFile);
+      const isPDFValid = await validatePDFStructure(workingFile);
       if (!isPDFValid) {
         toast.error(
           'Este PDF está dañado o tiene una estructura inválida.\n\nProbá abrirlo en un lector de PDF (Adobe Reader, Foxit) y volvé a guardarlo.',
@@ -725,7 +768,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       }
 
       // P0.2: Advertir sobre permisos PDF (warning, no bloqueante)
-      const permissions = await checkPDFPermissions(selectedFile);
+      const permissions = await checkPDFPermissions(workingFile);
       if (permissions.restricted) {
         toast(
           'Este PDF tiene restricciones de edición.\n\nSi tenés problemas al certificar, pedí al creador que quite las restricciones.',
@@ -744,7 +787,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       }
     }
 
-    setFile(selectedFile);
+    setSourceFile(selectedFile);
+    setFile(workingFile);
     setDocumentLoaded(true); // CONSTITUCIÓN: Controlar visibilidad de acciones
     setPreviewError(false);
     console.log('Archivo seleccionado:', selectedFile.name);
@@ -824,9 +868,21 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           showToast('Este borrador no está disponible para continuar todavía.', { type: 'error' });
           return;
         }
-        const ok = await applySelectedFile(file);
+        const mode: ConvertToPdfMode =
+          mySignature || workflowEnabled || initialAction === 'sign' || initialAction === 'workflow'
+            ? 'signature_workflow'
+            : 'protection_only';
+        let workingFile = file;
+        try {
+          workingFile = await convertToPDF(file, mode);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'No se pudo procesar el archivo';
+          showToast(message, { type: 'error', duration: 5000 });
+          return;
+        }
+        const ok = await applySelectedFile(file, workingFile);
         if (ok) {
-          runPostFileSelectionEffects(file);
+          runPostFileSelectionEffects(file, workingFile);
         }
 
         // Best-effort state restore (server drafts)
@@ -895,15 +951,38 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    if (selectedFile.type !== 'application/pdf') {
-      showToast('Solo se admiten documentos PDF.', { type: 'error', duration: 4000 });
+    const allowedTypes = [
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'image/jpg',
+      'text/plain'
+    ];
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      showToast('Formato de archivo no soportado. Usá PDF, imagen o texto.', { type: 'error', duration: 4000 });
       e.target.value = '';
       return;
     }
 
-    const ok = await applySelectedFile(selectedFile, { resetInput: () => { e.target.value = ''; } });
+    const mode: ConvertToPdfMode =
+      mySignature || workflowEnabled || initialAction === 'sign' || initialAction === 'workflow'
+        ? 'signature_workflow'
+        : 'protection_only';
+
+    let workingFile = selectedFile;
+    try {
+      workingFile = await convertToPDF(selectedFile, mode);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo procesar el archivo';
+      showToast(message, { type: 'error', duration: 5000 });
+      e.target.value = '';
+      return;
+    }
+
+    const ok = await applySelectedFile(selectedFile, workingFile, { resetInput: () => { e.target.value = ''; } });
     if (ok) {
-      runPostFileSelectionEffects(selectedFile);
+      runPostFileSelectionEffects(selectedFile, workingFile);
     }
   };
   // Cleanup de URLs de preview para evitar fugas
@@ -1344,8 +1423,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
   const handleCertify = async () => {
     if (!file) return;
-    if (file.type !== 'application/pdf') {
-      toast.error('Solo se admiten documentos PDF.', { position: 'bottom-right' });
+    const requiresPdf = mySignature || workflowEnabled || signatureFields.length > 0 || Boolean(signatureType);
+    if (requiresPdf && file.type !== 'application/pdf') {
+      toast.error('Para firmar, el documento debe estar en PDF.', { position: 'bottom-right' });
       return;
     }
 
@@ -1455,14 +1535,18 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       let canonicalSourceHash: string | null = null;
 
       try {
-        const sourceHash = await hashSource(file);
+        const sourceTarget = sourceFile ?? file;
+        if (!sourceTarget) {
+          throw new Error('No se pudo leer el documento original.');
+        }
+        const sourceHash = await hashSource(sourceTarget);
         canonicalSourceHash = sourceHash;
 
         setCertifyProgress({ stage: 'preparing', message: 'Creando entidad canónica...' });
         const tempCreated = await withTimeout(createSourceTruth({
-          name: file.name,
-          mime_type: file.type || 'application/pdf',
-          size_bytes: file.size,
+          name: sourceTarget.name,
+          mime_type: sourceTarget.type || 'application/pdf',
+          size_bytes: sourceTarget.size,
           hash: sourceHash,
           custody_mode: 'hash_only',
           storage_path: null
@@ -1483,7 +1567,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           });
           setCertifyProgress({ stage: 'preparing', message: 'Cifrando archivo original...' });
           const storagePath = await withTimeout(
-            storeEncryptedCustody(file, canonicalDocumentId),
+            storeEncryptedCustody(sourceTarget, canonicalDocumentId),
             20000,
             'storeEncryptedCustody'
           );
@@ -1684,7 +1768,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           const workflowResult = await withTimeout(startSignatureWorkflow({
             documentUrl: signedUrlData.signedUrl,
             documentHash,
-            originalFilename: file.name,
+            originalFilename: sourceFile?.name ?? file.name,
             documentEntityId: canonicalDocumentId || undefined,
             signatureType: signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN',
             deliveryMode: 'link',
@@ -1903,9 +1987,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               status: 'generated'
             });
 
-            if (canonicalSourceHash && file.type !== 'application/pdf') {
+            if (canonicalSourceHash && (sourceFile?.type ?? file.type) !== 'application/pdf') {
               await appendTransform(canonicalDocumentId, {
-                from_mime: file.type,
+                from_mime: sourceFile?.type ?? file.type,
                 to_mime: 'application/pdf',
                 from_hash: canonicalSourceHash,
                 to_hash: documentHash,
@@ -1955,7 +2039,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           const workflowResult = await withTimeout(startSignatureWorkflow({
             documentUrl: signedUrlData.signedUrl,
             documentHash,
-            originalFilename: file.name,
+            originalFilename: sourceFile?.name ?? file.name,
             documentEntityId: canonicalDocumentId || undefined,
             signatureType: signatureType
               ? (signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN')
@@ -2103,8 +2187,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           signerCompany: (user?.user_metadata as any)?.company || undefined,
           signerJobTitle: (user?.user_metadata as any)?.job_title || undefined,
           // Metadata del documento
-          documentName: file.name,
-          documentSize: file.size,
+          documentName: (sourceFile ?? file).name,
+          documentSize: (sourceFile ?? file).size,
         };
 
         // Agregar Hoja de Auditoría al PDF
@@ -2159,9 +2243,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             'witness'
           ).catch(err => console.warn('Custody backup skipped:', err));
 
-          if (canonicalSourceHash && file.type !== 'application/pdf') {
+          if (canonicalSourceHash && (sourceFile?.type ?? file.type) !== 'application/pdf') {
             await appendTransform(canonicalDocumentId, {
-              from_mime: file.type,
+              from_mime: sourceFile?.type ?? file.type,
               to_mime: 'application/pdf',
               from_hash: canonicalSourceHash,
               to_hash: witnessHash,
@@ -2585,8 +2669,10 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     console.log('🔒 Cerrando Centro Legal...');
     setStep(1);
     setFile(null);
+    setSourceFile(null);
     setPreviewError(false);
     setCertificateData(null);
+    setDocumentPreviewText(null);
 
     // FASE 3.B: Reset certify progress state
     setCertifyProgress({
@@ -3077,6 +3163,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const activePreviewUrl = workflowPreviewUrl ?? documentPreview;
   const activePreviewPdfData = workflowPreviewPdfData ?? documentPreviewPdfData;
   const isPdfPreview = file?.type === 'application/pdf';
+  const hasPreview = Boolean(documentPreview || documentPreviewText || workflowPreviewUrl);
   const usePdfEditMode = isPdfPreview && (!pdfEditError || Boolean(activePreviewPdfData));
 
   const createFieldId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `field-${Date.now()}`);
@@ -3780,7 +3867,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                         type="file"
                                         className="hidden"
                                         onChange={handleFileSelect}
-                                        accept="application/pdf"
+                                        accept="application/pdf,image/*,text/plain"
                                       />
                                       {/* Título principal */}
                                       <p className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
@@ -3830,14 +3917,14 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                           <Shield className={`w-5 h-5 ${forensicEnabled ? 'fill-gray-900' : ''}`} />
                         </button>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
-                            {file.name}
+                          <p className="text-sm font-medium text-gray-900 truncate" title={sourceFile?.name ?? file.name}>
+                            {sourceFile?.name ?? file.name}
                           </p>
                         </div>
                       </div>
                       {/* Iconos alineados en la misma línea */}
                       <div className="flex shrink-0 items-center gap-1.5">
-                        {documentPreview && (
+                        {hasPreview && (
                           <button
                             onClick={() => {
                               setFocusView((prev) => (prev === 'document' ? null : 'document'));
@@ -3858,7 +3945,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {documentPreview && (
+                        {hasPreview && (
                           <button
                             onClick={() => {
                               setFocusView((prev) => (prev === 'document' ? null : 'document'));
@@ -3873,7 +3960,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             type="file"
                             className="hidden"
                             onChange={handleFileSelect}
-                            accept="application/pdf"
+                            accept="application/pdf,image/*,text/plain"
                           />
                           <FileUp className="w-3.5 h-3.5" />
                         </label>
@@ -3902,6 +3989,12 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                               alt="Preview"
                               className="block w-full h-auto max-w-full object-contain"
                             />
+                          )}
+
+                          {documentPreviewText && !isPdfPreview && (
+                            <pre className="whitespace-pre-wrap text-sm text-gray-800 p-4">
+                              {documentPreviewText}
+                            </pre>
                           )}
                           
                           {activePreviewUrl && isPdfPreview && (

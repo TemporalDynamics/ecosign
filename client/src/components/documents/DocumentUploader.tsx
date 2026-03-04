@@ -17,11 +17,13 @@ import { hashSource } from '@/lib/canonicalHashing'
 import { generateEncryptionKey, encryptFile } from '@/utils/encryption'
 import { getSupabase } from '@/lib/supabaseClient'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { convertToPDF, type ConvertToPdfMode } from '@/lib/converters/convertToPDF'
 
 interface DocumentUploaderProps {
   onUploadComplete: (result: UploadResult) => void
   maxSizeMB?: number
   acceptedFormats?: string[]
+  mode?: ConvertToPdfMode
 }
 
 interface UploadResult {
@@ -43,7 +45,8 @@ export default function DocumentUploader({
     'image/jpeg',
     'image/png',
     'text/plain'
-  ]
+  ],
+  mode = 'signature_workflow'
 }: DocumentUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -68,7 +71,7 @@ export default function DocumentUploader({
 
       // Step 3: Convert to PDF if needed (happens in browser)
       setProcessingStep('Procesando documento...')
-      const pdfFile = await convertToPDF(file)
+      const pdfFile = await convertToPDF(file, mode)
 
       // Step 4: Generate encryption key (CRITICAL: Generated in browser, never sent to server)
       setProcessingStep('Generando clave de cifrado...')
@@ -123,26 +126,6 @@ export default function DocumentUploader({
 
   // Convert file to PDF (if not already PDF)
   // 🔒 CRITICAL: This conversion happens in the browser using client-side libraries
-  const convertToPDF = async (file: File): Promise<File> => {
-    // If already PDF, return as-is
-    if (file.type === 'application/pdf') {
-      return file
-    }
-
-    // TODO: Implement client-side conversion using libraries like:
-    // - pdf-lib (for manipulation)
-    // - jsPDF (for generation from images/text)
-    // - docx-to-pdf (for Word docs)
-    //
-    // IMPORTANT: Use ONLY client-side libraries that run in the browser
-    // NEVER send the file to a server-side conversion API
-
-    console.warn('⚠️ Client-side PDF conversion not yet implemented')
-    console.warn('⚠️ For MVP, only accepting PDF files')
-
-    // For now, throw error for non-PDF files
-    throw new Error('Por ahora solo se aceptan archivos PDF. Conversión automática próximamente.')
-  }
 
   // Upload encrypted file to Supabase Storage
   // 🔒 CRITICAL: Only encrypted blob is transmitted

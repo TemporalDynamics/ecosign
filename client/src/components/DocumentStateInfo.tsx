@@ -43,6 +43,23 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
       document?.document_hash
     ),
   });
+  const rekorConfirmed = events.some((event: any) => event?.kind === 'rekor.confirmed');
+
+  const formatAnchorStatus = (network: keyof typeof probative.network) => {
+    const info = probative.network[network];
+    if (!info) return 'pendiente';
+    if (info.confirmed) return 'confirmado';
+    if (info.timeout) return 'timeout';
+    if (info.failed) return 'error';
+    if (info.requested) return 'pendiente';
+    return 'no requerido';
+  };
+
+  const shouldShowNetwork = (network: keyof typeof probative.network) => {
+    const info = probative.network[network];
+    if (!info) return false;
+    return Boolean(info.requested || info.confirmed || info.pending || info.failed || info.timeout);
+  };
 
   const toneClasses = {
     gray: 'bg-gray-100 text-gray-700 border-gray-200',
@@ -112,6 +129,13 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
         </div>
         <div className="mt-2 grid gap-1 text-[11px] text-gray-600">
           <div>TSA: {probative.tsaConfirmed ? 'confirmado' : 'pendiente'}</div>
+          <div>Rekor: {rekorConfirmed ? 'confirmado' : 'pendiente'}</div>
+          {shouldShowNetwork('polygon') && (
+            <div>Polygon: {formatAnchorStatus('polygon')}</div>
+          )}
+          {shouldShowNetwork('bitcoin') && (
+            <div>Bitcoin: {formatAnchorStatus('bitcoin')}</div>
+          )}
           {probative.requestedAnchors > 0 && (
             <div>Refuerzos confirmados: {probative.confirmedAnchors}/{probative.requestedAnchors}</div>
           )}

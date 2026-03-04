@@ -49,5 +49,5 @@ Esta checklist es la versión ejecutable del plan. Marcar ítems solo cuando el 
 - [x] Email de cierre workflow sin duplicados
 - [x] UI muestra modo firma (secuencial/paralelo)
 - [x] UI muestra estado EPI (nivel 1 vs 2)
-- [ ] UI muestra progreso de anclaje (TSA → Rekor → Polygon)
+- [x] UI muestra progreso de anclaje (TSA → Rekor → Polygon)
 - [ ] UI muestra `witness_history`

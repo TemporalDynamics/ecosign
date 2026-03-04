@@ -7,7 +7,6 @@
 
 import { Ratelimit } from 'https://esm.sh/@upstash/ratelimit@1.0.0';
 import { Redis } from 'https://esm.sh/@upstash/redis@1.28.0';
-import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { getCorsHeaders } from './cors.ts';
 
 /**
@@ -37,7 +36,6 @@ type UserLike = {
 let redis: Redis | null = null;
 let redisWarningLogged = false;
 const memoryBuckets = new Map<string, { count: number; reset: number }>();
-let authClient: ReturnType<typeof createClient> | null = null;
 
 function getRedis(): Redis {
   if (!redis) {
@@ -53,22 +51,29 @@ function getRedis(): Redis {
   return redis;
 }
 
-function getAuthClient(): ReturnType<typeof createClient> | null {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-  if (!authClient) {
-    authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        headers: { 'X-Client-Info': 'ecosign-ratelimit' },
-      },
-    });
+/**
+ * Decode JWT payload locally without a network call.
+ * Used only for rate limit identity (workspace/user bucketing).
+ * Cryptographic verification is intentionally skipped here — the handler
+ * still verifies the JWT via supabase.auth.getUser() before trusting the user.
+ */
+function decodeJwtClaims(token: string): UserLike | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    // base64url → base64 → JSON
+    const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(padded));
+    if (typeof payload !== 'object' || payload === null) return null;
+    return {
+      id: typeof payload.sub === 'string' ? payload.sub : undefined,
+      app_metadata: typeof payload.app_metadata === 'object' && payload.app_metadata !== null
+        ? payload.app_metadata as Record<string, unknown>
+        : undefined,
+    };
+  } catch {
+    return null;
   }
-  return authClient;
 }
 
 function checkMemoryRateLimit(key: string, limit: number) {
@@ -110,24 +115,21 @@ export function deriveRateLimitIdentity(input: {
   return { kind: 'ip', key: `ip:${ip}` };
 }
 
-async function resolveUserFromRequest(
+function resolveUserFromRequest(
   req: Request,
   resolveUser?: (token: string) => Promise<UserLike | null>
-): Promise<UserLike | null> {
+): UserLike | null | Promise<UserLike | null> {
   const authHeader = req.headers.get('Authorization') ?? '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
   if (!token) return null;
 
+  // Custom resolver (e.g. from tests or handlers that already have the user)
   if (resolveUser) {
     return resolveUser(token);
   }
 
-  const client = getAuthClient();
-  if (!client) return null;
-
-  const { data, error } = await client.auth.getUser(token);
-  if (error) return null;
-  return (data?.user as UserLike) ?? null;
+  // Decode JWT locally — no network call. The handler verifies auth separately.
+  return decodeJwtClaims(token);
 }
 
 export async function resolveRateLimitIdentity(

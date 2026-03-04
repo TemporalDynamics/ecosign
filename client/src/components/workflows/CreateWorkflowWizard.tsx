@@ -63,7 +63,8 @@ export default function CreateWorkflowWizard({
   const [workflowSettings, setWorkflowSettings] = useState({
     sequential: false,
     expiresInDays: 30,
-    sendEmailsImmediately: true
+    sendEmailsImmediately: true,
+    finalDocumentVisibility: 'owner_only' as 'owner_only' | 'participants',
   })
 
   const handleDocumentUpload = (result: any) => {
@@ -274,6 +275,7 @@ export default function CreateWorkflowWizard({
           // encryption_key: NOT stored - ZK mode!
           status: 'active',
           require_sequential: workflowSettings.sequential,
+          final_document_visibility: workflowSettings.finalDocumentVisibility,
           expires_at: workflowSettings.expiresInDays
             ? new Date(Date.now() + workflowSettings.expiresInDays * 24 * 60 * 60 * 1000).toISOString()
             : null
@@ -314,7 +316,7 @@ export default function CreateWorkflowWizard({
     setWorkflowTitle('')
     setDocumentData(null)
     setSigners([{ email: '', name: '', require_login: true, require_nda: true, signing_order: 1 }])
-    setWorkflowSettings({ sequential: false, expiresInDays: 30, sendEmailsImmediately: true })
+    setWorkflowSettings({ sequential: false, expiresInDays: 30, sendEmailsImmediately: true, finalDocumentVisibility: 'owner_only' })
     setError(null)
     onClose()
   }
@@ -523,6 +525,26 @@ export default function CreateWorkflowWizard({
                   </div>
                 </label>
 
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={workflowSettings.finalDocumentVisibility === 'participants'}
+                    onChange={(e) =>
+                      setWorkflowSettings({
+                        ...workflowSettings,
+                        finalDocumentVisibility: e.target.checked ? 'participants' : 'owner_only',
+                      })
+                    }
+                    className="eco-checkbox rounded border-gray-300"
+                  />
+                  <div>
+                    <div className="font-medium text-gray-900">Firmantes pueden descargar el final</div>
+                    <div className="text-sm text-gray-600">
+                      Permite que cada firmante descargue el PDF y ECO finales. Por defecto solo el owner puede descargarlos.
+                    </div>
+                  </div>
+                </label>
+
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">
                     Expiración (días)
@@ -595,6 +617,7 @@ export default function CreateWorkflowWizard({
                   <div className="text-sm text-gray-700">
                     • Firma {workflowSettings.sequential ? 'secuencial' : 'en paralelo'}
                     <br />• Expira en {workflowSettings.expiresInDays} días
+                    <br />• Documento final: {workflowSettings.finalDocumentVisibility === 'participants' ? 'Visible para firmantes' : 'Solo el owner'}
                   </div>
                 </div>
               </div>

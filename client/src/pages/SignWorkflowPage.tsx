@@ -769,6 +769,21 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
     } as any)
   }
 
+  // Fire-and-forget: records that the signer downloaded their evidence PDF
+  const recordPdfDownload = () => {
+    if (!signerData || !token) return
+    const supabase = getSupabase()
+    supabase.functions.invoke('record-evidence-download', {
+      body: {
+        signer_id: signerData.signer_id,
+        workflow_id: signerData.workflow_id,
+        access_token: token,
+        resource: 'pdf',
+        witness_hash: null,
+      },
+    }).catch((err) => console.warn('record-evidence-download failed (best-effort):', err))
+  }
+
   const handleDownloadSignedPdf = async () => {
     if (!signerData) return
     const workflow = signerData.workflow
@@ -790,6 +805,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
         link.click()
         document.body.removeChild(link)
         URL.revokeObjectURL(blobUrl)
+        recordPdfDownload()
         return
       }
 
@@ -871,6 +887,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
+      recordPdfDownload()
     } catch (err) {
       console.error('Error downloading signed PDF:', err)
       window.alert('No se pudo descargar el PDF firmado. Intentá nuevamente.')

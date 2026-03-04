@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabaseClient'
 import { formatHashForDisplay } from '@/utils/hashDocument'
 import Header from '@/components/Header'
 import FooterInternal from '@/components/FooterInternal'
-import { ArrowLeft, Clock, Download, FileText, RefreshCw, ShieldCheck, Users, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, Download, FileText, RefreshCw, ShieldCheck, Users, XCircle } from 'lucide-react';
 import { deriveHumanState } from '@/lib/deriveHumanState'
 
 type Workflow = {
@@ -13,6 +13,7 @@ type Workflow = {
   status: string
   document_hash: string | null
   document_path: string | null
+  document_entity_id: string | null
   created_at: string
   updated_at: string
 }
@@ -41,6 +42,9 @@ type WorkflowArtifact = {
   finalized_at: string
   status: 'pending' | 'building' | 'ready' | 'failed'
 }
+
+// Set of signer IDs that downloaded at least once
+type DownloadedSet = Set<string>
 
 const statusStyles: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',
@@ -81,21 +85,33 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function SignersList({ signers }: { signers: Signer[] }) {
+function SignersList({
+  signers,
+  downloadedSet,
+  documentEntityId,
+  onOwnerDownload,
+}: {
+  signers: Signer[]
+  downloadedSet: DownloadedSet
+  documentEntityId: string | null
+  onOwnerDownload: (signerId: string) => void
+}) {
   const ordered = [...signers].sort((a, b) => (a.signing_order ?? 999) - (b.signing_order ?? 999))
   const nextSigner = ordered.find((s) => !['signed', 'cancelled', 'rejected', 'expired', 'skipped'].includes(s.status))
   return (
     <div className="space-y-2">
       {ordered.map((s) => {
         const isNext = nextSigner?.id === s.id
+        const hasSigned = s.status === 'signed'
+        const hasDownloaded = downloadedSet.has(s.id)
         let badgeLabel = signerStatusLabels[s.status] || s.status
-        if (s.status === 'signed') badgeLabel = 'Firmado'
-        if (isNext && s.status !== 'signed') badgeLabel = 'Siguiente en la lista'
+        if (hasSigned) badgeLabel = 'Firmado'
+        if (isNext && !hasSigned) badgeLabel = 'Siguiente en la lista'
         if (!isNext && !['signed', 'cancelled', 'rejected', 'expired', 'skipped'].includes(s.status)) {
           badgeLabel = 'Esperando firma'
         }
         const badgeClass =
-          s.status === 'signed'
+          hasSigned
             ? 'bg-blue-100 text-blue-800'
             : isNext
             ? 'bg-green-100 text-green-800'
@@ -104,21 +120,44 @@ function SignersList({ signers }: { signers: Signer[] }) {
             : 'bg-green-50 text-green-700'
 
         return (
-        <div key={s.id} className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
-          <div>
-            <div className="text-sm font-semibold text-gray-900">{s.name || s.email}</div>
-            <div className="text-xs text-gray-600">{s.email}</div>
+          <div key={s.id} className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
+            <div>
+              <div className="text-sm font-semibold text-gray-900">{s.name || s.email}</div>
+              <div className="text-xs text-gray-600">{s.email}</div>
+              {hasSigned && s.signed_at && (
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Firmado: {new Date(s.signed_at).toLocaleString()}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-sm flex-shrink-0 ml-3">
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
+                {badgeLabel}
+              </span>
+              {/* Download status indicator */}
+              {hasSigned && (
+                hasDownloaded ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Descargado
+                  </span>
+                ) : (
+                  <span className="text-xs text-amber-600 font-medium">Sin descargar</span>
+                )
+              )}
+              {/* Owner: download signer's evidence */}
+              {hasSigned && documentEntityId && (
+                <button
+                  onClick={() => onOwnerDownload(s.id)}
+                  title="Descargar evidencia de este firmante"
+                  className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <Download className="h-3.5 w-3.5" /> ECO
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}>
-              {badgeLabel}
-            </span>
-            {s.signed_at && (
-              <span className="text-gray-500">{new Date(s.signed_at).toLocaleString()}</span>
-            )}
-          </div>
-        </div>
-      )})}
+        )
+      })}
       {signers.length === 0 && (
         <p className="text-sm text-gray-600">No hay firmantes.</p>
       )}
@@ -156,6 +195,7 @@ export default function WorkflowDetailPage() {
   const [signers, setSigners] = useState<Signer[]>([])
   const [auditTrail, setAuditTrail] = useState<AuditEvent[]>([])
   const [artifact, setArtifact] = useState<WorkflowArtifact | null>(null)
+  const [downloadedSet, setDownloadedSet] = useState<DownloadedSet>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -173,7 +213,7 @@ export default function WorkflowDetailPage() {
     if (!id) return
 
     const supabase = getSupabase()
-    
+
     const subscription = supabase
       .channel(`workflow-artifacts:${id}`)
       .on(
@@ -235,7 +275,7 @@ export default function WorkflowDetailPage() {
       }
       setWorkflow(normalizedWorkflow as Workflow)
 
-        const { data: signerData, error: signerError } = await supabase
+      const { data: signerData, error: signerError } = await supabase
         .from('workflow_signers')
         .select('id, email, name, status, signed_at, signing_order')
         .eq('workflow_id', workflowId)
@@ -263,6 +303,29 @@ export default function WorkflowDetailPage() {
 
       if (artifactError) console.warn('Error loading artifact:', artifactError)
       setArtifact(artifactData as WorkflowArtifact | null)
+
+      // Load per-signer download status from entity events
+      const entityId = (wf as any)?.document_entity_id ?? null
+      if (entityId) {
+        try {
+          const { data: entityData } = await supabase
+            .from('document_entities')
+            .select('events')
+            .eq('id', entityId)
+            .single()
+
+          const events: any[] = Array.isArray(entityData?.events) ? entityData.events : []
+          const downloaded = new Set<string>()
+          for (const ev of events) {
+            if (ev?.kind === 'signature.evidence.downloaded' && ev?.payload?.signer_id) {
+              downloaded.add(ev.payload.signer_id as string)
+            }
+          }
+          setDownloadedSet(downloaded)
+        } catch (evErr) {
+          console.warn('Could not load entity events for download status:', evErr)
+        }
+      }
     } catch (err: any) {
       console.error('Error loading workflow detail:', err)
       setError(err.message || 'Error al cargar el workflow')
@@ -314,6 +377,48 @@ export default function WorkflowDetailPage() {
       URL.revokeObjectURL(url)
     } catch (err) {
       alert('No se pudo descargar el certificado ECOX')
+      console.error(err)
+    }
+  }
+
+  // Owner downloads a specific signer's evidence ECO from entity events
+  const handleOwnerDownloadSignerEvidence = async (signerId: string) => {
+    if (!workflow?.document_entity_id) return
+    try {
+      const supabase = getSupabase()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        alert('Sesión no válida')
+        return
+      }
+
+      const { data, error } = await supabase.functions.invoke('get-eco-url', {
+        body: {
+          document_entity_id: workflow.document_entity_id,
+          ownerForSignerId: signerId,
+        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+
+      if (error || !data?.signed_url) {
+        throw new Error(error?.message || data?.error || 'No se pudo generar la URL de evidencia')
+      }
+
+      const resp = await fetch(data.signed_url as string)
+      if (!resp.ok) throw new Error('No se pudo descargar la evidencia')
+      const blob = await resp.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      const signer = signers.find((s) => s.id === signerId)
+      link.download = `evidencia-${signer?.email ?? signerId}.eco.json`
+      link.target = '_self'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+    } catch (err: any) {
+      alert(err?.message || 'No se pudo descargar la evidencia del firmante')
       console.error(err)
     }
   }
@@ -462,7 +567,12 @@ export default function WorkflowDetailPage() {
                 <RefreshCw className="h-4 w-4" /> Actualizar
               </button>
             </div>
-            <SignersList signers={signers} />
+            <SignersList
+              signers={signers}
+              downloadedSet={downloadedSet}
+              documentEntityId={workflow.document_entity_id}
+              onOwnerDownload={handleOwnerDownloadSignerEvidence}
+            />
           </div>
 
           <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">

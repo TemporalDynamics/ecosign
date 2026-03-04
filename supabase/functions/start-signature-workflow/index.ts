@@ -44,6 +44,12 @@ interface StartWorkflowRequest {
    * Immutable after workflow creation.
    */
   deliveryMode?: 'email' | 'link'
+  /**
+   * Controls whether participants can access the final PDF/ECO after signing is complete.
+   * - 'owner_only' (default): only the owner can download the final artifact
+   * - 'participants': all signers who signed can also access the final artifact
+   */
+  finalDocumentVisibility?: 'owner_only' | 'participants'
 }
 
 function extractStoragePath(url: string): string | null {
@@ -129,7 +135,8 @@ serve(withRateLimit('workflow', async (req) => {
       ndaEnabled,
       signers,
       forensicConfig,
-      deliveryMode = 'email' // Default to email for backwards compatibility
+      deliveryMode = 'email', // Default to email for backwards compatibility
+      finalDocumentVisibility = 'owner_only',
     } = body
 
     if (!documentUrl || !documentHash || !originalFilename || !signers || signers.length === 0) {
@@ -139,6 +146,11 @@ serve(withRateLimit('workflow', async (req) => {
     // Validate deliveryMode if provided
     if (deliveryMode && !['email', 'link'].includes(deliveryMode)) {
       return jsonResponse({ error: 'Invalid deliveryMode. Must be "email" or "link"' }, 400)
+    }
+
+    // Validate finalDocumentVisibility
+    if (!['owner_only', 'participants'].includes(finalDocumentVisibility)) {
+      return jsonResponse({ error: 'Invalid finalDocumentVisibility. Must be "owner_only" or "participants"' }, 400)
     }
 
     const requiresNda = ndaEnabled === true
@@ -173,6 +185,7 @@ serve(withRateLimit('workflow', async (req) => {
       forensic_config: forensicConfig,
       nda_text: trimmedNda || null,
       delivery_mode: deliveryMode, // 'email' or 'link' - immutable after creation
+      final_document_visibility: finalDocumentVisibility,
       ...(signatureType ? { signature_type: signatureType } : {}),
       ...(documentEntityId ? { document_entity_id: documentEntityId } : {})
     }

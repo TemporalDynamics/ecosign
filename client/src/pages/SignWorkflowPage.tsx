@@ -769,9 +769,17 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
     } as any)
   }
 
-  // Fire-and-forget: records that the signer downloaded their evidence PDF
+  // Fire-and-forget: records that the signer downloaded their evidence PDF.
+  // Extracts witness_hash from ecoPath (evidence/{wfId}/{signerId}/{witnessHash}.eco.json)
+  // so the download event links to the same evidence snapshot as the ECO.
   const recordPdfDownload = () => {
     if (!signerData || !token) return
+    let witnessHash: string | null = null
+    if (ecoPath) {
+      const filename = ecoPath.split('/').pop() ?? ''
+      const extracted = filename.replace(/\.eco\.json$/, '')
+      if (extracted && extracted !== filename) witnessHash = extracted
+    }
     const supabase = getSupabase()
     supabase.functions.invoke('record-evidence-download', {
       body: {
@@ -779,7 +787,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
         workflow_id: signerData.workflow_id,
         access_token: token,
         resource: 'pdf',
-        witness_hash: null,
+        witness_hash: witnessHash,
       },
     }).catch((err) => console.warn('record-evidence-download failed (best-effort):', err))
   }

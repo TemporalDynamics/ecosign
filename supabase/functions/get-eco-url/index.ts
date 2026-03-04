@@ -42,7 +42,7 @@ serve(async (req) => {
     const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, serviceRole) as any
 
-    // --- Protection ECO mode: owner downloads their own ECO (or a signer's evidence) ---
+    // --- Protection ECO mode: owner (or authorized participant) downloads final ECO ---
     if (body.document_entity_id) {
       const authHeader = req.headers.get('Authorization')
       if (!authHeader) {
@@ -70,15 +70,16 @@ serve(async (req) => {
         return jsonResponse({ error: 'Document not found' }, 404)
       }
 
-      if (entity.owner_id !== user.id) {
-        return jsonResponse({ error: 'Forbidden' }, 403)
-      }
+      const isOwner = entity.owner_id === user.id
 
-      const events = Array.isArray(entity.events) ? entity.events : []
-
-      // Owner-for-signer mode: owner requests a specific signer's evidence
+      // Owner-for-signer mode: owner fetches a specific signer's evidence URL.
+      // Only the document owner can request this — no participant elevation.
       if (body.ownerForSignerId) {
+        if (!isOwner) {
+          return jsonResponse({ error: 'Forbidden' }, 403)
+        }
         const targetSignerId = String(body.ownerForSignerId)
+        const events = Array.isArray(entity.events) ? entity.events : []
         // Find the most recent signature.evidence.generated event for this signer
         const evidenceGenEvent = [...events].reverse().find((e: any) =>
           e?.kind === 'signature.evidence.generated' &&
@@ -101,7 +102,46 @@ serve(async (req) => {
         return jsonResponse({ success: true, signed_url: data.signedUrl, artifact_path: artifactPath })
       }
 
-      // Standard mode: owner downloads final ECO
+      // === final_document_visibility enforcement ===
+      // Owner always has access. Non-owner access requires:
+      //   1. workflow.final_document_visibility = 'participants'
+      //   2. user's email is a signed signer on the linked workflow
+      if (!isOwner) {
+        const { data: workflow } = await supabase
+          .from('signature_workflows')
+          .select('id, final_document_visibility')
+          .eq('document_entity_id', body.document_entity_id)
+          .maybeSingle()
+
+        if (!workflow) {
+          return jsonResponse({ error: 'Forbidden' }, 403)
+        }
+
+        if (workflow.final_document_visibility !== 'participants') {
+          return jsonResponse({ error: 'final_document_restricted_to_owner' }, 403)
+        }
+
+        // Verify the requesting user is a signed signer on this workflow
+        const userEmail = typeof user.email === 'string' ? user.email.toLowerCase() : null
+        if (!userEmail) {
+          return jsonResponse({ error: 'Forbidden' }, 403)
+        }
+
+        const { data: signer } = await supabase
+          .from('workflow_signers')
+          .select('id')
+          .eq('workflow_id', workflow.id)
+          .ilike('email', userEmail)
+          .eq('status', 'signed')
+          .maybeSingle()
+
+        if (!signer) {
+          return jsonResponse({ error: 'Forbidden' }, 403)
+        }
+      }
+
+      // Access granted — serve final ECO
+      const events = Array.isArray(entity.events) ? entity.events : []
       const finalizedEvent = [...events].reverse().find((e: any) => e?.kind === 'artifact.finalized')
       const ecoStoragePath: string | null = finalizedEvent?.payload?.eco_storage_path ?? null
 

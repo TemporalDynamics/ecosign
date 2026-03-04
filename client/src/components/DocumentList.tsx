@@ -157,7 +157,7 @@ const DocumentList = ({ documents, loading = false, error = null }: DocumentList
               </div>
               
               <LinkGenerator 
-                documentId={selectedDocument.id} 
+                documentEntityId={selectedDocument.id} 
                 onLinkGenerated={() => {
                   // Actualizar lista de documentos si es necesario
                   setShowLinkGenerator(false);

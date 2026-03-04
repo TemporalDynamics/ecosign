@@ -277,9 +277,23 @@ async function resolveNotificationRecipients(anchor: any): Promise<string[]> {
   return [...recipients];
 }
 
+async function resolveWorkflowId(anchor: any): Promise<string | null> {
+  if (!supabaseAdmin || !anchor?.document_entity_id) return null;
+  const { data, error } = await supabaseAdmin
+    .from('signature_workflows')
+    .select('id, created_at')
+    .eq('document_entity_id', anchor.document_entity_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.id) return null;
+  return String(data.id);
+}
+
 async function enqueueBitcoinNotification(anchor: any, recipientEmail: string, txid?: string, blockHeight?: number, confirmedAt?: string | null) {
-  if (!supabaseAdmin) return;
-  if (!anchor.document_id || !recipientEmail) return;
+  if (!supabaseAdmin || !recipientEmail) return;
+  const workflowId = await resolveWorkflowId(anchor);
+  if (!workflowId) return;
 
   const explorerUrl = txid ? `${mempoolApiUrl.replace('/api', '')}/tx/${txid}` : undefined;
   const subject = '✅ Documento anclado en Bitcoin';
@@ -296,7 +310,7 @@ async function enqueueBitcoinNotification(anchor: any, recipientEmail: string, t
   const { error } = await supabaseAdmin
     .from('workflow_notifications')
     .upsert({
-      workflow_id: anchor.document_id,
+      workflow_id: workflowId,
       recipient_email: recipientEmail,
       recipient_type: 'owner',
       notification_type: 'bitcoin_confirmed',

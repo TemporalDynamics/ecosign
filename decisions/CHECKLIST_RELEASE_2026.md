@@ -44,7 +44,7 @@ Esta checklist es la versión ejecutable del plan. Marcar ítems solo cuando el 
 
 ## Gate 4 — Cleanup + CI/CD (semana 6)
 
-- [ ] `document_id` eliminado completamente (código + tipos)
+- [x] `document_id` eliminado completamente (código + tipos, excepto payloads legacy/SignNow)
 - [ ] CI GitHub Actions en verde por PR
 - [x] Email de cierre workflow sin duplicados
 - [x] UI muestra modo firma (secuencial/paralelo)

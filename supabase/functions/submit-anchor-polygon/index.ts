@@ -5,7 +5,6 @@ import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 type SubmitAnchorRequest = {
   document_entity_id: string;
-  document_id?: string;
   witness_hash?: string;
   anchor_stage?: 'initial' | 'intermediate' | 'final';
   step_index?: number;
@@ -121,7 +120,6 @@ serve(async (req) => {
     const anchorResponse = await callFunction('anchor-polygon', {
       documentHash: witnessHash,
       documentEntityId,
-      documentId: body.document_id ?? null,
       metadata: { source: 'executor_v2' },
     });
 

@@ -83,8 +83,8 @@ test('record-protection-event must stay canonical-only by document_entity_id', a
 
   expect(content).toContain(".from('document_entities')");
   expect(content).toContain('document_entity_id');
-  expect(content).toContain('document_id is no longer accepted; use document_entity_id');
   expect(content).toContain('appendEvent(');
+  expect(content).not.toContain('document_id');
   expect(content).not.toContain(".from('documents')");
   expect(content).not.toContain('getDocumentEntityId(');
   expect(content).not.toContain('getUserDocumentId(');

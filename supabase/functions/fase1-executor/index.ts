@@ -237,7 +237,6 @@ async function handleDocumentProtected(
 ): Promise<void> {
   const payload = job.payload ?? {};
   const documentEntityId = String(payload['document_entity_id'] ?? '');
-  const userDocumentId = payload['document_id'] ? String(payload['document_id']) : null;
 
   if (!documentEntityId) {
     throw new Error('document_entity_id missing in payload');
@@ -290,7 +289,6 @@ async function handleDocumentProtected(
     documentEntityId,
     decision.jobs,
     {
-      user_document_id: userDocumentId,
       witness_hash: requestedWitnessHash || null,
     },
   );
@@ -362,7 +360,6 @@ async function handleProtectDocumentV2(
     documentEntityId,
     decision.jobs,
     {
-      document_id: payload['document_id'] ? String(payload['document_id']) : null,
       witness_hash: requestedWitnessHash,
     },
   );
@@ -418,7 +415,6 @@ async function handleBuildArtifact(
   job: ExecutorJob,
 ): Promise<void> {
   const documentEntityId = String(job.payload?.['document_entity_id'] ?? '');
-  const legacyDocumentRef = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
 
   if (!documentEntityId) {
     throw new Error('document_entity_id missing in payload');
@@ -426,7 +422,6 @@ async function handleBuildArtifact(
 
   await callFunction('build-artifact', {
     document_entity_id: documentEntityId,
-    document_id: legacyDocumentRef,
   });
 }
 
@@ -435,7 +430,6 @@ async function handleSubmitAnchorPolygon(
   job: ExecutorJob,
 ): Promise<void> {
   const documentEntityId = String(job.payload?.['document_entity_id'] ?? '');
-  const legacyDocumentRef = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
 
   if (!documentEntityId) {
     throw new Error('document_entity_id missing in payload');
@@ -443,7 +437,6 @@ async function handleSubmitAnchorPolygon(
 
   await callFunction('submit-anchor-polygon', {
     document_entity_id: documentEntityId,
-    document_id: legacyDocumentRef,
     witness_hash: job.payload?.['witness_hash'] ?? null,
   });
 }
@@ -453,7 +446,6 @@ async function handleSubmitAnchorBitcoin(
   job: ExecutorJob,
 ): Promise<void> {
   const documentEntityId = String(job.payload?.['document_entity_id'] ?? '');
-  const legacyDocumentRef = job.payload?.['document_id'] ? String(job.payload['document_id']) : null;
 
   if (!documentEntityId) {
     throw new Error('document_entity_id missing in payload');
@@ -461,7 +453,6 @@ async function handleSubmitAnchorBitcoin(
 
   await callFunction('submit-anchor-bitcoin', {
     document_entity_id: documentEntityId,
-    document_id: legacyDocumentRef,
     witness_hash: job.payload?.['witness_hash'] ?? null,
   });
 }

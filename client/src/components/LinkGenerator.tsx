@@ -4,7 +4,7 @@ import { Link as LinkIcon, Lock, FileText, User, Mail, Building2, Briefcase, Ale
 import { getSupabase } from '../lib/supabaseClient';
 
 interface LinkGeneratorProps {
-  documentId: string;
+  documentEntityId: string;
   onLinkGenerated?: (data: { access_url: string; [key: string]: unknown }) => void;
 }
 
@@ -15,7 +15,7 @@ interface LinkResponse {
   [key: string]: unknown;
 }
 
-const LinkGenerator: React.FC<LinkGeneratorProps> = ({ documentId, onLinkGenerated }) => {
+const LinkGenerator: React.FC<LinkGeneratorProps> = ({ documentEntityId, onLinkGenerated }) => {
   const [requireNDA, setRequireNDA] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
@@ -58,7 +58,7 @@ const LinkGenerator: React.FC<LinkGeneratorProps> = ({ documentId, onLinkGenerat
       // Llamar a la Edge Function real de Supabase
       const { data, error: invokeError } = await supabase.functions.invoke<LinkResponse>('generate-link', {
         body: {
-          document_id: documentId,
+          document_entity_id: documentEntityId,
           recipient_email: formData.email.trim(),
           expires_in_hours: 72,
           require_nda: requireNDA

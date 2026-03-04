@@ -10,7 +10,6 @@ import { buildEpiBlockFromEvents, deriveContentAt } from '../_shared/epiCanvas.t
 
 type BuildArtifactRequest = {
   document_entity_id: string;
-  document_id?: string;
   artifact_format?: string;
   artifact_version?: string;
   correlation_id?: string;

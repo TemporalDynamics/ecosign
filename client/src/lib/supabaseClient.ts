@@ -186,7 +186,7 @@ export type Database = {
       links: {
         Row: {
           id: string;
-          document_id: string;
+          document_entity_id?: string | null;
           token_hash: string;
           expires_at: string | null;
           revoked_at: string | null;
@@ -197,7 +197,7 @@ export type Database = {
       recipients: {
         Row: {
           id: string;
-          document_id: string;
+          document_entity_id?: string | null;
           email: string;
           recipient_id: string;
           created_at: string;

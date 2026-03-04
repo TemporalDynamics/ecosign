@@ -187,7 +187,7 @@ export async function buildDocumentSignedEmail({
         signer_email: signerEmail,
         document_name: documentName,
         signed_at: when,
-        document_id: documentEntityId,
+        document_entity_id: documentEntityId,
       },
     }),
   };
@@ -261,7 +261,7 @@ export async function buildDocumentCertifiedEmail({
         owner_name: name,
         document_name: documentName,
         certified_at: new Date(certifiedAt).toLocaleString('es-AR'),
-        document_id: documentEntityId,
+        document_entity_id: documentEntityId,
         hardening: hasForensicHardening ? 'Si' : 'No',
         legal_timestamp: hasLegalTimestamp ? 'Si' : 'No',
         polygon_anchor: hasPolygonAnchor ? 'Si' : 'No',

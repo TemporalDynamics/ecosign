@@ -183,7 +183,7 @@ const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promi
   },
 
   'build_artifact': async (job, trace_id) => {
-    const { document_entity_id, user_document_id } = job.payload;
+    const { document_entity_id } = job.payload;
     const correlationId = job.correlation_id || String(document_entity_id);
 
     logger.info('Calling build-artifact function', {
@@ -195,7 +195,6 @@ const jobHandlers: Record<JobType, (job: ExecutorJob, trace_id: string) => Promi
     // Llamar al worker de construcción de artifact
     const artifactResponse = await callFunction('build-artifact', {
       document_entity_id: String(document_entity_id),
-      document_id: String(user_document_id),
       correlation_id: correlationId,  // NUEVO: pass to worker
     });
 

@@ -43,45 +43,27 @@ const supabaseAdmin = supabaseUrl && supabaseServiceKey
 type AnchorRequest = {
   documentHash: string
   documentEntityId?: string | null
-  documentId?: string | null
-  userDocumentId?: string | null
   userId?: string | null
   userEmail?: string | null
   metadata?: Record<string, unknown>
 }
 
-async function resolveAnchorContext(
+async function resolveOwnerContext(
   supabase: ReturnType<typeof createClient>,
   input: {
     documentEntityId: string | null
-    documentId: string | null
     userId: string | null
     userEmail: string | null
   },
 ): Promise<{
-  documentId: string | null
   userId: string | null
   userEmail: string | null
 }> {
-  let documentId = input.documentId
   let userId = input.userId
   let userEmail = input.userEmail
 
   if (!input.documentEntityId) {
-    return { documentId, userId, userEmail }
-  }
-
-  if (!documentId) {
-    const { data: doc } = await supabase
-      .from('documents')
-      .select('id')
-      .eq('document_entity_id', input.documentEntityId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (doc?.id) {
-      documentId = String(doc.id)
-    }
+    return { userId, userEmail }
   }
 
   if (!userId) {
@@ -102,7 +84,7 @@ async function resolveAnchorContext(
     }
   }
 
-  return { documentId, userId, userEmail }
+  return { userId, userEmail }
 }
 
 const jsonResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -149,8 +131,6 @@ serve(async (req) => {
     const {
       documentHash,
       documentEntityId: requestDocumentEntityId = null,
-      documentId = null,
-      userDocumentId = null,
       userId = null,
       userEmail = null,
       metadata = {}
@@ -165,8 +145,7 @@ serve(async (req) => {
 
     logger.info('anchor_bitcoin_request', {
       documentHash: documentHash?.substring(0, 16) + '...',
-      documentId,
-      userDocumentId,
+      documentEntityId: requestDocumentEntityId,
       source: metadata?.source || 'direct'
     })
 
@@ -210,7 +189,6 @@ serve(async (req) => {
       ? String((metadata as Record<string, unknown>)['document_entity_id'])
       : null
 
-    let finalDocumentId = documentId
     let finalUserEmail = userEmail
     let finalUserId = validUserId
     let documentEntityId: string | null = requestDocumentEntityId || metadataDocumentEntityId
@@ -250,20 +228,16 @@ serve(async (req) => {
       }, 200, corsHeaders)
     }
 
-    const resolvedContext = await resolveAnchorContext(supabaseAdmin as any, {
+    const resolvedContext = await resolveOwnerContext(supabaseAdmin as any, {
       documentEntityId,
-      documentId: finalDocumentId,
       userId: finalUserId,
       userEmail: finalUserEmail,
     })
-    finalDocumentId = resolvedContext.documentId
     finalUserId = resolvedContext.userId
     finalUserEmail = resolvedContext.userEmail
 
     const anchorPayload = {
       document_hash: documentHash,
-      document_id: finalDocumentId,
-      user_document_id: userDocumentId,
       document_entity_id: documentEntityId,
       user_id: finalUserId,
       user_email: finalUserEmail,
@@ -328,13 +302,6 @@ serve(async (req) => {
       if (stateError) {
         logger.warn('anchor_state_upsert_failed', { projectId, error: stateError.message })
       }
-    }
-
-    if (userDocumentId) {
-      logger.info('legacy_user_document_id_received', {
-        userDocumentId,
-        note: 'ignored_in_canonical_mode',
-      })
     }
 
     return jsonResponse({

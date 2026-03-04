@@ -7,7 +7,8 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { sendResendEmail } from '../_shared/email.ts';
 import { createLogger, withTiming } from '../_shared/logger.ts';
 import { Buffer } from 'node:buffer';
-import { appendAnchorEventFromEdge, logAnchorAttempt, logAnchorFailed } from '../_shared/anchorHelper.ts';
+import { appendAnchorEventFromEdge } from '../_shared/anchorHelper.ts';
+import { logAnchorAttempt, logAnchorFailed } from './anchorHelper.ts';
 
 // TODO(canon): Migrate from user_document_id to document_entity_id
 // Current: Uses user_document_id (legacy), dual-writes to events[]

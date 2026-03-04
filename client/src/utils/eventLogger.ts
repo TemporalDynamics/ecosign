@@ -131,16 +131,16 @@ export async function getDocumentEvents(documentId: string): Promise<LogResult> 
   const supabase = getSupabase();
   try {
     const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('document_id', documentId)
-      .order('timestamp', { ascending: false });
+      .from('document_entities')
+      .select('events')
+      .eq('id', documentId)
+      .maybeSingle();
 
     if (error) {
       return { success: false, error: error.message };
     }
 
-    return { success: true, data: data || [] };
+    return { success: true, data: Array.isArray(data?.events) ? data?.events : [] };
   } catch (error) {
     return { success: false, error: asMessage(error) };
   }

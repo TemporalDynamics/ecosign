@@ -48,7 +48,6 @@ export async function handleNewDocumentCreated(documentId: string, metadata: any
     at: new Date().toISOString(),
     payload: {
       ...metadata,
-      document_id: documentId,
       document_entity_id: documentEntityId,
       owner_id: document.owner_id,
       title: document.title ?? null,

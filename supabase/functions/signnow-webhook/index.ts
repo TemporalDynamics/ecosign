@@ -205,14 +205,14 @@ serve(async (req) => {
       }
       try {
         await supabase.functions.invoke('anchor-polygon', {
-          body: { documentHash: signedHash, documentId: workflow.id, userEmail: ownerUser?.email || 'owner@ecosign.app' }
+          body: { documentHash: signedHash, documentEntityId: workflow.document_entity_id ?? null, userEmail: ownerUser?.email || 'owner@ecosign.app' }
         })
       } catch (e) {
         console.error('anchor-polygon failed', e)
       }
       try {
         await supabase.functions.invoke('anchor-bitcoin', {
-          body: { documentHash: signedHash, documentId: workflow.id, userEmail: ownerUser?.email || 'owner@ecosign.app' }
+          body: { documentHash: signedHash, documentEntityId: workflow.document_entity_id ?? null, userEmail: ownerUser?.email || 'owner@ecosign.app' }
         })
       } catch (e) {
         console.error('anchor-bitcoin failed', e)

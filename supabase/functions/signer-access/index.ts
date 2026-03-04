@@ -100,7 +100,7 @@ async function uploadToSignNow(
   supabase: ReturnType<typeof createClient>,
   storagePath: string,
   documentName: string,
-): Promise<{ id?: string; document_id?: string }> {
+): Promise<{ id?: string }> {
   // Descargar PDF desde Supabase Storage
   const { data: fileResp, error: fileErr } = await supabase.storage
     .from("user-documents")

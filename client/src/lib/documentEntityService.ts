@@ -91,7 +91,7 @@ export type WitnessInput = {
 
 export type EcoPayloadV1 = {
   version: 'eco.v1';
-  document_id: string;
+  document_entity_id: string;
   source: {
     hash: string;
     mime: string;

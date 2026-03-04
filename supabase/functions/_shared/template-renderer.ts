@@ -59,7 +59,7 @@ const FALLBACK_TEMPLATES: Record<string, string> = {
         <li>Timestamp legal: {{legal_timestamp}}</li>
         <li>Anchor Polygon: {{polygon_anchor}}</li>
       </ul>
-      <p class="secondary">ID interno: {{document_id}}</p>
+      <p class="secondary">ID interno: {{document_entity_id}}</p>
     </div>
     <div class="footer">
       <p>No vendemos firmas. Vendemos certeza.</p>

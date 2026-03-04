@@ -18,7 +18,6 @@ import { decideAnchorPolicyByStage, resolveOwnerAnchorPlan } from '../_shared/an
 import { reconcileWitnessHistory } from '../_shared/witnessHistory.ts'
 
 interface RecordProtectionRequest {
-  document_id?: string
   document_entity_id?: string
   flow_version?: 'v1' | 'v2'
   protection_details: {
@@ -79,14 +78,10 @@ serve(withRateLimit('record', async (req) => {
 
     // Parse request body
     const body: RecordProtectionRequest = await req.json()
-    const { document_id, document_entity_id, protection_details, flow_version } = body
+    const { document_entity_id, protection_details, flow_version } = body
     const flowVersion = flow_version ?? 'v2'
     if (flowVersion === 'v1') {
       console.warn('[record-protection-event] flow_version=v1 (legacy). Consider upgrading to v2.');
-    }
-
-    if (document_id) {
-      throw new Error('document_id is no longer accepted; use document_entity_id')
     }
 
     documentEntityId = document_entity_id ?? null
@@ -160,7 +155,6 @@ serve(withRateLimit('record', async (req) => {
       at: new Date().toISOString(),
       payload: {
         document_entity_id: documentEntityId,
-        document_id: null,
         document_hash: entity.source_hash || effectiveWitnessHash,
         witness_hash: effectiveWitnessHash,
         flow_type: 'DIRECT_PROTECTION',

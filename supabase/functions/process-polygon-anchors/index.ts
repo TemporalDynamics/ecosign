@@ -160,10 +160,26 @@ async function emitAnchorTimeoutEvent(
   await emitAnchorFailedEvent(anchor, reason, attempts, true, timeoutBy === 'max_attempts' ? 'max_attempts' : 'timeout')
 }
 
+async function resolveWorkflowId(anchor: any): Promise<string | null> {
+  if (!supabaseAdmin || !anchor?.document_entity_id) return null;
+  const { data, error } = await supabaseAdmin
+    .from('signature_workflows')
+    .select('id, created_at')
+    .eq('document_entity_id', anchor.document_entity_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.id) return null;
+  return String(data.id);
+}
+
 async function insertNotification(anchor: any, txHash: string, blockNumber?: number | null, blockHash?: string | null, confirmedAt?: string | null) {
   if (!supabaseAdmin) return
-  // Require workflow/document context and recipient email to create notification
-  if (!anchor.document_id || !anchor.user_email) return
+  // Require document context and recipient email to create notification
+  if (!anchor.document_entity_id || !anchor.user_email) return
+
+  const workflowId = await resolveWorkflowId(anchor);
+  if (!workflowId) return
 
   const explorerUrl = `https://polygonscan.com/tx/${txHash}`
   const subject = '✅ Documento anclado en Polygon'
@@ -180,7 +196,7 @@ async function insertNotification(anchor: any, txHash: string, blockNumber?: num
   await supabaseAdmin
     .from('workflow_notifications')
     .upsert({
-      workflow_id: anchor.document_id,
+      workflow_id: workflowId,
       recipient_email: anchor.user_email,
       recipient_type: 'owner',
       notification_type: 'polygon_confirmed',

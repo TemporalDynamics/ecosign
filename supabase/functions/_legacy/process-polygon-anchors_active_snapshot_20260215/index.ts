@@ -3,7 +3,8 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { ethers } from 'npm:ethers@6.9.0'
 import { createLogger, withTiming } from '../_shared/logger.ts'
 import { shouldRetry, RETRY_CONFIGS, getNextRetryTime } from '../_shared/retry.ts'
-import { appendAnchorEventFromEdge, logAnchorAttempt, logAnchorFailed } from '../_shared/anchorHelper.ts'
+import { appendAnchorEventFromEdge } from '../_shared/anchorHelper.ts'
+import { logAnchorAttempt, logAnchorFailed } from './anchorHelper.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 
 // TODO(canon): Migrate from user_document_id to document_entity_id

@@ -155,7 +155,6 @@ export async function shareDocument(
     const shareId = crypto.randomUUID();
     const { error: shareError } = await supabase.from('document_shares').insert({
       id: shareId,
-      document_id: null,
       document_entity_id: doc.document_entity_id,
       // NOTE: Share OTP es un capability; recipient_email no representa identidad.
       // Se mantiene por constraints legacy y trazabilidad interna.

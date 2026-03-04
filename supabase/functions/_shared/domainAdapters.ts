@@ -73,7 +73,7 @@ export function mapEntityToVerificationPayload(entity: DocumentEntity): Verifica
   const events = Array.isArray(entity.events) ? entity.events : [];
   
   return {
-    document_id: entity.id,
+    document_entity_id: entity.id,
     source_hash: entity.source_hash,
     witness_hash: entity.witness_hash,
     composite_hash: entity.composite_hash,
@@ -96,7 +96,7 @@ export function mapEntityToShareContext(entity: DocumentEntity): ShareContext {
   const events = Array.isArray(entity.events) ? entity.events : [];
   
   return {
-    document_id: entity.id,
+    document_entity_id: entity.id,
     entity_id: entity.id,
     source_hash: entity.source_hash,
     witness_hash: entity.witness_hash,
@@ -189,7 +189,7 @@ function generateEcoV2(entity: DocumentEntity): any {
   // Este es un ejemplo simplificado - la implementación real estaría en packages/eco
   return {
     version: '2.0',
-    document_id: entity.id,
+    document_entity_id: entity.id,
     source_hash: entity.source_hash,
     witness_hash: entity.witness_hash,
     events_count: events.length,
@@ -265,7 +265,7 @@ interface DocumentSummary {
 }
 
 interface VerificationPayload {
-  document_id: string;
+  document_entity_id: string;
   source_hash: string;
   witness_hash: string;
   composite_hash: string;
@@ -278,7 +278,7 @@ interface VerificationPayload {
 }
 
 interface ShareContext {
-  document_id: string;
+  document_entity_id: string;
   entity_id: string;
   source_hash: string;
   witness_hash: string;

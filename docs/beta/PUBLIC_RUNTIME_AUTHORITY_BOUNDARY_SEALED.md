@@ -23,11 +23,6 @@ integraciones externas:
 1. `new-document-canonical-trigger` — trigger de proyección desde tabla `documents`.
 2. `signer-access` — `documentId` refiere documento externo de SignNow.
 3. `signnow` — `documentId` refiere documento externo de SignNow.
-4. `signnow-webhook` — payload legado de integración usa `documentId`.
-5. `submit-anchor-bitcoin` — forward de `document_id` legacy a anchor worker.
-6. `submit-anchor-polygon` — forward de `document_id` legacy a anchor worker.
-7. `anchor-bitcoin` — compatibilidad de payload legacy y puntero `documents`.
-8. `anchor-polygon` — compatibilidad de payload legacy y puntero `documents`.
 
 ## Criterio de aceptación
 1. Guard de frontera pública en verde.

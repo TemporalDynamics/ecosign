@@ -147,9 +147,14 @@ const findAnchorProof = (events: CanonicalEvent[], network: 'polygon' | 'bitcoin
     if (event?.kind !== 'anchor.confirmed' && event?.kind !== 'anchor') continue;
 
     const txHash = anchorData?.['txid'] ?? anchorData?.['tx_hash'] ?? anchorData?.['transaction_hash'];
+    // status reflects whether a verifiable on-chain reference exists.
+    // 'confirmed': anchor recorded and txid/ref available for independent verification.
+    // 'confirmed_no_ref': anchor event received but txid missing — cannot be independently verified.
+    // A forensic reader should treat 'confirmed_no_ref' as weaker evidence.
+    const status = (txHash != null && String(txHash).length > 0) ? 'confirmed' : 'confirmed_no_ref';
     return {
       kind: network,
-      status: 'confirmed',
+      status,
       provider: network,
       ref: txHash ?? null,
       attempted_at: event?.at ?? null,

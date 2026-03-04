@@ -80,12 +80,33 @@ serve(async (req) => {
         }
         const targetSignerId = String(body.ownerForSignerId)
         const events = Array.isArray(entity.events) ? entity.events : []
-        // Find the most recent signature.evidence.generated event for this signer
+
+        // Primary: look for signature.evidence.generated in entity events.
+        // This is written by generate-signature-evidence (async, post-TSA job).
         const evidenceGenEvent = [...events].reverse().find((e: any) =>
           e?.kind === 'signature.evidence.generated' &&
           e?.payload?.signer_id === targetSignerId
         )
-        const artifactPath: string | null = evidenceGenEvent?.payload?.artifact_path ?? null
+        let artifactPath: string | null = evidenceGenEvent?.payload?.artifact_path ?? null
+
+        // Fallback: look for eco.snapshot.issued in workflow_events.
+        // This is written by apply-signer-signature inline (synchronous, always present).
+        // eco_path in that event uses the same storage location as artifact_path.
+        if (!artifactPath) {
+          const { data: wfEvent } = await supabase
+            .from('workflow_events')
+            .select('payload')
+            .eq('signer_id', targetSignerId)
+            .eq('event_type', 'eco.snapshot.issued')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          const fallbackPath = wfEvent?.payload?.eco_path ?? null
+          if (typeof fallbackPath === 'string' && fallbackPath.length > 0) {
+            artifactPath = fallbackPath
+          }
+        }
 
         if (!artifactPath) {
           return jsonResponse({ error: 'signer_evidence_not_ready' }, 404)

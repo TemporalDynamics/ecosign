@@ -130,8 +130,36 @@ serve(async (req) => {
       }
     }
 
-    // Emit artifact.finalized — canonical closure event
-    const ecoHash = (signedResult.eco as any)?.ecosign_signature?.eco_hash ?? null
+    // Serialize the signed ECO to the exact bytes that will be stored.
+    // eco_hash MUST be computed from these bytes — not from any in-memory object —
+    // so that sha256(file_in_storage) === eco_hash_in_event, making the hash
+    // independently verifiable by anyone who downloads the file.
+    const ecoJson = JSON.stringify(signedResult.eco, null, 2)
+    const ecoBytes = new TextEncoder().encode(ecoJson)
+
+    const hashBuffer = await crypto.subtle.digest('SHA-256', ecoBytes)
+    const ecoHash = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+
+    // Upload ECO to storage (fail-hard: the file must be in storage before the event is emitted,
+    // so verify-access and get-eco-url can always serve it via eco_storage_path).
+    const ecoStoragePath = `artifacts/${documentEntityId}/v1.eco.json`
+    const { error: uploadErr } = await supabase.storage
+      .from('artifacts')
+      .upload(ecoStoragePath, new Blob([ecoBytes], { type: 'application/json' }), {
+        upsert: true,
+        contentType: 'application/json',
+      })
+
+    if (uploadErr) {
+      console.error('[finalize-document] ECO upload failed:', uploadErr)
+      return jsonResponse({ error: 'eco_upload_failed', details: uploadErr.message }, 500)
+    }
+
+    // Emit artifact.finalized — canonical closure event.
+    // eco_storage_path makes the file reachable by verify-access and get-eco-url.
+    // eco_hash is sha256 of the bytes in storage — verifiable independently.
     const publicKeyId = (signedResult.eco as any)?.ecosign_signature?.public_key_id ?? null
 
     await appendEvent(supabase as any, documentEntityId, {
@@ -140,6 +168,7 @@ serve(async (req) => {
       payload: {
         closure_trigger: closureTrigger,
         eco_hash: ecoHash,
+        eco_storage_path: ecoStoragePath,
         eco_institutional_signature: signedResult.signed ? 'present' : 'absent',
         eco_institutional_signature_reason: signedResult.reason ?? null,
         public_key_id: publicKeyId,
@@ -148,13 +177,14 @@ serve(async (req) => {
       },
     }, 'finalize-document')
 
-    console.log(`✅ artifact.finalized for entity ${documentEntityId} trigger=${closureTrigger}`)
+    console.log(`✅ artifact.finalized for entity ${documentEntityId} trigger=${closureTrigger} eco_storage_path=${ecoStoragePath}`)
 
     return jsonResponse({
       success: true,
       document_entity_id: documentEntityId,
       closure_trigger: closureTrigger,
       eco_hash: ecoHash,
+      eco_storage_path: ecoStoragePath,
       signed: signedResult.signed,
       rekor: rekorStatus,
       finalized_at: finalizedAt,

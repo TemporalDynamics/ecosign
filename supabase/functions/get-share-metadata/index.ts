@@ -44,7 +44,7 @@ serve(withRateLimit('verify', async (req) => {
 
     const { data: share, error: shareError } = await supabaseAdmin
       .from('document_shares')
-      .select('id, document_id, document_entity_id, nda_enabled, nda_text, nda_accepted_at, expires_at, status')
+      .select('id, document_entity_id, nda_enabled, nda_text, nda_accepted_at, expires_at, status')
       .eq('id', shareId)
       .single()
 

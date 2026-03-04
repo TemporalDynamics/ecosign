@@ -39,7 +39,6 @@ const VALID_EVENT_TYPES = Object.keys(LEGACY_TO_CANONICAL_KIND);
 interface LogEventRequest {
   eventType: string;
   documentEntityId?: string;
-  documentId?: string;
   userId?: string;
   signerLinkId?: string;
   actorEmail?: string;
@@ -100,7 +99,13 @@ serve(async (req: Request) => {
     // Parse request body
     const body: LogEventRequest = await req.json();
     const { eventType, userId, signerLinkId, actorEmail, actorName, metadata } = body;
-    const documentEntityId = body.documentEntityId ?? body.documentId;
+    if ((body as any).documentId) {
+      return new Response(
+        JSON.stringify({ error: 'documentId is no longer accepted; use documentEntityId' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const documentEntityId = body.documentEntityId;
 
     // Validate event type
     if (!VALID_EVENT_TYPES.includes(eventType)) {

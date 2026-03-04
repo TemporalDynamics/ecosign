@@ -66,7 +66,7 @@ serve(withRateLimit('verify', async (req) => {
 
     const { data: share, error: shareError } = await supabaseAdmin
       .from('document_shares')
-      .select('id, document_id, document_entity_id, otp_hash, wrapped_key, wrap_iv, recipient_salt, nda_enabled, nda_accepted_at, expires_at, status')
+      .select('id, document_entity_id, otp_hash, wrapped_key, wrap_iv, recipient_salt, nda_enabled, nda_accepted_at, expires_at, status')
       .eq('id', shareId)
       .eq('otp_hash', otpHash)
       .eq('status', 'pending')

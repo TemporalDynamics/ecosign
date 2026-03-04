@@ -27,7 +27,10 @@ serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const documentEntityId = body?.documentEntityId || body?.documentId;
+    if (body?.documentId) {
+      throw new Error('documentId is no longer accepted; use documentEntityId');
+    }
+    const documentEntityId = body?.documentEntityId;
 
     if (!documentEntityId) {
       throw new Error('documentEntityId is required');

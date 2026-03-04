@@ -7,7 +7,7 @@ import {
 
 Deno.test('generate-link schema: happy path and invalid payload', () => {
   const happy = GenerateLinkSchema.safeParse({
-    document_id: '11111111-1111-1111-1111-111111111111',
+    document_entity_id: '11111111-1111-1111-1111-111111111111',
     recipient_email: 'tester@example.com',
     expires_in_hours: 24,
     require_nda: true,

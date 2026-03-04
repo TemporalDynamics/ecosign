@@ -58,7 +58,7 @@ serve(withRateLimit('record', async (req) => {
     // Load share
     const { data: share, error: shareError } = await supabaseAdmin
       .from('document_shares')
-      .select('id, document_id, document_entity_id, created_by, expires_at, nda_enabled')
+      .select('id, document_entity_id, created_by, expires_at, nda_enabled')
       .eq('id', share_id)
       .single()
 

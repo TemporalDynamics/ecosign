@@ -82,7 +82,7 @@ serve(async (req) => {
     // Obtener información del signer_link
     const { data: signerLink, error: linkError } = await supabase
       .from('signer_links')
-      .select('id, signer_email, signer_name, signed_at, status, document_id, document_entity_id')
+      .select('id, signer_email, signer_name, signed_at, status, document_entity_id')
       .eq('id', signerLinkId)
       .single();
 

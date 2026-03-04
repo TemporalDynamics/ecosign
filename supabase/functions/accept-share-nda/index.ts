@@ -62,7 +62,7 @@ serve(withRateLimit('accept', async (req) => {
     // Get share data
     const { data: share, error: shareError } = await supabase
       .from('document_shares')
-      .select('id, document_id, document_entity_id, recipient_email, nda_text, nda_enabled, nda_accepted_at')
+      .select('id, document_entity_id, recipient_email, nda_text, nda_enabled, nda_accepted_at')
       .eq('id', share_id)
       .single()
 
@@ -195,7 +195,7 @@ serve(withRateLimit('accept', async (req) => {
         // Don't fail the request, NDA was accepted successfully
       }
     } else {
-      console.warn(`Could not get document_entity_id for document ${share.document_id}, nda.accepted event not recorded`);
+      console.warn(`Could not get document_entity_id for share ${share_id}, nda.accepted event not recorded`);
     }
 
     return new Response(

@@ -65,7 +65,7 @@ serve(withRateLimit('accept', async (req) => {
     // Verify recipient exists
     const { data: recipient, error: recipientError } = await supabase
       .from('recipients')
-      .select('id, email, document_id, document_entity_id')
+      .select('id, email, document_entity_id')
       .eq('id', link.recipient_id)
       .single()
 

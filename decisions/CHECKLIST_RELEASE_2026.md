@@ -16,7 +16,7 @@ Esta checklist es la versión ejecutable del plan. Marcar ítems solo cuando el 
 - [x] `document_id` rechazado explícitamente en funciones legacy
 - [x] `document_id` removido de queries `.or(...)`
 - [x] Tests TSA A3 habilitados y en verde
-- [ ] Mock TSA implementado para tests unitarios
+- [x] Mock TSA implementado para tests unitarios
 - [x] Rate limit por workspace usa fuente server-side
 - [x] Tests 429: workspace/user/IP funcionando
 - [x] Rate limit evita doble `auth.getUser()` (JWT decode local)

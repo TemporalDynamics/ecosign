@@ -28,8 +28,8 @@ test('anchor submitters must not read user_documents and must keep document_enti
 
   expect(bitcoinContent).toContain('document_entity_id');
   expect(polygonContent).toContain('document_entity_id');
-  expect(bitcoinContent).toContain('resolveAnchorContext(');
-  expect(polygonContent).toContain('resolveAnchorContext(');
+  expect(bitcoinContent).toContain('resolveOwnerContext(');
+  expect(polygonContent).toContain('resolveOwnerContext(');
 });
 
 test('process-bitcoin-anchors must not fetch notification recipients from user_documents', async () => {

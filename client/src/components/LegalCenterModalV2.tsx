@@ -105,6 +105,31 @@ interface Signer {
   quickAccess: boolean;
 }
 
+type CanvasPageSnapshot = {
+  page: number;
+  width: number;
+  height: number;
+};
+
+type CanvasFieldSnapshot = {
+  field_id: string;
+  field_type: string;
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  signer_email?: string | null;
+};
+
+type CanvasSnapshot = {
+  snapshot_version: '1.0';
+  created_at: string;
+  signer_key: 'email';
+  pages: CanvasPageSnapshot[];
+  fields_by_signer: Record<string, CanvasFieldSnapshot[]>;
+};
+
 interface Annotation {
   type: AnnotationKind;
   page?: number;
@@ -1770,6 +1795,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             documentHash,
             originalFilename: sourceFile?.name ?? file.name,
             documentEntityId: canonicalDocumentId || undefined,
+            canvasSnapshot: buildCanvasSnapshot(selfFields, ownerEmailValue),
             signatureType: signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN',
             deliveryMode: 'link',
             ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
@@ -2044,6 +2070,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             signatureType: signatureType
               ? (signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN')
               : undefined,
+            canvasSnapshot: buildCanvasSnapshot(signatureFields, null),
             ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
             ndaEnabled,
             requireSequential: workflowSigningMode === 'sequential',
@@ -3547,6 +3574,50 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   };
 
   const normalizeEmail = (email: string | null | undefined) => (email ?? '').trim().toLowerCase();
+
+  const buildCanvasSnapshot = (
+    fields: SignatureField[],
+    fallbackSignerEmail?: string | null
+  ): CanvasSnapshot | null => {
+    if (!Array.isArray(fields)) return null;
+    const pages: CanvasPageSnapshot[] = pdfPageMetrics.length > 0
+      ? pdfPageMetrics.map((p) => ({
+          page: p.pageNumber,
+          width: Math.round(p.width),
+          height: Math.round(p.height)
+        }))
+      : [{
+          page: 1,
+          width: Math.round(workflowVirtualSize.width),
+          height: Math.round(workflowVirtualSize.height)
+        }];
+
+    const fieldsBySigner: Record<string, CanvasFieldSnapshot[]> = {};
+    fields.forEach((field) => {
+      const signerEmailRaw = field.assignedTo || fallbackSignerEmail || '';
+      const signerEmail = normalizeEmail(signerEmailRaw);
+      if (!signerEmail) return;
+      if (!fieldsBySigner[signerEmail]) fieldsBySigner[signerEmail] = [];
+      fieldsBySigner[signerEmail].push({
+        field_id: field.id,
+        field_type: field.type,
+        page: field.page,
+        x: Math.round(field.x),
+        y: Math.round(field.y),
+        width: Math.round(field.width),
+        height: Math.round(field.height),
+        signer_email: signerEmail
+      });
+    });
+
+    return {
+      snapshot_version: '1.0',
+      created_at: new Date().toISOString(),
+      signer_key: 'email',
+      pages,
+      fields_by_signer: fieldsBySigner
+    };
+  };
 
   const assignBatchToSignerEmail = (batchId: string, signerEmail: string | null) => {
     const normalized = signerEmail ? normalizeEmail(signerEmail) : null;

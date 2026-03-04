@@ -24,6 +24,7 @@ El sistema opera con 5 categorías de autenticación, cada una con contrato expl
 - `create-invite` — Crear invite (owner del documento)
 - `create-signer-link` — Crear link de firma (owner)
 - `generate-link` — Generar link de share (owner)
+- `get-eco` — Obtener ECO canónico (owner)
 - `get-signed-url` — Obtener URL firmado de storage
 - `load-draft` — Cargar draft (owner)
 - `log-event` — Loguear evento (owner)
@@ -76,6 +77,7 @@ via `participant_token_hash` contra `presential_verification_otps`.
 - `apply-signer-signature` — Aplicar firma del firmante
 - `confirm-signer-identity` — Confirmar identidad del firmante
 - `log-workflow-event` — Loguear evento de workflow
+- `record-evidence-download` — Registrar descarga de evidencia (firmante)
 - `reject-signature` — Rechazar firma
 - `send-signer-otp` — Enviar OTP al firmante
 - `verify-signer-otp` — Verificar OTP del firmante
@@ -93,12 +95,14 @@ via `participant_token_hash` contra `presential_verification_otps`.
 **Endpoints** (9):
 - `anchor-bitcoin` — Worker de anclaje Bitcoin
 - `anchor-polygon` — Worker de anclaje Polygon
+- `finalize-document` — Finalizar certificado ECO (worker interno)
 - `fase1-executor` — Ejecutor de jobs fase 1
 - `notify-artifact-ready` — Notificar artifact ready (cron)
 - `notify-document-signed` — Notificar documento firmado (cron)
 - `process-bitcoin-anchors` — Procesar anclas Bitcoin (cron)
 - `process-polygon-anchors` — Procesar anclas Polygon (cron)
 - `process-signature` — Procesar firma (worker interno)
+- `record-custody-key-rotation` — Registrar rotación de clave (interno)
 - `send-pending-emails` — Enviar emails pendientes (cron)
 
 **Invariante**: Todos deben validar `Authorization: Bearer <service_role_key>` o `x-cron-secret` / `x-internal-secret` header.
@@ -156,6 +160,7 @@ protegidos por RLS en la base de datos, o bien endpoints públicos de lectura/ve
 - `set-feature-flag` — Setear feature flag (interno)
 - `signer-access` — Acceso de firmante (integración SignNow)
 - `signnow` — Integración SignNow
+- `signing-keys` — Public keys de firma institucional (público)
 - `stamp-pdf` — Sellado de PDF (worker interno)
 - `store-signer-signature` — Almacenar firma de firmante
 - `submit-anchor-bitcoin` — Submit anchor Bitcoin (worker interno)

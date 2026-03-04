@@ -264,9 +264,15 @@ verify_enabled = false
 verify_jwt = false
 
 [functions.get-eco]
-verify_jwt = false
+verify_jwt = true
 
 [functions.finalize-document]
+verify_jwt = false
+
+[functions.record-custody-key-rotation]
+verify_jwt = false
+
+[functions.record-evidence-download]
 verify_jwt = false
 
 [functions.process-polygon-anchors]

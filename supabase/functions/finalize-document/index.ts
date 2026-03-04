@@ -5,6 +5,7 @@ import { appendEvent } from '../_shared/eventHelper.ts'
 import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate.ts'
 import { signFinalEcoInstitutionally } from '../_shared/ecoInstitutionalSignature.ts'
 import { attemptRekorProofForProtection } from '../_shared/rekorProof.ts'
+import { buildEpiBlockFromEvents, deriveContentAt } from '../_shared/epiCanvas.ts'
 
 type ClosureTrigger =
   | 'bitcoin_confirmed'
@@ -102,6 +103,16 @@ serve(async (req) => {
       events,
       snapshot_kind: 'final_artifact',
     })
+
+    const contentAt = deriveContentAt(events, entity.created_at ?? null)
+    const epiBlock = await buildEpiBlockFromEvents({
+      source_hash: entity.source_hash ?? null,
+      content_at: contentAt || null,
+      events,
+    })
+    if (epiBlock) {
+      ;(ecoCertificate as Record<string, unknown>).epi = epiBlock
+    }
 
     // Institutional signature
     const signedResult = await signFinalEcoInstitutionally(

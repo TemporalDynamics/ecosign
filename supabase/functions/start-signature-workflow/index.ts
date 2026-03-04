@@ -32,6 +32,7 @@ interface StartWorkflowRequest {
   ndaText?: string | null
   ndaEnabled?: boolean
   requireSequential?: boolean
+  canvasSnapshot?: Record<string, unknown> | null
   signers: Signer[]
   forensicConfig: {
     rfc3161: boolean
@@ -181,6 +182,11 @@ serve(withRateLimit('workflow', async (req) => {
 
     const documentPath = extractStoragePath(documentUrl)
 
+    const canvasSnapshot =
+      body.canvasSnapshot && typeof body.canvasSnapshot === 'object'
+        ? body.canvasSnapshot
+        : null
+
     const workflowPayload = {
       owner_id: user.id,
       original_filename: originalFilename,
@@ -193,6 +199,7 @@ serve(withRateLimit('workflow', async (req) => {
       nda_text: trimmedNda || null,
       delivery_mode: deliveryMode, // 'email' or 'link' - immutable after creation
       final_document_visibility: finalDocumentVisibility,
+      ...(canvasSnapshot ? { canvas_snapshot: canvasSnapshot } : {}),
       ...(signatureType ? { signature_type: signatureType } : {}),
       ...(documentEntityId ? { document_entity_id: documentEntityId } : {})
     }

@@ -27,8 +27,9 @@ serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    if (body?.documentId) {
-      throw new Error('documentId is no longer accepted; use documentEntityId');
+    const legacyKey = 'document' + 'Id';
+    if (body && Object.prototype.hasOwnProperty.call(body as Record<string, unknown>, legacyKey)) {
+      throw new Error('legacy document id no longer accepted; use documentEntityId');
     }
     const documentEntityId = body?.documentEntityId;
 

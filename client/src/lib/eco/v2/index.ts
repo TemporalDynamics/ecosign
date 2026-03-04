@@ -62,6 +62,15 @@ export type RekorEvent = {
 
 export type EventEntry = TsaEvent | AnchorEvent | RekorEvent;
 
+export type EpiBlock = {
+  level: 2;
+  content_hash: string;
+  content_at: string;
+  root_hash: string;
+  state_hashes: { hash: string; at: string }[];
+  algorithm: string;
+};
+
 export type EcoV2 = {
   version: 'eco.v2';
   document_entity_id: string;
@@ -95,6 +104,7 @@ export type EcoV2 = {
     created_at: string;
     tca?: string;
   };
+  epi?: EpiBlock;
   anchors: {
     polygon?: {
       network: 'polygon';
@@ -433,6 +443,13 @@ export type VerificationResult = {
   signed_hash?: string;
   authoritative?: boolean;
   hash_chain_mismatch?: string;
+  epi?: {
+    level: 1 | 2;
+    status: 'valid' | 'tampered' | 'unknown';
+    root_hash?: string;
+    computed_root_hash?: string;
+    algorithm?: string;
+  };
   institutional_signature?: {
     present: boolean;
     valid?: boolean;
@@ -808,6 +825,91 @@ const verifyRekorEvents = (
   return { present: true, valid: true, ref, witness_hash: rekorWitness };
 };
 
+type EpiLeafType = 'content' | 'state' | 'tsa' | 'anchor';
+type EpiLeaf = { type: EpiLeafType; hash: string; at: string };
+
+const sha256HexString = (input: string): string => bytesToHex(sha256(utf8ToBytes(input)));
+
+const sortEpiLeavesCanonically = (leaves: EpiLeaf[]): EpiLeaf[] => {
+  const typeOrder: Record<EpiLeafType, number> = {
+    content: 0,
+    state: 1,
+    tsa: 2,
+    anchor: 3,
+  };
+  return [...leaves].sort((a, b) => {
+    const typeDiff = typeOrder[a.type] - typeOrder[b.type];
+    if (typeDiff !== 0) return typeDiff;
+    return String(a.at).localeCompare(String(b.at));
+  });
+};
+
+const buildEpiRoot = (epi: EpiBlock): string | null => {
+  if (!epi?.content_hash || !epi?.content_at) return null;
+  const stateLeaves = Array.isArray(epi.state_hashes)
+    ? epi.state_hashes
+        .filter((entry) => typeof entry?.hash === 'string' && typeof entry?.at === 'string')
+        .map((entry) => ({ type: 'state' as const, hash: entry.hash, at: entry.at }))
+    : [];
+  if (stateLeaves.length === 0) return null;
+
+  const leaves: EpiLeaf[] = [
+    { type: 'content', hash: epi.content_hash, at: epi.content_at },
+    ...stateLeaves,
+  ];
+
+  let hashes = sortEpiLeavesCanonically(leaves).map((leaf) => sha256HexString(leaf.hash));
+
+  while (hashes.length > 1) {
+    const next: string[] = [];
+    for (let i = 0; i < hashes.length; i += 2) {
+      const left = hashes[i];
+      const right = hashes[i + 1] ?? hashes[i];
+      next.push(sha256HexString(`${left}${right}`));
+    }
+    hashes = next;
+  }
+
+  return hashes[0] ?? null;
+};
+
+const verifyEpiBlock = (epi: unknown): VerificationResult['epi'] => {
+  if (!epi || typeof epi !== 'object') {
+    return { level: 1, status: 'unknown' };
+  }
+  const block = epi as Partial<EpiBlock>;
+  if (block.level !== 2) {
+    return { level: 1, status: 'unknown' };
+  }
+  const computed = buildEpiRoot(block as EpiBlock);
+  const rootHash = typeof block.root_hash === 'string' ? block.root_hash : undefined;
+  if (!computed || !rootHash) {
+    return {
+      level: 2,
+      status: 'unknown',
+      root_hash: rootHash,
+      computed_root_hash: computed ?? undefined,
+      algorithm: typeof block.algorithm === 'string' ? block.algorithm : undefined,
+    };
+  }
+  if (computed !== rootHash) {
+    return {
+      level: 2,
+      status: 'tampered',
+      root_hash: rootHash,
+      computed_root_hash: computed,
+      algorithm: typeof block.algorithm === 'string' ? block.algorithm : undefined,
+    };
+  }
+  return {
+    level: 2,
+    status: 'valid',
+    root_hash: rootHash,
+    computed_root_hash: computed,
+    algorithm: typeof block.algorithm === 'string' ? block.algorithm : undefined,
+  };
+};
+
 export const verifyEcoV2 = (eco: unknown): VerificationResult => {
   if (!eco || typeof eco !== 'object') {
     return { status: 'unknown' };
@@ -848,6 +950,7 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
       : { present: false as const };
     const institutionalSignature =
       verifyInstitutionalSignature(raw) ?? ({ present: false } as NonNullable<VerificationResult['institutional_signature']>);
+    const epiVerification = verifyEpiBlock(raw['epi']);
 
     if (!sourceHash) return { status: 'unknown' };
     if (tsa.present && tsa.valid === false) return { status: 'tampered', tsa };
@@ -856,8 +959,11 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
         institutionalSignature.reason === 'institutional_signature_key_not_trusted' ||
         institutionalSignature.reason === 'institutional_signature_key_revoked';
       if (!trustPolicyReason) {
-        return { status: 'tampered', tsa, institutional_signature: institutionalSignature };
+        return { status: 'tampered', tsa, institutional_signature: institutionalSignature, epi: epiVerification };
       }
+    }
+    if (epiVerification.status === 'tampered') {
+      return { status: 'tampered', tsa, institutional_signature: institutionalSignature, epi: epiVerification };
     }
 
     return {
@@ -866,6 +972,7 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
       witness_hash: witnessHash,
       authoritative,
       institutional_signature: institutionalSignature,
+      epi: epiVerification,
       signed_hash: typeof raw?.['system'] === 'object' && raw['system'] !== null
         ? ((raw['system'] as Record<string, unknown>)['signed_hash'] as string | undefined)
         : undefined,
@@ -878,6 +985,8 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
   if (candidate.version !== 'eco.v2') {
     return { status: 'unknown' };
   }
+
+  const epiVerification = verifyEpiBlock(candidate.epi);
 
   if (!candidate.hash_chain) {
     const hasDigestData = Boolean(candidate.source?.hash || candidate.witness?.hash || candidate.signed?.hash);
@@ -905,29 +1014,30 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
       witness_hash: candidate.hash_chain.witness_hash,
       signed_hash: candidate.hash_chain.signed_hash,
       hash_chain_mismatch: hashChainMismatch,
+      epi: epiVerification,
     };
   }
 
   if (candidate.source.hash !== candidate.hash_chain.source_hash) {
-    return { status: 'tampered' };
+    return { status: 'tampered', epi: epiVerification };
   }
 
   if (candidate.witness) {
     if (!candidate.hash_chain.witness_hash) return { status: 'tampered' };
     if (candidate.witness.hash !== candidate.hash_chain.witness_hash) {
-      return { status: 'tampered' };
+      return { status: 'tampered', epi: epiVerification };
     }
   }
 
   if (candidate.signed) {
     if (!candidate.hash_chain.signed_hash) return { status: 'tampered' };
     if (candidate.signed.hash !== candidate.hash_chain.signed_hash) {
-      return { status: 'tampered' };
+      return { status: 'tampered', epi: epiVerification };
     }
   }
 
   if (!transformLogIsConsistent(candidate.transform_log ?? [], candidate.hash_chain)) {
-    return { status: 'tampered' };
+    return { status: 'tampered', epi: epiVerification };
   }
 
   // Verify TSA events consistency
@@ -938,7 +1048,7 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
 
   // If TSA present but invalid → tampered
   if (tsaVerification.present && tsaVerification.valid === false) {
-    return { status: 'tampered', tsa: tsaVerification };
+    return { status: 'tampered', tsa: tsaVerification, epi: epiVerification };
   }
 
   // Verify Rekor events consistency (EPI: witness_hash must match hash_chain)
@@ -948,7 +1058,20 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
   );
 
   if (rekorVerification.present && rekorVerification.valid === false) {
-    return { status: 'tampered', tsa: tsaVerification, hash_chain_mismatch: 'rekor_witness_hash_mismatch' };
+    return {
+      status: 'tampered',
+      tsa: tsaVerification,
+      hash_chain_mismatch: 'rekor_witness_hash_mismatch',
+      epi: epiVerification,
+    };
+  }
+
+  if (epiVerification.status === 'tampered') {
+    return {
+      status: 'tampered',
+      tsa: tsaVerification,
+      epi: epiVerification,
+    };
   }
 
   if (isIncomplete(candidate)) {
@@ -960,6 +1083,7 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
       timestamps: candidate.timestamps,
       anchors: candidate.anchors,
       tsa: tsaVerification,
+      epi: epiVerification,
     };
   }
 
@@ -972,5 +1096,6 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
     timestamps: candidate.timestamps,
     anchors: candidate.anchors,
     tsa: tsaVerification,
+    epi: epiVerification,
   };
 };

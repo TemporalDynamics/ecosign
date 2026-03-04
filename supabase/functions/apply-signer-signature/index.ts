@@ -11,6 +11,7 @@ import { decryptToken } from '../_shared/cryptoHelper.ts'
 import { decideAnchorPolicyByStage, resolveOwnerAnchorPlan } from '../_shared/anchorPlanPolicy.ts'
 import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 import { reconcileWitnessHistory } from '../_shared/witnessHistory.ts'
+import { computeStateHash } from '../_shared/epiCanvas.ts'
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
@@ -398,6 +399,47 @@ serve(async (req) => {
     const body = await req.json()
     const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level, signatureData, fieldValues } = body
     const normalizeEmail = (value: string | null | undefined) => (value || '').trim().toLowerCase()
+    const resolveEpiStateHash = async (
+      snapshot: Record<string, unknown> | null,
+      signerRow: { id?: string | null; email?: string | null }
+    ): Promise<string | null> => {
+      if (!snapshot) return null
+
+      const pagesRaw = Array.isArray((snapshot as any).pages) ? (snapshot as any).pages : []
+      if (pagesRaw.length === 0) return null
+
+      let fields: any[] = []
+      const fieldsBySigner = (snapshot as any).fields_by_signer
+      if (fieldsBySigner && typeof fieldsBySigner === 'object') {
+        const signerEmailKey = normalizeEmail(signerRow.email ?? '')
+        const directByEmail = signerEmailKey && Array.isArray(fieldsBySigner[signerEmailKey])
+          ? fieldsBySigner[signerEmailKey]
+          : null
+        const directById = signerRow.id && Array.isArray(fieldsBySigner[signerRow.id])
+          ? fieldsBySigner[signerRow.id]
+          : null
+        fields = (directByEmail || directById || []) as any[]
+      }
+
+      if (fields.length === 0 && Array.isArray((snapshot as any).fields)) {
+        const signerEmailKey = normalizeEmail(signerRow.email ?? '')
+        fields = (snapshot as any).fields.filter((f: any) => {
+          const fEmail = normalizeEmail(
+            f?.signer_email ?? f?.assignedTo ?? f?.assigned_to ?? f?.signerEmail ?? ''
+          )
+          return signerEmailKey && fEmail === signerEmailKey
+        })
+      }
+
+      if (fields.length === 0) return null
+
+      try {
+        return await computeStateHash(fields, pagesRaw)
+      } catch (err) {
+        console.warn('apply-signer-signature: computeStateHash failed (non-critical)', err)
+        return null
+      }
+    }
     let witnessHashForEvent: string | null = witness_pdf_hash || null
     let signedPdfPath: string | null = null
     let signerStateHash: string | null = null
@@ -499,7 +541,7 @@ serve(async (req) => {
     // Fetch workflow early for canonical decision and batching
     const { data: workflow, error: wfError } = await supabase
       .from('signature_workflows')
-      .select('id, owner_id, document_entity_id, status, delivery_mode, require_sequential, original_filename, document_path, document_hash, forensic_config, fields_schema_hash, fields_schema_version')
+      .select('id, owner_id, document_entity_id, status, delivery_mode, require_sequential, original_filename, document_path, document_hash, forensic_config, fields_schema_hash, fields_schema_version, canvas_snapshot')
       .eq('id', signer.workflow_id)
       .single()
 
@@ -627,6 +669,11 @@ serve(async (req) => {
       )
     }
 
+    const epiStateHash = await resolveEpiStateHash(
+      (workflow as any)?.canvas_snapshot ?? null,
+      { id: signer.id, email: signer.email }
+    )
+
     if (signer.status === 'ready_to_sign') {
       const { data: lockData, error: lockErr } = await supabase.rpc('claim_signer_for_signing', {
         p_signer_id: signer.id,
@@ -707,7 +754,10 @@ serve(async (req) => {
               witness_pdf_hash: witnessHashForRepair,
               identity_level: identityLevel.canonical_level,
               identity_operational_level: identityLevel.operational_level,
-              batches_signed: []
+              batches_signed: [],
+              epi_state_hash: epiStateHash ?? null,
+              epi_state_hash_version: epiStateHash ? '1.0' : null,
+              epi_algorithm: epiStateHash ? 'merkle-sha256-canonical-v1' : null
             }
           },
           'apply-signer-signature:idempotent-repair'
@@ -1549,7 +1599,10 @@ serve(async (req) => {
           witness_pdf_hash: eventPayload.witness_pdf_hash || null,
           identity_level: identityLevel.canonical_level,
           identity_operational_level: identityLevel.operational_level,
-          batches_signed: batches.map((b: any) => b.id)
+          batches_signed: batches.map((b: any) => b.id),
+          epi_state_hash: epiStateHash ?? null,
+          epi_state_hash_version: epiStateHash ? '1.0' : null,
+          epi_algorithm: epiStateHash ? 'merkle-sha256-canonical-v1' : null
         }
       },
       'apply-signer-signature'

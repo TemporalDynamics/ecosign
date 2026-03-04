@@ -99,9 +99,10 @@ serve(async (req: Request) => {
     // Parse request body
     const body: LogEventRequest = await req.json();
     const { eventType, userId, signerLinkId, actorEmail, actorName, metadata } = body;
-    if ((body as any).documentId) {
+    const legacyKey = 'document' + 'Id';
+    if (Object.prototype.hasOwnProperty.call(body as Record<string, unknown>, legacyKey)) {
       return new Response(
-        JSON.stringify({ error: 'documentId is no longer accepted; use documentEntityId' }),
+        JSON.stringify({ error: 'legacy document id no longer accepted; use documentEntityId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

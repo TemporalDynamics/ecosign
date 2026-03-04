@@ -43,6 +43,13 @@ interface VerificationServiceResult {
   signatureValid?: boolean;
   timestampValid?: boolean;
   legalTimestamp?: Record<string, unknown> | { enabled?: boolean };
+  epi?: {
+    level: 1 | 2;
+    status: 'valid' | 'tampered' | 'unknown';
+    root_hash?: string;
+    computed_root_hash?: string;
+    algorithm?: string;
+  };
   errors?: string[];
   warnings?: string[];
   error?: string;
@@ -79,6 +86,18 @@ const buildEvidenceItems = (
     } else {
       items.push('Existe una firma registrada en el certificado.');
     }
+  }
+
+  if (result.epi?.level === 2) {
+    if (result.epi.status === 'valid') {
+      items.push('EPI Nivel 2 verificado (estado del canvas íntegro).');
+    } else if (result.epi.status === 'tampered') {
+      items.push('EPI Nivel 2 inconsistente (estado del canvas alterado).');
+    } else {
+      items.push('EPI Nivel 2 presente (estado del canvas no verificado).');
+    }
+  } else if (result.epi?.level === 1) {
+    items.push('EPI Nivel 1 (sin hash probatorio de estado).');
   }
 
   // TSA: read from events[] if eco data exists

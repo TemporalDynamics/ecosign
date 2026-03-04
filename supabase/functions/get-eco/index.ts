@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate.ts'
 import { signFinalEcoInstitutionally } from '../_shared/ecoInstitutionalSignature.ts'
+import { buildEpiBlockFromEvents, deriveContentAt } from '../_shared/epiCanvas.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,6 +68,16 @@ serve(async (req) => {
       events,
       snapshot_kind: snapshotKind,
     })
+
+    const contentAt = deriveContentAt(events, entity.created_at ?? null)
+    const epiBlock = await buildEpiBlockFromEvents({
+      source_hash: entity.source_hash ?? null,
+      content_at: contentAt || null,
+      events,
+    })
+    if (epiBlock) {
+      ;(ecoCertificate as Record<string, unknown>).epi = epiBlock
+    }
 
     const signedResult = await signFinalEcoInstitutionally(
       ecoCertificate as Record<string, unknown>,

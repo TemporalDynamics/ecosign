@@ -6,6 +6,7 @@ import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate
 import { signFinalEcoInstitutionally } from '../_shared/ecoInstitutionalSignature.ts';
 import { attemptRekorProofForProtection } from '../_shared/rekorProof.ts';
 import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { buildEpiBlockFromEvents, deriveContentAt } from '../_shared/epiCanvas.ts';
 
 type BuildArtifactRequest = {
   document_entity_id: string;
@@ -190,6 +191,16 @@ serve(async (req) => {
       events,
       snapshot_kind: 'final_artifact',
     });
+
+    const contentAt = deriveContentAt(events, entity.created_at ?? null);
+    const epiBlock = await buildEpiBlockFromEvents({
+      source_hash: entity.source_hash ?? null,
+      content_at: contentAt || null,
+      events,
+    });
+    if (epiBlock) {
+      (ecoCertificate as Record<string, unknown>).epi = epiBlock;
+    }
     const signedEcoResult = await signFinalEcoInstitutionally(ecoCertificate as Record<string, unknown>);
     const ecoToPersist = signedEcoResult.eco;
 

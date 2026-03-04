@@ -24,6 +24,13 @@ type VerificationBaseResult = {
   originalFileMatches?: boolean | null;
   legalTimestamp?: Record<string, unknown> | { enabled?: boolean };
   anchors?: unknown; // Derived from eco.v2 events
+  epi?: {
+    level: 1 | 2;
+    status: 'valid' | 'tampered' | 'unknown';
+    root_hash?: string;
+    computed_root_hash?: string;
+    algorithm?: string;
+  };
   manifest?: unknown;
   errors?: string[];
   warnings?: string[];
@@ -216,6 +223,10 @@ const mapEcoV2Result = (
     errors.push(`Hash chain inconsistente (${result.hash_chain_mismatch}).`);
   }
 
+  if (result.epi?.level === 1) {
+    warnings.push('EPI Nivel 1: sin hash probatorio de estado (canvas).');
+  }
+
   let finalValid = valid;
   let finalSignatureValid = !!result.signed_hash;
   if (onlineRevocation?.checked) {
@@ -254,6 +265,7 @@ const mapEcoV2Result = (
     timestampValid: true,
     legalTimestamp: { enabled: false },
     anchors: result.anchors,
+    epi: result.epi,
     errors,
     warnings
   };

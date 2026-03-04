@@ -38,6 +38,7 @@ type StartWorkflowParams = {
   ndaEnabled?: boolean;
   requireSequential?: boolean;
   finalDocumentVisibility?: 'owner_only' | 'participants';
+  canvasSnapshot?: Record<string, unknown> | null;
   signers: WorkflowSigner[];
   forensicConfig?: ForensicConfig;
 };
@@ -54,6 +55,7 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
     ndaEnabled,
     requireSequential,
     finalDocumentVisibility,
+    canvasSnapshot,
     signers,
     forensicConfig = {
       rfc3161: true,
@@ -103,6 +105,7 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
         ndaEnabled,
         requireSequential,
         finalDocumentVisibility,
+        canvasSnapshot,
         signers,
         forensicConfig
       }

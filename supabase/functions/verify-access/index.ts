@@ -66,27 +66,6 @@ async function createSignedUrlWithFallback(
   return null;
 }
 
-async function getEcoStoragePathFromProjection(
-  supabase: any,
-  documentEntityId: string,
-): Promise<string | null> {
-  const byDocumentEntity = await supabase
-    .from('user_documents')
-    .select('eco_storage_path')
-    .eq('document_entity_id', documentEntityId)
-    .maybeSingle();
-
-  const firstPath = asNonEmptyString(byDocumentEntity.data?.eco_storage_path);
-  if (firstPath) return firstPath;
-
-  const byId = await supabase
-    .from('user_documents')
-    .select('eco_storage_path')
-    .eq('id', documentEntityId)
-    .maybeSingle();
-
-  return asNonEmptyString(byId.data?.eco_storage_path);
-}
 
 serve(withRateLimit('verify', async (req) => {
   const { headers: corsHeaders, isAllowed } = getCorsHeaders(req.headers.get('origin') || undefined)
@@ -350,10 +329,7 @@ serve(withRateLimit('verify', async (req) => {
         )
       }
 
-      let ecoStoragePath = getLatestEcoStoragePath((entity as any).events)
-      if (!ecoStoragePath) {
-        ecoStoragePath = await getEcoStoragePathFromProjection(supabase, documentEntityId)
-      }
+      const ecoStoragePath = getLatestEcoStoragePath((entity as any).events)
       if (ecoStoragePath) {
         ecoSignedUrl = await createSignedUrlWithFallback(
           supabase,

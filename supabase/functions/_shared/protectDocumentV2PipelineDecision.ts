@@ -115,19 +115,20 @@ export const decideProtectDocumentV2Pipeline = (
 
   const requiredEvidence = getRequiredEvidenceFromEvents(events);
   const jobs: ProtectV2Job[] = [];
-  if (requiredEvidence.includes('polygon') && !hasAnchorConfirmed(events, 'polygon')) {
-    jobs.push('submit_anchor_polygon');
-  }
-  if (requiredEvidence.includes('bitcoin') && !hasAnchorConfirmed(events, 'bitcoin')) {
-    jobs.push('submit_anchor_bitcoin');
-  }
+  const needsPolygon = requiredEvidence.includes('polygon') && !hasAnchorConfirmed(events, 'polygon');
+  const needsBitcoin = requiredEvidence.includes('bitcoin') && !hasAnchorConfirmed(events, 'bitcoin');
 
   // Snapshots (signature flow pre-terminal) never emit final artifact closure.
-  if (isSignatureTerminal) {
-    // Finalization is handled by the Bitcoin worker via finalize-document after
-    // anchor.confirmed or anchor.final_failed. No build_artifact job needed.
-    return { jobs, reason: jobs.length > 0 ? 'needs_anchors' : 'noop_complete' };
+  if (!isSignatureTerminal) {
+    if (needsPolygon) jobs.push('submit_anchor_polygon');
+    if (needsBitcoin) jobs.push('submit_anchor_bitcoin');
+    return jobs.length > 0 ? { jobs, reason: 'needs_anchors' } : { jobs: [], reason: 'noop_complete' };
   }
 
-  return jobs.length > 0 ? { jobs, reason: 'needs_anchors' } : { jobs: [], reason: 'noop_complete' };
+  // Terminal flows (direct protection or signature final) always build artifact.
+  jobs.push('build_artifact');
+  if (needsPolygon) jobs.push('submit_anchor_polygon');
+  if (needsBitcoin) jobs.push('submit_anchor_bitcoin');
+
+  return { jobs, reason: jobs.length > 1 ? 'needs_anchors' : 'needs_artifact' };
 };

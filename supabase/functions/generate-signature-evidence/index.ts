@@ -147,14 +147,38 @@ serve(async (req) => {
   };
   // ECO is delivered immediately in the UI. We no longer send signature_evidence_ready emails.
 
+  const deliveredAt = new Date().toISOString();
+
   await appendEvent(
     supabase as any,
     documentEntityId,
     {
       kind: 'signature.evidence.generated',
-      at: new Date().toISOString(),
+      at: deliveredAt,
       correlation_id: correlationId,
       payload: notificationPayload,
+    },
+    'generate-signature-evidence',
+  );
+
+  // Evidence Delivery Protocol — records how the evidence was made available to the signer.
+  // method 'ui': system uploaded the ECO to storage and surfaced it on the completion screen.
+  // method 'email': system sent it by email (fire when evidence emails are re-enabled).
+  // method 'owner_resend': owner manually delivered via the "ver detalle" download.
+  await appendEvent(
+    supabase as any,
+    documentEntityId,
+    {
+      kind: 'signature.evidence.delivery',
+      at: deliveredAt,
+      correlation_id: correlationId,
+      payload: {
+        signer_id: signerId,
+        step_index: signer.signing_order ?? null,
+        method: 'ui',
+        witness_hash: witnessHash,
+        artifact_path: artifactPath,
+      },
     },
     'generate-signature-evidence',
   );

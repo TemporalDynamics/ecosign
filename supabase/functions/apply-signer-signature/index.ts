@@ -94,13 +94,36 @@ async function uploadWorkflowPdf(
   }
 }
 
+async function downloadWorkflowPdfBytes(
+  supabase: ReturnType<typeof createClient>,
+  documentPath: string
+): Promise<Uint8Array> {
+  if (/^https?:\/\//i.test(documentPath)) {
+    const resp = await fetch(documentPath)
+    if (!resp.ok) throw new Error('No se pudo descargar el PDF del workflow')
+    const ab = await resp.arrayBuffer()
+    return new Uint8Array(ab)
+  }
+
+  const { data: fileResp, error: fileErr } = await supabase.storage
+    .from('user-documents')
+    .download(documentPath)
+
+  if (fileErr || !fileResp) {
+    throw new Error(`No se pudo descargar el PDF (${fileErr?.message || 'storage error'})`)
+  }
+
+  const ab = await fileResp.arrayBuffer()
+  return new Uint8Array(ab)
+}
+
 async function verifyUploadedPdfHash(
   supabase: ReturnType<typeof createClient>,
   documentPath: string,
   expectedHash: string,
   context: string
 ): Promise<void> {
-  const downloadedBytes = await loadWorkflowPdf(supabase, documentPath)
+  const downloadedBytes = await downloadWorkflowPdfBytes(supabase, documentPath)
   const actualHash = await sha256Hex(downloadedBytes)
   if (actualHash !== expectedHash) {
     throw new Error(

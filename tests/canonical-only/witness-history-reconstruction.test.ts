@@ -58,4 +58,27 @@ describe('Witness history reconstruction', () => {
     expect(reconciled).toHaveLength(2);
     expect(reconciled.map((e) => e.hash)).toEqual(['hash-a', 'hash-b']);
   });
+
+  test('reconcile does not duplicate currentEntry already in events', () => {
+    const events = [
+      {
+        kind: 'signature.completed',
+        at: '2026-02-16T09:00:00.000Z',
+        signer: { id: 's-1' },
+        workflow: { id: 'w-1' },
+        evidence: { witness_pdf_hash: 'hash-a' },
+      },
+    ];
+
+    const result = reconcileWitnessHistory([], events, {
+      at: '2026-02-16T09:00:00.000Z',
+      hash: 'hash-a',
+      source: 'signature_flow',
+      workflow_id: 'w-1',
+      signer_id: 's-1',
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].hash).toBe('hash-a');
+  });
 });

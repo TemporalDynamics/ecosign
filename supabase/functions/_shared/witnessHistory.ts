@@ -9,16 +9,19 @@ export type WitnessHistoryEntry = {
 export function buildWitnessHistoryFromEvents(events: any[]): WitnessHistoryEntry[] {
   if (!Array.isArray(events)) return [];
   const entries = events
-    .filter((e) => e?.kind === 'signature.completed')
+    .filter((e) => e?.kind === 'signature.completed' || e?.kind === 'document.protected.requested')
     .map((e) => {
-      const hash = e?.evidence?.witness_pdf_hash ?? e?.payload?.witness_pdf_hash ?? null;
+      const isSignature = e?.kind === 'signature.completed';
+      const hash = isSignature
+        ? e?.evidence?.witness_pdf_hash ?? e?.payload?.witness_pdf_hash ?? null
+        : e?.payload?.witness_hash ?? e?.payload?.document_hash ?? null;
       if (!hash) return null;
       return {
         at: e?.at ?? new Date().toISOString(),
         hash,
-        source: 'signature_flow',
+        source: isSignature ? 'signature_flow' : 'protection_flow',
         workflow_id: e?.workflow?.id ?? e?.payload?.workflow_id ?? null,
-        signer_id: e?.signer?.id ?? e?.payload?.signer_id ?? null,
+        signer_id: isSignature ? (e?.signer?.id ?? e?.payload?.signer_id ?? null) : null,
       } as WitnessHistoryEntry;
     })
     .filter(Boolean) as WitnessHistoryEntry[];

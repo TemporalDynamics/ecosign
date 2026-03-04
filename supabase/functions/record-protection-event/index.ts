@@ -15,6 +15,7 @@ import { appendEvent } from '../_shared/eventHelper.ts'
 import { FASE1_EVENT_KINDS } from '../_shared/fase1Events.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { decideAnchorPolicyByStage, resolveOwnerAnchorPlan } from '../_shared/anchorPlanPolicy.ts'
+import { reconcileWitnessHistory } from '../_shared/witnessHistory.ts'
 
 interface RecordProtectionRequest {
   document_id?: string
@@ -95,7 +96,7 @@ serve(withRateLimit('record', async (req) => {
 
     const { data: entity, error: entityError } = await supabase
       .from('document_entities')
-      .select('id, owner_id, witness_hash, source_hash, composite_hash')
+      .select('id, owner_id, witness_hash, source_hash, composite_hash, witness_history')
       .eq('id', documentEntityId)
       .single()
 
@@ -190,6 +191,23 @@ serve(withRateLimit('record', async (req) => {
     if (!protectedResult.success) {
       console.error('Failed to append document.protected event:', protectedResult.error)
       throw new Error('Failed to record document.protected event: ' + protectedResult.error)
+    }
+
+    try {
+      const history = reconcileWitnessHistory(
+        (entity as any)?.witness_history,
+        [documentProtectedEvent]
+      )
+      const { error: historyErr } = await supabase
+        .from('document_entities')
+        .update({ witness_history: history })
+        .eq('id', documentEntityId)
+
+      if (historyErr) {
+        console.warn('[record-protection-event] witness_history update failed:', historyErr)
+      }
+    } catch (historyErr) {
+      console.warn('[record-protection-event] witness_history reconcile failed:', historyErr)
     }
 
     // Best-effort: wake the execution engine immediately (so user doesn't wait for next cron tick).

@@ -120,6 +120,19 @@ serve(async (req) => {
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
+
+      const { data: workflow } = await supabaseAdmin
+        .from('signature_workflows')
+        .select('status')
+        .eq('id', workflowId)
+        .maybeSingle()
+
+      if (workflow?.status && workflow.status !== 'active' && workflow.status !== 'completed') {
+        return new Response(
+          JSON.stringify({ error: 'Access denied' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     } else if (!isOwner) {
       return new Response(
         JSON.stringify({ error: 'Access denied' }),

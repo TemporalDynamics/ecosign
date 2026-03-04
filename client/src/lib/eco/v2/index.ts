@@ -463,6 +463,8 @@ const getViteEnv = (name: string): string => {
   }
 };
 
+let trustStoreWarningLogged = false;
+
 const parseTrustedPublicKeysById = (): Record<string, string> => {
   const raw =
     getViteEnv('VITE_ECOSIGN_TRUSTED_PUBLIC_KEYS_JSON') ||
@@ -560,6 +562,13 @@ const verifyInstitutionalSignature = (
   const trustedPublicKey = trustedKeys[publicKeyId];
   const hasTrustStore = trustedKeyCount > 0;
   const trusted = Boolean(trustedPublicKey);
+
+  if (!hasTrustStore && !trustStoreWarningLogged) {
+    console.warn(
+      '[eco.verify] Trust store missing: configure VITE_ECOSIGN_TRUSTED_PUBLIC_KEYS_JSON to enable key trust validation.'
+    );
+    trustStoreWarningLogged = true;
+  }
 
   if (hasTrustStore && !trustedPublicKey) {
     return {

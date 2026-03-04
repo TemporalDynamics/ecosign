@@ -38,6 +38,7 @@
 
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
+import { logCustodyAccess } from '../_shared/custodyAudit.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -182,13 +183,22 @@ serve(async (req) => {
       }
     }
 
-    // 8. Log de auditoría (opcional, para Phase 2)
-    // await supabase.from('custody_audit_log').insert({
-    //   document_entity_id,
-    //   action: 'store',
-    //   user_id: user.id,
-    //   metadata
-    // })
+    // 8. Log de auditoría (best-effort, Phase 2)
+    const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip');
+    const userAgent = req.headers.get('user-agent');
+    await logCustodyAccess(supabase, {
+      document_entity_id,
+      accessed_by: user.id,
+      access_type: 'upload',
+      ip_address: ipAddress,
+      user_agent: userAgent,
+      metadata: {
+        purpose,
+        storage_path: storagePath,
+        original_name: metadata.original_name,
+        original_size: metadata.original_size,
+      },
+    });
 
     // 9. Retornar éxito
     return jsonResponse({

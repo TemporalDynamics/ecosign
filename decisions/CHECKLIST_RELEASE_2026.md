@@ -50,4 +50,4 @@ Esta checklist es la versión ejecutable del plan. Marcar ítems solo cuando el 
 - [x] UI muestra modo firma (secuencial/paralelo)
 - [x] UI muestra estado EPI (nivel 1 vs 2)
 - [x] UI muestra progreso de anclaje (TSA → Rekor → Polygon)
-- [ ] UI muestra `witness_history`
+- [x] UI muestra `witness_history`

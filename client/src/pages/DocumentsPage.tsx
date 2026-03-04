@@ -68,6 +68,7 @@ type DocumentRecord = {
   overall_status?: string | null;
   signed_authority?: 'internal' | 'external' | null;
   events?: any[];
+  witness_history?: any[];
   signer_links?: any[];
   source_storage_path?: string | null;
   custody_mode?: 'hash_only' | 'encrypted_custody' | null;
@@ -90,6 +91,7 @@ type DocumentEntityRow = {
   created_at?: string | null;
   updated_at?: string | null;
   events?: any[];
+  witness_history?: any[];
 };
 
 type DraftRow = DraftMeta & {
@@ -192,6 +194,7 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     has_bitcoin_anchor: false,
     eco_storage_path: ecoStoragePath,
     events: Array.isArray(entity.events) ? entity.events : [],
+    witness_history: Array.isArray(entity.witness_history) ? entity.witness_history : [],
     signer_links: []
   };
 };
@@ -602,7 +605,8 @@ function DocumentsPage() {
           custody_mode,
           created_at,
           updated_at,
-          events
+          events,
+          witness_history
         `
         )
         .eq("owner_id", user.id)

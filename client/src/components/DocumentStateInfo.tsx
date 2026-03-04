@@ -61,6 +61,33 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
     return Boolean(info.requested || info.confirmed || info.pending || info.failed || info.timeout);
   };
 
+  const witnessHistory = Array.isArray(document?.witness_history)
+    ? document.witness_history
+    : [];
+
+  const normalizedWitnessHistory = witnessHistory
+    .filter((entry: any) => entry && typeof entry === 'object')
+    .sort((a: any, b: any) => {
+      const aTime = new Date(a.at ?? a.timestamp ?? 0).getTime();
+      const bTime = new Date(b.at ?? b.timestamp ?? 0).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, 3);
+
+  const formatHash = (value?: string | null) => {
+    if (!value) return 'hash desconocido';
+    const text = String(value);
+    if (text.length <= 18) return text;
+    return `${text.slice(0, 8)}…${text.slice(-8)}`;
+  };
+
+  const formatAt = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleString('es-AR');
+  };
+
   const toneClasses = {
     gray: 'bg-gray-100 text-gray-700 border-gray-200',
     amber: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -149,6 +176,32 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
             <div>Uno o más refuerzos finalizaron con error.</div>
           )}
         </div>
+      </div>
+
+      <div className="border-t border-gray-200 pt-3">
+        <div className="text-xs font-semibold text-gray-700">Historial witness</div>
+        {normalizedWitnessHistory.length === 0 ? (
+          <div className="text-[11px] text-gray-500 mt-1">
+            Sin historial registrado aún.
+          </div>
+        ) : (
+          <div className="mt-2 grid gap-1 text-[11px] text-gray-600">
+            {normalizedWitnessHistory.map((entry: any, index: number) => {
+              const entryHash = entry.hash ?? entry.witness_hash ?? entry.to_hash ?? null;
+              const entryAt = formatAt(entry.at ?? entry.timestamp ?? null);
+              const entrySource = entry.source ?? entry.source_type ?? null;
+              return (
+                <div key={`${entryHash ?? 'hash'}-${index}`} className="flex flex-col gap-0.5">
+                  <div className="font-mono">{formatHash(entryHash)}</div>
+                  <div className="text-[10px] text-gray-500">
+                    {entryAt ? `Fecha: ${entryAt}` : 'Fecha: —'}
+                    {entrySource ? ` · Origen: ${entrySource}` : ''}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

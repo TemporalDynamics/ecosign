@@ -23,6 +23,22 @@ interface Signer {
   recipientSalt?: string
 }
 
+interface WorkflowFieldInput {
+  external_field_id?: string
+  document_entity_id?: string
+  field_type?: 'signature' | 'text' | 'date' | string
+  label?: string | null
+  placeholder?: string | null
+  position?: Record<string, unknown>
+  assigned_to?: string | null
+  assigned_signer_id?: string | null
+  required?: boolean
+  value?: string | null
+  metadata?: Record<string, unknown> | null
+  batch_id?: string | null
+  apply_to_all_pages?: boolean | null
+}
+
 interface StartWorkflowRequest {
   documentUrl: string
   documentHash: string
@@ -33,6 +49,7 @@ interface StartWorkflowRequest {
   ndaEnabled?: boolean
   requireSequential?: boolean
   canvasSnapshot?: Record<string, unknown> | null
+  workflowFields?: WorkflowFieldInput[] | null
   signers: Signer[]
   forensicConfig: {
     rfc3161: boolean
@@ -64,6 +81,67 @@ function extractStoragePath(url: string): string | null {
   } catch {
     return null
   }
+}
+
+const FIELD_TYPES = new Set(['signature', 'text', 'date'])
+
+function normalizeWorkflowFields(
+  fields: WorkflowFieldInput[],
+  documentEntityId: string,
+  userId: string
+): { fields: Record<string, unknown>[]; batchIds: string[]; error?: string } {
+  const normalized: Record<string, unknown>[] = []
+  const batchIds = new Set<string>()
+
+  for (const field of fields) {
+    const fieldType = typeof field.field_type === 'string' ? field.field_type : ''
+    if (!FIELD_TYPES.has(fieldType)) {
+      return { fields: [], batchIds: [], error: `invalid_field_type:${fieldType || 'missing'}` }
+    }
+
+    const position = field.position
+    if (!position || typeof position !== 'object') {
+      return { fields: [], batchIds: [], error: 'invalid_position' }
+    }
+    const pos = position as Record<string, unknown>
+    const coords = ['page', 'x', 'y', 'width', 'height']
+    for (const key of coords) {
+      const value = pos[key]
+      if (typeof value !== 'number' || Number.isNaN(value)) {
+        return { fields: [], batchIds: [], error: `invalid_position_${key}` }
+      }
+    }
+
+    const batchId = typeof field.batch_id === 'string' && field.batch_id.trim().length > 0
+      ? field.batch_id.trim()
+      : crypto.randomUUID()
+    const externalFieldId = typeof field.external_field_id === 'string' && field.external_field_id.trim().length > 0
+      ? field.external_field_id.trim()
+      : (typeof (field.metadata as any)?.frontend_id === 'string'
+          ? String((field.metadata as any).frontend_id)
+          : crypto.randomUUID())
+
+    batchIds.add(batchId)
+
+    normalized.push({
+      external_field_id: externalFieldId,
+      document_entity_id: documentEntityId,
+      field_type: fieldType,
+      label: field.label ?? null,
+      placeholder: field.placeholder ?? null,
+      position: position,
+      assigned_to: typeof field.assigned_to === 'string' ? field.assigned_to.trim() : null,
+      assigned_signer_id: field.assigned_signer_id ?? null,
+      required: Boolean(field.required),
+      value: field.value ?? null,
+      metadata: field.metadata ?? null,
+      batch_id: batchId,
+      apply_to_all_pages: Boolean(field.apply_to_all_pages),
+      created_by: userId,
+    })
+  }
+
+  return { fields: normalized, batchIds: Array.from(batchIds) }
 }
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
@@ -186,6 +264,7 @@ serve(withRateLimit('workflow', async (req) => {
       body.canvasSnapshot && typeof body.canvasSnapshot === 'object'
         ? body.canvasSnapshot
         : null
+    const workflowFields = Array.isArray(body.workflowFields) ? body.workflowFields : null
 
     const workflowPayload = {
       owner_id: user.id,
@@ -235,6 +314,54 @@ serve(withRateLimit('workflow', async (req) => {
       try { await supabase.from('workflow_signers').delete().eq('workflow_id', workflow.id) } catch {}
       try { await supabase.from('workflow_versions').delete().eq('workflow_id', workflow.id) } catch {}
       try { await supabase.from('signature_workflows').delete().eq('id', workflow.id) } catch {}
+    }
+
+    if (workflowFields && workflowFields.length > 0) {
+      if (!workflow.document_entity_id) {
+        await cleanupWorkflow()
+        return jsonResponse({
+          error: 'missing_document_entity_id',
+          message: 'No se pudo persistir campos sin document_entity_id.'
+        }, 409)
+      }
+
+      const normalizedFields = normalizeWorkflowFields(
+        workflowFields,
+        workflow.document_entity_id,
+        user.id
+      )
+
+      if (normalizedFields.error) {
+        await cleanupWorkflow()
+        return jsonResponse({
+          error: 'invalid_workflow_fields',
+          details: normalizedFields.error
+        }, 400)
+      }
+
+      const batchesPayload = normalizedFields.batchIds.map((batchId) => ({
+        id: batchId,
+        document_entity_id: workflow.document_entity_id,
+        origin: 'user_created'
+      }))
+
+      const { error: batchUpsertError } = await supabase
+        .from('batches')
+        .upsert(batchesPayload, { onConflict: 'id' })
+
+      if (batchUpsertError) {
+        await cleanupWorkflow()
+        return jsonResponse({ error: 'failed_to_create_batches', details: batchUpsertError.message }, 500)
+      }
+
+      const { error: fieldsInsertError } = await supabase
+        .from('workflow_fields')
+        .upsert(normalizedFields.fields, { onConflict: 'external_field_id' })
+
+      if (fieldsInsertError) {
+        await cleanupWorkflow()
+        return jsonResponse({ error: 'failed_to_create_workflow_fields', details: fieldsInsertError.message }, 500)
+      }
     }
 
     const signersToInsert = []

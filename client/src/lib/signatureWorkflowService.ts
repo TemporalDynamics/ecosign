@@ -1,4 +1,5 @@
 import { getSupabase } from './supabaseClient';
+import type { WorkflowField } from './workflowFieldsService';
 
 /**
  * Inicia un flujo de firmas en cascada con múltiples firmantes
@@ -39,6 +40,7 @@ type StartWorkflowParams = {
   requireSequential?: boolean;
   finalDocumentVisibility?: 'owner_only' | 'participants';
   canvasSnapshot?: Record<string, unknown> | null;
+  workflowFields?: WorkflowField[] | null;
   signers: WorkflowSigner[];
   forensicConfig?: ForensicConfig;
 };
@@ -56,6 +58,7 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
     requireSequential,
     finalDocumentVisibility,
     canvasSnapshot,
+    workflowFields,
     signers,
     forensicConfig = {
       rfc3161: true,
@@ -106,6 +109,7 @@ export async function startSignatureWorkflow(params: StartWorkflowParams) {
         requireSequential,
         finalDocumentVisibility,
         canvasSnapshot,
+        workflowFields,
         signers,
         forensicConfig
       }

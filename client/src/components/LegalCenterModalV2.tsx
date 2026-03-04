@@ -42,7 +42,7 @@ import { storeEncryptedCustody } from '../lib/custodyStorageService';
 import type { CustodyMode } from '../lib/documentEntityService';
 import { convertToOverlaySpec } from '../utils/overlaySpecConverter';
 import { loadDraftFile, saveDraftOperation } from '../lib/draftOperationsService';
-import { saveWorkflowFields, loadWorkflowFields } from '../lib/workflowFieldsService';
+import { signatureFieldToWorkflowField, loadWorkflowFields, type WorkflowField } from '../lib/workflowFieldsService';
 import { resolveBatchAssignments } from '../lib/batches';
 import { storeSignFlowContext } from '../lib/signFlowContext';
 
@@ -1772,22 +1772,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         }
 
         try {
-          console.log('📋 Guardando campos de Mi firma en DB...');
-          const savedFields = await saveWorkflowFields(
-            selfFields,
-            canonicalDocumentId,
-            workflowVirtualSize.width,
-            workflowVirtualSize.height
-          );
-          console.log(`✅ ${savedFields.length} campos guardados en workflow_fields`);
-        } catch (fieldsError) {
-          console.error('❌ Error guardando workflow fields (Mi firma):', fieldsError);
-          showToast('No se pudieron guardar los campos asignados. Intentá nuevamente.', { type: 'error' });
-          setLoading(false);
-          return;
-        }
-
-        try {
           setIsCanvasLocked(true);
           setCertifyProgress({ stage: 'preparing', message: 'Iniciando flujo de firma...' });
           const workflowResult = await withTimeout(startSignatureWorkflow({
@@ -1796,6 +1780,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             originalFilename: sourceFile?.name ?? file.name,
             documentEntityId: canonicalDocumentId || undefined,
             canvasSnapshot: buildCanvasSnapshot(selfFields, ownerEmailValue),
+            workflowFields: buildWorkflowFieldsPayload(selfFields, canonicalDocumentId),
             signatureType: signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN',
             deliveryMode: 'link',
             ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
@@ -2041,22 +2026,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           return;
         }
 
-        try {
-          console.log('📋 Guardando campos de workflow en DB...');
-          const savedFields = await saveWorkflowFields(
-            signatureFields,
-            canonicalDocumentId,
-            workflowVirtualSize.width,
-            workflowVirtualSize.height
-          );
-          console.log(`✅ ${savedFields.length} campos guardados en workflow_fields`);
-        } catch (fieldsError) {
-          console.error('❌ Error guardando workflow fields (bloqueante):', fieldsError);
-          showToast('No se pudieron guardar los campos asignados. Intentá nuevamente.', { type: 'error' });
-          setLoading(false);
-          return;
-        }
-
         // Iniciar workflow en backend (crea notificaciones y dispara send-pending-emails)
         try {
           // P2.1 - bloquear canvas para evitar mutaciones mientras se inicia el workflow
@@ -2071,6 +2040,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               ? (signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN')
               : undefined,
             canvasSnapshot: buildCanvasSnapshot(signatureFields, null),
+            workflowFields: buildWorkflowFieldsPayload(signatureFields, canonicalDocumentId),
             ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
             ndaEnabled,
             requireSequential: workflowSigningMode === 'sequential',
@@ -3617,6 +3587,25 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       pages,
       fields_by_signer: fieldsBySigner
     };
+  };
+
+  const buildWorkflowFieldsPayload = (
+    fields: SignatureField[],
+    documentEntityId: string
+  ): WorkflowField[] => {
+    if (!documentEntityId) return [];
+    const normalized = fields.map((field) => ({
+      ...field,
+      batchId: field.batchId || field.id
+    }));
+    return normalized.map((field) =>
+      signatureFieldToWorkflowField(
+        field,
+        documentEntityId,
+        workflowVirtualSize.width,
+        workflowVirtualSize.height
+      )
+    );
   };
 
   const assignBatchToSignerEmail = (batchId: string, signerEmail: string | null) => {

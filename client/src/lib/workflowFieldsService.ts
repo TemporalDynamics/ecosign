@@ -6,9 +6,11 @@
  *
  * Uso:
  * 1. Owner configura campos en LegalCenterModalV2
- * 2. Llama saveWorkflowFields() antes de enviar workflow
- * 3. Campos se persisten en DB con RLS
- * 4. Recovery: loadWorkflowFields() al reabrir documento
+ * 2. Campos se persisten en DB con RLS
+ * 3. Recovery: loadWorkflowFields() al reabrir documento
+ *
+ * Nota: el flujo canónico actual persiste fields + canvas snapshot en
+ * start-signature-workflow (misma operación).
  *
  * Security:
  * - RLS enforced: Solo owner puede CRUD sus campos

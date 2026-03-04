@@ -36,7 +36,7 @@ Esta checklist es la versión ejecutable del plan. Marcar ítems solo cuando el 
 - [x] `computeStateHash` usa canonicalize + sha256Hex
 - [x] Coordenadas redondeadas antes del hash (sin floats)
 - [x] Tests de Merkle canónico en verde
-- [ ] `canvas_snapshot` persistido con campos en la misma operación
+- [x] `canvas_snapshot` persistido con campos en la misma operación
 - [x] `canvas_snapshot` inmutable post-activación
 - [x] `epi_state_hash` persistido en evento `signature.completed` (schema definido)
 - [x] `epi.root_hash` agregado al ECO en finalize

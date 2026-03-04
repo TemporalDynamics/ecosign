@@ -47,6 +47,7 @@ Esta checklist es la versión ejecutable del plan. Marcar ítems solo cuando el 
 - [x] `document_id` eliminado completamente (código + tipos, excepto payloads legacy/SignNow)
 - [ ] CI GitHub Actions en verde por PR
 Local: `npm test` OK (60 passed, 3 skipped) — 2026-03-04
+PR Gate 4 CI: pendiente — 2026-03-04
 - [x] Email de cierre workflow sin duplicados
 - [x] UI muestra modo firma (secuencial/paralelo)
 - [x] UI muestra estado EPI (nivel 1 vs 2)

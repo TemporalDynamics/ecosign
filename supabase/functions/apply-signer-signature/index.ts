@@ -108,6 +108,54 @@ async function verifyUploadedPdfHash(
   }
 }
 
+function buildWitnessHistoryFromEvents(events: any[]): any[] {
+  if (!Array.isArray(events)) return [];
+  const entries = events
+    .filter((e) => e?.kind === 'signature.completed')
+    .map((e) => {
+      const hash = e?.evidence?.witness_pdf_hash ?? e?.payload?.witness_pdf_hash ?? null
+      if (!hash) return null
+      return {
+        at: e?.at ?? new Date().toISOString(),
+        hash,
+        source: 'signature_flow',
+        workflow_id: e?.workflow?.id ?? e?.payload?.workflow_id ?? null,
+        signer_id: e?.signer?.id ?? e?.payload?.signer_id ?? null
+      }
+    })
+    .filter(Boolean) as any[]
+
+  entries.sort((a, b) => String(a.at).localeCompare(String(b.at)))
+  return entries
+}
+
+function witnessHistoryKey(entry: any): string {
+  return `${entry?.hash ?? ''}|${entry?.signer_id ?? ''}|${entry?.workflow_id ?? ''}`
+}
+
+function reconcileWitnessHistory(existingHistory: any[], events: any[], currentEntry?: any): any[] {
+  const history = Array.isArray(existingHistory) ? [...existingHistory] : []
+  const seen = new Set(history.map(witnessHistoryKey))
+
+  const ledgerEntries = buildWitnessHistoryFromEvents(events)
+  for (const entry of ledgerEntries) {
+    const key = witnessHistoryKey(entry)
+    if (!seen.has(key)) {
+      history.push(entry)
+      seen.add(key)
+    }
+  }
+
+  if (currentEntry) {
+    const key = witnessHistoryKey(currentEntry)
+    if (!seen.has(key)) {
+      history.push(currentEntry)
+    }
+  }
+
+  return history
+}
+
 function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; isPng: boolean } {
   const [meta, b64] = dataUrl.split(',')
   const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
@@ -656,9 +704,10 @@ serve(async (req) => {
       )
 
       if (!hasSignatureCompleted) {
-        const history = Array.isArray((entityForRepair as any)?.witness_history)
-          ? (entityForRepair as any).witness_history
-          : []
+        const history = reconcileWitnessHistory(
+          (entityForRepair as any)?.witness_history,
+          eventsArr
+        )
         const historyEntry = [...history].reverse().find((h: any) => h?.signer_id === signer.id && h?.hash)
         const witnessHashForRepair = historyEntry?.hash ?? witness_pdf_hash ?? workflow.document_hash ?? null
         const appendResult = await appendEvent(
@@ -945,21 +994,21 @@ serve(async (req) => {
           const nowIso = new Date().toISOString()
           const { data: entity } = await supabase
             .from('document_entities')
-            .select('witness_history')
+            .select('witness_history, events')
             .eq('id', workflow.document_entity_id)
             .single()
 
-          const history = Array.isArray((entity as any)?.witness_history)
-            ? (entity as any).witness_history
-            : []
-
-          history.push({
-            at: nowIso,
-            hash: hashHex,
-            source: 'signature_flow',
-            workflow_id: signer.workflow_id,
-            signer_id: signer.id
-          })
+          const history = reconcileWitnessHistory(
+            (entity as any)?.witness_history,
+            (entity as any)?.events,
+            {
+              at: nowIso,
+              hash: hashHex,
+              source: 'signature_flow',
+              workflow_id: signer.workflow_id,
+              signer_id: signer.id
+            }
+          )
 
           const { error: entityErr } = await supabase
             .from('document_entities')

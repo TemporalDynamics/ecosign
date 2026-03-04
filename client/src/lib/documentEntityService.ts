@@ -305,14 +305,6 @@ export const ensureWitnessCurrent = async (
     return;
   }
 
-  const existingHistory = Array.isArray(doc.witness_history) ? doc.witness_history : [];
-  const alreadyInHistory = existingHistory.some((entry: any) =>
-    entry?.hash === witness.hash && entry?.storage_path === witness.storage_path
-  );
-  const witnessHistory = alreadyInHistory
-    ? existingHistory
-    : [...existingHistory, witness];
-
   const nextHashChain: HashChain = {
     ...(doc.hash_chain || {}),
     witness_hash: witness.hash,
@@ -326,7 +318,6 @@ export const ensureWitnessCurrent = async (
       witness_current_status: witness.status,
       witness_current_storage_path: witness.storage_path,
       witness_current_generated_at: witness.generated_at ?? new Date().toISOString(),
-      witness_history: witnessHistory,
       witness_hash: witness.hash,
       hash_chain: nextHashChain,
       lifecycle_status: 'witness_ready',

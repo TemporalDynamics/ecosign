@@ -1,6 +1,6 @@
 # Authority Baseline Snapshot
 
-- Generated at (UTC): 2026-03-05T22:47:37Z
+- Generated at (UTC): 2026-03-05T23:10:26Z
 - DB URL: `postgresql://postgres:****@127.0.0.1:54322/postgres`
 
 ## verify_jwt=false allowlist (config.toml)

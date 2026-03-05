@@ -1,3 +1,42 @@
+## Iteración: cierre de SECURITY DEFINER remanente + allowlist operativa — 2026-03-05
+
+### 🎯 Resumen
+Se cerró el remanente de superficies `SECURITY DEFINER` que seguían ejecutables fuera de la allowlist contractual:
+
+1. funciones internas remanentes quedan `service_role/postgres` only,
+2. se agregó auditoría ejecutable para detectar drift de grants sobre `SECURITY DEFINER`.
+
+### ✅ Cambios implementados
+- **Migración de cierre secdef remanente:**
+  - `supabase/migrations/20260305233000_close_remaining_security_definer_exec_surfaces.sql`
+  - Cierra a `anon/authenticated`:
+    - `generate_ecox_certificate`
+    - `generate_invite_token`
+    - `get_cron_runtime_status`
+    - `get_cron_status`
+    - `guard_user_documents_writes`
+    - `invoke_fase1_executor`
+    - `invoke_process_bitcoin_anchors`
+    - `invoke_process_polygon_anchors`
+    - `project_events_to_user_document_trigger`
+    - `rebuild_user_documents_projection`
+    - `set_operation_document_added_by`
+- **Auditoría DB ejecutable:**
+  - `scripts/diagnostics/check-security-definer-exec-allowlist.sh`
+  - Allowlist explícita (RPC de carpetas para `authenticated`):
+    - `create_document_folder`
+    - `rename_document_folder`
+    - `delete_document_folder`
+    - `move_documents_to_folder`
+    - `request_certificate_regeneration`
+- **Integración en gates:**
+  - `package.json` → `diag:security-definer-exec-allowlist`
+  - `scripts/release-gate.sh`
+- **Guards de no regresión:**
+  - `tests/authority/security_definer_exec_allowlist_closure_guard.test.ts`
+  - `tests/authority/release_gate_hardening_guard.test.ts` actualizado
+  - `scripts/diagnostics/prebeta_fire_drill.sh` actualizado
+
 ## Iteración: limpieza final legacy + baseline sellado — 2026-03-05
 
 ### 🎯 Resumen

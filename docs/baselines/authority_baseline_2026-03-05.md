@@ -1,6 +1,6 @@
 # Authority Baseline Snapshot
 
-- Generated at (UTC): 2026-03-05T21:33:35Z
+- Generated at (UTC): 2026-03-05T21:41:40Z
 - DB URL: `postgresql://postgres:****@127.0.0.1:54322/postgres`
 
 ## verify_jwt=false allowlist (config.toml)
@@ -14,20 +14,9 @@
 
 - public.create_document_folder(_name text)
 - public.delete_document_folder(_folder_id uuid)
-- public.generate_ecox_certificate(p_workflow_id uuid)
-- public.generate_invite_token()
-- public.get_cron_runtime_status()
-- public.get_cron_status(job_pattern text)
-- public.guard_user_documents_writes()
-- public.invoke_fase1_executor()
-- public.invoke_process_bitcoin_anchors()
-- public.invoke_process_polygon_anchors()
 - public.move_documents_to_folder(_doc_ids uuid[], _folder_id uuid)
-- public.project_events_to_user_document_trigger()
-- public.rebuild_user_documents_projection(p_document_entity_id uuid)
 - public.rename_document_folder(_folder_id uuid, _name text)
 - public.request_certificate_regeneration(_document_id uuid, _request_type text)
-- public.set_operation_document_added_by()
 
 ## Internal runtime tables grants + RLS matrix
 

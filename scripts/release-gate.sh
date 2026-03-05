@@ -28,10 +28,12 @@ run_step "Fast test suite" npm test
 ensure_db_test_context
 run_step "DB integration gate" npm run test:db
 run_step "Internal runtime table hardening audit" npm run diag:internal-runtime-table-hardening
+run_step "SECURITY DEFINER execute allowlist audit" npm run diag:security-definer-exec-allowlist
 run_step "Authority hardening guards" npm run test -- \
   tests/authority/workflow_signers_status_authority_guard.test.ts \
   tests/authority/internal_tables_service_only_guard.test.ts \
   tests/authority/internal_runtime_table_grants_rls_guard.test.ts \
+  tests/authority/security_definer_exec_allowlist_closure_guard.test.ts \
   tests/authority/verify_jwt_false_allowlist_guard.test.ts \
   tests/authority/internal_security_definer_exec_closure_guard.test.ts \
   tests/authority/residual_anon_sd_grants_guard.test.ts \

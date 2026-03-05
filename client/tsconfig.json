@@ -29,7 +29,7 @@
     },
 
     /* Type declarations */
-    "types": ["vite/client"]
+    "types": ["vite/client", "vitest"]
   },
   "include": ["src", "src/types/**/*.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]

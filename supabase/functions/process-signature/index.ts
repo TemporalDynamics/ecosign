@@ -254,11 +254,8 @@ serve(async (req) => {
       // L0: Acknowledgement sin verificación
       return 'L0'
 
-      // TODO (Q2):
-      // - L2: OTP SMS (cuando se implemente)
-      // - L3: Passkey WebAuthn (cuando se implemente)
-      // - L4: Biometric + KYC (futuro)
-      // - L5: QES/PSC certificate (futuro)
+      // Future levels (OTP/WebAuthn/KYC/QES) are not implemented yet.
+      // Current model is intentionally restricted to L0/L1.
     }
 
     function buildIdentitySignals(signer: any, context: any): string[] {

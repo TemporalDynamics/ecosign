@@ -72,16 +72,7 @@ echo -e "${GREEN}✅ Script SQL creado en /tmp/check-notifications.sql${NC}"
 echo "Cópialo y pégalo en Supabase SQL Editor"
 echo ""
 
-echo -e "${YELLOW}Paso 4: Test de envío manual con test-email...${NC}"
-echo "Ejecuta este comando reemplazando TU_EMAIL:"
-echo ""
-echo -e "${GREEN}curl -X POST \\"
-echo "  'https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/test-email' \\"
-echo "  -H 'Content-Type: application/json' \\"
-echo "  -d '{\"to\": \"TU_EMAIL@gmail.com\", \"from\": \"EcoSign <no-reply@email.ecosign.app>\"}'${NC}"
-echo ""
-
-echo -e "${YELLOW}Paso 5: Disparar send-pending-emails manualmente...${NC}"
+echo -e "${YELLOW}Paso 4: Disparar send-pending-emails manualmente...${NC}"
 echo "Ejecuta: ./test-send-emails-manual.sh"
 echo ""
 

@@ -1,3 +1,34 @@
+## Iteración: runtime legacy fuera del bundle de release — 2026-03-05
+
+### 🎯 Resumen
+Se cerró el paso de decommission operativo para runtime legacy:
+
+1. funciones legacy hard-deprecated dejan de formar parte del bundle de deploy,
+2. se agregó guard de no-regresión para impedir que vuelvan al manifiesto de release.
+
+### ✅ Cambios implementados
+- **Manifiesto de release depurado:**
+  - `scripts/diagnostics/release_beta_functions.txt`
+  - Se removieron:
+    - `test-insert-notification`
+    - `wake-authority`
+- **Guard de exclusión legacy en release:**
+  - `tests/authority/legacy_not_in_release_manifest_guard.test.ts`
+  - Bloquea en manifiesto:
+    - `append-tsa-event`, `auto-tsa`, `stamp-pdf`, `test-email`,
+      `test-insert-notification`, `wake-authority`.
+- **Integración en gates:**
+  - `scripts/release-gate.sh`
+  - `scripts/diagnostics/prebeta_fire_drill.sh`
+- **Diagnóstico email actualizado:**
+  - `scripts/diagnostics/diagnose-email-flow.sh`
+  - Eliminada referencia al endpoint legacy `test-email`.
+
+### ✅ Validación
+- `npm test` verde.
+- `npm run test:db` verde.
+- `npm run release:gate` verde (incluyendo guard nuevo).
+
 ## Iteración: cierre mecánico legacy + gate unificado de release — 2026-03-05
 
 ### 🎯 Resumen

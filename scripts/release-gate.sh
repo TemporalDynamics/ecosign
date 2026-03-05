@@ -33,7 +33,8 @@ run_step "Authority hardening guards" npm run test -- \
   tests/authority/verify_jwt_false_allowlist_guard.test.ts \
   tests/authority/internal_security_definer_exec_closure_guard.test.ts \
   tests/authority/residual_anon_sd_grants_guard.test.ts \
-  tests/authority/legacy_endpoint_deprecations_guard.test.ts
+  tests/authority/legacy_endpoint_deprecations_guard.test.ts \
+  tests/authority/legacy_not_in_release_manifest_guard.test.ts
 run_step "Legacy null-entity prelaunch check" npm run diag:prelaunch-legacy-null-check
 
 echo

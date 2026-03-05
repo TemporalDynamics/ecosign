@@ -22,6 +22,4 @@ run-tsa
 send-signer-otp
 submit-anchor-bitcoin
 submit-anchor-polygon
-test-insert-notification
 verify-signer-otp
-wake-authority

@@ -21,5 +21,6 @@ test('release gate must enforce fast+db tests and authority hardening checks', a
   expect(gateScript).toContain('tests/authority/internal_tables_service_only_guard.test.ts');
   expect(gateScript).toContain('tests/authority/verify_jwt_false_allowlist_guard.test.ts');
   expect(gateScript).toContain('tests/authority/legacy_endpoint_deprecations_guard.test.ts');
+  expect(gateScript).toContain('tests/authority/legacy_not_in_release_manifest_guard.test.ts');
   expect(gateScript).toContain('npm run diag:prelaunch-legacy-null-check');
 });

@@ -199,6 +199,7 @@ run_step "Anchor layer sealed guard" npm run test -- tests/authority/anchor_laye
 run_step "Document authority layer sealed guard" npm run test -- tests/authority/document_authority_layer_sealed_guard.test.ts
 run_step "Canonical path complete sealed guard" npm run test -- tests/authority/canonical_path_complete_sealed_guard.test.ts
 run_step "Legacy compat decommission guard" npm run test -- tests/authority/legacy_compat_decommission_guard.test.ts
+run_step "Legacy manifest exclusion guard" npm run test -- tests/authority/legacy_not_in_release_manifest_guard.test.ts
 run_step "Public runtime authority boundary guard" npm run test -- tests/authority/public_runtime_authority_boundary_guard.test.ts
 run_step "Auth surface sealed guard" npm run test -- tests/authority/auth_surface_sealed_guard.test.ts
 run_step "Non-critical canonical guard" npm run test -- tests/authority/noncritical_endpoints_canonical_guard.test.ts

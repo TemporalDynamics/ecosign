@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { describe, expect, test } from 'vitest';
 import { createTestUser, deleteTestUser } from '../helpers/supabase-test-helpers';
 import { decideProtectDocumentV2Pipeline } from '../../supabase/functions/_shared/protectDocumentV2PipelineDecision';
+import { assertDbTestEnv } from '../helpers/db-test-env';
 
 type EvidenceTimelineEntry = {
   timestamp: string;
@@ -27,12 +28,6 @@ type CanonicalProofEvidence = {
   skip_reason?: string;
 };
 
-const hasRealLocalSupabase = () => {
-  const url = process.env.SUPABASE_URL ?? '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-  return (url.includes('127.0.0.1') || url.includes('localhost')) && key.length > 0;
-};
-
 const pushTimeline = (evidence: CanonicalProofEvidence, step: string, detail: string) => {
   evidence.timeline.push({
     timestamp: new Date().toISOString(),
@@ -53,9 +48,9 @@ const writeEvidence = async (evidence: CanonicalProofEvidence) => {
 };
 
 describe('Canonical-only pipeline proof (isolated)', () => {
-  const run = hasRealLocalSupabase() ? test : test.skip;
+  test('validates required_evidence constraint + emits evidence report', async () => {
+    assertDbTestEnv();
 
-  run('validates required_evidence constraint + emits evidence report', async () => {
     const testRunId = `canonical-proof-${Date.now()}`;
     const evidence: CanonicalProofEvidence = {
       test_run_id: testRunId,

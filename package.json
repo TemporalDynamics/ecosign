@@ -7,7 +7,9 @@
     "dev": "cd client && npm run dev",
     "build": "cd eco-packer && npm install && npm run build && cd ../client && npm install && npm run build",
     "vercel-build": "node scripts/vercel-build.mjs",
-    "test": "vitest run",
+    "test": "npm run test:fast",
+    "test:fast": "bash scripts/test-fast.sh",
+    "test:db": "bash scripts/test-db.sh",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
@@ -37,6 +39,10 @@
     "phase1:gate": "npm run diag:entrypoint-guard && npm run diag:canonical-readiness",
     "prod:canonical-switch": "bash scripts/production-canonical-switch.sh",
     "ci:predeploy": "npm run audit:events"
+    ,
+    "sb:start": "supabase start",
+    "sb:stop": "supabase stop",
+    "sb:status": "supabase status"
   },
   "keywords": [
     "supabase",

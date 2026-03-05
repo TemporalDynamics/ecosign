@@ -33,18 +33,26 @@ export async function createTestUser(
   const userId = userData.id;
 
   // Create authenticated client for this user
-  const userClient = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!
-  );
+  const userClient = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+      storageKey: `sb-test-${userId}-${Date.now()}`
+    }
+  });
 
-  const { error: signInError } = await userClient.auth.signInWithPassword({ 
+  const { data: signInData, error: signInError } = await userClient.auth.signInWithPassword({
     email, 
     password 
   });
 
   if (signInError) {
     throw new Error(`Failed to sign in user: ${signInError.message}`);
+  }
+
+  if (!signInData?.session?.access_token) {
+    throw new Error('Failed to obtain access token for test user');
   }
 
   return { userId, client: userClient };

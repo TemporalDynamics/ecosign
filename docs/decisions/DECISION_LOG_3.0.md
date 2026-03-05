@@ -1,3 +1,41 @@
+## Iteración: Gate DB explícito + suites críticas sin skip por defecto — 2026-03-05
+
+### 🎯 Resumen
+Se cerró el ciclo de “verde engañoso”: las suites críticas de DB dejaron de
+depender de `skip` implícito y pasaron a un gate explícito (`test:db`), con
+configuración automática del stack local del repo.
+
+### ✅ Cambios implementados
+- **Nuevo split de ejecución de tests:**
+  - `npm test` → `test:fast` (rápido, sin suites DB pesadas).
+  - `npm run test:db` → gate obligatorio pre-release.
+  - Scripts nuevos: `scripts/test-fast.sh`, `scripts/test-db.sh`.
+- **Autoconfiguración robusta de env DB:**
+  - `test:db` lee `supabase status --output json` del repo actual e inyecta:
+    `SUPABASE_URL`, `DATABASE_URL`, `SUPABASE_ANON_KEY`,
+    `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_LOCAL=true`,
+    `RUN_DB_INTEGRATION=1`.
+  - Compatibilidad agregada para salida de CLI con líneas extra antes del JSON.
+- **Gating explícito en suites DB:**
+  - helper nuevo `tests/helpers/db-test-env.ts` con fail-fast
+    (`[DB_TEST_ENV_MISSING]`) en vez de skip silencioso.
+- **Alineación de suites con invariantes actuales del sistema:**
+  - `rls.test.ts`: seed/control corregidos y aislamiento de sesión por cliente
+    para evitar colisión entre usuarios de prueba.
+  - `storage.test.ts`: bucket/policies actuales (`user-documents`) + MIME/path
+    válidos.
+  - `tsaEvents.test.ts`: migrado a `append_document_entity_event()` (camino
+    canónico), eventos con contrato completo y casos actualizados a guards
+    vigentes (no direct `events[]` update).
+
+### ✅ Validación
+- `npm test` verde (`274 passed`).
+- `npm run test:db` verde (`19 passed`).
+
+### 📌 Política operativa
+- `test:db` es el gate real para seguridad/integración antes de `tag` o deploy.
+- Un “verde” en `test:fast` no certifica invariantes DB por sí solo.
+
 ## Fase 2 (semántica hash canónico + política inicio/final) — 2026-02-15
 
 ### 🎯 Resumen

@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..', '..');
 
-test('legacy endpoints must stay hard-deprecated (410) with no side-effects', async () => {
+test('legacy endpoints must be physically removed from runtime surface', async () => {
   const files = [
     'supabase/functions/append-tsa-event/index.ts',
     'supabase/functions/auto-tsa/index.ts',
@@ -18,8 +18,6 @@ test('legacy endpoints must stay hard-deprecated (410) with no side-effects', as
   ];
 
   for (const relPath of files) {
-    const content = await fs.readFile(path.join(ROOT, relPath), 'utf8');
-    expect(content).toContain('410');
-    expect(content.toLowerCase()).toContain('deprecated');
+    await expect(fs.access(path.join(ROOT, relPath))).rejects.toBeDefined();
   }
 });

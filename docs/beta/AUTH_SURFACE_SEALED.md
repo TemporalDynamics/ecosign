@@ -130,12 +130,10 @@ via `participant_token_hash` contra `presential_verification_otps`.
 **Descripción**: Endpoints accesibles sin autenticación. La mayoría son workers internos
 protegidos por RLS en la base de datos, o bien endpoints públicos de lectura/verificación.
 
-**Endpoints** (42):
+**Endpoints** (36):
 - `accept-invite-nda` — Aceptar NDA de invite (sin cuenta Supabase)
 - `anchor-health` — Health check de anchoring
 - `anchoring-health-check` — Health check general
-- `append-tsa-event` — Añadir evento TSA (trigger interno)
-- `auto-tsa` — TSA automático (trigger externo)
 - `build-artifact` — Construir artifact (worker interno)
 - `build-final-artifact` — Construir artifact final (worker interno)
 - `dead-jobs` — Listar jobs muertos (interno)
@@ -161,16 +159,12 @@ protegidos por RLS en la base de datos, o bien endpoints públicos de lectura/ve
 - `signer-access` — Acceso de firmante (integración SignNow)
 - `signnow` — Integración SignNow
 - `signing-keys` — Public keys de firma institucional (público)
-- `stamp-pdf` — **DEPRECATED (410)**: usar pipeline canónico interno
 - `store-signer-signature` — Almacenar firma de firmante
 - `submit-anchor-bitcoin` — Submit anchor Bitcoin (worker interno)
 - `submit-anchor-polygon` — Submit anchor Polygon (worker interno)
-- `test-email` — **DEPRECATED (410)**: diagnóstico legacy deshabilitado
-- `test-insert-notification` — **DEPRECATED (410)**: diagnóstico legacy deshabilitado
 - `verify-ecox` — Verificar ECOX (público)
 - `verify-share-otp` — Verificar OTP de share
 - `verify-workflow-hash` — Verificar hash de workflow
-- `wake-authority` — **DEPRECATED (410)**: usar `runtime_tick`/pipeline interno
 
 **Invariante**: Sin validación de JWT explícita. La seguridad se apoya en RLS,
 service_role a nivel de DB, o son endpoints de lectura pública intencional.

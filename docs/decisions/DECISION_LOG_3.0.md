@@ -1,3 +1,39 @@
+## Iteración: limpieza final legacy + baseline sellado — 2026-03-05
+
+### 🎯 Resumen
+Se ejecutó cierre previo a QA manual:
+
+1. endpoints legacy deprecados fueron removidos físicamente,
+2. se incorporó baseline reproducible de autoridad + runtime canónico.
+
+### ✅ Cambios implementados
+- **Eliminación real de legacy runtime:**
+  - removidos:
+    - `supabase/functions/append-tsa-event`
+    - `supabase/functions/auto-tsa`
+    - `supabase/functions/stamp-pdf`
+    - `supabase/functions/test-email`
+    - `supabase/functions/test-insert-notification`
+    - `supabase/functions/wake-authority`
+- **Guard de presencia filesystem (anti-regresión):**
+  - `tests/authority/no_legacy_runtime_surface_presence_guard.test.ts`
+- **Guard legacy actualizado:**
+  - `tests/authority/legacy_endpoint_deprecations_guard.test.ts`
+  - pasa de validar `410` a validar **ausencia física**.
+- **Doc contractual alineada con estado real:**
+  - `docs/beta/AUTH_SURFACE_SEALED.md` (se removieron endpoints legacy ya eliminados).
+  - `tests/authority/auth_surface_sealed_guard.test.ts` alineado.
+- **Baseline reproducible (snapshots):**
+  - `scripts/diagnostics/snapshot-authority-baseline.sh`
+  - `scripts/diagnostics/baseline-runtime-canonical-smoke.sh`
+  - scripts npm:
+    - `baseline:authority`
+    - `baseline:runtime`
+    - `baseline:seal`
+- **Gate actualizado:**
+  - `scripts/release-gate.sh` incluye `no_legacy_runtime_surface_presence_guard`.
+  - `scripts/diagnostics/prebeta_fire_drill.sh` incluye guard equivalente.
+
 ## Iteración: blindaje final de tablas internas runtime — 2026-03-05
 
 ### 🎯 Resumen

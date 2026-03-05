@@ -9,6 +9,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 
 test('legacy endpoints must stay hard-deprecated (410) with no side-effects', async () => {
   const files = [
+    'supabase/functions/append-tsa-event/index.ts',
     'supabase/functions/auto-tsa/index.ts',
     'supabase/functions/test-email/index.ts',
     'supabase/functions/test-insert-notification/index.ts',

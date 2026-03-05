@@ -1,3 +1,33 @@
+## Iteración: cierre mecánico legacy + gate unificado de release — 2026-03-05
+
+### 🎯 Resumen
+Se cerró el punto 2 operativo:
+
+1. endpoint legacy adicional (`append-tsa-event`) queda hard-deprecated de forma explícita,
+2. se agregó un gate único de release (`release:gate`) que combina tests fast + DB + guards críticos.
+
+### ✅ Cambios implementados
+- **Deprecación dura legacy:**
+  - `supabase/functions/append-tsa-event/index.ts`
+  - Se eliminó `throw` temprano que devolvía 500 y se dejó respuesta controlada `410 deprecated`.
+- **Guard de legacy deprecations ampliado:**
+  - `tests/authority/legacy_endpoint_deprecations_guard.test.ts`
+  - Ahora incluye `append-tsa-event`.
+- **Gate único de release:**
+  - `scripts/release-gate.sh`
+  - `package.json` → `release:gate`.
+  - Ejecuta:
+    - `npm test`
+    - `npm run test:db`
+    - guards críticos de autoridad/superficie
+    - `npm run diag:prelaunch-legacy-null-check`
+- **Guard del gate:**
+  - `tests/authority/release_gate_hardening_guard.test.ts`
+
+### ✅ Validación
+- `npm test` verde.
+- `npm run test:db` verde.
+
 ## Iteración: signer status proyectado al 100% (incluye `expired`) — 2026-03-05
 
 ### 🎯 Resumen

@@ -19,6 +19,7 @@
     "test:canonical-proof": "vitest run tests/canonical-only/complete-pipeline-proof.test.ts",
     "test:security": "vitest run tests/security/",
     "test:security:watch": "vitest tests/security/",
+    "release:gate": "bash scripts/release-gate.sh",
     "preview": "cd client && npm run preview",
     "lint": "cd client && npm run lint",
     "lint:fix": "cd client && npm run lint:fix",

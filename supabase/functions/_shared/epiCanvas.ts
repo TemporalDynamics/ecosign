@@ -32,6 +32,30 @@ export interface EpiPageMetrics {
   height?: number;
 }
 
+const HEX_64_RE = /^[0-9a-f]{64}$/i;
+const ISO_TS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
+
+function isValidHexHash(value: unknown): value is string {
+  return typeof value === 'string' && HEX_64_RE.test(value.trim());
+}
+
+function isValidIsoTimestamp(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!ISO_TS_RE.test(trimmed)) return false;
+  const parsed = Date.parse(trimmed);
+  return Number.isFinite(parsed);
+}
+
+function assertValidLeaf(leaf: MerkleLeaf, index: number) {
+  if (!isValidHexHash(leaf.hash)) {
+    throw new Error(`Invalid Merkle leaf hash at index ${index}`);
+  }
+  if (!isValidIsoTimestamp(leaf.at)) {
+    throw new Error(`Invalid Merkle leaf timestamp at index ${index}`);
+  }
+}
+
 /**
  * Orden canónico de leaves para el Merkle tree EPI.
  *
@@ -63,7 +87,13 @@ export async function buildMerkleRoot(leaves: MerkleLeaf[]): Promise<string> {
     throw new Error('Cannot build Merkle root from empty leaves');
   }
 
-  const sorted = sortLeavesCanonically(leaves).filter((leaf) => typeof leaf.hash === 'string' && leaf.hash.length > 0);
+  const filtered = leaves.filter(Boolean);
+  if (filtered.length === 0) {
+    throw new Error('Cannot build Merkle root from empty leaves');
+  }
+  filtered.forEach((leaf, index) => assertValidLeaf(leaf, index));
+
+  const sorted = sortLeavesCanonically(filtered);
   if (sorted.length === 0) {
     throw new Error('Cannot build Merkle root from empty leaves');
   }
@@ -163,6 +193,7 @@ export async function buildEpiBlockFromEvents(params: {
   const sourceHash = typeof params.source_hash === 'string' ? params.source_hash : '';
   const contentAt = typeof params.content_at === 'string' ? params.content_at : '';
   if (!sourceHash || !contentAt) return null;
+  if (!isValidHexHash(sourceHash) || !isValidIsoTimestamp(contentAt)) return null;
 
   const signatureEvents = Array.isArray(params.events) ? params.events : [];
   const stateLeaves = signatureEvents
@@ -182,7 +213,13 @@ export async function buildEpiBlockFromEvents(params: {
     at: contentAt,
   };
 
-  const rootHash = await buildMerkleRoot([contentLeaf, ...stateLeaves]);
+  let rootHash: string;
+  try {
+    rootHash = await buildMerkleRoot([contentLeaf, ...stateLeaves]);
+  } catch (err) {
+    console.warn('buildEpiBlockFromEvents: invalid merkle input (best-effort)', err);
+    return null;
+  }
   const stateHashes = [...stateLeaves]
     .sort((a, b) => a.at.localeCompare(b.at))
     .map((leaf) => ({ hash: leaf.hash, at: leaf.at }));

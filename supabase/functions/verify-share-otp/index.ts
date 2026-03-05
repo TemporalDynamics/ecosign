@@ -13,6 +13,13 @@ const jsonResponse = (data: unknown, status = 200, headers: Record<string, strin
 
 const normalizeOtp = (otp: string) => otp.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
 
+function normalizeLocalSignedUrl(url: string, supabaseUrl: string): string {
+  if (!url.includes('http://kong:8000')) return url
+  const base = (supabaseUrl || '').replace(/\/$/, '')
+  if (!base) return url.replace('http://kong:8000', 'http://127.0.0.1:54321')
+  return url.replace('http://kong:8000', base)
+}
+
 async function sha256Hex(input: string): Promise<string> {
   const enc = new TextEncoder()
   const buf = enc.encode(input)
@@ -174,7 +181,7 @@ serve(withRateLimit('verify', async (req) => {
       {
         success: true,
         document_name: (entity as any).source_name ?? 'Documento',
-        encrypted_signed_url: signed.signedUrl,
+        encrypted_signed_url: normalizeLocalSignedUrl(signed.signedUrl, supabaseUrl),
         recipient_salt: share.recipient_salt,
         wrapped_key: share.wrapped_key,
         wrap_iv: share.wrap_iv,

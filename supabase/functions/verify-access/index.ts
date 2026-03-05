@@ -53,12 +53,17 @@ async function createSignedUrlWithFallback(
   supabase: any,
   path: string,
   buckets: string[],
+  supabaseUrl: string,
 ): Promise<string | null> {
   for (const bucket of buckets) {
     const candidates = buildPathCandidates(path, bucket);
     for (const candidate of candidates) {
       const attempt = await supabase.storage.from(bucket).createSignedUrl(candidate, 3600);
       if (!attempt.error && attempt.data?.signedUrl) {
+        const normalizedSupabaseUrl = (supabaseUrl || '').replace(/\/$/, '');
+        if (attempt.data.signedUrl.includes('http://kong:8000') && normalizedSupabaseUrl) {
+          return attempt.data.signedUrl.replace('http://kong:8000', normalizedSupabaseUrl);
+        }
         return attempt.data.signedUrl;
       }
     }
@@ -326,6 +331,7 @@ serve(withRateLimit('verify', async (req) => {
           supabase,
           entity.witness_current_storage_path,
           ['user-documents', 'documents'],
+          supabaseUrl,
         )
       }
 
@@ -335,6 +341,7 @@ serve(withRateLimit('verify', async (req) => {
           supabase,
           ecoStoragePath,
           ['artifacts', 'user-documents', 'documents'],
+          supabaseUrl,
         )
       }
     }

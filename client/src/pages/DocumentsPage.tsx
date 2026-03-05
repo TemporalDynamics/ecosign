@@ -2269,20 +2269,20 @@ function DocumentsPage() {
                 <>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Todavía no hay documentos</h3>
                   <p className="text-gray-500 mb-6">
-                    Empezá certificando tu primer archivo y vas a verlo acá.
+                    Empezá protegiendo tu primer archivo y vas a verlo acá.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <button
                       onClick={() => (isGuestMode() ? navigate("/login") : openLegalCenter("certify"))}
                       className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-black text-white text-sm font-semibold hover:bg-gray-800 transition"
                     >
-                      {isGuestMode() ? "Crear cuenta" : "Certificar documento"}
+                      {isGuestMode() ? "Crear cuenta" : "Proteger documento"}
                     </button>
                     <button
                       onClick={() => navigate("/inicio")}
                       className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black transition"
                     >
-                      Ir al centro de acciones
+                      Ir a inicio
                     </button>
                   </div>
                 </>

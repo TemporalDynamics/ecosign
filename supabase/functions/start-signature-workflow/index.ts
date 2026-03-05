@@ -433,7 +433,13 @@ serve(withRateLimit('workflow', async (req) => {
     
     // ... (Canonical event logging remains the same)
 
-    const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
+    const requestOrigin = req.headers.get('origin')?.trim() || ''
+    const appUrl = (
+      Deno.env.get('APP_URL') ||
+      requestOrigin ||
+      Deno.env.get('SITE_URL') ||
+      'https://app.ecosign.app'
+    ).replace(/\/$/, '')
 
     // P1.3 — Bind workflow_fields (batch_id + assigned_to email) to batches.assigned_signer_id
     // and enforce: each signer must have >= 1 assigned batch before we allow signing.

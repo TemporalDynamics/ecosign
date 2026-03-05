@@ -1,3 +1,45 @@
+## Iteración: correcciones post-QA manual (flujo de firma + CSP local + UX de protección) — 2026-03-05
+
+### 🎯 Resumen
+Se cerraron regresiones detectadas en QA manual local:
+
+1. `apply-signer-signature` fallaba en links de firma cuando `signer.accessed` degradaba estado.
+2. links firmados de storage devolvían `http://kong:8000` y rompían por CSP en navegador.
+3. pantalla vacía y copy no alineado con narrativa de “protección”.
+4. scripts de baseline/test fallaban de forma intermitente por parse frágil de `supabase status`.
+
+### ✅ Cambios implementados
+- **Autoridad/proyección de firmantes:**
+  - nueva migración `supabase/migrations/20260306002000_keep_signer_access_observational.sql`
+  - `signer.accessed` pasa a ser evento observacional (no transiciona a estado bloqueante),
+  - proyección mantiene `ready_to_sign` y solo actualiza `first_accessed_at`,
+  - backfill de workflows para corregir materializaciones previas.
+- **CSP/local URL normalization:**
+  - `supabase/functions/verify-share-otp/index.ts`
+  - `supabase/functions/verify-access/index.ts`
+  - normalización explícita `http://kong:8000 -> SUPABASE_URL` para URLs firmadas en local.
+- **Link de firma coherente en local:**
+  - `supabase/functions/start-signature-workflow/index.ts`
+  - `appUrl` prioriza `APP_URL`, luego `Origin` del request, luego `SITE_URL`.
+- **UX de documentos/pantalla vacía y canvas:**
+  - `client/src/pages/DocumentsPage.tsx`:
+    - “certificar” -> “proteger”
+    - CTA secundario “Ir a inicio”
+  - `client/src/components/pdf/PdfEditViewer.tsx`:
+    - scroll vertical habilitado en modo locked,
+    - ajuste de ancho virtual por contenedor (ResizeObserver) para evitar clipping horizontal.
+- **Robustez de scripts de baseline/test:**
+  - `scripts/test-db.sh`
+  - `scripts/diagnostics/snapshot-authority-baseline.sh`
+  - `scripts/diagnostics/baseline-runtime-canonical-smoke.sh`
+  - parse de `supabase status` endurecido (captura bloque JSON y tolera ruido/advertencias del CLI).
+
+### ✅ Validación ejecutada
+- `npm test` (suite fast): **verde**
+- `npm run test:db`: **verde**
+- `npm run baseline:authority`: **verde**
+- `npm run baseline:runtime`: **verde**
+
 ## Iteración: limpieza legacy stage 2 (eliminación física de rutas muertas) — 2026-03-05
 
 ### 🎯 Resumen

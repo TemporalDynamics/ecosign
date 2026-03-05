@@ -7,7 +7,15 @@ mkdir -p "$(dirname "$OUTPUT_PATH")"
 
 echo "=== Baseline runtime canonical smoke ==="
 
-STATUS_JSON="$(supabase status --output json 2>/dev/null | sed -n '/^{/,$p')"
+STATUS_RAW="$(supabase status --output json 2>&1 || true)"
+STATUS_JSON="$(
+  printf '%s\n' "$STATUS_RAW" | awk '
+    BEGIN { capture = 0 }
+    /^\{/ { capture = 1 }
+    capture { print }
+    /^}$/ { if (capture) exit }
+  '
+)"
 API_URL="$(printf '%s' "$STATUS_JSON" | node -e "const s=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(s.API_URL||'')")"
 ANON_KEY="$(printf '%s' "$STATUS_JSON" | node -e "const s=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(s.ANON_KEY||'')")"
 SERVICE_ROLE_KEY="$(printf '%s' "$STATUS_JSON" | node -e "const s=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(s.SERVICE_ROLE_KEY||'')")"

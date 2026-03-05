@@ -50,11 +50,17 @@ export const PdfEditViewer = ({
   onError
 }: PdfEditViewerProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
   const canvasRefs = useRef<HTMLCanvasElement[]>([]);
   const renderTasksRef = useRef<RenderTask[]>([]);
+
+  const effectiveVirtualWidth = locked && containerWidth > 0
+    ? Math.max(320, Math.min(virtualWidth, containerWidth - 24))
+    : virtualWidth;
 
   useEffect(() => {
     let cancelled = false;
@@ -98,13 +104,13 @@ export const PdfEditViewer = ({
     let cancelled = false;
 
     const renderPages = async () => {
-      const effectiveWidth = virtualWidth * scale;
+      const effectiveWidth = effectiveVirtualWidth * scale;
       const rendered: RenderedPage[] = [];
       for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
         const page = await doc.getPage(pageNumber);
         if (cancelled) return;
         const baseViewport = page.getViewport({ scale: 1 });
-        const canonicalScale = virtualWidth / baseViewport.width;
+        const canonicalScale = effectiveVirtualWidth / baseViewport.width;
         const pageScale = effectiveWidth / baseViewport.width;
         const viewport = page.getViewport({ scale: pageScale });
         rendered.push({
@@ -122,7 +128,7 @@ export const PdfEditViewer = ({
       onMetrics?.(
         rendered.map((item) => ({
           pageNumber: item.pageNumber,
-          width: virtualWidth,
+          width: effectiveVirtualWidth,
           height: item.canonicalHeight
         }))
       );
@@ -132,7 +138,7 @@ export const PdfEditViewer = ({
     return () => {
       cancelled = true;
     };
-  }, [doc, virtualWidth, scale, onMetrics]);
+  }, [doc, effectiveVirtualWidth, scale, onMetrics]);
 
   useEffect(() => {
     if (pages.length === 0) return;
@@ -207,19 +213,47 @@ export const PdfEditViewer = ({
   }
 
   const handleContainerRef = (node: HTMLDivElement | null) => {
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
+    }
+
     containerRef.current = node;
     if (scrollRef) {
       scrollRef.current = node;
     }
+
+    if (!node) return;
+
+    setContainerWidth(node.clientWidth);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        setContainerWidth(Math.floor(entry.contentRect.width));
+      });
+      observer.observe(node);
+      resizeObserverRef.current = observer;
+    }
   };
+
+  useEffect(() => {
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div
       ref={handleContainerRef}
-      className={`w-full h-full bg-white overflow-x-hidden ${locked ? 'overflow-hidden' : 'overflow-y-auto'} ${className || ''}`}
+      className={`w-full h-full bg-white overflow-x-hidden overflow-y-auto ${className || ''}`}
     >
       <div className="relative py-4 w-full flex justify-center">
-        <div className="relative" style={{ width: virtualWidth * scale }}>
+        <div className="relative" style={{ width: effectiveVirtualWidth * scale }}>
           {pages.map((page, index) => (
             <div
               key={page.pageNumber}

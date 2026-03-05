@@ -62,7 +62,9 @@ INTERNAL_TABLE_MATRIX="$(
         'welcome_email_queue',
         'system_workers',
         'executor_decision_logs',
-        'shadow_decision_logs'
+        'shadow_decision_logs',
+        'rate_limits',
+        'rate_limit_blocks'
       ]) AS table_name
     )
     SELECT

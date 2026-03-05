@@ -1,13 +1,11 @@
 # Authority Baseline Snapshot
 
-- Generated at (UTC): 2026-03-05T21:41:40Z
+- Generated at (UTC): 2026-03-05T22:17:32Z
 - DB URL: `postgresql://postgres:****@127.0.0.1:54322/postgres`
 
 ## verify_jwt=false allowlist (config.toml)
 
-- presential-verification-confirm-presence
 - presential-verification-get-acta
-- record-evidence-download
 - signing-keys
 
 ## SECURITY DEFINER exposed to anon/authenticated
@@ -26,6 +24,8 @@
 | executor_decision_logs | true | - | - | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE |
 | executor_job_runs | true | - | - | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE |
 | executor_jobs | true | - | - | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE |
+| rate_limit_blocks | true | - | - | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE |
+| rate_limits | true | - | - | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE |
 | shadow_decision_logs | true | - | - | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE |
 | system_workers | true | - | - | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE |
 | welcome_email_queue | true | - | - | DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE |

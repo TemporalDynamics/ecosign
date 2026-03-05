@@ -202,6 +202,7 @@ run_step "Legacy compat decommission guard" npm run test -- tests/authority/lega
 run_step "No legacy runtime surface presence guard" npm run test -- tests/authority/no_legacy_runtime_surface_presence_guard.test.ts
 run_step "Legacy manifest exclusion guard" npm run test -- tests/authority/legacy_not_in_release_manifest_guard.test.ts
 run_step "Internal runtime grants/RLS guard" npm run test -- tests/authority/internal_runtime_table_grants_rls_guard.test.ts
+run_step "Internal rate-limit tables grants/RLS guard" npm run test -- tests/authority/internal_rate_limit_table_grants_rls_guard.test.ts
 run_step "SECURITY DEFINER allowlist closure guard" npm run test -- tests/authority/security_definer_exec_allowlist_closure_guard.test.ts
 run_step "Public runtime authority boundary guard" npm run test -- tests/authority/public_runtime_authority_boundary_guard.test.ts
 run_step "Auth surface sealed guard" npm run test -- tests/authority/auth_surface_sealed_guard.test.ts

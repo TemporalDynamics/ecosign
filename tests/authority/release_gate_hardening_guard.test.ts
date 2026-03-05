@@ -20,6 +20,7 @@ test('release gate must enforce fast+db tests and authority hardening checks', a
   expect(gateScript).toContain('tests/authority/workflow_signers_status_authority_guard.test.ts');
   expect(gateScript).toContain('tests/authority/internal_tables_service_only_guard.test.ts');
   expect(gateScript).toContain('tests/authority/internal_runtime_table_grants_rls_guard.test.ts');
+  expect(gateScript).toContain('tests/authority/internal_rate_limit_table_grants_rls_guard.test.ts');
   expect(gateScript).toContain('tests/authority/security_definer_exec_allowlist_closure_guard.test.ts');
   expect(gateScript).toContain('tests/authority/verify_jwt_false_allowlist_guard.test.ts');
   expect(gateScript).toContain('tests/authority/legacy_endpoint_deprecations_guard.test.ts');

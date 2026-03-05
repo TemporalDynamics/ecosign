@@ -1,3 +1,33 @@
+## Iteración: punto 3 cerrado (tablas internas runtime blindadas) — 2026-03-05
+
+### 🎯 Resumen
+Se completó el blindaje de tablas internas de runtime incorporando el bloque de rate limiting al mismo contrato de seguridad:
+
+- `rate_limits`
+- `rate_limit_blocks`
+
+Ambas quedan bajo el patrón obligatorio: **RLS ON + sin grants anon/authenticated + policy/grants service_role-only**.
+
+### ✅ Cambios implementados
+- **Migración de hardening:**
+  - `supabase/migrations/20260305235900_harden_rate_limit_internal_tables_service_only.sql`
+  - revoca `PUBLIC/anon/authenticated`,
+  - habilita RLS,
+  - recrea policy `service_role only`,
+  - mantiene `postgres` operativo para mantenimiento/admin.
+- **Auditoría runtime actualizada:**
+  - `scripts/diagnostics/check-internal-runtime-table-hardening.sh`
+  - lista contractual extendida con `rate_limits` y `rate_limit_blocks`.
+- **Snapshot baseline actualizado:**
+  - `scripts/diagnostics/snapshot-authority-baseline.sh`
+  - matriz de tablas internas incluye rate-limit tables.
+- **Guards/gates:**
+  - nuevo test: `tests/authority/internal_rate_limit_table_grants_rls_guard.test.ts`
+  - `tests/authority/internal_runtime_table_grants_rls_guard.test.ts` verifica coverage del audit script.
+  - `scripts/release-gate.sh` incluye el nuevo guard.
+  - `scripts/diagnostics/prebeta_fire_drill.sh` incluye el nuevo guard.
+  - `tests/authority/release_gate_hardening_guard.test.ts` actualizado.
+
 ## Iteración: reducción de superficie `verify_jwt = false` (punto 2) — 2026-03-05
 
 ### 🎯 Resumen

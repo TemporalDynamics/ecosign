@@ -11,6 +11,10 @@ const MIGRATION = path.join(
   ROOT,
   'supabase/migrations/20260305230000_harden_internal_runtime_table_grants_and_rls.sql'
 );
+const DIAG_SCRIPT = path.join(
+  ROOT,
+  'scripts/diagnostics/check-internal-runtime-table-hardening.sh'
+);
 
 test('internal runtime grant/rls hardening migration must include full internal table set', async () => {
   const sql = await fs.readFile(MIGRATION, 'utf8');
@@ -38,3 +42,8 @@ test('internal runtime grant/rls hardening migration must include full internal 
   expect(sql).toContain("TO service_role USING (true) WITH CHECK (true)");
 });
 
+test('internal runtime hardening diagnostic must include rate-limit runtime tables', async () => {
+  const script = await fs.readFile(DIAG_SCRIPT, 'utf8');
+  expect(script).toContain("'rate_limits'");
+  expect(script).toContain("'rate_limit_blocks'");
+});

@@ -22,16 +22,18 @@ echo "DB: ${DB_URL}"
 
 read -r -d '' AUDIT_SQL <<'SQL' || true
 WITH internal_tables AS (
-  SELECT unnest(ARRAY[
-    'domain_outbox',
-    'executor_job_runs',
-    'executor_jobs',
-    'welcome_email_queue',
-    'system_workers',
-    'executor_decision_logs',
-    'shadow_decision_logs'
-  ]) AS table_name
-),
+      SELECT unnest(ARRAY[
+        'domain_outbox',
+        'executor_job_runs',
+        'executor_jobs',
+        'welcome_email_queue',
+        'system_workers',
+        'executor_decision_logs',
+        'shadow_decision_logs',
+        'rate_limits',
+        'rate_limit_blocks'
+      ]) AS table_name
+    ),
 table_status AS (
   SELECT
     t.table_name,
@@ -92,4 +94,3 @@ if [[ -n "$OFFENDERS" ]]; then
 fi
 
 echo "✅ Internal runtime tables hardened (RLS ON, no anon/auth grants, service_role-only policies)."
-

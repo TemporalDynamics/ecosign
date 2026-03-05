@@ -177,12 +177,7 @@ serve(async (req) => {
     const savedDocuments: { filename: string }[] = []
 
     for (const doc of documents) {
-      // TODO (Sprint 4 - Custody Mode): Implement encryption service
-      // if (custody_mode === 'encrypted_custody') {
-      //   draft_file_ref = await encryptAndStore(doc.file_data, user.id, operationId)
-      // } else {
-      //   draft_file_ref = storeTemporary(doc.file_data, user.id)
-      // }
+      // NOTE: encrypted_custody is explicitly blocked earlier with 501.
 
       // PHASE 1: Store draft file in Storage (private, owner-scoped path)
       const draftId = crypto.randomUUID()

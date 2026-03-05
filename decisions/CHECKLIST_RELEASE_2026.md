@@ -55,4 +55,4 @@ Status: re-ejecutar CI y validar solo queda Vercel (si falla, revisar logs) — 
 - [x] UI muestra estado EPI (nivel 1 vs 2)
 - [x] UI muestra progreso de anclaje (TSA → Rekor → Polygon)
 - [x] UI muestra `witness_history`
-- [x] Barrido adicional (2026-03-04): sin nuevos bloqueantes. Gaps observados: `save-draft` mantiene TODO de cifrado en custody mode. (`_workers/notify-artifact-ready` schema viejo y `process-signature` placeholders Q2 ya corregidos.)
+- [x] Barrido adicional (2026-03-04): sin nuevos bloqueantes. Gaps observados: ninguno (custody mode bloqueado explícitamente; worker legacy y placeholders corregidos).

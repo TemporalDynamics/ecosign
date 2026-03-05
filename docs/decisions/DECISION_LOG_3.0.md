@@ -1,3 +1,26 @@
+## Iteración: cierre de superficie `verify_jwt=false` no esencial — 2026-03-05
+
+### 🎯 Resumen
+Se aplicó hardening sobre la frontera HTTP de workers internos:
+
+1. `finalize-document` deja de aceptar llamadas sin JWT válido,
+2. `record-custody-key-rotation` deja de aceptar llamadas sin JWT válido,
+3. el allowlist de `verify_jwt=false` se reduce a superficies públicas/intencionales.
+
+### ✅ Cambios implementados
+- `supabase/config.toml`
+  - `[functions.finalize-document] verify_jwt = true`
+  - `[functions.record-custody-key-rotation] verify_jwt = true`
+- `tests/authority/verify_jwt_false_allowlist_guard.test.ts`
+  - allowlist reducido a:
+    - `presential-verification-confirm-presence`
+    - `presential-verification-get-acta`
+    - `record-evidence-download`
+    - `signing-keys`
+
+### ✅ Validación
+- `npm run test -- tests/authority/verify_jwt_false_allowlist_guard.test.ts` verde.
+
 ## Iteración: runtime legacy fuera del bundle de release — 2026-03-05
 
 ### 🎯 Resumen

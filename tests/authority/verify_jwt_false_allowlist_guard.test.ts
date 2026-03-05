@@ -9,10 +9,8 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const CONFIG = path.join(ROOT, 'supabase/config.toml');
 
 const ALLOWLIST = [
-  'finalize-document',
   'presential-verification-confirm-presence',
   'presential-verification-get-acta',
-  'record-custody-key-rotation',
   'record-evidence-download',
   'signing-keys',
 ].sort();

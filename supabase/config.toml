@@ -269,6 +269,9 @@ verify_jwt = true
 [functions.finalize-document]
 verify_jwt = true
 
+[functions.fase1-executor]
+verify_jwt = true
+
 [functions.record-custody-key-rotation]
 verify_jwt = true
 

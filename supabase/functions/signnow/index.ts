@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1?target=deno';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { normalizeEmail } from '../_shared/email.ts';
 
 type Signer = {
   email: string;
@@ -602,7 +603,7 @@ serve(async (req) => {
           .eq('id', workflowId);
 
         // Actualizar firmantes con la URL de embed para que el front pueda mostrarla
-        const signerEmails = signers.map((s) => s.email.toLowerCase());
+        const signerEmails = signers.map((s) => normalizeEmail(s.email));
         if (signerEmails.length > 0) {
           await client
             .from('workflow_signers')

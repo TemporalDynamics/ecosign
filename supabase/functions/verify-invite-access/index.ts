@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { readEcoxRuntimeMetadata } from '../_shared/ecoxRuntime.ts';
+import { normalizeEmail } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -147,7 +148,7 @@ serve(async (req) => {
     }
 
     // Verify user email matches invite email
-    if (user.email?.toLowerCase() !== invite.email.toLowerCase()) {
+    if (normalizeEmail(user.email) !== normalizeEmail(invite.email)) {
       return new Response(
         JSON.stringify({
           error: `This invite is for ${invite.email}. Please log in with that account.`,

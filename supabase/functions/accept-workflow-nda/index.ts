@@ -6,6 +6,7 @@ import { getCorsHeaders } from '../_shared/cors.ts'
 import { NDA_VERSION, normalizeNdaText, resolveNdaTemplateMetadata } from '../_shared/nda/text.ts'
 import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 import { appendEvent, hashIP, getBrowserFamily } from '../_shared/eventHelper.ts'
+import { normalizeEmail } from '../_shared/email.ts'
 
 const computeSha256 = async (input: string): Promise<string> => {
   const data = new TextEncoder().encode(input);
@@ -97,8 +98,8 @@ serve(async (req) => {
     const ndaHash = await computeSha256(ndaText);
     const templateMeta = resolveNdaTemplateMetadata(ndaText);
 
-    const signerEmailNormalized = typeof signer.email === 'string' ? signer.email.toLowerCase() : ''
-    const emailMatches = signerEmailNormalized !== '' && signerEmailNormalized === signer_email.toLowerCase()
+    const signerEmailNormalized = normalizeEmail(signer.email ?? '')
+    const emailMatches = signerEmailNormalized !== '' && signerEmailNormalized === normalizeEmail(signer_email)
 
     if (!emailMatches) {
       return json({ error: 'Email mismatch for signer' }, 400)

@@ -6,6 +6,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { normalizeEmail } from '../_shared/email.ts';
 import {
   type AnchorRetryPolicy,
   evaluateTimeout,
@@ -264,13 +265,15 @@ async function resolveNotificationRecipients(anchor: any): Promise<string[]> {
 
   const recipients = new Set<string>();
   if (typeof anchor.user_email === 'string' && anchor.user_email.trim().length > 0) {
-    recipients.add(anchor.user_email.trim());
+    const normalized = normalizeEmail(anchor.user_email);
+    if (normalized) recipients.add(normalized);
   }
 
   if (anchor.user_id) {
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(anchor.user_id);
     if (!userError && userData?.user?.email) {
-      recipients.add(userData.user.email);
+      const normalized = normalizeEmail(userData.user.email);
+      if (normalized) recipients.add(normalized);
     }
   }
 

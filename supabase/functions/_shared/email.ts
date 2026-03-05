@@ -20,6 +20,15 @@ function deriveSiteUrlFromLink(link?: string | null) {
   }
 }
 
+export function normalizeEmail(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+export function normalizeEmailOrNull(value: string | null | undefined): string | null {
+  const normalized = normalizeEmail(value);
+  return normalized.length > 0 ? normalized : null;
+}
+
 // Robust helper for sending email via Resend
 // Do NOT hardcode API keys here. Use RESEND_API_KEY env var.
 export async function sendResendEmail({

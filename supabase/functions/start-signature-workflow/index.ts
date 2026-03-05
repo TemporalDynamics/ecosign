@@ -9,6 +9,7 @@ import {
   encryptToken,
 } from '../_shared/cryptoHelper.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { normalizeEmail, normalizeEmailOrNull } from '../_shared/email.ts'
 
 interface Signer {
   email: string
@@ -461,7 +462,7 @@ serve(withRateLimit('workflow', async (req) => {
     for (const row of (wfFields || []) as any[]) {
       const bid = row.batch_id as string | null
       if (!bid) continue
-      const email = (row.assigned_to as string | null)?.trim().toLowerCase() || null
+      const email = normalizeEmailOrNull(row.assigned_to as string | null)
       if (!email) {
         unassignedBatchIds.add(bid)
         continue
@@ -488,7 +489,7 @@ serve(withRateLimit('workflow', async (req) => {
 
     const signerByEmail = new Map<string, any>()
     for (const s of insertedSigners || []) {
-      const email = (s.email as string).trim().toLowerCase()
+      const email = normalizeEmail(s.email as string)
       signerByEmail.set(email, s)
     }
 

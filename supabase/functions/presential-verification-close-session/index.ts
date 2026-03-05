@@ -4,6 +4,7 @@ import { appendEvent } from '../_shared/eventHelper.ts';
 import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts';
 import { signFinalEcoInstitutionally } from '../_shared/ecoInstitutionalSignature.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { normalizeEmail } from '../_shared/email.ts';
 
 interface CloseSessionRequest {
   session_id: string;
@@ -73,10 +74,6 @@ function parseTimestamp(value: string | null | undefined): number | null {
   if (!value) return null;
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function normalizeEmail(value: string | null | undefined): string {
-  return (value ?? '').trim().toLowerCase();
 }
 
 async function verifyAuthUser(authHeader: string | null): Promise<AuthUser | null> {

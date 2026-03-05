@@ -12,6 +12,7 @@ import { decideAnchorPolicyByStage, resolveOwnerAnchorPlan } from '../_shared/an
 import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 import { reconcileWitnessHistory } from '../_shared/witnessHistory.ts'
 import { computeStateHash } from '../_shared/epiCanvas.ts'
+import { normalizeEmail, normalizeEmailOrNull } from '../_shared/email.ts'
 
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
@@ -398,7 +399,6 @@ serve(async (req) => {
 
     const body = await req.json()
     const { signerId, accessToken, workflowId, witness_pdf_hash, applied_at, identity_level, signatureData, fieldValues } = body
-    const normalizeEmail = (value: string | null | undefined) => (value || '').trim().toLowerCase()
     const resolveEpiStateHash = async (
       snapshot: Record<string, unknown> | null,
       signerRow: { id?: string | null; email?: string | null }
@@ -1180,7 +1180,7 @@ serve(async (req) => {
         const identityMethod = signerMatchesOwnerAccount ? 'supabase_session' : 'signer_link'
         const signerRefHash = await sha256Hex(canonicalize({
           signer_id: signer.id ?? null,
-          signer_email: (signer.email ?? '').trim().toLowerCase() || null
+          signer_email: normalizeEmailOrNull(signer.email ?? null)
         }))
         const authContextHash = await sha256Hex(canonicalize({
           auth_context: identityMethod,
@@ -1887,13 +1887,12 @@ serve(async (req) => {
           .eq('workflow_id', signer.workflow_id)
 
         const recipients = new Map<string, { email: string; signer_id?: string | null; recipient_type: 'owner' | 'signer' }>()
-        const normalizeRecipientEmail = (value: string | null | undefined) => (value ?? '').trim().toLowerCase()
-        const ownerEmailNormalized = normalizeRecipientEmail(owner?.email ?? null)
+        const ownerEmailNormalized = normalizeEmail(owner?.email ?? null)
         if (ownerEmailNormalized) {
           recipients.set(ownerEmailNormalized, { email: ownerEmailNormalized, recipient_type: 'owner' })
         }
         for (const s of allSigners ?? []) {
-          const signerEmail = normalizeRecipientEmail(s?.email ?? null)
+          const signerEmail = normalizeEmail(s?.email ?? null)
           if (!signerEmail) continue
           if (!recipients.has(signerEmail)) {
             recipients.set(signerEmail, { email: signerEmail, recipient_type: 'signer', signer_id: s.id })

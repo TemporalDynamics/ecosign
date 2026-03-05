@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { validateSignerAccessToken } from '../_shared/signerAccessToken.ts'
 import { appendEvent } from '../_shared/eventHelper.ts'
+import { normalizeEmail } from '../_shared/email.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -146,7 +147,7 @@ serve(async (req) => {
         }
 
         // Verify the requesting user is a signed signer on this workflow
-        const userEmail = typeof user.email === 'string' ? user.email.toLowerCase() : null
+        const userEmail = normalizeEmail(user.email ?? null)
         if (!userEmail) {
           return jsonResponse({ error: 'Forbidden' }, 403)
         }

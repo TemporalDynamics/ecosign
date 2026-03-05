@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { withRateLimit } from '../_shared/ratelimit.ts';
+import { normalizeEmail } from '../_shared/email.ts';
 
 interface CreateInviteRequest {
   documentEntityId?: string;
@@ -125,7 +126,7 @@ serve(withRateLimit('invite', async (req) => {
       .from('invites')
       .insert({
         document_entity_id: documentEntityId,
-        email: email.toLowerCase().trim(),
+        email: normalizeEmail(email),
         role,
         token: token_value,
         expires_at: expiresAt.toISOString(),

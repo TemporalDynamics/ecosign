@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
-import { sendEmail, buildSignerOtpEmail } from '../_shared/email.ts';
+import { sendEmail, buildSignerOtpEmail, normalizeEmail } from '../_shared/email.ts';
 import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
@@ -42,10 +42,6 @@ const jsonResponse = (data: unknown, status = 200, headers: Record<string, strin
     status,
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
-
-function normalizeEmail(value: string | null | undefined): string {
-  return (value ?? '').trim().toLowerCase();
-}
 
 function generateOtpCode(): string {
   const buf = new Uint32Array(1);

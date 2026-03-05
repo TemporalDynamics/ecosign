@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/d
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { canonicalize, sha256Hex } from '../_shared/canonicalHash.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { normalizeEmail } from '../_shared/email.ts';
 
 interface ConfirmPresenceRequest {
   session_id: string;
@@ -76,10 +77,6 @@ const jsonResponse = (data: unknown, status = 200, headers: Record<string, strin
     status,
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
-
-function normalizeEmail(value: string | null | undefined): string {
-  return (value ?? '').trim().toLowerCase();
-}
 
 function parseTimestamp(value: string | null | undefined): number | null {
   if (!value) return null;

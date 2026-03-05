@@ -55,7 +55,7 @@ append_section \
 
 append_section \
   "E. Paths legacy vivos (functions + cron)" \
-  "rg --files supabase/functions/_legacy supabase/functions | rg \"_legacy|process-polygon-anchors|process-bitcoin-anchors|wake-authority\" | sed -n '1,260p'"
+  "rg --files supabase/functions | rg \"_legacy|process-signature|store-signer-signature|wake-authority\" | sed -n '1,260p'"
 
 append_section \
   "F. Posibles decisiones fuera del decision engine" \

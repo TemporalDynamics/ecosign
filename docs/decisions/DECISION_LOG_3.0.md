@@ -1,3 +1,18 @@
+## Iteración: limpieza legacy stage 2 (eliminación física de rutas muertas) — 2026-03-05
+
+### 🎯 Resumen
+Se removieron rutas legacy que seguían en el árbol pero ya no tenían callers reales ni estaban en el release manifest:
+
+- `supabase/functions/process-signature/`
+- `supabase/functions/store-signer-signature/`
+- `supabase/functions/_legacy/` (snapshots/implementaciones históricas)
+
+### ✅ Cierre aplicado
+- Eliminación física de código legacy no desplegado.
+- Matriz de auth actualizada para no listar funciones removidas.
+- Guard de presencia legacy endurecido (`no_legacy_runtime_surface_presence_guard`) para impedir reintroducción.
+- Script de inventario de progresión actualizado para detectar reaparición de paths removidos.
+
 ## Iteración: punto 3 cerrado (tablas internas runtime blindadas) — 2026-03-05
 
 ### 🎯 Resumen

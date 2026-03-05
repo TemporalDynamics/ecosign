@@ -88,7 +88,7 @@ El sistema opera con 5 categorías de autenticación, cada una con contrato expl
 
 **Patrón**: `requireInternalAuth()` (service_role o cron_secret) o `requireCronSecret()`.
 
-**Endpoints** (14):
+**Endpoints** (13):
 - `anchor-bitcoin` — Worker de anclaje Bitcoin
 - `anchor-polygon` — Worker de anclaje Polygon
 - `finalize-document` — Finalizar certificado ECO (worker interno)
@@ -99,7 +99,6 @@ El sistema opera con 5 categorías de autenticación, cada una con contrato expl
 - `orchestrator` — Orquestador de jobs (interno)
 - `process-bitcoin-anchors` — Procesar anclas Bitcoin (cron)
 - `process-polygon-anchors` — Procesar anclas Polygon (cron)
-- `process-signature` — Procesar firma (worker interno)
 - `process-signer-signed` — Procesar firmante completado (worker interno)
 - `record-custody-key-rotation` — Registrar rotación de clave (interno)
 - `send-pending-emails` — Enviar emails pendientes (cron)
@@ -126,7 +125,7 @@ El sistema opera con 5 categorías de autenticación, cada una con contrato expl
 **Descripción**: Endpoints accesibles sin autenticación. La mayoría son workers internos
 protegidos por RLS en la base de datos, o bien endpoints públicos de lectura/verificación.
 
-**Endpoints** (36):
+**Endpoints** (35):
 - `accept-invite-nda` — Aceptar NDA de invite (sin cuenta Supabase)
 - `anchor-health` — Health check de anchoring
 - `anchoring-health-check` — Health check general
@@ -155,7 +154,6 @@ protegidos por RLS en la base de datos, o bien endpoints públicos de lectura/ve
 - `signer-access` — Acceso de firmante (integración SignNow)
 - `signnow` — Integración SignNow
 - `signing-keys` — Public keys de firma institucional (público)
-- `store-signer-signature` — Almacenar firma de firmante
 - `submit-anchor-bitcoin` — Submit anchor Bitcoin (worker interno)
 - `submit-anchor-polygon` — Submit anchor Polygon (worker interno)
 - `verify-ecox` — Verificar ECOX (público)

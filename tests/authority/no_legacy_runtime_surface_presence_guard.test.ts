@@ -9,9 +9,12 @@ const ROOT = path.resolve(__dirname, '..', '..');
 
 test('legacy runtime endpoints must not exist on filesystem', async () => {
   const legacyPaths = [
+    'supabase/functions/_legacy',
     'supabase/functions/append-tsa-event',
     'supabase/functions/auto-tsa',
+    'supabase/functions/process-signature',
     'supabase/functions/stamp-pdf',
+    'supabase/functions/store-signer-signature',
     'supabase/functions/test-email',
     'supabase/functions/test-insert-notification',
     'supabase/functions/wake-authority',
@@ -21,4 +24,3 @@ test('legacy runtime endpoints must not exist on filesystem', async () => {
     await expect(fs.access(path.join(ROOT, relPath))).rejects.toBeDefined();
   }
 });
-

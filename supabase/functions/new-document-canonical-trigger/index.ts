@@ -7,6 +7,7 @@
 
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { appendEvent } from '../_shared/eventHelper.ts';
+import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 // Este trigger debe ser llamado cuando se crea un nuevo documento
 // y debe escribir directamente en document_entities.events[]
@@ -86,6 +87,21 @@ Deno.serve(async (req) => {
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
       },
     });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  if (!auth.ok) {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 
   try {

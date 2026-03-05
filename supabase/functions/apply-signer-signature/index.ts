@@ -1760,30 +1760,6 @@ serve(async (req) => {
       })
       const finalProtection: string[] = finalAnchorPolicy.protection
       try {
-        // Defensive completion: advance_workflow() is best-effort above; this guarantees
-        // workflow.status does not remain "active" after the final signer.
-        const { data: wfAfterAdvance, error: wfAfterAdvanceErr } = await supabase
-          .from('signature_workflows')
-          .select('status, owner_id')
-          .eq('id', signer.workflow_id)
-          .maybeSingle()
-
-        if (!wfAfterAdvanceErr && wfAfterAdvance && wfAfterAdvance.status !== 'completed') {
-          const { error: forceCompleteErr } = await supabase
-            .from('signature_workflows')
-            .update({
-              status: 'completed',
-              completed_at: completedAt,
-              updated_at: completedAt
-            })
-            .eq('id', signer.workflow_id)
-            .in('status', ['active', 'ready'])
-
-          if (forceCompleteErr) {
-            console.warn('apply-signer-signature: force-complete failed', forceCompleteErr)
-          }
-        }
-
         // Canonical event for workflow terminal completion (idempotent best-effort).
         const { data: existingCompletedEvent } = await supabase
           .from('workflow_events')
@@ -1805,6 +1781,11 @@ serve(async (req) => {
             'apply-signer-signature'
           )
         }
+
+        // Reconcile projection in case workflow.completed existed before this run.
+        await supabase.rpc('project_signature_workflow_status', {
+          p_workflow_id: signer.workflow_id
+        })
 
         if (workflow.document_entity_id) {
           const finalStepIndex = signer.signing_order ?? 0
@@ -1875,11 +1856,7 @@ serve(async (req) => {
 
       try {
         const workflowTitle = workflow.original_filename || 'Documento'
-        const { data: owner } = await supabase
-          .from('auth.users')
-          .select('email')
-          .eq('id', workflow.owner_id)
-          .maybeSingle()
+        const { data: ownerResult } = await supabase.auth.admin.getUserById(workflow.owner_id)
 
         const { data: allSigners } = await supabase
           .from('workflow_signers')
@@ -1887,7 +1864,7 @@ serve(async (req) => {
           .eq('workflow_id', signer.workflow_id)
 
         const recipients = new Map<string, { email: string; signer_id?: string | null; recipient_type: 'owner' | 'signer' }>()
-        const ownerEmailNormalized = normalizeEmail(owner?.email ?? null)
+        const ownerEmailNormalized = normalizeEmail(ownerResult?.user?.email ?? null)
         if (ownerEmailNormalized) {
           recipients.set(ownerEmailNormalized, { email: ownerEmailNormalized, recipient_type: 'owner' })
         }

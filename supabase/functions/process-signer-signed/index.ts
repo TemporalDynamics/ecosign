@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
+import { requireInternalAuth } from '../_shared/internalAuth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -22,6 +23,9 @@ serve(async (req) => {
   }
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true })
+  if (!auth.ok) return json({ error: 'Forbidden' }, 403)
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''

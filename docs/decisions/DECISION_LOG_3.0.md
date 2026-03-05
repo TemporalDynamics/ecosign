@@ -4108,3 +4108,54 @@ el schema actual de `workflow_notifications`.
 
 ### 📌 Nota operativa
 - `encrypted_custody` permanece explícitamente bloqueado con 501 en `save-draft`.
+
+## Iteración — 2026-03-05 (cierre total de superficies RPC/SQL internas)
+
+### 🎯 Resumen
+Se cerró el ciclo de hardening de autoridad/seguridad sobre funciones SQL `SECURITY DEFINER` y superficies RPC internas. El objetivo fue eliminar ejecución pública accidental (`anon/authenticated`) en funciones mutadoras internas y dejar una separación explícita entre:
+- funciones internas: solo `service_role/postgres`,
+- funciones de producto para usuarios: solo `authenticated` (sin `anon`).
+
+### ✅ Cambios implementados
+- **Cierre runtime y autoridad canónica:**
+  - `20260305100000_restrict_runtime_invoker_function_grants.sql`
+  - `20260305103000_harden_internal_runtime_surfaces.sql`
+  - `20260305113000_project_signature_workflow_status_from_events.sql`
+  - `20260305123000_harden_workflow_events_authority_surface.sql`
+- **Cierre adicional de mutadores internos expuestos:**
+  - `20260305133000_close_remaining_internal_mutator_exec_grants.sql`
+  - Cerrados: `reclaim_stale_jobs`, `update_job_heartbeat`, `anchor_atomic_tx`,
+    `anchor_polygon_atomic_tx`, `detect_and_recover_orphan_anchors`,
+    `project_document_entity_to_user_document`, `claim_anchor_batch`.
+- **Hardening RPC de carpetas/regeneración (producto):**
+  - `20260305143000_harden_user_folder_rpc_grants.sql`
+  - `create/rename/delete/move_documents_to_folder` y
+    `request_certificate_regeneration` quedan en `authenticated` y bloqueadas para `anon`.
+- **Cierre final de `SECURITY DEFINER` residuales:**
+  - `20260305150000_close_internal_security_definer_exec_grants.sql`
+  - `20260305153000_close_residual_anon_security_definer_grants.sql`
+  - Cerrados: `check_and_expire_shares`, `claim_signer_for_signing`,
+    `expire_signer_links`, `handle_new_user`, `notify_*`,
+    `project_events_to_user_document`, `queue_*`, `release_*_lock`,
+    `trigger_blockchain_anchoring`, `worker_heartbeat`,
+    `insert_workflow_signer`, `log_ecox_event`, `upgrade_protection_level`.
+
+### 🧪 Guards agregados
+- `tests/authority/workflow_status_authority_guard.test.ts`
+- `tests/authority/internal_mutator_exec_surface_guard.test.ts`
+- `tests/authority/folder_rpc_grants_guard.test.ts`
+- `tests/authority/internal_security_definer_exec_closure_guard.test.ts`
+- `tests/authority/residual_anon_sd_grants_guard.test.ts`
+
+### 📌 Verificación final
+- Migraciones aplicadas y registradas en remoto hasta:
+  - `20260305153000_close_residual_anon_security_definer_grants.sql`
+- Query de cierre de exposición (`SECURITY DEFINER` mutador con execute para `anon/authenticated`):
+  - Resultado final: **sin filas** para superficie interna.
+- Excepción intencional de producto:
+  - RPCs de carpeta/regeneración quedan en `authenticated=true`, `anon=false`.
+
+### Resultado
+- Se cerró la deriva de permisos que reabría ciclos de auditoría.
+- El perímetro interno queda explícito y testeado por contrato.
+- El ledger/eventos y la proyección de estado quedan alineados con el modelo de autoridad.

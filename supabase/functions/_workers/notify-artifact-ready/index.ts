@@ -19,7 +19,8 @@
  */
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { normalizeEmail } from '../_shared/email.ts';
+import { normalizeEmail } from '../../_shared/email.ts';
+import { requireInternalAuth } from '../../_shared/internalAuth.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -37,6 +38,20 @@ Deno.serve(async (req) => {
   if (Deno.env.get('FASE') !== '1') {
     return new Response('disabled', { status: 204 });
   }
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { status: 204 });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  if (!auth.ok) {
+    return new Response('Forbidden', { status: 403 });
+  }
+
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -75,18 +90,21 @@ Deno.serve(async (req) => {
     }
 
     // Step 2: Resolve owner email
-    const { data: owner } = await supabase
-      .from('auth.users')
-      .select('email')
-      .eq('id', workflow.owner_id)
-      .single();
+    const { data: ownerResult, error: ownerError } = await supabase.auth.admin.getUserById(workflow.owner_id);
+    const ownerEmail = normalizeEmail(ownerResult?.user?.email ?? null);
+    if (ownerError || !ownerEmail) {
+      console.warn('[C2] Missing owner email, skipping owner notification', {
+        workflow_id,
+        owner_id: workflow.owner_id,
+        error: ownerError?.message,
+      });
+    }
 
     // Step 3: Queue notifications for owner
     const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app';
     const workflowUrl = `${appUrl}/workflows/${workflow_id}`;
     const documentName = workflow.original_filename || 'tu documento';
 
-    const ownerEmail = normalizeEmail(owner?.email ?? null);
     if (ownerEmail) {
       await supabase.from('workflow_notifications').upsert({
         workflow_id,

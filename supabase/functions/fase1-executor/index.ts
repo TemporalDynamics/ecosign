@@ -498,24 +498,36 @@ Deno.serve(async (req) => {
     console.error('[fase1-executor] Error emitiendo monitoreo TSA missing:', message);
   }
 
+  // Heartbeat del worker para observabilidad operacional.
+  try {
+    await supabase.rpc('worker_heartbeat', { worker_name: 'fase1-executor' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('[fase1-executor] Error actualizando heartbeat:', message);
+  }
+
   const { data: jobs, error: claimError } = await supabase.rpc('claim_initial_decision_jobs', {
     p_limit: Number.isFinite(limit) ? limit : DEFAULT_LIMIT,
     p_worker_id: workerId,
   });
 
   if (claimError) {
+    try {
+      await supabase.rpc('worker_heartbeat', {
+        worker_name: 'fase1-executor',
+        worker_status: 'stalled',
+      });
+    } catch {
+      // noop: no bloquear la respuesta por fallas de observabilidad.
+    }
     return jsonResponse({ error: claimError.message }, 500);
   }
 
   const results: Array<{ id: string; status: string; error?: string }> = [];
   for (const job of (jobs ?? []) as ExecutorJob[]) {
-    const attempt = (job.attempts ?? 0) + 1;
+    // attempts ya viene incrementado por claim_initial_decision_jobs().
+    const attempt = Math.max(1, Number(job.attempts ?? 1));
     const startedAt = new Date();
-
-    await supabase.from('executor_jobs').update({
-      attempts: attempt,
-      updated_at: startedAt.toISOString(),
-    }).eq('id', job.id).eq('locked_by', workerId);
 
     await supabase.from('executor_job_runs').insert({
       job_id: job.id,

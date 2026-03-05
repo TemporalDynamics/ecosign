@@ -111,17 +111,12 @@ serve(async (req) => {
           continue;
         }
 
-        // Get owner email
-        const { data: ownerData } = await supabaseClient
-          .from('auth.users')
-          .select('email')
-          .eq('id', workflow.owner_id)
-          .single();
-
-        const ownerEmail = normalizeEmail(ownerData?.email ?? null);
+        // Get owner email using Auth Admin API (portable across PostgREST versions)
+        const { data: ownerData, error: ownerError } = await supabaseClient.auth.admin.getUserById(workflow.owner_id);
+        const ownerEmail = normalizeEmail(ownerData?.user?.email ?? null);
 
         if (!ownerEmail) {
-          console.warn(`[notify-artifact-ready] No owner email for workflow: ${artifact.workflow_id}`);
+          console.warn(`[notify-artifact-ready] No owner email for workflow: ${artifact.workflow_id}`, ownerError?.message);
           results.push({ artifact_id: artifact.id, status: 'skipped', reason: 'no_owner_email' });
           continue;
         }

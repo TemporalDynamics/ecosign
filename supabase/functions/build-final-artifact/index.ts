@@ -20,6 +20,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { buildArtifact } from '../_shared/artifactBuilder.ts';
+import { requireInternalAuth } from '../_shared/internalAuth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,6 +34,18 @@ serve(async (req) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', {
+      status: 405,
+      headers: corsHeaders,
+    });
+  }
+
+  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  if (!auth.ok) {
+    return new Response('Forbidden', { status: 403, headers: corsHeaders });
   }
 
   try {
@@ -83,11 +96,17 @@ serve(async (req) => {
         console.log(`[build-final-artifact] Processing workflow: ${workflow.id}`);
 
         // C1.3 — Lock: Acquire logical lock via workflow_artifacts
-        const { data: existingArtifact } = await supabaseClient
+        const { data: existingArtifact, error: existingArtifactError } = await supabaseClient
           .from('workflow_artifacts')
-          .select('id, status')
+          .select('id, status, build_attempts')
           .eq('workflow_id', workflow.id)
-          .single();
+          .maybeSingle();
+
+        if (existingArtifactError) {
+          console.error(`[build-final-artifact] Failed to read artifact record: ${existingArtifactError.message}`);
+          results.push({ workflow_id: workflow.id, status: 'failed', error: existingArtifactError.message });
+          continue;
+        }
 
         let artifactRecord;
 
@@ -112,11 +131,12 @@ serve(async (req) => {
           artifactRecord = newArtifact;
         } else if (existingArtifact.status === 'pending' || existingArtifact.status === 'failed') {
           // Acquire lock on existing record
+          const nextBuildAttempts = Number(existingArtifact.build_attempts ?? 0) + 1;
           const { data: lockedArtifact, error: lockError } = await supabaseClient
             .from('workflow_artifacts')
             .update({
               status: 'building',
-              build_attempts: supabaseClient.rpc('increment_attempts', { artifact_id: existingArtifact.id }),
+              build_attempts: nextBuildAttempts,
               updated_at: new Date().toISOString(),
             })
             .eq('id', existingArtifact.id)

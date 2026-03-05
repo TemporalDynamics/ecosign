@@ -547,13 +547,8 @@ serve(async (req) => {
     const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
 
     // Obtener email del owner
-    const { data: owner } = await supabase
-      .from('auth.users')
-      .select('email')
-      .eq('id', workflow.owner_id)
-      .single()
-
-    const ownerEmail = owner?.email
+    const { data: ownerResult } = await supabase.auth.admin.getUserById(workflow.owner_id)
+    const ownerEmail = ownerResult?.user?.email
 
     const workflowTitle = workflow.original_filename || 'Documento'
 

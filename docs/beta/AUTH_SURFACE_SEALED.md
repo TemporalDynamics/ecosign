@@ -92,16 +92,19 @@ via `participant_token_hash` contra `presential_verification_otps`.
 
 **Patrón**: `requireInternalAuth()` (service_role o cron_secret) o `requireCronSecret()`.
 
-**Endpoints** (9):
+**Endpoints** (14):
 - `anchor-bitcoin` — Worker de anclaje Bitcoin
 - `anchor-polygon` — Worker de anclaje Polygon
 - `finalize-document` — Finalizar certificado ECO (worker interno)
 - `fase1-executor` — Ejecutor de jobs fase 1
+- `new-document-canonical-trigger` — Trigger canónico (interno)
 - `notify-artifact-ready` — Notificar artifact ready (cron)
 - `notify-document-signed` — Notificar documento firmado (cron)
+- `orchestrator` — Orquestador de jobs (interno)
 - `process-bitcoin-anchors` — Procesar anclas Bitcoin (cron)
 - `process-polygon-anchors` — Procesar anclas Polygon (cron)
 - `process-signature` — Procesar firma (worker interno)
+- `process-signer-signed` — Procesar firmante completado (worker interno)
 - `record-custody-key-rotation` — Registrar rotación de clave (interno)
 - `send-pending-emails` — Enviar emails pendientes (cron)
 
@@ -145,11 +148,8 @@ protegidos por RLS en la base de datos, o bien endpoints públicos de lectura/ve
 - `legal-timestamp` — Timestamp legal (TSA, worker interno)
 - `log-ecox-event` — Loguear evento ECOX (interno)
 - `monitoring-dashboard` — Dashboard de monitoreo
-- `new-document-canonical-trigger` — Trigger canónico de nuevo documento
 - `notify-document-certified` — Notificar documento certificado (worker interno)
-- `orchestrator` — Orquestador de jobs (interno)
 - `presential-verification-get-acta` — Obtener acta presencial por hash (público)
-- `process-signer-signed` — Procesar firmante completado (worker interno)
 - `record-signer-receipt` — Registrar receipt de firmante
 - `repair-missing-anchor-events` — Reparar eventos de anchor faltantes
 - `request-document-changes` — Solicitar cambios en documento

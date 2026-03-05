@@ -459,6 +459,13 @@ async function pollJobs(): Promise<void> {
   console.log('👂 Orchestrator iniciado, buscando jobs...');
 
   try {
+    await supabase.rpc('worker_heartbeat', { worker_name: 'orchestrator' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn('Failed to update orchestrator heartbeat', { error: message });
+  }
+
+  try {
     // Usar claim_orchestrator_jobs para reclamar jobs de forma atómica
     // Esto previene conflictos de concurrencia usando FOR UPDATE SKIP LOCKED
     const { data: jobs, error } = await supabase.rpc('claim_orchestrator_jobs', {
@@ -489,6 +496,14 @@ async function pollJobs(): Promise<void> {
 
   } catch (error) {
     console.error('❌ Error en el polling de jobs:', error);
+    try {
+      await supabase.rpc('worker_heartbeat', {
+        worker_name: 'orchestrator',
+        worker_status: 'stalled',
+      });
+    } catch {
+      // noop
+    }
   }
 }
 

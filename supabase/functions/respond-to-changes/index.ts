@@ -144,7 +144,7 @@ serve(async (req) => {
         })
         .eq('id', signerId)
 
-      await appendCanonicalEvent(
+      const resolvedRejectedEvent = await appendCanonicalEvent(
         supabase,
         {
           event_type: 'document.change_resolved',
@@ -154,8 +154,11 @@ serve(async (req) => {
         },
         'respond-to-changes'
       )
+      if (!resolvedRejectedEvent.success) {
+        return jsonResponse({ error: 'Failed to append document.change_resolved', details: resolvedRejectedEvent.error }, 500)
+      }
 
-      await appendCanonicalEvent(
+      const signerReadyEvent = await appendCanonicalEvent(
         supabase,
         {
           event_type: 'signer.ready_to_sign',
@@ -165,15 +168,9 @@ serve(async (req) => {
         },
         'respond-to-changes'
       )
-
-      // Reactivar workflow
-      await supabase
-        .from('signature_workflows')
-        .update({
-          status: 'active',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', workflowId)
+      if (!signerReadyEvent.success) {
+        return jsonResponse({ error: 'Failed to append signer.ready_to_sign', details: signerReadyEvent.error }, 500)
+      }
 
       // Notificar al solicitante
       await supabase
@@ -239,7 +236,7 @@ serve(async (req) => {
         })
         .eq('id', signerId)
 
-      await appendCanonicalEvent(
+      const resolvedAcceptedEvent = await appendCanonicalEvent(
         supabase,
         {
           event_type: 'document.change_resolved',
@@ -249,8 +246,11 @@ serve(async (req) => {
         },
         'respond-to-changes'
       )
+      if (!resolvedAcceptedEvent.success) {
+        return jsonResponse({ error: 'Failed to append document.change_resolved', details: resolvedAcceptedEvent.error }, 500)
+      }
 
-      await appendCanonicalEvent(
+      const signerInvitedEvent = await appendCanonicalEvent(
         supabase,
         {
           event_type: 'signer.invited',
@@ -260,6 +260,9 @@ serve(async (req) => {
         },
         'respond-to-changes'
       )
+      if (!signerInvitedEvent.success) {
+        return jsonResponse({ error: 'Failed to append signer.invited', details: signerInvitedEvent.error }, 500)
+      }
 
       // Obtener todos los firmantes previos que ya firmaron
       const { data: previousSigners } = await supabase
@@ -290,7 +293,7 @@ serve(async (req) => {
         }
 
         for (const prevSigner of previousSigners) {
-          await appendCanonicalEvent(
+          const prevSignerInvitedEvent = await appendCanonicalEvent(
             supabase,
             {
               event_type: 'signer.invited',
@@ -300,6 +303,9 @@ serve(async (req) => {
             },
             'respond-to-changes'
           )
+          if (!prevSignerInvitedEvent.success) {
+            return jsonResponse({ error: 'Failed to append signer.invited', details: prevSignerInvitedEvent.error }, 500)
+          }
         }
       }
 
@@ -369,7 +375,7 @@ serve(async (req) => {
         .single()
 
       if (firstSigner) {
-        await appendCanonicalEvent(
+        const firstSignerReadyEvent = await appendCanonicalEvent(
           supabase,
           {
             event_type: 'signer.ready_to_sign',
@@ -379,6 +385,9 @@ serve(async (req) => {
           },
           'respond-to-changes'
         )
+        if (!firstSignerReadyEvent.success) {
+          return jsonResponse({ error: 'Failed to append signer.ready_to_sign', details: firstSignerReadyEvent.error }, 500)
+        }
 
         await supabase
           .from('workflow_notifications')

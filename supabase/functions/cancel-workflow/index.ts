@@ -70,14 +70,18 @@ serve(async (req) => {
       return jsonResponse({ error: `Workflow cannot be cancelled from status=${workflow.status}` }, 400, corsHeaders)
     }
 
-    const { error: updateError } = await supabase
-      .from('signature_workflows')
-      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-      .eq('id', workflowId)
-      .in('status', ['ready', 'active'])
-
-    if (updateError) {
-      return jsonResponse({ error: 'Failed to cancel workflow' }, 500, corsHeaders)
+    const cancellationEvent = await appendCanonicalEvent(
+      supabase,
+      {
+        event_type: 'workflow.cancelled',
+        workflow_id: workflowId,
+        payload: { previous_status: workflow.status, cancelled_at: new Date().toISOString() },
+        actor_id: user.id
+      },
+      'cancel-workflow'
+    )
+    if (!cancellationEvent.success) {
+      return jsonResponse({ error: 'Failed to cancel workflow', details: cancellationEvent.error }, 500, corsHeaders)
     }
 
     // Hard-revoke signer access tokens and mark pending signers as cancelled.
@@ -95,17 +99,6 @@ serve(async (req) => {
     if (revokeErr) {
       console.error('cancel-workflow: failed to hard-revoke signers', revokeErr)
     }
-
-    await appendCanonicalEvent(
-      supabase,
-      {
-        event_type: 'workflow.cancelled',
-        workflow_id: workflowId,
-        payload: { previous_status: workflow.status, cancelled_at: new Date().toISOString() },
-        actor_id: user.id
-      },
-      'cancel-workflow'
-    )
 
     return jsonResponse({ success: true }, 200, corsHeaders)
   } catch (error) {

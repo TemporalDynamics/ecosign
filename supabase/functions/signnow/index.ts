@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1?target=deno';
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { normalizeEmail } from '../_shared/email.ts';
 
@@ -590,17 +591,32 @@ serve(async (req) => {
     // Si viene workflowId, enlazar documento/URL a workflow y firmantes
     if (workflowId && client) {
       try {
-        await client
+        const { error: workflowLinkError } = await client
           .from('signature_workflows')
           .update({
             signature_type: 'SIGNNOW',
             signnow_document_id: signNowDocumentId,
             signnow_invite_id: responsePayload.signnow_invite_id,
             signnow_status: 'pending',
-            signnow_embed_url: signingUrl,
-            status: 'active'
+            signnow_embed_url: signingUrl
           })
           .eq('id', workflowId);
+        if (workflowLinkError) {
+          throw workflowLinkError
+        }
+
+        const activatedEvent = await appendCanonicalEvent(
+          client as any,
+          {
+            event_type: 'workflow.activated',
+            workflow_id: workflowId,
+            payload: { source: 'signnow', signnow_document_id: signNowDocumentId }
+          },
+          'signnow'
+        )
+        if (!activatedEvent.success) {
+          throw new Error(`Failed to append workflow.activated: ${activatedEvent.error}`)
+        }
 
         // Actualizar firmantes con la URL de embed para que el front pueda mostrarla
         const signerEmails = signers.map((s) => normalizeEmail(s.email));

@@ -163,16 +163,8 @@ serve(async (req) => {
       })
       .eq('id', signer.id)
 
-    // 4. Mantener workflow activo (estado semantico "bloqueado")
-    await supabase
-      .from('signature_workflows')
-      .update({
-        status: 'active',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', signer.workflow_id)
-
-    await appendCanonicalEvent(
+    // 4. Registrar evento canónico; la proyección actualiza workflow.status.
+    const changeRequestedEvent = await appendCanonicalEvent(
       supabase,
       {
         event_type: 'document.change_requested',
@@ -185,6 +177,9 @@ serve(async (req) => {
       },
       'request-document-changes'
     )
+    if (!changeRequestedEvent.success) {
+      return jsonResponse({ error: 'Failed to append document.change_requested', details: changeRequestedEvent.error }, 500)
+    }
 
     // 5. Obtener email del owner
     const { data: owner } = await supabase.auth.admin.getUserById(workflow.owner_id)

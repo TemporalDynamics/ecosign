@@ -4,8 +4,8 @@ import { buildMerkleRoot, computeStateHash } from '../../supabase/functions/_sha
 describe('EPI Merkle canonicalization', () => {
   test('buildMerkleRoot is order-independent for leaves', async () => {
     const leavesA = [
-      { type: 'state' as const, hash: 'state-hash-1', at: '2026-03-01T10:00:00.000Z' },
-      { type: 'content' as const, hash: 'source-hash-1', at: '2026-03-01T09:00:00.000Z' }
+      { type: 'state' as const, hash: '1111111111111111111111111111111111111111111111111111111111111111', at: '2026-03-01T10:00:00.000Z' },
+      { type: 'content' as const, hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', at: '2026-03-01T09:00:00.000Z' }
     ];
     const leavesB = [leavesA[1], leavesA[0]];
 
@@ -17,14 +17,14 @@ describe('EPI Merkle canonicalization', () => {
 
   test('buildMerkleRoot changes when an extra leaf is added', async () => {
     const baseLeaves = [
-      { type: 'content' as const, hash: 'source-hash-1', at: '2026-03-01T09:00:00.000Z' },
-      { type: 'state' as const, hash: 'state-hash-1', at: '2026-03-01T10:00:00.000Z' }
+      { type: 'content' as const, hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', at: '2026-03-01T09:00:00.000Z' },
+      { type: 'state' as const, hash: '1111111111111111111111111111111111111111111111111111111111111111', at: '2026-03-01T10:00:00.000Z' }
     ];
     const rootA = await buildMerkleRoot(baseLeaves);
 
     const rootB = await buildMerkleRoot([
       ...baseLeaves,
-      { type: 'state' as const, hash: 'state-hash-2', at: '2026-03-01T11:00:00.000Z' }
+      { type: 'state' as const, hash: '2222222222222222222222222222222222222222222222222222222222222222', at: '2026-03-01T11:00:00.000Z' }
     ]);
 
     expect(rootA).not.toBe(rootB);

@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
-import { appendEvent } from '../_shared/eventHelper.ts'
+import { appendEvent as appendDocumentEvent } from '../_shared/eventHelper.ts'
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
+import { requireInternalAuth } from '../_shared/internalAuth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -27,6 +29,52 @@ const json = (data: unknown, status = 200) =>
 const isFlagEnabled = (name: string) =>
   String(Deno.env.get(name) ?? '').toLowerCase() === 'true'
 
+function normalizeSignature(signature: string | null): string {
+  if (!signature) return ''
+  const value = signature.trim().toLowerCase()
+  return value.startsWith('sha256=') ? value.slice('sha256='.length) : value
+}
+
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) return false
+  let mismatch = 0
+  for (let i = 0; i < a.length; i += 1) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return mismatch === 0
+}
+
+async function computeHmacSha256Hex(secret: string, payload: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload))
+  return Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+async function hasValidWebhookSignature(req: Request, rawBody: string): Promise<boolean> {
+  const secret = (Deno.env.get('SIGNNOW_WEBHOOK_SECRET') ?? '').trim()
+  if (!secret) return false
+
+  const signatureHeader =
+    req.headers.get('x-signature') ||
+    req.headers.get('x-signnow-signature') ||
+    req.headers.get('x-webhook-signature')
+
+  const receivedSignature = normalizeSignature(signatureHeader)
+  if (!receivedSignature) return false
+
+  const expectedSignature = await computeHmacSha256Hex(secret, rawBody)
+  return timingSafeEqualHex(receivedSignature, expectedSignature)
+}
+
 async function emitDocumentSigned(
   documentEntityId: string,
   source: string
@@ -47,7 +95,7 @@ async function emitDocumentSigned(
     return
   }
 
-  await appendEvent(
+  await appendDocumentEvent(
     supabase,
     documentEntityId,
     {
@@ -117,7 +165,21 @@ serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   try {
-    const payload = await req.json()
+    const rawBody = await req.text()
+    const auth = requireInternalAuth(req, { allowCronSecret: true })
+    if (!auth.ok) {
+      const signatureOk = await hasValidWebhookSignature(req, rawBody)
+      if (!signatureOk) {
+        return json({ error: 'Forbidden' }, 403)
+      }
+    }
+
+    let payload: any = {}
+    try {
+      payload = JSON.parse(rawBody || '{}')
+    } catch {
+      return json({ error: 'Invalid JSON payload' }, 400)
+    }
     console.log('📬 SignNow webhook received', payload)
 
     const eventType = payload?.event
@@ -142,11 +204,8 @@ serve(async (req) => {
     }
 
     // Owner email
-    const { data: ownerUser } = await supabase
-      .from('auth.users')
-      .select('email')
-      .eq('id', workflow.owner_id)
-      .maybeSingle()
+    const { data: ownerUserResult } = await supabase.auth.admin.getUserById(workflow.owner_id)
+    const ownerUserEmail = ownerUserResult?.user?.email ?? null
 
     const accessToken = await getSignNowAccessToken()
     const signedBlob = await downloadSignedPdf(signnowDocumentId, accessToken)
@@ -167,13 +226,43 @@ serve(async (req) => {
       .from('signature_workflows')
       .update({
         signnow_status: 'completed',
-        status: 'completed',
         document_path: signedPath,
         document_hash: signedHash,
         updated_at: new Date().toISOString(),
         completed_at: new Date().toISOString()
       })
       .eq('id', workflow.id)
+
+    const existingCompletedEvent = await supabase
+      .from('workflow_events')
+      .select('id')
+      .eq('workflow_id', workflow.id)
+      .eq('event_type', 'workflow.completed')
+      .limit(1)
+      .maybeSingle()
+
+    if (!existingCompletedEvent.error && !existingCompletedEvent.data) {
+      const completedEvent = await appendCanonicalEvent(
+        supabase as any,
+        {
+          event_type: 'workflow.completed',
+          workflow_id: workflow.id,
+          payload: {
+            completed_at: new Date().toISOString(),
+            source: 'signnow-webhook'
+          },
+          actor_id: workflow.owner_id ?? null
+        },
+        'signnow-webhook'
+      )
+      if (!completedEvent.success) {
+        console.warn('signnow-webhook: failed to append workflow.completed', completedEvent.error)
+      }
+    }
+
+    await supabase.rpc('project_signature_workflow_status', {
+      p_workflow_id: workflow.id
+    })
 
     const { data: signers } = await supabase
       .from('workflow_signers')
@@ -205,14 +294,14 @@ serve(async (req) => {
       }
       try {
         await supabase.functions.invoke('anchor-polygon', {
-          body: { documentHash: signedHash, documentEntityId: workflow.document_entity_id ?? null, userEmail: ownerUser?.email || 'owner@ecosign.app' }
+          body: { documentHash: signedHash, documentEntityId: workflow.document_entity_id ?? null, userEmail: ownerUserEmail || 'owner@ecosign.app' }
         })
       } catch (e) {
         console.error('anchor-polygon failed', e)
       }
       try {
         await supabase.functions.invoke('anchor-bitcoin', {
-          body: { documentHash: signedHash, documentEntityId: workflow.document_entity_id ?? null, userEmail: ownerUser?.email || 'owner@ecosign.app' }
+          body: { documentHash: signedHash, documentEntityId: workflow.document_entity_id ?? null, userEmail: ownerUserEmail || 'owner@ecosign.app' }
         })
       } catch (e) {
         console.error('anchor-bitcoin failed', e)
@@ -221,7 +310,7 @@ serve(async (req) => {
 
     // Notifications
     const workflowTitle = workflow.original_filename || 'Documento'
-    const ownerEmail = ownerUser?.email
+    const ownerEmail = ownerUserEmail
 
     if (ownerEmail || (signers && signers.length > 0)) {
       const recipients = new Map<string, { email: string; signer_id?: string | null; recipient_type: 'owner' | 'signer' }>()

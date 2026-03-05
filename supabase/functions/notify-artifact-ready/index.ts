@@ -18,6 +18,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
+import { normalizeEmail } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -110,20 +111,6 @@ serve(async (req) => {
           continue;
         }
 
-        // Check if notification already sent (idempotency via workflow_notifications)
-        const { data: existingNotification } = await supabaseClient
-          .from('workflow_notifications')
-          .select('id')
-          .eq('workflow_id', artifact.workflow_id)
-          .eq('notification_type', NOTIFICATION_TYPE)
-          .single();
-
-        if (existingNotification) {
-          console.log(`[notify-artifact-ready] Notification already sent for workflow: ${artifact.workflow_id}`);
-          results.push({ artifact_id: artifact.id, status: 'skipped', reason: 'already_notified' });
-          continue;
-        }
-
         // Get owner email
         const { data: ownerData } = await supabaseClient
           .from('auth.users')
@@ -131,7 +118,7 @@ serve(async (req) => {
           .eq('id', workflow.owner_id)
           .single();
 
-        const ownerEmail = ownerData?.email;
+        const ownerEmail = normalizeEmail(ownerData?.email ?? null);
 
         if (!ownerEmail) {
           console.warn(`[notify-artifact-ready] No owner email for workflow: ${artifact.workflow_id}`);
@@ -145,7 +132,7 @@ serve(async (req) => {
 
         const { error: notifyError } = await supabaseClient
           .from('workflow_notifications')
-          .insert({
+          .upsert({
             workflow_id: artifact.workflow_id,
             recipient_email: ownerEmail,
             recipient_type: 'owner',
@@ -172,7 +159,10 @@ serve(async (req) => {
               </p>
             `,
             delivery_status: 'pending',
-            notification_step: 'artifact_ready'
+            step: 'primary'
+          }, {
+            onConflict: 'workflow_id,recipient_email,notification_type,step',
+            ignoreDuplicates: true,
           });
 
         if (notifyError) {

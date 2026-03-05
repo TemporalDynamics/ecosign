@@ -30,7 +30,7 @@ El sistema opera con 5 categorías de autenticación, cada una con contrato expl
 - `log-event` — Loguear evento (owner)
 - `log-share-event` — Loguear evento de share
 - `presential-verification-start-session` — Iniciar sesión presencial
-- `presential-verification-confirm-presence` — Confirmar presencia ¹
+- `presential-verification-confirm-presence` — Confirmar presencia
 - `presential-verification-close-session` — Cerrar sesión presencial
 - `record-protection-event` — Registrar evento de protección
 - `register-custody-upload` — Registrar upload de custodia
@@ -44,10 +44,6 @@ El sistema opera con 5 categorías de autenticación, cada una con contrato expl
 - `workflow-fields` — Obtener campos de workflow
 
 **Invariante**: Todos deben validar `Authorization` header y obtener `user` válido.
-
-¹ `presential-verification-confirm-presence` tiene `verify_jwt = false` porque el participante
-invitado envía su token en el body (no en `Authorization` header). Tiene validación custom
-via `participant_token_hash` contra `presential_verification_otps`.
 
 ---
 
@@ -176,16 +172,18 @@ service_role a nivel de DB, o son endpoints de lectura pública intencional.
 ### Estado actual
 
 En `supabase/config.toml`:
-- La mayoría de las functions tienen `verify_jwt = true`
-- Algunas exceptions específicas tienen `verify_jwt = false`
+- La mayoría de las functions tienen `verify_jwt = true`.
+- Las únicas excepciones en allowlist son:
+  - `signing-keys`
+  - `presential-verification-get-acta`
 
 ### Regla contractual
 
-1. **Functions de Usuario Logueado**: `verify_jwt = true` (obligatorio)
-2. **Functions de Firmante Externo**: `verify_jwt = false` (usan validación custom)
-3. **Functions Cron**: `verify_jwt = false` (usan cron_secret)
-4. **Webhooks Externos**: `verify_jwt = false` (validan firma del proveedor)
-5. **Públicas sin Auth**: `verify_jwt = false` (no requieren validación)
+1. **Functions de Usuario Logueado**: `verify_jwt = true` (obligatorio).
+2. **Functions de Firmante Externo**: `verify_jwt = true` + validación de token de firmante.
+3. **Functions Cron**: `verify_jwt = true` + `requireInternalAuth()`/`requireCronSecret()`.
+4. **Webhooks Externos**: `verify_jwt = false` solo si validan firma/HMAC del proveedor.
+5. **Públicas sin Auth**: `verify_jwt = false` solo por allowlist explícita.
 
 ### Justificación de excepciones
 

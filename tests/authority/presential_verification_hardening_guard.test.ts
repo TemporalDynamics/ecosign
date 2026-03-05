@@ -108,11 +108,11 @@ test('migration must add invited participant token columns for presential OTPs',
   expect(content).toContain('token_revoked_at');
 });
 
-test('presential confirm function must allow invited token flow', async () => {
+test('presential confirm function must keep JWT verification enabled', async () => {
   const content = await fs.readFile(SUPABASE_CONFIG_FILE, 'utf8');
 
   expect(content).toContain('[functions.presential-verification-confirm-presence]');
-  expect(content).toContain('verify_jwt = false');
+  expect(content).toContain('verify_jwt = true');
 });
 
 test('public acta endpoint must be exposed by hash and unauthenticated', async () => {

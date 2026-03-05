@@ -1,3 +1,27 @@
+## Iteración: reducción de superficie `verify_jwt = false` (punto 2) — 2026-03-05
+
+### 🎯 Resumen
+Se cerró superficie no esencial con `verify_jwt = false` y se dejó una allowlist mínima:
+
+- `record-evidence-download` pasa a `verify_jwt = true` (mantiene validación de signer token).
+- `presential-verification-confirm-presence` pasa a `verify_jwt = true` (mantiene flujo por `participant_token`/OTP).
+- Se mantiene `verify_jwt = false` solo para:
+  - `signing-keys` (lectura pública de claves),
+  - `presential-verification-get-acta` (consulta pública por hash + rate limit).
+
+### ✅ Cambios implementados
+- `supabase/config.toml`
+  - `record-evidence-download`: `verify_jwt = true`
+  - `presential-verification-confirm-presence`: `verify_jwt = true`
+- `tests/authority/verify_jwt_false_allowlist_guard.test.ts`
+  - allowlist actualizada a 2 funciones.
+- `tests/authority/auth_surface_sealed_guard.test.ts`
+  - `record-evidence-download` marcado como `mustHaveVerifyJwtTrue`.
+- `tests/authority/presential_verification_hardening_guard.test.ts`
+  - guard actualizado para exigir `verify_jwt = true` en confirm-presence.
+- `docs/beta/AUTH_SURFACE_SEALED.md`
+  - contrato de `verify_jwt` alineado con allowlist mínima.
+
 ## Iteración: cierre de SECURITY DEFINER remanente + allowlist operativa — 2026-03-05
 
 ### 🎯 Resumen

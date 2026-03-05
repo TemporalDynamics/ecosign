@@ -222,7 +222,10 @@ test('config.toml verify_jwt must be consistent with auth categories', async () 
   const configContent = await fs.readFile(CONFIG_FILE, 'utf8');
 
   // Functions que DEBEN tener verify_jwt = true
-  const mustHaveVerifyJwtTrue = AUTH_CATEGORIES.userLogged;
+  const mustHaveVerifyJwtTrue = [
+    ...AUTH_CATEGORIES.userLogged,
+    'record-evidence-download',
+  ];
 
   // Functions que PUEDEN tener verify_jwt = false (excepciones justificadas)
   const canHaveVerifyJwtFalse = [
@@ -231,8 +234,6 @@ test('config.toml verify_jwt must be consistent with auth categories', async () 
     ...AUTH_CATEGORIES.cronInternal,
     ...AUTH_CATEGORIES.webhookExternal,
     ...AUTH_CATEGORIES.publicNoAuth,
-    // Excepciones documentadas de userLogged que usan validación alternativa
-    'presential-verification-confirm-presence', // Usa token en body, no en header
   ];
 
   const offenders: string[] = [];

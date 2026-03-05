@@ -273,7 +273,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.record-evidence-download]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-polygon-anchors]
 verify_jwt = true
@@ -285,7 +285,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.presential-verification-confirm-presence]
-verify_jwt = false
+verify_jwt = true
 
 [functions.presential-verification-close-session]
 verify_jwt = true

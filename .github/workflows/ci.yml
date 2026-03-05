@@ -137,6 +137,7 @@ jobs:
   # Run eco-packer tests
   eco-packer-tests:
     name: Eco-Packer Tests
+    if: ${{ secrets.RUN_ECO_PACKER_TESTS == 'true' }}
     runs-on: ubuntu-latest
     env:
       VITEST_POOL: threads

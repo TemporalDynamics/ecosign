@@ -1,3 +1,41 @@
+## Iteración: blindaje final de tablas internas runtime — 2026-03-05
+
+### 🎯 Resumen
+Se cerró el blindaje de tablas internas que todavía permitían grants amplios:
+
+1. se endurecieron grants + RLS sobre tablas runtime internas,
+2. se agregó auditoría ejecutable en gate de release para verificar estado real de DB.
+
+### ✅ Cambios implementados
+- **Migración de hardening final (runtime interno):**
+  - `supabase/migrations/20260305230000_harden_internal_runtime_table_grants_and_rls.sql`
+  - Tablas cerradas:
+    - `domain_outbox`
+    - `executor_job_runs`
+    - `executor_jobs`
+    - `welcome_email_queue`
+    - `system_workers`
+    - `executor_decision_logs`
+    - `shadow_decision_logs`
+  - Acciones:
+    - `ENABLE ROW LEVEL SECURITY`
+    - `REVOKE ALL FROM PUBLIC, anon, authenticated`
+    - `GRANT ... TO service_role`
+    - reemplazo de policies por `*_service_role_only`
+- **Auditoría ejecutable de DB:**
+  - `scripts/diagnostics/check-internal-runtime-table-hardening.sh`
+  - Verifica en base real:
+    - RLS activado
+    - sin grants anon/authenticated
+    - policies solo `service_role`
+- **Integración en gate:**
+  - `package.json` → `diag:internal-runtime-table-hardening`
+  - `scripts/release-gate.sh` ahora ejecuta esa auditoría
+- **Guards de no regresión:**
+  - `tests/authority/internal_runtime_table_grants_rls_guard.test.ts`
+  - `tests/authority/release_gate_hardening_guard.test.ts` actualizado
+  - `scripts/diagnostics/prebeta_fire_drill.sh` incluye guard nuevo
+
 ## Iteración: cierre de superficie `verify_jwt=false` no esencial — 2026-03-05
 
 ### 🎯 Resumen

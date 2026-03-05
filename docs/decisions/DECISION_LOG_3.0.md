@@ -4159,3 +4159,37 @@ Se cerró el ciclo de hardening de autoridad/seguridad sobre funciones SQL `SECU
 - Se cerró la deriva de permisos que reabría ciclos de auditoría.
 - El perímetro interno queda explícito y testeado por contrato.
 - El ledger/eventos y la proyección de estado quedan alineados con el modelo de autoridad.
+
+## Iteración — 2026-03-05 (cierre 2+3 previo a smoke manual)
+
+### 🎯 Resumen
+Se ejecutó cierre agresivo de:
+1) legacy/deprecados sin callers reales (hard deprecation),
+2) autoridad implícita remanente en SQL de workflow status.
+
+### ✅ Cambios implementados
+- **Legacy hard-deprecated (sin side-effects):**
+  - `supabase/functions/test-email/index.ts` → `410`
+  - `supabase/functions/test-insert-notification/index.ts` → `410`
+  - `supabase/functions/wake-authority/index.ts` → `410`
+  - `supabase/functions/stamp-pdf/index.ts` → `410` explícito
+  - `auto-tsa` ya se mantenía en `410` por cierre canónico.
+- **Autoridad SQL de status reducida:**
+  - Migración `supabase/migrations/20260305160000_reduce_status_sql_authority.sql`:
+    - `advance_workflow` ya no setea `signature_workflows.status`.
+    - `create_workflow_version` ya no setea `signature_workflows.status` (solo `current_version`).
+    - `REVOKE EXECUTE` a `PUBLIC/anon/authenticated` y `GRANT` solo `service_role/postgres` para ambas funciones.
+
+### 🧪 Verificación
+- Guards nuevos:
+  - `tests/authority/legacy_endpoint_deprecations_guard.test.ts`
+  - `tests/authority/workflow_status_sql_authority_guard.test.ts`
+- Query de exposición final (`SECURITY DEFINER` mutador ejecutable por `anon/authenticated`):
+  - Solo quedan RPCs de producto autenticado (folders/regeneration), sin exposición interna.
+- Migración aplicada en remoto hasta:
+  - `20260305160000_reduce_status_sql_authority.sql`
+
+### Resultado
+- Legacy peligroso queda en fail-fast explícito.
+- Se elimina otro canal de autoridad paralela sobre `signature_workflows.status`.
+- El smoke/e2e manual posterior ya valida un sistema con menos “doble cerebro”.

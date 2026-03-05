@@ -161,16 +161,16 @@ protegidos por RLS en la base de datos, o bien endpoints públicos de lectura/ve
 - `signer-access` — Acceso de firmante (integración SignNow)
 - `signnow` — Integración SignNow
 - `signing-keys` — Public keys de firma institucional (público)
-- `stamp-pdf` — Sellado de PDF (worker interno)
+- `stamp-pdf` — **DEPRECATED (410)**: usar pipeline canónico interno
 - `store-signer-signature` — Almacenar firma de firmante
 - `submit-anchor-bitcoin` — Submit anchor Bitcoin (worker interno)
 - `submit-anchor-polygon` — Submit anchor Polygon (worker interno)
-- `test-email` — Test de email (dev/diagnóstico)
-- `test-insert-notification` — Test de notificación (dev/diagnóstico)
+- `test-email` — **DEPRECATED (410)**: diagnóstico legacy deshabilitado
+- `test-insert-notification` — **DEPRECATED (410)**: diagnóstico legacy deshabilitado
 - `verify-ecox` — Verificar ECOX (público)
 - `verify-share-otp` — Verificar OTP de share
 - `verify-workflow-hash` — Verificar hash de workflow
-- `wake-authority` — Wake authority (trigger interno)
+- `wake-authority` — **DEPRECATED (410)**: usar `runtime_tick`/pipeline interno
 
 **Invariante**: Sin validación de JWT explícita. La seguridad se apoya en RLS,
 service_role a nivel de DB, o son endpoints de lectura pública intencional.

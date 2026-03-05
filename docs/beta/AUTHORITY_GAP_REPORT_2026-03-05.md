@@ -75,9 +75,20 @@
     - `insert_workflow_signer`
     - `log_ecox_event`
     - `upgrade_protection_level`
+- P2-1 implemented:
+  - Legacy endpoints without active callers were hard-deprecated (`410 Gone`) with no side-effects:
+    - `test-email`
+    - `test-insert-notification`
+    - `wake-authority`
+    - `stamp-pdf`
+- P3-1 implemented:
+  - New migration `supabase/migrations/20260305160000_reduce_status_sql_authority.sql` reduces implicit status authority:
+    - `advance_workflow` no longer updates `signature_workflows.status`,
+    - `create_workflow_version` no longer updates `signature_workflows.status`,
+    - both functions now executable only by `service_role/postgres`.
 - Verification snapshot (2026-03-05):
   - Local DB privilege checks confirm targeted functions are closed for `anon` and aligned with intended role model.
-  - Remote migration history confirms `20260305133000`, `20260305143000`, `20260305150000`, and `20260305153000` applied.
+  - Remote migration history confirms `20260305133000`, `20260305143000`, `20260305150000`, `20260305153000`, and `20260305160000` applied.
 
 ## 1) Target vs Actual (Invariants)
 

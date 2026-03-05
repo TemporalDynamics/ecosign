@@ -10,7 +10,7 @@ test('RLS cross-user script passes', (done) => {
     throw new Error('Gate-0 RLS test requires SUPABASE_URL, SERVICE_ROLE_KEY and SUPABASE_JWT_SECRET in the environment');
   }
 
-  const p = execFile('node', ['scripts/rls_test_working.js'], { env: process.env }, (err, stdout, stderr) => {
+  const p = execFile('node', ['scripts/diagnostics/rls_test_working.js'], { env: process.env }, (err, stdout, stderr) => {
     // forward output for CI logs
     if (stdout) console.log(stdout);
     if (stderr) console.error(stderr);

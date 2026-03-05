@@ -12,7 +12,7 @@ test('[SMOKE] E2E happy path (smoke) runs', (done) => {
   const key = process.env.SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   const env = { ...process.env, SERVICE_ROLE_KEY: key };
 
-  const p = execFile('node', ['scripts/rls_test_working.js'], { env }, (err, stdout, stderr) => {
+  const p = execFile('node', ['scripts/diagnostics/rls_test_working.js'], { env }, (err, stdout, stderr) => {
     if (stdout) console.log(stdout);
     if (stderr) console.error(stderr);
     if (err) return done(err);

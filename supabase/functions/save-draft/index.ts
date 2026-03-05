@@ -113,6 +113,14 @@ serve(async (req) => {
       return jsonResponse({ error: 'Invalid request: operation.name and documents[] required' }, 400, corsHeaders)
     }
 
+    if (custody_mode === 'encrypted_custody') {
+      return jsonResponse(
+        { error: 'encrypted_custody_not_supported_yet' },
+        501,
+        corsHeaders
+      )
+    }
+
     // 3. Validar documentos
     for (const doc of documents) {
       if (!doc.filename || !doc.file_data || !doc.size) {

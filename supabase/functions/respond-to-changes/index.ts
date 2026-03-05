@@ -269,6 +269,40 @@ serve(async (req) => {
         .eq('status', 'signed')
         .lt('signing_order', signer.signing_order)
 
+      // Resetear firmantes previos (re-firmar obligatorio)
+      if (previousSigners && previousSigners.length > 0) {
+        const nowIso = new Date().toISOString()
+        const previousSignerIds = previousSigners.map((s) => s.id)
+        const { error: resetError } = await supabase
+          .from('workflow_signers')
+          .update({
+            status: 'invited',
+            signed_at: null,
+            signing_lock_id: null,
+            signing_lock_at: null,
+            updated_at: nowIso
+          })
+          .in('id', previousSignerIds)
+
+        if (resetError) {
+          console.error('Error resetting previous signers:', resetError)
+          return jsonResponse({ error: 'Failed to reset previous signers' }, 500)
+        }
+
+        for (const prevSigner of previousSigners) {
+          await appendCanonicalEvent(
+            supabase,
+            {
+              event_type: 'signer.invited',
+              workflow_id: workflowId,
+              signer_id: prevSigner.id,
+              payload: { email: prevSigner.email, signing_order: prevSigner.signing_order, reason: 'document_changed' }
+            },
+            'respond-to-changes'
+          )
+        }
+      }
+
       // Notificar a firmantes previos
       if (previousSigners && previousSigners.length > 0) {
         for (const prevSigner of previousSigners) {

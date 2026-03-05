@@ -169,17 +169,17 @@ async function verifyOpenTimestamps(otsProof: string, calendarUrl: string): Prom
     const upgradedBytes = new Uint8Array(await response.arrayBuffer());
     const upgradedProof = btoa(String.fromCharCode.apply(null, Array.from(upgradedBytes)));
 
-    // TODO: Parse the upgraded proof properly to extract txid/blockheight.
     // To avoid false positives we only mark confirmed if the proof changed (was upgraded).
     // OpenTimestamps upgrades only once the Bitcoin anchor is available.
     const wasUpgraded = upgradedProof !== otsProof;
+    const parsed = wasUpgraded ? await extractBitcoinTxFromOts(upgradedProof) : {};
 
     return {
       confirmed: wasUpgraded,
       upgraded: wasUpgraded,
       upgradedProof: wasUpgraded ? upgradedProof : otsProof,
-      bitcoinTxId: undefined,
-      blockHeight: undefined
+      bitcoinTxId: parsed.txid,
+      blockHeight: parsed.height
     };
 
   } catch (error) {

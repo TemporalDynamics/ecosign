@@ -414,7 +414,7 @@ serve(withRateLimit('workflow', async (req) => {
     }
 
     // HYPOTHESIS DEBUGGING: Log the exact payload before the insert.
-    console.log('[DEBUG] signersToInsert payload:', JSON.stringify(signersToInsert, null, 2));
+    // NOTE: Avoid logging signer PII in production.
 
     const { data: insertedSigners, error: signersError } = await supabase
       .from('workflow_signers')
@@ -423,12 +423,12 @@ serve(withRateLimit('workflow', async (req) => {
 
     if (signersError) {
       // HYPOTHESIS DEBUGGING: Log insert failure.
-      console.error('[DEBUG] Failed to insert signers.', signersError);
+    console.error('Failed to insert signers.', signersError);
       return jsonResponse({ error: 'Failed to create signers', details: signersError?.message }, 500)
     }
 
     // HYPOTHESIS DEBUGGING: Log insert success.
-    console.log(`[DEBUG] Successfully inserted ${insertedSigners?.length || 0} signers.`);
+    console.log(`Successfully inserted ${insertedSigners?.length || 0} signers.`);
     
     // ... (Canonical event logging remains the same)
 

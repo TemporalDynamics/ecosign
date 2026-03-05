@@ -117,7 +117,25 @@ function validateField(field: Partial<WorkflowField>): { valid: boolean; error?:
 // HANDLERS
 // ========================================
 
-async function handleGetFields(req: Request, supabase: ReturnType<typeof createClient>) {
+async function getDocumentOwnerId(
+  supabase: ReturnType<typeof createClient>,
+  documentEntityId: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('document_entities')
+    .select('owner_id')
+    .eq('id', documentEntityId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('Error fetching document owner:', error)
+    return null
+  }
+
+  return data?.owner_id ?? null
+}
+
+async function handleGetFields(req: Request, supabase: ReturnType<typeof createClient>, userId: string) {
   const url = new URL(req.url)
   const documentEntityId = url.searchParams.get('document_entity_id')
 
@@ -125,13 +143,16 @@ async function handleGetFields(req: Request, supabase: ReturnType<typeof createC
     return jsonResponse({ error: 'document_entity_id query parameter required' }, 400)
   }
 
-  // RLS enforced: Solo owner o signer asignado pueden ver
+  const ownerId = await getDocumentOwnerId(supabase, documentEntityId)
+  if (!ownerId || ownerId !== userId) {
+    return jsonResponse({ error: 'Only the document owner can read fields' }, 403)
+  }
+
   const { data, error } = await supabase
     .from('workflow_fields')
     .select('*')
     .eq('document_entity_id', documentEntityId)
     .order('created_at', { ascending: true })
-
   if (error) {
     console.error('Error fetching workflow fields:', error)
     return jsonResponse({ error: error.message }, 500)
@@ -151,6 +172,11 @@ async function handleCreateField(req: Request, supabase: ReturnType<typeof creat
   const validation = validateField(body)
   if (!validation.valid) {
     return jsonResponse({ error: validation.error }, 400)
+  }
+
+  const ownerId = await getDocumentOwnerId(supabase, body.document_entity_id)
+  if (!ownerId || ownerId !== userId) {
+    return jsonResponse({ error: 'Only the document owner can create fields' }, 403)
   }
 
   // Preparar datos para insert
@@ -190,7 +216,7 @@ async function handleCreateField(req: Request, supabase: ReturnType<typeof creat
   })
 }
 
-async function handleUpdateField(req: Request, supabase: ReturnType<typeof createClient>, fieldId: string) {
+async function handleUpdateField(req: Request, supabase: ReturnType<typeof createClient>, fieldId: string, userId: string) {
   const body: Partial<WorkflowField> = await req.json()
 
   // Preparar updates (solo campos permitidos)
@@ -214,7 +240,31 @@ async function handleUpdateField(req: Request, supabase: ReturnType<typeof creat
     return jsonResponse({ error: 'No fields to update' }, 400)
   }
 
-  // RLS enforced: Owner puede actualizar todo, signer solo value
+  const { data: fieldRow, error: fieldError } = await supabase
+    .from('workflow_fields')
+    .select('id, document_entity_id, assigned_signer_id')
+    .eq('id', fieldId)
+    .maybeSingle()
+
+  if (fieldError) {
+    console.error('Error loading workflow field for update:', fieldError)
+    return jsonResponse({ error: fieldError.message }, 500)
+  }
+
+  if (!fieldRow) {
+    return jsonResponse({ error: 'Field not found' }, 404)
+  }
+
+  const ownerId = await getDocumentOwnerId(supabase, fieldRow.document_entity_id)
+  if (!ownerId) {
+    return jsonResponse({ error: 'Document not found or unauthorized' }, 404)
+  }
+
+  if (ownerId !== userId) {
+    return jsonResponse({ error: 'Only the document owner can update fields' }, 403)
+  }
+
+  // Owner-only update
   const { data, error } = await supabase
     .from('workflow_fields')
     .update(updates)
@@ -238,8 +288,27 @@ async function handleUpdateField(req: Request, supabase: ReturnType<typeof creat
   })
 }
 
-async function handleDeleteField(req: Request, supabase: ReturnType<typeof createClient>, fieldId: string) {
-  // RLS enforced: Solo owner puede eliminar
+async function handleDeleteField(req: Request, supabase: ReturnType<typeof createClient>, fieldId: string, userId: string) {
+  const { data: fieldRow, error: fieldError } = await supabase
+    .from('workflow_fields')
+    .select('id, document_entity_id')
+    .eq('id', fieldId)
+    .maybeSingle()
+
+  if (fieldError) {
+    console.error('Error loading workflow field for delete:', fieldError)
+    return jsonResponse({ error: fieldError.message }, 500)
+  }
+
+  if (!fieldRow) {
+    return jsonResponse({ error: 'Field not found' }, 404)
+  }
+
+  const ownerId = await getDocumentOwnerId(supabase, fieldRow.document_entity_id)
+  if (!ownerId || ownerId !== userId) {
+    return jsonResponse({ error: 'Only the document owner can delete fields' }, 403)
+  }
+
   const { error } = await supabase
     .from('workflow_fields')
     .delete()
@@ -290,6 +359,10 @@ async function handleBatchCreate(req: Request, supabase: ReturnType<typeof creat
   // Ensure a corresponding row exists in public.batches so other parts of the system
   // can assign it to a signer.
   const documentEntityId = body.fields[0].document_entity_id as string
+  const ownerId = await getDocumentOwnerId(supabase, documentEntityId)
+  if (!ownerId || ownerId !== userId) {
+    return jsonResponse({ error: 'Only the document owner can create fields' }, 403)
+  }
   const { error: batchRowError } = await supabase
     .from('batches')
     .upsert({
@@ -379,7 +452,7 @@ serve(async (req) => {
     // Routing
     switch (req.method) {
       case 'GET':
-        return await handleGetFields(req, supabase)
+        return await handleGetFields(req, supabase, user.id)
 
       case 'POST':
         // Check if batch operation
@@ -394,7 +467,7 @@ serve(async (req) => {
         if (!fieldId) {
           return jsonResponse({ error: 'Field ID required in path' }, 400)
         }
-        return await handleUpdateField(req, supabase, fieldId)
+        return await handleUpdateField(req, supabase, fieldId, user.id)
       }
 
       case 'DELETE': {
@@ -403,7 +476,7 @@ serve(async (req) => {
         if (!fieldId) {
           return jsonResponse({ error: 'Field ID required in path' }, 400)
         }
-        return await handleDeleteField(req, supabase, fieldId)
+        return await handleDeleteField(req, supabase, fieldId, user.id)
       }
 
       default:

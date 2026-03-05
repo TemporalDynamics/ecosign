@@ -617,14 +617,24 @@ serve(withRateLimit('workflow', async (req) => {
     if (requireSequential) {
       const first = (insertedSigners || []).find((s: any) => s.signing_order === 1)
       if (first) {
-        const { error: promoteErr } = await supabase
-          .from('workflow_signers')
-          .update({ status: 'ready_to_sign' })
-          .eq('id', first.id)
-        if (promoteErr) {
-          console.error('Failed to promote first signer to ready_to_sign', promoteErr)
+        const readyEvent = await appendEvent(
+          supabase as any,
+          {
+            event_type: 'signer.ready_to_sign',
+            workflow_id: workflow.id,
+            signer_id: first.id,
+            payload: {
+              email: first.email,
+              signing_order: first.signing_order,
+              source: 'start-signature-workflow'
+            }
+          },
+          'start-signature-workflow'
+        )
+        if (!readyEvent.success) {
+          console.error('Failed to append signer.ready_to_sign for first signer', readyEvent.error)
           await cleanupWorkflow()
-          return jsonResponse({ error: 'failed_to_start', details: promoteErr.message }, 500)
+          return jsonResponse({ error: 'failed_to_start', details: readyEvent.error }, 500)
         }
       }
     }

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts'
+import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -99,14 +100,27 @@ serve(async (req) => {
     const { error: signerUpdateError } = await supabase
       .from('workflow_signers')
       .update({
-        status: 'signed',
         signature_data: signatureDataUrl,
-        signed_at: new Date().toISOString()
+        updated_at: new Date().toISOString()
       })
       .eq('id', signer.id)
 
     if (signerUpdateError) {
       return json({ error: 'No se pudo actualizar el firmante', details: signerUpdateError.message }, 500)
+    }
+
+    const signedEvent = await appendCanonicalEvent(
+      supabase as any,
+      {
+        event_type: 'signer.signed',
+        workflow_id: signer.workflow_id,
+        signer_id: signer.id,
+        payload: { source: 'store-signer-signature' }
+      },
+      'store-signer-signature'
+    )
+    if (!signedEvent.success) {
+      return json({ error: 'No se pudo registrar signer.signed', details: signedEvent.error }, 500)
     }
 
     return json({ success: true, document_path: signedPath })

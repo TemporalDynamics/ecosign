@@ -779,10 +779,9 @@ serve(async (req) => {
         if (currentPath && currentPath.startsWith(`signed/${workflow.id}/`)) {
           if (signer.status !== 'signed') {
             const signerUpdate: Record<string, any> = {
-              status: 'signed',
-              signed_at: new Date().toISOString(),
               signing_lock_id: null,
-              signing_lock_at: null
+              signing_lock_at: null,
+              updated_at: new Date().toISOString()
             }
             if (signatureData !== undefined) {
               signerUpdate.signature_data = signatureData || null
@@ -795,6 +794,15 @@ serve(async (req) => {
             if (signerUpdErr) {
               console.error('apply-signer-signature: idempotent signer update failed', signerUpdErr)
               return json({ error: 'Could not update signer', details: signerUpdErr.message }, 500)
+            }
+
+            const { error: projectSignerErr } = await supabase.rpc('project_workflow_signer_status', {
+              p_workflow_id: signer.workflow_id,
+              p_signer_id: signer.id
+            })
+            if (projectSignerErr) {
+              console.error('apply-signer-signature: idempotent signer status projection failed', projectSignerErr)
+              return json({ error: 'Could not project signer status', details: projectSignerErr.message }, 500)
             }
 
             if (requireSequential) {
@@ -1615,10 +1623,9 @@ serve(async (req) => {
     // Update signer status and persist signature data
     if (signer.status !== 'signed') {
       const signerUpdate: Record<string, any> = {
-        status: 'signed',
-        signed_at: new Date().toISOString(),
         signing_lock_id: null,
-        signing_lock_at: null
+        signing_lock_at: null,
+        updated_at: new Date().toISOString()
       }
       if (!signerAlreadySigned || signatureData !== undefined) {
         signerUpdate.signature_data = signatureData || null
@@ -1632,6 +1639,15 @@ serve(async (req) => {
       if (signerUpdErr) {
         console.error('update signer failed', signerUpdErr)
         return json({ error: 'Could not update signer', details: signerUpdErr.message }, 500)
+      }
+
+      const { error: projectSignerErr } = await supabase.rpc('project_workflow_signer_status', {
+        p_workflow_id: signer.workflow_id,
+        p_signer_id: signer.id
+      })
+      if (projectSignerErr) {
+        console.error('project signer status failed', projectSignerErr)
+        return json({ error: 'Could not project signer status', details: projectSignerErr.message }, 500)
       }
     }
 

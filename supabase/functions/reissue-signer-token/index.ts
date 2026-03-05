@@ -155,7 +155,7 @@ serve(async (req) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + TOKEN_LIFETIME_DAYS);
 
-    // Update signer: revoke old token, set new token
+    // Update signer token material only; status is projected from canonical events.
     const { error: updateError } = await supabase
       .from('workflow_signers')
       .update({
@@ -164,8 +164,6 @@ serve(async (req) => {
         access_token_ciphertext: ciphertext,
         access_token_nonce: nonce,
         token_expires_at: expiresAt.toISOString(),
-        // Reset status to invited/ready if it was expired
-        status: signer.status === 'expired' ? 'invited' : signer.status,
         updated_at: new Date().toISOString(),
       })
       .eq('id', signerId);
@@ -175,14 +173,25 @@ serve(async (req) => {
       return json({ error: 'Failed to reissue token', details: updateError.message }, 500);
     }
 
-    // Log canonical events
+    // Re-assert projected signer status via canonical event. If expired, reset to invited.
+    const signerStatusEventType =
+      signer.status === 'ready_to_sign'
+        ? 'signer.ready_to_sign'
+        : signer.status === 'accessed'
+          ? 'signer.accessed'
+          : signer.status === 'verified'
+            ? 'signer.identity_confirmed'
+            : 'signer.invited';
+    const projectedStatus = signer.status === 'expired' ? 'invited' : signer.status;
+
     await appendCanonicalEvent(supabase as any, {
-      event_type: 'signer.invited', // Re-invited with new token
+      event_type: signerStatusEventType,
       workflow_id: workflowId,
       signer_id: signerId,
       payload: {
         reason: 'token_reissued',
         previous_status: signer.status,
+        projected_status: projectedStatus,
         new_expires_at: expiresAt.toISOString(),
       },
       actor_id: user.id,

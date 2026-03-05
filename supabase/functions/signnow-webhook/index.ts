@@ -271,11 +271,27 @@ serve(async (req) => {
 
     const nowIso = new Date().toISOString()
     if (signers && signers.length > 0) {
-      const signerIds = signers.map((s) => s.id)
-      await supabase
-        .from('workflow_signers')
-        .update({ status: 'signed', signed_at: nowIso })
-        .in('id', signerIds)
+      for (const signer of signers) {
+        const signedEvent = await appendCanonicalEvent(
+          supabase as any,
+          {
+            event_type: 'signer.signed',
+            workflow_id: workflow.id,
+            signer_id: signer.id,
+            payload: {
+              email: signer.email,
+              signing_order: signer.signing_order,
+              signed_at: nowIso,
+              source: 'signnow-webhook'
+            },
+            actor_id: workflow.owner_id ?? null
+          },
+          'signnow-webhook'
+        )
+        if (!signedEvent.success) {
+          console.warn('signnow-webhook: failed to append signer.signed', signer.id, signedEvent.error)
+        }
+      }
     }
 
     const authorityOnly = isFlagEnabled('V2_AUTHORITY_ONLY') || isFlagEnabled('DISABLE_SIGNNOW_EXECUTION')

@@ -476,8 +476,6 @@ serve(async (req) => {
     await supabase
       .from('workflow_signers')
       .update({
-        status: 'signed',
-        signed_at: new Date().toISOString(),
         signature_data: signatureData,
         signature_hash: signatureHash,
         updated_at: new Date().toISOString()

@@ -139,7 +139,6 @@ serve(async (req) => {
         .from('workflow_signers')
         .update({
           change_request_status: 'rejected',
-          status: 'ready_to_sign', // Vuelve a estar listo para firmar
           updated_at: new Date().toISOString()
         })
         .eq('id', signerId)
@@ -231,7 +230,6 @@ serve(async (req) => {
         .from('workflow_signers')
         .update({
           change_request_status: 'accepted',
-          status: 'invited', // Volverá a firmar con todos
           updated_at: new Date().toISOString()
         })
         .eq('id', signerId)
@@ -279,7 +277,6 @@ serve(async (req) => {
         const { error: resetError } = await supabase
           .from('workflow_signers')
           .update({
-            status: 'invited',
             signed_at: null,
             signing_lock_id: null,
             signing_lock_at: null,

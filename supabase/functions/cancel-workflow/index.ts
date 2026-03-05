@@ -88,7 +88,6 @@ serve(async (req) => {
     const { error: revokeErr } = await supabase
       .from('workflow_signers')
       .update({
-        status: 'cancelled',
         token_revoked_at: new Date().toISOString(),
         signing_lock_id: null,
         signing_lock_at: null,

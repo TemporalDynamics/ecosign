@@ -151,7 +151,6 @@ serve(async (req) => {
     await supabase
       .from('workflow_signers')
       .update({
-        status: 'accessed',
         change_request_data: {
           annotations,
           generalNotes,
@@ -162,6 +161,24 @@ serve(async (req) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', signer.id)
+
+    const signerAccessedEvent = await appendCanonicalEvent(
+      supabase,
+      {
+        event_type: 'signer.accessed',
+        workflow_id: signer.workflow_id,
+        signer_id: signer.id,
+        payload: {
+          email: signer.email,
+          signing_order: signer.signing_order,
+          source: 'request-document-changes'
+        }
+      },
+      'request-document-changes'
+    )
+    if (!signerAccessedEvent.success) {
+      return jsonResponse({ error: 'Failed to append signer.accessed', details: signerAccessedEvent.error }, 500)
+    }
 
     // 4. Registrar evento canónico; la proyección actualiza workflow.status.
     const changeRequestedEvent = await appendCanonicalEvent(

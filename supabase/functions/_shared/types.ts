@@ -53,6 +53,7 @@ export const CANONICAL_EVENT_TYPES = [
   'signer.signed',
   'signer.cancelled',
   'signer.rejected',
+  'signer.expired',
   'otp.sent',
   'otp.verified',
   'document.change_requested',

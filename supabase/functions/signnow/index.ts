@@ -621,15 +621,40 @@ serve(async (req) => {
         // Actualizar firmantes con la URL de embed para que el front pueda mostrarla
         const signerEmails = signers.map((s) => normalizeEmail(s.email));
         if (signerEmails.length > 0) {
+          const { data: linkedSigners } = await client
+            .from('workflow_signers')
+            .select('id, email, signing_order')
+            .in('email', signerEmails)
+            .eq('workflow_id', workflowId);
+
           await client
             .from('workflow_signers')
             .update({
               signature_type: 'SIGNNOW',
-            signnow_embed_url: signingUrl,
-            status: 'ready_to_sign'
-          })
+              signnow_embed_url: signingUrl
+            })
             .in('email', signerEmails)
             .eq('workflow_id', workflowId);
+
+          for (const signer of linkedSigners ?? []) {
+            const readyEvent = await appendCanonicalEvent(
+              client as any,
+              {
+                event_type: 'signer.ready_to_sign',
+                workflow_id: workflowId,
+                signer_id: signer.id,
+                payload: {
+                  email: signer.email,
+                  signing_order: signer.signing_order,
+                  source: 'signnow'
+                }
+              },
+              'signnow'
+            );
+            if (!readyEvent.success) {
+              console.warn('⚠️ No se pudo append signer.ready_to_sign en SignNow:', readyEvent.error);
+            }
+          }
         }
       } catch (wfError) {
         console.warn('⚠️ No se pudo enlazar SignNow al workflow:', wfError?.message || wfError);

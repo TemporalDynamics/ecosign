@@ -308,10 +308,17 @@ serve(async (req) => {
         } as any,
         "signer-access",
       );
-      // Optionally update signer status to 'expired' here if not already handled by a cron job
-      if (signer.status !== "expired" && signer.status !== "signed") {
-        await supabase.from("workflow_signers").update({ status: "expired" })
-          .eq("id", signer.id);
+      if (!["expired", "signed", "cancelled", "rejected"].includes(signer.status)) {
+        await appendCanonicalEvent(
+          supabase as any,
+          {
+            event_type: "signer.expired",
+            workflow_id: signer.workflow_id,
+            signer_id: signer.id,
+            payload: { reason: "token_expired", expired_at: signer.token_expires_at },
+          },
+          "signer-access",
+        );
       }
       return json({ error: "Invalid or expired token" }, 404, corsHeaders);
     }

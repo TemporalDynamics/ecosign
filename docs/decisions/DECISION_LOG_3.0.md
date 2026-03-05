@@ -1,3 +1,70 @@
+## Iteración: signer status proyectado al 100% (incluye `expired`) — 2026-03-05
+
+### 🎯 Resumen
+Se cerró la autoridad implícita restante sobre `workflow_signers.status`:
+
+1. endpoints activos dejaron de mutar `status` directo,
+2. `status` queda proyectado desde `workflow_events`,
+3. se agregó evento canónico `signer.expired` para evitar excepciones de escritura directa.
+
+### ✅ Cambios implementados
+- **Proyector + guard DB para signer status:**
+  - `supabase/migrations/20260305203000_project_workflow_signer_status_from_events.sql`
+  - Trigger projector en `workflow_events`.
+  - Trigger guard en `workflow_signers` para bloquear writes directos de `status`.
+- **Contrato de eventos extendido:**
+  - `supabase/migrations/20260305212000_add_signer_expired_event_type.sql`
+  - `signer.expired` agregado al check constraint de `workflow_events`.
+- **Helpers canónicos actualizados:**
+  - `supabase/functions/_shared/canonicalEventHelper.ts`
+  - `supabase/functions/_shared/types.ts`
+- **Endpoints migrados a command→event:**
+  - `start-signature-workflow`, `signnow`, `signnow-webhook`,
+    `process-signature`, `store-signer-signature`,
+    `request-document-changes`, `respond-to-changes`,
+    `reject-signature`, `cancel-workflow`, `reissue-signer-token`, `signer-access`.
+- **Guard de regresión:**
+  - `tests/authority/workflow_signers_status_authority_guard.test.ts`
+  - Falla si aparece `.from('workflow_signers').update({ status: ... })` en handlers activos.
+
+### ✅ Validación
+- `npm test` verde.
+- `npm run test:db` verde.
+
+## Iteración: cierre de fronteras (runtime tables + verify_jwt allowlist) — 2026-03-05
+
+### 🎯 Resumen
+Se sellaron dos fronteras para evitar reintroducciones silenciosas:
+
+1. endurecimiento de tablas internas de runtime a `service_role only`,
+2. allowlist explícita para funciones con `verify_jwt = false`.
+
+### ✅ Cambios implementados
+- **Migración de hardening interno:**
+  - `supabase/migrations/20260305191500_harden_internal_runtime_tables_service_only.sql`
+  - Habilita RLS en tablas internas de runtime.
+  - Revoca DML de `anon/authenticated`.
+  - Crea policies `FOR ALL TO service_role` para:
+    - `domain_outbox`
+    - `executor_job_runs`
+    - `welcome_email_queue`
+  - Mantiene grants explícitos para `service_role`.
+- **Guard de tablas internas (no regresión):**
+  - `tests/authority/internal_tables_service_only_guard.test.ts`
+- **Guard de superficie JWT false (no expansión accidental):**
+  - `tests/authority/verify_jwt_false_allowlist_guard.test.ts`
+  - Allowlist cerrada actual:
+    - `finalize-document`
+    - `record-custody-key-rotation`
+    - `record-evidence-download`
+    - `presential-verification-confirm-presence`
+    - `presential-verification-get-acta`
+    - `signing-keys`
+
+### ✅ Validación
+- `npm test` verde.
+- `npm run test:db` verde.
+
 ## Iteración: Gate DB explícito + suites críticas sin skip por defecto — 2026-03-05
 
 ### 🎯 Resumen

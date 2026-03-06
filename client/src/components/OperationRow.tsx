@@ -10,6 +10,7 @@ import type { Operation, OperationStatus } from '../types/operations';
 import DocumentRow from './DocumentRow';
 import { mapEntityToDocumentRecord } from '../lib/documentEntityService';
 import { deriveHumanState, getHumanStateColor } from '../lib/deriveHumanState';
+import { getSupabase } from '../lib/supabaseClient';
 
 interface OperationRowProps {
   operation: Operation;
@@ -93,7 +94,79 @@ export default function OperationRow({
         const opWithDocs = await import('../lib/operationsService').then((m) =>
           m.getOperationWithDocuments(operation.id)
         );
-        if (mounted) setDocs(opWithDocs?.documents || []);
+
+        const mappedDocs = (opWithDocs?.documents || []).map((doc: any) =>
+          mapEntityToDocumentRecord(doc.document_entities ?? doc)
+        );
+
+        // Preserve canonical visual state in operations too:
+        // moving folders must not alter workflow-derived status (e.g. Firmando/Cancelado).
+        const entityIds = mappedDocs
+          .map((doc: any) => doc.document_entity_id ?? doc.id)
+          .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
+
+        if (entityIds.length > 0) {
+          const supabase = getSupabase();
+          const { data: wfRows, error: wfError } = await supabase
+            .from('signature_workflows')
+            .select('id, document_entity_id, status, created_at')
+            .in('document_entity_id', entityIds);
+
+          if (!wfError && wfRows && wfRows.length > 0) {
+            const workflowByEntity = new Map<string, { id: string; status: any; created_at?: string | null }[]>();
+            for (const wf of wfRows as any[]) {
+              const list = workflowByEntity.get(wf.document_entity_id) ?? [];
+              list.push({ id: wf.id, status: wf.status, created_at: wf.created_at });
+              workflowByEntity.set(wf.document_entity_id, list);
+            }
+
+            const workflowIds = wfRows.map((w: any) => w.id).filter(Boolean);
+            const signersByWorkflow = new Map<string, any[]>();
+            if (workflowIds.length > 0) {
+              const { data: signerRows, error: signerError } = await supabase
+                .from('workflow_signers')
+                .select('id, workflow_id, status, signing_order, name, email')
+                .in('workflow_id', workflowIds);
+
+              if (!signerError && signerRows) {
+                for (const s of signerRows as any[]) {
+                  const list = signersByWorkflow.get(s.workflow_id) ?? [];
+                  list.push({
+                    id: s.id,
+                    status: s.status,
+                    order: s.signing_order ?? 0,
+                    name: s.name,
+                    email: s.email,
+                  });
+                  signersByWorkflow.set(s.workflow_id, list);
+                }
+              }
+            }
+
+            mappedDocs.forEach((doc: any) => {
+              const entityId = doc.document_entity_id ?? doc.id;
+              const workflows = workflowByEntity.get(entityId);
+              if (!workflows) return;
+
+              const sorted = [...workflows].sort((a, b) => {
+                const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+                if (aTime !== bTime) return bTime - aTime;
+                if (a.status === b.status) return 0;
+                if (a.status === 'active') return -1;
+                if (b.status === 'active') return 1;
+                return 0;
+              });
+              doc.workflows = sorted;
+              const workflowId = sorted[0]?.id;
+              if (workflowId) {
+                doc.signers = signersByWorkflow.get(workflowId) ?? [];
+              }
+            });
+          }
+        }
+
+        if (mounted) setDocs(mappedDocs);
       } catch (err) {
         console.error('Error loading operation documents:', err);
         if (mounted) setDocs([]);
@@ -333,9 +406,7 @@ export default function OperationRow({
                         checked={docs.length > 0 && selectedDocIds.size === docs.length}
                         onChange={(event) => {
                           if (event.target.checked) {
-                            const next = new Set(
-                              docs.map((doc) => mapEntityToDocumentRecord(doc.document_entities ?? doc).id)
-                            );
+                            const next = new Set(docs.map((doc: any) => String(doc.id)));
                             setSelectedDocIds(next);
                           } else {
                             setSelectedDocIds(new Set());
@@ -372,12 +443,10 @@ export default function OperationRow({
                     </div>
                   </div>
                 )}
-                {docs.map((d) => {
-                  const entity = d.document_entities ?? d;
-                  const mapped = mapEntityToDocumentRecord(entity);
-                  return (
-                    <div
-                      key={mapped.id}
+              {docs.map((mapped: any) => {
+                return (
+                  <div
+                    key={mapped.id}
                       className={`grid grid-cols-[5fr_1fr_2fr] gap-x-4 items-center px-6 py-1.5 ${docSelectMode ? 'cursor-pointer' : ''}`}
                       onClick={handleDocRowClick(mapped.id)}
                     >
@@ -643,9 +712,7 @@ export default function OperationRow({
                     if (docs.length === 0) return;
                     const nextChecked = selectedDocIds.size !== docs.length;
                     if (nextChecked) {
-                      const next = new Set(
-                        docs.map((doc) => mapEntityToDocumentRecord(doc.document_entities ?? doc).id)
-                      );
+                      const next = new Set(docs.map((doc: any) => String(doc.id)));
                       setSelectedDocIds(next);
                     } else {
                       setSelectedDocIds(new Set());
@@ -659,9 +726,7 @@ export default function OperationRow({
                       checked={docs.length > 0 && selectedDocIds.size === docs.length}
                       onChange={(event) => {
                         if (event.target.checked) {
-                          const next = new Set(
-                            docs.map((doc) => mapEntityToDocumentRecord(doc.document_entities ?? doc).id)
-                          );
+                          const next = new Set(docs.map((doc: any) => String(doc.id)));
                           setSelectedDocIds(next);
                         } else {
                           setSelectedDocIds(new Set());
@@ -698,9 +763,7 @@ export default function OperationRow({
                   </div>
                 </div>
               )}
-              {docs.map((d) => {
-                const entity = d.document_entities ?? d;
-                const mapped = mapEntityToDocumentRecord(entity);
+              {docs.map((mapped: any) => {
                 return (
                   <DocumentRow
                     key={mapped.id}

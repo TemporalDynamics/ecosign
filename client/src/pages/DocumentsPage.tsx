@@ -300,6 +300,7 @@ function DocumentsPage() {
   const [moveDoc, setMoveDoc] = useState<DocumentRecord | null>(null);
   const [moveDraft, setMoveDraft] = useState<DraftRow | null>(null);
   const [isCreatingOperationForMove, setIsCreatingOperationForMove] = useState(false);
+  const [pendingMoveDocForNewOperation, setPendingMoveDocForNewOperation] = useState<DocumentRecord | null>(null);
   const [editingOperation, setEditingOperation] = useState<Operation | null>(null);
   const [operationDraftName, setOperationDraftName] = useState("");
   const [operationDraftDescription, setOperationDraftDescription] = useState("");
@@ -1944,9 +1945,83 @@ function DocumentsPage() {
           .order('added_at', { ascending: false }),
       ]);
 
-      const mapped = (opWithDocs?.documents || []).map((doc: any) =>
+      const mapped: DocumentRecord[] = (opWithDocs?.documents || []).map((doc: any): DocumentRecord =>
         mapDocumentEntityToRecord(doc.document_entities ?? doc)
       );
+
+      // Enriquecer con workflows/firmantes para preservar estado visual canónico
+      // (ej. "Firmando x/y") también dentro de Operaciones.
+      try {
+        const entityIds = mapped
+          .map((doc: DocumentRecord) => doc.document_entity_id ?? doc.id)
+          .filter((id: string | null | undefined): id is string => typeof id === 'string' && id.length > 0);
+
+        if (entityIds.length > 0) {
+          const { data: wfRows, error: wfError } = await supabase
+            .from('signature_workflows')
+            .select('id, document_entity_id, status, created_at')
+            .in('document_entity_id', entityIds);
+
+          if (!wfError && wfRows && wfRows.length > 0) {
+            const workflowByEntity = new Map<
+              string,
+              { id: string; status: any; created_at?: string | null }[]
+            >();
+            for (const wf of wfRows as any[]) {
+              const list = workflowByEntity.get(wf.document_entity_id) ?? [];
+              list.push({ id: wf.id, status: wf.status, created_at: wf.created_at });
+              workflowByEntity.set(wf.document_entity_id, list);
+            }
+
+            const workflowIds = wfRows.map((w: any) => w.id).filter(Boolean);
+            const signersByWorkflow = new Map<string, any[]>();
+            if (workflowIds.length > 0) {
+              const { data: signerRows, error: signerError } = await supabase
+                .from('workflow_signers')
+                .select('id, workflow_id, status, signing_order, name, email')
+                .in('workflow_id', workflowIds);
+
+              if (!signerError && signerRows) {
+                for (const s of signerRows as any[]) {
+                  const list = signersByWorkflow.get(s.workflow_id) ?? [];
+                  list.push({
+                    id: s.id,
+                    status: s.status,
+                    order: s.signing_order ?? 0,
+                    name: s.name,
+                    email: s.email,
+                  });
+                  signersByWorkflow.set(s.workflow_id, list);
+                }
+              }
+            }
+
+            mapped.forEach((doc: DocumentRecord) => {
+              const entityId = doc.document_entity_id ?? doc.id;
+              const workflows = workflowByEntity.get(entityId);
+              if (!workflows) return;
+
+              const sorted = [...workflows].sort((a, b) => {
+                const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+                if (aTime !== bTime) return bTime - aTime;
+                if (a.status === b.status) return 0;
+                if (a.status === 'active') return -1;
+                if (b.status === 'active') return 1;
+                return 0;
+              });
+              doc.workflows = sorted as any;
+              const workflowId = sorted[0]?.id;
+              if (workflowId) {
+                doc.signers = (signersByWorkflow.get(workflowId) ?? []) as any;
+              }
+            });
+          }
+        }
+      } catch (workflowJoinErr) {
+        console.warn('Skipping operation detail workflow enrichment:', workflowJoinErr);
+      }
+
       setPreviewOperationDocs(mapped);
 
       if (!draftDocsResult.error) {
@@ -3700,23 +3775,31 @@ function DocumentsPage() {
       {showCreateOperationModal && currentUserId && (
         <CreateOperationModal
           userId={currentUserId}
-          onClose={() => setShowCreateOperationModal(false)}
+          onClose={() => {
+            setShowCreateOperationModal(false);
+            if (isCreatingOperationForMove) {
+              setIsCreatingOperationForMove(false);
+              setPendingMoveDocForNewOperation(null);
+            }
+          }}
           onSuccess={async (operation) => {
-            if (isCreatingOperationForMove && moveDoc) {
+            const moveTarget = pendingMoveDocForNewOperation ?? moveDoc;
+            if (isCreatingOperationForMove && moveTarget) {
               try {
-                await addDocumentToOperation(operation.id, moveDoc.document_entity_id ?? moveDoc.id, currentUserId);
+                await addDocumentToOperation(operation.id, moveTarget.document_entity_id ?? moveTarget.id, currentUserId);
                 toast.success(
                   `Documento agregado a "${operation.name}". La evidencia no ha cambiado.`,
                   { position: 'top-right', duration: 4000 }
                 );
                 setMoveDoc(null); // Close MoveToOperationModal
                 setIsCreatingOperationForMove(false);
+                setPendingMoveDocForNewOperation(null);
                 setExpandedOperationId(operation.id);
                 setOperationsOpenSignal((signal) => signal + 1);
                 operationsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               } catch (error: any) {
                 if (error.code === '23505') {
-                  toast.error(`El documento "${moveDoc.document_name}" ya pertenece a la operación "${operation.name}".`, { position: 'top-right' });
+                  toast.error(`El documento "${moveTarget.document_name}" ya pertenece a la operación "${operation.name}".`, { position: 'top-right' });
                 } else {
                   console.error('Error adding document to new operation:', error);
                   toast.error('No se pudo agregar el documento a la nueva operación', { position: 'top-right' });
@@ -3724,6 +3807,8 @@ function DocumentsPage() {
               }
             } else {
               toast.success(`Operación "${operation.name}" creada`, { position: 'top-right' });
+              setIsCreatingOperationForMove(false);
+              setPendingMoveDocForNewOperation(null);
             }
             loadOperations(); // Always reload operations
             loadDocuments(); // Always reload documents (needed if document moved)
@@ -3747,6 +3832,7 @@ function DocumentsPage() {
             operationsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
           onCreateNew={() => {
+            setPendingMoveDocForNewOperation(moveDoc);
             setIsCreatingOperationForMove(true);
             setShowCreateOperationModal(true);
           }}

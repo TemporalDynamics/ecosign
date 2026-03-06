@@ -21,6 +21,8 @@ type Props = {
   previewPdfData?: ArrayBuffer | null;
   previewIsPdf?: boolean;
   previewPage?: number | null;
+  initialPreviewRotation?: number;
+  onPreviewRotationChange?: (nextRotation: number) => void;
   isSelfSignatureMode?: boolean;
   signingMode?: 'sequential' | 'parallel';
   onSigningModeChange?: (mode: 'sequential' | 'parallel') => void;
@@ -77,6 +79,8 @@ function SignerFieldsWizardComponent({
   previewPdfData = null,
   previewIsPdf = false,
   previewPage,
+  initialPreviewRotation = 0,
+  onPreviewRotationChange,
   isSelfSignatureMode = false,
   signingMode,
   onSigningModeChange,
@@ -95,7 +99,8 @@ function SignerFieldsWizardComponent({
   const [includePerPageDate, setIncludePerPageDate] = useState(false);
   const [activeSignerEmail, setActiveSignerEmail] = useState<string>('');
   const [perSignerPlacement, setPerSignerPlacement] = useState<Record<string, PerSignerPlacement>>({});
-  const [previewRotation, setPreviewRotation] = useState(0);
+  const normalizeRotation = (rotation: number) => ((rotation % 360) + 360) % 360;
+  const [previewRotation, setPreviewRotation] = useState(() => normalizeRotation(initialPreviewRotation));
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [pdfPreviewFailed, setPdfPreviewFailed] = useState(false);
@@ -137,6 +142,19 @@ function SignerFieldsWizardComponent({
   const showFinalVisibilityControl = Boolean(onFinalDocumentVisibilityChange && !isSelfSignatureMode);
   const showFinalFlowControls = showSigningModeControl || showFinalVisibilityControl;
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setPreviewRotation(normalizeRotation(initialPreviewRotation));
+  }, [isOpen, initialPreviewRotation]);
+
+  const rotatePreview = () => {
+    setPreviewRotation((prev) => {
+      const next = (prev + 90) % 360;
+      onPreviewRotationChange?.(next);
+      return next;
+    });
+  };
 
   const validSigners = useMemo(
     () =>
@@ -938,7 +956,7 @@ function SignerFieldsWizardComponent({
                     <div className="absolute right-1.5 top-1.5 z-10 flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => setPreviewRotation((prev) => (prev + 90) % 360)}
+                        onClick={rotatePreview}
                         className="h-6 w-6 inline-flex items-center justify-center rounded-md bg-white/90 text-gray-600 hover:text-gray-900 border border-gray-200 shadow-sm"
                         title="Rotar documento"
                       >
@@ -1153,7 +1171,7 @@ function SignerFieldsWizardComponent({
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => setPreviewRotation((prev) => (prev + 90) % 360)}
+                  onClick={rotatePreview}
                   className="h-7 w-7 inline-flex items-center justify-center rounded-md bg-white text-gray-600 hover:text-gray-900 border border-gray-200"
                   title="Rotar documento"
                 >

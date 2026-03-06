@@ -688,7 +688,7 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
                       events={timelineEvents}
                       loading={timelineLoading}
                       error={timelineError}
-                      note="Cronología basada en el certificado (.eco). No requiere cuenta ni servidor."
+                      note="Historia basada en el certificado (.ECO). No requiere cuenta ni servidor."
                     />
                   </div>
                 )}

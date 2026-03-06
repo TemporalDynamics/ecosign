@@ -3560,9 +3560,9 @@ function DocumentsPage() {
 
       {/* Modal Verificar documento */}
       {showVerifyModal && verifyDoc && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl max-h-[86vh] overflow-hidden">
+            <div className="flex items-start justify-between mb-4 px-6 py-4 border-b border-gray-100 flex-shrink-0">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Verificar documento</h3>
                 <p className="text-xs text-gray-600 mt-1">
@@ -3582,6 +3582,8 @@ function DocumentsPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            <div className="px-6 pb-6 overflow-y-auto max-h-[calc(86vh-80px)]">
 
             {!verifyResult && (
               <div className="mb-4 space-y-3">
@@ -3618,52 +3620,28 @@ function DocumentsPage() {
 
             {verifyResult && (
               <div className="mt-4 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm space-y-2">
-                <p className={`font-semibold ${verifyResult.matches === false ? "text-red-700" : verifyResult.matches ? "text-green-700" : "text-gray-700"}`}>
+                <p className={`font-semibold ${verifyResult.matches === false ? "text-red-700" : verifyResult.matches ? "text-[#0E4B8B]" : "text-gray-700"}`}>
                   {verifyResult.matches === false
                     ? "❌ Documento alterado"
                     : verifyResult.matches
-                      ? "✅ Documento válido"
+                      ? "✅ Documento y evidencia coinciden"
                       : verifyResult.error || "Comparación pendiente"}
                 </p>
+                {verifyResult.matches && (
+                  <div className="rounded-lg border border-blue-100 bg-blue-50/40 px-3 py-2 text-xs text-[#0E4B8B]">
+                    No detectamos cambios desde el momento en que fue protegido. La evidencia asociada respalda que este archivo se mantiene íntegro.
+                  </div>
+                )}
                 {verifyResult.extended && verifyResult.matches && (
                   <p className="text-xs text-gray-700">{verifyResult.extended}</p>
                 )}
-                {verifyResult.hash && (
-                  <p className="text-xs text-gray-600">Hash calculado: {verifyResult.hash}</p>
-                )}
-                <div className="text-xs text-gray-600 space-y-1">
-                  <p>
-                    document_hash:{" "}
-                    {verifyDoc.document_hash ? (
-                      <span className={verifyResult.matchesDocument === false ? "text-red-700 font-semibold" : ""}>
-                        {verifyDoc.document_hash}
-                      </span>
-                    ) : (
-                      "no disponible"
-                    )}
-                  </p>
-                  <p>
-                    content_hash:{" "}
-                    {verifyDoc.content_hash ? (
-                      <span className={verifyResult.matchesContent === false ? "text-red-700 font-semibold" : ""}>
-                        {verifyDoc.content_hash}
-                      </span>
-                    ) : (
-                      "no disponible"
-                    )}
-                  </p>
-                  {verifyResult.source && (
-                    <p className="text-[11px] text-gray-500">
-                      Origen de verificación: {verifyResult.source === "stored" ? "PDF guardado" : "PDF cargado"}
-                    </p>
-                  )}
-                </div>
+
                 {verifyResult.error && (
                   <p className="text-xs text-red-600">
                     {verifyResult.error} Revisá que estés verificando el archivo correcto.
                   </p>
                 )}
-                <div className="pt-2 flex justify-end">
+                <div className="pt-2 flex items-center justify-between gap-3">
                   <button
                     className="text-xs text-gray-600 hover:text-gray-800 underline"
                     onClick={() => {
@@ -3700,7 +3678,11 @@ function DocumentsPage() {
                         <VerifierTimeline
                           events={timelineEvents}
                           loading={timelineLoading}
-                          note="Cronología basada en el certificado (.ECO). No requiere cuenta ni servidor."
+                          note="Historia basada en el certificado (.ECO). No requiere cuenta ni servidor."
+                          showSignupCta={false}
+                          showTrustSummary={false}
+                          showLegalBlocks={false}
+                          showTechnicalToggle={true}
                         />
                       </div>
                     )}
@@ -3709,6 +3691,7 @@ function DocumentsPage() {
 
               </div>
             )}
+            </div>
           </div>
         </div>
       )}

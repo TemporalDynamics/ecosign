@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Clock } from 'lucide-react';
 import Tooltip from './Tooltip';
 import type { TimelineEvent } from '../lib/verifier/types';
@@ -8,6 +8,10 @@ type VerifierTimelineProps = {
   loading?: boolean;
   error?: string | null;
   note?: string;
+  showSignupCta?: boolean;
+  showTrustSummary?: boolean;
+  showLegalBlocks?: boolean;
+  showTechnicalToggle?: boolean;
 };
 
 const formatUtcTooltip = (at: string) => {
@@ -15,103 +19,167 @@ const formatUtcTooltip = (at: string) => {
   return `UTC: ${utc}`;
 };
 
-// High-level phases and grouping for human-friendly narrative (user-facing labels)
-const PHASES: { key: string; label: string }[] = [
-  { key: 'creation', label: 'Creación del documento' },
-  { key: 'preparation', label: 'Preparación del documento' },
-  { key: 'signing', label: 'Firma' },
-  { key: 'protection', label: 'Protección del momento de firma' },
-  { key: 'additional', label: 'Protección adicional' },
-];
-
-const PHASE_DESCRIPTIONS: Record<string, string> = {
-  creation: 'El usuario creó este documento y dio inicio al flujo de firmas.',
-  preparation: 'Se definieron las condiciones del flujo de firmas y se protegió el documento antes de enviarlo.',
-  signing: 'Un firmante aceptó y firmó este documento.',
-  protection: 'Se registró evidencia del estado del documento al momento de la firma.',
-  additional: 'Se agregó una capa extra de protección para reforzar la integridad del documento.',
+type HumanMilestone = {
+  id: string;
+  title: string;
+  description: string;
+  at: string;
 };
 
-const groupEventsByPhase = (events: TimelineEvent[]) => {
-  const buckets: Record<string, TimelineEvent[]> = {};
-  PHASES.forEach((p) => (buckets[p.key] = []));
-
-  events.forEach((ev) => {
-    const kind = ev.kind || '';
-    const label = (ev.label || '').toLowerCase();
-
-    // Creation
-    if (kind.includes('created') || label.includes('documento creado') || kind === 'document.created') {
-      buckets.creation.push(ev);
-      return;
-    }
-
-    // Preparation / configuration / operation-level events
-    if (
-      kind.startsWith('operation.') ||
-      label.includes('protección') ||
-      label.includes('prepar') ||
-      label.includes('configur') ||
-      label.includes('nda')
-    ) {
-      buckets.preparation.push(ev);
-      return;
-    }
-
-    // Signing
-    if (
-      kind.includes('signature') ||
-      kind.startsWith('identity.session.presence') ||
-      label.includes('firma') ||
-      label.includes('signed') ||
-      label.includes('signature')
-    ) {
-      buckets.signing.push(ev);
-      return;
-    }
-
-    // Protection (TSA / certification)
-    if (
-      kind === 'tsa.confirmed' ||
-      kind === 'tsa.failed' ||
-      label.includes('sello de tiempo') ||
-      label.includes('evidencia temporal') ||
-      label.includes('certific')
-    ) {
-      buckets.protection.push(ev);
-      return;
-    }
-
-    // Additional protection / anchoring
-    if (
-      kind === 'anchor' ||
-      kind === 'anchor.confirmed' ||
-      kind === 'anchor.pending' ||
-      kind === 'anchor.failed' ||
-      label.includes('anclaje') ||
-      label.includes('anchaj') ||
-      label.includes('anchor')
-    ) {
-      buckets.additional.push(ev);
-      return;
-    }
-
-    // Default to preparation
-    buckets.preparation.push(ev);
-  });
-
-  return PHASES.map((p) => ({ phase: p.label, key: p.key, items: buckets[p.key] }));
+type TimelineSummary = {
+  signatureCount: number;
+  hasInitialProtection: boolean;
+  hasAdditionalProtection: boolean;
+  hasAdditionalProtectionPending: boolean;
+  milestones: HumanMilestone[];
 };
 
-const VerifierTimelineNarrative: React.FC<{ events: TimelineEvent[] }> = ({ events }) => {
-  const groups = groupEventsByPhase(events).filter((g) => g.items.length > 0).map((g) => g.phase);
-  if (groups.length === 0) return null;
+const sortByAt = (events: TimelineEvent[]) =>
+  [...events].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+const isSignatureEvent = (event: TimelineEvent) => {
+  const kind = (event.kind || '').toLowerCase();
+  const completedKinds = new Set([
+    'signature',
+    'signature.completed',
+    'signature_applied',
+    'signature_completed',
+    'signer.signed',
+    'workflow.signer.signed',
+  ]);
   return (
-    <p className="text-sm text-gray-700 mb-3">Este timeline refleja: {groups.join(' → ')}.</p>
+    completedKinds.has(kind) ||
+    kind.endsWith('.signed') ||
+    kind.includes('signature.completed')
   );
 };
 
-export default function VerifierTimeline({ events, loading = false, error = null, note }: VerifierTimelineProps) {
+const isAnchorEvent = (event: TimelineEvent) => {
+  const kind = (event.kind || '').toLowerCase();
+  const label = (event.label || '').toLowerCase();
+  return kind.includes('anchor') || label.includes('anclaje') || label.includes('anchor');
+};
+
+const isAnchorPending = (event: TimelineEvent) => {
+  const kind = (event.kind || '').toLowerCase();
+  const label = (event.label || '').toLowerCase();
+  return kind.includes('pending') || label.includes('pendiente');
+};
+
+const isProtectionEvent = (event: TimelineEvent) => {
+  const kind = (event.kind || '').toLowerCase();
+  const label = (event.label || '').toLowerCase();
+  return (
+    kind === 'tsa.confirmed' ||
+    kind === 'document.protected' ||
+    kind === 'document.protected.requested' ||
+    kind === 'document.certified' ||
+    kind.includes('tsa') ||
+    label.includes('sello de tiempo') ||
+    label === 'documento protegido' ||
+    label === 'protección solicitada'
+  );
+};
+
+const buildHumanTimeline = (events: TimelineEvent[]): TimelineSummary => {
+  const ordered = sortByAt(events);
+  const firstEvent = ordered[0];
+  const signatureEvents = ordered.filter(isSignatureEvent);
+  const anchorEvents = ordered.filter(isAnchorEvent);
+  const protectionEvents = ordered.filter(isProtectionEvent);
+
+  const firstSignature = signatureEvents[0];
+  const firstSignatureAt = firstSignature ? new Date(firstSignature.at).getTime() : null;
+  const initialProtectionEvent =
+    firstSignatureAt === null
+      ? protectionEvents[0]
+      : protectionEvents.find((evt) => new Date(evt.at).getTime() < firstSignatureAt);
+  const signatureProtectionEvent =
+    firstSignatureAt === null
+      ? null
+      : protectionEvents.find((evt) => new Date(evt.at).getTime() >= firstSignatureAt);
+
+  const milestones: HumanMilestone[] = [];
+  if (firstEvent) {
+    milestones.push({
+      id: 'prepared',
+      title: 'El documento fue preparado para su protección',
+      description:
+        'Se generó evidencia inicial para dejar constancia del contenido del archivo en ese momento.',
+      at: firstEvent.at,
+    });
+  }
+
+  if (initialProtectionEvent) {
+    milestones.push({
+      id: 'initial-protection',
+      title: 'Se registró el momento de protección',
+      description:
+        'Quedó asentada la fecha y hora de protección para respaldar que el documento existía así en ese momento.',
+      at: initialProtectionEvent.at,
+    });
+  }
+
+  if (firstSignature) {
+    milestones.push({
+      id: 'signature',
+      title:
+        signatureEvents.length > 1
+          ? `${signatureEvents.length} personas firmaron este documento`
+          : 'Una persona firmó este documento',
+      description:
+        'Se registró una firma sobre esta versión del archivo.',
+      at: firstSignature.at,
+    });
+  }
+
+  if (signatureProtectionEvent) {
+    milestones.push({
+      id: 'signature-protection',
+      title: 'Se protegió el momento de la firma',
+      description:
+        'Se dejó evidencia del estado exacto del documento al momento de la firma.',
+      at: signatureProtectionEvent.at,
+    });
+  }
+
+  const firstAnchor = anchorEvents[0];
+  if (firstAnchor) {
+    milestones.push({
+      id: 'additional-protection',
+      title: 'Se agregó una capa adicional de resguardo',
+      description:
+        'Se incorporó protección complementaria para reforzar la integridad y la trazabilidad de la evidencia.',
+      at: firstAnchor.at,
+    });
+  }
+
+  const uniqueMilestones = milestones
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+    .filter((milestone, index, source) => source.findIndex((item) => item.id === milestone.id) === index);
+
+  return {
+    signatureCount: signatureEvents.length,
+    hasInitialProtection: Boolean(initialProtectionEvent),
+    hasAdditionalProtection: anchorEvents.length > 0 && !anchorEvents.every(isAnchorPending),
+    hasAdditionalProtectionPending: anchorEvents.length > 0 && anchorEvents.some(isAnchorPending),
+    milestones: uniqueMilestones,
+  };
+};
+
+export default function VerifierTimeline({
+  events,
+  loading = false,
+  error = null,
+  note,
+  showSignupCta = true,
+  showTrustSummary = true,
+  showLegalBlocks = true,
+  showTechnicalToggle = true,
+}: VerifierTimelineProps) {
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const summary = useMemo(() => buildHumanTimeline(events), [events]);
+
   if (loading) {
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -165,42 +233,93 @@ export default function VerifierTimeline({ events, loading = false, error = null
       </div>
       {note && <p className="text-xs text-gray-500 mb-2">{note}</p>}
 
-      {/* Human-friendly narrative */}
-      <VerifierTimelineNarrative events={events} />
+      {showTrustSummary && (
+        <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 mb-4">
+          <div className="text-sm font-semibold text-gray-900">Resumen de confianza</div>
+          <p className="text-xs text-gray-600 mt-1">
+            Esta vista resume lo que pasó con el documento en lenguaje simple.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+            <div className="rounded-md border border-blue-100 bg-white px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">Integridad</div>
+              <div className="text-sm font-semibold text-[#0E4B8B]">Confirmada</div>
+            </div>
+            <div className="rounded-md border border-blue-100 bg-white px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">Momento de protección</div>
+              <div className="text-sm font-semibold text-gray-900">
+                {summary.hasInitialProtection ? 'Registrado' : 'No visible en esta evidencia'}
+              </div>
+            </div>
+            <div className="rounded-md border border-blue-100 bg-white px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">Protección adicional</div>
+              <div className="text-sm font-semibold text-gray-900">
+                {summary.hasAdditionalProtection
+                  ? 'Presente'
+                  : summary.hasAdditionalProtectionPending
+                  ? 'Pendiente'
+                  : 'No registrada'}
+              </div>
+            </div>
+            <div className="rounded-md border border-blue-100 bg-white px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">Firmas</div>
+              <div className="text-sm font-semibold text-gray-900">
+                {summary.signatureCount > 0
+                  ? `${summary.signatureCount} registrada${summary.signatureCount > 1 ? 's' : ''}`
+                  : 'No registra firmas'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
+      <div className="text-sm font-semibold text-gray-900 mb-2">Historia del documento</div>
       <div className="border-l border-gray-200 pl-4 space-y-4">
-        {groupEventsByPhase(events).map(({ phase, key, items }) => (
-          <div key={key} className="mb-4">
-            <div className="text-xs font-semibold text-gray-700 mb-1">{phase}</div>
-            {PHASE_DESCRIPTIONS[key] && (
-              <div className="text-xs text-gray-600 mb-2">{PHASE_DESCRIPTIONS[key]}</div>
-            )}
-
-            {items.map((event) => {
-              const localTime = new Date(event.at).toLocaleString();
-              return (
-                <div key={event.id} className="relative mb-2">
-                  <div className="absolute -left-[23px] top-1.5 w-2 h-2 rounded-full bg-[#0E4B8B]" />
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{event.label}</div>
-                      {event.details && (
-                        <div className="text-xs text-gray-600 mt-0.5">{event.details}</div>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-600" title={formatUtcTooltip(event.at)}>
-                      {localTime}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+        {summary.milestones.map((milestone) => (
+          <div key={milestone.id} className="relative">
+            <div className="absolute -left-[23px] top-1.5 w-2 h-2 rounded-full bg-[#0E4B8B]" />
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
+              <div>
+                <div className="text-sm font-medium text-gray-900">{milestone.title}</div>
+                <div className="text-xs text-gray-600 mt-0.5">{milestone.description}</div>
+              </div>
+              <div className="text-xs text-gray-600" title={formatUtcTooltip(milestone.at)}>
+                {new Date(milestone.at).toLocaleString()}
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
+      {showTechnicalToggle && (
+        <div className="mt-4 pt-3 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={() => setShowTechnicalDetails((prev) => !prev)}
+            className="text-xs text-gray-600 hover:text-gray-900 underline"
+          >
+            {showTechnicalDetails ? 'Ocultar detalle técnico' : 'Ver detalle técnico (forense)'}
+          </button>
+          {showTechnicalDetails && (
+            <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+              {sortByAt(events).map((event) => (
+                <div key={event.id} className="text-xs">
+                  <div className="font-semibold text-gray-900">{event.label}</div>
+                  <div className="text-gray-600">
+                    kind: <span className="font-mono">{event.kind}</span>
+                    {' · '}
+                    at: {new Date(event.at).toLocaleString()}
+                  </div>
+                  {event.details && <div className="text-gray-600 mt-1">{event.details}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Privacy & legal blocks */}
-      <div className="mt-4 text-sm text-gray-700 space-y-2">
+      {showLegalBlocks && (
+        <div className="mt-4 text-sm text-gray-700 space-y-2">
         <div>
           <div className="font-semibold">Privacidad</div>
           <div className="text-xs text-gray-600">EcoSign no ve el contenido del documento. La verificación se realiza de forma local en tu dispositivo usando el archivo y su evidencia asociada. Sólo las personas que tengan el documento y su certificado pueden verificarlo.</div>
@@ -216,13 +335,16 @@ export default function VerifierTimeline({ events, loading = false, error = null
           <div className="text-xs text-gray-600">Conservá este documento tal como está. Si el contenido cambia, la verificación dejará de coincidir. Si necesitás reenviarlo, compartí siempre el documento junto con su certificado (.ECO).</div>
         </div>
 
-        <div className="pt-2">
-          <a href="/login?mode=signup" className="inline-block bg-black text-white font-semibold py-2 px-4 rounded-lg">Creá tu cuenta gratuita</a>
-          <div className="text-xs text-gray-500 mt-2">Sin tarjeta. Ecosign no ve el contenido de tus archivos.</div>
-        </div>
+        {showSignupCta && (
+          <div className="pt-2">
+            <a href="/login?mode=signup" className="inline-block bg-black text-white font-semibold py-2 px-4 rounded-lg">Creá tu cuenta gratuita</a>
+            <div className="text-xs text-gray-500 mt-2">Sin tarjeta. Ecosign no ve el contenido de tus archivos.</div>
+          </div>
+        )}
 
         <div className="text-xs text-gray-500">Referencia canónica: UTC. Hora mostrada en tu zona local.</div>
       </div>
+      )}
     </div>
   );
 }

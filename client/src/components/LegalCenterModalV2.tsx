@@ -750,6 +750,14 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     }
   }, [forensicEnabled, initialAction, mySignature, showToast, openMySignatureWizard, updatePreviewForFile]);
 
+  // Defensive recovery: if a file exists but preview state was not restored,
+  // rebuild preview from the current file to avoid empty canvas on draft resume.
+  useEffect(() => {
+    if (!file) return;
+    if (documentPreview || documentPreviewText || workflowPreviewUrl) return;
+    updatePreviewForFile(file);
+  }, [file, documentPreview, documentPreviewText, workflowPreviewUrl, updatePreviewForFile]);
+
   const applySelectedFile = useCallback(async (
     selectedFile: File,
     workingFile: File,
@@ -887,30 +895,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     let active = true;
     (async () => {
       try {
-        const file = await loadDraftFile(draftFileRef);
-        if (!active) return;
-        if (!file) {
-          showToast('Este borrador no está disponible para continuar todavía.', { type: 'error' });
-          return;
-        }
-        const mode: ConvertToPdfMode =
-          mySignature || workflowEnabled
-            ? 'signature_workflow'
-            : 'protection_only';
-        let workingFile = file;
-        try {
-          workingFile = await convertToPDF(file, mode);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'No se pudo procesar el archivo';
-          showToast(message, { type: 'error', duration: 5000 });
-          return;
-        }
-        const ok = await applySelectedFile(file, workingFile);
-        if (ok) {
-          runPostFileSelectionEffects(file, workingFile);
-        }
-
-        // Best-effort state restore (server drafts)
+        let restoredDraftState: Record<string, unknown> | null = null;
         if (operationId && draftFileRef.startsWith('server:')) {
           try {
             const supabase = getSupabase();
@@ -926,23 +911,57 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             } else {
               const draftState = (row as any)?.draft_metadata?.draft_state;
               if (draftState && typeof draftState === 'object') {
-                if (typeof (draftState as any).ndaEnabled === 'boolean') setNdaEnabled((draftState as any).ndaEnabled);
-                if (typeof (draftState as any).ndaText === 'string') setNdaText((draftState as any).ndaText);
-                if (typeof (draftState as any).workflowEnabled === 'boolean') setWorkflowEnabled((draftState as any).workflowEnabled);
-                if (Array.isArray((draftState as any).emailInputs)) setEmailInputs((draftState as any).emailInputs);
-                if (Array.isArray((draftState as any).signatureFields)) setSignatureFields((draftState as any).signatureFields);
-                if ((draftState as any).signaturePreview) setSignaturePreview((draftState as any).signaturePreview);
-                if (typeof (draftState as any).custodyModeChoice === 'string') setCustodyModeChoice((draftState as any).custodyModeChoice);
-                if (typeof (draftState as any).forensicEnabled === 'boolean') setForensicEnabled((draftState as any).forensicEnabled);
-                if ((draftState as any).forensicConfig) setForensicConfig((draftState as any).forensicConfig);
-                if (typeof (draftState as any).mySignature === 'boolean') setMySignature((draftState as any).mySignature);
-                if ((draftState as any).signatureType) setSignatureType((draftState as any).signatureType);
-                setWorkflowAssignmentConfirmed(false);
+                restoredDraftState = draftState as Record<string, unknown>;
               }
             }
-          } catch (err) {
-            console.warn('Draft state restore skipped', err);
+          } catch (metadataErr) {
+            console.warn('Draft metadata restore skipped', metadataErr);
           }
+        }
+
+        const resumeMySignature = typeof restoredDraftState?.mySignature === 'boolean'
+          ? Boolean(restoredDraftState.mySignature)
+          : mySignature;
+        const resumeWorkflowEnabled = typeof restoredDraftState?.workflowEnabled === 'boolean'
+          ? Boolean(restoredDraftState.workflowEnabled)
+          : workflowEnabled;
+
+        if (restoredDraftState) {
+          if (typeof restoredDraftState.ndaEnabled === 'boolean') setNdaEnabled(restoredDraftState.ndaEnabled);
+          if (typeof restoredDraftState.ndaText === 'string') setNdaText(restoredDraftState.ndaText);
+          if (typeof restoredDraftState.workflowEnabled === 'boolean') setWorkflowEnabled(restoredDraftState.workflowEnabled);
+          if (Array.isArray(restoredDraftState.emailInputs)) setEmailInputs(restoredDraftState.emailInputs as any);
+          if (Array.isArray(restoredDraftState.signatureFields)) setSignatureFields(restoredDraftState.signatureFields as any);
+          if (restoredDraftState.signaturePreview) setSignaturePreview(restoredDraftState.signaturePreview as any);
+          if (typeof restoredDraftState.custodyModeChoice === 'string') setCustodyModeChoice(restoredDraftState.custodyModeChoice as any);
+          if (typeof restoredDraftState.forensicEnabled === 'boolean') setForensicEnabled(restoredDraftState.forensicEnabled);
+          if (restoredDraftState.forensicConfig) setForensicConfig(restoredDraftState.forensicConfig as any);
+          if (typeof restoredDraftState.mySignature === 'boolean') setMySignature(restoredDraftState.mySignature);
+          if (restoredDraftState.signatureType) setSignatureType(restoredDraftState.signatureType as any);
+          setWorkflowAssignmentConfirmed(false);
+        }
+
+        const file = await loadDraftFile(draftFileRef);
+        if (!active) return;
+        if (!file) {
+          showToast('Este borrador no está disponible para continuar todavía.', { type: 'error' });
+          return;
+        }
+        const mode: ConvertToPdfMode =
+          resumeMySignature || resumeWorkflowEnabled
+            ? 'signature_workflow'
+            : 'protection_only';
+        let workingFile = file;
+        try {
+          workingFile = await convertToPDF(file, mode);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'No se pudo procesar el archivo';
+          showToast(message, { type: 'error', duration: 5000 });
+          return;
+        }
+        const ok = await applySelectedFile(file, workingFile);
+        if (ok) {
+          runPostFileSelectionEffects(file, workingFile);
         }
       } catch (err) {
         console.error('Failed to resume draft', err);
@@ -4220,7 +4239,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             </>
                           )}
                           
-                          {!activePreviewUrl && (
+                          {!activePreviewUrl && !documentPreviewText && (
                             <div className="absolute inset-0 flex items-center justify-center text-gray-500">
                               <div className="text-center">
                                 <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />

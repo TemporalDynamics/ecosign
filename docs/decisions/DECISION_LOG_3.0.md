@@ -1,3 +1,17 @@
+## Iteración: continuidad de borradores (preview/canvas al reanudar) — 2026-03-05
+
+### 🎯 Resumen
+Se corrigió la reanudación de borradores que quedaban con vista vacía en Centro Legal.
+
+### ✅ Cambios implementados
+- `client/src/components/LegalCenterModalV2.tsx`
+  - al reanudar draft `server:*`, se restaura `draft_state` **antes** de convertir archivo, para elegir correctamente el modo de conversión (`signature_workflow` vs `protection_only`).
+  - se agregó fallback defensivo: si existe `file` pero falta preview state, se reconstruye preview automáticamente.
+  - para documentos de texto, se evita superponer el overlay “Vista previa no disponible” cuando `documentPreviewText` sí está presente.
+
+### ✅ Validación
+- `npm run typecheck` verde.
+
 ## Iteración: coherencia UI en documento cancelado (punto 1 QA manual) — 2026-03-05
 
 ### 🎯 Resumen

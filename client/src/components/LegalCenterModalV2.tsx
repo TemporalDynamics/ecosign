@@ -534,6 +534,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
   const [documentPreviewPdfData, setDocumentPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const [documentPreviewText, setDocumentPreviewText] = useState<string | null>(null);
+  const [sourceImagePreviewUrl, setSourceImagePreviewUrl] = useState<string | null>(null);
   const [workflowPreviewUrl, setWorkflowPreviewUrl] = useState<string | null>(null);
   const [workflowPreviewPdfData, setWorkflowPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const workflowPreviewKeyRef = useRef<string | null>(null);
@@ -1044,6 +1045,27 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       }
     };
   }, [documentPreview]);
+
+  // Preview fuente original para wizard cuando el archivo base es imagen (evita drift de orientación por conversión a PDF).
+  useEffect(() => {
+    if (!sourceFile || !sourceFile.type.startsWith('image/')) {
+      setSourceImagePreviewUrl((current) => {
+        if (current?.startsWith('blob:')) URL.revokeObjectURL(current);
+        return null;
+      });
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(sourceFile);
+    setSourceImagePreviewUrl((current) => {
+      if (current?.startsWith('blob:')) URL.revokeObjectURL(current);
+      return objectUrl;
+    });
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [sourceFile]);
 
   // Preview con página de firmas (solo para editar campos en workflow)
   useEffect(() => {
@@ -3185,13 +3207,28 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const isViewerLocked = true;
   const activePreviewUrl = workflowPreviewUrl ?? documentPreview;
   const activePreviewPdfData = workflowPreviewPdfData ?? documentPreviewPdfData;
-  // Wizard de campos usa una fuente estable para evitar destellos por swaps de preview.
-  const wizardPreviewUrl = documentPreview ?? workflowPreviewUrl;
-  const wizardPreviewPdfData = documentPreviewPdfData ?? workflowPreviewPdfData;
-  const wizardPreviewText = documentPreviewText;
   const isPdfPreview = file?.type === 'application/pdf';
+  // Wizard de campos usa preview imagen original cuando el source fue JPG/PNG,
+  // para mantener orientación visual coherente respecto del canvas principal.
+  const useSourceImagePreviewInWizard = Boolean(
+    sourceFile?.type.startsWith('image/') && file?.type === 'application/pdf'
+  );
+  const wizardPreviewUrl = useSourceImagePreviewInWizard
+    ? sourceImagePreviewUrl
+    : (documentPreview ?? workflowPreviewUrl);
+  const wizardPreviewPdfData = useSourceImagePreviewInWizard
+    ? null
+    : (documentPreviewPdfData ?? workflowPreviewPdfData);
+  const wizardPreviewText = useSourceImagePreviewInWizard ? null : documentPreviewText;
+  const wizardPreviewIsPdf = useSourceImagePreviewInWizard ? false : isPdfPreview;
   const hasPreview = Boolean(documentPreview || documentPreviewText || workflowPreviewUrl);
   const usePdfEditMode = isPdfPreview && (!pdfEditError || Boolean(activePreviewPdfData));
+  const getNextClockwiseRotation = (current: number) => {
+    const sequence = [0, 90, 180, 270] as const;
+    const normalized = ((current % 360) + 360) % 360;
+    const idx = sequence.indexOf(normalized as (typeof sequence)[number]);
+    return sequence[(idx + 1) % sequence.length];
+  };
   const validSignersForWizard = buildSignersList();
   const canOpenCenterWizard = mySignature || (workflowEnabled && validSignersForWizard.length > 0);
 
@@ -4075,7 +4112,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         {documentPreview && (
                           <button
                             type="button"
-                            onClick={() => setPreviewRotation((prev) => (prev + 90) % 360)}
+                            onClick={() => setPreviewRotation((prev) => getNextClockwiseRotation(prev))}
                             className="inline-flex h-6 w-6 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                             title="Rotar documento"
                           >
@@ -5295,10 +5332,11 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       previewUrl={wizardPreviewUrl}
       previewText={wizardPreviewText}
       previewPdfData={wizardPreviewPdfData}
-      previewIsPdf={isPdfPreview}
+      previewIsPdf={wizardPreviewIsPdf}
       previewPage={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}
       initialPreviewRotation={previewRotation}
       onPreviewRotationChange={setPreviewRotation}
+      isWorkflowMode={workflowEnabled}
       isSelfSignatureMode={Boolean(mySignature && !workflowEnabled)}
       signingMode={workflowSigningMode}
       onSigningModeChange={setWorkflowSigningMode}

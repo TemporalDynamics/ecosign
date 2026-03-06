@@ -21,6 +21,12 @@ Definir un contrato único para todos los canvases virtuales de EcoSign, de modo
 6. **Fullscreen sin motor alterno**: fullscreen reutiliza el mismo renderer, no una implementación paralela.
 7. **Métricas estables**: overlays/coords dependen de ancho virtual canónico, no del ancho visual escalado.
 
+## Invariantes de Rotación (Wizard de Campos)
+1. **Fuente única de rotación**: cuando el wizard recibe callback, la rotación visible depende del estado padre (`Centro Legal`) y no de estado local divergente.
+2. **Secuencia determinística**: la rotación avanza siempre en ciclo fijo `0 -> 90 -> 180 -> 270 -> 0`.
+3. **Drag/resize coherente**: en fullscreen, mover o redimensionar campos debe seguir el cursor en la misma dirección visual, aun con rotación activa.
+4. **Sin controles de flujo en Mi Firma**: la configuración final de flujo (orden y visibilidad para firmantes) solo se muestra en modo workflow.
+
 ## Política de Render por Tipo
 - `application/pdf`: `PdfEditViewer` con carga por `pdfData` preferente.
 - `text/plain` y equivalentes: render monoespaciado con `whitespace-pre` + autofit por escala.

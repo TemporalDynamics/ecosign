@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Plus, Trash2, ChevronDown, ChevronRight, RotateCw, Maximize2, Minimize2, Info, Move } from 'lucide-react';
 import type { SignatureField } from '../../../types/signature-fields';
 import { generateWorkflowFieldsFromWizard, type RepetitionRule, type WizardTemplate } from '../../../lib/workflowFieldTemplate';
@@ -23,6 +23,7 @@ type Props = {
   previewPage?: number | null;
   initialPreviewRotation?: number;
   onPreviewRotationChange?: (nextRotation: number) => void;
+  isWorkflowMode?: boolean;
   isSelfSignatureMode?: boolean;
   signingMode?: 'sequential' | 'parallel';
   onSigningModeChange?: (mode: 'sequential' | 'parallel') => void;
@@ -81,6 +82,7 @@ function SignerFieldsWizardComponent({
   previewPage,
   initialPreviewRotation = 0,
   onPreviewRotationChange,
+  isWorkflowMode = false,
   isSelfSignatureMode = false,
   signingMode,
   onSigningModeChange,
@@ -100,7 +102,7 @@ function SignerFieldsWizardComponent({
   const [activeSignerEmail, setActiveSignerEmail] = useState<string>('');
   const [perSignerPlacement, setPerSignerPlacement] = useState<Record<string, PerSignerPlacement>>({});
   const normalizeRotation = (rotation: number) => ((rotation % 360) + 360) % 360;
-  const [previewRotation, setPreviewRotation] = useState(() => normalizeRotation(initialPreviewRotation));
+  const [localPreviewRotation, setLocalPreviewRotation] = useState(() => normalizeRotation(initialPreviewRotation));
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [pdfPreviewFailed, setPdfPreviewFailed] = useState(false);
@@ -129,6 +131,7 @@ function SignerFieldsWizardComponent({
   });
   const [personalizeBySigner, setPersonalizeBySigner] = useState(false);
   const fullscreenScrollRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenContentRef = useRef<HTMLDivElement | null>(null);
   const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
   const autoScrollRafRef = useRef<number | null>(null);
   const FULL_SCALE_MAX = 0.82;
@@ -138,22 +141,33 @@ function SignerFieldsWizardComponent({
   const [openSignatureBlock, setOpenSignatureBlock] = useState<'final' | 'perPage' | null>('final');
   const effectiveSigningMode = signingMode ?? 'sequential';
   const effectiveFinalVisibility = finalDocumentVisibility ?? 'owner_only';
-  const showSigningModeControl = Boolean(onSigningModeChange && signers.length > 1);
-  const showFinalVisibilityControl = Boolean(onFinalDocumentVisibilityChange && !isSelfSignatureMode);
+  const showSigningModeControl = Boolean(isWorkflowMode && onSigningModeChange && signers.length > 1);
+  const showFinalVisibilityControl = Boolean(isWorkflowMode && onFinalDocumentVisibilityChange && !isSelfSignatureMode);
   const showFinalFlowControls = showSigningModeControl || showFinalVisibilityControl;
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const ROTATION_SEQUENCE = [0, 90, 180, 270] as const;
+  const getNextClockwiseRotation = (current: number) => {
+    const normalized = normalizeRotation(current);
+    const idx = ROTATION_SEQUENCE.indexOf(normalized as (typeof ROTATION_SEQUENCE)[number]);
+    return ROTATION_SEQUENCE[(idx + 1) % ROTATION_SEQUENCE.length];
+  };
 
   useEffect(() => {
-    if (!isOpen) return;
-    setPreviewRotation(normalizeRotation(initialPreviewRotation));
-  }, [isOpen, initialPreviewRotation]);
+    if (onPreviewRotationChange) return;
+    setLocalPreviewRotation(normalizeRotation(initialPreviewRotation));
+  }, [initialPreviewRotation, onPreviewRotationChange]);
+
+  const previewRotation = onPreviewRotationChange
+    ? normalizeRotation(initialPreviewRotation)
+    : localPreviewRotation;
 
   const rotatePreview = () => {
-    setPreviewRotation((prev) => {
-      const next = (prev + 90) % 360;
-      onPreviewRotationChange?.(next);
-      return next;
-    });
+    const next = getNextClockwiseRotation(previewRotation);
+    if (onPreviewRotationChange) {
+      onPreviewRotationChange(next);
+      return;
+    }
+    setLocalPreviewRotation(next);
   };
 
   const validSigners = useMemo(
@@ -173,6 +187,57 @@ function SignerFieldsWizardComponent({
     pageSizeMode === 'document'
       ? detectedVirtualHeight
       : Math.round(virtualWidth * PAGE_RATIOS[pageSizeMode]);
+  const normalizedPreviewRotation = normalizeRotation(previewRotation);
+  const isQuarterTurn = normalizedPreviewRotation === 90 || normalizedPreviewRotation === 270;
+  const layoutVirtualWidth = isQuarterTurn ? resolvedVirtualHeight : virtualWidth;
+  const layoutVirtualHeight = isQuarterTurn ? virtualWidth : resolvedVirtualHeight;
+
+  const mapFieldFromLayoutToBase = (field: SignatureField): SignatureField => {
+    if (normalizedPreviewRotation === 0) return field;
+
+    const baseWidth = virtualWidth;
+    const baseHeight = resolvedVirtualHeight;
+    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+    if (normalizedPreviewRotation === 180) {
+      const nextWidth = field.width;
+      const nextHeight = field.height;
+      const mappedX = baseWidth - field.x - nextWidth;
+      const mappedY = baseHeight - field.y - nextHeight;
+      return {
+        ...field,
+        x: clamp(mappedX, 0, Math.max(0, baseWidth - nextWidth)),
+        y: clamp(mappedY, 0, Math.max(0, baseHeight - nextHeight)),
+      };
+    }
+
+    if (normalizedPreviewRotation === 90) {
+      const nextWidth = field.height;
+      const nextHeight = field.width;
+      const mappedX = field.y;
+      const mappedY = baseHeight - field.x - field.width;
+      return {
+        ...field,
+        x: clamp(mappedX, 0, Math.max(0, baseWidth - nextWidth)),
+        y: clamp(mappedY, 0, Math.max(0, baseHeight - nextHeight)),
+        width: nextWidth,
+        height: nextHeight,
+      };
+    }
+
+    // 270
+    const nextWidth = field.height;
+    const nextHeight = field.width;
+    const mappedX = baseWidth - field.y - field.height;
+    const mappedY = field.x;
+    return {
+      ...field,
+      x: clamp(mappedX, 0, Math.max(0, baseWidth - nextWidth)),
+      y: clamp(mappedY, 0, Math.max(0, baseHeight - nextHeight)),
+      width: nextWidth,
+      height: nextHeight,
+    };
+  };
 
   const template: WizardTemplate = useMemo(() => {
     const fields: WizardTemplate['fields'] = [];
@@ -264,8 +329,8 @@ function SignerFieldsWizardComponent({
     }
     const pagesCount = Math.max(1, totalPages ?? 1);
     const marginX = 24;
-    const upperBandStart = Math.max(24, Math.round(resolvedVirtualHeight * 0.18));
-    const upperBandEnd = Math.max(upperBandStart + 110, Math.round(resolvedVirtualHeight * 0.50));
+    const upperBandStart = Math.max(24, Math.round(layoutVirtualHeight * 0.18));
+    const upperBandEnd = Math.max(upperBandStart + 110, Math.round(layoutVirtualHeight * 0.50));
     const rowGap = 8;
     const signatureSize = { w: 220, h: 58 };
     const fieldSize = { w: 180, h: 28 };
@@ -290,7 +355,7 @@ function SignerFieldsWizardComponent({
       const batchId = createFieldId();
       const x =
         placement.side === 'right'
-          ? Math.max(marginX, virtualWidth - marginX - signatureSize.w)
+          ? Math.max(marginX, layoutVirtualWidth - marginX - signatureSize.w)
           : marginX;
       const preferredY = upperBandStart + signerIdx * (stackHeight + rowGap);
       const y = Math.max(24, Math.min(preferredY, upperBandEnd - stackHeight));
@@ -367,12 +432,12 @@ function SignerFieldsWizardComponent({
   const previewBaseFields = useMemo(
     () =>
       generateWorkflowFieldsFromWizard(validSigners, template, {
-        virtualWidth,
-        virtualHeight: resolvedVirtualHeight,
+        virtualWidth: layoutVirtualWidth,
+        virtualHeight: layoutVirtualHeight,
         totalPages,
         targetPage
       }),
-    [validSigners, template, virtualWidth, resolvedVirtualHeight, totalPages, targetPage]
+    [validSigners, template, layoutVirtualWidth, layoutVirtualHeight, totalPages, targetPage]
   );
 
   const previewPerPageFields = useMemo(
@@ -385,14 +450,14 @@ function SignerFieldsWizardComponent({
       includeFinalSignature,
       perSignerPlacement,
       totalPages,
-      virtualWidth,
-      resolvedVirtualHeight
+      layoutVirtualWidth,
+      layoutVirtualHeight
     ]
   );
 
   const autoFields = useMemo(
-    () => [...previewBaseFields, ...previewPerPageFields],
-    [previewBaseFields, previewPerPageFields]
+    () => [...previewBaseFields, ...previewPerPageFields].map(mapFieldFromLayoutToBase),
+    [previewBaseFields, previewPerPageFields, normalizedPreviewRotation, virtualWidth, resolvedVirtualHeight]
   );
 
   useEffect(() => {
@@ -440,6 +505,44 @@ function SignerFieldsWizardComponent({
   const miniPreviewWidth = 250;
   const miniPreviewHeight = Math.max(150, Math.round((miniPreviewWidth * resolvedVirtualHeight) / virtualWidth));
   const miniPreviewScale = miniPreviewWidth / Math.max(1, virtualWidth);
+  const fieldLabelCounterRotationStyle =
+    normalizedPreviewRotation === 0
+      ? undefined
+      : {
+          transform: `rotate(${-normalizedPreviewRotation}deg)`,
+          transformOrigin: 'center center',
+          maxWidth: '100%',
+          maxHeight: '100%',
+        };
+
+  const getFullscreenPointerInContent = useCallback(
+    (clientX: number, clientY: number) => {
+      const content = fullscreenContentRef.current;
+      if (!content) return null;
+
+      const rect = content.getBoundingClientRect();
+      const pagesCount = Math.max(1, totalPages ?? 1);
+      const scaledWidth = virtualWidth * fullscreenScale;
+      const scaledHeight = Math.max(1, pagesCount * resolvedVirtualHeight * fullscreenScale);
+      const centerClientX = rect.left + rect.width / 2;
+      const centerClientY = rect.top + rect.height / 2;
+      const dx = clientX - centerClientX;
+      const dy = clientY - centerClientY;
+      const radians = (normalizedPreviewRotation * Math.PI) / 180;
+
+      // Convert viewport pointer from rotated space back into base document coordinates.
+      const cos = Math.cos(-radians);
+      const sin = Math.sin(-radians);
+      const unrotatedX = dx * cos - dy * sin;
+      const unrotatedY = dx * sin + dy * cos;
+
+      return {
+        x: (unrotatedX + scaledWidth / 2) / fullscreenScale,
+        y: (unrotatedY + scaledHeight / 2) / fullscreenScale
+      };
+    },
+    [fullscreenScale, normalizedPreviewRotation, resolvedVirtualHeight, totalPages, virtualWidth]
+  );
 
   useEffect(() => {
     // Reset when source changes / wizard reopens.
@@ -479,6 +582,10 @@ function SignerFieldsWizardComponent({
   // Auto-scroll to show the signature fields when fullscreen opens
   useEffect(() => {
     if (!previewFullscreen || !fullscreenScrollRef.current) return;
+    if (normalizedPreviewRotation !== 0) {
+      fullscreenScrollRef.current.scrollTop = 0;
+      return;
+    }
     const lowestAbsY = previewItemsVisible.reduce((max, f) => {
       return Math.max(max, (f.page - 1) * resolvedVirtualHeight + f.y + f.height);
     }, 0);
@@ -486,7 +593,7 @@ function SignerFieldsWizardComponent({
     const targetScroll = lowestAbsY * fullscreenScale - containerH * 0.7;
     fullscreenScrollRef.current.scrollTop = Math.max(0, targetScroll);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewFullscreen, fullscreenScale]);
+  }, [previewFullscreen, fullscreenScale, normalizedPreviewRotation, previewItemsVisible, resolvedVirtualHeight]);
 
   // Fit-to-width en fullscreen para evitar scroll horizontal.
   useEffect(() => {
@@ -498,7 +605,8 @@ function SignerFieldsWizardComponent({
     const recalc = () => {
       const container = fullscreenScrollRef.current;
       if (!container) return;
-      const fitScale = (container.clientWidth - 24) / Math.max(1, virtualWidth);
+      const fitBaseWidth = isQuarterTurn ? resolvedVirtualHeight : virtualWidth;
+      const fitScale = (container.clientWidth - 24) / Math.max(1, fitBaseWidth);
       setFullscreenScale(Math.max(0.28, Math.min(FULL_SCALE_MAX, fitScale)));
     };
 
@@ -512,7 +620,16 @@ function SignerFieldsWizardComponent({
       observer.disconnect();
       window.removeEventListener('resize', recalc);
     };
-  }, [previewFullscreen, virtualWidth]);
+  }, [previewFullscreen, virtualWidth, resolvedVirtualHeight, isQuarterTurn]);
+
+  // Al rotar en fullscreen, reposicionar al origen para evitar "pantalla vacía"
+  // cuando la rotación previa dejó scroll en una zona sin contenido visible.
+  useEffect(() => {
+    if (!previewFullscreen) return;
+    const container = fullscreenScrollRef.current;
+    if (!container) return;
+    container.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [previewRotation, previewFullscreen]);
 
   useEffect(() => {
     if (!previewFullscreen) return;
@@ -528,16 +645,6 @@ function SignerFieldsWizardComponent({
       }
     };
 
-    const toContentCoords = (clientX: number, clientY: number) => {
-      const container = fullscreenScrollRef.current;
-      if (!container) return null;
-      const rect = container.getBoundingClientRect();
-      return {
-        x: (clientX - rect.left + container.scrollLeft) / fullscreenScale,
-        y: (clientY - rect.top + container.scrollTop) / fullscreenScale
-      };
-    };
-
     const fromAbsoluteY = (absoluteY: number, fieldHeight: number) => {
       const maxAbsY = Math.max(0, totalDocHeight - fieldHeight);
       const clampedAbsY = Math.max(0, Math.min(maxAbsY, absoluteY));
@@ -548,7 +655,7 @@ function SignerFieldsWizardComponent({
     };
 
     const applyPointerMovement = (clientX: number, clientY: number) => {
-      const pointer = toContentCoords(clientX, clientY);
+      const pointer = getFullscreenPointerInContent(clientX, clientY);
       if (!pointer) return;
 
       if (dragState) {
@@ -654,7 +761,7 @@ function SignerFieldsWizardComponent({
       window.removeEventListener('mouseup', onUp);
       stopAutoScrollLoop();
     };
-  }, [previewFullscreen, dragState, resizeState, virtualWidth, resolvedVirtualHeight, totalPages, fullscreenScale]);
+  }, [previewFullscreen, dragState, resizeState, virtualWidth, resolvedVirtualHeight, totalPages, fullscreenScale, normalizedPreviewRotation, getFullscreenPointerInContent]);
 
   if (!isOpen) return null;
 
@@ -1000,7 +1107,7 @@ function SignerFieldsWizardComponent({
                                   return (
                                     <div
                                       key={`mini-field-${field.id}`}
-                                      className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
+                                      className="absolute border border-blue-400/80 bg-blue-100/40 text-[8px] text-blue-900 overflow-hidden"
                                       style={{
                                         left: field.x * scaleX,
                                         top: field.y * scaleY,
@@ -1008,7 +1115,12 @@ function SignerFieldsWizardComponent({
                                         height: field.height * scaleY
                                       }}
                                     >
-                                      {field.metadata?.label || 'Campo'}
+                                      <span
+                                        className="absolute inset-0 flex items-center justify-center text-center leading-tight px-0.5"
+                                        style={fieldLabelCounterRotationStyle}
+                                      >
+                                        {field.metadata?.label || 'Campo'}
+                                      </span>
                                     </div>
                                   );
                                 })}
@@ -1044,7 +1156,7 @@ function SignerFieldsWizardComponent({
                             return (
                               <div
                                 key={field.id}
-                                className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
+                                className="absolute border border-blue-400/80 bg-blue-100/40 text-[8px] text-blue-900 overflow-hidden"
                                 style={{
                                   left: field.x * scaleX,
                                   top: field.y * scaleY,
@@ -1052,7 +1164,12 @@ function SignerFieldsWizardComponent({
                                   height: field.height * scaleY
                                 }}
                               >
-                                {field.metadata?.label || 'Campo'}
+                                <span
+                                  className="absolute inset-0 flex items-center justify-center text-center leading-tight px-0.5"
+                                  style={fieldLabelCounterRotationStyle}
+                                >
+                                  {field.metadata?.label || 'Campo'}
+                                </span>
                               </div>
                             );
                           })}
@@ -1196,12 +1313,13 @@ function SignerFieldsWizardComponent({
             >
               {/* Canvas: natural document size */}
               <div
+                ref={fullscreenContentRef}
                 className="relative mx-auto"
                 style={{
                   width: virtualWidth * fullscreenScale,
                   minHeight: (totalPages ?? 1) * resolvedVirtualHeight * fullscreenScale,
                   transform: previewRotation ? `rotate(${previewRotation}deg)` : undefined,
-                  transformOrigin: 'top center'
+                  transformOrigin: 'center center'
                 }}
                 onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedFieldId(null); }}
               >
@@ -1261,11 +1379,8 @@ function SignerFieldsWizardComponent({
                         e.preventDefault();
                         e.stopPropagation();
                         if (!leadField) return;
-                        const container = fullscreenScrollRef.current;
-                        if (!container) return;
-                        const rect = container.getBoundingClientRect();
-                        const anchorContentX = (e.clientX - rect.left + container.scrollLeft) / fullscreenScale;
-                        const anchorContentY = (e.clientY - rect.top + container.scrollTop) / fullscreenScale;
+                        const pointer = getFullscreenPointerInContent(e.clientX, e.clientY);
+                        if (!pointer) return;
                         const batchOrigins = Object.fromEntries(
                           wizardFields
                             .filter((field) => field.batchId === batchKey)
@@ -1284,8 +1399,8 @@ function SignerFieldsWizardComponent({
                           id: leadField.id,
                           batchId: batchKey,
                           moveBatch: true,
-                          anchorContentX,
-                          anchorContentY,
+                          anchorContentX: pointer.x,
+                          anchorContentY: pointer.y,
                           originX: leadField.x,
                           originAbsoluteY: (leadField.page - 1) * resolvedVirtualHeight + leadField.y,
                           batchOrigins
@@ -1302,7 +1417,7 @@ function SignerFieldsWizardComponent({
                   return (
                     <div
                       key={`full-${field.id}`}
-                      className={`absolute select-none group ${
+                      className={`absolute select-none group overflow-hidden ${
                         isSelected
                           ? 'border-2 border-blue-600'
                           : 'border border-blue-400/70 hover:border-blue-500'
@@ -1322,7 +1437,10 @@ function SignerFieldsWizardComponent({
                       }}
                     >
                       {/* Label */}
-                      <span className="absolute top-0.5 left-1.5 text-[9px] font-medium text-blue-700 pointer-events-none leading-tight select-none">
+                      <span
+                        className="absolute inset-0 flex items-center justify-center text-center px-1 text-[10px] font-medium text-blue-700 pointer-events-none leading-tight select-none overflow-hidden"
+                        style={fieldLabelCounterRotationStyle}
+                      >
                         {field.metadata?.label || 'Campo'}
                       </span>
 
@@ -1334,18 +1452,15 @@ function SignerFieldsWizardComponent({
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          const container = fullscreenScrollRef.current;
-                          if (!container) return;
-                          const rect = container.getBoundingClientRect();
-                          const anchorContentX = (e.clientX - rect.left + container.scrollLeft) / fullscreenScale;
-                          const anchorContentY = (e.clientY - rect.top + container.scrollTop) / fullscreenScale;
+                          const pointer = getFullscreenPointerInContent(e.clientX, e.clientY);
+                          if (!pointer) return;
                           setSelectedFieldId(field.id);
                           setDragState({
                             id: field.id,
                             batchId: field.batchId,
                             moveBatch: false,
-                            anchorContentX,
-                            anchorContentY,
+                            anchorContentX: pointer.x,
+                            anchorContentY: pointer.y,
                             originX: field.x,
                             originAbsoluteY: (field.page - 1) * resolvedVirtualHeight + field.y
                           });
@@ -1362,16 +1477,13 @@ function SignerFieldsWizardComponent({
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          const container = fullscreenScrollRef.current;
-                          if (!container) return;
-                          const rect = container.getBoundingClientRect();
-                          const anchorContentX = (e.clientX - rect.left + container.scrollLeft) / fullscreenScale;
-                          const anchorContentY = (e.clientY - rect.top + container.scrollTop) / fullscreenScale;
+                          const pointer = getFullscreenPointerInContent(e.clientX, e.clientY);
+                          if (!pointer) return;
                           setSelectedFieldId(field.id);
                           setResizeState({
                             id: field.id,
-                            anchorContentX,
-                            anchorContentY,
+                            anchorContentX: pointer.x,
+                            anchorContentY: pointer.y,
                             originW: field.width,
                             originH: field.height
                           });

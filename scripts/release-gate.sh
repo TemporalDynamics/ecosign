@@ -25,6 +25,9 @@ ensure_db_test_context() {
 }
 
 run_step "Fast test suite" npm test
+run_step "UI canvas contract guards" npx vitest run \
+  tests/ui/canvas_virtual_surface_contract_guard.test.ts \
+  tests/ui/signer_fields_wizard_rotation_contract_guard.test.ts
 ensure_db_test_context
 run_step "DB integration gate" npm run test:db
 run_step "Internal runtime table hardening audit" npm run diag:internal-runtime-table-hardening

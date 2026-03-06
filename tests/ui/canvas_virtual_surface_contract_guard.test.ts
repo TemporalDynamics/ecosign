@@ -87,3 +87,13 @@ test('text preview surfaces must use VirtualTextCanvas canonical renderer', asyn
   expect(documentsPage).not.toContain('whitespace-pre-wrap">{previewText}');
   expect(documentsPage).not.toContain('whitespace-pre-wrap">{previewDraftText}');
 });
+
+test('wizard preview keeps canonical text fallback for non-PDF', async () => {
+  const wizardFile = await fs.readFile(
+    path.join(ROOT, 'client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx'),
+    'utf8'
+  );
+
+  expect(wizardFile).toContain('previewText?: string | null;');
+  expect(wizardFile).toContain('VirtualTextCanvas');
+});

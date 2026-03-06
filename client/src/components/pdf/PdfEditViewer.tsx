@@ -20,6 +20,8 @@ type PdfEditViewerProps = {
   locked?: boolean;
   virtualWidth?: number;
   scale?: number;
+  fitToContainer?: boolean;
+  forceVerticalScrollbar?: boolean;
   pageGap?: number;
   scrollRef?: React.MutableRefObject<HTMLDivElement | null>;
   onMetrics?: (metrics: PdfPageMetrics[]) => void;
@@ -43,6 +45,8 @@ export const PdfEditViewer = ({
   locked = false,
   virtualWidth = 1000,
   scale = 1,
+  fitToContainer = true,
+  forceVerticalScrollbar = false,
   pageGap = 24,
   scrollRef,
   onMetrics,
@@ -58,11 +62,13 @@ export const PdfEditViewer = ({
   const canvasRefs = useRef<HTMLCanvasElement[]>([]);
   const renderTasksRef = useRef<RenderTask[]>([]);
 
-  const autoFitScale = containerWidth > 0
+  const autoFitScale = fitToContainer && containerWidth > 0
     ? Math.max(0.05, Math.min(1, (containerWidth - 8) / virtualWidth))
     : 1;
   // Never exceed requested scale, but always fit current viewport width.
-  const resolvedScale = Math.max(0.05, Math.min(scale, autoFitScale));
+  const resolvedScale = fitToContainer
+    ? Math.max(0.05, Math.min(scale, autoFitScale))
+    : Math.max(0.05, scale);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,6 +235,10 @@ export const PdfEditViewer = ({
 
     if (!node) return;
 
+    if (!fitToContainer) {
+      return;
+    }
+
     setContainerWidth(node.clientWidth);
 
     if (typeof ResizeObserver !== 'undefined') {
@@ -245,7 +255,7 @@ export const PdfEditViewer = ({
   return (
     <div
       ref={handleContainerRef}
-      className={`w-full h-full bg-white overflow-x-hidden overflow-y-auto ${className || ''}`}
+      className={`w-full h-full bg-white overflow-x-hidden ${forceVerticalScrollbar ? 'overflow-y-scroll' : 'overflow-y-auto'} ${className || ''}`}
     >
       <div className="relative py-4 w-full flex justify-center">
         <div className="relative" style={{ width: virtualWidth * resolvedScale }}>

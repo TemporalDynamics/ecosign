@@ -259,7 +259,7 @@ const GUEST_DEMO_DOCS: DocumentRecord[] = [
 
 function DocumentsPage() {
   const navigate = useNavigate();
-  const { open: openLegalCenter } = useLegalCenter();
+  const { open: openLegalCenter, isOpen: isLegalCenterOpen } = useLegalCenter();
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [processingHintStartByEntityId, setProcessingHintStartByEntityId] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -847,6 +847,7 @@ function DocumentsPage() {
   
   useEffect(() => {
     if (!currentUserId) return;
+    if (isLegalCenterOpen) return;
 
     // Prevent duplicate subscriptions
     if (realtimeChannelRef.current) {
@@ -942,7 +943,7 @@ function DocumentsPage() {
         window.clearTimeout(timeoutId);
       }
     };
-  }, [currentUserId, documents, loadDocuments, processingHintStartByEntityId]);
+  }, [currentUserId, documents, loadDocuments, processingHintStartByEntityId, isLegalCenterOpen]);
 
   const loadPlan = useCallback(async () => {
     try {
@@ -2911,9 +2912,9 @@ function DocumentsPage() {
 
       {/* Modal Preview */}
       {previewDoc && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full shadow-2xl h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-100 flex-shrink-0">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">{previewDoc.document_name}</h3>
                 <p className="text-sm text-gray-600 mt-1">
@@ -2935,8 +2936,8 @@ function DocumentsPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-              <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 min-h-[320px]">
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 p-6 pt-4 flex-1 min-h-0">
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 min-h-[320px] h-full">
                 {previewLoading && (
                   <div className="h-full flex items-center justify-center text-sm text-gray-500">
                     Cargando previsualización...
@@ -2948,7 +2949,7 @@ function DocumentsPage() {
                   </div>
                 )}
                 {!previewLoading && !previewError && previewText && (
-                  <VirtualTextCanvas text={previewText} className="h-[60vh] bg-white" />
+                  <VirtualTextCanvas text={previewText} className="h-full bg-white" />
                 )}
                 {!previewLoading && !previewError && previewUrl && (
                   <>
@@ -2957,7 +2958,7 @@ function DocumentsPage() {
                         src={previewUrl}
                         pdfData={previewPdfData}
                         locked
-                        className="w-full h-[60vh]"
+                        className="w-full h-full"
                       />
                     ) : (
                       <img src={previewUrl} alt="Preview" className="w-full h-full object-contain p-4" />
@@ -2966,7 +2967,7 @@ function DocumentsPage() {
                 )}
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto pr-1">
                 <DocumentStateInfo document={previewDoc} />
                 {Array.isArray(previewDoc.signers) && previewDoc.signers.length > 0 && (
                   <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
@@ -3300,9 +3301,9 @@ function DocumentsPage() {
 
       {/* Modal Detalle de Borrador */}
       {previewDraft && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start md:items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-100 flex-shrink-0">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">{previewDraft.name}</h3>
                 <p className="text-sm text-amber-700 mt-1">Incompleto</p>
@@ -3319,8 +3320,8 @@ function DocumentsPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-              <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 min-h-[240px]">
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 p-6 pt-4 flex-1 min-h-0">
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 min-h-[240px] h-full">
                 {previewDraftLoading && (
                   <div className="h-full flex items-center justify-center text-sm text-gray-500">
                     Cargando vista previa...
@@ -3332,7 +3333,7 @@ function DocumentsPage() {
                   </div>
                 )}
                 {!previewDraftLoading && !previewDraftError && previewDraftText && (
-                  <VirtualTextCanvas text={previewDraftText} className="h-[50vh] bg-white" />
+                  <VirtualTextCanvas text={previewDraftText} className="h-full bg-white" />
                 )}
                 {!previewDraftLoading && !previewDraftError && previewDraftUrl && (
                   <>
@@ -3341,7 +3342,7 @@ function DocumentsPage() {
                         src={previewDraftUrl}
                         pdfData={previewDraftPdfData}
                         locked
-                        className="w-full h-[50vh]"
+                        className="w-full h-full"
                       />
                     ) : (
                       <img src={previewDraftUrl} alt="Preview" className="w-full h-full object-contain p-4" />
@@ -3350,7 +3351,7 @@ function DocumentsPage() {
                 )}
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto pr-1">
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
                   Este borrador no es probatorio.
                 </div>

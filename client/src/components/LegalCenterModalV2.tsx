@@ -3185,6 +3185,10 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const isViewerLocked = true;
   const activePreviewUrl = workflowPreviewUrl ?? documentPreview;
   const activePreviewPdfData = workflowPreviewPdfData ?? documentPreviewPdfData;
+  // Wizard de campos usa una fuente estable para evitar destellos por swaps de preview.
+  const wizardPreviewUrl = documentPreview ?? workflowPreviewUrl;
+  const wizardPreviewPdfData = documentPreviewPdfData ?? workflowPreviewPdfData;
+  const wizardPreviewText = documentPreviewText;
   const isPdfPreview = file?.type === 'application/pdf';
   const hasPreview = Boolean(documentPreview || documentPreviewText || workflowPreviewUrl);
   const usePdfEditMode = isPdfPreview && (!pdfEditError || Boolean(activePreviewPdfData));
@@ -3201,6 +3205,51 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     if (Math.abs(ratio - 1008 / 612) < 0.05) return 'Oficio';
     return 'Personalizado';
   })();
+
+  const wizardSigners = useMemo(
+    () =>
+      mySignature && !workflowEnabled
+        ? (ownerEmail ? [{ email: ownerEmail.trim().toLowerCase(), signingOrder: 1 }] : [])
+        : buildSignersList().map((s) => ({ email: s.email, signingOrder: s.signingOrder })),
+    [mySignature, workflowEnabled, ownerEmail, emailInputs]
+  );
+
+  const handleSignerWizardClose = useCallback(() => {
+    setShowSignerFieldsWizard(false);
+    if (mySignature && signatureFields.length === 0) {
+      setMySignature(false);
+      setSignatureType(null);
+      showToast('Mi firma se desactivó porque no se asignaron campos.', {
+        type: 'warning',
+        duration: 2000,
+        position: 'top-right'
+      });
+    }
+  }, [mySignature, signatureFields.length, showToast]);
+
+  const handleSignerWizardApply = useCallback((result: {
+    fields: SignatureField[];
+    template: unknown;
+    pageSizeMode: SignaturePageMode;
+    virtualWidth: number;
+    virtualHeight: number;
+  }) => {
+    const fields = result.fields;
+    if (signatureFields.length > 0) {
+      const ok = window.confirm('Esto va a reemplazar los campos existentes. ¿Continuar?');
+      if (!ok) return;
+    }
+
+    setSignatureFields(fields);
+    setWorkflowVirtualSize({ width: result.virtualWidth, height: result.virtualHeight });
+    setWorkflowPageSizeMode(result.pageSizeMode);
+    const firstBatch = fields.find((f: SignatureField) => f.batchId)?.batchId ?? null;
+    setActiveBatchId(firstBatch);
+    setWorkflowAssignmentConfirmed(true);
+    setExpandedSignerIndex(null);
+    setShowSignerFieldsWizard(false);
+    showToast('Campos configurados correctamente.', { type: 'success', duration: 2000, position: 'top-right' });
+  }, [signatureFields.length, showToast]);
 
   useEffect(() => {
     if (signatureFields.length === 0) {
@@ -5217,52 +5266,23 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     <SignerFieldsWizard
       isOpen={showSignerFieldsWizard}
-      onClose={() => {
-        setShowSignerFieldsWizard(false);
-        if (mySignature && signatureFields.length === 0) {
-          setMySignature(false);
-          setSignatureType(null);
-          showToast('Mi firma se desactivó porque no se asignaron campos.', {
-            type: 'warning',
-            duration: 2000,
-            position: 'top-right'
-          });
-        }
-      }}
-      signers={
-        mySignature && !workflowEnabled
-          ? (ownerEmail ? [{ email: ownerEmail, signingOrder: 1 }] : [])
-          : buildSignersList().map((s) => ({ email: s.email, signingOrder: s.signingOrder }))
-      }
+      onClose={handleSignerWizardClose}
+      signers={wizardSigners}
       virtualWidth={VIRTUAL_PAGE_WIDTH}
       detectedVirtualHeight={VIRTUAL_PAGE_HEIGHT}
       totalPages={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}
       detectedPageLabel={detectedPageLabel}
-      previewUrl={activePreviewUrl}
-      previewPdfData={activePreviewPdfData}
+      previewUrl={wizardPreviewUrl}
+      previewText={wizardPreviewText}
+      previewPdfData={wizardPreviewPdfData}
       previewIsPdf={isPdfPreview}
       previewPage={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}
+      isSelfSignatureMode={Boolean(mySignature && !workflowEnabled)}
       signingMode={workflowSigningMode}
       onSigningModeChange={setWorkflowSigningMode}
       finalDocumentVisibility={workflowFinalVisibility}
       onFinalDocumentVisibilityChange={setWorkflowFinalVisibility}
-      onApply={(result) => {
-        const fields = result.fields;
-        if (signatureFields.length > 0) {
-          const ok = window.confirm('Esto va a reemplazar los campos existentes. ¿Continuar?');
-          if (!ok) return;
-        }
-
-        setSignatureFields(fields);
-        setWorkflowVirtualSize({ width: result.virtualWidth, height: result.virtualHeight });
-        setWorkflowPageSizeMode(result.pageSizeMode);
-        const firstBatch = fields.find((f: SignatureField) => f.batchId)?.batchId ?? null;
-        setActiveBatchId(firstBatch);
-        setWorkflowAssignmentConfirmed(true);
-        setExpandedSignerIndex(null);
-        setShowSignerFieldsWizard(false);
-        showToast('Campos configurados correctamente.', { type: 'success', duration: 2000, position: 'top-right' });
-      }}
+      onApply={handleSignerWizardApply}
     />
 
     {/* Modal secundario: Selector de tipo de firma certificada */}

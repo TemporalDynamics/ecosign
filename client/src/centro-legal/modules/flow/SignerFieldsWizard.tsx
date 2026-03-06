@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { X, Plus, Trash2, ChevronDown, ChevronRight, RotateCw, Maximize2, Minimize2, Info, Move } from 'lucide-react';
 import type { SignatureField } from '../../../types/signature-fields';
 import { generateWorkflowFieldsFromWizard, type RepetitionRule, type WizardTemplate } from '../../../lib/workflowFieldTemplate';
 import { PdfEditViewer } from '../../../components/pdf/PdfEditViewer';
+import VirtualTextCanvas from '../../../components/virtual-canvas/VirtualTextCanvas';
 import { ensurePdfJsWorkerConfigured } from '../../../components/pdf/pdfjsRuntime';
 
 ensurePdfJsWorkerConfigured();
@@ -16,9 +17,11 @@ type Props = {
   totalPages: number | null;
   detectedPageLabel: string;
   previewUrl?: string | null;
+  previewText?: string | null;
   previewPdfData?: ArrayBuffer | null;
   previewIsPdf?: boolean;
   previewPage?: number | null;
+  isSelfSignatureMode?: boolean;
   signingMode?: 'sequential' | 'parallel';
   onSigningModeChange?: (mode: 'sequential' | 'parallel') => void;
   finalDocumentVisibility?: 'owner_only' | 'participants';
@@ -61,7 +64,7 @@ function createFieldId() {
   return `wfz-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
-export function SignerFieldsWizard({
+function SignerFieldsWizardComponent({
   isOpen,
   onClose,
   signers,
@@ -70,9 +73,11 @@ export function SignerFieldsWizard({
   totalPages,
   detectedPageLabel,
   previewUrl,
+  previewText = null,
   previewPdfData = null,
   previewIsPdf = false,
   previewPage,
+  isSelfSignatureMode = false,
   signingMode,
   onSigningModeChange,
   finalDocumentVisibility,
@@ -128,6 +133,9 @@ export function SignerFieldsWizard({
   const [openSignatureBlock, setOpenSignatureBlock] = useState<'final' | 'perPage' | null>('final');
   const effectiveSigningMode = signingMode ?? 'sequential';
   const effectiveFinalVisibility = finalDocumentVisibility ?? 'owner_only';
+  const showSigningModeControl = Boolean(onSigningModeChange && signers.length > 1);
+  const showFinalVisibilityControl = Boolean(onFinalDocumentVisibilityChange && !isSelfSignatureMode);
+  const showFinalFlowControls = showSigningModeControl || showFinalVisibilityControl;
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const validSigners = useMemo(
@@ -410,6 +418,7 @@ export function SignerFieldsWizard({
   }, [previewItemsVisible, resolvedVirtualHeight]);
 
   const pdfPreviewSrc = previewIsPdf && previewUrl ? previewUrl : null;
+  const textPreviewSrc = !previewIsPdf && previewText ? previewText : null;
   const miniPreviewWidth = 250;
   const miniPreviewHeight = Math.max(150, Math.round((miniPreviewWidth * resolvedVirtualHeight) / virtualWidth));
   const miniPreviewScale = miniPreviewWidth / Math.max(1, virtualWidth);
@@ -950,12 +959,13 @@ export function SignerFieldsWizard({
                         style={{ transform: `rotate(${previewRotation}deg)`, transformOrigin: 'center center' }}
                       >
                         <PdfEditViewer
-                          key={`mini-pages-${pdfPreviewSrc}-${previewPdfData?.byteLength ?? 0}`}
                           src={pdfPreviewSrc}
                           pdfData={previewPdfData}
                           locked={false}
                           virtualWidth={virtualWidth}
                           scale={miniPreviewScale}
+                          fitToContainer={false}
+                          forceVerticalScrollbar
                           pageGap={8}
                           className="h-full bg-transparent"
                           onError={(error) => {
@@ -988,35 +998,48 @@ export function SignerFieldsWizard({
                           )}
                         />
                       </div>
-                    ) : previewUrl && !previewIsPdf ? (
-                      <img
-                        src={previewUrl}
-                        alt="Preview"
-                        className="absolute inset-0 w-full h-full object-contain"
+                    ) : (!previewIsPdf && (previewUrl || textPreviewSrc)) ? (
+                      <div
+                        className="absolute inset-0"
                         style={{ transform: `rotate(${previewRotation}deg)`, transformOrigin: 'center center' }}
-                      />
+                      >
+                        {previewUrl ? (
+                          <img
+                            src={previewUrl}
+                            alt="Preview"
+                            className="absolute inset-0 w-full h-full object-contain"
+                          />
+                        ) : (
+                          <VirtualTextCanvas
+                            text={textPreviewSrc ?? ''}
+                            className="h-full bg-white"
+                            textClassName="text-[10px] leading-4 text-gray-700"
+                            observeResize={false}
+                            forceVerticalScrollbar
+                          />
+                        )}
+                        {previewItemsVisible
+                          .filter((field) => field.page === 1)
+                          .map((field) => {
+                            const scaleX = miniPreviewWidth / virtualWidth;
+                            const scaleY = miniPreviewHeight / resolvedVirtualHeight;
+                            return (
+                              <div
+                                key={field.id}
+                                className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
+                                style={{
+                                  left: field.x * scaleX,
+                                  top: field.y * scaleY,
+                                  width: field.width * scaleX,
+                                  height: field.height * scaleY
+                                }}
+                              >
+                                {field.metadata?.label || 'Campo'}
+                              </div>
+                            );
+                          })}
+                      </div>
                     ) : null}
-                    {!previewIsPdf &&
-                      previewItemsVisible
-                        .filter((field) => field.page === 1)
-                        .map((field) => {
-                          const scaleX = miniPreviewWidth / virtualWidth;
-                          const scaleY = miniPreviewHeight / resolvedVirtualHeight;
-                          return (
-                            <div
-                              key={field.id}
-                              className="absolute border border-blue-400/80 bg-blue-100/40 text-[9px] text-blue-900 px-1"
-                              style={{
-                                left: field.x * scaleX,
-                                top: field.y * scaleY,
-                                width: field.width * scaleX,
-                                height: field.height * scaleY
-                              }}
-                            >
-                              {field.metadata?.label || 'Campo'}
-                            </div>
-                          );
-                        })}
                   </div>
                   <div className="text-[11px] text-gray-500 pt-1">
                     {personalizeBySigner && activeSignerEmail
@@ -1032,11 +1055,11 @@ export function SignerFieldsWizard({
           </div>
         </div>
 
-        {(onSigningModeChange || onFinalDocumentVisibilityChange) && (
+        {showFinalFlowControls && (
           <div className="mx-5 mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
             <div className="text-sm font-semibold text-gray-900 mb-3">Configuración final del flujo</div>
             <div className="space-y-3">
-              {onSigningModeChange && signers.length > 1 && (
+              {showSigningModeControl && (
                 <div>
                   <div className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">Orden de firma</div>
                   <label className="flex items-center gap-2 text-sm text-gray-800 mb-2">
@@ -1044,7 +1067,7 @@ export function SignerFieldsWizard({
                       type="radio"
                       name="signing-mode"
                       checked={effectiveSigningMode === 'sequential'}
-                      onChange={() => onSigningModeChange('sequential')}
+                      onChange={() => onSigningModeChange?.('sequential')}
                       className="eco-checkbox rounded-full border-gray-300"
                     />
                     Secuencial (cada firmante espera su turno)
@@ -1054,20 +1077,20 @@ export function SignerFieldsWizard({
                       type="radio"
                       name="signing-mode"
                       checked={effectiveSigningMode === 'parallel'}
-                      onChange={() => onSigningModeChange('parallel')}
+                      onChange={() => onSigningModeChange?.('parallel')}
                       className="eco-checkbox rounded-full border-gray-300"
                     />
                     Paralelo (todos pueden firmar desde el inicio)
                   </label>
                 </div>
               )}
-              {onFinalDocumentVisibilityChange && (
+              {showFinalVisibilityControl && (
                 <label className="flex items-start gap-2 text-sm text-gray-800">
                   <input
                     type="checkbox"
                     checked={effectiveFinalVisibility === 'participants'}
                     onChange={(e) =>
-                      onFinalDocumentVisibilityChange(e.target.checked ? 'participants' : 'owner_only')
+                      onFinalDocumentVisibilityChange?.(e.target.checked ? 'participants' : 'owner_only')
                     }
                     className="eco-checkbox rounded border-gray-300 mt-0.5"
                   />
@@ -1168,7 +1191,6 @@ export function SignerFieldsWizard({
                 {previewIsPdf && (pdfPreviewSrc || previewPdfData) && !pdfPreviewFailed ? (
                   <div className="absolute inset-0 pointer-events-none">
                     <PdfEditViewer
-                      key={`full-${pdfPreviewSrc}-${previewPdfData?.byteLength}`}
                       src={pdfPreviewSrc}
                       pdfData={previewPdfData}
                       locked
@@ -1185,6 +1207,16 @@ export function SignerFieldsWizard({
                     alt="Preview fullscreen"
                     className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                   />
+                ) : textPreviewSrc && !previewIsPdf ? (
+                  <div className="absolute inset-0 pointer-events-none">
+                    <VirtualTextCanvas
+                      text={textPreviewSrc}
+                      className="h-full bg-white"
+                      textClassName="text-sm leading-6 text-gray-700"
+                      observeResize={false}
+                      forceVerticalScrollbar
+                    />
+                  </div>
                 ) : null}
 
                 {/* Batch group frames — dashed crosshatch border, draggable */}
@@ -1342,3 +1374,5 @@ export function SignerFieldsWizard({
     </div>
   );
 }
+
+export const SignerFieldsWizard = memo(SignerFieldsWizardComponent);

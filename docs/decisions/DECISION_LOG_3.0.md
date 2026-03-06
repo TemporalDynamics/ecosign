@@ -4741,3 +4741,75 @@ Se formalizó el contrato canónico de canvas virtual para evitar regresiones de
 - El comportamiento esperado de canvas queda definido por contrato y guard, no por convención implícita.
 - Las previsualizaciones textuales conservan estructura original entre modos (`compact/fullscreen`) con escala, sin reflow destructivo.
 - Se reduce la probabilidad de falla en previews PDF locales por carrera entre `blob URL` y bytes del documento.
+
+## Iteración — 2026-03-05 (ajustes post QA manual de canvas/wizard)
+
+### 🎯 Resumen
+Se ajustaron tres hallazgos de QA manual:
+1) modal de `Ver detalles` debía mantener cabecera/herramientas visibles,
+2) parpadeo intermitente en preview del wizard de campos,
+3) bloque de “descarga final a firmantes” visible en `Mi firma` cuando no corresponde.
+
+### ✅ Cambios implementados
+- **Ver detalles con foco en canvas:**
+  - `client/src/pages/DocumentsPage.tsx`
+  - Modal de detalle pasa a layout fijo (`h-[90vh]`, `flex-col`, `overflow-hidden`).
+  - Header fijo y paneles estables; scroll principal queda en el renderer de documento.
+- **Estabilidad de preview en wizard:**
+  - `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`
+  - Se removieron `key` dinámicos en `PdfEditViewer` (mini/full) para evitar remounts innecesarios y reducir destello.
+- **Regla de negocio Mi Firma vs Flujo:**
+  - `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`
+  - Nuevo prop `isSelfSignatureMode`.
+  - El bloque “Permitir descarga final a firmantes” se oculta en modo `Mi firma`.
+  - `client/src/components/LegalCenterModalV2.tsx` pasa `isSelfSignatureMode`.
+
+### 🧪 Verificación
+- `npm run typecheck` ✅
+- `npx vitest run tests/ui/canvas_virtual_surface_contract_guard.test.ts` ✅
+
+### Resultado
+- El modal de detalle prioriza contexto y herramientas sin perder visibilidad del documento.
+- El preview de configuración de campos reduce parpadeo por remounts.
+- La UI diferencia correctamente `Mi firma` de un workflow multi‑firmante en la configuración final.
+
+## Iteración — 2026-03-05 (QA adicional wizard: TXT + rotación consistente + estabilidad)
+
+### 🎯 Resumen
+Se cerró un gap del contrato canónico en el wizard de campos: el preview pequeño no renderizaba TXT. Además se homogeneizó la rotación para previews no‑PDF (contenido + overlays) y se estabilizó la fuente de preview del wizard para evitar swaps visuales durante edición.
+
+### ✅ Cambios implementados
+- `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`
+  - Nuevo prop `previewText` para fallback textual en wizard.
+  - Render de TXT con `VirtualTextCanvas` en preview pequeño y fullscreen.
+  - Rotación aplicada al bloque completo no‑PDF (contenido + campos), evitando desalineación visual al rotar.
+- `client/src/components/LegalCenterModalV2.tsx`
+  - Wizard ahora recibe fuente de preview estable (`wizardPreviewUrl`, `wizardPreviewPdfData`, `wizardPreviewText`) para reducir parpadeos por cambios de source durante edición.
+
+### 🧪 Verificación
+- `npm run typecheck` ✅
+- `npx vitest run tests/ui/canvas_virtual_surface_contract_guard.test.ts` ✅
+
+### Resultado
+- El punto 3 del wizard ya permite previsualizar TXT.
+- La rotación en no‑PDF mantiene coherencia visual entre documento y campos.
+- Menor probabilidad de destello por alternancia de preview source mientras se configuran campos.
+
+## Iteración — 2026-03-05 (estabilidad adicional wizard bajo polling)
+
+### 🎯 Resumen
+Se atacó una fuente adicional de “destello” en el wizard: rerenders de alta frecuencia inducidos por polling de `DocumentsPage` y props de firmantes no estables.
+
+### ✅ Cambios implementados
+- `client/src/components/LegalCenterModalV2.tsx`
+  - `signers` del wizard ahora se calculan con `useMemo` (`wizardSigners`) para evitar referencias nuevas en cada render cuando no cambió el contenido.
+- `client/src/pages/DocumentsPage.tsx`
+  - El polling rápido de documentos en estado `processing` se pausa mientras el Legal Center está abierto (`isLegalCenterOpen`) para reducir churn de red/UI durante edición de campos.
+
+### 🧪 Verificación
+- `npm run typecheck` ✅
+- `npx vitest run tests/ui/canvas_virtual_surface_contract_guard.test.ts` ✅
+
+### Resultado
+- Menor frecuencia de rerender del wizard durante configuración de campos.
+- Menor ruido de red mientras el usuario está en flujo de edición, con impacto directo en estabilidad visual.

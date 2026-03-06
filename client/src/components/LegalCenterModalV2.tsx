@@ -3192,6 +3192,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const isPdfPreview = file?.type === 'application/pdf';
   const hasPreview = Boolean(documentPreview || documentPreviewText || workflowPreviewUrl);
   const usePdfEditMode = isPdfPreview && (!pdfEditError || Boolean(activePreviewPdfData));
+  const validSignersForWizard = buildSignersList();
+  const canOpenCenterWizard = mySignature || (workflowEnabled && validSignersForWizard.length > 0);
 
   const createFieldId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `field-${Date.now()}`);
   const VIRTUAL_PAGE_WIDTH = 1000;
@@ -3210,8 +3212,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     () =>
       mySignature && !workflowEnabled
         ? (ownerEmail ? [{ email: ownerEmail.trim().toLowerCase(), signingOrder: 1 }] : [])
-        : buildSignersList().map((s) => ({ email: s.email, signingOrder: s.signingOrder })),
-    [mySignature, workflowEnabled, ownerEmail, emailInputs]
+        : validSignersForWizard.map((s) => ({ email: s.email, signingOrder: s.signingOrder })),
+    [mySignature, workflowEnabled, ownerEmail, validSignersForWizard]
   );
 
   const handleSignerWizardClose = useCallback(() => {
@@ -4058,13 +4060,13 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         </div>
                       </div>
                       {/* Iconos alineados en la misma línea */}
-                      <div className="flex shrink-0 items-center gap-1.5">
+                      <div className="flex shrink-0 items-center gap-1">
                         {hasPreview && (
                           <button
                             onClick={() => {
                               setFocusView((prev) => (prev === 'document' ? null : 'document'));
                             }}
-                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                            className="inline-flex h-6 w-6 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                             title={isDocumentFocus ? 'Volver al Centro Legal' : 'Ver en grande'}
                           >
                             {isDocumentFocus ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -4074,12 +4076,30 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                           <button
                             type="button"
                             onClick={() => setPreviewRotation((prev) => (prev + 90) % 360)}
-                            className="hidden md:inline-flex h-7 w-7 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                            className="inline-flex h-6 w-6 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                             title="Rotar documento"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!canOpenCenterWizard) return;
+                            if (workflowEnabled) {
+                              openSignerFieldsWizard();
+                              showToast('Ajustá campos con el wizard.', { type: 'info', duration: 1800, position: 'top-right' });
+                              return;
+                            }
+                            openMySignatureWizard();
+                            showToast('Ajustá campos con el wizard.', { type: 'info', duration: 1800, position: 'top-right' });
+                          }}
+                          disabled={!canOpenCenterWizard}
+                          className="inline-flex h-6 w-6 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500 disabled:hover:bg-transparent"
+                          title={canOpenCenterWizard ? 'Abrir wizard de campos' : 'Activá Mi Firma o agregá firmantes para habilitar el wizard'}
+                        >
+                          <Wand2 className="w-3.5 h-3.5" />
+                        </button>
                         {hasPreview && (
                           <button
                             onClick={() => {
@@ -4090,7 +4110,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             {isDocumentFocus ? 'Volver al Centro Legal' : 'Ver documento completo'}
                           </button>
                         )}
-                        <label className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer" title="Cambiar documento">
+                        <label className="h-6 w-6 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer" title="Cambiar documento">
                           <input
                             type="file"
                             className="hidden"
@@ -4672,7 +4692,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               {/* CONSTITUCIÓN: Acciones solo visibles si documentLoaded */}
               {documentLoaded && !isFocusMode && (
               <div className="space-y-2 pt-0.5">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                   {/* PASO 3.2.3: Toggle NDA - Módulo refactorizado (placeholder) */}
                   <NdaToggle
                     enabled={ndaEnabled}
@@ -5081,11 +5101,11 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               {/* Sub-header de Flujo - alineado con barra interna de NDA */}
               <div className="border border-gray-200 rounded-xl bg-white overflow-visible mt-1">
                 <div className="h-11 px-3 bg-white border-b border-gray-200 flex items-center justify-between relative">
-                  <div className="group relative flex items-center gap-1">
+                  <div className="group relative flex items-center gap-0">
                     <span className="text-sm font-medium text-gray-700">Firmantes</span>
                     <button
                       type="button"
-                      className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition"
+                      className="relative -top-1 -ml-0.5 h-3.5 w-3.5 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition"
                       title="Ayuda de firmantes"
                     >
                       <HelpCircle className="w-3.5 h-3.5" />
@@ -5106,13 +5126,13 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                   <button
                     type="button"
                     onClick={() => {
-                      if (buildSignersList().length === 0) return;
+                      if (validSignersForWizard.length === 0) return;
                       openSignerFieldsWizard();
                       showToast('Ajustá campos con el wizard.', { type: 'info', duration: 1800, position: 'top-right' });
                     }}
-                    disabled={buildSignersList().length === 0}
+                    disabled={validSignersForWizard.length === 0}
                     title="Modificar asignación de campos"
-                    className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="h-6 w-6 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Wand2 className="w-3.5 h-3.5" />
                   </button>

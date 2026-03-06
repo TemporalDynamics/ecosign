@@ -45,7 +45,7 @@ export const SignatureFlowToggle: React.FC<SignatureFlowToggleProps> = ({
       type="button"
       onClick={handleClick}
       disabled={disabled}
-      className={`h-11 px-4 rounded-lg text-sm font-medium border transition ${
+      className={`min-h-11 h-auto w-full min-w-0 px-2 py-1.5 rounded-lg text-[13px] leading-4 text-center font-medium border transition ${
         enabled
           ? 'border-blue-900 text-blue-900 bg-transparent'
           : 'border-gray-200 text-gray-600 bg-white hover:border-gray-300'

@@ -121,12 +121,12 @@ Pod√©s pegar tu texto directamente o seleccionar un tipo de documento desde el √
           {/* Visor de contenido - M√ÅS COMPACTO */}
           <div className="border border-gray-200 rounded-xl bg-white flex flex-col flex-1 min-h-0 mt-1 overflow-hidden">
             <div className="h-11 px-3 bg-white border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-0">
                 <span className="text-sm font-medium text-gray-700">Vista previa</span>
-                <div className="relative group">
+                <div className="relative group -ml-0.5">
                   <button
                     type="button"
-                    className="h-4 w-4 inline-flex items-center justify-center text-gray-400 hover:text-gray-600"
+                    className="relative -top-1 h-3.5 w-3.5 inline-flex items-center justify-center text-gray-400 hover:text-gray-600"
                     title="Ayuda de Vista previa"
                   >
                     <HelpCircle className="w-3.5 h-3.5" />
@@ -136,12 +136,12 @@ Pod√©s pegar tu texto directamente o seleccionar un tipo de documento desde el √
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-end gap-1">
                 <button
                   onClick={() => {
                     setShowTemplatePicker(true);
                   }}
-                  className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
+                  className="h-6 w-6 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
                   title="Elegir template"
                 >
                   <FileText className="w-3.5 h-3.5" />
@@ -150,7 +150,7 @@ Pod√©s pegar tu texto directamente o seleccionar un tipo de documento desde el √
                   <button
                     type="button"
                     onClick={onFocus}
-                    className="h-7 w-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
+                    className="h-6 w-6 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
                     title="Ver en grande"
                   >
                     <Maximize2 className="w-3.5 h-3.5" />

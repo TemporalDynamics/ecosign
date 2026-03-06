@@ -1,3 +1,25 @@
+## Iteración: corrección de autofit en canvas virtual (post-feedback QA) — 2026-03-05
+
+### 🎯 Resumen
+Se corrigió la regresión de visualización introducida en `PdfEditViewer`:
+
+- el documento quedaba sobredimensionado/reducido en exceso por doble ajuste,
+- en paneles chicos el PDF podía verse truncado o prácticamente invisible.
+
+### ✅ Cambio implementado
+- `client/src/components/pdf/PdfEditViewer.tsx`
+  - se eliminó el ajuste de ancho virtual dinámico que alteraba el modelo canónico.
+  - se aplica **autofit por escala final**:
+    - `resolvedScale = min(scale solicitada, fitScale por ancho de contenedor)`.
+  - se mantiene `virtualWidth` canónico para métricas/overlays.
+  - comportamiento resultante:
+    - sin scroll horizontal,
+    - scroll vertical disponible,
+    - documento siempre entra en el ancho del canvas (incluido canvas pequeño).
+
+### ✅ Validación
+- `npm run typecheck` verde.
+
 ## Iteración: continuidad de borradores (preview/canvas al reanudar) — 2026-03-05
 
 ### 🎯 Resumen

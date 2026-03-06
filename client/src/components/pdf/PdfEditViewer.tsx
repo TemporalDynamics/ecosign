@@ -58,9 +58,11 @@ export const PdfEditViewer = ({
   const canvasRefs = useRef<HTMLCanvasElement[]>([]);
   const renderTasksRef = useRef<RenderTask[]>([]);
 
-  const effectiveVirtualWidth = locked && containerWidth > 0
-    ? Math.max(320, Math.min(virtualWidth, containerWidth - 24))
-    : virtualWidth;
+  const autoFitScale = containerWidth > 0
+    ? Math.max(0.05, Math.min(1, (containerWidth - 8) / virtualWidth))
+    : 1;
+  // Never exceed requested scale, but always fit current viewport width.
+  const resolvedScale = Math.max(0.05, Math.min(scale, autoFitScale));
 
   useEffect(() => {
     let cancelled = false;
@@ -104,13 +106,13 @@ export const PdfEditViewer = ({
     let cancelled = false;
 
     const renderPages = async () => {
-      const effectiveWidth = effectiveVirtualWidth * scale;
+      const effectiveWidth = virtualWidth * resolvedScale;
       const rendered: RenderedPage[] = [];
       for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
         const page = await doc.getPage(pageNumber);
         if (cancelled) return;
         const baseViewport = page.getViewport({ scale: 1 });
-        const canonicalScale = effectiveVirtualWidth / baseViewport.width;
+        const canonicalScale = virtualWidth / baseViewport.width;
         const pageScale = effectiveWidth / baseViewport.width;
         const viewport = page.getViewport({ scale: pageScale });
         rendered.push({
@@ -128,7 +130,7 @@ export const PdfEditViewer = ({
       onMetrics?.(
         rendered.map((item) => ({
           pageNumber: item.pageNumber,
-          width: effectiveVirtualWidth,
+          width: virtualWidth,
           height: item.canonicalHeight
         }))
       );
@@ -138,7 +140,7 @@ export const PdfEditViewer = ({
     return () => {
       cancelled = true;
     };
-  }, [doc, effectiveVirtualWidth, scale, onMetrics]);
+  }, [doc, virtualWidth, resolvedScale, onMetrics]);
 
   useEffect(() => {
     if (pages.length === 0) return;
@@ -253,7 +255,7 @@ export const PdfEditViewer = ({
       className={`w-full h-full bg-white overflow-x-hidden overflow-y-auto ${className || ''}`}
     >
       <div className="relative py-4 w-full flex justify-center">
-        <div className="relative" style={{ width: effectiveVirtualWidth * scale }}>
+        <div className="relative" style={{ width: virtualWidth * resolvedScale }}>
           {pages.map((page, index) => (
             <div
               key={page.pageNumber}

@@ -1,3 +1,19 @@
+## Iteración: coherencia UI en documento cancelado (punto 1 QA manual) — 2026-03-05
+
+### 🎯 Resumen
+Se eliminó el mensaje ambiguo en `Ver detalles` cuando el flujo está cancelado/rechazado y el bloque probatorio quedaba en “En proceso”.
+
+### ✅ Cambio implementado
+- `client/src/components/DocumentStateInfo.tsx`
+  - si `workflow.status` es `cancelled/rejected` y el nivel probatorio está en `none/base`, el badge probatorio ahora muestra:
+    - `Detenido`
+    - `Proceso probatorio detenido por flujo cancelado`
+  - mensaje contextual:
+    - `Iniciá un nuevo flujo o reintentá la protección para retomar refuerzos.`
+
+### ✅ Validación
+- `npm run typecheck` verde.
+
 ## Iteración: correcciones post-QA manual (flujo de firma + CSP local + UX de protección) — 2026-03-05
 
 ### 🎯 Resumen

@@ -25,6 +25,7 @@ interface DocumentStateInfoProps {
  */
 export default function DocumentStateInfo({ document }: DocumentStateInfoProps) {
   const events = Array.isArray(document.events) ? document.events : [];
+  const workflowStatus = (document?.workflows?.[0]?.status ?? null) as string | null;
   const signers = Array.isArray(document.signers) ? document.signers : [];
   const signedCount = signers.filter((s: any) => s?.status === 'signed').length;
   const totalSigners = signers.length;
@@ -43,6 +44,17 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
       document?.document_hash
     ),
   });
+  const isCancelledFlow = workflowStatus === 'cancelled' || workflowStatus === 'rejected';
+  const shouldFreezeProbativeByFlow =
+    isCancelledFlow && (probative.level === 'none' || probative.level === 'base');
+  const probativeConfig = shouldFreezeProbativeByFlow
+    ? {
+        ...probative.config,
+        badge: 'Detenido',
+        detailLabel: 'Proceso probatorio detenido por flujo cancelado',
+        tone: 'gray' as const,
+      }
+    : probative.config;
   const rekorConfirmed = events.some((event: any) => event?.kind === 'rekor.confirmed');
 
   const formatAnchorStatus = (network: keyof typeof probative.network) => {
@@ -93,7 +105,7 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
     amber: 'bg-amber-100 text-amber-800 border-amber-200',
     emerald: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     blue: 'bg-blue-100 text-blue-800 border-blue-200',
-  }[probative.config.tone];
+  }[probativeConfig.tone];
 
   // Colores según la fase
   const getBorderColor = () => {
@@ -145,14 +157,16 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-semibold text-gray-700">Estado probatorio</div>
           <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${toneClasses}`}>
-            {probative.config.badge}
+            {probativeConfig.badge}
           </span>
         </div>
         <div className="text-xs text-gray-600 mt-1">
-          {probative.config.detailLabel}
+          {probativeConfig.detailLabel}
         </div>
         <div className="text-[11px] text-gray-500 mt-1">
-          Informativo: no bloquea el flujo de firmas.
+          {shouldFreezeProbativeByFlow
+            ? 'Iniciá un nuevo flujo o reintentá la protección para retomar refuerzos.'
+            : 'Informativo: no bloquea el flujo de firmas.'}
         </div>
         <div className="mt-2 grid gap-1 text-[11px] text-gray-600">
           <div>TSA: {probative.tsaConfirmed ? 'confirmado' : 'pendiente'}</div>

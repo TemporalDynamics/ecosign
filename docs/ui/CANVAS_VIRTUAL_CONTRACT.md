@@ -24,8 +24,10 @@ Definir un contrato único para todos los canvases virtuales de EcoSign, de modo
 ## Invariantes de Rotación (Wizard de Campos)
 1. **Fuente única de rotación**: cuando el wizard recibe callback, la rotación visible depende del estado padre (`Centro Legal`) y no de estado local divergente.
 2. **Secuencia determinística**: la rotación avanza siempre en ciclo fijo `0 -> 90 -> 180 -> 270 -> 0`.
-3. **Drag/resize coherente**: en fullscreen, mover o redimensionar campos debe seguir el cursor en la misma dirección visual, aun con rotación activa.
-4. **Sin controles de flujo en Mi Firma**: la configuración final de flujo (orden y visibilidad para firmantes) solo se muestra en modo workflow.
+3. **Reset por documento**: al cargar un archivo nuevo, la rotación vuelve a `0` y no hereda estado residual del archivo anterior.
+4. **Control siempre visible en edición**: el botón de rotación debe estar visible en superficies editables aunque el archivo inicial “ya se vea bien”.
+5. **Drag/resize coherente**: en fullscreen, mover o redimensionar campos debe seguir el cursor en la misma dirección visual, aun con rotación activa.
+6. **Sin controles de flujo en Mi Firma**: la configuración final de flujo (orden y visibilidad para firmantes) solo se muestra en modo workflow.
 
 ## Política de Render por Tipo
 - `application/pdf`: `PdfEditViewer` con carga por `pdfData` preferente.
@@ -43,3 +45,13 @@ Definir un contrato único para todos los canvases virtuales de EcoSign, de modo
 - No hay diferencias estructurales entre `compact` y `fullscreen`.
 - No hay scroll horizontal en canvases estándar.
 - Excepción del wizard permanece documentada y acotada.
+
+## Baseline Visual E2E
+- Configuración Playwright: `playwright.visual.config.ts`.
+- Harness público solo en dev: `/__e2e__/canvas-visual`.
+- Spec visual: `tests/e2e-visual/canvas-rotation.visual.spec.mjs`.
+- Snapshots baseline versionados en:
+  - `tests/e2e-visual/canvas-rotation.visual.spec.mjs-snapshots/`
+- Comandos:
+  - `npm run test:e2e:visual` (valida contra baseline)
+  - `npm run test:e2e:visual:update` (regenera baseline intencionalmente)

@@ -52,9 +52,7 @@ serve(withRateLimit('record', async (req) => {
 
   try {
     const origin = req.headers.get('origin') ?? 'unknown'
-    const rawBody = await req.clone().text()
     console.log('[record-protection-event] origin:', origin)
-    console.log('[record-protection-event] raw body:', rawBody)
 
     // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!

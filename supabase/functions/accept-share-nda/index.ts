@@ -154,7 +154,7 @@ serve(withRateLimit('accept', async (req) => {
       throw new Error('Failed to record NDA acceptance')
     }
 
-    console.log(`NDA accepted for share ${share_id} by ${signer_email}`)
+    console.log(`NDA accepted for share ${share_id}`)
 
     // === PROBATORY EVENT: nda.accepted ===
     // Register NDA acceptance in canonical events ledger

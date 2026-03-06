@@ -37,6 +37,9 @@ run_step "Authority hardening guards" npm run test -- \
   tests/authority/internal_tables_service_only_guard.test.ts \
   tests/authority/internal_runtime_table_grants_rls_guard.test.ts \
   tests/authority/internal_rate_limit_table_grants_rls_guard.test.ts \
+  tests/authority/workflow_canvas_fields_atomicity_guard.test.ts \
+  tests/authority/no_pii_console_logs_guard.test.ts \
+  tests/authority/no_raw_payload_logs_guard.test.ts \
   tests/authority/security_definer_exec_allowlist_closure_guard.test.ts \
   tests/authority/verify_jwt_false_allowlist_guard.test.ts \
   tests/authority/internal_security_definer_exec_closure_guard.test.ts \

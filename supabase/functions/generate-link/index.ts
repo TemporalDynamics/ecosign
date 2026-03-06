@@ -145,7 +145,7 @@ serve(withRateLimit('generate', async (req) => {
     const accessUrl = `${appUrl}/nda/${token}`
 
     // Log the link creation event
-    console.log(`Link created: ${link.id} for entity ${documentEntityId} to ${recipient_email}`)
+    console.log(`Link created: ${link.id} for entity ${documentEntityId}`)
 
     // === PROBATORY EVENT: share.created ===
     // Register that this document was shared (goes to .eco)

@@ -304,7 +304,13 @@ const createSignNowInvite = async (
   };
 
   console.log('📧 Creating SignNow invite for document:', documentId);
-  console.log('Invite payload:', JSON.stringify(invitePayload, null, 2));
+  console.log('SignNow invite summary:', {
+    documentId,
+    signersCount: signers.length,
+    authenticationTypes: Array.from(
+      new Set(signers.map((item) => item.authentication_type || 'sn_login'))
+    ),
+  });
 
   const response = await fetch(`${signNowApiBase}/document/${documentId}/invite`, {
     method: 'POST',

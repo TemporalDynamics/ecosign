@@ -168,7 +168,7 @@ serve(withRateLimit('accept', async (req) => {
         session_id: `nda-${ndaAcceptance.id}`
       })
 
-    console.log(`NDA accepted: ${ndaAcceptance.id} by ${signer_email}`)
+    console.log(`NDA accepted: ${ndaAcceptance.id}`)
 
     // === PROBATORY EVENT: nda.accepted ===
     // Register NDA acceptance in canonical events ledger (goes to .eco)

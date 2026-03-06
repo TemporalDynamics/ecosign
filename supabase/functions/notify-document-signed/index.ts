@@ -192,7 +192,7 @@ serve(async (req) => {
     });
 
     // Enviar email
-    console.log('📬 [notify-document-signed] Enviando email a:', owner.email);
+    console.log('📬 [notify-document-signed] Enviando notificación al owner');
 
     const emailResult = await sendEmail(emailPayload);
 

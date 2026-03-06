@@ -180,14 +180,17 @@ serve(async (req) => {
     } catch {
       return json({ error: 'Invalid JSON payload' }, 400)
     }
-    console.log('📬 SignNow webhook received', payload)
-
     const eventType = payload?.event
+    const signnowDocumentId = payload?.document?.id || payload?.document_id
+    console.log('📬 SignNow webhook received', {
+      eventType,
+      hasDocumentId: Boolean(signnowDocumentId),
+    })
+
     if (eventType !== 'document.completed' && eventType !== 'document.complete') {
       return json({ ignored: true, reason: 'not a completed event' })
     }
 
-    const signnowDocumentId = payload?.document?.id || payload?.document_id
     if (!signnowDocumentId) {
       return json({ error: 'Missing document id' }, 400)
     }

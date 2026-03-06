@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
         ignoreDuplicates: true,
       });
 
-      console.log(`[C2] Queued notification for owner: ${ownerEmail}`);
+      console.log(`[C2] Queued notification for owner_id: ${workflow.owner_id}`);
     }
 
     // Step 4: Queue notifications for signers

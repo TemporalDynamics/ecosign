@@ -101,8 +101,7 @@ serve(async (req) => {
 
     console.log('📧 [create-signer-link] Request:', {
       documentEntityId,
-      signerEmail,
-      signerName: signerName || '(sin prellenar)'
+      hasSignerName: Boolean(signerName)
     });
 
     const { data: entity, error: entityError } = await supabase
@@ -171,7 +170,6 @@ serve(async (req) => {
 
     console.log('✅ [create-signer-link] Link creado:', {
       id: signerLink.id,
-      token: token,
       expiresAt: signerLink.expires_at
     });
 
@@ -200,7 +198,7 @@ serve(async (req) => {
     const signLink = `${frontendUrl}/sign/${token}`;
 
     // Enviar email de invitación
-    console.log('📬 [create-signer-link] Enviando email a:', signerEmail);
+    console.log('📬 [create-signer-link] Enviando email de invitación');
 
     const emailPayload = await buildSignerInvitationEmail({
       signerEmail: signerEmail,

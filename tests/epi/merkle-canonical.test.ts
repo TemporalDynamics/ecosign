@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { buildMerkleRoot, computeStateHash } from '../../supabase/functions/_shared/epiCanvas.ts';
+import { buildEpiBlockFromEvents, buildMerkleRoot, computeStateHash } from '../../supabase/functions/_shared/epiCanvas.ts';
 
 describe('EPI Merkle canonicalization', () => {
   test('buildMerkleRoot is order-independent for leaves', async () => {
@@ -44,5 +44,39 @@ describe('EPI Merkle canonicalization', () => {
     const hashB = await computeStateHash([fields[1], fields[0]], [pages[1], pages[0]]);
 
     expect(hashA).toBe(hashB);
+  });
+
+  test('buildMerkleRoot rejects invalid leaf hash format', async () => {
+    await expect(
+      buildMerkleRoot([
+        { type: 'content' as const, hash: 'not-a-hex-hash', at: '2026-03-01T09:00:00.000Z' },
+        { type: 'state' as const, hash: '1111111111111111111111111111111111111111111111111111111111111111', at: '2026-03-01T10:00:00.000Z' }
+      ])
+    ).rejects.toThrow(/Invalid Merkle leaf hash/);
+  });
+
+  test('buildMerkleRoot rejects invalid leaf timestamp format', async () => {
+    await expect(
+      buildMerkleRoot([
+        { type: 'content' as const, hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', at: 'not-a-date' },
+        { type: 'state' as const, hash: '1111111111111111111111111111111111111111111111111111111111111111', at: '2026-03-01T10:00:00.000Z' }
+      ])
+    ).rejects.toThrow(/Invalid Merkle leaf timestamp/);
+  });
+
+  test('buildEpiBlockFromEvents returns null when source/content inputs are invalid', async () => {
+    const invalidHashBlock = await buildEpiBlockFromEvents({
+      source_hash: 'bad',
+      content_at: '2026-03-01T09:00:00.000Z',
+      events: [{ kind: 'signature.completed', at: '2026-03-01T10:00:00.000Z', evidence: { epi_state_hash: '1'.repeat(64) } }]
+    });
+    expect(invalidHashBlock).toBeNull();
+
+    const invalidTsBlock = await buildEpiBlockFromEvents({
+      source_hash: 'a'.repeat(64),
+      content_at: 'bad-ts',
+      events: [{ kind: 'signature.completed', at: '2026-03-01T10:00:00.000Z', evidence: { epi_state_hash: '1'.repeat(64) } }]
+    });
+    expect(invalidTsBlock).toBeNull();
   });
 });

@@ -179,13 +179,15 @@ serve(async (req) => {
     })
     const emailRes = await sendEmail(emailPayload)
     if (!emailRes.success) {
-      console.error('send-signer-otp email failed', emailRes)
+      console.error('send-signer-otp email failed', {
+        statusCode: emailRes.statusCode,
+        error: emailRes.error ?? emailRes.body ?? 'email_send_failed'
+      })
       return json(
         {
           error: 'No se pudo enviar el email con OTP',
           details: emailRes.body || emailRes.error || 'email_send_failed',
-          statusCode: emailRes.statusCode,
-          signerEmail: signer.email
+          statusCode: emailRes.statusCode
         },
         500,
         corsHeaders

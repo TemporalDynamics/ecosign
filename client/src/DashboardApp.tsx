@@ -57,6 +57,7 @@ const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'))
 const WorkflowsPage = lazy(() => import('./pages/WorkflowsPage'))
 const WorkflowDetailPage = lazy(() => import('./pages/WorkflowDetailPage'))
 const SharedDocumentAccessPage = lazy(() => import('./pages/SharedDocumentAccessPage'))
+const CanvasVisualHarnessPage = lazy(() => import('./pages/CanvasVisualHarnessPage'))
 
 // Kill switch para dashboard legacy
 const DASHBOARD_ENABLED = false
@@ -131,6 +132,9 @@ function DashboardAppRoutes() {
             <Route path="/quick-guide" element={<QuickGuidePage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/use-cases" element={<UseCasesPage />} />
+            {import.meta.env.DEV && (
+              <Route path="/__e2e__/canvas-visual" element={<CanvasVisualHarnessPage />} />
+            )}
 
             {/* Protected routes */}
             <Route

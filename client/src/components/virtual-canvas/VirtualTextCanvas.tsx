@@ -6,6 +6,9 @@ type VirtualTextCanvasProps = {
   textClassName?: string;
   minScale?: number;
   horizontalPaddingPx?: number;
+  verticalPaddingPx?: number;
+  fitMode?: 'width' | 'contain';
+  centerContent?: boolean;
   observeResize?: boolean;
   forceVerticalScrollbar?: boolean;
 };
@@ -20,6 +23,9 @@ function VirtualTextCanvas({
   textClassName,
   minScale = 0.2,
   horizontalPaddingPx = 24,
+  verticalPaddingPx = 24,
+  fitMode = 'width',
+  centerContent = false,
   observeResize = true,
   forceVerticalScrollbar = false,
 }: VirtualTextCanvasProps) {
@@ -27,8 +33,10 @@ function VirtualTextCanvas({
   const measureRef = useRef<HTMLPreElement | null>(null);
   const [scale, setScale] = useState(1);
   const [scaledHeight, setScaledHeight] = useState<number | null>(null);
+  const [scaledWidth, setScaledWidth] = useState<number | null>(null);
   const lastScaleRef = useRef(1);
   const lastHeightRef = useRef<number | null>(null);
+  const lastWidthRef = useRef<number | null>(null);
 
   useEffect(() => {
     const recalc = () => {
@@ -37,11 +45,19 @@ function VirtualTextCanvas({
       if (!container || !content) return;
 
       const availableWidth = Math.max(1, container.clientWidth - horizontalPaddingPx);
+      const availableHeight = Math.max(1, container.clientHeight - verticalPaddingPx);
       const naturalWidth = Math.max(1, content.scrollWidth);
       const naturalHeight = Math.max(1, content.scrollHeight);
-      const rawScale = clamp(availableWidth / naturalWidth, minScale, 1);
-      const nextScale = Math.round(rawScale * 1000) / 1000;
+      const widthScale = availableWidth / naturalWidth;
+      const heightScale = availableHeight / naturalHeight;
+      const rawScale = fitMode === 'contain'
+        ? Math.min(widthScale, heightScale)
+        : widthScale;
+      const safeScale = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 1;
+      const clampedScale = clamp(safeScale, minScale, 1);
+      const nextScale = Math.round(clampedScale * 1000) / 1000;
       const nextHeight = Math.ceil(naturalHeight * nextScale);
+      const nextWidth = Math.ceil(naturalWidth * nextScale);
 
       if (Math.abs(lastScaleRef.current - nextScale) > 0.001) {
         lastScaleRef.current = nextScale;
@@ -50,6 +66,10 @@ function VirtualTextCanvas({
       if (lastHeightRef.current !== nextHeight) {
         lastHeightRef.current = nextHeight;
         setScaledHeight(nextHeight);
+      }
+      if (lastWidthRef.current !== nextWidth) {
+        lastWidthRef.current = nextWidth;
+        setScaledWidth(nextWidth);
       }
     };
 
@@ -62,15 +82,21 @@ function VirtualTextCanvas({
     const observer = new ResizeObserver(() => recalc());
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [text, minScale, horizontalPaddingPx, observeResize]);
+  }, [text, minScale, horizontalPaddingPx, verticalPaddingPx, fitMode, observeResize]);
 
   return (
     <div
       ref={containerRef}
       className={`w-full h-full overflow-x-hidden ${forceVerticalScrollbar ? 'overflow-y-scroll' : 'overflow-y-auto'} ${className ?? ''}`}
     >
-      <div className="p-4">
-        <div className="relative" style={{ height: scaledHeight ?? undefined }}>
+      <div className={`p-4 ${centerContent ? 'flex items-center justify-center' : ''}`}>
+        <div
+          className="relative"
+          style={{
+            width: scaledWidth ?? undefined,
+            height: scaledHeight ?? undefined
+          }}
+        >
           <pre
             ref={measureRef}
             className={`m-0 w-max max-w-none whitespace-pre origin-top-left text-xs text-gray-700 ${textClassName ?? ''}`}

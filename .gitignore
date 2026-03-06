@@ -24,6 +24,8 @@ yarn-debug.log*
 yarn-error.log*
 logs/
 artifacts/
+test-results/
+playwright-report/
 
 # OS
 .DS_Store

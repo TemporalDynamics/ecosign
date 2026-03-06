@@ -481,7 +481,6 @@ serve(async (req: Request) => {
               console.log("workflow_completed_simple send", {
                 id: item.id,
                 workflow_id: item.workflow_id,
-                recipient: item.recipient_email,
                 ok: result.ok,
                 status: result.statusCode ?? null,
               });
@@ -538,7 +537,6 @@ serve(async (req: Request) => {
             id: r.id,
             type: r.notification_type,
             workflow_id: r.workflow_id,
-            recipient: r.recipient_email,
             ok: result.ok,
             status: result.statusCode ?? null,
           });

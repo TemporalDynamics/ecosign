@@ -266,6 +266,41 @@ serve(withRateLimit('workflow', async (req) => {
         ? body.canvasSnapshot
         : null
     const workflowFields = Array.isArray(body.workflowFields) ? body.workflowFields : null
+    const hasWorkflowFields = Boolean(workflowFields && workflowFields.length > 0)
+    const needsCanvasFieldAtomicPersistence = Boolean(canvasSnapshot) || hasWorkflowFields
+    const documentEntityIdForAtomicPersistence = documentEntityId ?? null
+
+    if (needsCanvasFieldAtomicPersistence && !documentEntityIdForAtomicPersistence) {
+      return jsonResponse({
+        error: 'missing_document_entity_id',
+        message: 'No se puede persistir canvas/fields sin document_entity_id.'
+      }, 409)
+    }
+
+    let normalizedWorkflowFields: Record<string, unknown>[] = []
+    let workflowBatchesPayload: Record<string, unknown>[] = []
+
+    if (hasWorkflowFields) {
+      const normalizedFields = normalizeWorkflowFields(
+        workflowFields!,
+        documentEntityIdForAtomicPersistence!,
+        user.id
+      )
+
+      if (normalizedFields.error) {
+        return jsonResponse({
+          error: 'invalid_workflow_fields',
+          details: normalizedFields.error
+        }, 400)
+      }
+
+      normalizedWorkflowFields = normalizedFields.fields
+      workflowBatchesPayload = normalizedFields.batchIds.map((batchId) => ({
+        id: batchId,
+        document_entity_id: documentEntityIdForAtomicPersistence,
+        origin: 'user_created'
+      }))
+    }
 
     const workflowPayload = {
       owner_id: user.id,
@@ -279,7 +314,6 @@ serve(withRateLimit('workflow', async (req) => {
       nda_text: trimmedNda || null,
       delivery_mode: deliveryMode, // 'email' or 'link' - immutable after creation
       final_document_visibility: finalDocumentVisibility,
-      ...(canvasSnapshot ? { canvas_snapshot: canvasSnapshot } : {}),
       ...(signatureType ? { signature_type: signatureType } : {}),
       ...(documentEntityId ? { document_entity_id: documentEntityId } : {})
     }
@@ -317,51 +351,32 @@ serve(withRateLimit('workflow', async (req) => {
       try { await supabase.from('signature_workflows').delete().eq('id', workflow.id) } catch {}
     }
 
-    if (workflowFields && workflowFields.length > 0) {
+    if (needsCanvasFieldAtomicPersistence) {
       if (!workflow.document_entity_id) {
         await cleanupWorkflow()
         return jsonResponse({
           error: 'missing_document_entity_id',
-          message: 'No se pudo persistir campos sin document_entity_id.'
+          message: 'No se pudo persistir canvas/fields sin document_entity_id.'
         }, 409)
       }
 
-      const normalizedFields = normalizeWorkflowFields(
-        workflowFields,
-        workflow.document_entity_id,
-        user.id
+      const { error: atomicPersistError } = await supabase.rpc(
+        'persist_workflow_canvas_fields_atomic',
+        {
+          p_workflow_id: workflow.id,
+          p_document_entity_id: workflow.document_entity_id,
+          p_canvas_snapshot: canvasSnapshot ?? null,
+          p_batches: workflowBatchesPayload,
+          p_fields: normalizedWorkflowFields,
+        }
       )
 
-      if (normalizedFields.error) {
+      if (atomicPersistError) {
         await cleanupWorkflow()
         return jsonResponse({
-          error: 'invalid_workflow_fields',
-          details: normalizedFields.error
-        }, 400)
-      }
-
-      const batchesPayload = normalizedFields.batchIds.map((batchId) => ({
-        id: batchId,
-        document_entity_id: workflow.document_entity_id,
-        origin: 'user_created'
-      }))
-
-      const { error: batchUpsertError } = await supabase
-        .from('batches')
-        .upsert(batchesPayload, { onConflict: 'id' })
-
-      if (batchUpsertError) {
-        await cleanupWorkflow()
-        return jsonResponse({ error: 'failed_to_create_batches', details: batchUpsertError.message }, 500)
-      }
-
-      const { error: fieldsInsertError } = await supabase
-        .from('workflow_fields')
-        .upsert(normalizedFields.fields, { onConflict: 'external_field_id' })
-
-      if (fieldsInsertError) {
-        await cleanupWorkflow()
-        return jsonResponse({ error: 'failed_to_create_workflow_fields', details: fieldsInsertError.message }, 500)
+          error: 'failed_to_persist_canvas_and_fields_atomically',
+          details: atomicPersistError.message
+        }, 500)
       }
     }
 
@@ -405,7 +420,7 @@ serve(withRateLimit('workflow', async (req) => {
         signerRecord.wrap_iv = signer.wrapIv
         signerRecord.recipient_salt = signer.recipientSalt
         signerRecord.key_mode = 'wrapped'
-        console.log('[ZK] Stored wrapped key for signer:', signer.email)
+        console.log('[ZK] Stored wrapped key for signer order:', signer.signingOrder)
       } else {
         signerRecord.key_mode = 'legacy'
       }

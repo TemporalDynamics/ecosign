@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "cd client && npm run dev",
+    "dev:e2e:visual": "cd client && npm run dev -- --host 127.0.0.1 --port 4173 --strictPort",
     "build": "cd eco-packer && npm install && npm run build && cd ../client && npm install && npm run build",
     "vercel-build": "node scripts/vercel-build.mjs",
     "test": "npm run test:fast",
@@ -19,6 +20,8 @@
     "test:canonical-proof": "vitest run tests/canonical-only/complete-pipeline-proof.test.ts",
     "test:security": "vitest run tests/security/",
     "test:security:watch": "vitest tests/security/",
+    "test:e2e:visual": "playwright test -c playwright.visual.config.ts",
+    "test:e2e:visual:update": "playwright test -c playwright.visual.config.ts --update-snapshots",
     "release:gate": "bash scripts/release-gate.sh",
     "preview": "cd client && npm run preview",
     "lint": "cd client && npm run lint",
@@ -44,8 +47,7 @@
     "epi:hard-gate": "bash scripts/diagnostics/run-epi-hard-gate.sh",
     "phase1:gate": "npm run diag:entrypoint-guard && npm run diag:canonical-readiness",
     "prod:canonical-switch": "bash scripts/production-canonical-switch.sh",
-    "ci:predeploy": "npm run audit:events"
-    ,
+    "ci:predeploy": "npm run audit:events",
     "sb:start": "supabase start",
     "sb:stop": "supabase stop",
     "sb:status": "supabase status"
@@ -68,15 +70,16 @@
     "pdfjs-dist": "3.11.174"
   },
   "devDependencies": {
-    "ts-node": "^10.9.2",
+    "@playwright/test": "^1.58.2",
     "@types/jsdom": "^27.0.0",
     "@vitest/coverage-v8": "^4.0.9",
     "@vitest/ui": "^4.0.9",
     "dotenv": "^17.2.3",
     "knip": "^5.73.4",
-    "yaml": "^2.6.1",
     "supabase": "^2.58.5",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.9"
+    "vitest": "^4.0.9",
+    "yaml": "^2.6.1"
   }
 }

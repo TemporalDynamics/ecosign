@@ -58,7 +58,7 @@ serve(async (req) => {
       .maybeSingle()
 
     if (existingNotification) {
-      console.log(`Welcome email already sent to ${user.email}`)
+      console.log(`Welcome email already sent for user ${userId}`)
       return new Response(
         JSON.stringify({ success: true, message: 'Welcome email already sent' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -135,7 +135,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Welcome email queued for ${user.email}`
+        message: 'Welcome email queued'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

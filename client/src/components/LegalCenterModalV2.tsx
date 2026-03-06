@@ -281,6 +281,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const workflowAssignmentSectionRef = useRef<HTMLDivElement | null>(null);
   const [expandedSignerIndex, setExpandedSignerIndex] = useState<number | null>(null);
   const [showSignerFieldsWizard, setShowSignerFieldsWizard] = useState(false);
+  const [pendingWizardApply, setPendingWizardApply] = useState<null | (() => void)>(null);
   const [pdfPageMetrics, setPdfPageMetrics] = useState<PdfPageMetrics[]>([]);
   const [signaturePreview, setSignaturePreview] = useState<{ type: 'image' | 'text'; value: string } | null>(null);
   const [signaturePlacement, setSignaturePlacement] = useState({ x: 120, y: 180, width: 220, height: 80 });
@@ -830,6 +831,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     setSourceFile(selectedFile);
     setFile(workingFile);
+    setPreviewRotation(0);
     setDocumentLoaded(true); // CONSTITUCIÓN: Controlar visibilidad de acciones
     setPreviewError(false);
     console.log('Archivo seleccionado:', selectedFile.name);
@@ -3205,9 +3207,19 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const isFocusMode = focusView !== null;
   const isDocumentFocus = focusView === 'document';
   const isViewerLocked = true;
-  const activePreviewUrl = workflowPreviewUrl ?? documentPreview;
-  const activePreviewPdfData = workflowPreviewPdfData ?? documentPreviewPdfData;
-  const isPdfPreview = file?.type === 'application/pdf';
+  const useSourceImagePreviewInCenter = Boolean(
+    sourceFile?.type.startsWith('image/') &&
+    file?.type === 'application/pdf' &&
+    signatureFields.length === 0 &&
+    !signaturePreview
+  );
+  const activePreviewUrl = useSourceImagePreviewInCenter
+    ? (sourceImagePreviewUrl ?? documentPreview ?? workflowPreviewUrl)
+    : (workflowPreviewUrl ?? documentPreview);
+  const activePreviewPdfData = useSourceImagePreviewInCenter
+    ? null
+    : (workflowPreviewPdfData ?? documentPreviewPdfData);
+  const isPdfPreview = !useSourceImagePreviewInCenter && file?.type === 'application/pdf';
   // Wizard de campos usa preview imagen original cuando el source fue JPG/PNG,
   // para mantener orientación visual coherente respecto del canvas principal.
   const useSourceImagePreviewInWizard = Boolean(
@@ -3221,14 +3233,23 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     : (documentPreviewPdfData ?? workflowPreviewPdfData);
   const wizardPreviewText = useSourceImagePreviewInWizard ? null : documentPreviewText;
   const wizardPreviewIsPdf = useSourceImagePreviewInWizard ? false : isPdfPreview;
-  const hasPreview = Boolean(documentPreview || documentPreviewText || workflowPreviewUrl);
+  const hasPreview = Boolean(documentPreview || documentPreviewText || workflowPreviewUrl || sourceImagePreviewUrl);
   const usePdfEditMode = isPdfPreview && (!pdfEditError || Boolean(activePreviewPdfData));
-  const getNextClockwiseRotation = (current: number) => {
-    const sequence = [0, 90, 180, 270] as const;
-    const normalized = ((current % 360) + 360) % 360;
-    const idx = sequence.indexOf(normalized as (typeof sequence)[number]);
-    return sequence[(idx + 1) % sequence.length];
-  };
+  const normalizedPreviewRotation = ((previewRotation % 360) + 360) % 360;
+  const shouldCenterTextPreview = normalizedPreviewRotation !== 0 || isPreviewFullscreen || isDocumentFocus;
+  const textPreviewFitMode = isPreviewFullscreen || isDocumentFocus ? 'contain' : 'width';
+  const fieldLabelCounterRotationStyle =
+    normalizedPreviewRotation === 0
+      ? undefined
+      : {
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          height: '100%',
+          transform: `rotate(${-normalizedPreviewRotation}deg)`,
+          transformOrigin: 'center center'
+        };
   const validSignersForWizard = buildSignersList();
   const canOpenCenterWizard = mySignature || (workflowEnabled && validSignersForWizard.length > 0);
 
@@ -3274,20 +3295,22 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     virtualHeight: number;
   }) => {
     const fields = result.fields;
+    const doApply = () => {
+      setSignatureFields(fields);
+      setWorkflowVirtualSize({ width: result.virtualWidth, height: result.virtualHeight });
+      setWorkflowPageSizeMode(result.pageSizeMode);
+      const firstBatch = fields.find((f: SignatureField) => f.batchId)?.batchId ?? null;
+      setActiveBatchId(firstBatch);
+      setWorkflowAssignmentConfirmed(true);
+      setExpandedSignerIndex(null);
+      setShowSignerFieldsWizard(false);
+      showToast('Campos configurados correctamente.', { type: 'success', duration: 2000, position: 'top-right' });
+    };
     if (signatureFields.length > 0) {
-      const ok = window.confirm('Esto va a reemplazar los campos existentes. ¿Continuar?');
-      if (!ok) return;
+      setPendingWizardApply(() => doApply);
+      return;
     }
-
-    setSignatureFields(fields);
-    setWorkflowVirtualSize({ width: result.virtualWidth, height: result.virtualHeight });
-    setWorkflowPageSizeMode(result.pageSizeMode);
-    const firstBatch = fields.find((f: SignatureField) => f.batchId)?.batchId ?? null;
-    setActiveBatchId(firstBatch);
-    setWorkflowAssignmentConfirmed(true);
-    setExpandedSignerIndex(null);
-    setShowSignerFieldsWizard(false);
-    showToast('Campos configurados correctamente.', { type: 'success', duration: 2000, position: 'top-right' });
+    doApply();
   }, [signatureFields.length, showToast]);
 
   useEffect(() => {
@@ -4109,10 +4132,10 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             {isDocumentFocus ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                           </button>
                         )}
-                        {documentPreview && (
+                        {file && (
                           <button
                             type="button"
-                            onClick={() => setPreviewRotation((prev) => getNextClockwiseRotation(prev))}
+                            onClick={() => setPreviewRotation((prev) => prev + 90)}
                             className="inline-flex h-6 w-6 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                             title="Rotar documento"
                           >
@@ -4163,6 +4186,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                     {/* overflow-x-hidden: NUNCA scroll horizontal, overflow-y-auto: scroll vertical permitido */}
                     <div
                       ref={previewContainerRef}
+                      data-testid="center-legal-canvas"
                       className={`relative group ${
                         isPreviewFullscreen || isDocumentFocus ? 'flex-1' : previewMode === 'expanded' ? 'h-[60vh]' : previewBaseHeight
                       } bg-gray-100 overflow-x-hidden overflow-y-auto`}
@@ -4175,9 +4199,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                           transition: 'transform 200ms ease'
                         }}
                       >
-                          {documentPreview && file.type.startsWith('image/') && (
+                          {activePreviewUrl && !isPdfPreview && !documentPreviewText && (
                             <img
-                              src={documentPreview}
+                              src={activePreviewUrl}
                               alt="Preview"
                               className="block w-full h-auto max-w-full object-contain"
                             />
@@ -4188,6 +4212,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                               text={documentPreviewText}
                               className="h-full bg-transparent"
                               textClassName="text-sm text-gray-800"
+                              fitMode={textPreviewFitMode}
+                              centerContent={shouldCenterTextPreview}
                             />
                           )}
                           
@@ -4339,7 +4365,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                                     className="w-full h-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-500"
                                                   />
                                                 ) : (
-                                                  <span className="text-xs text-blue-900/80 select-none">
+                                                  <span className="text-xs text-blue-900/80 select-none" style={fieldLabelCounterRotationStyle}>
                                                     {field.metadata?.label ?? ''}
                                                   </span>
                                                 )}
@@ -4475,7 +4501,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                       className="w-full h-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-500"
                                     />
                                   ) : (
-                                    <span className="text-xs text-blue-900/80 select-none">
+                                    <span className="text-xs text-blue-900/80 select-none" style={fieldLabelCounterRotationStyle}>
                                       {field.metadata?.label ?? ''}
                                     </span>
                                   )}
@@ -5335,7 +5361,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       previewIsPdf={wizardPreviewIsPdf}
       previewPage={pdfPageMetrics.length > 0 ? pdfPageMetrics.length : null}
       initialPreviewRotation={previewRotation}
-      onPreviewRotationChange={setPreviewRotation}
       isWorkflowMode={workflowEnabled}
       isSelfSignatureMode={Boolean(mySignature && !workflowEnabled)}
       signingMode={workflowSigningMode}
@@ -5659,6 +5684,34 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         onConfirm={handleCustodyConfirmed}
         documentName={file?.name || 'documento.pdf'}
       />
+
+      {/* Confirmación para reemplazar campos del wizard */}
+      {pendingWizardApply && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <p className="text-sm font-semibold text-gray-900 mb-1.5">¿Reemplazar los campos actuales?</p>
+            <p className="text-[13px] text-gray-500 leading-relaxed mb-5">
+              Ya tenés una configuración guardada. Si aplicás la nueva, los campos actuales se van a reemplazar.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingWizardApply(null)}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => { pendingWizardApply(); setPendingWizardApply(null); }}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+              >
+                Reemplazar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

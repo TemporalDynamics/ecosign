@@ -11,21 +11,16 @@ const WIZARD_FILE = path.join(ROOT, 'client/src/centro-legal/modules/flow/Signer
 const LEGAL_CENTER_FILE = path.join(ROOT, 'client/src/components/LegalCenterModalV2.tsx');
 const CONTRACT_FILE = path.join(ROOT, 'docs/ui/CANVAS_VIRTUAL_CONTRACT.md');
 
-test('wizard rotation uses parent as source-of-truth when callback exists', async () => {
+test('wizard displays rotation from parent but has no rotate button', async () => {
   const content = await fs.readFile(WIZARD_FILE, 'utf8');
 
-  expect(content).toContain('const [localPreviewRotation, setLocalPreviewRotation]');
-  expect(content).toContain('if (onPreviewRotationChange) return;');
-  expect(content).toContain('const previewRotation = onPreviewRotationChange');
-  expect(content).toContain('? normalizeRotation(initialPreviewRotation)');
-  expect(content).toContain(': localPreviewRotation;');
-});
+  // Wizard reads rotation from parent prop and normalizes it for display.
+  expect(content).toContain('normalizeRotation(initialPreviewRotation)');
+  expect(content).toContain('rotate(${previewRotation}deg)');
+  expect(content).not.toContain('onPreviewRotationChange');
 
-test('wizard keeps deterministic clockwise rotation sequence', async () => {
-  const content = await fs.readFile(WIZARD_FILE, 'utf8');
-
-  expect(content).toContain('const ROTATION_SEQUENCE = [0, 90, 180, 270] as const;');
-  expect(content).toContain('return ROTATION_SEQUENCE[(idx + 1) % ROTATION_SEQUENCE.length];');
+  // Wizard has NO rotate button — rotation is controlled exclusively from Centro Legal.
+  expect(content).not.toContain('onClick={rotatePreview}');
 });
 
 test('wizard fullscreen pointer mapping applies inverse rotation for coherent drag/resize', async () => {
@@ -46,11 +41,15 @@ test('final flow controls stay workflow-only and hidden in self-signature mode',
   expect(content).toContain('const showFinalVisibilityControl = Boolean(isWorkflowMode && onFinalDocumentVisibilityChange && !isSelfSignatureMode);');
 });
 
-test('legal center passes rotation sync props and mode guards into wizard', async () => {
+test('legal center is the single source of rotation — monotonic, always clockwise', async () => {
   const content = await fs.readFile(LEGAL_CENTER_FILE, 'utf8');
 
+  // Monotonic state: always +90, never backward.
+  expect(content).toContain('setPreviewRotation(0);');
+  expect(content).toContain('prev + 90');
+  expect(content).toContain('{file && (');
   expect(content).toContain('initialPreviewRotation={previewRotation}');
-  expect(content).toContain('onPreviewRotationChange={setPreviewRotation}');
+  expect(content).not.toContain('onPreviewRotationChange={handlePreviewRotationChange}');
   expect(content).toContain('isWorkflowMode={workflowEnabled}');
   expect(content).toContain('isSelfSignatureMode={Boolean(mySignature && !workflowEnabled)}');
 });
@@ -61,6 +60,8 @@ test('canvas contract documents wizard rotation invariants explicitly', async ()
   expect(content).toContain('Invariantes de Rotación (Wizard de Campos)');
   expect(content).toContain('Fuente única de rotación');
   expect(content).toContain('Secuencia determinística');
+  expect(content).toContain('Reset por documento');
+  expect(content).toContain('Control siempre visible en edición');
   expect(content).toContain('Drag/resize coherente');
   expect(content).toContain('Sin controles de flujo en Mi Firma');
 });

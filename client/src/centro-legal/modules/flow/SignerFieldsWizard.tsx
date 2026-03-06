@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronRight, RotateCw, Maximize2, Minimize2, Info, Move } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronRight, Maximize2, Minimize2, Info, Move } from 'lucide-react';
 import type { SignatureField } from '../../../types/signature-fields';
 import { generateWorkflowFieldsFromWizard, type RepetitionRule, type WizardTemplate } from '../../../lib/workflowFieldTemplate';
 import { PdfEditViewer } from '../../../components/pdf/PdfEditViewer';
@@ -22,7 +22,6 @@ type Props = {
   previewIsPdf?: boolean;
   previewPage?: number | null;
   initialPreviewRotation?: number;
-  onPreviewRotationChange?: (nextRotation: number) => void;
   isWorkflowMode?: boolean;
   isSelfSignatureMode?: boolean;
   signingMode?: 'sequential' | 'parallel';
@@ -81,7 +80,6 @@ function SignerFieldsWizardComponent({
   previewIsPdf = false,
   previewPage,
   initialPreviewRotation = 0,
-  onPreviewRotationChange,
   isWorkflowMode = false,
   isSelfSignatureMode = false,
   signingMode,
@@ -102,7 +100,6 @@ function SignerFieldsWizardComponent({
   const [activeSignerEmail, setActiveSignerEmail] = useState<string>('');
   const [perSignerPlacement, setPerSignerPlacement] = useState<Record<string, PerSignerPlacement>>({});
   const normalizeRotation = (rotation: number) => ((rotation % 360) + 360) % 360;
-  const [localPreviewRotation, setLocalPreviewRotation] = useState(() => normalizeRotation(initialPreviewRotation));
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [pdfPreviewFailed, setPdfPreviewFailed] = useState(false);
@@ -131,9 +128,12 @@ function SignerFieldsWizardComponent({
   });
   const [personalizeBySigner, setPersonalizeBySigner] = useState(false);
   const fullscreenScrollRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenViewportRef = useRef<HTMLDivElement | null>(null);
   const fullscreenContentRef = useRef<HTMLDivElement | null>(null);
   const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const pendingPointerRef = useRef<{ x: number; y: number } | null>(null);
   const autoScrollRafRef = useRef<number | null>(null);
+  const pointerMoveRafRef = useRef<number | null>(null);
   const FULL_SCALE_MAX = 0.82;
   const [fullscreenScale, setFullscreenScale] = useState(FULL_SCALE_MAX);
   const AUTO_SCROLL_EDGE_PX = 56;
@@ -145,30 +145,7 @@ function SignerFieldsWizardComponent({
   const showFinalVisibilityControl = Boolean(isWorkflowMode && onFinalDocumentVisibilityChange && !isSelfSignatureMode);
   const showFinalFlowControls = showSigningModeControl || showFinalVisibilityControl;
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const ROTATION_SEQUENCE = [0, 90, 180, 270] as const;
-  const getNextClockwiseRotation = (current: number) => {
-    const normalized = normalizeRotation(current);
-    const idx = ROTATION_SEQUENCE.indexOf(normalized as (typeof ROTATION_SEQUENCE)[number]);
-    return ROTATION_SEQUENCE[(idx + 1) % ROTATION_SEQUENCE.length];
-  };
-
-  useEffect(() => {
-    if (onPreviewRotationChange) return;
-    setLocalPreviewRotation(normalizeRotation(initialPreviewRotation));
-  }, [initialPreviewRotation, onPreviewRotationChange]);
-
-  const previewRotation = onPreviewRotationChange
-    ? normalizeRotation(initialPreviewRotation)
-    : localPreviewRotation;
-
-  const rotatePreview = () => {
-    const next = getNextClockwiseRotation(previewRotation);
-    if (onPreviewRotationChange) {
-      onPreviewRotationChange(next);
-      return;
-    }
-    setLocalPreviewRotation(next);
-  };
+  const previewRotation = normalizeRotation(initialPreviewRotation);
 
   const validSigners = useMemo(
     () =>
@@ -183,6 +160,7 @@ function SignerFieldsWizardComponent({
   const repetitionRule: RepetitionRule = { kind: 'once' };
 
   const targetPage = Math.max(1, totalPages ?? 1);
+  const pagesCount = Math.max(1, totalPages ?? 1);
   const resolvedVirtualHeight =
     pageSizeMode === 'document'
       ? detectedVirtualHeight
@@ -191,6 +169,12 @@ function SignerFieldsWizardComponent({
   const isQuarterTurn = normalizedPreviewRotation === 90 || normalizedPreviewRotation === 270;
   const layoutVirtualWidth = isQuarterTurn ? resolvedVirtualHeight : virtualWidth;
   const layoutVirtualHeight = isQuarterTurn ? virtualWidth : resolvedVirtualHeight;
+  const fullDocBaseWidth = virtualWidth;
+  const fullDocBaseHeight = Math.max(1, pagesCount * resolvedVirtualHeight);
+  const rotatedDocWidth = isQuarterTurn ? fullDocBaseHeight : fullDocBaseWidth;
+  const rotatedDocHeight = isQuarterTurn ? fullDocBaseWidth : fullDocBaseHeight;
+  const viewportFitBaseWidth = isQuarterTurn ? resolvedVirtualHeight : virtualWidth;
+  const viewportFitBaseHeight = isQuarterTurn ? virtualWidth : resolvedVirtualHeight;
 
   const mapFieldFromLayoutToBase = (field: SignatureField): SignatureField => {
     if (normalizedPreviewRotation === 0) return field;
@@ -502,7 +486,7 @@ function SignerFieldsWizardComponent({
 
   const pdfPreviewSrc = previewIsPdf && previewUrl ? previewUrl : null;
   const textPreviewSrc = !previewIsPdf && previewText ? previewText : null;
-  const miniPreviewWidth = 250;
+  const miniPreviewWidth = 180;
   const miniPreviewHeight = Math.max(150, Math.round((miniPreviewWidth * resolvedVirtualHeight) / virtualWidth));
   const miniPreviewScale = miniPreviewWidth / Math.max(1, virtualWidth);
   const fieldLabelCounterRotationStyle =
@@ -521,9 +505,18 @@ function SignerFieldsWizardComponent({
       if (!content) return null;
 
       const rect = content.getBoundingClientRect();
-      const pagesCount = Math.max(1, totalPages ?? 1);
-      const scaledWidth = virtualWidth * fullscreenScale;
-      const scaledHeight = Math.max(1, pagesCount * resolvedVirtualHeight * fullscreenScale);
+      const scaledWidth = fullDocBaseWidth * fullscreenScale;
+      const scaledHeight = Math.max(1, fullDocBaseHeight * fullscreenScale);
+
+      if (normalizedPreviewRotation === 0) {
+        const x = (clientX - rect.left) / fullscreenScale;
+        const y = (clientY - rect.top) / fullscreenScale;
+        return {
+          x: Math.max(0, Math.min(fullDocBaseWidth, x)),
+          y: Math.max(0, Math.min(fullDocBaseHeight, y))
+        };
+      }
+
       const centerClientX = rect.left + rect.width / 2;
       const centerClientY = rect.top + rect.height / 2;
       const dx = clientX - centerClientX;
@@ -536,12 +529,14 @@ function SignerFieldsWizardComponent({
       const unrotatedX = dx * cos - dy * sin;
       const unrotatedY = dx * sin + dy * cos;
 
+      const baseX = (unrotatedX + scaledWidth / 2) / fullscreenScale;
+      const baseY = (unrotatedY + scaledHeight / 2) / fullscreenScale;
       return {
-        x: (unrotatedX + scaledWidth / 2) / fullscreenScale,
-        y: (unrotatedY + scaledHeight / 2) / fullscreenScale
+        x: Math.max(0, Math.min(fullDocBaseWidth, baseX)),
+        y: Math.max(0, Math.min(fullDocBaseHeight, baseY))
       };
     },
-    [fullscreenScale, normalizedPreviewRotation, resolvedVirtualHeight, totalPages, virtualWidth]
+    [fullDocBaseHeight, fullDocBaseWidth, fullscreenScale, normalizedPreviewRotation]
   );
 
   useEffect(() => {
@@ -595,7 +590,7 @@ function SignerFieldsWizardComponent({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewFullscreen, fullscreenScale, normalizedPreviewRotation, previewItemsVisible, resolvedVirtualHeight]);
 
-  // Fit-to-width en fullscreen para evitar scroll horizontal.
+  // Fit-to-viewport en fullscreen para evitar zoom excesivo al forzar A4/Oficio.
   useEffect(() => {
     if (!previewFullscreen) {
       setFullscreenScale(FULL_SCALE_MAX);
@@ -605,8 +600,9 @@ function SignerFieldsWizardComponent({
     const recalc = () => {
       const container = fullscreenScrollRef.current;
       if (!container) return;
-      const fitBaseWidth = isQuarterTurn ? resolvedVirtualHeight : virtualWidth;
-      const fitScale = (container.clientWidth - 24) / Math.max(1, fitBaseWidth);
+      const fitScaleWidth = (container.clientWidth - 24) / Math.max(1, viewportFitBaseWidth);
+      const fitScaleHeight = (container.clientHeight - 24) / Math.max(1, viewportFitBaseHeight);
+      const fitScale = Math.min(fitScaleWidth, fitScaleHeight);
       setFullscreenScale(Math.max(0.28, Math.min(FULL_SCALE_MAX, fitScale)));
     };
 
@@ -620,7 +616,7 @@ function SignerFieldsWizardComponent({
       observer.disconnect();
       window.removeEventListener('resize', recalc);
     };
-  }, [previewFullscreen, virtualWidth, resolvedVirtualHeight, isQuarterTurn]);
+  }, [previewFullscreen, viewportFitBaseHeight, viewportFitBaseWidth]);
 
   // Al rotar en fullscreen, reposicionar al origen para evitar "pantalla vacía"
   // cuando la rotación previa dejó scroll en una zona sin contenido visible.
@@ -629,19 +625,24 @@ function SignerFieldsWizardComponent({
     const container = fullscreenScrollRef.current;
     if (!container) return;
     container.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [previewRotation, previewFullscreen]);
+  }, [previewRotation, previewFullscreen, pageSizeMode]);
 
   useEffect(() => {
     if (!previewFullscreen) return;
 
     const maxXBase = virtualWidth;
-    const pagesCount = Math.max(1, totalPages ?? 1);
     const totalDocHeight = pagesCount * resolvedVirtualHeight;
 
     const stopAutoScrollLoop = () => {
       if (autoScrollRafRef.current !== null) {
         cancelAnimationFrame(autoScrollRafRef.current);
         autoScrollRafRef.current = null;
+      }
+    };
+    const stopMoveLoop = () => {
+      if (pointerMoveRafRef.current !== null) {
+        cancelAnimationFrame(pointerMoveRafRef.current);
+        pointerMoveRafRef.current = null;
       }
     };
 
@@ -740,8 +741,17 @@ function SignerFieldsWizardComponent({
     };
 
     const onMove = (event: MouseEvent) => {
-      dragPointerRef.current = { x: event.clientX, y: event.clientY };
-      applyPointerMovement(event.clientX, event.clientY);
+      const nextPointer = { x: event.clientX, y: event.clientY };
+      dragPointerRef.current = nextPointer;
+      pendingPointerRef.current = nextPointer;
+      if (pointerMoveRafRef.current === null) {
+        pointerMoveRafRef.current = requestAnimationFrame(() => {
+          pointerMoveRafRef.current = null;
+          const pointer = pendingPointerRef.current;
+          if (!pointer) return;
+          applyPointerMovement(pointer.x, pointer.y);
+        });
+      }
       if (autoScrollRafRef.current === null) {
         autoScrollRafRef.current = requestAnimationFrame(autoScrollStep);
       }
@@ -751,6 +761,8 @@ function SignerFieldsWizardComponent({
       setDragState(null);
       setResizeState(null);
       dragPointerRef.current = null;
+      pendingPointerRef.current = null;
+      stopMoveLoop();
       stopAutoScrollLoop();
     };
 
@@ -759,16 +771,18 @@ function SignerFieldsWizardComponent({
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      pendingPointerRef.current = null;
+      stopMoveLoop();
       stopAutoScrollLoop();
     };
-  }, [previewFullscreen, dragState, resizeState, virtualWidth, resolvedVirtualHeight, totalPages, fullscreenScale, normalizedPreviewRotation, getFullscreenPointerInContent]);
+  }, [previewFullscreen, dragState, resizeState, pagesCount, virtualWidth, resolvedVirtualHeight, fullscreenScale, normalizedPreviewRotation, getFullscreenPointerInContent]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+      <div className="relative w-full max-w-[480px] rounded-2xl bg-white shadow-xl flex flex-col max-h-[86vh]">
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 flex-shrink-0">
           <h3 className="text-base font-semibold text-gray-900">Configuración de campos</h3>
           <button
             type="button"
@@ -780,7 +794,7 @@ function SignerFieldsWizardComponent({
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-3 max-h-[70vh] overflow-y-auto">
+        <div className="px-4 py-3 space-y-2 flex-1 overflow-y-auto">
           {/* Sección 1: Firmas del documento */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white border-b border-gray-200">
@@ -790,26 +804,24 @@ function SignerFieldsWizardComponent({
                 className="flex-1 min-w-0 flex items-center justify-between text-left"
               >
                 <div className="text-left">
-                  <p className="text-xs font-semibold text-gray-700">1. Configuración de campos por firmante</p>
-                  <p className="text-[11px] text-gray-500">Configurá firma final y firma en cada página</p>
+                  <p className="text-xs font-semibold text-gray-700">1. Configuración de campos</p>
+                  <p className="text-[11px] text-gray-500">Firma final y firma en cada página</p>
                 </div>
                 {openSections.signatures ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
               </button>
-              <div className="h-7 px-2 rounded-md border border-gray-200 bg-gray-50 text-[11px] text-gray-600 inline-flex items-center gap-2">
-                <span>{personalizeBySigner ? 'Personalizando por firmante' : 'Aplica a todos'}</span>
-                {validSigners.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setPersonalizeBySigner((prev) => !prev)}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    {personalizeBySigner ? 'Volver a todos' : 'Personalizar por firmante'}
-                  </button>
-                )}
-              </div>
+              {validSigners.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setPersonalizeBySigner((prev) => !prev)}
+                  className="h-6 px-2 rounded border border-gray-200 bg-gray-50 text-[10px] text-blue-600 hover:bg-blue-50 transition-colors flex-shrink-0"
+                >
+                  {personalizeBySigner ? 'Todos' : 'Personalizar'}
+                </button>
+              )}
             </div>
             {openSections.signatures && (
-              <div className="p-3 space-y-3">
+              <div className="p-2 space-y-2">
+                <p className="text-[11px] text-gray-500 px-1">¿Dónde querés que aparezca la firma? Podés activar una o las dos.</p>
                 {personalizeBySigner && (
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
                     <div className="flex flex-wrap gap-1.5">
@@ -839,21 +851,29 @@ function SignerFieldsWizardComponent({
                     <button
                       type="button"
                       onClick={() => setOpenSignatureBlock((prev) => (prev === 'final' ? null : 'final'))}
-                      className="w-full px-3 py-2 flex items-center justify-between border-b border-gray-200"
+                      className="w-full px-3 py-2 flex items-center gap-2 border-b border-gray-200 text-left"
                     >
-                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-800 cursor-pointer">
+                      <label className="flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={includeFinalSignature}
                           onChange={(e) => setIncludeFinalSignature(e.target.checked)}
                           className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
                         />
-                        <span>Firma al final del documento</span>
                       </label>
-                      {openSignatureBlock === 'final' ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-xs font-semibold text-gray-800">Firma al final del documento</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">Una sola vez, al pie del documento.</p>
+                        {openSignatureBlock !== 'final' && includeFinalSignature && (
+                          <p className="text-[10px] text-blue-600 mt-0.5">
+                            {['Firma', includeName && 'Nombre', includeDate && 'Fecha', includeId && 'Identidad', ...customFields.map((f) => f.label)].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                      {openSignatureBlock === 'final' ? <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />}
                     </button>
                     {openSignatureBlock === 'final' && (
-                      <div className={`p-3 ${includeFinalSignature ? '' : 'opacity-50 pointer-events-none'}`}>
+                      <div className={`p-2 ${includeFinalSignature ? '' : 'opacity-50 pointer-events-none'}`}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <p className="text-[11px] font-medium text-gray-600">Campos incluidos</p>
@@ -904,26 +924,34 @@ function SignerFieldsWizardComponent({
                     <button
                       type="button"
                       onClick={() => setOpenSignatureBlock((prev) => (prev === 'perPage' ? null : 'perPage'))}
-                      className="w-full px-3 py-2 flex items-center justify-between border-b border-gray-200"
+                      className="w-full px-3 py-2 flex items-center gap-2 border-b border-gray-200 text-left"
                     >
-                      <label className="flex items-center gap-2 text-xs font-semibold text-gray-800 cursor-pointer">
+                      <label className="flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={includePerPageSignature}
                           onChange={(e) => setIncludePerPageSignature(e.target.checked)}
                           className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
                         />
-                        <span className="inline-flex items-center gap-1">
+                      </label>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-xs font-semibold text-gray-800 inline-flex items-center gap-1">
                           Firma en cada página
-                          <span className="inline-flex items-center text-gray-400 hover:text-gray-600" title="Las firmas por página se ubican inicialmente en zona media-superior.">
+                          <span className="text-gray-400 hover:text-gray-600" title="Las firmas por página se ubican inicialmente en zona media-superior.">
                             <Info className="w-3 h-3" />
                           </span>
-                        </span>
-                      </label>
-                      {openSignatureBlock === 'perPage' ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">Se repite en cada hoja, en el margen que elijas.</p>
+                        {openSignatureBlock !== 'perPage' && includePerPageSignature && (
+                          <p className="text-[10px] text-blue-600 mt-0.5">
+                            {['Firma', includePerPageName && 'Nombre', includePerPageDate && 'Fecha', isRightSelected && isLeftSelected ? 'Ambos márgenes' : isRightSelected ? 'Margen der.' : isLeftSelected ? 'Margen izq.' : null].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                      {openSignatureBlock === 'perPage' ? <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />}
                     </button>
                     {openSignatureBlock === 'perPage' && (
-                      <div className={`p-3 ${includePerPageSignature ? '' : 'opacity-50 pointer-events-none'}`}>
+                      <div className={`p-2 ${includePerPageSignature ? '' : 'opacity-50 pointer-events-none'}`}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <p className="text-[11px] font-medium text-gray-600">Campos incluidos</p>
@@ -992,55 +1020,7 @@ function SignerFieldsWizardComponent({
             )}
           </div>
 
-          {/* Sección 2: Tamaño */}
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => toggleSection('size')}
-              className="w-full flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200"
-            >
-              <div className="text-left">
-                <p className="text-xs font-semibold text-gray-700">2. Tamaño de página</p>
-                <p className="text-[11px] text-gray-500">
-                  {pageSizeMode === 'document' ? `Usar tamaño detectado (${detectedPageLabel})` : pageSizeMode === 'a4' ? 'Forzar A4' : 'Forzar Oficio'}
-                </p>
-              </div>
-              {openSections.size ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
-            </button>
-            {openSections.size && (
-              <div className="p-3 grid grid-cols-2 gap-x-4 gap-y-2">
-                <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={pageSizeMode === 'document'}
-                    onChange={() => setPageSizeMode('document')}
-                    className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Usar tamaño del documento (detectado: {detectedPageLabel})</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={pageSizeMode === 'a4'}
-                    onChange={() => setPageSizeMode('a4')}
-                    className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Forzar A4</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={pageSizeMode === 'oficio'}
-                    onChange={() => setPageSizeMode('oficio')}
-                    className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Forzar Oficio</span>
-                </label>
-              </div>
-            )}
-          </div>
-
-          {/* Sección 3: Previsualización */}
+          {/* Sección 2: Previsualización */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <button
               type="button"
@@ -1048,27 +1028,20 @@ function SignerFieldsWizardComponent({
               className="w-full flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200"
             >
               <div className="text-left">
-                <p className="text-xs font-semibold text-gray-700">3. Previsualización</p>
-                <p className="text-[11px] text-gray-500">Vista simplificada del documento y campos</p>
+                <p className="text-xs font-semibold text-gray-700">2. Previsualización</p>
+                <p className="text-[11px] text-gray-500">Vista del documento y tamaño de página</p>
               </div>
               {openSections.preview ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
             </button>
             {openSections.preview && (
-              <div className="p-4">
-                <div className="flex items-start gap-4">
+              <div className="p-3 space-y-3">
+                <div className="flex items-start gap-3">
                   <div
+                    data-testid="wizard-mini-preview"
                     className="relative border border-gray-200 rounded-md bg-gray-50 overflow-hidden"
                     style={{ width: miniPreviewWidth, height: miniPreviewHeight }}
                   >
                     <div className="absolute right-1.5 top-1.5 z-10 flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={rotatePreview}
-                        className="h-6 w-6 inline-flex items-center justify-center rounded-md bg-white/90 text-gray-600 hover:text-gray-900 border border-gray-200 shadow-sm"
-                        title="Rotar documento"
-                      >
-                        <RotateCw className="w-3.5 h-3.5" />
-                      </button>
                       <button
                         type="button"
                         onClick={() => setPreviewFullscreen(true)}
@@ -1176,13 +1149,28 @@ function SignerFieldsWizardComponent({
                       </div>
                     ) : null}
                   </div>
-                  <div className="text-[11px] text-gray-500 pt-1">
-                    {personalizeBySigner && activeSignerEmail
+                  <div className="flex-1 text-[11px] text-gray-500 pt-0.5 space-y-1.5">
+                    <p>{personalizeBySigner && activeSignerEmail
                       ? `Vista de ${activeSignerEmail}`
-                      : 'Vista de todos los firmantes'}
-                    <p className="mt-2 text-[10px] text-gray-500">
-                      Para mover o redimensionar campos, usá pantalla completa.
-                    </p>
+                      : 'Vista de todos los firmantes'}</p>
+                    <p className="text-[10px] text-gray-400">Para mover o redimensionar, usá pantalla completa.</p>
+                  </div>
+                </div>
+                <div className="border-t border-gray-100 pt-2">
+                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1.5">Tamaño de página</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={pageSizeMode === 'document'} onChange={() => setPageSizeMode('document')} className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer" />
+                      <span>Auto ({detectedPageLabel})</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={pageSizeMode === 'a4'} onChange={() => setPageSizeMode('a4')} className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer" />
+                      <span>A4</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[11px] text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={pageSizeMode === 'oficio'} onChange={() => setPageSizeMode('oficio')} className="eco-checkbox rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer" />
+                      <span>Oficio</span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1191,7 +1179,7 @@ function SignerFieldsWizardComponent({
         </div>
 
         {showFinalFlowControls && (
-          <div className="mx-5 mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div className="mx-4 mb-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
             <div className="text-sm font-semibold text-gray-900 mb-3">Configuración final del flujo</div>
             <div className="space-y-3">
               {showSigningModeControl && (
@@ -1241,7 +1229,7 @@ function SignerFieldsWizardComponent({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
+        <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-4 py-3 flex-shrink-0">
           {validationErrors.length > 0 && (
             <div className="mr-auto text-xs text-red-600 space-y-1">
               {validationErrors.map((message) => (
@@ -1288,14 +1276,6 @@ function SignerFieldsWizardComponent({
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={rotatePreview}
-                  className="h-7 w-7 inline-flex items-center justify-center rounded-md bg-white text-gray-600 hover:text-gray-900 border border-gray-200"
-                  title="Rotar documento"
-                >
-                  <RotateCw className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
                   onClick={() => setPreviewFullscreen(false)}
                   className="h-7 w-7 inline-flex items-center justify-center rounded-md bg-white text-gray-600 hover:text-gray-900 border border-gray-200"
                   title="Salir de pantalla completa"
@@ -1308,194 +1288,207 @@ function SignerFieldsWizardComponent({
             {/* Scrollable document area */}
             <div
               ref={fullscreenScrollRef}
+              data-testid="wizard-fullscreen-scroll"
               className="flex-1 overflow-auto bg-gray-100 rounded-b-xl"
               onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedFieldId(null); }}
             >
               {/* Canvas: natural document size */}
               <div
-                ref={fullscreenContentRef}
+                ref={fullscreenViewportRef}
+                data-testid="wizard-fullscreen-viewport"
                 className="relative mx-auto"
                 style={{
-                  width: virtualWidth * fullscreenScale,
-                  minHeight: (totalPages ?? 1) * resolvedVirtualHeight * fullscreenScale,
-                  transform: previewRotation ? `rotate(${previewRotation}deg)` : undefined,
-                  transformOrigin: 'center center'
+                  width: rotatedDocWidth * fullscreenScale,
+                  minHeight: rotatedDocHeight * fullscreenScale
                 }}
                 onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedFieldId(null); }}
               >
-                {/* PDF / image layer */}
-                {previewIsPdf && (pdfPreviewSrc || previewPdfData) && !pdfPreviewFailed ? (
-                  <div className="absolute inset-0 pointer-events-none">
-                    <PdfEditViewer
-                      src={pdfPreviewSrc}
-                      pdfData={previewPdfData}
-                      locked
-                      virtualWidth={virtualWidth}
-                      scale={fullscreenScale}
-                      pageGap={0}
-                      className="bg-transparent"
-                      onError={() => setPdfPreviewFailed(true)}
-                    />
-                  </div>
-                ) : previewUrl && !previewIsPdf ? (
-                  <img
-                    src={previewUrl}
-                    alt="Preview fullscreen"
-                    className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                  />
-                ) : textPreviewSrc && !previewIsPdf ? (
-                  <div className="absolute inset-0 pointer-events-none">
-                    <VirtualTextCanvas
-                      text={textPreviewSrc}
-                      className="h-full bg-white"
-                      textClassName="text-sm leading-6 text-gray-700"
-                      observeResize={false}
-                      forceVerticalScrollbar
-                    />
-                  </div>
-                ) : null}
-
-                {/* Batch group frames — dashed crosshatch border, draggable */}
-                {Array.from(batchBoundingBoxes.entries()).map(([batchKey, box]) => {
-                  const pad = 8;
-                  const leadField = previewItemsVisible.find((f) => (f.batchId || f.id) === batchKey);
-                  return (
-                    <div
-                      key={`batch-frame-${batchKey}`}
-                      className="absolute cursor-move"
-                      style={{
-                        left: (box.x - pad) * fullscreenScale,
-                        top: box.y * fullscreenScale - pad,
-                        width: (box.w + pad * 2) * fullscreenScale,
-                        height: box.h * fullscreenScale + pad * 2,
-                        border: '2px dashed rgba(59,130,246,0.45)',
-                        borderRadius: 6,
-                        backgroundImage:
-                          'repeating-linear-gradient(45deg,rgba(59,130,246,0.04) 0px,rgba(59,130,246,0.04) 1px,transparent 1px,transparent 7px)',
-                        zIndex: 10
-                      }}
-                      title="Mover todos los campos de este firmante"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!leadField) return;
-                        const pointer = getFullscreenPointerInContent(e.clientX, e.clientY);
-                        if (!pointer) return;
-                        const batchOrigins = Object.fromEntries(
-                          wizardFields
-                            .filter((field) => field.batchId === batchKey)
-                            .map((field) => [
-                              field.id,
-                              {
-                                x: field.x,
-                                absoluteY: (field.page - 1) * resolvedVirtualHeight + field.y,
-                                width: field.width,
-                                height: field.height
-                              }
-                            ])
-                        );
-                        setSelectedFieldId(leadField.id);
-                        setDragState({
-                          id: leadField.id,
-                          batchId: batchKey,
-                          moveBatch: true,
-                          anchorContentX: pointer.x,
-                          anchorContentY: pointer.y,
-                          originX: leadField.x,
-                          originAbsoluteY: (leadField.page - 1) * resolvedVirtualHeight + leadField.y,
-                          batchOrigins
-                        });
-                      }}
-                    />
-                  );
-                })}
-
-                {/* Individual field overlays */}
-                {previewItemsVisible.map((field) => {
-                  const pageOffsetY = (field.page - 1) * resolvedVirtualHeight * fullscreenScale;
-                  const isSelected = selectedFieldId === field.id;
-                  return (
-                    <div
-                      key={`full-${field.id}`}
-                      className={`absolute select-none group overflow-hidden ${
-                        isSelected
-                          ? 'border-2 border-blue-600'
-                          : 'border border-blue-400/70 hover:border-blue-500'
-                      }`}
-                      style={{
-                        left: field.x * fullscreenScale,
-                        top: pageOffsetY + field.y * fullscreenScale,
-                        width: field.width * fullscreenScale,
-                        height: field.height * fullscreenScale,
-                        backgroundColor: isSelected ? 'rgba(219,234,254,0.5)' : 'rgba(219,234,254,0.3)',
-                        borderRadius: 3,
-                        zIndex: 20
-                      }}
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        setSelectedFieldId(field.id);
-                      }}
-                    >
-                      {/* Label */}
-                      <span
-                        className="absolute inset-0 flex items-center justify-center text-center px-1 text-[10px] font-medium text-blue-700 pointer-events-none leading-tight select-none overflow-hidden"
-                        style={fieldLabelCounterRotationStyle}
-                      >
-                        {field.metadata?.label || 'Campo'}
-                      </span>
-
-                      {/* Individual drag handle — center of field */}
-                      <div
-                        className={`absolute inset-0 flex items-center justify-center cursor-move transition-opacity ${
-                          isSelected ? 'opacity-50' : 'opacity-0 group-hover:opacity-40'
-                        }`}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const pointer = getFullscreenPointerInContent(e.clientX, e.clientY);
-                          if (!pointer) return;
-                          setSelectedFieldId(field.id);
-                          setDragState({
-                            id: field.id,
-                            batchId: field.batchId,
-                            moveBatch: false,
-                            anchorContentX: pointer.x,
-                            anchorContentY: pointer.y,
-                            originX: field.x,
-                            originAbsoluteY: (field.page - 1) * resolvedVirtualHeight + field.y
-                          });
-                        }}
-                      >
-                        <Move className="w-4 h-4 text-blue-500 pointer-events-none" />
-                      </div>
-
-                      {/* Resize handle — inside bottom-right corner */}
-                      <div
-                        className={`absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-center justify-center transition-opacity ${
-                          isSelected ? 'opacity-80' : 'opacity-0 group-hover:opacity-60'
-                        }`}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const pointer = getFullscreenPointerInContent(e.clientX, e.clientY);
-                          if (!pointer) return;
-                          setSelectedFieldId(field.id);
-                          setResizeState({
-                            id: field.id,
-                            anchorContentX: pointer.x,
-                            anchorContentY: pointer.y,
-                            originW: field.width,
-                            originH: field.height
-                          });
-                        }}
-                      >
-                        <svg viewBox="0 0 10 10" className="w-3 h-3 text-blue-500 pointer-events-none">
-                          <path d="M9 1L1 9M5 9L9 9L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </div>
+                <div
+                  ref={fullscreenContentRef}
+                  className="absolute left-1/2 top-1/2"
+                  style={{
+                    width: fullDocBaseWidth * fullscreenScale,
+                    minHeight: fullDocBaseHeight * fullscreenScale,
+                    transform: `translate(-50%, -50%)${previewRotation ? ` rotate(${previewRotation}deg)` : ''}`,
+                    transformOrigin: 'center center',
+                    willChange: 'transform'
+                  }}
+                  onMouseDown={(e) => { if (e.target === e.currentTarget) setSelectedFieldId(null); }}
+                >
+                  {/* PDF / image layer */}
+                  {previewIsPdf && (pdfPreviewSrc || previewPdfData) && !pdfPreviewFailed ? (
+                    <div className="absolute inset-0 pointer-events-none">
+                      <PdfEditViewer
+                        src={pdfPreviewSrc}
+                        pdfData={previewPdfData}
+                        locked
+                        virtualWidth={virtualWidth}
+                        scale={fullscreenScale}
+                        pageGap={0}
+                        className="bg-transparent"
+                        onError={() => setPdfPreviewFailed(true)}
+                      />
                     </div>
-                  );
-                })}
+                  ) : previewUrl && !previewIsPdf ? (
+                    <img
+                      src={previewUrl}
+                      alt="Preview fullscreen"
+                      className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                    />
+                  ) : textPreviewSrc && !previewIsPdf ? (
+                    <div className="absolute inset-0 pointer-events-none">
+                      <VirtualTextCanvas
+                        text={textPreviewSrc}
+                        className="h-full bg-white"
+                        textClassName="text-sm leading-6 text-gray-700"
+                        observeResize={false}
+                        forceVerticalScrollbar
+                      />
+                    </div>
+                  ) : null}
+
+                  {/* Batch group frames — dashed crosshatch border, draggable */}
+                  {Array.from(batchBoundingBoxes.entries()).map(([batchKey, box]) => {
+                    const pad = 8;
+                    const leadField = previewItemsVisible.find((f) => (f.batchId || f.id) === batchKey);
+                    return (
+                      <div
+                        key={`batch-frame-${batchKey}`}
+                        className="absolute cursor-move"
+                        style={{
+                          left: (box.x - pad) * fullscreenScale,
+                          top: box.y * fullscreenScale - pad,
+                          width: (box.w + pad * 2) * fullscreenScale,
+                          height: box.h * fullscreenScale + pad * 2,
+                          border: '2px dashed rgba(59,130,246,0.45)',
+                          borderRadius: 6,
+                          backgroundImage:
+                            'repeating-linear-gradient(45deg,rgba(59,130,246,0.04) 0px,rgba(59,130,246,0.04) 1px,transparent 1px,transparent 7px)',
+                          zIndex: 10
+                        }}
+                        title="Mover todos los campos de este firmante"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!leadField) return;
+                          const pointer = getFullscreenPointerInContent(e.clientX, e.clientY);
+                          if (!pointer) return;
+                          const batchOrigins = Object.fromEntries(
+                            wizardFields
+                              .filter((field) => field.batchId === batchKey)
+                              .map((field) => [
+                                field.id,
+                                {
+                                  x: field.x,
+                                  absoluteY: (field.page - 1) * resolvedVirtualHeight + field.y,
+                                  width: field.width,
+                                  height: field.height
+                                }
+                              ])
+                          );
+                          setSelectedFieldId(leadField.id);
+                          setDragState({
+                            id: leadField.id,
+                            batchId: batchKey,
+                            moveBatch: true,
+                            anchorContentX: pointer.x,
+                            anchorContentY: pointer.y,
+                            originX: leadField.x,
+                            originAbsoluteY: (leadField.page - 1) * resolvedVirtualHeight + leadField.y,
+                            batchOrigins
+                          });
+                        }}
+                      />
+                    );
+                  })}
+
+                  {/* Individual field overlays */}
+                  {previewItemsVisible.map((field) => {
+                    const pageOffsetY = (field.page - 1) * resolvedVirtualHeight * fullscreenScale;
+                    const isSelected = selectedFieldId === field.id;
+                    return (
+                      <div
+                        key={`full-${field.id}`}
+                        className={`absolute select-none group overflow-hidden ${
+                          isSelected
+                            ? 'border-2 border-blue-600'
+                            : 'border border-blue-400/70 hover:border-blue-500'
+                        }`}
+                        style={{
+                          left: field.x * fullscreenScale,
+                          top: pageOffsetY + field.y * fullscreenScale,
+                          width: field.width * fullscreenScale,
+                          height: field.height * fullscreenScale,
+                          backgroundColor: isSelected ? 'rgba(219,234,254,0.5)' : 'rgba(219,234,254,0.3)',
+                          borderRadius: 3,
+                          zIndex: 20
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          setSelectedFieldId(field.id);
+                        }}
+                      >
+                        {/* Label */}
+                        <span
+                          className="absolute inset-0 flex items-center justify-center text-center px-1 text-[10px] font-medium text-blue-700 pointer-events-none leading-tight select-none overflow-hidden"
+                          style={fieldLabelCounterRotationStyle}
+                        >
+                          {field.metadata?.label || 'Campo'}
+                        </span>
+
+                        {/* Individual drag handle — center of field */}
+                        <div
+                          className={`absolute inset-0 flex items-center justify-center cursor-move transition-opacity ${
+                            isSelected ? 'opacity-50' : 'opacity-0 group-hover:opacity-40'
+                          }`}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const pointer = getFullscreenPointerInContent(e.clientX, e.clientY);
+                            if (!pointer) return;
+                            setSelectedFieldId(field.id);
+                            setDragState({
+                              id: field.id,
+                              batchId: field.batchId,
+                              moveBatch: false,
+                              anchorContentX: pointer.x,
+                              anchorContentY: pointer.y,
+                              originX: field.x,
+                              originAbsoluteY: (field.page - 1) * resolvedVirtualHeight + field.y
+                            });
+                          }}
+                        >
+                          <Move className="w-4 h-4 text-blue-500 pointer-events-none" />
+                        </div>
+
+                        {/* Resize handle — inside bottom-right corner */}
+                        <div
+                          className={`absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-center justify-center transition-opacity ${
+                            isSelected ? 'opacity-80' : 'opacity-0 group-hover:opacity-60'
+                          }`}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const pointer = getFullscreenPointerInContent(e.clientX, e.clientY);
+                            if (!pointer) return;
+                            setSelectedFieldId(field.id);
+                            setResizeState({
+                              id: field.id,
+                              anchorContentX: pointer.x,
+                              anchorContentY: pointer.y,
+                              originW: field.width,
+                              originH: field.height
+                            });
+                          }}
+                        >
+                          <svg viewBox="0 0 10 10" className="w-3 h-3 text-blue-500 pointer-events-none">
+                            <path d="M9 1L1 9M5 9L9 9L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>

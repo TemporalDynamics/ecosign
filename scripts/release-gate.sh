@@ -40,6 +40,7 @@ run_step "Authority hardening guards" npm run test -- \
   tests/authority/workflow_canvas_fields_atomicity_guard.test.ts \
   tests/authority/no_pii_console_logs_guard.test.ts \
   tests/authority/no_raw_payload_logs_guard.test.ts \
+  tests/authority/ci_release_gate_enforcement_guard.test.ts \
   tests/authority/security_definer_exec_allowlist_closure_guard.test.ts \
   tests/authority/verify_jwt_false_allowlist_guard.test.ts \
   tests/authority/internal_security_definer_exec_closure_guard.test.ts \

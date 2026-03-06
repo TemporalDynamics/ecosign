@@ -11,7 +11,7 @@
 
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { createLogger } from '../_shared/logger.ts';
-import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts';
 
 // Orchestrator ejecuta jobs y marca estado en executor_jobs.
 // Los hechos canónicos (TSA/anchors/artifact) los emiten las funciones específicas.
@@ -522,7 +522,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  const auth = requireInternalAuthLogged(req, 'orchestrator', { allowCronSecret: true });
   if (!auth.ok) {
     return new Response(
       JSON.stringify({ error: 'Forbidden' }),

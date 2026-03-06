@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
-import { requireInternalAuth } from '../_shared/internalAuth.ts'
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts'
 import { logCustodyKeyRotation } from '../_shared/custodyAudit.ts'
 
 const jsonResponse = (data: unknown, status = 200) =>
@@ -27,7 +27,7 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405)
   }
 
-  const authResult = requireInternalAuth(req)
+  const authResult = requireInternalAuthLogged(req, 'record-custody-key-rotation')
   if (!authResult.ok) {
     return jsonResponse({ error: authResult.reason }, 401)
   }

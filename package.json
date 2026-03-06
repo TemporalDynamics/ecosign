@@ -38,6 +38,7 @@
     "diag:prelaunch-legacy-null-check": "bash scripts/diagnostics/check-prelaunch-legacy-null-entities.sh",
     "diag:internal-runtime-table-hardening": "bash scripts/diagnostics/check-internal-runtime-table-hardening.sh",
     "diag:security-definer-exec-allowlist": "bash scripts/diagnostics/check-security-definer-exec-allowlist.sh",
+    "diag:invariant-observability": "bash scripts/diagnostics/check-invariant-observability.sh",
     "baseline:authority": "bash scripts/diagnostics/snapshot-authority-baseline.sh",
     "baseline:runtime": "bash scripts/diagnostics/baseline-runtime-canonical-smoke.sh",
     "baseline:seal": "npm run baseline:authority && npm run baseline:runtime",

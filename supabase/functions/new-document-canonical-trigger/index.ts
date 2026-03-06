@@ -7,7 +7,7 @@
 
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { appendEvent } from '../_shared/eventHelper.ts';
-import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts';
 
 // Este trigger debe ser llamado cuando se crea un nuevo documento
 // y debe escribir directamente en document_entities.events[]
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  const auth = requireInternalAuthLogged(req, 'new-document-canonical-trigger', { allowCronSecret: true });
   if (!auth.ok) {
     return new Response(
       JSON.stringify({ error: 'Forbidden' }),

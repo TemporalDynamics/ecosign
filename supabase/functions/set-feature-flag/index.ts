@@ -8,7 +8,7 @@
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { withRateLimit } from '../_shared/ratelimit.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts';
 
 interface SetFeatureFlagRequest {
   flagName: string;
@@ -44,7 +44,7 @@ Deno.serve(withRateLimit('set-feature-flag', async (req) => {
   }
 
   try {
-    const auth = requireInternalAuth(req, { allowCronSecret: false });
+    const auth = requireInternalAuthLogged(req, 'set-feature-flag', { allowCronSecret: false });
     if (!auth.ok) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

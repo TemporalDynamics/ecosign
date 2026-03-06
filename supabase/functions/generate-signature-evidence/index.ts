@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { appendEvent } from '../_shared/eventHelper.ts';
 import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate.ts';
-import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts';
 
 type GenerateEvidenceRequest = {
   document_entity_id: string;
@@ -32,7 +32,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { status: 204 });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
-  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  const auth = requireInternalAuthLogged(req, 'generate-signature-evidence', { allowCronSecret: true });
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }

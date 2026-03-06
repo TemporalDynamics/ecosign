@@ -20,7 +20,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { normalizeEmail } from '../../_shared/email.ts';
-import { requireInternalAuth } from '../../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../../_shared/internalAuth.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  const auth = requireInternalAuthLogged(req, '_workers/notify-artifact-ready', { allowCronSecret: true });
   if (!auth.ok) {
     return new Response('Forbidden', { status: 403 });
   }

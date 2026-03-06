@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.42.0'
 import { ethers } from 'npm:ethers@6.9.0'
 import { appendEvent } from '../_shared/eventHelper.ts'
-import { requireInternalAuth } from '../_shared/internalAuth.ts'
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts'
 import {
   type AnchorRetryPolicy,
   evaluateTimeout,
@@ -215,7 +215,7 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const auth = requireInternalAuth(req, { allowCronSecret: true })
+  const auth = requireInternalAuthLogged(req, 'process-polygon-anchors', { allowCronSecret: true })
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403)
   }

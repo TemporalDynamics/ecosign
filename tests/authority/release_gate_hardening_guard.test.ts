@@ -18,6 +18,7 @@ test('release gate must enforce fast+db tests and authority hardening checks', a
 
   expect(gateScript).toContain('npm test');
   expect(gateScript).toContain('npm run test:db');
+  expect(gateScript).toContain('npm run diag:invariant-observability');
   expect(dbGateScript).toContain('tests/security/rls.test.ts');
   expect(dbGateScript).toContain('tests/security/storage.test.ts');
   expect(dbGateScript).toContain('tests/security/workflowCanvasAtomicity.test.ts');
@@ -31,6 +32,7 @@ test('release gate must enforce fast+db tests and authority hardening checks', a
   expect(gateScript).toContain('tests/authority/no_pii_console_logs_guard.test.ts');
   expect(gateScript).toContain('tests/authority/no_raw_payload_logs_guard.test.ts');
   expect(gateScript).toContain('tests/authority/ci_release_gate_enforcement_guard.test.ts');
+  expect(gateScript).toContain('tests/authority/invariant_observability_contract_guard.test.ts');
   expect(gateScript).toContain('tests/authority/security_definer_exec_allowlist_closure_guard.test.ts');
   expect(gateScript).toContain('tests/authority/verify_jwt_false_allowlist_guard.test.ts');
   expect(gateScript).toContain('tests/authority/legacy_endpoint_deprecations_guard.test.ts');

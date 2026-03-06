@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { appendEvent as appendDocumentEvent } from '../_shared/eventHelper.ts'
 import { appendEvent as appendCanonicalEvent } from '../_shared/canonicalEventHelper.ts'
-import { requireInternalAuth } from '../_shared/internalAuth.ts'
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -166,7 +166,7 @@ serve(async (req) => {
 
   try {
     const rawBody = await req.text()
-    const auth = requireInternalAuth(req, { allowCronSecret: true })
+    const auth = requireInternalAuthLogged(req, 'signnow-webhook', { allowCronSecret: true })
     if (!auth.ok) {
       const signatureOk = await hasValidWebhookSignature(req, rawBody)
       if (!signatureOk) {

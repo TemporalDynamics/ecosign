@@ -8,7 +8,7 @@
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { withRateLimit } from '../_shared/ratelimit.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts';
 
 Deno.serve(withRateLimit('feature-flags-status', async (req) => {
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
@@ -29,7 +29,7 @@ Deno.serve(withRateLimit('feature-flags-status', async (req) => {
   }
 
   try {
-    const auth = requireInternalAuth(req, { allowCronSecret: false });
+    const auth = requireInternalAuthLogged(req, 'feature-flags-status', { allowCronSecret: false });
     if (!auth.ok) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

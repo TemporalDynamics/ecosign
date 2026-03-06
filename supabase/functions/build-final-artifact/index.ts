@@ -20,7 +20,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { buildArtifact } from '../_shared/artifactBuilder.ts';
-import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,7 +43,7 @@ serve(async (req) => {
     });
   }
 
-  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  const auth = requireInternalAuthLogged(req, 'build-final-artifact', { allowCronSecret: true });
   if (!auth.ok) {
     return new Response('Forbidden', { status: 403, headers: corsHeaders });
   }

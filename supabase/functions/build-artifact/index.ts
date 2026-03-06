@@ -5,7 +5,7 @@ import { processArtifact, type ArtifactInput } from '../../../packages/artifact-
 import { buildCanonicalEcoCertificate } from '../_shared/ecoCanonicalCertificate.ts';
 import { signFinalEcoInstitutionally } from '../_shared/ecoInstitutionalSignature.ts';
 import { attemptRekorProofForProtection } from '../_shared/rekorProof.ts';
-import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts';
 import { buildEpiBlockFromEvents, deriveContentAt } from '../_shared/epiCanvas.ts';
 
 type BuildArtifactRequest = {
@@ -45,7 +45,7 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  const auth = requireInternalAuthLogged(req, 'build-artifact', { allowCronSecret: true });
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }

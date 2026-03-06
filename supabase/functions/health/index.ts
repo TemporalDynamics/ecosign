@@ -16,7 +16,7 @@
 
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts';
 
 interface HealthReport {
   jobs_queued: {
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = requireInternalAuth(req, { allowCronSecret: false });
+    const auth = requireInternalAuthLogged(req, 'health', { allowCronSecret: false });
     if (!auth.ok) {
       return new Response(JSON.stringify({ error: 'Unauthorized - service_role required' }), {
         status: 401,

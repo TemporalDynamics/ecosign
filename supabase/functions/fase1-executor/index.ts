@@ -10,7 +10,7 @@ import {
   type ProtectV2Job,
 } from '../_shared/protectDocumentV2PipelineDecision.ts';
 import { syncFlagsToDatabase } from '../_shared/flagSync.ts';
-import { requireInternalAuth } from '../_shared/internalAuth.ts';
+import { requireInternalAuthLogged } from '../_shared/internalAuth.ts';
 import { logExecutorDecision, hashEvents } from '../_shared/decisionLogger.ts';
 
 type ExecutorJob = {
@@ -471,7 +471,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const auth = requireInternalAuth(req, { allowCronSecret: true });
+  const auth = requireInternalAuthLogged(req, 'fase1-executor', { allowCronSecret: true });
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }

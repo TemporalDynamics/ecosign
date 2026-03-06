@@ -1,3 +1,29 @@
+## Iteración: cierre operativo de punto 3 (atomicidad con smoke real) — 2026-03-06
+
+### 🎯 Resumen
+Se completó el cierre operativo de atomicidad `canvas_snapshot + workflow_fields + batches` con validación de comportamiento real (no solo diseño/guards).
+
+### ✅ Hallazgo y corrección
+- En ejecución real, el RPC atómico fallaba por tipo:
+  - `external_field_id` llegaba como `text` y la columna es `uuid`.
+- Fix aplicado:
+  - `supabase/migrations/20260306220500_persist_workflow_canvas_fields_atomic.sql`
+  - `NULLIF(item->>'external_field_id', '')::uuid`
+
+### ✅ Validación ejecutada
+- Smoke E2E local del flujo `start-signature-workflow` con `canvasSnapshot + workflowFields`:
+  - antes del fix: `500 failed_to_persist_canvas_and_fields_atomically`
+  - después del fix: `200 success`
+- Gate DB:
+  - `npm run test:db` ✅ (`tests/security/workflowCanvasAtomicity.test.ts` incluido)
+- Suite rápida:
+  - `npm test` ✅
+
+### ✅ Estado
+- Punto 1: cerrado (PII logs + guards + gate).
+- Punto 2: cerrado (validación EPI + no-regresión).
+- Punto 3: cerrado (RPC atómico + guard + smoke real + gate).
+
 ## Iteración: cierre de estabilidad del wizard (rotación + fullscreen + drag coherente) — 2026-03-06
 
 ### 🎯 Resumen

@@ -81,7 +81,7 @@ BEGIN
       created_by
     )
     SELECT
-      NULLIF(item->>'external_field_id', ''),
+      NULLIF(item->>'external_field_id', '')::uuid,
       p_document_entity_id,
       item->>'field_type',
       NULLIF(item->>'label', ''),

@@ -1,11 +1,50 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, X, ChevronUp, ChevronDown, Zap, HardDrive, ShoppingCart, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import FooterInternal from '../components/FooterInternal';
 import InhackeableTooltip from '../components/InhackeableTooltip';
+import { getSupabase } from '../lib/supabaseClient';
 
 function DashboardPricingPage() {
+  const navigate = useNavigate();
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+  const [activeUserEmail, setActiveUserEmail] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    const supabase = getSupabase();
+    let mounted = true;
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (!mounted) return;
+      setActiveUserEmail(data.user?.email ?? null);
+    }).catch(() => {
+      if (!mounted) return;
+      setActiveUserEmail(null);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      setActiveUserEmail(session?.user?.email ?? null);
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await getSupabase().auth.signOut();
+    } finally {
+      navigate('/login');
+      setLoggingOut(false);
+    }
+  };
 
   const toggleFAQ = (index: number) => {
     setOpenFAQ(openFAQ === index ? null : index);
@@ -184,6 +223,11 @@ function DashboardPricingPage() {
               <p className="text-sm text-gray-600 mb-4">
                 Tenés acceso a 3 firmas legales por mes y 1 GB de almacenamiento.
               </p>
+              {activeUserEmail && (
+                <p className="text-sm text-gray-600 mb-4">
+                  Sesión activa: <span className="font-semibold text-gray-900">{activeUserEmail}</span>
+                </p>
+              )}
               <div className="flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">
                   <Check className="w-3 h-3" /> Firmantes ilimitados
@@ -238,6 +282,13 @@ function DashboardPricingPage() {
               <button className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg border border-gray-300 transition">
                 <HardDrive className="w-4 h-4" />
                 Más storage
+              </button>
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg border border-gray-300 transition disabled:opacity-60"
+              >
+                {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
               </button>
             </div>
           </div>

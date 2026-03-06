@@ -1,3 +1,20 @@
+## Iteración: hotfix PdfEditViewer (hook order + carga blob) — 2026-03-05
+
+### 🎯 Resumen
+Se corrigieron dos fallas críticas del viewer detectadas en QA manual:
+
+1. `Rendered more hooks than during the previous render` (hook order inválido).
+2. error al abrir PDFs temporales `blob:` en entorno local (`Unexpected server response (0)`).
+
+### ✅ Cambios implementados
+- `client/src/components/pdf/PdfEditViewer.tsx`
+  - se movió el `useEffect` de cleanup de `ResizeObserver` antes de los returns condicionales para mantener orden estable de hooks.
+  - para `src` tipo `blob:`, ahora se leen bytes con `fetch(...).arrayBuffer()` y se carga PDF.js vía `{ data: buffer }` (sin depender del fetch interno de PDF.js contra URL blob).
+  - limpieza menor: se removió `useMemo` no usado.
+
+### ✅ Validación
+- `npm run typecheck` verde.
+
 ## Iteración: corrección de autofit en canvas virtual (post-feedback QA) — 2026-03-05
 
 ### 🎯 Resumen

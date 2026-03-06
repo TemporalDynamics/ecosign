@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getDocument } from 'pdfjs-dist/build/pdf';
 import type { PDFDocumentProxy, PDFPageProxy, PageViewport, RenderTask } from 'pdfjs-dist/build/pdf';
 import { ensurePdfJsWorkerConfigured } from './pdfjsRuntime';
@@ -78,8 +78,18 @@ export const PdfEditViewer = ({
           const data = pdfData.slice(0);
           pdfDoc = await getDocument({ data }).promise;
         } else if (src) {
-          // 2) Fallback a URL cuando no hay binario disponible.
-          pdfDoc = await getDocument(src).promise;
+          // 2) Blob URL: leer bytes manualmente para evitar XHR interno de PDF.js a blob:
+          if (src.startsWith('blob:')) {
+            const response = await fetch(src);
+            if (!response.ok) {
+              throw new Error(`No se pudo leer el PDF temporal (${response.status})`);
+            }
+            const buffer = await response.arrayBuffer();
+            pdfDoc = await getDocument({ data: buffer }).promise;
+          } else {
+            // 3) URL normal cuando no hay binario disponible.
+            pdfDoc = await getDocument(src).promise;
+          }
         } else {
           throw new Error('PDF source unavailable');
         }
@@ -176,27 +186,14 @@ export const PdfEditViewer = ({
     };
   }, [pages]);
 
-  const pageNodes = useMemo(
-    () =>
-      pages.map((page, index) => (
-        <div
-          key={page.pageNumber}
-          className="relative mx-auto"
-          style={{ width: page.width, height: page.height, marginBottom: pageGap }}
-        >
-          <canvas
-            ref={(node) => {
-              if (node) canvasRefs.current[index] = node;
-            }}
-            className="block bg-white shadow-sm"
-          />
-          {renderPageOverlay && (
-            <div className="absolute inset-0">{renderPageOverlay(page.pageNumber, { pageNumber: page.pageNumber, width: page.width, height: page.height })}</div>
-          )}
-        </div>
-      )),
-    [pages, renderPageOverlay, pageGap]
-  );
+  useEffect(() => {
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+    };
+  }, []);
 
   if (loadError) {
     return (
@@ -239,15 +236,6 @@ export const PdfEditViewer = ({
       resizeObserverRef.current = observer;
     }
   };
-
-  useEffect(() => {
-    return () => {
-      if (resizeObserverRef.current) {
-        resizeObserverRef.current.disconnect();
-        resizeObserverRef.current = null;
-      }
-    };
-  }, []);
 
   return (
     <div

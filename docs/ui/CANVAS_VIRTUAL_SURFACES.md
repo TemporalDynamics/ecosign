@@ -19,3 +19,7 @@ Inventario canónico de superficies que renderizan `PdfEditViewer`.
 - `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`
   - Excepción permitida por contrato para edición de campos.
   - No puede romper geometría base ni coordenadas canónicas.
+
+## Superficies Texto (VirtualTextCanvas)
+- `client/src/components/LegalCenterModalV2.tsx`
+- `client/src/pages/DocumentsPage.tsx`

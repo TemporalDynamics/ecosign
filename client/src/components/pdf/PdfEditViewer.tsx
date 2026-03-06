@@ -78,14 +78,19 @@ export const PdfEditViewer = ({
           const data = pdfData.slice(0);
           pdfDoc = await getDocument({ data }).promise;
         } else if (src) {
-          // 2) Blob URL: leer bytes manualmente para evitar XHR interno de PDF.js a blob:
+          // 2) Blob URL: intentar ruta por bytes; fallback a loader nativo de PDF.js.
           if (src.startsWith('blob:')) {
-            const response = await fetch(src);
-            if (!response.ok) {
-              throw new Error(`No se pudo leer el PDF temporal (${response.status})`);
+            try {
+              const response = await fetch(src);
+              if (!response.ok) {
+                throw new Error(`No se pudo leer el PDF temporal (${response.status})`);
+              }
+              const buffer = await response.arrayBuffer();
+              pdfDoc = await getDocument({ data: buffer }).promise;
+            } catch (blobFetchError) {
+              console.warn('[PdfEditViewer] Blob fetch fallback -> PDF.js URL loader', blobFetchError);
+              pdfDoc = await getDocument(src).promise;
             }
-            const buffer = await response.arrayBuffer();
-            pdfDoc = await getDocument({ data: buffer }).promise;
           } else {
             // 3) URL normal cuando no hay binario disponible.
             pdfDoc = await getDocument(src).promise;

@@ -11,6 +11,10 @@ const CONTRACT_FILE = path.join(ROOT, 'docs/ui/CANVAS_VIRTUAL_CONTRACT.md');
 const SURFACES_FILE = path.join(ROOT, 'docs/ui/CANVAS_VIRTUAL_SURFACES.md');
 const EXCEPTION_FILE = 'client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx';
 const CLIENT_SRC = path.join(ROOT, 'client/src');
+const TEXT_CANVAS_SURFACES = [
+  'client/src/components/LegalCenterModalV2.tsx',
+  'client/src/pages/DocumentsPage.tsx',
+] as const;
 
 async function walkFiles(dir: string): Promise<string[]> {
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -68,4 +72,18 @@ test('all PdfEditViewer surfaces must be documented in canonical surfaces map (e
 
   expect(missing).toEqual([]);
   expect(surfacesDoc).toContain(EXCEPTION_FILE);
+});
+
+test('text preview surfaces must use VirtualTextCanvas canonical renderer', async () => {
+  const surfacesDoc = await fs.readFile(SURFACES_FILE, 'utf8');
+
+  for (const file of TEXT_CANVAS_SURFACES) {
+    const content = await fs.readFile(path.join(ROOT, file), 'utf8');
+    expect(surfacesDoc).toContain(file);
+    expect(content).toContain('VirtualTextCanvas');
+  }
+
+  const documentsPage = await fs.readFile(path.join(ROOT, 'client/src/pages/DocumentsPage.tsx'), 'utf8');
+  expect(documentsPage).not.toContain('whitespace-pre-wrap">{previewText}');
+  expect(documentsPage).not.toContain('whitespace-pre-wrap">{previewDraftText}');
 });

@@ -4708,3 +4708,36 @@ Se ejecutó cierre agresivo de:
 - Legacy peligroso queda en fail-fast explícito.
 - Se elimina otro canal de autoridad paralela sobre `signature_workflows.status`.
 - El smoke/e2e manual posterior ya valida un sistema con menos “doble cerebro”.
+
+## Iteración — 2026-03-05 (contrato canónico de canvas virtual + hardening de preview local)
+
+### 🎯 Resumen
+Se formalizó el contrato canónico de canvas virtual para evitar regresiones de formato/scroll y se endureció la carga de previews PDF locales (`blob:`) para reducir fallas intermitentes en QA manual.
+
+### ✅ Cambios implementados
+- **Contrato y mapa canónico de canvas:**
+  - `docs/ui/CANVAS_VIRTUAL_CONTRACT.md`
+  - `docs/ui/CANVAS_VIRTUAL_SURFACES.md`
+  - Guard automatizado: `tests/ui/canvas_virtual_surface_contract_guard.test.ts`
+- **Renderer textual canónico reutilizable:**
+  - Nuevo componente `client/src/components/virtual-canvas/VirtualTextCanvas.tsx`
+  - Regla aplicada: autofit horizontal + `whitespace-pre` + scroll vertical + sin scroll horizontal.
+- **Migración de superficies clave a renderer textual canónico:**
+  - `client/src/components/LegalCenterModalV2.tsx`
+  - `client/src/pages/DocumentsPage.tsx`
+- **Hardening de PDF preview local (blob):**
+  - `client/src/components/pdf/PdfEditViewer.tsx`:
+    - Ruta primaria por bytes (`fetch(blob) -> getDocument({data})`) y fallback al loader nativo PDF.js.
+  - `client/src/components/LegalCenterModalV2.tsx`:
+    - Precarga `pdfData` antes de publicar URL de preview para reducir carreras en primera renderización.
+  - `client/src/pages/DocumentsPage.tsx`:
+    - Estado explícito `previewPdfData/previewDraftPdfData` y envío a `PdfEditViewer`.
+
+### 🧪 Verificación
+- `npm run typecheck` ✅
+- `npx vitest run tests/ui/canvas_virtual_surface_contract_guard.test.ts` ✅
+
+### Resultado
+- El comportamiento esperado de canvas queda definido por contrato y guard, no por convención implícita.
+- Las previsualizaciones textuales conservan estructura original entre modos (`compact/fullscreen`) con escala, sin reflow destructivo.
+- Se reduce la probabilidad de falla en previews PDF locales por carrera entre `blob URL` y bytes del documento.

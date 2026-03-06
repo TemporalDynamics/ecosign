@@ -19,6 +19,7 @@ import OperationRow from "../components/OperationRow";
 import DocumentRow from "../components/DocumentRow";
 import DocumentStateInfo from "../components/DocumentStateInfo";
 import { PdfEditViewer } from "../components/pdf/PdfEditViewer";
+import VirtualTextCanvas from "../components/virtual-canvas/VirtualTextCanvas";
 import { GRID_TOKENS } from "../config/gridTokens";
 import { deriveDocumentState } from "../lib/deriveDocumentState";
 import { ProtectedBadge } from "../components/ProtectedBadge";
@@ -267,6 +268,7 @@ function DocumentsPage() {
   const [pendingOpenEntityId, setPendingOpenEntityId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewText, setPreviewText] = useState<string | null>(null);
+  const [previewPdfData, setPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewOperation, setPreviewOperation] = useState<Operation | null>(null);
@@ -276,6 +278,7 @@ function DocumentsPage() {
   const [previewDraft, setPreviewDraft] = useState<DraftRow | null>(null);
   const [previewDraftUrl, setPreviewDraftUrl] = useState<string | null>(null);
   const [previewDraftText, setPreviewDraftText] = useState<string | null>(null);
+  const [previewDraftPdfData, setPreviewDraftPdfData] = useState<ArrayBuffer | null>(null);
   const [previewDraftLoading, setPreviewDraftLoading] = useState(false);
   const [previewDraftError, setPreviewDraftError] = useState<string | null>(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -1454,6 +1457,7 @@ function DocumentsPage() {
     if (!previewDoc) {
       setPreviewUrl(null);
       setPreviewText(null);
+      setPreviewPdfData(null);
       setPreviewError(null);
       setPreviewLoading(false);
       return;
@@ -1464,13 +1468,15 @@ function DocumentsPage() {
     const fileName = previewDoc.document_name || "";
     const extension = fileName.split(".").pop()?.toLowerCase() || "";
     const isText = ["txt", "md", "csv"].includes(extension);
+    const isPdf = extension === "pdf";
     const isImage = ["png", "jpg", "jpeg", "gif", "webp"].includes(extension);
-    const isPreviewable = isText || isImage || extension === "pdf";
+    const isPreviewable = isText || isImage || isPdf;
 
     setPreviewLoading(true);
     setPreviewError(null);
     setPreviewUrl(null);
     setPreviewText(null);
+    setPreviewPdfData(null);
 
     const loadPreview = async () => {
       try {
@@ -1502,8 +1508,16 @@ function DocumentsPage() {
           const text = await blob.text();
           if (!active) return;
           setPreviewText(text);
+          setPreviewPdfData(null);
+        } else if (isPdf) {
+          const buffer = await blob.arrayBuffer();
+          if (!active) return;
+          objectUrl = URL.createObjectURL(blob);
+          setPreviewPdfData(buffer);
+          setPreviewUrl(objectUrl);
         } else {
           objectUrl = URL.createObjectURL(blob);
+          setPreviewPdfData(null);
           setPreviewUrl(objectUrl);
         }
       } catch (err) {
@@ -1529,6 +1543,7 @@ function DocumentsPage() {
     if (!previewDraft) {
       setPreviewDraftUrl(null);
       setPreviewDraftText(null);
+      setPreviewDraftPdfData(null);
       setPreviewDraftError(null);
       setPreviewDraftLoading(false);
       return;
@@ -1539,13 +1554,15 @@ function DocumentsPage() {
     const fileName = previewDraft.name || "";
     const extension = fileName.split(".").pop()?.toLowerCase() || "";
     const isText = ["txt", "md", "csv"].includes(extension);
+    const isPdf = extension === "pdf";
     const isImage = ["png", "jpg", "jpeg", "gif", "webp"].includes(extension);
-    const isPreviewable = isText || isImage || extension === "pdf";
+    const isPreviewable = isText || isImage || isPdf;
 
     setPreviewDraftLoading(true);
     setPreviewDraftError(null);
     setPreviewDraftUrl(null);
     setPreviewDraftText(null);
+    setPreviewDraftPdfData(null);
 
     const loadPreview = async () => {
       try {
@@ -1564,8 +1581,16 @@ function DocumentsPage() {
           const text = await file.text();
           if (!active) return;
           setPreviewDraftText(text);
+          setPreviewDraftPdfData(null);
+        } else if (isPdf) {
+          const buffer = await file.arrayBuffer();
+          if (!active) return;
+          objectUrl = URL.createObjectURL(file);
+          setPreviewDraftPdfData(buffer);
+          setPreviewDraftUrl(objectUrl);
         } else {
           objectUrl = URL.createObjectURL(file);
+          setPreviewDraftPdfData(null);
           setPreviewDraftUrl(objectUrl);
         }
       } catch (err) {
@@ -2923,13 +2948,14 @@ function DocumentsPage() {
                   </div>
                 )}
                 {!previewLoading && !previewError && previewText && (
-                  <pre className="p-4 text-xs text-gray-700 whitespace-pre-wrap">{previewText}</pre>
+                  <VirtualTextCanvas text={previewText} className="h-[60vh] bg-white" />
                 )}
                 {!previewLoading && !previewError && previewUrl && (
                   <>
                     {previewDoc.document_name.toLowerCase().endsWith(".pdf") ? (
                       <PdfEditViewer
                         src={previewUrl}
+                        pdfData={previewPdfData}
                         locked
                         className="w-full h-[60vh]"
                       />
@@ -3306,13 +3332,14 @@ function DocumentsPage() {
                   </div>
                 )}
                 {!previewDraftLoading && !previewDraftError && previewDraftText && (
-                  <pre className="p-4 text-xs text-gray-700 whitespace-pre-wrap">{previewDraftText}</pre>
+                  <VirtualTextCanvas text={previewDraftText} className="h-[50vh] bg-white" />
                 )}
                 {!previewDraftLoading && !previewDraftError && previewDraftUrl && (
                   <>
                     {previewDraft.name.toLowerCase().endsWith(".pdf") ? (
                       <PdfEditViewer
                         src={previewDraftUrl}
+                        pdfData={previewDraftPdfData}
                         locked
                         className="w-full h-[50vh]"
                       />

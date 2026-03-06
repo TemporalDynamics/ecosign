@@ -1,3 +1,18 @@
+## Iteración: TXT preview estable (sin reflow entre canvas chico y fullscreen) — 2026-03-05
+
+### 🎯 Resumen
+Se corrigió el problema donde los `.txt` cambiaban formato visual en canvas pequeño (reflow por `pre-wrap`) y se veían distinto en fullscreen.
+
+### ✅ Cambio implementado
+- `client/src/components/LegalCenterModalV2.tsx`
+  - preview de texto ahora usa `whitespace-pre` (sin reflow de líneas).
+  - se agregó autofit por escala (`textPreviewScale`) para que el contenido entre en el ancho disponible del canvas.
+  - se calcula altura escalada para mantener scroll vertical correcto.
+  - resultado: mismo formato visual del texto en canvas chico y fullscreen (solo cambia el zoom, no la estructura).
+
+### ✅ Validación
+- `npm run typecheck` verde.
+
 ## Iteración: hotfix PdfEditViewer (hook order + carga blob) — 2026-03-05
 
 ### 🎯 Resumen

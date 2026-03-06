@@ -533,6 +533,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [documentPreview, setDocumentPreview] = useState<string | null>(null);
   const [documentPreviewPdfData, setDocumentPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const [documentPreviewText, setDocumentPreviewText] = useState<string | null>(null);
+  const [textPreviewScale, setTextPreviewScale] = useState(1);
+  const [textPreviewScaledHeight, setTextPreviewScaledHeight] = useState<number | null>(null);
   const [workflowPreviewUrl, setWorkflowPreviewUrl] = useState<string | null>(null);
   const [workflowPreviewPdfData, setWorkflowPreviewPdfData] = useState<ArrayBuffer | null>(null);
   const workflowPreviewKeyRef = useRef<string | null>(null);
@@ -554,6 +556,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const signatureDragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
   const pdfScrollRef = useRef<HTMLDivElement | null>(null);
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const textPreviewMeasureRef = useRef<HTMLPreElement | null>(null);
   // TODO: FEATURE PARCIAL - UI de anotaciones existe pero no hay lógica de escritura sobre el PDF
   const [annotationMode, setAnnotationMode] = useState<AnnotationKind | null>(null); // 'signature', 'highlight', 'text'
   const [annotations, setAnnotations] = useState<Annotation[]>([]); // Lista de anotaciones (highlights y textos)
@@ -1158,6 +1161,37 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       setPdfEditError(false);
     }
   }, [documentPreviewPdfData, workflowPreviewPdfData]);
+
+  useEffect(() => {
+    if (!documentPreviewText) {
+      setTextPreviewScale(1);
+      setTextPreviewScaledHeight(null);
+      return;
+    }
+
+    const recalc = () => {
+      const container = previewContainerRef.current;
+      const content = textPreviewMeasureRef.current;
+      if (!container || !content) return;
+
+      const availableWidth = Math.max(1, container.clientWidth - 24);
+      const naturalWidth = Math.max(1, content.scrollWidth);
+      const naturalHeight = Math.max(1, content.scrollHeight);
+      const nextScale = Math.max(0.2, Math.min(1, availableWidth / naturalWidth));
+
+      setTextPreviewScale(nextScale);
+      setTextPreviewScaledHeight(Math.ceil(naturalHeight * nextScale));
+    };
+
+    recalc();
+
+    const observer = new ResizeObserver(() => recalc());
+    if (previewContainerRef.current) {
+      observer.observe(previewContainerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [documentPreviewText, isOpen, previewMode, focusView, flowPanelOpen, ndaPanelOpen, isMobile]);
 
   useEffect(() => {
     setNdaPanelOpen(ndaEnabled);
@@ -4071,9 +4105,20 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                           )}
 
                           {documentPreviewText && !isPdfPreview && (
-                            <pre className="whitespace-pre-wrap text-sm text-gray-800 p-4">
-                              {documentPreviewText}
-                            </pre>
+                            <div className="p-4">
+                              <div
+                                className="relative"
+                                style={{ height: textPreviewScaledHeight ?? undefined }}
+                              >
+                                <pre
+                                  ref={textPreviewMeasureRef}
+                                  className="whitespace-pre text-sm text-gray-800 origin-top-left m-0 w-max max-w-none"
+                                  style={{ transform: `scale(${textPreviewScale})` }}
+                                >
+                                  {documentPreviewText}
+                                </pre>
+                              </div>
+                            </div>
                           )}
                           
                           {activePreviewUrl && isPdfPreview && (

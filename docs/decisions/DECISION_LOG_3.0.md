@@ -1,3 +1,47 @@
+## Iteración: cierre de estabilidad del wizard (rotación + fullscreen + drag coherente) — 2026-03-06
+
+### 🎯 Resumen
+Se cerró la regresión más sensible del día en `SignerFieldsWizard`: desalineación de rotación entre Centro Legal y preview del wizard, y arrastre/redimensionado errático en fullscreen cuando había rotación.
+
+### ✅ Cambios implementados
+- **Sincronización de rotación (fuente única):**
+  - `client/src/centro-legal/modules/flow/SignerFieldsWizard.tsx`
+  - `client/src/components/LegalCenterModalV2.tsx`
+  - El wizard ahora usa la rotación del padre (`Centro Legal`) como source of truth cuando recibe callback.
+  - Secuencia de giro fijada y determinística: `0 -> 90 -> 180 -> 270 -> 0`.
+- **Drag/resize coherente con rotación activa:**
+  - `SignerFieldsWizard` ahora transforma coordenadas del puntero en fullscreen con inversión de rotación respecto al centro visual del contenido.
+  - Resultado: mover campos sigue la dirección del cursor incluso en `90/180/270`.
+- **Control de flujo sólo en modo workflow:**
+  - Se reforzó que “Configuración final del flujo / Permitir descarga final a firmantes” no aparezca en `Mi firma`.
+
+### ✅ Hardening anti-regresión
+- **Contrato UI ampliado:**
+  - `docs/ui/CANVAS_VIRTUAL_CONTRACT.md`
+  - Sección nueva: invariantes de rotación del wizard.
+- **Nuevo guard dedicado:**
+  - `tests/ui/signer_fields_wizard_rotation_contract_guard.test.ts`
+  - Verifica:
+    - sincronización de rotación con padre,
+    - secuencia de giro determinística,
+    - mapping inverso de coordenadas en fullscreen,
+    - ocultación de controles de flujo en `Mi firma`.
+- **Release gate reforzado:**
+  - `scripts/release-gate.sh`
+  - Incluye ejecución explícita de guards UI de canvas/wizard.
+
+### ✅ Validación ejecutada
+- `npm run typecheck` ✅
+- `npx vitest run tests/ui/signer_fields_wizard_rotation_contract_guard.test.ts tests/ui/canvas_virtual_surface_contract_guard.test.ts` ✅
+- `npm run release:gate` ✅
+- `npm run baseline:seal` ✅
+  - `docs/baselines/authority_baseline_2026-03-06.md`
+  - `docs/baselines/runtime_baseline_2026-03-06.md`
+
+### 🚀 Entrega
+- Commit: `2510a5d5`
+- Tag: `v1.8.19-wizard-rotation-contract-sealed`
+
 ## Iteración: contrato canónico de canvas virtual + guard de superficies — 2026-03-05
 
 ### 🎯 Resumen

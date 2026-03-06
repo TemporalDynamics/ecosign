@@ -1,3 +1,21 @@
+## Iteración: contrato canónico de canvas virtual + guard de superficies — 2026-03-05
+
+### 🎯 Resumen
+Se formalizó el contrato de comportamiento común para canvases virtuales y se agregó guard de no-regresión para evitar drift entre superficies.
+
+### ✅ Cambios implementados
+- Nuevos documentos:
+  - `docs/ui/CANVAS_VIRTUAL_CONTRACT.md`
+  - `docs/ui/CANVAS_VIRTUAL_SURFACES.md`
+- Nuevo guard:
+  - `tests/ui/canvas_virtual_surface_contract_guard.test.ts`
+  - valida que:
+    - el contrato declare invariantes canónicos mínimos,
+    - toda superficie que usa `PdfEditViewer` esté inventariada (salvo excepción explícita de `SignerFieldsWizard`).
+
+### ✅ Validación
+- `npx vitest run tests/ui/canvas_virtual_surface_contract_guard.test.ts` verde.
+
 ## Iteración: TXT preview estable (sin reflow entre canvas chico y fullscreen) — 2026-03-05
 
 ### 🎯 Resumen

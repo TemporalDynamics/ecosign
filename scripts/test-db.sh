@@ -41,5 +41,6 @@ vitest run \
   tests/security/rls.test.ts \
   tests/security/storage.test.ts \
   tests/security/workflowCanvasAtomicity.test.ts \
+  tests/security/workflowConcurrencyRace.test.ts \
   tests/integration/tsaEvents.test.ts \
   tests/canonical-only/complete-pipeline-proof.test.ts

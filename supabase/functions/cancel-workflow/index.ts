@@ -70,6 +70,31 @@ serve(async (req) => {
       return jsonResponse({ error: `Workflow cannot be cancelled from status=${workflow.status}` }, 400, corsHeaders)
     }
 
+    // Concurrency guard: if a signer currently holds a fresh signing lock,
+    // reject cancellation to avoid cancel+sign races in the same window.
+    const lockFreshCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const { data: activeLocks, error: activeLocksErr } = await supabase
+      .from('workflow_signers')
+      .select('id, status, signing_lock_id, signing_lock_at')
+      .eq('workflow_id', workflowId)
+      .not('status', 'in', '(signed,cancelled,rejected,expired)')
+      .not('signing_lock_id', 'is', null)
+      .gte('signing_lock_at', lockFreshCutoff)
+      .limit(1)
+
+    if (activeLocksErr) {
+      console.warn('cancel-workflow: failed to inspect signing locks', activeLocksErr)
+    } else if ((activeLocks?.length ?? 0) > 0) {
+      return jsonResponse(
+        {
+          error: 'signing_in_progress',
+          message: 'No se puede cancelar mientras una firma está en progreso. Reintentá en unos segundos.'
+        },
+        409,
+        corsHeaders
+      )
+    }
+
     const cancellationEvent = await appendCanonicalEvent(
       supabase,
       {

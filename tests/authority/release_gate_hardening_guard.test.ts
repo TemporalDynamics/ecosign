@@ -22,6 +22,7 @@ test('release gate must enforce fast+db tests and authority hardening checks', a
   expect(dbGateScript).toContain('tests/security/rls.test.ts');
   expect(dbGateScript).toContain('tests/security/storage.test.ts');
   expect(dbGateScript).toContain('tests/security/workflowCanvasAtomicity.test.ts');
+  expect(dbGateScript).toContain('tests/security/workflowConcurrencyRace.test.ts');
   expect(dbGateScript).toContain('tests/integration/tsaEvents.test.ts');
   expect(dbGateScript).toContain('tests/canonical-only/complete-pipeline-proof.test.ts');
   expect(gateScript).toContain('tests/authority/workflow_signers_status_authority_guard.test.ts');

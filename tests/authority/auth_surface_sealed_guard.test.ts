@@ -74,6 +74,7 @@ const AUTH_CATEGORIES = {
     'process-polygon-anchors',
     'process-signer-signed',
     'record-custody-key-rotation',
+    'send-invariant-alert',
     'send-pending-emails',
   ],
 

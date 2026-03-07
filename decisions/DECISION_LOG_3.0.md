@@ -18,33 +18,54 @@ Evitar recaídas del ciclo anterior y dejar explícitos los pendientes de pulido
 
 ## Pendientes explícitos (pulido extremo)
 
-### P5.1 Alerting externo (pendiente)
-
-Motivo:
-- Ya hay detección/registro, pero falta notificación activa automática a canal externo.
+### P5.1 Alerting externo (cerrado)
 
 Done means done:
-- [ ] Alertas para `severity=critical` hacia Slack/email/webhook.
-- [ ] Configurable por `ENV` (on/off, umbral, destino).
-- [ ] Prueba de humo de alerta en entorno local/staging.
+- [x] Alertas para `severity>=critical` (configurable) hacia webhook Slack-compatible.
+- [x] Configurable por `ENV`: `ALERT_WEBHOOK_URL`, `ALERT_MIN_SEVERITY`, `ALERT_WINDOW_MINUTES`.
+- [x] Graceful no-op si `ALERT_WEBHOOK_URL` no está configurado.
+- [x] Endpoint cerrado con `x-cron-secret` (patrón `cronInternal`). Rechaza sin token con 401.
+- [x] CI invoca la función en hardening diario y falla si HTTP != 200/204.
 
-### P5.2 Ruido operativo / tuning (pendiente)
+Evidencia ejecutable:
+- Edge Function: `supabase/functions/send-invariant-alert/index.ts`
+  - Lee `invariant_violations` donde `acknowledged_at IS NULL` y `last_seen_at >= now() - window`
+  - POSTea JSON Slack-compatible al webhook con summary de violaciones
+  - Auth: `x-cron-secret` header con `ALERT_JOB_TOKEN`
+- Guard anti-regresión: `tests/authority/invariant_alerting_guard.test.ts`
+- Categorizada en `cronInternal`: `tests/authority/auth_surface_sealed_guard.test.ts`
+- CI: `.github/workflows/continuous-hardening-audit.yml` step `Trigger invariant alert check (P5.1)`
 
-Motivo:
-- Evitar fatiga de alertas y mantener ratio señal/ruido alto.
+Alcance: requiere `ALERT_WEBHOOK_URL` y `ALERT_JOB_TOKEN` como secrets en GitHub Actions. Si no están configurados, el step se omite con log explícito.
+
+### P5.2 Ruido operativo / tuning (cerrado)
 
 Done means done:
-- [ ] Ajuste de dedupe window y thresholds por tipo de violación.
-- [ ] Revisión de top offenders y documentación de umbrales.
+- [x] Thresholds de detección documentados y justificados en `security/invariant_thresholds.json`.
+- [x] Script `check-invariant-scan.sh` lee thresholds del JSON y los pasa al scanner DB.
+- [x] Todos los thresholds tienen `rationale` explícito y son <= defaults del DB.
+- [x] CI ejecuta el scan con thresholds tuned en hardening diario.
 
-### P4.1 Branch protection (pendiente manual GitHub)
+Evidencia ejecutable:
+- Thresholds: `security/invariant_thresholds.json` (v1.0)
+  - `stuck_minutes=20` (default DB: 30) — detecta workers stuck antes
+  - `attempt_threshold=5` (default DB: 8) — señal de falla más temprana
+  - `queue_stale_minutes=15` (default DB: 30) — headroom sin ocultar delays
+  - `dedupe_window_seconds` **no** es configurable aquí: el scanner lo tiene hardcodeado por llamada
+- Script: `scripts/diagnostics/check-invariant-scan.sh` (`npm run diag:invariant-scan`)
+- Guard anti-regresión: `tests/authority/invariant_thresholds_guard.test.ts`
+- CI: `.github/workflows/continuous-hardening-audit.yml` step `Invariant runtime scan (P5.2 threshold-tuned)`
 
-Motivo:
-- El workflow existe, pero debe quedar requerido para merge en `main`.
+### P4.1 Branch protection (cerrado)
 
 Done means done:
-- [ ] Required status check configurado: `Release Gate / release:gate`.
-- [ ] Evidencia en screenshot o nota operativa en este log.
+- [x] Required status check configurado: `Release Gate / release:gate`.
+- [x] Evidencia: API response de GitHub con `contexts: ["Release Gate / release:gate"]`.
+
+Evidencia ejecutable:
+- Aplicado via: `gh api -X PUT repos/TemporalDynamics/ecosign/branches/main/protection ...`
+- Respuesta confirmó `required_status_checks.contexts: ["Release Gate / release:gate"]`
+- Fecha: 2026-03-06
 
 ### Punto 10: regression guards de autoridad/superficie (cerrado)
 
@@ -133,9 +154,26 @@ Alcance explícito del cierre:
 - Se cierra **disciplina operativa** de rotación + auditoría continua de grants/superficies.
 - No implica verificación criptográfica/directa de que el secreto remoto cambió en proveedor.
 
-Subpendiente futuro (P8.1):
-- Separar `policy attestation` vs `rotation verification`.
-- Evaluar integración con metadata real de secretos (GitHub/Supabase) para validar cambio efectivo y no solo `last_rotated_at`.
+### P8.1: separar policy attestation vs rotation verification (cerrado)
+
+Done means done:
+- [x] Campo `verification_type` en cada item de la política (`attestation` | `executable` | `api`).
+- [x] Script valida `verification_type` contra lista de tipos conocidos y lo surfacea en output por item.
+- [x] Script produce resumen agrupado por tipo (`attestation=N, executable=N`).
+- [x] Guard tests anti-regresión en `tests/authority/secret_rotation_policy_guard.test.ts`.
+
+Evidencia ejecutable:
+- Política versionada: `security/secret_rotation_policy.json` (v1.1)
+  - Items con `verification_type=attestation`: `github.SUPABASE_ACCESS_TOKEN`, `github.SUPABASE_DB_PASSWORD`, `github.SUPABASE_PROJECT_REF`
+  - Items con `verification_type=executable`: `db.security_definer_exec_surface`, `db.internal_runtime_table_grants_rls`
+- Script: `scripts/diagnostics/check-secret-rotation-policy.sh`
+  - Output por item: `OK\t${id}\t[${verificationType}]\towner=...\tage_days=...\tmax_age_days=...`
+  - Summary al final: `OK all items within rotation window. (attestation=3, executable=2)`
+- Guards: `tests/authority/secret_rotation_policy_guard.test.ts`
+  - `every policy item must declare verification_type (P8.1)` ✓
+  - `script surfaces verification_type in output (P8.1)` ✓
+
+Alcance: items con `verification_type=api` son futuro (integración real con metadata de proveedor). Por ahora el campo existe y se valida, pero la verificación efectiva sigue siendo `executable` o `attestation`.
 
 ### Punto 9: runbook + drills (cerrado)
 

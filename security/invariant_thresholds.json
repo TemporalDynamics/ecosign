@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "_doc": "Detection thresholds passed to scan_runtime_invariant_violations(). All three values must be <= the DB function defaults (stuck_minutes<=30, attempt_threshold<=8, queue_stale_minutes<=30) so we never detect anomalies later than the baseline. Note: the dedupe window used inside the scanner is hardcoded per-call in the migration; it is not a configurable threshold here.",
+  "thresholds": {
+    "stuck_minutes": {
+      "value": 20,
+      "default": 30,
+      "rationale": "Jobs rarely run legitimately >20m. Tightened from the 30m DB default to detect stuck workers sooner without false positives."
+    },
+    "attempt_threshold": {
+      "value": 5,
+      "default": 8,
+      "rationale": "5 retries is already a failure pattern. Earlier detection (vs default 8) reduces recovery latency."
+    },
+    "queue_stale_minutes": {
+      "value": 15,
+      "default": 30,
+      "rationale": "Queue drains in <5m under normal load. 15m gives headroom for momentary spikes without hiding persistent delays."
+    }
+  }
+}

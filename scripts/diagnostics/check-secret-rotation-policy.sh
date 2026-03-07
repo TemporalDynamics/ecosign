@@ -40,6 +40,9 @@ if (Number.isNaN(asOf.getTime())) {
   process.exit(1);
 }
 
+// P8.1: valid verification types
+const VALID_VERIFICATION_TYPES = ['attestation', 'executable', 'api'];
+
 const defaultMaxAge = Number(policy.default_max_age_days ?? 90);
 const msPerDay = 24 * 60 * 60 * 1000;
 const violations = [];
@@ -48,8 +51,20 @@ for (const item of policy.items) {
   const id = item.id;
   const lastRotatedRaw = item.last_rotated_at;
   const maxAgeDays = Number(item.max_age_days ?? defaultMaxAge);
+  const verificationType = item.verification_type || 'attestation';
+
   if (!id || !lastRotatedRaw || !Number.isFinite(maxAgeDays) || maxAgeDays <= 0) {
     violations.push(`${id || '(missing-id)'} => invalid policy entry`);
+    continue;
+  }
+
+  // P8.1: warn if verification_type is missing (not a hard failure, backwards compat)
+  if (!item.verification_type) {
+    console.warn(`[secret-rotation-policy] WARNING: ${id} missing verification_type, defaulting to attestation`);
+  }
+
+  if (!VALID_VERIFICATION_TYPES.includes(verificationType)) {
+    violations.push(`${id} => unknown verification_type '${verificationType}'`);
     continue;
   }
 
@@ -61,8 +76,10 @@ for (const item of policy.items) {
 
   const ageDays = Math.floor((asOf.getTime() - rotatedAt.getTime()) / msPerDay);
   const status = ageDays > maxAgeDays ? 'OVERDUE' : 'OK';
+
+  // P8.1: surface verification_type in output so readers know confidence level
   console.log(
-    `${status}\t${id}\towner=${item.owner || '-'}\tage_days=${ageDays}\tmax_age_days=${maxAgeDays}`
+    `${status}\t${id}\t[${verificationType}]\towner=${item.owner || '-'}\tage_days=${ageDays}\tmax_age_days=${maxAgeDays}`
   );
 
   if (status === 'OVERDUE') {
@@ -78,5 +95,12 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log('\n[secret-rotation-policy] OK all items within rotation window.');
+// P8.1: summary by verification_type so operators see the trust distribution at a glance
+const byType = {};
+for (const item of policy.items) {
+  const t = item.verification_type || 'attestation';
+  byType[t] = (byType[t] || 0) + 1;
+}
+const summary = Object.entries(byType).map(([t, n]) => `${t}=${n}`).join(', ');
+console.log(`\n[secret-rotation-policy] OK all items within rotation window. (${summary})`);
 NODE

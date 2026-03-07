@@ -38,3 +38,24 @@ jobs:
 
       - name: SECURITY DEFINER allowlist check
         run: npm run diag:security-definer-exec-allowlist
+
+      - name: Invariant runtime scan (P5.2 threshold-tuned)
+        run: npm run diag:invariant-scan
+
+      - name: Trigger invariant alert check (P5.1)
+        run: |
+          if [[ -n "${ALERT_JOB_TOKEN:-}" && -n "${SUPABASE_PROJECT_REF:-}" ]]; then
+            HTTP_CODE="$(curl -s -o /tmp/send-invariant-alert.out -w '%{http_code}' \
+              -X POST "https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/send-invariant-alert" \
+              -H "x-cron-secret: ${ALERT_JOB_TOKEN}" \
+              -H "Content-Type: application/json")"
+            echo "[send-invariant-alert] response: ${HTTP_CODE}"
+            if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "204" ]]; then
+              cat /tmp/send-invariant-alert.out || true
+              exit 1
+            fi
+          else
+            echo "[send-invariant-alert] skipped — ALERT_JOB_TOKEN or SUPABASE_PROJECT_REF not set"
+          fi
+        env:
+          ALERT_JOB_TOKEN: ${{ secrets.ALERT_JOB_TOKEN }}

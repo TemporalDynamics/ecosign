@@ -87,6 +87,9 @@ docs/**
 !docs/legal/
 !docs/legal/nda/
 !docs/legal/nda/v1.txt
+!docs/baselines/
+!docs/baselines/public_schema_hash.sha256
+!docs/baselines/public_schema_fingerprint.txt
 
 # Vite cache
 .vite/

@@ -81,6 +81,10 @@ Evidencia ejecutable:
 - Integración en deploy pipeline (post-migrations):
   - `.github/workflows/deploy-supabase.yml` ejecuta verificación remota de hash con DB enlazada.
 
+Regla operativa (anti-bypass):
+- `diag:schema-drift:update-baseline` solo se corre cuando hay cambio intencional de schema en el mismo PR/commit.
+- Todo update de baseline debe venir acompañado por migración SQL y nota breve de motivo en este decision log.
+
 ### Punto 8: hardening continuo secretos/roles
 
 Done means done:

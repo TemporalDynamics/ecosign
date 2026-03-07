@@ -18,6 +18,7 @@ test('release gate must enforce fast+db tests and authority hardening checks', a
 
   expect(gateScript).toContain('npm test');
   expect(gateScript).toContain('npm run test:db');
+  expect(gateScript).toContain('npm run diag:schema-drift');
   expect(gateScript).toContain('npm run diag:invariant-observability');
   expect(dbGateScript).toContain('tests/security/rls.test.ts');
   expect(dbGateScript).toContain('tests/security/storage.test.ts');

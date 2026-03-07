@@ -63,11 +63,23 @@ Hardening asociado:
 - `supabase/functions/cancel-workflow/index.ts` agrega guard `signing_in_progress` (409) cuando hay lock de firma activo.
 - `supabase/migrations/20260307002000_fix_claim_signer_lock_status_ambiguity.sql` corrige ambigüedad en `claim_signer_for_signing`.
 
-### Punto 7: drift-proof migraciones
+### Punto 7: drift-proof migraciones (cerrado)
 
 Done means done:
-- [ ] Check de schema hash en pipeline.
-- [ ] Falla automática ante divergencia.
+- [x] Check de schema hash en pipeline.
+- [x] Falla automática ante divergencia.
+
+Evidencia ejecutable:
+- Script canónico: `scripts/diagnostics/check-schema-drift.sh`
+  - modo check: valida hash de schema `public` contra baseline versionado.
+  - modo update: `--update` regenera baseline hash + fingerprint.
+- Baselines versionados:
+  - `docs/baselines/public_schema_hash.sha256`
+  - `docs/baselines/public_schema_fingerprint.txt`
+- Integración en release gate local/CI:
+  - `scripts/release-gate.sh` ejecuta `npm run diag:schema-drift`.
+- Integración en deploy pipeline (post-migrations):
+  - `.github/workflows/deploy-supabase.yml` ejecuta verificación remota de hash con DB enlazada.
 
 ### Punto 8: hardening continuo secretos/roles
 

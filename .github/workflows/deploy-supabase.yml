@@ -61,6 +61,15 @@ jobs:
       - name: Push migrations
         run: supabase db push --project-ref "$SUPABASE_PROJECT_REF"
 
+      - name: Verify remote schema drift contract
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          bash ../scripts/diagnostics/check-schema-drift.sh \
+            --db-url "postgresql://postgres@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres?sslmode=require" \
+            --hash-file "../docs/baselines/public_schema_hash.sha256" \
+            --fingerprint-file "../docs/baselines/public_schema_fingerprint.txt"
+
       - name: Deploy functions
         run: |
           for fn in $(find functions -maxdepth 1 -mindepth 1 -type d ! -name '_*' -printf "%f\n"); do

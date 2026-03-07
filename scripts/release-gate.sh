@@ -30,6 +30,7 @@ run_step "UI canvas contract guards" npx vitest run \
   tests/ui/signer_fields_wizard_rotation_contract_guard.test.ts
 ensure_db_test_context
 run_step "DB integration gate" npm run test:db
+run_step "Schema drift-proof check" npm run diag:schema-drift
 run_step "Invariant observability scan" npm run diag:invariant-observability
 run_step "Internal runtime table hardening audit" npm run diag:internal-runtime-table-hardening
 run_step "SECURITY DEFINER execute allowlist audit" npm run diag:security-definer-exec-allowlist

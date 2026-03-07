@@ -1,0 +1,1894 @@
+COLUMN|public.access_events|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.access_events|2|recipient_id|uuid|NOT_NULL||-|-
+COLUMN|public.access_events|3|event_type|text|NOT_NULL||-|-
+COLUMN|public.access_events|4|"timestamp"|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.access_events|5|ip_address|inet|NULL||-|-
+COLUMN|public.access_events|6|user_agent|text|NULL||-|-
+COLUMN|public.access_events|7|country|text|NULL||-|-
+COLUMN|public.access_events|8|session_id|text|NULL||-|-
+COLUMN|public.access_logs|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.access_logs|2|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.access_logs|3|document_id|text|NOT_NULL||-|-
+COLUMN|public.access_logs|4|user_email|text|NOT_NULL||-|-
+COLUMN|public.access_logs|5|action|text|NOT_NULL||-|-
+COLUMN|public.access_logs|6|ip_address|text|NULL||-|-
+COLUMN|public.access_logs|7|user_agent|text|NULL||-|-
+COLUMN|public.access_logs|8|metadata|jsonb|NULL||-|-
+COLUMN|public.anchor_states|1|project_id|text|NOT_NULL||-|-
+COLUMN|public.anchor_states|2|anchor_requested_at|timestamp with time zone|NULL||-|-
+COLUMN|public.anchor_states|3|polygon_confirmed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.anchor_states|4|bitcoin_confirmed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.anchor_states|5|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.anchors|10|bitcoin_block_height|integer|NULL||-|-
+COLUMN|public.anchors|11|user_email|text|NULL||-|-
+COLUMN|public.anchors|12|notification_sent|boolean|NULL|false|-|-
+COLUMN|public.anchors|13|notification_sent_at|timestamp with time zone|NULL||-|-
+COLUMN|public.anchors|14|metadata|jsonb|NULL||-|-
+COLUMN|public.anchors|15|error_message|text|NULL||-|-
+COLUMN|public.anchors|16|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.anchors|17|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.anchors|18|confirmed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.anchors|19|user_document_id|uuid|NULL||-|-
+COLUMN|public.anchors|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.anchors|20|polygon_tx_hash|text|NULL||-|-
+COLUMN|public.anchors|21|polygon_status|text|NULL|'pending'::text|-|-
+COLUMN|public.anchors|22|polygon_block_number|bigint|NULL||-|-
+COLUMN|public.anchors|23|polygon_block_hash|text|NULL||-|-
+COLUMN|public.anchors|24|polygon_confirmed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.anchors|25|polygon_attempts|integer|NULL|0|-|-
+COLUMN|public.anchors|26|polygon_error_message|text|NULL||-|-
+COLUMN|public.anchors|27|bitcoin_attempts|integer|NULL|0|-|-
+COLUMN|public.anchors|28|bitcoin_error_message|text|NULL||-|-
+COLUMN|public.anchors|29|document_entity_id|uuid|NULL||-|-
+COLUMN|public.anchors|2|document_id|uuid|NULL||-|-
+COLUMN|public.anchors|3|user_id|uuid|NULL||-|-
+COLUMN|public.anchors|4|document_hash|text|NOT_NULL||-|-
+COLUMN|public.anchors|5|anchor_type|text|NOT_NULL|'opentimestamps'::text|-|-
+COLUMN|public.anchors|6|anchor_status|text|NOT_NULL|'queued'::text|-|-
+COLUMN|public.anchors|7|ots_proof|text|NULL||-|-
+COLUMN|public.anchors|8|ots_calendar_url|text|NULL||-|-
+COLUMN|public.anchors|9|bitcoin_tx_id|text|NULL||-|-
+COLUMN|public.audit_logs|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.audit_logs|2|user_id|uuid|NULL||-|-
+COLUMN|public.audit_logs|3|action|text|NOT_NULL||-|-
+COLUMN|public.audit_logs|4|metadata|jsonb|NULL||-|-
+COLUMN|public.audit_logs|5|ip_address|text|NULL||-|-
+COLUMN|public.audit_logs|6|user_agent|text|NULL||-|-
+COLUMN|public.audit_logs|7|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.batches|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.batches|2|document_entity_id|uuid|NOT_NULL||-|-
+COLUMN|public.batches|3|label|text|NULL||-|-
+COLUMN|public.batches|4|"order"|integer|NULL|0|-|-
+COLUMN|public.batches|5|assigned_signer_id|uuid|NULL||-|-
+COLUMN|public.batches|6|origin|text|NULL|'user_created'::text|-|-
+COLUMN|public.batches|7|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.batches|8|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.bitcoin_ots_files|1|anchor_id|uuid|NOT_NULL||-|-
+COLUMN|public.bitcoin_ots_files|2|ots_content|bytea|NOT_NULL||-|-
+COLUMN|public.bitcoin_ots_files|3|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.bitcoin_ots_files|4|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.certificate_regeneration_requests|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.certificate_regeneration_requests|2|user_id|uuid|NULL||-|-
+COLUMN|public.certificate_regeneration_requests|3|document_id|uuid|NULL||-|-
+COLUMN|public.certificate_regeneration_requests|4|request_type|text|NOT_NULL||-|-
+COLUMN|public.certificate_regeneration_requests|5|status|text|NOT_NULL|'pending'::text|-|-
+COLUMN|public.certificate_regeneration_requests|6|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.certificate_regeneration_requests|7|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.certificate_regeneration_requests|8|error_message|text|NULL||-|-
+COLUMN|public.contact_leads|10|created_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.contact_leads|11|updated_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.contact_leads|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.contact_leads|2|email|text|NOT_NULL||-|-
+COLUMN|public.contact_leads|3|name|text|NULL||-|-
+COLUMN|public.contact_leads|4|company|text|NULL||-|-
+COLUMN|public.contact_leads|5|message|text|NULL||-|-
+COLUMN|public.contact_leads|6|source|text|NULL|'contact_form'::text|-|-
+COLUMN|public.contact_leads|7|variant|text|NULL||-|-
+COLUMN|public.contact_leads|8|status|text|NULL|'new'::text|-|-
+COLUMN|public.contact_leads|9|metadata|jsonb|NULL|'{}'::jsonb|-|-
+COLUMN|public.conversion_events|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.conversion_events|2|variant|text|NOT_NULL||-|-
+COLUMN|public.conversion_events|3|action|text|NOT_NULL||-|-
+COLUMN|public.conversion_events|4|page|text|NULL||-|-
+COLUMN|public.conversion_events|5|session_id|text|NOT_NULL||-|-
+COLUMN|public.conversion_events|6|metadata|jsonb|NULL|'{}'::jsonb|-|-
+COLUMN|public.conversion_events|7|"timestamp"|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.conversion_events|8|created_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.custody_access_log|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.custody_access_log|2|document_entity_id|uuid|NULL||-|-
+COLUMN|public.custody_access_log|3|accessed_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.custody_access_log|4|accessed_by|uuid|NULL||-|-
+COLUMN|public.custody_access_log|5|access_type|text|NOT_NULL||-|-
+COLUMN|public.custody_access_log|6|ip_address|inet|NULL||-|-
+COLUMN|public.custody_access_log|7|user_agent|text|NULL||-|-
+COLUMN|public.custody_access_log|8|metadata|jsonb|NULL||-|-
+COLUMN|public.custody_key_rotations|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.custody_key_rotations|2|document_entity_id|uuid|NULL||-|-
+COLUMN|public.custody_key_rotations|3|rotated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.custody_key_rotations|4|rotated_by|uuid|NULL||-|-
+COLUMN|public.custody_key_rotations|5|previous_key_id|text|NULL||-|-
+COLUMN|public.custody_key_rotations|6|new_key_id|text|NOT_NULL||-|-
+COLUMN|public.custody_key_rotations|7|reason|text|NULL||-|-
+COLUMN|public.custody_key_rotations|8|metadata|jsonb|NULL||-|-
+COLUMN|public.document_entities|10|lifecycle_status|text|NOT_NULL||-|-
+COLUMN|public.document_entities|11|witness_current_hash|text|NULL||-|-
+COLUMN|public.document_entities|12|witness_current_mime|text|NULL||-|-
+COLUMN|public.document_entities|13|witness_current_status|text|NULL||-|-
+COLUMN|public.document_entities|14|witness_current_storage_path|text|NULL||-|-
+COLUMN|public.document_entities|15|witness_current_generated_at|timestamp with time zone|NULL||-|-
+COLUMN|public.document_entities|16|witness_history|jsonb|NOT_NULL|'[]'::jsonb|-|-
+COLUMN|public.document_entities|17|witness_hash|text|NULL||-|-
+COLUMN|public.document_entities|18|signed_hash|text|NULL||-|-
+COLUMN|public.document_entities|19|composite_hash|text|NULL||-|-
+COLUMN|public.document_entities|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.document_entities|20|hash_chain|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.document_entities|21|transform_log|jsonb|NOT_NULL|'[]'::jsonb|-|-
+COLUMN|public.document_entities|22|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.document_entities|23|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.document_entities|24|signed_authority|text|NULL||-|-
+COLUMN|public.document_entities|25|signed_authority_ref|jsonb|NULL||-|-
+COLUMN|public.document_entities|26|events|jsonb|NOT_NULL|'[]'::jsonb|-|-
+COLUMN|public.document_entities|27|tsa_latest|jsonb|NULL||-|-
+COLUMN|public.document_entities|28|metadata|jsonb|NULL||-|-
+COLUMN|public.document_entities|2|owner_id|uuid|NOT_NULL||-|-
+COLUMN|public.document_entities|3|source_name|text|NOT_NULL||-|-
+COLUMN|public.document_entities|4|source_mime|text|NOT_NULL||-|-
+COLUMN|public.document_entities|5|source_size|bigint|NOT_NULL||-|-
+COLUMN|public.document_entities|6|source_hash|text|NOT_NULL||-|-
+COLUMN|public.document_entities|7|source_captured_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.document_entities|8|source_storage_path|text|NULL||-|-
+COLUMN|public.document_entities|9|custody_mode|text|NOT_NULL||-|-
+COLUMN|public.document_folders|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.document_folders|2|user_id|uuid|NOT_NULL||-|-
+COLUMN|public.document_folders|3|name|text|NOT_NULL||-|-
+COLUMN|public.document_folders|4|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.document_folders|5|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.document_shares|10|accessed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.document_shares|11|created_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.document_shares|12|created_by|uuid|NULL||-|-
+COLUMN|public.document_shares|13|nda_enabled|boolean|NULL|false|-|-
+COLUMN|public.document_shares|14|nda_text|text|NULL||-|-
+COLUMN|public.document_shares|15|nda_accepted_at|timestamp with time zone|NULL||-|-
+COLUMN|public.document_shares|16|nda_acceptance_metadata|jsonb|NULL||-|-
+COLUMN|public.document_shares|17|document_entity_id|uuid|NULL||-|-
+COLUMN|public.document_shares|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.document_shares|2|document_id|uuid|NULL||-|-
+COLUMN|public.document_shares|3|recipient_email|text|NOT_NULL||-|-
+COLUMN|public.document_shares|4|wrapped_key|text|NOT_NULL||-|-
+COLUMN|public.document_shares|5|wrap_iv|text|NOT_NULL||-|-
+COLUMN|public.document_shares|6|recipient_salt|text|NOT_NULL||-|-
+COLUMN|public.document_shares|7|otp_hash|text|NOT_NULL||-|-
+COLUMN|public.document_shares|8|status|text|NULL|'pending'::text|-|-
+COLUMN|public.document_shares|9|expires_at|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.documents|10|encrypted|boolean|NULL|false|-|-
+COLUMN|public.documents|11|encrypted_path|text|NULL||-|-
+COLUMN|public.documents|12|wrapped_key|text|NULL||-|-
+COLUMN|public.documents|13|wrap_iv|text|NULL||-|-
+COLUMN|public.documents|14|document_entity_id|uuid|NULL||-|-
+COLUMN|public.documents|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.documents|2|owner_id|uuid|NOT_NULL||-|-
+COLUMN|public.documents|3|title|text|NOT_NULL||-|-
+COLUMN|public.documents|4|original_filename|text|NULL||-|-
+COLUMN|public.documents|5|eco_hash|text|NOT_NULL||-|-
+COLUMN|public.documents|6|ecox_hash|text|NULL||-|-
+COLUMN|public.documents|7|status|text|NULL|'active'::text|-|-
+COLUMN|public.documents|8|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.documents|9|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.domain_outbox|10|last_error|text|NULL||-|-
+COLUMN|public.domain_outbox|11|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.domain_outbox|12|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.domain_outbox|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.domain_outbox|2|aggregate_type|text|NOT_NULL||-|-
+COLUMN|public.domain_outbox|3|aggregate_id|uuid|NULL||-|-
+COLUMN|public.domain_outbox|4|event_type|text|NOT_NULL||-|-
+COLUMN|public.domain_outbox|5|payload|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.domain_outbox|6|status|text|NOT_NULL|'pending'::text|-|-
+COLUMN|public.domain_outbox|7|dedupe_key|text|NULL||-|-
+COLUMN|public.domain_outbox|8|locked_at|timestamp with time zone|NULL||-|-
+COLUMN|public.domain_outbox|9|locked_by|text|NULL||-|-
+COLUMN|public.eco_records|10|eco_metadata|jsonb|NOT_NULL||-|-
+COLUMN|public.eco_records|11|blockchain_tx_id|text|NULL||-|-
+COLUMN|public.eco_records|12|blockchain_network|text|NULL|'ecosign-testnet'::text|-|-
+COLUMN|public.eco_records|13|status|text|NOT_NULL|'pending'::text|-|-
+COLUMN|public.eco_records|14|ip_address|text|NULL||-|-
+COLUMN|public.eco_records|15|user_agent|text|NULL||-|-
+COLUMN|public.eco_records|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.eco_records|2|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.eco_records|3|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.eco_records|4|document_id|text|NOT_NULL||-|-
+COLUMN|public.eco_records|5|user_email|text|NOT_NULL||-|-
+COLUMN|public.eco_records|6|file_name|text|NOT_NULL||-|-
+COLUMN|public.eco_records|7|file_type|text|NULL||-|-
+COLUMN|public.eco_records|8|file_size|bigint|NULL||-|-
+COLUMN|public.eco_records|9|sha256_hash|text|NOT_NULL||-|-
+COLUMN|public.ecox_audit_trail|10|document_hash_snapshot|text|NULL||-|-
+COLUMN|public.ecox_audit_trail|11|created_at|timestamp with time zone|NOT_NULL|timezone('utc'::text, now())|-|-
+COLUMN|public.ecox_audit_trail|1|id|bigint|NOT_NULL||d|-
+COLUMN|public.ecox_audit_trail|2|workflow_id|uuid|NOT_NULL||-|-
+COLUMN|public.ecox_audit_trail|3|signer_id|uuid|NOT_NULL||-|-
+COLUMN|public.ecox_audit_trail|4|event_timestamp|timestamp with time zone|NOT_NULL|timezone('utc'::text, now())|-|-
+COLUMN|public.ecox_audit_trail|5|event_type|text|NOT_NULL||-|-
+COLUMN|public.ecox_audit_trail|6|source_ip|inet|NULL||-|-
+COLUMN|public.ecox_audit_trail|7|user_agent|text|NULL||-|-
+COLUMN|public.ecox_audit_trail|8|geolocation|jsonb|NULL||-|-
+COLUMN|public.ecox_audit_trail|9|details|jsonb|NULL||-|-
+COLUMN|public.events|10|actor_email|text|NULL||-|-
+COLUMN|public.events|11|actor_name|text|NULL||-|-
+COLUMN|public.events|12|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.events|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.events|2|document_id|uuid|NOT_NULL||-|-
+COLUMN|public.events|3|user_id|uuid|NULL||-|-
+COLUMN|public.events|4|signer_link_id|uuid|NULL||-|-
+COLUMN|public.events|5|event_type|text|NOT_NULL||-|-
+COLUMN|public.events|6|"timestamp"|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.events|7|ip_address|inet|NULL||-|-
+COLUMN|public.events|8|user_agent|text|NULL||-|-
+COLUMN|public.events|9|metadata|jsonb|NULL|'{}'::jsonb|-|-
+COLUMN|public.executor_decision_logs|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.executor_decision_logs|2|document_entity_id|uuid|NULL||-|-
+COLUMN|public.executor_decision_logs|3|policy_version|text|NOT_NULL|'v1'::text|-|-
+COLUMN|public.executor_decision_logs|4|events_hash|text|NULL||-|-
+COLUMN|public.executor_decision_logs|5|decision|jsonb|NOT_NULL||-|-
+COLUMN|public.executor_decision_logs|6|reason|text|NULL||-|-
+COLUMN|public.executor_decision_logs|7|metadata|jsonb|NULL|'{}'::jsonb|-|-
+COLUMN|public.executor_decision_logs|8|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.executor_job_runs|10|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.executor_job_runs|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.executor_job_runs|2|job_id|uuid|NOT_NULL||-|-
+COLUMN|public.executor_job_runs|3|status|text|NOT_NULL||-|-
+COLUMN|public.executor_job_runs|4|attempt|integer|NOT_NULL||-|-
+COLUMN|public.executor_job_runs|5|worker_id|text|NULL||-|-
+COLUMN|public.executor_job_runs|6|started_at|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.executor_job_runs|7|finished_at|timestamp with time zone|NULL||-|-
+COLUMN|public.executor_job_runs|8|duration_ms|integer|NULL||-|-
+COLUMN|public.executor_job_runs|9|error|text|NULL||-|-
+COLUMN|public.executor_jobs|10|dedupe_key|text|NULL||-|-
+COLUMN|public.executor_jobs|11|locked_at|timestamp with time zone|NULL||-|-
+COLUMN|public.executor_jobs|12|locked_by|text|NULL||-|-
+COLUMN|public.executor_jobs|13|last_error|text|NULL||-|-
+COLUMN|public.executor_jobs|14|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.executor_jobs|15|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.executor_jobs|16|heartbeat_at|timestamp with time zone|NULL||-|-
+COLUMN|public.executor_jobs|17|correlation_id|uuid|NULL||-|-
+COLUMN|public.executor_jobs|18|trace_id|text|NULL||-|-
+COLUMN|public.executor_jobs|19|enqueue_source|text|NOT_NULL|'unknown'::text|-|-
+COLUMN|public.executor_jobs|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.executor_jobs|2|type|text|NOT_NULL||-|-
+COLUMN|public.executor_jobs|3|entity_type|text|NULL||-|-
+COLUMN|public.executor_jobs|4|entity_id|uuid|NULL||-|-
+COLUMN|public.executor_jobs|5|payload|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.executor_jobs|6|status|text|NOT_NULL|'queued'::text|-|-
+COLUMN|public.executor_jobs|7|attempts|integer|NOT_NULL|0|-|-
+COLUMN|public.executor_jobs|8|max_attempts|integer|NOT_NULL|10|-|-
+COLUMN|public.executor_jobs|9|run_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.feature_flags|1|flag_name|text|NOT_NULL||-|-
+COLUMN|public.feature_flags|2|enabled|boolean|NOT_NULL|false|-|-
+COLUMN|public.feature_flags|3|updated_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.feature_flags|4|created_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.founder_badges|1|user_id|uuid|NOT_NULL||-|-
+COLUMN|public.founder_badges|2|badge_number|integer|NOT_NULL|nextval('founder_badges_seq'::regclass)|-|-
+COLUMN|public.founder_badges|3|issued_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.identity_bindings|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.identity_bindings|2|email|text|NOT_NULL||-|-
+COLUMN|public.identity_bindings|3|status|text|NOT_NULL|'active'::text|-|-
+COLUMN|public.identity_bindings|4|verified_at|timestamp with time zone|NULL||-|-
+COLUMN|public.identity_bindings|5|merged_into_id|uuid|NULL||-|-
+COLUMN|public.identity_bindings|6|created_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.identity_bindings|7|updated_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.invariant_violations|10|details|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.invariant_violations|11|occurrences|integer|NOT_NULL|1|-|-
+COLUMN|public.invariant_violations|12|first_seen_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.invariant_violations|13|last_seen_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.invariant_violations|14|acknowledged_at|timestamp with time zone|NULL||-|-
+COLUMN|public.invariant_violations|15|acknowledged_by|uuid|NULL||-|-
+COLUMN|public.invariant_violations|16|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.invariant_violations|17|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.invariant_violations|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.invariant_violations|2|code|text|NOT_NULL||-|-
+COLUMN|public.invariant_violations|3|severity|text|NOT_NULL|'error'::text|-|-
+COLUMN|public.invariant_violations|4|source|text|NOT_NULL||-|-
+COLUMN|public.invariant_violations|5|message|text|NOT_NULL||-|-
+COLUMN|public.invariant_violations|6|entity_id|uuid|NULL||-|-
+COLUMN|public.invariant_violations|7|correlation_id|text|NULL||-|-
+COLUMN|public.invariant_violations|8|role_name|text|NULL||-|-
+COLUMN|public.invariant_violations|9|request_path|text|NULL||-|-
+COLUMN|public.invites|10|accessed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.invites|11|expires_at|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.invites|12|revoked_at|timestamp with time zone|NULL||-|-
+COLUMN|public.invites|13|revoked_by|uuid|NULL||-|-
+COLUMN|public.invites|14|revocation_reason|text|NULL||-|-
+COLUMN|public.invites|15|invited_by|uuid|NOT_NULL||-|-
+COLUMN|public.invites|16|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.invites|17|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.invites|18|document_entity_id|uuid|NULL||-|-
+COLUMN|public.invites|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.invites|2|document_id|uuid|NULL||-|-
+COLUMN|public.invites|3|email|text|NOT_NULL||-|-
+COLUMN|public.invites|4|role|text|NOT_NULL||-|-
+COLUMN|public.invites|5|token|text|NOT_NULL||-|-
+COLUMN|public.invites|6|nda_accepted_at|timestamp with time zone|NULL||-|-
+COLUMN|public.invites|7|nda_ip_address|text|NULL||-|-
+COLUMN|public.invites|8|nda_user_agent|text|NULL||-|-
+COLUMN|public.invites|9|accepted_at|timestamp with time zone|NULL||-|-
+COLUMN|public.links|10|document_entity_id|uuid|NULL||-|-
+COLUMN|public.links|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.links|2|document_id|uuid|NULL||-|-
+COLUMN|public.links|3|token_hash|text|NOT_NULL||-|-
+COLUMN|public.links|4|expires_at|timestamp with time zone|NULL||-|-
+COLUMN|public.links|5|revoked_at|timestamp with time zone|NULL||-|-
+COLUMN|public.links|6|require_nda|boolean|NOT_NULL|true|-|-
+COLUMN|public.links|7|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.links|8|recipient_id|uuid|NULL||-|-
+COLUMN|public.links|9|nda_text|text|NULL||-|-
+COLUMN|public.nda_acceptances|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.nda_acceptances|2|recipient_id|uuid|NOT_NULL||-|-
+COLUMN|public.nda_acceptances|3|eco_nda_hash|text|NOT_NULL||-|-
+COLUMN|public.nda_acceptances|4|accepted_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.nda_acceptances|5|ip_address|inet|NULL||-|-
+COLUMN|public.nda_acceptances|6|user_agent|text|NULL||-|-
+COLUMN|public.nda_acceptances|7|signature_data|jsonb|NULL||-|-
+COLUMN|public.nda_events|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.nda_events|2|document_id|uuid|NULL||-|-
+COLUMN|public.nda_events|3|nda_template_id|uuid|NULL||-|-
+COLUMN|public.nda_events|4|nda_hash|text|NULL||-|-
+COLUMN|public.nda_events|5|document_hash|text|NULL||-|-
+COLUMN|public.nda_events|6|action|text|NOT_NULL||-|-
+COLUMN|public.nda_events|7|metadata|jsonb|NULL||-|-
+COLUMN|public.nda_events|8|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.nda_signatures|10|ip_address|text|NULL||-|-
+COLUMN|public.nda_signatures|11|user_agent|text|NULL||-|-
+COLUMN|public.nda_signatures|12|verified_at|timestamp with time zone|NULL||-|-
+COLUMN|public.nda_signatures|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.nda_signatures|2|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.nda_signatures|3|document_id|text|NOT_NULL||-|-
+COLUMN|public.nda_signatures|4|signer_name|text|NOT_NULL||-|-
+COLUMN|public.nda_signatures|5|signer_email|text|NOT_NULL||-|-
+COLUMN|public.nda_signatures|6|signature_data|text|NOT_NULL||-|-
+COLUMN|public.nda_signatures|7|nda_accepted|boolean|NOT_NULL|false|-|-
+COLUMN|public.nda_signatures|8|access_token|text|NOT_NULL||-|-
+COLUMN|public.nda_signatures|9|expires_at|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.nda_templates|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.nda_templates|2|user_id|uuid|NOT_NULL||-|-
+COLUMN|public.nda_templates|3|name|text|NOT_NULL||-|-
+COLUMN|public.nda_templates|4|config|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.nda_templates|5|template_version|integer|NOT_NULL|1|-|-
+COLUMN|public.nda_templates|6|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.nda_templates|7|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.operation_documents|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.operation_documents|2|operation_id|uuid|NOT_NULL||-|-
+COLUMN|public.operation_documents|3|document_entity_id|uuid|NULL||-|-
+COLUMN|public.operation_documents|4|added_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.operation_documents|5|added_by|uuid|NULL||-|-
+COLUMN|public.operation_documents|6|draft_file_ref|text|NULL||-|-
+COLUMN|public.operation_documents|7|draft_metadata|jsonb|NULL|'{}'::jsonb|-|-
+COLUMN|public.operations_events|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.operations_events|2|operation_id|uuid|NOT_NULL||-|-
+COLUMN|public.operations_events|3|document_entity_id|uuid|NULL||-|-
+COLUMN|public.operations_events|4|kind|text|NOT_NULL||-|-
+COLUMN|public.operations_events|5|at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.operations_events|6|actor|jsonb|NOT_NULL||-|-
+COLUMN|public.operations_events|7|reason|text|NULL||-|-
+COLUMN|public.operations_events|8|metadata|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.operations_events|9|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.operations|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.operations|2|owner_id|uuid|NOT_NULL||-|-
+COLUMN|public.operations|3|name|text|NOT_NULL||-|-
+COLUMN|public.operations|4|description|text|NULL||-|-
+COLUMN|public.operations|5|status|text|NOT_NULL|'active'::text|-|-
+COLUMN|public.operations|6|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.operations|7|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.plans|10|capabilities|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.plans|11|price_reference_usd|numeric(10,2)|NULL||-|-
+COLUMN|public.plans|12|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.plans|13|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.plans|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.plans|2|key|text|NOT_NULL||-|-
+COLUMN|public.plans|3|name|text|NOT_NULL||-|-
+COLUMN|public.plans|4|status|text|NOT_NULL|'active'::text|-|-
+COLUMN|public.plans|5|seats_limit|integer|NULL||-|-
+COLUMN|public.plans|6|storage_gb_limit|integer|NULL||-|-
+COLUMN|public.plans|7|legal_signatures_quota|integer|NULL||-|-
+COLUMN|public.plans|8|workflows_active_limit|integer|NULL||-|-
+COLUMN|public.plans|9|renotify_limit|integer|NULL||-|-
+COLUMN|public.presential_verification_otps|10|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.presential_verification_otps|11|participant_id|text|NULL||-|-
+COLUMN|public.presential_verification_otps|12|participant_role|text|NULL||-|-
+COLUMN|public.presential_verification_otps|13|participant_token_hash|text|NULL||-|-
+COLUMN|public.presential_verification_otps|14|token_expires_at|timestamp with time zone|NULL||-|-
+COLUMN|public.presential_verification_otps|15|token_revoked_at|timestamp with time zone|NULL||-|-
+COLUMN|public.presential_verification_otps|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.presential_verification_otps|2|session_id|uuid|NOT_NULL||-|-
+COLUMN|public.presential_verification_otps|3|signer_email|text|NOT_NULL||-|-
+COLUMN|public.presential_verification_otps|4|otp_hash|text|NOT_NULL||-|-
+COLUMN|public.presential_verification_otps|5|expires_at|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.presential_verification_otps|6|attempts|integer|NOT_NULL|0|-|-
+COLUMN|public.presential_verification_otps|7|verified_at|timestamp with time zone|NULL||-|-
+COLUMN|public.presential_verification_otps|8|last_sent_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.presential_verification_otps|9|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.presential_verification_sessions|10|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.presential_verification_sessions|11|closed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.presential_verification_sessions|12|created_by|uuid|NOT_NULL||-|-
+COLUMN|public.presential_verification_sessions|13|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.presential_verification_sessions|14|trenza_attestations|jsonb|NOT_NULL|'[]'::jsonb|-|-
+COLUMN|public.presential_verification_sessions|15|acta_payload|jsonb|NULL||-|-
+COLUMN|public.presential_verification_sessions|16|acta_hash|text|NULL||-|-
+COLUMN|public.presential_verification_sessions|17|acta_timestamps|jsonb|NOT_NULL|'[]'::jsonb|-|-
+COLUMN|public.presential_verification_sessions|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.presential_verification_sessions|2|operation_id|uuid|NOT_NULL||-|-
+COLUMN|public.presential_verification_sessions|3|session_id|text|NOT_NULL||-|-
+COLUMN|public.presential_verification_sessions|4|qr_code|text|NULL||-|-
+COLUMN|public.presential_verification_sessions|5|status|text|NOT_NULL|'active'::text|-|-
+COLUMN|public.presential_verification_sessions|6|snapshot_hash|text|NOT_NULL||-|-
+COLUMN|public.presential_verification_sessions|7|snapshot_data|jsonb|NOT_NULL||-|-
+COLUMN|public.presential_verification_sessions|8|confirmations|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.presential_verification_sessions|9|expires_at|timestamp with time zone|NOT_NULL|(now() + '00:30:00'::interval)|-|-
+COLUMN|public.product_events|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.product_events|2|user_id|uuid|NULL||-|-
+COLUMN|public.product_events|3|session_id|text|NOT_NULL||-|-
+COLUMN|public.product_events|4|event_name|text|NOT_NULL||-|-
+COLUMN|public.product_events|5|event_data|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.product_events|6|page_path|text|NULL||-|-
+COLUMN|public.product_events|7|user_agent|text|NULL||-|-
+COLUMN|public.product_events|8|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.profiles|1|user_id|uuid|NOT_NULL||-|-
+COLUMN|public.profiles|2|wrap_salt|text|NOT_NULL||-|-
+COLUMN|public.profiles|3|created_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.rate_limit_blocks|1|key|text|NOT_NULL||-|-
+COLUMN|public.rate_limit_blocks|2|blocked_until|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.rate_limit_blocks|3|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.rate_limits|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.rate_limits|2|key|text|NOT_NULL||-|-
+COLUMN|public.rate_limits|3|"timestamp"|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.rate_limits|4|created_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.recipients|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.recipients|2|document_id|uuid|NULL||-|-
+COLUMN|public.recipients|3|email|text|NOT_NULL||-|-
+COLUMN|public.recipients|4|recipient_id|text|NOT_NULL||-|-
+COLUMN|public.recipients|5|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.recipients|6|document_entity_id|uuid|NULL||-|-
+COLUMN|public.shadow_decision_logs|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.shadow_decision_logs|2|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.shadow_decision_logs|3|decision_code|text|NOT_NULL||-|-
+COLUMN|public.shadow_decision_logs|4|workflow_id|uuid|NULL||-|-
+COLUMN|public.shadow_decision_logs|5|signer_id|uuid|NULL||-|-
+COLUMN|public.shadow_decision_logs|6|legacy_decision|boolean|NOT_NULL||-|-
+COLUMN|public.shadow_decision_logs|7|canonical_decision|boolean|NOT_NULL||-|-
+COLUMN|public.shadow_decision_logs|8|has_divergence|boolean|NULL|(legacy_decision <> canonical_decision)|-|s
+COLUMN|public.shadow_decision_logs|9|context|jsonb|NOT_NULL||-|-
+COLUMN|public.signature_application_events|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.signature_application_events|2|workflow_id|uuid|NOT_NULL||-|-
+COLUMN|public.signature_application_events|3|signature_instance_id|uuid|NOT_NULL||-|-
+COLUMN|public.signature_application_events|4|field_id|uuid|NOT_NULL||-|-
+COLUMN|public.signature_application_events|5|applied_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.signature_instances|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.signature_instances|2|workflow_id|uuid|NOT_NULL||-|-
+COLUMN|public.signature_instances|3|document_entity_id|uuid|NOT_NULL||-|-
+COLUMN|public.signature_instances|4|batch_id|uuid|NOT_NULL||-|-
+COLUMN|public.signature_instances|5|signer_id|uuid|NOT_NULL||-|-
+COLUMN|public.signature_instances|6|signature_payload|jsonb|NOT_NULL||-|-
+COLUMN|public.signature_instances|7|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.signature_workflows|10|completed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.signature_workflows|11|cancelled_at|timestamp with time zone|NULL||-|-
+COLUMN|public.signature_workflows|12|document_path|text|NULL||-|-
+COLUMN|public.signature_workflows|13|document_hash|text|NULL||-|-
+COLUMN|public.signature_workflows|14|encryption_key|text|NULL||-|-
+COLUMN|public.signature_workflows|15|title|text|NULL||-|-
+COLUMN|public.signature_workflows|16|require_sequential|boolean|NULL|true|-|-
+COLUMN|public.signature_workflows|17|expires_at|timestamp with time zone|NULL||-|-
+COLUMN|public.signature_workflows|18|signature_type|text|NOT_NULL|'ECOSIGN'::text|-|-
+COLUMN|public.signature_workflows|19|signnow_embed_url|text|NULL||-|-
+COLUMN|public.signature_workflows|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.signature_workflows|20|signnow_document_id|text|NULL||-|-
+COLUMN|public.signature_workflows|21|signnow_status|text|NULL|'pending'::text|-|-
+COLUMN|public.signature_workflows|22|document_entity_id|uuid|NULL||-|-
+COLUMN|public.signature_workflows|23|delivery_mode|text|NOT_NULL|'email'::text|-|-
+COLUMN|public.signature_workflows|24|fields_schema_hash|text|NULL||-|-
+COLUMN|public.signature_workflows|25|fields_schema_version|integer|NULL|1|-|-
+COLUMN|public.signature_workflows|26|fields_schema_committed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.signature_workflows|27|nda_text|text|NULL||-|-
+COLUMN|public.signature_workflows|28|final_document_visibility|text|NOT_NULL|'owner_only'::text|-|-
+COLUMN|public.signature_workflows|29|signing_lock_id|uuid|NULL||-|-
+COLUMN|public.signature_workflows|2|owner_id|uuid|NOT_NULL||-|-
+COLUMN|public.signature_workflows|30|signing_lock_at|timestamp with time zone|NULL||-|-
+COLUMN|public.signature_workflows|31|canvas_snapshot|jsonb|NULL||-|-
+COLUMN|public.signature_workflows|3|original_filename|text|NOT_NULL||-|-
+COLUMN|public.signature_workflows|4|original_file_url|text|NULL||-|-
+COLUMN|public.signature_workflows|5|current_version|integer|NOT_NULL|1|-|-
+COLUMN|public.signature_workflows|6|status|text|NOT_NULL|'draft'::text|-|-
+COLUMN|public.signature_workflows|7|forensic_config|jsonb|NULL|'{"bitcoin": false, "polygon": true, "rfc3161": true}'::jsonb|-|-
+COLUMN|public.signature_workflows|8|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.signature_workflows|9|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.signer_links|10|status|text|NOT_NULL|'pending'::text|-|-
+COLUMN|public.signer_links|11|opened_at|timestamp with time zone|NULL||-|-
+COLUMN|public.signer_links|12|opened_ip|inet|NULL||-|-
+COLUMN|public.signer_links|13|opened_user_agent|text|NULL||-|-
+COLUMN|public.signer_links|14|signed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.signer_links|15|signed_ip|inet|NULL||-|-
+COLUMN|public.signer_links|16|signed_user_agent|text|NULL||-|-
+COLUMN|public.signer_links|17|signature_data_url|text|NULL||-|-
+COLUMN|public.signer_links|18|nda_accepted|boolean|NULL|false|-|-
+COLUMN|public.signer_links|19|nda_accepted_at|timestamp with time zone|NULL||-|-
+COLUMN|public.signer_links|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.signer_links|20|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.signer_links|21|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.signer_links|22|document_entity_id|uuid|NULL||-|-
+COLUMN|public.signer_links|2|document_id|uuid|NULL||-|-
+COLUMN|public.signer_links|3|owner_id|uuid|NOT_NULL||-|-
+COLUMN|public.signer_links|4|signer_email|text|NOT_NULL||-|-
+COLUMN|public.signer_links|5|signer_name|text|NULL||-|-
+COLUMN|public.signer_links|6|signer_company|text|NULL||-|-
+COLUMN|public.signer_links|7|signer_job_title|text|NULL||-|-
+COLUMN|public.signer_links|8|token|text|NOT_NULL||-|-
+COLUMN|public.signer_links|9|expires_at|timestamp with time zone|NOT_NULL|(now() + '30 days'::interval)|-|-
+COLUMN|public.signer_otps|1|signer_id|uuid|NOT_NULL||-|-
+COLUMN|public.signer_otps|2|workflow_id|uuid|NULL||-|-
+COLUMN|public.signer_otps|3|otp_hash|text|NOT_NULL||-|-
+COLUMN|public.signer_otps|4|expires_at|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.signer_otps|5|attempts|integer|NOT_NULL|0|-|-
+COLUMN|public.signer_otps|6|last_sent_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.signer_otps|7|verified_at|timestamp with time zone|NULL||-|-
+COLUMN|public.signer_receipts|10|ip|text|NULL||-|-
+COLUMN|public.signer_receipts|11|user_agent|text|NULL||-|-
+COLUMN|public.signer_receipts|12|received_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.signer_receipts|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.signer_receipts|2|signer_id|uuid|NULL||-|-
+COLUMN|public.signer_receipts|3|workflow_id|uuid|NULL||-|-
+COLUMN|public.signer_receipts|4|email|text|NOT_NULL||-|-
+COLUMN|public.signer_receipts|5|signer_name|text|NULL||-|-
+COLUMN|public.signer_receipts|6|doc_id|text|NULL||-|-
+COLUMN|public.signer_receipts|7|doc_id_type|text|NULL||-|-
+COLUMN|public.signer_receipts|8|phone|text|NULL||-|-
+COLUMN|public.signer_receipts|9|metadata|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.system_emails|10|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.system_emails|11|metadata|jsonb|NULL||-|-
+COLUMN|public.system_emails|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.system_emails|2|recipient_email|text|NOT_NULL||-|-
+COLUMN|public.system_emails|3|email_type|text|NOT_NULL||-|-
+COLUMN|public.system_emails|4|subject|text|NOT_NULL||-|-
+COLUMN|public.system_emails|5|body_html|text|NULL||-|-
+COLUMN|public.system_emails|6|delivery_status|text|NOT_NULL|'pending'::text|-|-
+COLUMN|public.system_emails|7|error_message|text|NULL||-|-
+COLUMN|public.system_emails|8|attempts|integer|NOT_NULL|0|-|-
+COLUMN|public.system_emails|9|sent_at|timestamp with time zone|NULL||-|-
+COLUMN|public.system_workers|1|name|text|NOT_NULL||-|-
+COLUMN|public.system_workers|2|last_seen_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.system_workers|3|status|text|NOT_NULL|'alive'::text|-|-
+COLUMN|public.system_workers|4|metadata|jsonb|NULL|'{}'::jsonb|-|-
+COLUMN|public.system_workers|5|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.system_workers|6|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.user_documents|10|signnow_status|text|NULL||-|-
+COLUMN|public.user_documents|11|signed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.user_documents|12|certified_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.user_documents|13|has_legal_timestamp|boolean|NULL|false|-|-
+COLUMN|public.user_documents|14|has_bitcoin_anchor|boolean|NULL|false|-|-
+COLUMN|public.user_documents|15|bitcoin_anchor_id|uuid|NULL||-|-
+COLUMN|public.user_documents|16|verification_count|integer|NULL|0|-|-
+COLUMN|public.user_documents|17|last_verified_at|timestamp with time zone|NULL||-|-
+COLUMN|public.user_documents|18|tags|text[]|NULL|'{}'::text[]|-|-
+COLUMN|public.user_documents|19|notes|text|NULL||-|-
+COLUMN|public.user_documents|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.user_documents|20|is_archived|boolean|NULL|false|-|-
+COLUMN|public.user_documents|21|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.user_documents|22|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.user_documents|23|status|text|NULL|'draft'::text|-|-
+COLUMN|public.user_documents|24|file_type|text|NULL|'pdf'::text|-|-
+COLUMN|public.user_documents|25|last_event_at|timestamp with time zone|NULL|now()|-|-
+COLUMN|public.user_documents|26|bitcoin_status|text|NULL||-|-
+COLUMN|public.user_documents|27|bitcoin_confirmed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.user_documents|28|overall_status|text|NULL|'draft'::text|-|-
+COLUMN|public.user_documents|29|eco_file_data|jsonb|NULL||-|-
+COLUMN|public.user_documents|2|user_id|uuid|NULL||-|-
+COLUMN|public.user_documents|30|download_enabled|boolean|NULL|true|-|-
+COLUMN|public.user_documents|31|eco_hash|text|NULL||-|-
+COLUMN|public.user_documents|32|has_polygon_anchor|boolean|NULL|false|-|-
+COLUMN|public.user_documents|33|polygon_anchor_id|uuid|NULL||-|-
+COLUMN|public.user_documents|34|folder_id|uuid|NULL||-|-
+COLUMN|public.user_documents|35|eco_storage_path|text|NULL||-|-
+COLUMN|public.user_documents|36|ecox_storage_path|text|NULL||-|-
+COLUMN|public.user_documents|37|zero_knowledge_opt_out|boolean|NOT_NULL|false|-|-
+COLUMN|public.user_documents|38|protection_level|text|NULL||-|-
+COLUMN|public.user_documents|39|polygon_status|text|NULL||-|-
+COLUMN|public.user_documents|3|document_name|text|NOT_NULL||-|-
+COLUMN|public.user_documents|40|polygon_confirmed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.user_documents|41|encrypted|boolean|NULL|false|-|-
+COLUMN|public.user_documents|42|encrypted_path|text|NULL||-|-
+COLUMN|public.user_documents|43|wrapped_key|text|NULL||-|-
+COLUMN|public.user_documents|44|wrap_iv|text|NULL||-|-
+COLUMN|public.user_documents|45|document_entity_id|uuid|NULL||-|-
+COLUMN|public.user_documents|4|document_hash|text|NOT_NULL||-|-
+COLUMN|public.user_documents|5|document_size|bigint|NOT_NULL||-|-
+COLUMN|public.user_documents|6|mime_type|text|NOT_NULL|'application/pdf'::text|-|-
+COLUMN|public.user_documents|7|pdf_storage_path|text|NULL||-|-
+COLUMN|public.user_documents|8|eco_data|jsonb|NOT_NULL||-|-
+COLUMN|public.user_documents|9|signnow_document_id|text|NULL||-|-
+COLUMN|public.welcome_email_queue|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.welcome_email_queue|2|user_id|uuid|NOT_NULL||-|-
+COLUMN|public.welcome_email_queue|3|user_email|text|NOT_NULL||-|-
+COLUMN|public.welcome_email_queue|4|user_name|text|NULL||-|-
+COLUMN|public.welcome_email_queue|5|status|text|NOT_NULL|'pending'::text|-|-
+COLUMN|public.welcome_email_queue|6|error_message|text|NULL||-|-
+COLUMN|public.welcome_email_queue|7|attempts|integer|NOT_NULL|0|-|-
+COLUMN|public.welcome_email_queue|8|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.welcome_email_queue|9|sent_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_artifacts|10|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_artifacts|11|finalized_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_artifacts|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workflow_artifacts|2|workflow_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_artifacts|3|status|text|NOT_NULL|'pending'::text|-|-
+COLUMN|public.workflow_artifacts|4|artifact_id|uuid|NULL||-|-
+COLUMN|public.workflow_artifacts|5|artifact_hash|text|NULL||-|-
+COLUMN|public.workflow_artifacts|6|artifact_url|text|NULL||-|-
+COLUMN|public.workflow_artifacts|7|build_attempts|integer|NOT_NULL|0|-|-
+COLUMN|public.workflow_artifacts|8|last_error|text|NULL||-|-
+COLUMN|public.workflow_artifacts|9|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_events|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workflow_events|2|workflow_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_events|3|signer_id|uuid|NULL||-|-
+COLUMN|public.workflow_events|4|event_type|text|NOT_NULL||-|-
+COLUMN|public.workflow_events|5|payload|jsonb|NULL|'{}'::jsonb|-|-
+COLUMN|public.workflow_events|6|actor_id|uuid|NULL||-|-
+COLUMN|public.workflow_events|7|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_fields|10|metadata|jsonb|NULL||-|-
+COLUMN|public.workflow_fields|11|batch_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_fields|12|apply_to_all_pages|boolean|NULL|false|-|-
+COLUMN|public.workflow_fields|13|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_fields|14|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_fields|15|created_by|uuid|NULL||-|-
+COLUMN|public.workflow_fields|16|external_field_id|uuid|NULL||-|-
+COLUMN|public.workflow_fields|17|assigned_signer_id|uuid|NULL||-|-
+COLUMN|public.workflow_fields|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workflow_fields|2|document_entity_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_fields|3|field_type|text|NOT_NULL||-|-
+COLUMN|public.workflow_fields|4|label|text|NULL||-|-
+COLUMN|public.workflow_fields|5|placeholder|text|NULL||-|-
+COLUMN|public.workflow_fields|6|"position"|jsonb|NOT_NULL||-|-
+COLUMN|public.workflow_fields|7|assigned_to|text|NULL||-|-
+COLUMN|public.workflow_fields|8|required|boolean|NOT_NULL|false|-|-
+COLUMN|public.workflow_fields|9|value|text|NULL||-|-
+COLUMN|public.workflow_notifications|10|delivery_status|text|NULL|'pending'::text|-|-
+COLUMN|public.workflow_notifications|11|error_message|text|NULL||-|-
+COLUMN|public.workflow_notifications|12|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_notifications|13|resend_email_id|text|NULL||-|-
+COLUMN|public.workflow_notifications|14|retry_count|integer|NOT_NULL|0|-|-
+COLUMN|public.workflow_notifications|15|step|text|NOT_NULL|'primary'::text|-|-
+COLUMN|public.workflow_notifications|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workflow_notifications|2|workflow_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_notifications|3|recipient_email|text|NOT_NULL||-|-
+COLUMN|public.workflow_notifications|4|recipient_type|text|NOT_NULL||-|-
+COLUMN|public.workflow_notifications|5|signer_id|uuid|NULL||-|-
+COLUMN|public.workflow_notifications|6|notification_type|text|NOT_NULL||-|-
+COLUMN|public.workflow_notifications|7|subject|text|NOT_NULL||-|-
+COLUMN|public.workflow_notifications|8|body_html|text|NOT_NULL||-|-
+COLUMN|public.workflow_notifications|9|sent_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signatures|10|ecox_file_url|text|NULL||-|-
+COLUMN|public.workflow_signatures|11|rfc3161_token|text|NULL||-|-
+COLUMN|public.workflow_signatures|12|polygon_tx_hash|text|NULL||-|-
+COLUMN|public.workflow_signatures|13|bitcoin_anchor_id|uuid|NULL||-|-
+COLUMN|public.workflow_signatures|14|ip_address|text|NULL||-|-
+COLUMN|public.workflow_signatures|15|user_agent|text|NULL||-|-
+COLUMN|public.workflow_signatures|16|geo_location|jsonb|NULL||-|-
+COLUMN|public.workflow_signatures|17|signed_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_signatures|18|nda_accepted|boolean|NULL|false|-|-
+COLUMN|public.workflow_signatures|19|nda_accepted_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signatures|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workflow_signatures|20|nda_ip_address|text|NULL||-|-
+COLUMN|public.workflow_signatures|21|nda_fingerprint|jsonb|NULL||-|-
+COLUMN|public.workflow_signatures|2|workflow_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_signatures|3|version_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_signatures|4|signer_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_signatures|5|signature_image_url|text|NULL||-|-
+COLUMN|public.workflow_signatures|6|signature_coordinates|jsonb|NULL||-|-
+COLUMN|public.workflow_signatures|7|signature_hash|text|NOT_NULL||-|-
+COLUMN|public.workflow_signatures|8|certification_data|jsonb|NOT_NULL||-|-
+COLUMN|public.workflow_signatures|9|eco_file_url|text|NULL||-|-
+COLUMN|public.workflow_signers|10|access_token_hash|text|NULL||-|-
+COLUMN|public.workflow_signers|11|first_accessed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signers|12|signed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signers|13|signature_data|jsonb|NULL||-|-
+COLUMN|public.workflow_signers|14|signature_hash|text|NULL||-|-
+COLUMN|public.workflow_signers|15|change_request_data|jsonb|NULL||-|-
+COLUMN|public.workflow_signers|16|change_request_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signers|17|change_request_status|text|NULL||-|-
+COLUMN|public.workflow_signers|18|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_signers|19|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_signers|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workflow_signers|20|nda_accepted|boolean|NULL|false|-|-
+COLUMN|public.workflow_signers|21|nda_accepted_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signers|22|signnow_embed_url|text|NULL||-|-
+COLUMN|public.workflow_signers|23|signnow_embed_created_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signers|24|token_expires_at|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.workflow_signers|25|token_revoked_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signers|26|access_token_ciphertext|text|NOT_NULL||-|-
+COLUMN|public.workflow_signers|27|access_token_nonce|text|NOT_NULL||-|-
+COLUMN|public.workflow_signers|28|signer_state_hash|text|NULL||-|-
+COLUMN|public.workflow_signers|29|signer_state_version|integer|NULL|1|-|-
+COLUMN|public.workflow_signers|2|workflow_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_signers|30|signer_state_committed_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signers|31|signature_capture_hash|text|NULL||-|-
+COLUMN|public.workflow_signers|32|wrapped_key|text|NULL||-|-
+COLUMN|public.workflow_signers|33|wrap_iv|text|NULL||-|-
+COLUMN|public.workflow_signers|34|recipient_salt|text|NULL||-|-
+COLUMN|public.workflow_signers|35|key_mode|text|NOT_NULL|'legacy'::text|-|-
+COLUMN|public.workflow_signers|36|signing_lock_id|uuid|NULL||-|-
+COLUMN|public.workflow_signers|37|signing_lock_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workflow_signers|3|signing_order|integer|NOT_NULL||-|-
+COLUMN|public.workflow_signers|4|email|text|NOT_NULL||-|-
+COLUMN|public.workflow_signers|5|name|text|NULL||-|-
+COLUMN|public.workflow_signers|6|require_login|boolean|NOT_NULL|true|-|-
+COLUMN|public.workflow_signers|7|require_nda|boolean|NOT_NULL|true|-|-
+COLUMN|public.workflow_signers|8|quick_access|boolean|NOT_NULL|false|-|-
+COLUMN|public.workflow_signers|9|status|text|NOT_NULL|'invited'::text|-|-
+COLUMN|public.workflow_versions|10|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workflow_versions|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workflow_versions|2|workflow_id|uuid|NOT_NULL||-|-
+COLUMN|public.workflow_versions|3|version_number|integer|NOT_NULL||-|-
+COLUMN|public.workflow_versions|4|document_url|text|NOT_NULL||-|-
+COLUMN|public.workflow_versions|5|document_hash|text|NOT_NULL||-|-
+COLUMN|public.workflow_versions|6|change_reason|text|NULL||-|-
+COLUMN|public.workflow_versions|7|requested_by|uuid|NULL||-|-
+COLUMN|public.workflow_versions|8|modification_notes|jsonb|NULL||-|-
+COLUMN|public.workflow_versions|9|status|text|NOT_NULL|'active'::text|-|-
+COLUMN|public.workspace_addons|10|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workspace_addons|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workspace_addons|2|workspace_id|uuid|NOT_NULL||-|-
+COLUMN|public.workspace_addons|3|addon_type|text|NOT_NULL||-|-
+COLUMN|public.workspace_addons|4|quantity|numeric(12,2)|NOT_NULL|0|-|-
+COLUMN|public.workspace_addons|5|unit|text|NOT_NULL||-|-
+COLUMN|public.workspace_addons|6|status|text|NOT_NULL|'active'::text|-|-
+COLUMN|public.workspace_addons|7|metadata|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.workspace_addons|8|started_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workspace_addons|9|ended_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workspace_limits|10|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workspace_limits|11|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workspace_limits|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workspace_limits|2|workspace_id|uuid|NOT_NULL||-|-
+COLUMN|public.workspace_limits|3|seats_limit|integer|NULL||-|-
+COLUMN|public.workspace_limits|4|storage_gb_limit|integer|NULL||-|-
+COLUMN|public.workspace_limits|5|legal_signatures_quota|integer|NULL||-|-
+COLUMN|public.workspace_limits|6|workflows_active_limit|integer|NULL||-|-
+COLUMN|public.workspace_limits|7|renotify_limit|integer|NULL||-|-
+COLUMN|public.workspace_limits|8|capabilities|jsonb|NOT_NULL|'{}'::jsonb|-|-
+COLUMN|public.workspace_limits|9|source|text|NOT_NULL|'plan'::text|-|-
+COLUMN|public.workspace_plan|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workspace_plan|2|workspace_id|uuid|NOT_NULL||-|-
+COLUMN|public.workspace_plan|3|plan_id|uuid|NOT_NULL||-|-
+COLUMN|public.workspace_plan|4|status|text|NOT_NULL|'active'::text|-|-
+COLUMN|public.workspace_plan|5|started_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workspace_plan|6|ended_at|timestamp with time zone|NULL||-|-
+COLUMN|public.workspace_plan|7|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workspace_plan|8|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workspace_usage_snapshot|10|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workspace_usage_snapshot|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workspace_usage_snapshot|2|workspace_id|uuid|NOT_NULL||-|-
+COLUMN|public.workspace_usage_snapshot|3|period_start|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.workspace_usage_snapshot|4|period_end|timestamp with time zone|NOT_NULL||-|-
+COLUMN|public.workspace_usage_snapshot|5|seats_used|integer|NULL||-|-
+COLUMN|public.workspace_usage_snapshot|6|storage_gb_used|numeric(12,2)|NULL||-|-
+COLUMN|public.workspace_usage_snapshot|7|legal_signatures_used|integer|NULL||-|-
+COLUMN|public.workspace_usage_snapshot|8|workflows_active|integer|NULL||-|-
+COLUMN|public.workspace_usage_snapshot|9|renotify_count|integer|NULL||-|-
+COLUMN|public.workspaces|1|id|uuid|NOT_NULL|gen_random_uuid()|-|-
+COLUMN|public.workspaces|2|name|text|NOT_NULL||-|-
+COLUMN|public.workspaces|3|owner_id|uuid|NOT_NULL||-|-
+COLUMN|public.workspaces|4|status|text|NOT_NULL|'active'::text|-|-
+COLUMN|public.workspaces|5|created_at|timestamp with time zone|NOT_NULL|now()|-|-
+COLUMN|public.workspaces|6|updated_at|timestamp with time zone|NOT_NULL|now()|-|-
+CONSTRAINT|public.access_events|access_events_event_type_check|CHECK (event_type = ANY (ARRAY['view'::text, 'download'::text, 'forward'::text]))
+CONSTRAINT|public.access_events|access_events_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.access_events|access_events_recipient_id_fkey|FOREIGN KEY (recipient_id) REFERENCES recipients(id) ON DELETE CASCADE
+CONSTRAINT|public.access_logs|access_logs_action_check|CHECK (action = ANY (ARRAY['created'::text, 'accessed'::text, 'verified'::text, 'downloaded'::text, 'shared'::text, 'revoked'::text]))
+CONSTRAINT|public.access_logs|access_logs_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.anchor_states|anchor_states_pkey|PRIMARY KEY (project_id)
+CONSTRAINT|public.anchors|anchors_anchor_status_check|CHECK (anchor_status = ANY (ARRAY['queued'::text, 'pending'::text, 'processing'::text, 'confirmed'::text, 'failed'::text]))
+CONSTRAINT|public.anchors|anchors_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE SET NULL
+CONSTRAINT|public.anchors|anchors_document_id_fkey|FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+CONSTRAINT|public.anchors|anchors_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.anchors|anchors_polygon_status_check|CHECK (polygon_status = ANY (ARRAY['pending'::text, 'processing'::text, 'confirmed'::text, 'failed'::text]))
+CONSTRAINT|public.anchors|anchors_user_document_id_fkey|FOREIGN KEY (user_document_id) REFERENCES user_documents(id) ON DELETE CASCADE
+CONSTRAINT|public.anchors|anchors_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id)
+CONSTRAINT|public.anchors|unique_document_anchor|UNIQUE (document_hash, anchor_type)
+CONSTRAINT|public.anchors|valid_bitcoin_tx|CHECK (anchor_status = 'confirmed'::text AND bitcoin_tx_id IS NOT NULL OR anchor_status <> 'confirmed'::text)
+CONSTRAINT|public.audit_logs|audit_logs_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.audit_logs|audit_logs_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id)
+CONSTRAINT|public.batches|batches_assigned_signer_id_fkey|FOREIGN KEY (assigned_signer_id) REFERENCES workflow_signers(id) ON DELETE SET NULL
+CONSTRAINT|public.batches|batches_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.batches|batches_origin_check|CHECK (origin = ANY (ARRAY['user_created'::text, 'legacy_backfill'::text]))
+CONSTRAINT|public.batches|batches_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.bitcoin_ots_files|bitcoin_ots_files_anchor_id_fkey|FOREIGN KEY (anchor_id) REFERENCES anchors(id) ON DELETE CASCADE
+CONSTRAINT|public.bitcoin_ots_files|bitcoin_ots_files_pkey|PRIMARY KEY (anchor_id)
+CONSTRAINT|public.certificate_regeneration_requests|certificate_regeneration_requests_document_id_fkey|FOREIGN KEY (document_id) REFERENCES user_documents(id) ON DELETE CASCADE
+CONSTRAINT|public.certificate_regeneration_requests|certificate_regeneration_requests_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.certificate_regeneration_requests|certificate_regeneration_requests_request_type_check|CHECK (request_type = ANY (ARRAY['eco'::text, 'ecox'::text, 'pdf'::text]))
+CONSTRAINT|public.certificate_regeneration_requests|certificate_regeneration_requests_status_check|CHECK (status = ANY (ARRAY['pending'::text, 'processing'::text, 'done'::text, 'failed'::text]))
+CONSTRAINT|public.certificate_regeneration_requests|certificate_regeneration_requests_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.contact_leads|contact_leads_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.contact_leads|contact_leads_status_check|CHECK (status = ANY (ARRAY['new'::text, 'contacted'::text, 'converted'::text, 'lost'::text]))
+CONSTRAINT|public.conversion_events|conversion_events_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.custody_access_log|custody_access_log_access_type_check|CHECK (access_type = ANY (ARRAY['upload'::text, 'download'::text, 'decrypt'::text, 'share'::text]))
+CONSTRAINT|public.custody_access_log|custody_access_log_accessed_by_fkey|FOREIGN KEY (accessed_by) REFERENCES auth.users(id)
+CONSTRAINT|public.custody_access_log|custody_access_log_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.custody_access_log|custody_access_log_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.custody_key_rotations|custody_key_rotations_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.custody_key_rotations|custody_key_rotations_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.custody_key_rotations|custody_key_rotations_rotated_by_fkey|FOREIGN KEY (rotated_by) REFERENCES auth.users(id)
+CONSTRAINT|public.document_entities|document_entities_custody_mode_check|CHECK (custody_mode = ANY (ARRAY['hash_only'::text, 'encrypted_custody'::text]))
+CONSTRAINT|public.document_entities|document_entities_custody_storage_consistent|CHECK (custody_mode = 'hash_only'::text OR source_storage_path IS NOT NULL)
+CONSTRAINT|public.document_entities|document_entities_events_is_array|CHECK (jsonb_typeof(events) = 'array'::text)
+CONSTRAINT|public.document_entities|document_entities_hash_chain_is_object|CHECK (jsonb_typeof(hash_chain) = 'object'::text)
+CONSTRAINT|public.document_entities|document_entities_lifecycle_status_check|CHECK (lifecycle_status = ANY (ARRAY['protected'::text, 'needs_witness'::text, 'witness_ready'::text, 'in_signature_flow'::text, 'signed'::text, 'anchored'::text, 'revoked'::text, 'archived'::text]))
+CONSTRAINT|public.document_entities|document_entities_owner_id_fkey|FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE RESTRICT
+CONSTRAINT|public.document_entities|document_entities_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.document_entities|document_entities_signed_authority_check|CHECK (signed_authority IS NULL OR (signed_authority = ANY (ARRAY['internal'::text, 'external'::text])))
+CONSTRAINT|public.document_entities|document_entities_source_hash_unique|UNIQUE (owner_id, source_hash)
+CONSTRAINT|public.document_entities|document_entities_transform_log_is_array|CHECK (jsonb_typeof(transform_log) = 'array'::text)
+CONSTRAINT|public.document_entities|document_entities_witness_current_status_check|CHECK (witness_current_status = ANY (ARRAY['generated'::text, 'signed'::text]))
+CONSTRAINT|public.document_entities|document_entities_witness_hash_consistent|CHECK (witness_current_hash IS NULL OR witness_hash = witness_current_hash)
+CONSTRAINT|public.document_entities|document_entities_witness_history_is_array|CHECK (jsonb_typeof(witness_history) = 'array'::text)
+CONSTRAINT|public.document_entities|document_entities_witness_mime_pdf|CHECK (witness_current_mime IS NULL OR witness_current_mime = 'application/pdf'::text)
+CONSTRAINT|public.document_entities|events_is_array|CHECK (events IS NULL OR jsonb_typeof(events) = 'array'::text)
+CONSTRAINT|public.document_folders|document_folders_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.document_folders|document_folders_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.document_shares|document_shares_created_by_fkey|FOREIGN KEY (created_by) REFERENCES auth.users(id)
+CONSTRAINT|public.document_shares|document_shares_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.document_shares|document_shares_document_entity_required|CHECK (document_entity_id IS NOT NULL) NOT VALID
+CONSTRAINT|public.document_shares|document_shares_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.document_shares|document_shares_status_check|CHECK (status = ANY (ARRAY['pending'::text, 'accessed'::text, 'expired'::text]))
+CONSTRAINT|public.documents|documents_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE SET NULL
+CONSTRAINT|public.documents|documents_owner_id_fkey|FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.documents|documents_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.documents|documents_status_check|CHECK (status = ANY (ARRAY['active'::text, 'revoked'::text, 'archived'::text]))
+CONSTRAINT|public.domain_outbox|domain_outbox_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.domain_outbox|domain_outbox_status_check|CHECK (status = ANY (ARRAY['pending'::text, 'dispatched'::text, 'failed'::text]))
+CONSTRAINT|public.eco_records|eco_records_document_id_key|UNIQUE (document_id)
+CONSTRAINT|public.eco_records|eco_records_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.eco_records|eco_records_status_check|CHECK (status = ANY (ARRAY['pending'::text, 'anchored'::text, 'verified'::text, 'revoked'::text]))
+CONSTRAINT|public.ecox_audit_trail|ecox_audit_trail_event_type_check|CHECK (event_type = ANY (ARRAY['access_link_opened'::text, 'nda_accepted'::text, 'nda.accepted'::text, 'mfa_challenged'::text, 'mfa_success'::text, 'mfa_failed'::text, 'otp.sent'::text, 'otp.verified'::text, 'document_decrypted'::text, 'document_viewed'::text, 'document_view_duration'::text, 'signature_started'::text, 'signature_applied'::text, 'signature_completed'::text, 'eco_downloaded'::text, 'sequential_order_violated'::text]))
+CONSTRAINT|public.ecox_audit_trail|ecox_audit_trail_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.ecox_audit_trail|ecox_audit_trail_signer_id_fkey|FOREIGN KEY (signer_id) REFERENCES workflow_signers(id) ON DELETE CASCADE
+CONSTRAINT|public.ecox_audit_trail|ecox_audit_trail_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.events|events_document_id_fkey|FOREIGN KEY (document_id) REFERENCES user_documents(id) ON DELETE CASCADE
+CONSTRAINT|public.events|events_event_type_check|CHECK (event_type = ANY (ARRAY['created'::text, 'sent'::text, 'opened'::text, 'identified'::text, 'signed'::text, 'anchored_polygon'::text, 'anchored_bitcoin'::text, 'verified'::text, 'downloaded'::text, 'expired'::text, 'anchor.attempt'::text, 'anchor.confirmed'::text, 'anchor.failed'::text]))
+CONSTRAINT|public.events|events_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.events|events_signer_link_id_fkey|FOREIGN KEY (signer_link_id) REFERENCES signer_links(id) ON DELETE SET NULL
+CONSTRAINT|public.events|events_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
+CONSTRAINT|public.executor_decision_logs|executor_decision_logs_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.executor_decision_logs|executor_decision_logs_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.executor_job_runs|executor_job_runs_job_id_fkey|FOREIGN KEY (job_id) REFERENCES executor_jobs(id) ON DELETE CASCADE
+CONSTRAINT|public.executor_job_runs|executor_job_runs_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.executor_jobs|executor_jobs_dedupe_key_unique|UNIQUE (dedupe_key)
+CONSTRAINT|public.executor_jobs|executor_jobs_enqueue_source_check|CHECK (enqueue_source = ANY (ARRAY['canonical'::text, 'compat_direct'::text, 'manual'::text, 'unknown'::text]))
+CONSTRAINT|public.executor_jobs|executor_jobs_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.executor_jobs|executor_jobs_status_check|CHECK (status = ANY (ARRAY['queued'::text, 'running'::text, 'succeeded'::text, 'failed'::text, 'retry_scheduled'::text, 'dead'::text]))
+CONSTRAINT|public.feature_flags|feature_flags_pkey|PRIMARY KEY (flag_name)
+CONSTRAINT|public.founder_badges|founder_badges_badge_number_key|UNIQUE (badge_number)
+CONSTRAINT|public.founder_badges|founder_badges_pkey|PRIMARY KEY (user_id)
+CONSTRAINT|public.founder_badges|founder_badges_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.identity_bindings|identity_bindings_merged_into_id_fkey|FOREIGN KEY (merged_into_id) REFERENCES identity_bindings(id) ON DELETE RESTRICT
+CONSTRAINT|public.identity_bindings|identity_bindings_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.identity_bindings|identity_bindings_status_check|CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'merged'::text]))
+CONSTRAINT|public.invariant_violations|invariant_violations_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.invariant_violations|invariant_violations_severity_check|CHECK (severity = ANY (ARRAY['info'::text, 'warning'::text, 'error'::text, 'critical'::text]))
+CONSTRAINT|public.invites|invites_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.invites|invites_document_id_fkey|FOREIGN KEY (document_id) REFERENCES user_documents(id) ON DELETE CASCADE
+CONSTRAINT|public.invites|invites_email_check|CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)
+CONSTRAINT|public.invites|invites_invited_by_fkey|FOREIGN KEY (invited_by) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.invites|invites_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.invites|invites_revoked_by_fkey|FOREIGN KEY (revoked_by) REFERENCES auth.users(id)
+CONSTRAINT|public.invites|invites_role_check|CHECK (role = ANY (ARRAY['viewer'::text, 'signer'::text]))
+CONSTRAINT|public.invites|invites_token_key|UNIQUE (token)
+CONSTRAINT|public.links|links_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE SET NULL
+CONSTRAINT|public.links|links_document_id_fkey|FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+CONSTRAINT|public.links|links_expires_at_future_check|CHECK (expires_at IS NULL OR expires_at > created_at)
+CONSTRAINT|public.links|links_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.links|links_recipient_id_fkey|FOREIGN KEY (recipient_id) REFERENCES recipients(id) ON DELETE SET NULL
+CONSTRAINT|public.links|links_token_hash_key|UNIQUE (token_hash)
+CONSTRAINT|public.nda_acceptances|nda_acceptances_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.nda_acceptances|nda_acceptances_recipient_id_fkey|FOREIGN KEY (recipient_id) REFERENCES recipients(id) ON DELETE CASCADE
+CONSTRAINT|public.nda_events|nda_events_document_id_fkey|FOREIGN KEY (document_id) REFERENCES user_documents(id) ON DELETE CASCADE
+CONSTRAINT|public.nda_events|nda_events_nda_template_id_fkey|FOREIGN KEY (nda_template_id) REFERENCES nda_templates(id) ON DELETE SET NULL
+CONSTRAINT|public.nda_events|nda_events_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.nda_signatures|nda_signatures_access_token_key|UNIQUE (access_token)
+CONSTRAINT|public.nda_signatures|nda_signatures_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.nda_templates|nda_templates_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.nda_templates|nda_templates_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.operation_documents|operation_documents_added_by_fkey|FOREIGN KEY (added_by) REFERENCES auth.users(id) ON DELETE SET NULL
+CONSTRAINT|public.operation_documents|operation_documents_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.operation_documents|operation_documents_draft_metadata_valid|CHECK (draft_file_ref IS NOT NULL OR draft_metadata = '{}'::jsonb)
+CONSTRAINT|public.operation_documents|operation_documents_draft_or_protected|CHECK (document_entity_id IS NOT NULL AND draft_file_ref IS NULL OR document_entity_id IS NULL AND draft_file_ref IS NOT NULL)
+CONSTRAINT|public.operation_documents|operation_documents_operation_id_fkey|FOREIGN KEY (operation_id) REFERENCES operations(id) ON DELETE CASCADE
+CONSTRAINT|public.operation_documents|operation_documents_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.operation_documents|operation_documents_unique|UNIQUE (operation_id, document_entity_id)
+CONSTRAINT|public.operations_events|operations_events_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE SET NULL
+CONSTRAINT|public.operations_events|operations_events_kind_check|CHECK (kind = ANY (ARRAY['operation.created'::text, 'operation.renamed'::text, 'operation.archived'::text, 'operation.closed'::text, 'operation.document_added'::text, 'operation.document_removed'::text]))
+CONSTRAINT|public.operations_events|operations_events_operation_id_fkey|FOREIGN KEY (operation_id) REFERENCES operations(id) ON DELETE CASCADE
+CONSTRAINT|public.operations_events|operations_events_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.operations|operations_name_not_empty|CHECK (length(TRIM(BOTH FROM name)) > 0)
+CONSTRAINT|public.operations|operations_owner_id_fkey|FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE RESTRICT
+CONSTRAINT|public.operations|operations_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.operations|operations_status_check|CHECK (status = ANY (ARRAY['draft'::text, 'active'::text, 'closed'::text, 'archived'::text]))
+CONSTRAINT|public.plans|plans_key_key|UNIQUE (key)
+CONSTRAINT|public.plans|plans_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.plans|plans_status_check|CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'archived'::text]))
+CONSTRAINT|public.presential_verification_otps|presential_verification_otps_attempts_check|CHECK (attempts >= 0)
+CONSTRAINT|public.presential_verification_otps|presential_verification_otps_participant_role_check|CHECK (participant_role = ANY (ARRAY['signer'::text, 'witness'::text]))
+CONSTRAINT|public.presential_verification_otps|presential_verification_otps_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.presential_verification_otps|presential_verification_otps_session_id_fkey|FOREIGN KEY (session_id) REFERENCES presential_verification_sessions(id) ON DELETE CASCADE
+CONSTRAINT|public.presential_verification_otps|presential_verification_otps_session_id_signer_email_key|UNIQUE (session_id, signer_email)
+CONSTRAINT|public.presential_verification_sessions|presential_verification_sessions_created_by_fkey|FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE RESTRICT
+CONSTRAINT|public.presential_verification_sessions|presential_verification_sessions_operation_id_fkey|FOREIGN KEY (operation_id) REFERENCES operations(id) ON DELETE CASCADE
+CONSTRAINT|public.presential_verification_sessions|presential_verification_sessions_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.presential_verification_sessions|presential_verification_sessions_session_id_key|UNIQUE (session_id)
+CONSTRAINT|public.presential_verification_sessions|presential_verification_sessions_status_check|CHECK (status = ANY (ARRAY['active'::text, 'closed'::text, 'expired'::text]))
+CONSTRAINT|public.product_events|product_events_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.product_events|product_events_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
+CONSTRAINT|public.profiles|profiles_pkey|PRIMARY KEY (user_id)
+CONSTRAINT|public.profiles|profiles_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.rate_limit_blocks|rate_limit_blocks_pkey|PRIMARY KEY (key)
+CONSTRAINT|public.rate_limits|rate_limits_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.recipients|recipients_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE SET NULL
+CONSTRAINT|public.recipients|recipients_document_id_fkey|FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+CONSTRAINT|public.recipients|recipients_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.recipients|recipients_recipient_id_key|UNIQUE (recipient_id)
+CONSTRAINT|public.shadow_decision_logs|shadow_decision_logs_check|CHECK (decision_code IS NOT NULL)
+CONSTRAINT|public.shadow_decision_logs|shadow_decision_logs_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.signature_application_events|signature_application_events_field_id_fkey|FOREIGN KEY (field_id) REFERENCES workflow_fields(id) ON DELETE CASCADE
+CONSTRAINT|public.signature_application_events|signature_application_events_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.signature_application_events|signature_application_events_signature_instance_id_field_id_key|UNIQUE (signature_instance_id, field_id)
+CONSTRAINT|public.signature_application_events|signature_application_events_signature_instance_id_fkey|FOREIGN KEY (signature_instance_id) REFERENCES signature_instances(id) ON DELETE CASCADE
+CONSTRAINT|public.signature_application_events|signature_application_events_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.signature_instances|signature_instances_batch_id_fkey|FOREIGN KEY (batch_id) REFERENCES batches(id) ON DELETE CASCADE
+CONSTRAINT|public.signature_instances|signature_instances_batch_id_signer_id_key|UNIQUE (batch_id, signer_id)
+CONSTRAINT|public.signature_instances|signature_instances_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.signature_instances|signature_instances_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.signature_instances|signature_instances_signer_id_fkey|FOREIGN KEY (signer_id) REFERENCES workflow_signers(id) ON DELETE CASCADE
+CONSTRAINT|public.signature_instances|signature_instances_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.signature_workflows|signature_workflows_delivery_mode_check|CHECK (delivery_mode = ANY (ARRAY['email'::text, 'link'::text]))
+CONSTRAINT|public.signature_workflows|signature_workflows_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE SET NULL
+CONSTRAINT|public.signature_workflows|signature_workflows_final_document_visibility_check|CHECK (final_document_visibility = ANY (ARRAY['owner_only'::text, 'participants'::text]))
+CONSTRAINT|public.signature_workflows|signature_workflows_owner_id_fkey|FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.signature_workflows|signature_workflows_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.signature_workflows|signature_workflows_signature_type_check|CHECK (signature_type = ANY (ARRAY['ECOSIGN'::text, 'SIGNNOW'::text]))
+CONSTRAINT|public.signature_workflows|signature_workflows_status_check|CHECK (status = ANY (ARRAY['draft'::text, 'ready'::text, 'active'::text, 'completed'::text, 'cancelled'::text, 'rejected'::text, 'archived'::text]))
+CONSTRAINT|public.signer_links|signer_links_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.signer_links|signer_links_document_id_fkey|FOREIGN KEY (document_id) REFERENCES user_documents(id) ON DELETE CASCADE
+CONSTRAINT|public.signer_links|signer_links_owner_id_fkey|FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.signer_links|signer_links_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.signer_links|signer_links_status_check|CHECK (status = ANY (ARRAY['pending'::text, 'opened'::text, 'identified'::text, 'signed'::text, 'expired'::text]))
+CONSTRAINT|public.signer_links|signer_links_token_key|UNIQUE (token)
+CONSTRAINT|public.signer_otps|signer_otps_pkey|PRIMARY KEY (signer_id)
+CONSTRAINT|public.signer_otps|signer_otps_signer_id_fkey|FOREIGN KEY (signer_id) REFERENCES workflow_signers(id) ON DELETE CASCADE
+CONSTRAINT|public.signer_otps|signer_otps_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.signer_receipts|signer_receipts_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.signer_receipts|signer_receipts_signer_id_fkey|FOREIGN KEY (signer_id) REFERENCES workflow_signers(id) ON DELETE CASCADE
+CONSTRAINT|public.signer_receipts|signer_receipts_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.system_emails|system_emails_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.system_workers|system_workers_pkey|PRIMARY KEY (name)
+CONSTRAINT|public.system_workers|system_workers_status_check|CHECK (status = ANY (ARRAY['alive'::text, 'stalled'::text, 'dead'::text]))
+CONSTRAINT|public.user_documents|check_bitcoin_status|CHECK (bitcoin_status IS NULL OR (bitcoin_status = ANY (ARRAY['pending'::text, 'confirmed'::text, 'failed'::text])))
+CONSTRAINT|public.user_documents|check_file_type|CHECK (file_type = ANY (ARRAY['pdf'::text, 'docx'::text, 'img'::text]))
+CONSTRAINT|public.user_documents|check_overall_status|CHECK (overall_status = ANY (ARRAY['draft'::text, 'pending'::text, 'pending_anchor'::text, 'certified'::text, 'rejected'::text, 'expired'::text, 'revoked'::text]))
+CONSTRAINT|public.user_documents|check_status|CHECK (status = ANY (ARRAY['draft'::text, 'sent'::text, 'pending'::text, 'signed'::text, 'rejected'::text, 'expired'::text]))
+CONSTRAINT|public.user_documents|user_documents_bitcoin_anchor_id_fkey|FOREIGN KEY (bitcoin_anchor_id) REFERENCES anchors(id) ON DELETE SET NULL
+CONSTRAINT|public.user_documents|user_documents_bitcoin_status_check|CHECK (bitcoin_status = ANY (ARRAY[NULL::text, 'pending'::text, 'confirmed'::text, 'failed'::text]))
+CONSTRAINT|public.user_documents|user_documents_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE SET NULL
+CONSTRAINT|public.user_documents|user_documents_document_entity_id_unique|UNIQUE (document_entity_id)
+CONSTRAINT|public.user_documents|user_documents_folder_id_fkey|FOREIGN KEY (folder_id) REFERENCES document_folders(id) ON DELETE SET NULL
+CONSTRAINT|public.user_documents|user_documents_overall_status_check|CHECK (overall_status = ANY (ARRAY['draft'::text, 'pending'::text, 'pending_anchor'::text, 'certified'::text, 'rejected'::text, 'expired'::text, 'revoked'::text]))
+CONSTRAINT|public.user_documents|user_documents_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.user_documents|user_documents_polygon_status_check|CHECK (polygon_status IS NULL OR (polygon_status = ANY (ARRAY['pending'::text, 'confirmed'::text, 'failed'::text])))
+CONSTRAINT|public.user_documents|user_documents_protection_level_check|CHECK (protection_level = ANY (ARRAY['ACTIVE'::text, 'REINFORCED'::text, 'TOTAL'::text]))
+CONSTRAINT|public.user_documents|user_documents_status_check|CHECK (status = ANY (ARRAY['draft'::text, 'sent'::text, 'pending'::text, 'signed'::text, 'rejected'::text, 'expired'::text]))
+CONSTRAINT|public.user_documents|user_documents_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.welcome_email_queue|welcome_email_queue_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.welcome_email_queue|welcome_email_queue_status_check|CHECK (status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text]))
+CONSTRAINT|public.welcome_email_queue|welcome_email_queue_user_id_fkey|FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+CONSTRAINT|public.welcome_email_queue|welcome_email_queue_user_id_key|UNIQUE (user_id)
+CONSTRAINT|public.workflow_artifacts|workflow_artifacts_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workflow_artifacts|workflow_artifacts_status_check|CHECK (status = ANY (ARRAY['pending'::text, 'building'::text, 'ready'::text, 'failed'::text]))
+CONSTRAINT|public.workflow_artifacts|workflow_artifacts_unique_workflow|UNIQUE (workflow_id)
+CONSTRAINT|public.workflow_artifacts|workflow_artifacts_workflow_fk|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.workflow_events|workflow_events_actor_id_fkey|FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL
+CONSTRAINT|public.workflow_events|workflow_events_event_type_check|CHECK (event_type = ANY (ARRAY['workflow.created'::text, 'workflow.activated'::text, 'workflow.completed'::text, 'workflow.cancelled'::text, 'signer.invited'::text, 'signer.accessed'::text, 'signer.identity_confirmed'::text, 'signer.ready_to_sign'::text, 'signer.signed'::text, 'signer.cancelled'::text, 'signer.rejected'::text, 'signer.expired'::text, 'otp.sent'::text, 'otp.verified'::text, 'document.change_requested'::text, 'document.change_resolved'::text, 'document.decrypted'::text, 'signature.applied'::text, 'signature.capture.consent'::text, 'fields.schema.committed'::text, 'signature.state.committed'::text, 'eco.snapshot.issued'::text, 'rekor.confirmed'::text]))
+CONSTRAINT|public.workflow_events|workflow_events_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workflow_events|workflow_events_signer_id_fkey|FOREIGN KEY (signer_id) REFERENCES workflow_signers(id) ON DELETE SET NULL
+CONSTRAINT|public.workflow_events|workflow_events_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.workflow_fields|position_required|CHECK ("position" IS NOT NULL)
+CONSTRAINT|public.workflow_fields|valid_position|CHECK (jsonb_typeof("position") = 'object'::text AND "position" ? 'page'::text AND "position" ? 'x'::text AND "position" ? 'y'::text AND "position" ? 'width'::text AND "position" ? 'height'::text)
+CONSTRAINT|public.workflow_fields|workflow_fields_assigned_signer_id_fkey|FOREIGN KEY (assigned_signer_id) REFERENCES workflow_signers(id) ON DELETE SET NULL
+CONSTRAINT|public.workflow_fields|workflow_fields_created_by_fkey|FOREIGN KEY (created_by) REFERENCES auth.users(id)
+CONSTRAINT|public.workflow_fields|workflow_fields_document_entity_id_fkey|FOREIGN KEY (document_entity_id) REFERENCES document_entities(id) ON DELETE CASCADE
+CONSTRAINT|public.workflow_fields|workflow_fields_field_type_check|CHECK (field_type = ANY (ARRAY['signature'::text, 'text'::text, 'date'::text]))
+CONSTRAINT|public.workflow_fields|workflow_fields_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workflow_notifications|unq_workflow_signer_notification_step|UNIQUE (workflow_id, signer_id, notification_type, step)
+CONSTRAINT|public.workflow_notifications|workflow_notifications_delivery_status_check|CHECK (delivery_status = ANY (ARRAY['pending'::text, 'sent'::text, 'delivered'::text, 'failed'::text, 'bounced'::text, 'cancelled'::text]))
+CONSTRAINT|public.workflow_notifications|workflow_notifications_notification_type_check|CHECK (notification_type = ANY (ARRAY['workflow_started'::text, 'your_turn_to_sign'::text, 'signature_completed'::text, 'signature_evidence_ready'::text, 'change_requested'::text, 'change_accepted'::text, 'change_rejected'::text, 'new_version_ready'::text, 'workflow_completed'::text, 'workflow_completed_simple'::text, 'workflow_cancelled'::text, 'signature_request'::text, 'signature_reminder'::text, 'system'::text, 'other'::text, 'polygon_confirmed'::text, 'bitcoin_confirmed'::text, 'owner_document_signed'::text, 'signer_copy_ready'::text, 'welcome_founder'::text, 'creator_detailed_notification'::text, 'artifact_ready'::text]))
+CONSTRAINT|public.workflow_notifications|workflow_notifications_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workflow_notifications|workflow_notifications_recipient_type_check|CHECK (recipient_type = ANY (ARRAY['owner'::text, 'signer'::text, 'all_signers'::text]))
+CONSTRAINT|public.workflow_notifications|workflow_notifications_signer_id_fkey|FOREIGN KEY (signer_id) REFERENCES workflow_signers(id)
+CONSTRAINT|public.workflow_notifications|workflow_notifications_step_check|CHECK (step = ANY (ARRAY['primary'::text, 'reminder_1'::text, 'reminder_2'::text, 'completion_notice'::text]))
+CONSTRAINT|public.workflow_notifications|workflow_notifications_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.workflow_signatures|workflow_signatures_bitcoin_anchor_id_fkey|FOREIGN KEY (bitcoin_anchor_id) REFERENCES anchors(id)
+CONSTRAINT|public.workflow_signatures|workflow_signatures_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workflow_signatures|workflow_signatures_signer_id_fkey|FOREIGN KEY (signer_id) REFERENCES workflow_signers(id) ON DELETE CASCADE
+CONSTRAINT|public.workflow_signatures|workflow_signatures_version_id_fkey|FOREIGN KEY (version_id) REFERENCES workflow_versions(id) ON DELETE CASCADE
+CONSTRAINT|public.workflow_signatures|workflow_signatures_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.workflow_signers|check_quick_access_consistency|CHECK (quick_access = false OR quick_access = true AND require_login = false AND require_nda = false)
+CONSTRAINT|public.workflow_signers|workflow_signers_access_token_hash_key|UNIQUE (access_token_hash)
+CONSTRAINT|public.workflow_signers|workflow_signers_change_request_status_check|CHECK (change_request_status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text]))
+CONSTRAINT|public.workflow_signers|workflow_signers_key_mode_check|CHECK (key_mode = ANY (ARRAY['legacy'::text, 'wrapped'::text]))
+CONSTRAINT|public.workflow_signers|workflow_signers_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workflow_signers|workflow_signers_status_check|CHECK (status = ANY (ARRAY['created'::text, 'invited'::text, 'accessed'::text, 'verified'::text, 'ready_to_sign'::text, 'signed'::text, 'cancelled'::text, 'rejected'::text, 'expired'::text]))
+CONSTRAINT|public.workflow_signers|workflow_signers_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.workflow_versions|workflow_versions_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workflow_versions|workflow_versions_requested_by_fkey|FOREIGN KEY (requested_by) REFERENCES auth.users(id)
+CONSTRAINT|public.workflow_versions|workflow_versions_status_check|CHECK (status = ANY (ARRAY['active'::text, 'superseded'::text, 'archived'::text]))
+CONSTRAINT|public.workflow_versions|workflow_versions_workflow_id_fkey|FOREIGN KEY (workflow_id) REFERENCES signature_workflows(id) ON DELETE CASCADE
+CONSTRAINT|public.workspace_addons|workspace_addons_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workspace_addons|workspace_addons_status_check|CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'expired'::text]))
+CONSTRAINT|public.workspace_addons|workspace_addons_type_unit_check|CHECK (addon_type = 'storage_gb'::text AND unit = 'gb'::text OR addon_type = 'seats'::text AND unit = 'seat'::text OR addon_type = 'signature_credits'::text AND unit = 'signature'::text OR addon_type = 'polygon_fast_anchor'::text AND unit = 'capability'::text)
+CONSTRAINT|public.workspace_addons|workspace_addons_workspace_id_fkey|FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+CONSTRAINT|public.workspace_limits|workspace_limits_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workspace_limits|workspace_limits_source_check|CHECK (source = ANY (ARRAY['plan'::text, 'override'::text, 'enterprise'::text]))
+CONSTRAINT|public.workspace_limits|workspace_limits_workspace_id_fkey|FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+CONSTRAINT|public.workspace_limits|workspace_limits_workspace_id_key|UNIQUE (workspace_id)
+CONSTRAINT|public.workspace_plan|workspace_plan_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workspace_plan|workspace_plan_plan_id_fkey|FOREIGN KEY (plan_id) REFERENCES plans(id)
+CONSTRAINT|public.workspace_plan|workspace_plan_status_check|CHECK (status = ANY (ARRAY['active'::text, 'trialing'::text, 'past_due'::text, 'canceled'::text]))
+CONSTRAINT|public.workspace_plan|workspace_plan_workspace_id_fkey|FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+CONSTRAINT|public.workspace_usage_snapshot|workspace_usage_snapshot_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workspace_usage_snapshot|workspace_usage_snapshot_workspace_id_fkey|FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+CONSTRAINT|public.workspaces|workspaces_owner_profile_fkey|FOREIGN KEY (owner_id) REFERENCES profiles(user_id) ON DELETE CASCADE
+CONSTRAINT|public.workspaces|workspaces_pkey|PRIMARY KEY (id)
+CONSTRAINT|public.workspaces|workspaces_status_check|CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'archived'::text]))
+EXTENSION|"uuid-ossp"|1.1
+EXTENSION|pg_cron|1.6.4
+EXTENSION|pg_graphql|1.5.11
+EXTENSION|pg_net|0.19.5
+EXTENSION|pg_stat_statements|1.11
+EXTENSION|pgcrypto|1.3
+EXTENSION|supabase_vault|0.3.1
+FUNCTION|public.advance_workflow(p_workflow_id uuid)|5b635a9324a3fc039576088ab61aef57
+FUNCTION|public.anchor_atomic_tx(_anchor_id uuid, _anchor_user_id uuid, _ots bytea, _metadata jsonb, _user_document_updates jsonb, _bitcoin_attempts integer)|4d92cd719a47a472ba2c113b464dbd39
+FUNCTION|public.anchor_polygon_atomic_tx(_anchor_id uuid, _anchor_user_id uuid, _tx_hash text, _block_number bigint, _block_hash text, _confirmed_at timestamp with time zone, _metadata jsonb, _user_document_updates jsonb, _polygon_attempts integer)|37180de950a07d9ee3168f8e5bedf9d4
+FUNCTION|public.append_document_entity_event(p_document_entity_id uuid, p_event jsonb, p_source text)|e502a9071362695869d1ad5882496825
+FUNCTION|public.append_event_to_workflow_events(p_event_type text, p_workflow_id uuid, p_signer_id uuid, p_payload jsonb, p_actor_id uuid)|23e3a2cf70bb471740d62de461bb1f5a
+FUNCTION|public.check_document_not_revoked()|83637eb837efb02ccc347776b1418b02
+FUNCTION|public.check_legacy_write_attempt(table_name text)|42614c08f1851cd87f2222df6f465b7d
+FUNCTION|public.claim_anchor_batch(p_network text, p_phase text, p_limit integer)|ed4362763c8eec3fa5832abf0615fd6b
+FUNCTION|public.claim_execution_jobs(p_limit integer, p_worker_id text)|203a74e56c8754d18a8d0eff4dc9e19a
+FUNCTION|public.claim_executor_jobs(p_limit integer, p_worker_id text)|fc6bbb42c6c3c77d3577c71e2cbecdef
+FUNCTION|public.claim_initial_decision_jobs(p_limit integer, p_worker_id text)|616d210b2fd0a114046f71fe0f7eb60f
+FUNCTION|public.claim_orchestrator_jobs(p_limit integer, p_worker_id text)|e0ce29555720c96d7487e2264489ccc5
+FUNCTION|public.claim_signer_for_signing(p_signer_id uuid, p_lock_id uuid, p_lock_ttl_seconds integer)|5c0705747e267369fbed5ac016cf3c8c
+FUNCTION|public.cleanup_draft_on_protect()|a5b905da4cbd969a33487adc04af424f
+FUNCTION|public.compute_workspace_effective_limits(p_workspace_id uuid)|3f8db62450d36296e33b2758cc4939cc
+FUNCTION|public.count_documents_in_operation(operation_id_param uuid)|31877b0c2294d2b653889d455025ad2c
+FUNCTION|public.count_user_drafts(user_id_param uuid)|a431c256e333f4bc0a5251a0bd3a9e45
+FUNCTION|public.create_document_folder(_name text)|3357d890e891992bd1e0a2a8015bfc0c
+FUNCTION|public.create_workflow_version(p_workflow_id uuid, p_document_url text, p_document_hash text, p_change_reason text, p_requested_by uuid, p_modification_notes jsonb)|9692e4ebd7417ac49d2de431cfe23bbf
+FUNCTION|public.delete_document_folder(_folder_id uuid)|3954118d74385ce4c69f09b7bacd32b5
+FUNCTION|public.detect_and_recover_orphan_anchors()|cd70e8ff6ff520925f371aa39cc2ea2e
+FUNCTION|public.enforce_active_requires_proof_events()|91f6ae1cd7adc87270db8a528000aa75
+FUNCTION|public.enforce_document_entities_append_only()|84572d4009bd674a489a9530c4692a9c
+FUNCTION|public.enforce_document_entities_immutability()|83a9b99beecb257fc7e67607acd92633
+FUNCTION|public.enforce_events_append_only()|f51ef0bc74456ddc7b1f9461853f242d
+FUNCTION|public.enforce_events_write_guard()|f882a5dec373df16c5bb4cdc0527f74f
+FUNCTION|public.enforce_required_evidence_on_protection_request()|dce6145cb434783f2d1a8acc828496f9
+FUNCTION|public.expire_signer_links()|00dc2d2bd610719768f1267f5c762fa0
+FUNCTION|public.generate_ecox_certificate(p_workflow_id uuid)|f6e2d9072e14738dd0ad20088e7d7332
+FUNCTION|public.generate_invite_token()|26d94a167e7c654f60c32c449702bb92
+FUNCTION|public.get_anchor_inconsistency_summary()|98c6e9d60ceedab23f394c9749afab74
+FUNCTION|public.get_cron_runtime_status()|8e0faeb6ee8ef95f104e3b9cae021a4b
+FUNCTION|public.get_cron_status(job_pattern text)|4e2c4fe9cccd196d0212a363b9527026
+FUNCTION|public.get_next_signer(p_workflow_id uuid)|4cab4e60df09d7aa01d600ac861e322c
+FUNCTION|public.get_workflow_public_status(p_workflow_id uuid)|25c50e1886fb303b3a5c94658f0334a7
+FUNCTION|public.guard_user_documents_writes()|54aafd39a76f0a09a07f9b74c7e3c823
+FUNCTION|public.guard_workflow_signers_status_writes()|ffd45cfbe4e720dafbc428de09de6e17
+FUNCTION|public.handle_new_user()|cc76a4be7908b2ee5bf40986250ae53c
+FUNCTION|public.hash_events_array(events_arr jsonb)|63ff5547ca2475dfb094824e7cabb013
+FUNCTION|public.insert_workflow_signer(p_workflow_id uuid, p_signing_order integer, p_email text, p_name text, p_require_login boolean, p_require_nda boolean, p_quick_access boolean, p_status text, p_access_token_hash text)|c7a3b083e6900005a060fd5b072ee808
+FUNCTION|public.invoke_fase1_executor()|424f037a5bc47a23251b3325f6bd1c46
+FUNCTION|public.invoke_process_bitcoin_anchors()|9d70f61b2a3d29dd17785692644947ed
+FUNCTION|public.invoke_process_polygon_anchors()|cc7c3db3ea3e0c451e9de2848edb4abd
+FUNCTION|public.is_decision_in_shadow_mode(decision_id text)|0be2f746322e1b42f6a33d263fb2e942
+FUNCTION|public.is_decision_under_canonical_authority(decision_id text)|18381a0dcaa7f8a9b8f854f774e25677
+FUNCTION|public.is_draft_operation(operation_id_param uuid)|0772a5d1146c261008946341e7600294
+FUNCTION|public.log_ecox_event(p_workflow_id uuid, p_signer_id uuid, p_event_type text, p_source_ip inet, p_user_agent text, p_geolocation jsonb, p_details jsonb, p_document_hash_snapshot text)|76ac5a1f18882b5c633ef1bb04991095
+FUNCTION|public.log_invariant_violation(p_code text, p_source text, p_message text, p_severity text, p_details jsonb, p_entity_id uuid, p_correlation_id text, p_role_name text, p_request_path text, p_dedupe_window_seconds integer)|51aaa77c222a90afe7988a81f873531e
+FUNCTION|public.move_documents_to_folder(_doc_ids uuid[], _folder_id uuid)|4e8b65195aa740035f5e536480fe77ae
+FUNCTION|public.notify_creator_on_signature()|221706d4aa2a8053024d27d8a460a7f1
+FUNCTION|public.notify_link_expired(p_notification_id uuid)|83fedf1babdf8a9da312a79dfc50b2c8
+FUNCTION|public.notify_owner_resend(p_notification_id uuid)|2cb53081abd85f51f3d00ae9e4cdcdfe
+FUNCTION|public.notify_resend_access(p_notification_id uuid)|9db874c6fcbd1940fbcfc94231994c49
+FUNCTION|public.notify_signature_completed()|32b2d867f64cb4455047f1c739911386
+FUNCTION|public.notify_signer_link()|5bc09ae37caca4ea40d6065fbc8bba18
+FUNCTION|public.notify_workflow_completed()|99ef974f49daa9f3fce19072a8e0a04b
+FUNCTION|public.persist_workflow_canvas_fields_atomic(p_workflow_id uuid, p_document_entity_id uuid, p_canvas_snapshot jsonb, p_batches jsonb, p_fields jsonb)|9050fb91f08f72dc3f4c1504054db335
+FUNCTION|public.prevent_canvas_snapshot_mutation()|9338cd3721acd0309454f5f1217bb6fe
+FUNCTION|public.process_document_entity_events()|7ebd829ff88f96c9cc0016cf0ee50224
+FUNCTION|public.process_orchestrator_jobs()|ed58d9c4fb1585a9924a317ab70d3008
+FUNCTION|public.project_document_entity_to_user_document(p_document_entity_id uuid)|d43818b6a0ee60fe80604b7c1449845b
+FUNCTION|public.project_events_to_user_document_trigger()|64fd123a7ee87de0cf661762e201aee3
+FUNCTION|public.project_signature_workflow_status(p_workflow_id uuid)|cd4693eef0d33894e5c0017cb5369227
+FUNCTION|public.project_workflow_signer_status(p_workflow_id uuid, p_signer_id uuid)|fd825dbe8f0d1a3e38c8cacfed3d060d
+FUNCTION|public.queue_system_welcome_email()|db04d90c8c680c31c106ebd37d77b674
+FUNCTION|public.queue_welcome_email()|7e6e9fbbd9314e3834d9300098bd4036
+FUNCTION|public.rebuild_user_documents_projection(p_document_entity_id uuid)|619c3e2e9b6d5c3e39d19c26f646174e
+FUNCTION|public.reclaim_stale_jobs()|e57242a26081ba5bde28b9278cb9239f
+FUNCTION|public.release_signer_signing_lock(p_signer_id uuid, p_lock_id uuid)|6315622a40cb595874c81ca32ef3be06
+FUNCTION|public.release_workflow_signing_lock(p_workflow_id uuid, p_lock_id uuid)|05c3242932e9ae693602b089fe82df9e
+FUNCTION|public.rename_document_folder(_folder_id uuid, _name text)|4a306d89cfd477fb708c1b0931c5c90a
+FUNCTION|public.request_certificate_regeneration(_document_id uuid, _request_type text)|a93930309d3d1e8bc73edd64a0153e55
+FUNCTION|public.run_process_bitcoin_anchors()|f29dd2288d43491baf1c08fcf1660210
+FUNCTION|public.run_process_polygon_anchors()|675e800fc5ab6487f040b85305ea277f
+FUNCTION|public.runtime_tick()|1a69fd08f5563bfa8473c6aaa8d8c64b
+FUNCTION|public.scan_runtime_invariant_violations(p_stuck_minutes integer, p_attempt_threshold integer, p_queue_stale_minutes integer)|3642f2fc916ad726ae057c403baf7487
+FUNCTION|public.set_hash_only_witness_hash()|a0c793367221038fc0d345bf4e5cd959
+FUNCTION|public.set_operation_document_added_by()|d34fe2410ff1912c0006d12edf2eefd3
+FUNCTION|public.should_notify_creator_detailed_canonical(p_operation text, p_old_status text, p_new_status text, p_signer_id uuid, p_workflow_id uuid)|01b319b57c39ccb720f88fe86ebf7f88
+FUNCTION|public.should_notify_signer_link_canonical(p_operation text, p_signer_status text, p_signer_id uuid, p_workflow_id uuid, p_signer_email text)|8448a9c7bec27608cdbd3d21b9c29e2c
+FUNCTION|public.should_notify_workflow_completed_canonical(p_operation text, p_old_status text, p_new_status text, p_workflow_id uuid)|c0ff0096bffdd9f15ae77aa99910609c
+FUNCTION|public.trg_project_signature_workflow_status_from_event()|a879f32a148c7a7bcbc817474a16e00e
+FUNCTION|public.trg_project_workflow_signer_status_from_event()|e8580ce7fccd031ccb1fc2a23b96916d
+FUNCTION|public.trigger_blockchain_anchoring()|2fc5e12e7ad0fd7d99f092cc156f9deb
+FUNCTION|public.try_parse_timestamptz(p_text text)|2eb211ad524e623fbe3ebe0664a1a3c9
+FUNCTION|public.update_anchor_states_updated_at()|d346c853d1135fddb87cbdcbfa809a11
+FUNCTION|public.update_anchors_updated_at()|8cc9d613cb9463904dc01fbd1438ce41
+FUNCTION|public.update_bitcoin_ots_files_updated_at()|a1b62def5797e98ea15540ec92c0c2db
+FUNCTION|public.update_certificate_regen_updated_at()|fe9bb87c0f8aa44e7b5a1714530dbc99
+FUNCTION|public.update_contact_leads_updated_at()|ea98cbfdfb9bb8d2f8d0734fc7735fdc
+FUNCTION|public.update_document_folders_updated_at()|d49284ffab185e24e79d53517a8f70af
+FUNCTION|public.update_feature_flags_updated_at_column()|f12a0431bdff43ca43bc9090d1faae86
+FUNCTION|public.update_integration_requests_updated_at()|ed00a7fb11434c052f3a1fd9e0984794
+FUNCTION|public.update_invites_updated_at()|49cdcfb907859974b2bab7e28411aaff
+FUNCTION|public.update_job_heartbeat(p_job_id uuid, p_worker_id text)|cdaec14a69093b7a7c69eb9071ce2e1c
+FUNCTION|public.update_nda_templates_updated_at()|60f02a5d13db50fd3a9b84395fadfee4
+FUNCTION|public.update_operations_updated_at()|04a1dace527404ce348f84b46442e3ba
+FUNCTION|public.update_tsa_latest()|a8d7f58a52d6fd9b4d61128b8dab7112
+FUNCTION|public.update_updated_at_column()|becec3bb3b6c313f7ac870ae48e5d97a
+FUNCTION|public.update_workflow_fields_updated_at()|ea1c9684464212086a746c38155ded36
+FUNCTION|public.upgrade_protection_level(doc_id uuid)|f0b26e934551584e99f1adafa1c4c82a
+FUNCTION|public.validate_anchor_event(event jsonb)|4c0897d7c0c1a821eb857be95487b55d
+FUNCTION|public.validate_anchor_uniqueness()|e83327ade8dd574596f7156cf7382973
+FUNCTION|public.validate_draft_transition()|86f63d09fe5248d756885b52c91d7642
+FUNCTION|public.validate_signer_security()|7693d8ed9bd10da03105e3a3a25c048f
+FUNCTION|public.validate_tsa_event(event jsonb)|dba41a593b7fc7ba2e3945e58d127a01
+FUNCTION|public.wake_execution_engine()|0379f0eb4547817e539aef62e52b759a
+FUNCTION|public.worker_heartbeat(worker_name text, worker_status text)|0695cf9da0d8ff86e866f78000231dbe
+INDEX|public.access_events|access_events_pkey|CREATE UNIQUE INDEX access_events_pkey ON access_events USING btree (id)
+INDEX|public.access_events|idx_access_events_recipient|CREATE INDEX idx_access_events_recipient ON access_events USING btree (recipient_id)
+INDEX|public.access_events|idx_access_events_timestamp|CREATE INDEX idx_access_events_timestamp ON access_events USING btree ("timestamp" DESC)
+INDEX|public.access_events|idx_access_events_type|CREATE INDEX idx_access_events_type ON access_events USING btree (event_type)
+INDEX|public.access_logs|access_logs_pkey|CREATE UNIQUE INDEX access_logs_pkey ON access_logs USING btree (id)
+INDEX|public.access_logs|idx_access_logs_action|CREATE INDEX idx_access_logs_action ON access_logs USING btree (action)
+INDEX|public.access_logs|idx_access_logs_created_at|CREATE INDEX idx_access_logs_created_at ON access_logs USING btree (created_at DESC)
+INDEX|public.access_logs|idx_access_logs_document_id|CREATE INDEX idx_access_logs_document_id ON access_logs USING btree (document_id)
+INDEX|public.access_logs|idx_access_logs_user_email|CREATE INDEX idx_access_logs_user_email ON access_logs USING btree (user_email)
+INDEX|public.anchor_states|anchor_states_pkey|CREATE UNIQUE INDEX anchor_states_pkey ON anchor_states USING btree (project_id)
+INDEX|public.anchors|anchors_pkey|CREATE UNIQUE INDEX anchors_pkey ON anchors USING btree (id)
+INDEX|public.anchors|anchors_user_document_anchor_type_uniq|CREATE UNIQUE INDEX anchors_user_document_anchor_type_uniq ON anchors USING btree (user_document_id, anchor_type) WHERE user_document_id IS NOT NULL
+INDEX|public.anchors|idx_anchors_bitcoin_attempts|CREATE INDEX idx_anchors_bitcoin_attempts ON anchors USING btree (bitcoin_attempts)
+INDEX|public.anchors|idx_anchors_created_at|CREATE INDEX idx_anchors_created_at ON anchors USING btree (created_at DESC)
+INDEX|public.anchors|idx_anchors_document_entity_id|CREATE INDEX idx_anchors_document_entity_id ON anchors USING btree (document_entity_id) WHERE document_entity_id IS NOT NULL
+INDEX|public.anchors|idx_anchors_document_hash|CREATE INDEX idx_anchors_document_hash ON anchors USING btree (document_hash)
+INDEX|public.anchors|idx_anchors_document|CREATE INDEX idx_anchors_document ON anchors USING btree (document_id)
+INDEX|public.anchors|idx_anchors_pending|CREATE INDEX idx_anchors_pending ON anchors USING btree (anchor_status) WHERE anchor_status = ANY (ARRAY['queued'::text, 'pending'::text, 'processing'::text])
+INDEX|public.anchors|idx_anchors_polygon_status|CREATE INDEX idx_anchors_polygon_status ON anchors USING btree (polygon_status)
+INDEX|public.anchors|idx_anchors_polygon_tx_hash|CREATE INDEX idx_anchors_polygon_tx_hash ON anchors USING btree (polygon_tx_hash)
+INDEX|public.anchors|idx_anchors_status|CREATE INDEX idx_anchors_status ON anchors USING btree (anchor_status)
+INDEX|public.anchors|idx_anchors_user_document|CREATE INDEX idx_anchors_user_document ON anchors USING btree (user_document_id) WHERE user_document_id IS NOT NULL
+INDEX|public.anchors|idx_anchors_user|CREATE INDEX idx_anchors_user ON anchors USING btree (user_id)
+INDEX|public.anchors|unique_document_anchor|CREATE UNIQUE INDEX unique_document_anchor ON anchors USING btree (document_hash, anchor_type)
+INDEX|public.audit_logs|audit_logs_pkey|CREATE UNIQUE INDEX audit_logs_pkey ON audit_logs USING btree (id)
+INDEX|public.audit_logs|idx_audit_logs_user_time|CREATE INDEX idx_audit_logs_user_time ON audit_logs USING btree (user_id, created_at DESC)
+INDEX|public.batches|batches_pkey|CREATE UNIQUE INDEX batches_pkey ON batches USING btree (id)
+INDEX|public.batches|idx_batches_assigned_signer_id|CREATE INDEX idx_batches_assigned_signer_id ON batches USING btree (assigned_signer_id)
+INDEX|public.batches|idx_batches_document_entity_id|CREATE INDEX idx_batches_document_entity_id ON batches USING btree (document_entity_id)
+INDEX|public.bitcoin_ots_files|bitcoin_ots_files_pkey|CREATE UNIQUE INDEX bitcoin_ots_files_pkey ON bitcoin_ots_files USING btree (anchor_id)
+INDEX|public.certificate_regeneration_requests|certificate_regeneration_requests_pkey|CREATE UNIQUE INDEX certificate_regeneration_requests_pkey ON certificate_regeneration_requests USING btree (id)
+INDEX|public.certificate_regeneration_requests|idx_certificate_regen_doc|CREATE INDEX idx_certificate_regen_doc ON certificate_regeneration_requests USING btree (document_id, created_at DESC)
+INDEX|public.certificate_regeneration_requests|idx_certificate_regen_user|CREATE INDEX idx_certificate_regen_user ON certificate_regeneration_requests USING btree (user_id, created_at DESC)
+INDEX|public.contact_leads|contact_leads_pkey|CREATE UNIQUE INDEX contact_leads_pkey ON contact_leads USING btree (id)
+INDEX|public.contact_leads|idx_contact_leads_created_at|CREATE INDEX idx_contact_leads_created_at ON contact_leads USING btree (created_at DESC)
+INDEX|public.contact_leads|idx_contact_leads_email|CREATE INDEX idx_contact_leads_email ON contact_leads USING btree (email)
+INDEX|public.contact_leads|idx_contact_leads_source|CREATE INDEX idx_contact_leads_source ON contact_leads USING btree (source)
+INDEX|public.contact_leads|idx_contact_leads_status|CREATE INDEX idx_contact_leads_status ON contact_leads USING btree (status)
+INDEX|public.conversion_events|conversion_events_pkey|CREATE UNIQUE INDEX conversion_events_pkey ON conversion_events USING btree (id)
+INDEX|public.conversion_events|idx_conversion_events_action|CREATE INDEX idx_conversion_events_action ON conversion_events USING btree (action)
+INDEX|public.conversion_events|idx_conversion_events_session|CREATE INDEX idx_conversion_events_session ON conversion_events USING btree (session_id)
+INDEX|public.conversion_events|idx_conversion_events_timestamp|CREATE INDEX idx_conversion_events_timestamp ON conversion_events USING btree ("timestamp")
+INDEX|public.conversion_events|idx_conversion_events_variant|CREATE INDEX idx_conversion_events_variant ON conversion_events USING btree (variant)
+INDEX|public.custody_access_log|custody_access_log_pkey|CREATE UNIQUE INDEX custody_access_log_pkey ON custody_access_log USING btree (id)
+INDEX|public.custody_access_log|idx_custody_access_log_entity|CREATE INDEX idx_custody_access_log_entity ON custody_access_log USING btree (document_entity_id, accessed_at DESC)
+INDEX|public.custody_key_rotations|custody_key_rotations_pkey|CREATE UNIQUE INDEX custody_key_rotations_pkey ON custody_key_rotations USING btree (id)
+INDEX|public.custody_key_rotations|idx_custody_key_rotations_entity|CREATE INDEX idx_custody_key_rotations_entity ON custody_key_rotations USING btree (document_entity_id, rotated_at DESC)
+INDEX|public.document_entities|document_entities_pkey|CREATE UNIQUE INDEX document_entities_pkey ON document_entities USING btree (id)
+INDEX|public.document_entities|document_entities_source_hash_unique|CREATE UNIQUE INDEX document_entities_source_hash_unique ON document_entities USING btree (owner_id, source_hash)
+INDEX|public.document_entities|idx_document_entities_anchor_events|CREATE INDEX idx_document_entities_anchor_events ON document_entities USING gin (jsonb_path_query_array(events, '$[*]?(@."kind" == "anchor")'::jsonpath))
+INDEX|public.document_entities|idx_document_entities_events_gin|CREATE INDEX idx_document_entities_events_gin ON document_entities USING gin (events)
+INDEX|public.document_entities|idx_document_entities_events_kind|CREATE INDEX idx_document_entities_events_kind ON document_entities USING gin (events)
+INDEX|public.document_entities|idx_document_entities_owner_created_at|CREATE INDEX idx_document_entities_owner_created_at ON document_entities USING btree (owner_id, created_at DESC)
+INDEX|public.document_entities|idx_document_entities_witness_hash|CREATE INDEX idx_document_entities_witness_hash ON document_entities USING btree (witness_hash)
+INDEX|public.document_folders|document_folders_pkey|CREATE UNIQUE INDEX document_folders_pkey ON document_folders USING btree (id)
+INDEX|public.document_folders|idx_document_folders_user|CREATE INDEX idx_document_folders_user ON document_folders USING btree (user_id, created_at DESC)
+INDEX|public.document_shares|document_shares_pkey|CREATE UNIQUE INDEX document_shares_pkey ON document_shares USING btree (id)
+INDEX|public.document_shares|idx_document_shares_document_entity_id|CREATE INDEX idx_document_shares_document_entity_id ON document_shares USING btree (document_entity_id)
+INDEX|public.document_shares|idx_document_shares_document|CREATE INDEX idx_document_shares_document ON document_shares USING btree (document_id)
+INDEX|public.document_shares|idx_document_shares_expires|CREATE INDEX idx_document_shares_expires ON document_shares USING btree (expires_at) WHERE status = 'pending'::text
+INDEX|public.document_shares|idx_document_shares_nda|CREATE INDEX idx_document_shares_nda ON document_shares USING btree (nda_enabled, nda_accepted_at) WHERE nda_enabled = true
+INDEX|public.document_shares|idx_document_shares_otp|CREATE INDEX idx_document_shares_otp ON document_shares USING btree (otp_hash) WHERE status = 'pending'::text
+INDEX|public.document_shares|idx_document_shares_recipient|CREATE INDEX idx_document_shares_recipient ON document_shares USING btree (recipient_email, status)
+INDEX|public.document_shares|uniq_document_shares_pending_entity_recipient|CREATE UNIQUE INDEX uniq_document_shares_pending_entity_recipient ON document_shares USING btree (document_entity_id, lower(recipient_email)) WHERE status = 'pending'::text
+INDEX|public.documents|documents_pkey|CREATE UNIQUE INDEX documents_pkey ON documents USING btree (id)
+INDEX|public.documents|idx_documents_created_at|CREATE INDEX idx_documents_created_at ON documents USING btree (created_at DESC)
+INDEX|public.documents|idx_documents_document_entity_id|CREATE INDEX idx_documents_document_entity_id ON documents USING btree (document_entity_id)
+INDEX|public.documents|idx_documents_eco_hash|CREATE INDEX idx_documents_eco_hash ON documents USING btree (eco_hash)
+INDEX|public.documents|idx_documents_encrypted|CREATE INDEX idx_documents_encrypted ON documents USING btree (owner_id, encrypted) WHERE encrypted = true
+INDEX|public.documents|idx_documents_owner_id|CREATE INDEX idx_documents_owner_id ON documents USING btree (owner_id)
+INDEX|public.documents|idx_documents_status|CREATE INDEX idx_documents_status ON documents USING btree (status) WHERE status = 'active'::text
+INDEX|public.domain_outbox|domain_outbox_dedupe_key_uniq|CREATE UNIQUE INDEX domain_outbox_dedupe_key_uniq ON domain_outbox USING btree (dedupe_key) WHERE dedupe_key IS NOT NULL
+INDEX|public.domain_outbox|domain_outbox_locked_at_idx|CREATE INDEX domain_outbox_locked_at_idx ON domain_outbox USING btree (locked_at)
+INDEX|public.domain_outbox|domain_outbox_pkey|CREATE UNIQUE INDEX domain_outbox_pkey ON domain_outbox USING btree (id)
+INDEX|public.domain_outbox|domain_outbox_status_created_at_idx|CREATE INDEX domain_outbox_status_created_at_idx ON domain_outbox USING btree (status, created_at)
+INDEX|public.eco_records|eco_records_document_id_key|CREATE UNIQUE INDEX eco_records_document_id_key ON eco_records USING btree (document_id)
+INDEX|public.eco_records|eco_records_pkey|CREATE UNIQUE INDEX eco_records_pkey ON eco_records USING btree (id)
+INDEX|public.eco_records|idx_eco_records_created_at|CREATE INDEX idx_eco_records_created_at ON eco_records USING btree (created_at DESC)
+INDEX|public.eco_records|idx_eco_records_document_id|CREATE INDEX idx_eco_records_document_id ON eco_records USING btree (document_id)
+INDEX|public.eco_records|idx_eco_records_sha256|CREATE INDEX idx_eco_records_sha256 ON eco_records USING btree (sha256_hash)
+INDEX|public.eco_records|idx_eco_records_status|CREATE INDEX idx_eco_records_status ON eco_records USING btree (status)
+INDEX|public.eco_records|idx_eco_records_user_email|CREATE INDEX idx_eco_records_user_email ON eco_records USING btree (user_email)
+INDEX|public.ecox_audit_trail|ecox_audit_trail_pkey|CREATE UNIQUE INDEX ecox_audit_trail_pkey ON ecox_audit_trail USING btree (id)
+INDEX|public.ecox_audit_trail|idx_ecox_event_timestamp|CREATE INDEX idx_ecox_event_timestamp ON ecox_audit_trail USING btree (event_timestamp DESC)
+INDEX|public.ecox_audit_trail|idx_ecox_event_type|CREATE INDEX idx_ecox_event_type ON ecox_audit_trail USING btree (event_type)
+INDEX|public.ecox_audit_trail|idx_ecox_signer_id|CREATE INDEX idx_ecox_signer_id ON ecox_audit_trail USING btree (signer_id)
+INDEX|public.ecox_audit_trail|idx_ecox_workflow_id|CREATE INDEX idx_ecox_workflow_id ON ecox_audit_trail USING btree (workflow_id)
+INDEX|public.events|events_pkey|CREATE UNIQUE INDEX events_pkey ON events USING btree (id)
+INDEX|public.events|idx_events_document_timestamp|CREATE INDEX idx_events_document_timestamp ON events USING btree (document_id, "timestamp" DESC)
+INDEX|public.events|idx_events_document|CREATE INDEX idx_events_document ON events USING btree (document_id)
+INDEX|public.events|idx_events_signer_link|CREATE INDEX idx_events_signer_link ON events USING btree (signer_link_id)
+INDEX|public.events|idx_events_timestamp|CREATE INDEX idx_events_timestamp ON events USING btree ("timestamp" DESC)
+INDEX|public.events|idx_events_type|CREATE INDEX idx_events_type ON events USING btree (event_type)
+INDEX|public.events|idx_events_user|CREATE INDEX idx_events_user ON events USING btree (user_id)
+INDEX|public.executor_decision_logs|executor_decision_logs_pkey|CREATE UNIQUE INDEX executor_decision_logs_pkey ON executor_decision_logs USING btree (id)
+INDEX|public.executor_decision_logs|idx_executor_decision_logs_document|CREATE INDEX idx_executor_decision_logs_document ON executor_decision_logs USING btree (document_entity_id, created_at DESC)
+INDEX|public.executor_decision_logs|idx_executor_decision_logs_policy|CREATE INDEX idx_executor_decision_logs_policy ON executor_decision_logs USING btree (policy_version, created_at DESC)
+INDEX|public.executor_job_runs|executor_job_runs_job_id_idx|CREATE INDEX executor_job_runs_job_id_idx ON executor_job_runs USING btree (job_id)
+INDEX|public.executor_job_runs|executor_job_runs_pkey|CREATE UNIQUE INDEX executor_job_runs_pkey ON executor_job_runs USING btree (id)
+INDEX|public.executor_job_runs|executor_job_runs_started_at_idx|CREATE INDEX executor_job_runs_started_at_idx ON executor_job_runs USING btree (started_at)
+INDEX|public.executor_job_runs|executor_job_runs_status_idx|CREATE INDEX executor_job_runs_status_idx ON executor_job_runs USING btree (status)
+INDEX|public.executor_jobs|executor_jobs_correlation_id_idx|CREATE INDEX executor_jobs_correlation_id_idx ON executor_jobs USING btree (correlation_id) WHERE correlation_id IS NOT NULL
+INDEX|public.executor_jobs|executor_jobs_dedupe_key_unique|CREATE UNIQUE INDEX executor_jobs_dedupe_key_unique ON executor_jobs USING btree (dedupe_key)
+INDEX|public.executor_jobs|executor_jobs_dedupe_key_uniq|CREATE UNIQUE INDEX executor_jobs_dedupe_key_uniq ON executor_jobs USING btree (dedupe_key) WHERE dedupe_key IS NOT NULL
+INDEX|public.executor_jobs|executor_jobs_entity_idx|CREATE INDEX executor_jobs_entity_idx ON executor_jobs USING btree (entity_type, entity_id)
+INDEX|public.executor_jobs|executor_jobs_locked_at_idx|CREATE INDEX executor_jobs_locked_at_idx ON executor_jobs USING btree (locked_at)
+INDEX|public.executor_jobs|executor_jobs_pkey|CREATE UNIQUE INDEX executor_jobs_pkey ON executor_jobs USING btree (id)
+INDEX|public.executor_jobs|executor_jobs_reclaim_idx|CREATE INDEX executor_jobs_reclaim_idx ON executor_jobs USING btree (status, type, locked_at, heartbeat_at) WHERE status = 'running'::text
+INDEX|public.executor_jobs|executor_jobs_status_run_at_idx|CREATE INDEX executor_jobs_status_run_at_idx ON executor_jobs USING btree (status, run_at)
+INDEX|public.executor_jobs|executor_jobs_trace_id_idx|CREATE INDEX executor_jobs_trace_id_idx ON executor_jobs USING btree (trace_id) WHERE trace_id IS NOT NULL
+INDEX|public.feature_flags|feature_flags_pkey|CREATE UNIQUE INDEX feature_flags_pkey ON feature_flags USING btree (flag_name)
+INDEX|public.feature_flags|idx_feature_flags_enabled|CREATE INDEX idx_feature_flags_enabled ON feature_flags USING btree (enabled)
+INDEX|public.founder_badges|founder_badges_badge_number_key|CREATE UNIQUE INDEX founder_badges_badge_number_key ON founder_badges USING btree (badge_number)
+INDEX|public.founder_badges|founder_badges_pkey|CREATE UNIQUE INDEX founder_badges_pkey ON founder_badges USING btree (user_id)
+INDEX|public.identity_bindings|identity_bindings_pkey|CREATE UNIQUE INDEX identity_bindings_pkey ON identity_bindings USING btree (id)
+INDEX|public.identity_bindings|idx_identity_bindings_created_at|CREATE INDEX idx_identity_bindings_created_at ON identity_bindings USING btree (created_at DESC)
+INDEX|public.identity_bindings|idx_identity_bindings_email|CREATE UNIQUE INDEX idx_identity_bindings_email ON identity_bindings USING btree (email) WHERE status = 'active'::text
+INDEX|public.invariant_violations|idx_invariant_violations_code_source|CREATE INDEX idx_invariant_violations_code_source ON invariant_violations USING btree (code, source)
+INDEX|public.invariant_violations|idx_invariant_violations_last_seen|CREATE INDEX idx_invariant_violations_last_seen ON invariant_violations USING btree (last_seen_at DESC)
+INDEX|public.invariant_violations|idx_invariant_violations_open|CREATE INDEX idx_invariant_violations_open ON invariant_violations USING btree (acknowledged_at, severity, last_seen_at DESC)
+INDEX|public.invariant_violations|invariant_violations_pkey|CREATE UNIQUE INDEX invariant_violations_pkey ON invariant_violations USING btree (id)
+INDEX|public.invites|idx_invites_document_entity_id|CREATE INDEX idx_invites_document_entity_id ON invites USING btree (document_entity_id)
+INDEX|public.invites|idx_invites_document_id|CREATE INDEX idx_invites_document_id ON invites USING btree (document_id)
+INDEX|public.invites|idx_invites_email|CREATE INDEX idx_invites_email ON invites USING btree (email)
+INDEX|public.invites|idx_invites_expires_at|CREATE INDEX idx_invites_expires_at ON invites USING btree (expires_at) WHERE revoked_at IS NULL
+INDEX|public.invites|idx_invites_pending|CREATE INDEX idx_invites_pending ON invites USING btree (email, accepted_at) WHERE accepted_at IS NULL AND revoked_at IS NULL
+INDEX|public.invites|idx_invites_token|CREATE INDEX idx_invites_token ON invites USING btree (token)
+INDEX|public.invites|invites_pkey|CREATE UNIQUE INDEX invites_pkey ON invites USING btree (id)
+INDEX|public.invites|invites_token_key|CREATE UNIQUE INDEX invites_token_key ON invites USING btree (token)
+INDEX|public.links|idx_links_active|CREATE INDEX idx_links_active ON links USING btree (document_id) WHERE revoked_at IS NULL
+INDEX|public.links|idx_links_document_entity_id|CREATE INDEX idx_links_document_entity_id ON links USING btree (document_entity_id)
+INDEX|public.links|idx_links_document|CREATE INDEX idx_links_document ON links USING btree (document_id)
+INDEX|public.links|idx_links_recipient_id|CREATE INDEX idx_links_recipient_id ON links USING btree (recipient_id)
+INDEX|public.links|idx_links_token|CREATE INDEX idx_links_token ON links USING btree (token_hash)
+INDEX|public.links|links_pkey|CREATE UNIQUE INDEX links_pkey ON links USING btree (id)
+INDEX|public.links|links_token_hash_key|CREATE UNIQUE INDEX links_token_hash_key ON links USING btree (token_hash)
+INDEX|public.nda_acceptances|idx_nda_acceptances_recipient|CREATE INDEX idx_nda_acceptances_recipient ON nda_acceptances USING btree (recipient_id)
+INDEX|public.nda_acceptances|idx_nda_acceptances_timestamp|CREATE INDEX idx_nda_acceptances_timestamp ON nda_acceptances USING btree (accepted_at DESC)
+INDEX|public.nda_acceptances|nda_acceptances_pkey|CREATE UNIQUE INDEX nda_acceptances_pkey ON nda_acceptances USING btree (id)
+INDEX|public.nda_events|idx_nda_events_document|CREATE INDEX idx_nda_events_document ON nda_events USING btree (document_id, created_at DESC)
+INDEX|public.nda_events|idx_nda_events_template|CREATE INDEX idx_nda_events_template ON nda_events USING btree (nda_template_id, created_at DESC)
+INDEX|public.nda_events|nda_events_pkey|CREATE UNIQUE INDEX nda_events_pkey ON nda_events USING btree (id)
+INDEX|public.nda_signatures|idx_nda_signatures_access_token|CREATE INDEX idx_nda_signatures_access_token ON nda_signatures USING btree (access_token)
+INDEX|public.nda_signatures|idx_nda_signatures_document_id|CREATE INDEX idx_nda_signatures_document_id ON nda_signatures USING btree (document_id)
+INDEX|public.nda_signatures|idx_nda_signatures_expires_at|CREATE INDEX idx_nda_signatures_expires_at ON nda_signatures USING btree (expires_at)
+INDEX|public.nda_signatures|idx_nda_signatures_signer_email|CREATE INDEX idx_nda_signatures_signer_email ON nda_signatures USING btree (signer_email)
+INDEX|public.nda_signatures|nda_signatures_access_token_key|CREATE UNIQUE INDEX nda_signatures_access_token_key ON nda_signatures USING btree (access_token)
+INDEX|public.nda_signatures|nda_signatures_pkey|CREATE UNIQUE INDEX nda_signatures_pkey ON nda_signatures USING btree (id)
+INDEX|public.nda_templates|idx_nda_templates_user|CREATE INDEX idx_nda_templates_user ON nda_templates USING btree (user_id, created_at DESC)
+INDEX|public.nda_templates|nda_templates_pkey|CREATE UNIQUE INDEX nda_templates_pkey ON nda_templates USING btree (id)
+INDEX|public.operation_documents|idx_operation_documents_document|CREATE INDEX idx_operation_documents_document ON operation_documents USING btree (document_entity_id)
+INDEX|public.operation_documents|idx_operation_documents_drafts|CREATE INDEX idx_operation_documents_drafts ON operation_documents USING btree (operation_id, added_at DESC) WHERE draft_file_ref IS NOT NULL
+INDEX|public.operation_documents|idx_operation_documents_operation|CREATE INDEX idx_operation_documents_operation ON operation_documents USING btree (operation_id, added_at DESC)
+INDEX|public.operation_documents|operation_documents_pkey|CREATE UNIQUE INDEX operation_documents_pkey ON operation_documents USING btree (id)
+INDEX|public.operation_documents|operation_documents_unique|CREATE UNIQUE INDEX operation_documents_unique ON operation_documents USING btree (operation_id, document_entity_id)
+INDEX|public.operations_events|idx_operations_events_document|CREATE INDEX idx_operations_events_document ON operations_events USING btree (document_entity_id)
+INDEX|public.operations_events|idx_operations_events_kind|CREATE INDEX idx_operations_events_kind ON operations_events USING btree (kind)
+INDEX|public.operations_events|idx_operations_events_operation|CREATE INDEX idx_operations_events_operation ON operations_events USING btree (operation_id, at DESC)
+INDEX|public.operations_events|operations_events_pkey|CREATE UNIQUE INDEX operations_events_pkey ON operations_events USING btree (id)
+INDEX|public.operations|idx_operations_owner_draft|CREATE INDEX idx_operations_owner_draft ON operations USING btree (owner_id) WHERE status = 'draft'::text
+INDEX|public.operations|idx_operations_owner_status|CREATE INDEX idx_operations_owner_status ON operations USING btree (owner_id, status, created_at DESC)
+INDEX|public.operations|idx_operations_status_owner|CREATE INDEX idx_operations_status_owner ON operations USING btree (owner_id, status)
+INDEX|public.operations|idx_operations_status|CREATE INDEX idx_operations_status ON operations USING btree (status) WHERE status = 'active'::text
+INDEX|public.operations|operations_pkey|CREATE UNIQUE INDEX operations_pkey ON operations USING btree (id)
+INDEX|public.plans|plans_key_key|CREATE UNIQUE INDEX plans_key_key ON plans USING btree (key)
+INDEX|public.plans|plans_pkey|CREATE UNIQUE INDEX plans_pkey ON plans USING btree (id)
+INDEX|public.presential_verification_otps|idx_presential_otps_expires_at|CREATE INDEX idx_presential_otps_expires_at ON presential_verification_otps USING btree (expires_at)
+INDEX|public.presential_verification_otps|idx_presential_otps_session_participant|CREATE INDEX idx_presential_otps_session_participant ON presential_verification_otps USING btree (session_id, participant_id) WHERE participant_id IS NOT NULL
+INDEX|public.presential_verification_otps|idx_presential_otps_session_signer|CREATE INDEX idx_presential_otps_session_signer ON presential_verification_otps USING btree (session_id, signer_email)
+INDEX|public.presential_verification_otps|idx_presential_otps_session_token_hash|CREATE INDEX idx_presential_otps_session_token_hash ON presential_verification_otps USING btree (session_id, participant_token_hash) WHERE participant_token_hash IS NOT NULL
+INDEX|public.presential_verification_otps|presential_verification_otps_pkey|CREATE UNIQUE INDEX presential_verification_otps_pkey ON presential_verification_otps USING btree (id)
+INDEX|public.presential_verification_otps|presential_verification_otps_session_id_signer_email_key|CREATE UNIQUE INDEX presential_verification_otps_session_id_signer_email_key ON presential_verification_otps USING btree (session_id, signer_email)
+INDEX|public.presential_verification_sessions|idx_presential_acta_hash|CREATE INDEX idx_presential_acta_hash ON presential_verification_sessions USING btree (acta_hash) WHERE acta_hash IS NOT NULL
+INDEX|public.presential_verification_sessions|idx_presential_created_at|CREATE INDEX idx_presential_created_at ON presential_verification_sessions USING btree (created_at DESC)
+INDEX|public.presential_verification_sessions|idx_presential_expires_at|CREATE INDEX idx_presential_expires_at ON presential_verification_sessions USING btree (expires_at)
+INDEX|public.presential_verification_sessions|idx_presential_operation_id|CREATE INDEX idx_presential_operation_id ON presential_verification_sessions USING btree (operation_id)
+INDEX|public.presential_verification_sessions|idx_presential_session_id|CREATE INDEX idx_presential_session_id ON presential_verification_sessions USING btree (session_id)
+INDEX|public.presential_verification_sessions|idx_presential_status|CREATE INDEX idx_presential_status ON presential_verification_sessions USING btree (status) WHERE status = 'active'::text
+INDEX|public.presential_verification_sessions|presential_verification_sessions_pkey|CREATE UNIQUE INDEX presential_verification_sessions_pkey ON presential_verification_sessions USING btree (id)
+INDEX|public.presential_verification_sessions|presential_verification_sessions_session_id_key|CREATE UNIQUE INDEX presential_verification_sessions_session_id_key ON presential_verification_sessions USING btree (session_id)
+INDEX|public.product_events|idx_product_events_name_time|CREATE INDEX idx_product_events_name_time ON product_events USING btree (event_name, created_at DESC)
+INDEX|public.product_events|idx_product_events_session|CREATE INDEX idx_product_events_session ON product_events USING btree (session_id)
+INDEX|public.product_events|idx_product_events_user_time|CREATE INDEX idx_product_events_user_time ON product_events USING btree (user_id, created_at DESC)
+INDEX|public.product_events|product_events_pkey|CREATE UNIQUE INDEX product_events_pkey ON product_events USING btree (id)
+INDEX|public.profiles|idx_profiles_user_id|CREATE INDEX idx_profiles_user_id ON profiles USING btree (user_id)
+INDEX|public.profiles|profiles_pkey|CREATE UNIQUE INDEX profiles_pkey ON profiles USING btree (user_id)
+INDEX|public.rate_limit_blocks|idx_rate_limit_blocks_until|CREATE INDEX idx_rate_limit_blocks_until ON rate_limit_blocks USING btree (blocked_until)
+INDEX|public.rate_limit_blocks|rate_limit_blocks_pkey|CREATE UNIQUE INDEX rate_limit_blocks_pkey ON rate_limit_blocks USING btree (key)
+INDEX|public.rate_limits|idx_rate_limits_key_timestamp|CREATE INDEX idx_rate_limits_key_timestamp ON rate_limits USING btree (key, "timestamp")
+INDEX|public.rate_limits|idx_rate_limits_timestamp|CREATE INDEX idx_rate_limits_timestamp ON rate_limits USING btree ("timestamp")
+INDEX|public.rate_limits|rate_limits_pkey|CREATE UNIQUE INDEX rate_limits_pkey ON rate_limits USING btree (id)
+INDEX|public.recipients|idx_recipients_document_entity_id|CREATE INDEX idx_recipients_document_entity_id ON recipients USING btree (document_entity_id)
+INDEX|public.recipients|idx_recipients_document|CREATE INDEX idx_recipients_document ON recipients USING btree (document_id)
+INDEX|public.recipients|idx_recipients_email|CREATE INDEX idx_recipients_email ON recipients USING btree (email)
+INDEX|public.recipients|idx_recipients_recipient_id|CREATE INDEX idx_recipients_recipient_id ON recipients USING btree (recipient_id)
+INDEX|public.recipients|recipients_pkey|CREATE UNIQUE INDEX recipients_pkey ON recipients USING btree (id)
+INDEX|public.recipients|recipients_recipient_id_key|CREATE UNIQUE INDEX recipients_recipient_id_key ON recipients USING btree (recipient_id)
+INDEX|public.shadow_decision_logs|idx_shadow_logs_decision_code|CREATE INDEX idx_shadow_logs_decision_code ON shadow_decision_logs USING btree (decision_code, created_at DESC)
+INDEX|public.shadow_decision_logs|idx_shadow_logs_divergence|CREATE INDEX idx_shadow_logs_divergence ON shadow_decision_logs USING btree (decision_code, has_divergence, created_at DESC) WHERE has_divergence = true
+INDEX|public.shadow_decision_logs|shadow_decision_logs_pkey|CREATE UNIQUE INDEX shadow_decision_logs_pkey ON shadow_decision_logs USING btree (id)
+INDEX|public.signature_application_events|idx_sig_app_events_field|CREATE INDEX idx_sig_app_events_field ON signature_application_events USING btree (field_id)
+INDEX|public.signature_application_events|idx_sig_app_events_instance|CREATE INDEX idx_sig_app_events_instance ON signature_application_events USING btree (signature_instance_id)
+INDEX|public.signature_application_events|idx_sig_app_events_workflow|CREATE INDEX idx_sig_app_events_workflow ON signature_application_events USING btree (workflow_id)
+INDEX|public.signature_application_events|signature_application_events_pkey|CREATE UNIQUE INDEX signature_application_events_pkey ON signature_application_events USING btree (id)
+INDEX|public.signature_application_events|signature_application_events_signature_instance_id_field_id_key|CREATE UNIQUE INDEX signature_application_events_signature_instance_id_field_id_key ON signature_application_events USING btree (signature_instance_id, field_id)
+INDEX|public.signature_instances|idx_signature_instances_batch_signer|CREATE INDEX idx_signature_instances_batch_signer ON signature_instances USING btree (batch_id, signer_id)
+INDEX|public.signature_instances|idx_signature_instances_document|CREATE INDEX idx_signature_instances_document ON signature_instances USING btree (document_entity_id)
+INDEX|public.signature_instances|idx_signature_instances_workflow|CREATE INDEX idx_signature_instances_workflow ON signature_instances USING btree (workflow_id)
+INDEX|public.signature_instances|signature_instances_batch_id_signer_id_key|CREATE UNIQUE INDEX signature_instances_batch_id_signer_id_key ON signature_instances USING btree (batch_id, signer_id)
+INDEX|public.signature_instances|signature_instances_pkey|CREATE UNIQUE INDEX signature_instances_pkey ON signature_instances USING btree (id)
+INDEX|public.signature_workflows|idx_signature_workflows_document_entity_id|CREATE INDEX idx_signature_workflows_document_entity_id ON signature_workflows USING btree (document_entity_id)
+INDEX|public.signature_workflows|idx_sw_status|CREATE INDEX idx_sw_status ON signature_workflows USING btree (status)
+INDEX|public.signature_workflows|idx_workflows_document_hash|CREATE INDEX idx_workflows_document_hash ON signature_workflows USING btree (document_hash)
+INDEX|public.signature_workflows|idx_workflows_document_path|CREATE INDEX idx_workflows_document_path ON signature_workflows USING btree (document_path)
+INDEX|public.signature_workflows|idx_workflows_owner|CREATE INDEX idx_workflows_owner ON signature_workflows USING btree (owner_id)
+INDEX|public.signature_workflows|idx_workflows_status|CREATE INDEX idx_workflows_status ON signature_workflows USING btree (status)
+INDEX|public.signature_workflows|signature_workflows_pkey|CREATE UNIQUE INDEX signature_workflows_pkey ON signature_workflows USING btree (id)
+INDEX|public.signer_links|idx_signer_links_document_entity_id|CREATE INDEX idx_signer_links_document_entity_id ON signer_links USING btree (document_entity_id)
+INDEX|public.signer_links|idx_signer_links_document|CREATE INDEX idx_signer_links_document ON signer_links USING btree (document_id)
+INDEX|public.signer_links|idx_signer_links_email|CREATE INDEX idx_signer_links_email ON signer_links USING btree (signer_email)
+INDEX|public.signer_links|idx_signer_links_owner|CREATE INDEX idx_signer_links_owner ON signer_links USING btree (owner_id)
+INDEX|public.signer_links|idx_signer_links_status|CREATE INDEX idx_signer_links_status ON signer_links USING btree (status)
+INDEX|public.signer_links|idx_signer_links_token|CREATE INDEX idx_signer_links_token ON signer_links USING btree (token)
+INDEX|public.signer_links|signer_links_pkey|CREATE UNIQUE INDEX signer_links_pkey ON signer_links USING btree (id)
+INDEX|public.signer_links|signer_links_token_key|CREATE UNIQUE INDEX signer_links_token_key ON signer_links USING btree (token)
+INDEX|public.signer_otps|signer_otps_pkey|CREATE UNIQUE INDEX signer_otps_pkey ON signer_otps USING btree (signer_id)
+INDEX|public.signer_receipts|idx_signer_receipts_signer|CREATE INDEX idx_signer_receipts_signer ON signer_receipts USING btree (signer_id)
+INDEX|public.signer_receipts|idx_signer_receipts_workflow|CREATE INDEX idx_signer_receipts_workflow ON signer_receipts USING btree (workflow_id, received_at DESC)
+INDEX|public.signer_receipts|signer_receipts_pkey|CREATE UNIQUE INDEX signer_receipts_pkey ON signer_receipts USING btree (id)
+INDEX|public.system_emails|idx_system_emails_pending|CREATE INDEX idx_system_emails_pending ON system_emails USING btree (delivery_status, created_at) WHERE delivery_status = 'pending'::text
+INDEX|public.system_emails|system_emails_pkey|CREATE UNIQUE INDEX system_emails_pkey ON system_emails USING btree (id)
+INDEX|public.system_workers|idx_system_workers_status|CREATE INDEX idx_system_workers_status ON system_workers USING btree (status)
+INDEX|public.system_workers|system_workers_pkey|CREATE UNIQUE INDEX system_workers_pkey ON system_workers USING btree (name)
+INDEX|public.user_documents|idx_user_documents_bitcoin_status|CREATE INDEX idx_user_documents_bitcoin_status ON user_documents USING btree (bitcoin_status) WHERE bitcoin_status IS NOT NULL
+INDEX|public.user_documents|idx_user_documents_created|CREATE INDEX idx_user_documents_created ON user_documents USING btree (created_at DESC)
+INDEX|public.user_documents|idx_user_documents_document_entity_id|CREATE INDEX idx_user_documents_document_entity_id ON user_documents USING btree (document_entity_id)
+INDEX|public.user_documents|idx_user_documents_encrypted|CREATE INDEX idx_user_documents_encrypted ON user_documents USING btree (user_id, encrypted) WHERE encrypted = true
+INDEX|public.user_documents|idx_user_documents_entity_id|CREATE INDEX idx_user_documents_entity_id ON user_documents USING btree (document_entity_id) WHERE document_entity_id IS NOT NULL
+INDEX|public.user_documents|idx_user_documents_folder|CREATE INDEX idx_user_documents_folder ON user_documents USING btree (folder_id)
+INDEX|public.user_documents|idx_user_documents_hash|CREATE INDEX idx_user_documents_hash ON user_documents USING btree (document_hash)
+INDEX|public.user_documents|idx_user_documents_last_event|CREATE INDEX idx_user_documents_last_event ON user_documents USING btree (last_event_at DESC)
+INDEX|public.user_documents|idx_user_documents_overall_status|CREATE INDEX idx_user_documents_overall_status ON user_documents USING btree (overall_status)
+INDEX|public.user_documents|idx_user_documents_pending_anchor|CREATE INDEX idx_user_documents_pending_anchor ON user_documents USING btree (overall_status) WHERE overall_status = 'pending_anchor'::text
+INDEX|public.user_documents|idx_user_documents_polygon_status|CREATE INDEX idx_user_documents_polygon_status ON user_documents USING btree (polygon_status) WHERE polygon_status IS NOT NULL
+INDEX|public.user_documents|idx_user_documents_protection_level|CREATE INDEX idx_user_documents_protection_level ON user_documents USING btree (protection_level)
+INDEX|public.user_documents|idx_user_documents_signnow|CREATE INDEX idx_user_documents_signnow ON user_documents USING btree (signnow_document_id) WHERE signnow_document_id IS NOT NULL
+INDEX|public.user_documents|idx_user_documents_status|CREATE INDEX idx_user_documents_status ON user_documents USING btree (status)
+INDEX|public.user_documents|idx_user_documents_user_id|CREATE INDEX idx_user_documents_user_id ON user_documents USING btree (user_id)
+INDEX|public.user_documents|user_documents_document_entity_id_unique|CREATE UNIQUE INDEX user_documents_document_entity_id_unique ON user_documents USING btree (document_entity_id)
+INDEX|public.user_documents|user_documents_pkey|CREATE UNIQUE INDEX user_documents_pkey ON user_documents USING btree (id)
+INDEX|public.welcome_email_queue|idx_welcome_email_queue_status|CREATE INDEX idx_welcome_email_queue_status ON welcome_email_queue USING btree (status, created_at) WHERE status = 'pending'::text
+INDEX|public.welcome_email_queue|welcome_email_queue_pkey|CREATE UNIQUE INDEX welcome_email_queue_pkey ON welcome_email_queue USING btree (id)
+INDEX|public.welcome_email_queue|welcome_email_queue_user_id_key|CREATE UNIQUE INDEX welcome_email_queue_user_id_key ON welcome_email_queue USING btree (user_id)
+INDEX|public.workflow_artifacts|idx_workflow_artifacts_status|CREATE INDEX idx_workflow_artifacts_status ON workflow_artifacts USING btree (status)
+INDEX|public.workflow_artifacts|idx_workflow_artifacts_workflow|CREATE INDEX idx_workflow_artifacts_workflow ON workflow_artifacts USING btree (workflow_id)
+INDEX|public.workflow_artifacts|workflow_artifacts_pkey|CREATE UNIQUE INDEX workflow_artifacts_pkey ON workflow_artifacts USING btree (id)
+INDEX|public.workflow_artifacts|workflow_artifacts_unique_workflow|CREATE UNIQUE INDEX workflow_artifacts_unique_workflow ON workflow_artifacts USING btree (workflow_id)
+INDEX|public.workflow_events|idx_unique_signer_signed|CREATE UNIQUE INDEX idx_unique_signer_signed ON workflow_events USING btree (workflow_id, signer_id) WHERE event_type = 'signer.signed'::text
+INDEX|public.workflow_events|idx_we_workflow_event_type|CREATE INDEX idx_we_workflow_event_type ON workflow_events USING btree (workflow_id, event_type)
+INDEX|public.workflow_events|idx_workflow_events_created_at|CREATE INDEX idx_workflow_events_created_at ON workflow_events USING btree (created_at DESC)
+INDEX|public.workflow_events|idx_workflow_events_event_type|CREATE INDEX idx_workflow_events_event_type ON workflow_events USING btree (event_type)
+INDEX|public.workflow_events|idx_workflow_events_signer_id|CREATE INDEX idx_workflow_events_signer_id ON workflow_events USING btree (signer_id)
+INDEX|public.workflow_events|idx_workflow_events_unique_completed_per_workflow|CREATE UNIQUE INDEX idx_workflow_events_unique_completed_per_workflow ON workflow_events USING btree (workflow_id, event_type) WHERE event_type = 'workflow.completed'::text
+INDEX|public.workflow_events|idx_workflow_events_workflow_id|CREATE INDEX idx_workflow_events_workflow_id ON workflow_events USING btree (workflow_id)
+INDEX|public.workflow_events|workflow_events_pkey|CREATE UNIQUE INDEX workflow_events_pkey ON workflow_events USING btree (id)
+INDEX|public.workflow_fields|idx_workflow_fields_assigned_signer_id|CREATE INDEX idx_workflow_fields_assigned_signer_id ON workflow_fields USING btree (assigned_signer_id) WHERE assigned_signer_id IS NOT NULL
+INDEX|public.workflow_fields|idx_workflow_fields_assigned|CREATE INDEX idx_workflow_fields_assigned ON workflow_fields USING btree (assigned_to) WHERE assigned_to IS NOT NULL
+INDEX|public.workflow_fields|idx_workflow_fields_batch_id|CREATE INDEX idx_workflow_fields_batch_id ON workflow_fields USING btree (batch_id)
+INDEX|public.workflow_fields|idx_workflow_fields_batch|CREATE INDEX idx_workflow_fields_batch ON workflow_fields USING btree (batch_id) WHERE batch_id IS NOT NULL
+INDEX|public.workflow_fields|idx_workflow_fields_document_type|CREATE INDEX idx_workflow_fields_document_type ON workflow_fields USING btree (document_entity_id, field_type)
+INDEX|public.workflow_fields|idx_workflow_fields_document|CREATE INDEX idx_workflow_fields_document ON workflow_fields USING btree (document_entity_id)
+INDEX|public.workflow_fields|idx_workflow_fields_external_field_id|CREATE UNIQUE INDEX idx_workflow_fields_external_field_id ON workflow_fields USING btree (external_field_id)
+INDEX|public.workflow_fields|workflow_fields_pkey|CREATE UNIQUE INDEX workflow_fields_pkey ON workflow_fields USING btree (id)
+INDEX|public.workflow_notifications|idx_notifications_recipient_email|CREATE INDEX idx_notifications_recipient_email ON workflow_notifications USING btree (recipient_email)
+INDEX|public.workflow_notifications|idx_notifications_recipient|CREATE INDEX idx_notifications_recipient ON workflow_notifications USING btree (recipient_email)
+INDEX|public.workflow_notifications|idx_notifications_status_created|CREATE INDEX idx_notifications_status_created ON workflow_notifications USING btree (delivery_status, created_at)
+INDEX|public.workflow_notifications|idx_notifications_status|CREATE INDEX idx_notifications_status ON workflow_notifications USING btree (delivery_status)
+INDEX|public.workflow_notifications|idx_notifications_workflow_id|CREATE INDEX idx_notifications_workflow_id ON workflow_notifications USING btree (workflow_id)
+INDEX|public.workflow_notifications|idx_notifications_workflow|CREATE INDEX idx_notifications_workflow ON workflow_notifications USING btree (workflow_id)
+INDEX|public.workflow_notifications|unq_workflow_signer_notification_step|CREATE UNIQUE INDEX unq_workflow_signer_notification_step ON workflow_notifications USING btree (workflow_id, signer_id, notification_type, step)
+INDEX|public.workflow_notifications|workflow_notifications_anchor_confirmed_unique|CREATE UNIQUE INDEX workflow_notifications_anchor_confirmed_unique ON workflow_notifications USING btree (workflow_id, recipient_email, notification_type) WHERE workflow_id IS NOT NULL AND (notification_type = ANY (ARRAY['bitcoin_confirmed'::text, 'polygon_confirmed'::text]))
+INDEX|public.workflow_notifications|workflow_notifications_artifact_ready_unique|CREATE UNIQUE INDEX workflow_notifications_artifact_ready_unique ON workflow_notifications USING btree (workflow_id, recipient_email, notification_type, step) WHERE workflow_id IS NOT NULL AND recipient_email IS NOT NULL AND notification_type = 'artifact_ready'::text
+INDEX|public.workflow_notifications|workflow_notifications_completed_unique|CREATE UNIQUE INDEX workflow_notifications_completed_unique ON workflow_notifications USING btree (workflow_id, recipient_email, notification_type, step) WHERE workflow_id IS NOT NULL AND recipient_email IS NOT NULL AND notification_type = 'workflow_completed_simple'::text
+INDEX|public.workflow_notifications|workflow_notifications_pkey|CREATE UNIQUE INDEX workflow_notifications_pkey ON workflow_notifications USING btree (id)
+INDEX|public.workflow_signatures|idx_sig_workflow|CREATE INDEX idx_sig_workflow ON workflow_signatures USING btree (workflow_id)
+INDEX|public.workflow_signatures|idx_signatures_nda|CREATE INDEX idx_signatures_nda ON workflow_signatures USING btree (nda_accepted) WHERE nda_accepted = true
+INDEX|public.workflow_signatures|idx_signatures_signer|CREATE INDEX idx_signatures_signer ON workflow_signatures USING btree (signer_id)
+INDEX|public.workflow_signatures|idx_signatures_version|CREATE INDEX idx_signatures_version ON workflow_signatures USING btree (version_id)
+INDEX|public.workflow_signatures|idx_signatures_workflow|CREATE INDEX idx_signatures_workflow ON workflow_signatures USING btree (workflow_id)
+INDEX|public.workflow_signatures|workflow_signatures_pkey|CREATE UNIQUE INDEX workflow_signatures_pkey ON workflow_signatures USING btree (id)
+INDEX|public.workflow_signers|idx_signers_order|CREATE INDEX idx_signers_order ON workflow_signers USING btree (workflow_id, signing_order)
+INDEX|public.workflow_signers|idx_signers_quick_access|CREATE INDEX idx_signers_quick_access ON workflow_signers USING btree (quick_access) WHERE quick_access = true
+INDEX|public.workflow_signers|idx_signers_status|CREATE INDEX idx_signers_status ON workflow_signers USING btree (status)
+INDEX|public.workflow_signers|idx_signers_token_expires_at|CREATE INDEX idx_signers_token_expires_at ON workflow_signers USING btree (token_expires_at) WHERE token_revoked_at IS NULL AND status = 'invited'::text
+INDEX|public.workflow_signers|idx_signers_workflow|CREATE INDEX idx_signers_workflow ON workflow_signers USING btree (workflow_id)
+INDEX|public.workflow_signers|idx_workflow_signers_embed_created|CREATE INDEX idx_workflow_signers_embed_created ON workflow_signers USING btree (signnow_embed_created_at) WHERE signnow_embed_url IS NOT NULL
+INDEX|public.workflow_signers|idx_ws_workflow_status|CREATE INDEX idx_ws_workflow_status ON workflow_signers USING btree (workflow_id, status)
+INDEX|public.workflow_signers|workflow_signers_access_token_hash_key|CREATE UNIQUE INDEX workflow_signers_access_token_hash_key ON workflow_signers USING btree (access_token_hash)
+INDEX|public.workflow_signers|workflow_signers_pkey|CREATE UNIQUE INDEX workflow_signers_pkey ON workflow_signers USING btree (id)
+INDEX|public.workflow_versions|idx_versions_unique|CREATE UNIQUE INDEX idx_versions_unique ON workflow_versions USING btree (workflow_id, version_number)
+INDEX|public.workflow_versions|idx_versions_workflow|CREATE INDEX idx_versions_workflow ON workflow_versions USING btree (workflow_id)
+INDEX|public.workflow_versions|workflow_versions_pkey|CREATE UNIQUE INDEX workflow_versions_pkey ON workflow_versions USING btree (id)
+INDEX|public.workspace_addons|workspace_addons_pkey|CREATE UNIQUE INDEX workspace_addons_pkey ON workspace_addons USING btree (id)
+INDEX|public.workspace_limits|workspace_limits_pkey|CREATE UNIQUE INDEX workspace_limits_pkey ON workspace_limits USING btree (id)
+INDEX|public.workspace_limits|workspace_limits_workspace_id_key|CREATE UNIQUE INDEX workspace_limits_workspace_id_key ON workspace_limits USING btree (workspace_id)
+INDEX|public.workspace_plan|workspace_plan_pkey|CREATE UNIQUE INDEX workspace_plan_pkey ON workspace_plan USING btree (id)
+INDEX|public.workspace_plan|workspace_plan_unique_current_idx|CREATE UNIQUE INDEX workspace_plan_unique_current_idx ON workspace_plan USING btree (workspace_id) WHERE status = ANY (ARRAY['active'::text, 'trialing'::text])
+INDEX|public.workspace_usage_snapshot|workspace_usage_snapshot_pkey|CREATE UNIQUE INDEX workspace_usage_snapshot_pkey ON workspace_usage_snapshot USING btree (id)
+INDEX|public.workspaces|idx_workspaces_owner_id|CREATE INDEX idx_workspaces_owner_id ON workspaces USING btree (owner_id)
+INDEX|public.workspaces|workspaces_pkey|CREATE UNIQUE INDEX workspaces_pkey ON workspaces USING btree (id)
+POLICY|public.access_events|"Users can view access events"|PERMISSIVE|SELECT|(EXISTS ( SELECT 1
+   FROM (documents d
+     JOIN recipients r ON ((r.document_id = d.id)))
+  WHERE ((r.id = access_events.recipient_id) AND (d.owner_id = ( SELECT auth.uid() AS uid)))))|
+POLICY|public.access_logs|"Service role can insert access logs"|PERMISSIVE|INSERT||true
+POLICY|public.access_logs|"Users can view their own access logs"|PERMISSIVE|SELECT|((( SELECT auth.jwt() AS jwt) ->> 'email'::text) = user_email)|
+POLICY|public.anchor_states|"Public can view anchor states"|PERMISSIVE|SELECT|true|
+POLICY|public.anchors|"Service role can insert anchors"|PERMISSIVE|INSERT||true
+POLICY|public.anchors|"Service role can select anchors"|PERMISSIVE|SELECT|true|
+POLICY|public.anchors|"Service role can update anchors"|PERMISSIVE|UPDATE|true|
+POLICY|public.anchors|"Users can insert their own anchors"|PERMISSIVE|INSERT||(( SELECT auth.uid() AS uid) = user_id)
+POLICY|public.anchors|"Users can view anchors"|PERMISSIVE|SELECT|((( SELECT auth.uid() AS uid) = user_id) OR (anchor_status = 'confirmed'::text))|
+POLICY|public.anchors|"Users can view their own anchors"|PERMISSIVE|SELECT|(auth.uid() = user_id)|
+POLICY|public.anchors|anchors_select_authenticated|PERMISSIVE|SELECT|(EXISTS ( SELECT 1
+   FROM documents de
+  WHERE ((de.id = anchors.document_id) AND (de.owner_id = auth.uid()))))|
+POLICY|public.audit_logs|"Service role can insert audit logs"|PERMISSIVE|INSERT||true
+POLICY|public.audit_logs|"Service role can update audit logs"|PERMISSIVE|UPDATE|true|
+POLICY|public.audit_logs|"Users can view their own audit logs"|PERMISSIVE|SELECT|(auth.uid() = user_id)|
+POLICY|public.batches|"Users can manage batches of their documents"|PERMISSIVE|ALL|(document_entity_id IN ( SELECT document_entities.id
+   FROM document_entities
+  WHERE (document_entities.owner_id = auth.uid())))|
+POLICY|public.bitcoin_ots_files|"Allow owner to read bitcoin_ots_files"|PERMISSIVE|SELECT|(EXISTS ( SELECT 1
+   FROM anchors
+  WHERE ((anchors.id = bitcoin_ots_files.anchor_id) AND (anchors.user_id = auth.uid()))))|
+POLICY|public.bitcoin_ots_files|"Allow service_role to manage bitcoin_ots_files"|PERMISSIVE|ALL|(auth.role() = 'service_role'::text)|(auth.role() = 'service_role'::text)
+POLICY|public.certificate_regeneration_requests|"Service role updates regen requests"|PERMISSIVE|UPDATE|(auth.role() = 'service_role'::text)|(auth.role() = 'service_role'::text)
+POLICY|public.certificate_regeneration_requests|"Users insert their regen requests"|PERMISSIVE|INSERT||(auth.uid() = user_id)
+POLICY|public.certificate_regeneration_requests|"Users read their regen requests"|PERMISSIVE|SELECT|(auth.uid() = user_id)|
+POLICY|public.contact_leads|"Anyone can submit contact form"|PERMISSIVE|INSERT||true
+POLICY|public.contact_leads|"Authenticated users can update leads"|PERMISSIVE|UPDATE|true|true
+POLICY|public.contact_leads|"Authenticated users can view leads"|PERMISSIVE|SELECT|true|
+POLICY|public.conversion_events|"Anyone can insert conversion events"|PERMISSIVE|INSERT||true
+POLICY|public.conversion_events|"Users can view conversion events"|PERMISSIVE|SELECT|true|
+POLICY|public.custody_access_log|"Allow service_role to manage custody_access_log"|PERMISSIVE|ALL|true|true
+POLICY|public.custody_key_rotations|"Allow service_role to manage custody_key_rotations"|PERMISSIVE|ALL|true|true
+POLICY|public.document_entities|document_entities_delete_own|PERMISSIVE|DELETE|(auth.uid() = owner_id)|
+POLICY|public.document_entities|document_entities_insert_own|PERMISSIVE|INSERT||(auth.uid() = owner_id)
+POLICY|public.document_entities|document_entities_select_own|PERMISSIVE|SELECT|(auth.uid() = owner_id)|
+POLICY|public.document_entities|document_entities_update_own|PERMISSIVE|UPDATE|(auth.uid() = owner_id)|(auth.uid() = owner_id)
+POLICY|public.document_folders|"Users manage their folders"|PERMISSIVE|ALL|(auth.uid() = user_id)|(auth.uid() = user_id)
+POLICY|public.document_shares|"Service role full access"|PERMISSIVE|ALL|(auth.role() = 'service_role'::text)|
+POLICY|public.document_shares|"Users can create shares for their documents"|PERMISSIVE|INSERT||(document_entity_id IN ( SELECT de.id
+   FROM document_entities de
+  WHERE (de.owner_id = auth.uid())))
+POLICY|public.document_shares|"Users can view shares of their documents"|PERMISSIVE|SELECT|((created_by = auth.uid()) OR (document_entity_id IN ( SELECT de.id
+   FROM document_entities de
+  WHERE (de.owner_id = auth.uid()))))|
+POLICY|public.documents|"Service role can delete documents"|PERMISSIVE|DELETE|true|
+POLICY|public.documents|"Service role can insert documents"|PERMISSIVE|INSERT||true
+POLICY|public.documents|"Service role can read documents"|PERMISSIVE|SELECT|true|
+POLICY|public.documents|"Service role can update documents"|PERMISSIVE|UPDATE|true|true
+POLICY|public.documents|"Users can delete their own documents."|PERMISSIVE|DELETE|(auth.uid() = owner_id)|
+POLICY|public.documents|"Users can insert their own documents."|PERMISSIVE|INSERT||(( SELECT auth.uid() AS uid) = owner_id)
+POLICY|public.documents|"Users can update their own documents."|PERMISSIVE|UPDATE|(auth.uid() = owner_id)|(auth.uid() = owner_id)
+POLICY|public.documents|"Users can view their own documents."|PERMISSIVE|SELECT|(( SELECT auth.uid() AS uid) = owner_id)|
+POLICY|public.domain_outbox|domain_outbox_service_role_only|PERMISSIVE|ALL|true|true
+POLICY|public.eco_records|"Anonymous users can verify ECO records by hash"|PERMISSIVE|SELECT|true|
+POLICY|public.eco_records|"Service role has full access to ECO records"|PERMISSIVE|ALL|true|true
+POLICY|public.eco_records|"Users can create their own ECO records"|PERMISSIVE|INSERT||((( SELECT auth.jwt() AS jwt) ->> 'email'::text) = user_email)
+POLICY|public.eco_records|"Users can view their own ECO records"|PERMISSIVE|SELECT|((( SELECT auth.jwt() AS jwt) ->> 'email'::text) = user_email)|
+POLICY|public.ecox_audit_trail|"Owners can view their workflow audit trails"|PERMISSIVE|SELECT|(workflow_id IN ( SELECT signature_workflows.id
+   FROM signature_workflows
+  WHERE (signature_workflows.owner_id = auth.uid())))|
+POLICY|public.ecox_audit_trail|"Service role can insert audit events"|PERMISSIVE|INSERT||true
+POLICY|public.ecox_audit_trail|"Signers can view their own audit trail"|PERMISSIVE|SELECT|(signer_id IN ( SELECT workflow_signers.id
+   FROM workflow_signers
+  WHERE (workflow_signers.email = (( SELECT users.email
+           FROM auth.users
+          WHERE (users.id = auth.uid())))::text)))|
+POLICY|public.events|"Block direct client inserts on events"|PERMISSIVE|INSERT||false
+POLICY|public.events|"Users can view events for their documents"|PERMISSIVE|SELECT|(EXISTS ( SELECT 1
+   FROM user_documents
+  WHERE ((user_documents.id = events.document_id) AND (user_documents.user_id = ( SELECT auth.uid() AS uid)))))|
+POLICY|public.executor_decision_logs|executor_decision_logs_service_role_only|PERMISSIVE|ALL|true|true
+POLICY|public.executor_job_runs|executor_job_runs_service_role_only|PERMISSIVE|ALL|true|true
+POLICY|public.executor_jobs|executor_jobs_service_role_only|PERMISSIVE|ALL|true|true
+POLICY|public.invariant_violations|invariant_violations_service_role_policy|PERMISSIVE|ALL|(auth.role() = 'service_role'::text)|(auth.role() = 'service_role'::text)
+POLICY|public.invites|"Invitees can accept invites"|PERMISSIVE|UPDATE|((email = (( SELECT users.email
+   FROM auth.users
+  WHERE (users.id = ( SELECT auth.uid() AS uid))))::text) AND (revoked_at IS NULL) AND (expires_at > now()))|((email = (( SELECT users.email
+   FROM auth.users
+  WHERE (users.id = ( SELECT auth.uid() AS uid))))::text) AND (revoked_at IS NULL) AND (expires_at > now()))
+POLICY|public.invites|"Users and invitees can view invites"|PERMISSIVE|SELECT|((invited_by = ( SELECT auth.uid() AS uid)) OR (email = (( SELECT u.email
+   FROM auth.users u
+  WHERE (u.id = ( SELECT auth.uid() AS uid))))::text))|
+POLICY|public.invites|"Users can create invites for their documents"|PERMISSIVE|INSERT||((( SELECT auth.uid() AS uid) = invited_by) AND (EXISTS ( SELECT 1
+   FROM user_documents
+  WHERE ((user_documents.id = invites.document_id) AND (user_documents.user_id = ( SELECT auth.uid() AS uid))))))
+POLICY|public.invites|"Users can revoke their invites"|PERMISSIVE|UPDATE|(( SELECT auth.uid() AS uid) = invited_by)|(( SELECT auth.uid() AS uid) = invited_by)
+POLICY|public.links|"Users can view links for their documents"|PERMISSIVE|SELECT|(EXISTS ( SELECT 1
+   FROM documents
+  WHERE ((documents.id = links.document_id) AND (documents.owner_id = ( SELECT auth.uid() AS uid)))))|
+POLICY|public.nda_acceptances|"Users can view NDA acceptances"|PERMISSIVE|SELECT|(( SELECT auth.uid() AS uid) = ( SELECT d.owner_id
+   FROM (documents d
+     JOIN recipients r ON ((r.document_id = d.id)))
+  WHERE (r.id = nda_acceptances.recipient_id)))|
+POLICY|public.nda_events|"Service role writes nda_events"|PERMISSIVE|INSERT||(auth.role() = 'service_role'::text)
+POLICY|public.nda_events|"Users read their nda_events"|PERMISSIVE|SELECT|(EXISTS ( SELECT 1
+   FROM user_documents d
+  WHERE ((d.id = nda_events.document_id) AND (d.user_id = auth.uid()))))|
+POLICY|public.nda_signatures|"Service role can create NDA signatures"|PERMISSIVE|INSERT||true
+POLICY|public.nda_signatures|"Users can verify their NDA signature by token"|PERMISSIVE|SELECT|true|
+POLICY|public.nda_signatures|"Users can view NDA signatures for their documents"|PERMISSIVE|SELECT|(document_id IN ( SELECT eco_records.document_id
+   FROM eco_records
+  WHERE (eco_records.user_email = (( SELECT auth.jwt() AS jwt) ->> 'email'::text))))|
+POLICY|public.nda_templates|"Users manage their nda_templates"|PERMISSIVE|ALL|(auth.uid() = user_id)|(auth.uid() = user_id)
+POLICY|public.operation_documents|"Owners can delete operation_documents"|PERMISSIVE|DELETE|(auth.uid() = ( SELECT operations.owner_id
+   FROM operations
+  WHERE (operations.id = operation_documents.operation_id)))|
+POLICY|public.operation_documents|"Owners can view operation_documents"|PERMISSIVE|SELECT|(auth.uid() = ( SELECT operations.owner_id
+   FROM operations
+  WHERE (operations.id = operation_documents.operation_id)))|
+POLICY|public.operation_documents|"Users can add documents to their operations"|PERMISSIVE|INSERT||(EXISTS ( SELECT 1
+   FROM operations o
+  WHERE ((o.id = operation_documents.operation_id) AND (o.owner_id = auth.uid()))))
+POLICY|public.operations_events|"Owners can insert operations_events"|PERMISSIVE|INSERT||(auth.uid() = ( SELECT operations.owner_id
+   FROM operations
+  WHERE (operations.id = operations_events.operation_id)))
+POLICY|public.operations_events|"Owners can view operations_events"|PERMISSIVE|SELECT|(auth.uid() = ( SELECT operations.owner_id
+   FROM operations
+  WHERE (operations.id = operations_events.operation_id)))|
+POLICY|public.operations|"Owners can insert operations"|PERMISSIVE|INSERT||(auth.uid() = owner_id)
+POLICY|public.operations|"Owners can update their operations"|PERMISSIVE|UPDATE|(auth.uid() = owner_id)|
+POLICY|public.operations|"Owners can view their operations"|PERMISSIVE|SELECT|(auth.uid() = owner_id)|
+POLICY|public.product_events|"Allow insert product events"|PERMISSIVE|INSERT||((auth.uid() IS NULL) OR (auth.uid() = user_id))
+POLICY|public.product_events|"Users can read own product events"|PERMISSIVE|SELECT|(auth.uid() = user_id)|
+POLICY|public.profiles|"Users can insert own profile"|PERMISSIVE|INSERT||(auth.uid() = user_id)
+POLICY|public.profiles|"Users can read own profile"|PERMISSIVE|SELECT|(auth.uid() = user_id)|
+POLICY|public.profiles|"Users can update own profile"|PERMISSIVE|UPDATE|(auth.uid() = user_id)|(auth.uid() = user_id)
+POLICY|public.rate_limit_blocks|rate_limit_blocks_service_role_only|PERMISSIVE|ALL|true|true
+POLICY|public.rate_limits|rate_limits_service_role_only|PERMISSIVE|ALL|true|true
+POLICY|public.recipients|"Users can view recipient records"|PERMISSIVE|SELECT|((( SELECT (auth.jwt() ->> 'email'::text)) = email) OR (( SELECT auth.uid() AS uid) = ( SELECT documents.owner_id
+   FROM documents
+  WHERE (documents.id = recipients.document_id))))|
+POLICY|public.recipients|"Users can view recipients for their documents"|PERMISSIVE|SELECT|(EXISTS ( SELECT 1
+   FROM documents
+  WHERE ((documents.id = recipients.document_id) AND (documents.owner_id = ( SELECT auth.uid() AS uid)))))|
+POLICY|public.shadow_decision_logs|shadow_decision_logs_service_role_only|PERMISSIVE|ALL|true|true
+POLICY|public.signature_application_events|sig_app_events_insert|PERMISSIVE|INSERT||(auth.role() = 'authenticated'::text)
+POLICY|public.signature_application_events|sig_app_events_read|PERMISSIVE|SELECT|(auth.role() = 'authenticated'::text)|
+POLICY|public.signature_instances|signature_instances_insert|PERMISSIVE|INSERT||(auth.role() = 'authenticated'::text)
+POLICY|public.signature_instances|signature_instances_read_own|PERMISSIVE|SELECT|(signer_id IN ( SELECT workflow_signers.id
+   FROM workflow_signers
+  WHERE (workflow_signers.email = ((current_setting('request.jwt.claims'::text))::json ->> 'email'::text))))|
+POLICY|public.signature_workflows|"Owners can delete workflows"|PERMISSIVE|DELETE|(( SELECT auth.uid() AS uid) = owner_id)|
+POLICY|public.signature_workflows|"Owners can insert workflows"|PERMISSIVE|INSERT||(( SELECT auth.uid() AS uid) = owner_id)
+POLICY|public.signature_workflows|"Owners can update workflows"|PERMISSIVE|UPDATE|(( SELECT auth.uid() AS uid) = owner_id)|(( SELECT auth.uid() AS uid) = owner_id)
+POLICY|public.signature_workflows|"Signers can update workflow document path"|PERMISSIVE|UPDATE|((status = 'active'::text) AND (EXISTS ( SELECT 1
+   FROM workflow_signers ws
+  WHERE ((ws.workflow_id = signature_workflows.id) AND (ws.email = auth.email())))))|true
+POLICY|public.signature_workflows|"Users can view their workflows"|PERMISSIVE|SELECT|(owner_id = auth.uid())|
+POLICY|public.signer_links|"Users can create signer links"|PERMISSIVE|INSERT||(( SELECT auth.uid() AS uid) = owner_id)
+POLICY|public.signer_links|"Users can update own signer links"|PERMISSIVE|UPDATE|(( SELECT auth.uid() AS uid) = owner_id)|
+POLICY|public.signer_links|"Users can view own signer links"|PERMISSIVE|SELECT|(( SELECT auth.uid() AS uid) = owner_id)|
+POLICY|public.signer_otps|"service_role full access otps"|PERMISSIVE|ALL|(auth.role() = 'service_role'::text)|(auth.role() = 'service_role'::text)
+POLICY|public.signer_receipts|"service_role full access receipts"|PERMISSIVE|ALL|(auth.role() = 'service_role'::text)|(auth.role() = 'service_role'::text)
+POLICY|public.system_workers|system_workers_service_role_only|PERMISSIVE|ALL|true|true
+POLICY|public.user_documents|"Service role can read user_documents"|PERMISSIVE|SELECT|true|
+POLICY|public.user_documents|"Service role can update user_documents"|PERMISSIVE|UPDATE|true|
+POLICY|public.user_documents|"Users can delete their own documents"|PERMISSIVE|DELETE|(( SELECT auth.uid() AS uid) = user_id)|
+POLICY|public.user_documents|"Users can insert their own documents"|PERMISSIVE|INSERT||(auth.uid() = user_id)
+POLICY|public.user_documents|"Users can update their own documents"|PERMISSIVE|UPDATE|(( SELECT auth.uid() AS uid) = user_id)|
+POLICY|public.user_documents|"Users can view their own documents"|PERMISSIVE|SELECT|(auth.uid() = user_id)|
+POLICY|public.welcome_email_queue|welcome_email_queue_service_role_only|PERMISSIVE|ALL|true|true
+POLICY|public.workflow_events|"Owners can view workflow events"|PERMISSIVE|SELECT|(workflow_id IN ( SELECT signature_workflows.id
+   FROM signature_workflows
+  WHERE (signature_workflows.owner_id = auth.uid())))|
+POLICY|public.workflow_events|"Service role can insert workflow events"|PERMISSIVE|INSERT||true
+POLICY|public.workflow_fields|workflow_fields_owner_full_access|PERMISSIVE|ALL|(EXISTS ( SELECT 1
+   FROM document_entities
+  WHERE ((document_entities.id = workflow_fields.document_entity_id) AND (document_entities.owner_id = auth.uid()))))|(EXISTS ( SELECT 1
+   FROM document_entities
+  WHERE ((document_entities.id = workflow_fields.document_entity_id) AND (document_entities.owner_id = auth.uid()))))
+POLICY|public.workflow_fields|workflow_fields_signer_read_assigned|PERMISSIVE|SELECT|(assigned_to = (( SELECT users.email
+   FROM auth.users
+  WHERE (users.id = auth.uid())))::text)|
+POLICY|public.workflow_fields|workflow_fields_signer_update_value|PERMISSIVE|UPDATE|(assigned_to = (( SELECT users.email
+   FROM auth.users
+  WHERE (users.id = auth.uid())))::text)|(assigned_to = (( SELECT users.email
+   FROM auth.users
+  WHERE (users.id = auth.uid())))::text)
+POLICY|public.workflow_notifications|notifications_access|PERMISSIVE|SELECT|((recipient_email = (( SELECT users.email
+   FROM auth.users
+  WHERE (users.id = ( SELECT auth.uid() AS uid))))::text) OR (workflow_id IN ( SELECT signature_workflows.id
+   FROM signature_workflows
+  WHERE (signature_workflows.owner_id = ( SELECT auth.uid() AS uid)))))|
+POLICY|public.workflow_notifications|notifications_owner_insert|PERMISSIVE|INSERT||(workflow_id IN ( SELECT signature_workflows.id
+   FROM signature_workflows
+  WHERE (signature_workflows.owner_id = auth.uid())))
+POLICY|public.workflow_notifications|notifications_service_insert|PERMISSIVE|INSERT||true
+POLICY|public.workflow_signatures|signatures_access|PERMISSIVE|SELECT|(workflow_id IN ( SELECT signature_workflows.id
+   FROM signature_workflows
+  WHERE ((signature_workflows.owner_id = ( SELECT auth.uid() AS uid)) OR (signature_workflows.id IN ( SELECT workflow_signers.workflow_id
+           FROM workflow_signers
+          WHERE (workflow_signers.email = (( SELECT users.email
+                   FROM auth.users
+                  WHERE (users.id = ( SELECT auth.uid() AS uid))))::text))))))|
+POLICY|public.workflow_signers|signers_access|PERMISSIVE|SELECT|((workflow_id IN ( SELECT signature_workflows.id
+   FROM signature_workflows
+  WHERE (signature_workflows.owner_id = auth.uid()))) OR (email = auth.email()))|
+POLICY|public.workflow_versions|versions_access|PERMISSIVE|SELECT|(workflow_id IN ( SELECT signature_workflows.id
+   FROM signature_workflows
+  WHERE ((signature_workflows.owner_id = ( SELECT auth.uid() AS uid)) OR (signature_workflows.id IN ( SELECT workflow_signers.workflow_id
+           FROM workflow_signers
+          WHERE (workflow_signers.email = (( SELECT users.email
+                   FROM auth.users
+                  WHERE (users.id = ( SELECT auth.uid() AS uid))))::text))))))|
+RLS|public.access_events|t|f
+RLS|public.access_logs|t|f
+RLS|public.anchor_states|t|f
+RLS|public.anchors|t|t
+RLS|public.audit_logs|t|f
+RLS|public.batches|t|f
+RLS|public.bitcoin_ots_files|t|f
+RLS|public.certificate_regeneration_requests|t|f
+RLS|public.contact_leads|t|f
+RLS|public.conversion_events|t|f
+RLS|public.custody_access_log|t|f
+RLS|public.custody_key_rotations|t|f
+RLS|public.document_entities|t|f
+RLS|public.document_folders|t|f
+RLS|public.document_shares|t|f
+RLS|public.documents|t|f
+RLS|public.domain_outbox|t|f
+RLS|public.eco_records|t|f
+RLS|public.ecox_audit_trail|t|f
+RLS|public.events|t|f
+RLS|public.executor_decision_logs|t|f
+RLS|public.executor_job_runs|t|f
+RLS|public.executor_jobs|t|f
+RLS|public.feature_flags|f|f
+RLS|public.founder_badges|f|f
+RLS|public.identity_bindings|f|f
+RLS|public.invariant_violations|t|f
+RLS|public.invites|t|f
+RLS|public.links|t|f
+RLS|public.nda_acceptances|t|f
+RLS|public.nda_events|t|f
+RLS|public.nda_signatures|t|f
+RLS|public.nda_templates|t|f
+RLS|public.operation_documents|t|f
+RLS|public.operations_events|t|f
+RLS|public.operations|t|f
+RLS|public.plans|f|f
+RLS|public.presential_verification_otps|f|f
+RLS|public.presential_verification_sessions|f|f
+RLS|public.product_events|t|f
+RLS|public.profiles|t|f
+RLS|public.rate_limit_blocks|t|f
+RLS|public.rate_limits|t|f
+RLS|public.recipients|t|f
+RLS|public.shadow_decision_logs|t|f
+RLS|public.signature_application_events|t|f
+RLS|public.signature_instances|t|f
+RLS|public.signature_workflows|t|f
+RLS|public.signer_links|t|f
+RLS|public.signer_otps|t|f
+RLS|public.signer_receipts|t|f
+RLS|public.system_emails|t|f
+RLS|public.system_workers|t|f
+RLS|public.user_documents|t|f
+RLS|public.welcome_email_queue|t|f
+RLS|public.workflow_artifacts|f|f
+RLS|public.workflow_events|t|f
+RLS|public.workflow_fields|t|f
+RLS|public.workflow_notifications|t|f
+RLS|public.workflow_signatures|t|f
+RLS|public.workflow_signers|t|f
+RLS|public.workflow_versions|t|f
+RLS|public.workspace_addons|f|f
+RLS|public.workspace_limits|f|f
+RLS|public.workspace_plan|f|f
+RLS|public.workspace_usage_snapshot|f|f
+RLS|public.workspaces|f|f
+SEQUENCE|public.ecox_audit_trail_id_seq|bigint|1|1|9223372036854775807|1|f|1
+SEQUENCE|public.founder_badges_seq|bigint|1|1|9223372036854775807|1|f|1
+TABLE|public.access_events|r
+TABLE|public.access_logs|r
+TABLE|public.analytics_summary|v
+TABLE|public.anchor_states|r
+TABLE|public.anchors|r
+TABLE|public.audit_logs|r
+TABLE|public.audit_nda_consistency|v
+TABLE|public.batches|r
+TABLE|public.bitcoin_ots_files|r
+TABLE|public.certificate_regeneration_requests|r
+TABLE|public.contact_leads|r
+TABLE|public.conversion_events|r
+TABLE|public.custody_access_log|r
+TABLE|public.custody_key_rotations|r
+TABLE|public.document_entities|r
+TABLE|public.document_folders|r
+TABLE|public.document_shares|r
+TABLE|public.documents|r
+TABLE|public.domain_outbox|r
+TABLE|public.eco_records|r
+TABLE|public.ecox_audit_trail|r
+TABLE|public.ecox_summary|v
+TABLE|public.events|r
+TABLE|public.executor_decision_logs|r
+TABLE|public.executor_job_runs|r
+TABLE|public.executor_jobs|r
+TABLE|public.feature_flags|r
+TABLE|public.founder_badges|r
+TABLE|public.identity_bindings|r
+TABLE|public.invariant_violations_daily|v
+TABLE|public.invariant_violations|r
+TABLE|public.invites|r
+TABLE|public.links|r
+TABLE|public.missing_bitcoin_anchor_events|v
+TABLE|public.missing_polygon_anchor_events|v
+TABLE|public.nda_acceptances|r
+TABLE|public.nda_events|r
+TABLE|public.nda_signatures|r
+TABLE|public.nda_templates|r
+TABLE|public.operation_documents|r
+TABLE|public.operations_events|r
+TABLE|public.operations|r
+TABLE|public.plans|r
+TABLE|public.presential_verification_otps|r
+TABLE|public.presential_verification_sessions|r
+TABLE|public.product_events|r
+TABLE|public.profiles|r
+TABLE|public.rate_limit_blocks|r
+TABLE|public.rate_limits|r
+TABLE|public.recipients|r
+TABLE|public.shadow_d5_divergences|v
+TABLE|public.shadow_d5_summary|v
+TABLE|public.shadow_d7_divergences|v
+TABLE|public.shadow_d7_summary|v
+TABLE|public.shadow_d8_divergences|v
+TABLE|public.shadow_d8_summary|v
+TABLE|public.shadow_d9_divergences|v
+TABLE|public.shadow_d9_summary|v
+TABLE|public.shadow_decision_divergences|v
+TABLE|public.shadow_decision_last_runs|v
+TABLE|public.shadow_decision_logs|r
+TABLE|public.shadow_decision_summary|v
+TABLE|public.signature_application_events|r
+TABLE|public.signature_instances|r
+TABLE|public.signature_workflows|r
+TABLE|public.signer_links|r
+TABLE|public.signer_otps|r
+TABLE|public.signer_receipts|r
+TABLE|public.system_emails|r
+TABLE|public.system_workers|r
+TABLE|public.user_documents|r
+TABLE|public.v_incomplete_documents|v
+TABLE|public.v_p0_workflow_truth|v
+TABLE|public.welcome_email_queue|r
+TABLE|public.workflow_artifacts|r
+TABLE|public.workflow_events|r
+TABLE|public.workflow_fields|r
+TABLE|public.workflow_notifications|r
+TABLE|public.workflow_signatures|r
+TABLE|public.workflow_signers|r
+TABLE|public.workflow_versions|r
+TABLE|public.workspace_addons|r
+TABLE|public.workspace_limits|r
+TABLE|public.workspace_plan|r
+TABLE|public.workspace_usage_snapshot|r
+TABLE|public.workspaces|r
+TRIGGER|public.anchor_states|anchor_states_updated_at|f73bc60d8c20035d84b5cbe8f7f5278a
+TRIGGER|public.anchors|anchors_updated_at|6dbbe06751d2345c2e050eb14677a8b0
+TRIGGER|public.batches|set_batches_updated_at|34a1b41e411ef4db7ecb0adbc8693548
+TRIGGER|public.bitcoin_ots_files|set_public_bitcoin_ots_files_updated_at|b2e7e16f7bec238ed13d58055a63fe64
+TRIGGER|public.certificate_regeneration_requests|trg_certificate_regen_updated_at|2fb065f3d69832b2104bda6b40c0c76f
+TRIGGER|public.contact_leads|update_contact_leads_updated_at|84bffb8b974cc85f5d341d6bba457579
+TRIGGER|public.document_entities|document_entities_append_only_guard|3a1543cb502c7eba7809d6ce6b0ca923
+TRIGGER|public.document_entities|document_entities_events_append_only_guard|4ee3b803027bdb4dafe54e1922ea7802
+TRIGGER|public.document_entities|document_entities_hash_only_witness_hash|b9649fd840a17cb58dd5bb0b3c70093c
+TRIGGER|public.document_entities|document_entities_immutability_guard|dc82af1b1faf3d5712f670945715746d
+TRIGGER|public.document_entities|document_entities_update_tsa_latest|482803c6ca3e3f083725dd3d24657aa5
+TRIGGER|public.document_entities|on_document_entity_events_change|449453594a339180a11056428f366ed0
+TRIGGER|public.document_entities|trg_anchor_network_unique|d18772b2e3f3915d9e1ab4ae7c0037ac
+TRIGGER|public.document_entities|trg_events_append_only|4e62961c7478ac82ec5973751a0a1145
+TRIGGER|public.document_entities|trg_events_write_guard|ef727478f271a1b1ecaa45f93cbda22c
+TRIGGER|public.document_entities|trg_project_events_to_user_document|ad9f34ccd3dbf9c271d20167482d2884
+TRIGGER|public.document_entities|trg_required_evidence_on_protection_request|8b8d1499b97149a8bfd6c9d3bd785edd
+TRIGGER|public.document_entities|update_document_entities_updated_at|ad900f906799b2d1af0eacbdf5cd0dbc
+TRIGGER|public.document_folders|trg_document_folders_updated_at|3e321049bca0b08ce4bc63e85fd728e1
+TRIGGER|public.documents|update_documents_updated_at|cda9a39e0baeb79caa69dec579914329
+TRIGGER|public.domain_outbox|domain_outbox_updated_at|e78707dc58b2de5a1336f5352527c2e6
+TRIGGER|public.eco_records|update_eco_records_updated_at|5e5e3a6c08ac95cf302738d389d61cea
+TRIGGER|public.executor_jobs|executor_jobs_updated_at|9ae2f85930d7eb32e870f4cda69f6485
+TRIGGER|public.feature_flags|update_feature_flags_updated_at|b283aab8a78268240681c825238aedef
+TRIGGER|public.invites|trigger_update_invites_updated_at|e5340c9cb9625800be7ff30396ed0dd6
+TRIGGER|public.links|validate_document_not_revoked|d26baa6b2ed7fde87adf73f15a8a08db
+TRIGGER|public.nda_templates|trg_nda_templates_updated_at|7c3543835034df19bf00f0f01d77d077
+TRIGGER|public.operation_documents|trg_set_operation_document_added_by|ddd9c34450626e42d1a6543da24b10ae
+TRIGGER|public.operation_documents|trigger_cleanup_draft_on_protect|2e8271c6b24e5f7ae72fefbcb08948b9
+TRIGGER|public.operations|enforce_draft_transition|39ad444bc5633481ccb4d5a197e46553
+TRIGGER|public.operations|trigger_operations_updated_at|c1964bae10288ed7f884ee5437512023
+TRIGGER|public.signature_workflows|on_workflow_completed|d26377326b118d7eef7163a87aae2785
+TRIGGER|public.signature_workflows|trigger_canvas_snapshot_immutable|6fb9a96dd4abfe76829ab1d2137ed2c5
+TRIGGER|public.signer_links|update_signer_links_updated_at|bb5ce9b4a82ce2e148fa818c36ff4749
+TRIGGER|public.user_documents|on_user_documents_blockchain_anchoring|833fa85fb7e03e1d33e6d6f98d24f30e
+TRIGGER|public.user_documents|trg_user_documents_active_requires_proof|4c1a2b79b6a803dd69c0b307bd02bb23
+TRIGGER|public.user_documents|trg_user_documents_write_guard|5e2dfe6d41bb784798400d4df51f9dd7
+TRIGGER|public.user_documents|update_user_documents_updated_at|a8630f2ffad423ea39fc8c5284317e5e
+TRIGGER|public.workflow_events|trg_project_signature_workflow_status_from_event|235bc3abcb923aeb3f0917af675e1c24
+TRIGGER|public.workflow_events|trg_project_workflow_signer_status_from_event|6a640f48e2b3618365a46cf78b084005
+TRIGGER|public.workflow_fields|trigger_workflow_fields_updated_at|309b78093a0b213da8107eeed9c7690e
+TRIGGER|public.workflow_signers|on_signature_completed|1ffa8d6d9ff9dbf50589ca45f79a6eef
+TRIGGER|public.workflow_signers|on_signature_notify_creator|43e2e30e1f03db56c182b6fa4df8aeda
+TRIGGER|public.workflow_signers|trg_guard_workflow_signers_status_writes|3b31204b667bf22c08c16aef289ae986
+TRIGGER|public.workflow_signers|trigger_validate_signer_security|d8b23efe7b1e15b9955ed6d8fec69742
+VIEWDEF|public.analytics_summary|4d9eedfc9704bcb51792d466915648aa
+VIEWDEF|public.audit_nda_consistency|18459388cc27afd1d3d31109934526ab
+VIEWDEF|public.ecox_summary|8083d2a6aaf1252d77eb3c325608a38a
+VIEWDEF|public.invariant_violations_daily|0141c1e77a9cc2c02b94bf3e976ad98d
+VIEWDEF|public.missing_bitcoin_anchor_events|406077a7f0b994c1a285f971a535f3ce
+VIEWDEF|public.missing_polygon_anchor_events|69f462eff1f1e13d9aba0b0df0813bbc
+VIEWDEF|public.shadow_d5_divergences|3a649b0131f0f4342d8dfd181d364e9d
+VIEWDEF|public.shadow_d5_summary|5cf50cd72d091ef6f7818cae47100b20
+VIEWDEF|public.shadow_d7_divergences|d6818a4e2435913ae87679c8d4d51efc
+VIEWDEF|public.shadow_d7_summary|10ad2d07f372c2d9351ce58116dbe24c
+VIEWDEF|public.shadow_d8_divergences|698f6b9b073281d1678beae218d77a0a
+VIEWDEF|public.shadow_d8_summary|ef17c8f8a159be4a1c823d2596d1b397
+VIEWDEF|public.shadow_d9_divergences|e0d7d5bdc99ef81e2ca24390f785b805
+VIEWDEF|public.shadow_d9_summary|65444160418dbf593302f4e98521a7a9
+VIEWDEF|public.shadow_decision_divergences|09d991f573fdb702b11b1b5306d6eeb4
+VIEWDEF|public.shadow_decision_last_runs|265621990cfa21b384c106bb5cb4ed94
+VIEWDEF|public.shadow_decision_summary|8ffd46972fc63889f32d69b2d3519ecf
+VIEWDEF|public.v_incomplete_documents|560caf4780720000fe5e8d758eff7a81
+VIEWDEF|public.v_p0_workflow_truth|f1ccffa64f2717aab92d7a3043682f7c

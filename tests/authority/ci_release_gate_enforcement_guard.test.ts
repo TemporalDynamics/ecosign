@@ -23,4 +23,6 @@ test('CI must enforce release gate for PRs/tags and before Supabase deploy', asy
   expect(deployWorkflow).toContain('release-gate:');
   expect(deployWorkflow).toContain('npm run release:gate');
   expect(deployWorkflow).toContain('needs: [release-gate]');
+  expect(deployWorkflow).toContain('Verify remote schema drift contract');
+  expect(deployWorkflow).toContain('check-schema-drift.sh');
 });

@@ -85,11 +85,33 @@ Regla operativa (anti-bypass):
 - `diag:schema-drift:update-baseline` solo se corre cuando hay cambio intencional de schema en el mismo PR/commit.
 - Todo update de baseline debe venir acompañado por migración SQL y nota breve de motivo en este decision log.
 
-### Punto 8: hardening continuo secretos/roles
+### Punto 8: hardening continuo secretos/roles (cerrado)
 
 Done means done:
-- [ ] Auditoría automática periódica de grants y `SECURITY DEFINER`.
-- [ ] Política de rotación documentada y ejecutable.
+- [x] Auditoría automática periódica de grants y `SECURITY DEFINER`.
+- [x] Política de rotación documentada y ejecutable.
+
+Evidencia ejecutable:
+- Workflow periódico: `.github/workflows/continuous-hardening-audit.yml`
+  - `schedule` diario + `workflow_dispatch`
+  - corre:
+    - `npm run diag:internal-runtime-table-hardening`
+    - `npm run diag:security-definer-exec-allowlist`
+    - `npm run diag:secret-rotation-policy`
+- Política de rotación versionada:
+  - `security/secret_rotation_policy.json`
+- Script ejecutable de política:
+  - `scripts/diagnostics/check-secret-rotation-policy.sh`
+- Integración en release gate:
+  - `scripts/release-gate.sh` ejecuta `npm run diag:secret-rotation-policy`.
+
+Alcance explícito del cierre:
+- Se cierra **disciplina operativa** de rotación + auditoría continua de grants/superficies.
+- No implica verificación criptográfica/directa de que el secreto remoto cambió en proveedor.
+
+Subpendiente futuro (P8.1):
+- Separar `policy attestation` vs `rotation verification`.
+- Evaluar integración con metadata real de secretos (GitHub/Supabase) para validar cambio efectivo y no solo `last_rotated_at`.
 
 ### Punto 9: runbook + drills
 

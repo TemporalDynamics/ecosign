@@ -34,6 +34,7 @@ run_step "Schema drift-proof check" npm run diag:schema-drift
 run_step "Invariant observability scan" npm run diag:invariant-observability
 run_step "Internal runtime table hardening audit" npm run diag:internal-runtime-table-hardening
 run_step "SECURITY DEFINER execute allowlist audit" npm run diag:security-definer-exec-allowlist
+run_step "Secret/role rotation policy audit" npm run diag:secret-rotation-policy
 run_step "Authority hardening guards" npm run test -- \
   tests/authority/workflow_signers_status_authority_guard.test.ts \
   tests/authority/internal_tables_service_only_guard.test.ts \
@@ -42,6 +43,7 @@ run_step "Authority hardening guards" npm run test -- \
   tests/authority/workflow_canvas_fields_atomicity_guard.test.ts \
   tests/authority/no_pii_console_logs_guard.test.ts \
   tests/authority/no_raw_payload_logs_guard.test.ts \
+  tests/authority/secret_rotation_policy_guard.test.ts \
   tests/authority/ci_release_gate_enforcement_guard.test.ts \
   tests/authority/invariant_observability_contract_guard.test.ts \
   tests/authority/security_definer_exec_allowlist_closure_guard.test.ts \

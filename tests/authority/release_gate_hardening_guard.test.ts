@@ -20,6 +20,7 @@ test('release gate must enforce fast+db tests and authority hardening checks', a
   expect(gateScript).toContain('npm run test:db');
   expect(gateScript).toContain('npm run diag:schema-drift');
   expect(gateScript).toContain('npm run diag:invariant-observability');
+  expect(gateScript).toContain('npm run diag:secret-rotation-policy');
   expect(dbGateScript).toContain('tests/security/rls.test.ts');
   expect(dbGateScript).toContain('tests/security/storage.test.ts');
   expect(dbGateScript).toContain('tests/security/workflowCanvasAtomicity.test.ts');
@@ -33,6 +34,7 @@ test('release gate must enforce fast+db tests and authority hardening checks', a
   expect(gateScript).toContain('tests/authority/workflow_canvas_fields_atomicity_guard.test.ts');
   expect(gateScript).toContain('tests/authority/no_pii_console_logs_guard.test.ts');
   expect(gateScript).toContain('tests/authority/no_raw_payload_logs_guard.test.ts');
+  expect(gateScript).toContain('tests/authority/secret_rotation_policy_guard.test.ts');
   expect(gateScript).toContain('tests/authority/ci_release_gate_enforcement_guard.test.ts');
   expect(gateScript).toContain('tests/authority/invariant_observability_contract_guard.test.ts');
   expect(gateScript).toContain('tests/authority/security_definer_exec_allowlist_closure_guard.test.ts');

@@ -3,8 +3,15 @@ set -euo pipefail
 
 STATUS_JSON=""
 if command -v supabase >/dev/null 2>&1; then
-  STATUS_RAW="$(supabase status --output json 2>/dev/null || true)"
-  STATUS_JSON="$(printf '%s\n' "$STATUS_RAW" | sed -n '/^{/,$p')"
+  STATUS_RAW="$(supabase status --output json 2>&1 || true)"
+  STATUS_JSON="$(
+    printf '%s\n' "$STATUS_RAW" | awk '
+      BEGIN { capture = 0 }
+      /^\{/ { capture = 1 }
+      capture { print }
+      /^}$/ { if (capture) exit }
+    '
+  )"
 fi
 
 DB_URL="${DATABASE_URL:-${SUPABASE_DB_URL:-}}"
@@ -73,4 +80,3 @@ if [[ -n "$VIOLATIONS" ]]; then
 fi
 
 echo "✅ SECURITY DEFINER exec surface matches allowlist."
-

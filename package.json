@@ -38,6 +38,7 @@
     "diag:prelaunch-legacy-null-check": "bash scripts/diagnostics/check-prelaunch-legacy-null-entities.sh",
     "diag:internal-runtime-table-hardening": "bash scripts/diagnostics/check-internal-runtime-table-hardening.sh",
     "diag:security-definer-exec-allowlist": "bash scripts/diagnostics/check-security-definer-exec-allowlist.sh",
+    "diag:secret-rotation-policy": "bash scripts/diagnostics/check-secret-rotation-policy.sh",
     "diag:invariant-observability": "bash scripts/diagnostics/check-invariant-observability.sh",
     "diag:schema-drift": "bash scripts/diagnostics/check-schema-drift.sh",
     "diag:schema-drift:update-baseline": "bash scripts/diagnostics/check-schema-drift.sh --update",

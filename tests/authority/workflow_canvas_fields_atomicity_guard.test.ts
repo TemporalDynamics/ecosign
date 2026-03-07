@@ -13,10 +13,15 @@ test('start-signature-workflow must persist canvas+fields through atomic RPC', a
     ROOT,
     'supabase/migrations/20260306220500_persist_workflow_canvas_fields_atomic.sql'
   );
+  const hardeningMigrationPath = path.join(
+    ROOT,
+    'supabase/migrations/20260307004500_harden_persist_workflow_canvas_fields_atomic_exec.sql'
+  );
 
-  const [source, migration] = await Promise.all([
+  const [source, migration, hardeningMigration] = await Promise.all([
     fs.readFile(sourcePath, 'utf8'),
     fs.readFile(migrationPath, 'utf8'),
+    fs.readFile(hardeningMigrationPath, 'utf8'),
   ]);
 
   expect(source).toContain(".rpc(\n        'persist_workflow_canvas_fields_atomic'");
@@ -26,8 +31,8 @@ test('start-signature-workflow must persist canvas+fields through atomic RPC', a
   expect(source).not.toContain('failed_to_create_workflow_fields');
 
   expect(migration).toContain('CREATE OR REPLACE FUNCTION public.persist_workflow_canvas_fields_atomic(');
-  expect(migration).toContain('REVOKE ALL ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) FROM PUBLIC;');
-  expect(migration).toContain('REVOKE ALL ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) FROM anon;');
-  expect(migration).toContain('REVOKE ALL ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) FROM authenticated;');
-  expect(migration).toContain('GRANT EXECUTE ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) TO service_role;');
+  expect(hardeningMigration).toContain('REVOKE ALL ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) FROM PUBLIC');
+  expect(hardeningMigration).toContain('REVOKE ALL ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) FROM anon');
+  expect(hardeningMigration).toContain('REVOKE ALL ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) FROM authenticated');
+  expect(hardeningMigration).toContain('GRANT EXECUTE ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) TO service_role');
 });

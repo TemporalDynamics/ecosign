@@ -9,7 +9,10 @@ CREATE OR REPLACE FUNCTION public.persist_workflow_canvas_fields_atomic(
   p_fields jsonb DEFAULT '[]'::jsonb
 )
 RETURNS void
-AS $function$
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
 DECLARE
   v_batches jsonb := COALESCE(p_batches, '[]'::jsonb);
   v_fields jsonb := COALESCE(p_fields, '[]'::jsonb);
@@ -128,17 +131,5 @@ BEGIN
     END IF;
   END IF;
 END;
-$function$
-LANGUAGE plpgsql
-SECURITY INVOKER
-SET search_path = public;
-
-REVOKE ALL ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) FROM anon;
-REVOKE ALL ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) FROM authenticated;
-
-GRANT EXECUTE ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) TO service_role;
-GRANT EXECUTE ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb) TO postgres;
-
-COMMENT ON FUNCTION public.persist_workflow_canvas_fields_atomic(uuid, uuid, jsonb, jsonb, jsonb)
-IS 'Atomic write for signature_workflows.canvas_snapshot + workflow_fields/batches to avoid partial persistence drift.';
+$$
+;

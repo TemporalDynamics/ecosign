@@ -26,6 +26,8 @@ test('CI must enforce release gate for PRs/tags and before Supabase deploy', asy
   expect(deployWorkflow).toContain('needs: [release-gate]');
   expect(deployWorkflow).toContain('Verify remote schema drift contract');
   expect(deployWorkflow).toContain('check-schema-drift.sh');
+  expect(deployWorkflow).toContain('Post-deploy contractual verification');
+  expect(deployWorkflow).toContain('check-postdeploy-contract.sh');
 
   expect(hardeningWorkflow).toContain('schedule:');
   expect(hardeningWorkflow).toContain("cron: '30 4 * * *'");

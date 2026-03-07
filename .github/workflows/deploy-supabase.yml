@@ -76,3 +76,11 @@ jobs:
             echo "Deploying $fn"
             supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           done
+
+      - name: Setup Node.js for post-deploy checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Post-deploy contractual verification
+        run: bash ../scripts/diagnostics/check-postdeploy-contract.sh

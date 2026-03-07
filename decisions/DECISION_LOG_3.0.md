@@ -131,11 +131,41 @@ Evidencia ejecutable:
 - Guard anti-regresión:
   - `tests/authority/incident_runbook_drill_guard.test.ts`
 
-### Punto 14: verificación contractual post-deploy (al final)
+### Punto 14: verificación contractual post-deploy (cerrado fuerte)
 
 Done means done:
-- [ ] Smoke contractual en entorno desplegado (no solo repo local).
-- [ ] Checks mínimos: superficie pública, grants, auth interna, flujo canónico.
+- [x] Smoke contractual en entorno desplegado (no solo repo local).
+- [x] Checks mínimos: superficie pública, grants, auth interna, flujo canónico.
+
+Evidencia ejecutable:
+- Script contractual post-deploy:
+  - `scripts/diagnostics/check-postdeploy-contract.sh`
+  - comando: `npm run diag:postdeploy-contract`
+- Integración bloqueante en deploy pipeline:
+  - `.github/workflows/deploy-supabase.yml`
+  - step: `Post-deploy contractual verification`
+- Cobertura mínima incluida:
+  - superficie pública (`health-check`, `signing-keys`, `presential-verification-get-acta`)
+  - closed-fail auth interna (`process-signer-signed` con anon => `401/403`)
+  - grants + SECURITY DEFINER (`check-internal-runtime-table-hardening`, `check-security-definer-exec-allowlist`)
+  - smoke canónico transaccional (`scripts/diagnostics/incident_recovery_projection_drill.sql`)
+  - drift de schema (`check-schema-drift.sh`)
+- Guard anti-regresión:
+  - `tests/authority/postdeploy_contract_guard.test.ts`
+
+Evidencia empírica remota:
+- `npm run diag:postdeploy-contract` ejecutado contra `uiyojopjbhooxrmamaiw` con resultado:
+  - `Public runtime surface` OK
+  - `process-signer-signed closed fail` => `403`
+  - `Internal runtime table hardening` OK
+  - `SECURITY DEFINER allowlist` OK
+  - `INCIDENT PROJECTION DRILL PASSED`
+  - `schema drift` OK con hash `5e2ddc74b07c0c0ced0f069675465d17c7fbc85d64037d6de4eace4102e92b8a`
+- Registro operativo:
+  - Fecha: `2026-03-06`
+  - Project ref: `uiyojopjbhooxrmamaiw`
+  - Resultado remoto: `PASS`
+  - Log: `/tmp/postdeploy-contract-2026-03-06-2353.log`
 
 ## Orden acordado de ejecución
 

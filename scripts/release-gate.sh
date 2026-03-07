@@ -45,6 +45,7 @@ run_step "Authority hardening guards" npm run test -- \
   tests/authority/no_raw_payload_logs_guard.test.ts \
   tests/authority/secret_rotation_policy_guard.test.ts \
   tests/authority/incident_runbook_drill_guard.test.ts \
+  tests/authority/postdeploy_contract_guard.test.ts \
   tests/authority/ci_release_gate_enforcement_guard.test.ts \
   tests/authority/invariant_observability_contract_guard.test.ts \
   tests/authority/security_definer_exec_allowlist_closure_guard.test.ts \

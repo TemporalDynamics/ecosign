@@ -11,6 +11,8 @@ const ALLOWLIST = [
   /^docs\/public\//,
   /^docs\/beta\//,
   /^docs\/baselines\/.*\.md$/,
+  /^docs\/baselines\/.*\.txt$/,
+  /^docs\/baselines\/.*\.sha256$/,
   /^docs\/legal\/nda\/v1\.txt$/,
   /^docs\/decisions\/DECISION_LOG_3\.0\.md$/,
   /^docs\/tech-debt\/ANALISIS_ACTUALIZADO_POST_FIX_2026-03-04\.md$/,

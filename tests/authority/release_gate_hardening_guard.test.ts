@@ -27,6 +27,11 @@ test('release gate must enforce fast+db tests and authority hardening checks', a
   expect(dbGateScript).toContain('tests/security/workflowConcurrencyRace.test.ts');
   expect(dbGateScript).toContain('tests/integration/tsaEvents.test.ts');
   expect(dbGateScript).toContain('tests/canonical-only/complete-pipeline-proof.test.ts');
+  expect(gateScript).toContain('tests/authority/auth_surface_sealed_guard.test.ts');
+  expect(gateScript).toContain('tests/authority/public_runtime_authority_boundary_guard.test.ts');
+  expect(gateScript).toContain('tests/authority/workflow_status_authority_guard.test.ts');
+  expect(gateScript).toContain('tests/authority/workflow_status_sql_authority_guard.test.ts');
+  expect(gateScript).toContain('tests/authority/internal_mutator_exec_surface_guard.test.ts');
   expect(gateScript).toContain('tests/authority/workflow_signers_status_authority_guard.test.ts');
   expect(gateScript).toContain('tests/authority/internal_tables_service_only_guard.test.ts');
   expect(gateScript).toContain('tests/authority/internal_runtime_table_grants_rls_guard.test.ts');

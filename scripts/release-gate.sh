@@ -36,6 +36,11 @@ run_step "Internal runtime table hardening audit" npm run diag:internal-runtime-
 run_step "SECURITY DEFINER execute allowlist audit" npm run diag:security-definer-exec-allowlist
 run_step "Secret/role rotation policy audit" npm run diag:secret-rotation-policy
 run_step "Authority hardening guards" npm run test -- \
+  tests/authority/auth_surface_sealed_guard.test.ts \
+  tests/authority/public_runtime_authority_boundary_guard.test.ts \
+  tests/authority/workflow_status_authority_guard.test.ts \
+  tests/authority/workflow_status_sql_authority_guard.test.ts \
+  tests/authority/internal_mutator_exec_surface_guard.test.ts \
   tests/authority/workflow_signers_status_authority_guard.test.ts \
   tests/authority/internal_tables_service_only_guard.test.ts \
   tests/authority/internal_runtime_table_grants_rls_guard.test.ts \

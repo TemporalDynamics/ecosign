@@ -14,6 +14,7 @@ Evitar recaídas del ciclo anterior y dejar explícitos los pendientes de pulido
 - [x] Punto 3: persistencia atómica `canvas_snapshot + fields + batches` vía RPC y smoke real.
 - [x] Punto 4: release gate en CI implementado y ejecutándose en pipeline.
 - [x] Punto 5: observabilidad contractual de invariantes implementada (ledger + instrumentación + diagnóstico + gate).
+- [x] Punto 10: regression guards de autoridad/superficie sellados en release gate.
 
 ## Pendientes explícitos (pulido extremo)
 
@@ -44,6 +45,29 @@ Motivo:
 Done means done:
 - [ ] Required status check configurado: `Release Gate / release:gate`.
 - [ ] Evidencia en screenshot o nota operativa en este log.
+
+### Punto 10: regression guards de autoridad/superficie (cerrado)
+
+Done means done:
+- [x] Superficie pública (`verify_jwt=false`) con allowlist explícita y guard anti-recaída.
+- [x] Superficie interna (`SECURITY DEFINER` / mutators) sellada con guards de grants/exec.
+- [x] Autoridad de estado/proyección cubierta por guards y ejecutada en release gate.
+- [x] Release gate falla si se afloja cualquiera de los controles críticos.
+
+Evidencia ejecutable:
+- Guards de superficie/autoridad incorporados en `scripts/release-gate.sh`:
+  - `tests/authority/auth_surface_sealed_guard.test.ts`
+  - `tests/authority/public_runtime_authority_boundary_guard.test.ts`
+  - `tests/authority/verify_jwt_false_allowlist_guard.test.ts`
+  - `tests/authority/workflow_status_authority_guard.test.ts`
+  - `tests/authority/workflow_status_sql_authority_guard.test.ts`
+  - `tests/authority/workflow_signers_status_authority_guard.test.ts`
+  - `tests/authority/internal_mutator_exec_surface_guard.test.ts`
+  - `tests/authority/internal_security_definer_exec_closure_guard.test.ts`
+  - `tests/authority/security_definer_exec_allowlist_closure_guard.test.ts`
+  - `tests/authority/residual_anon_sd_grants_guard.test.ts`
+- Guard de integridad del propio gate:
+  - `tests/authority/release_gate_hardening_guard.test.ts`
 
 ### Punto 6: concurrencia/race (cerrado)
 

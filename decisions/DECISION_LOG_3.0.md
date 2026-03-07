@@ -113,11 +113,23 @@ Subpendiente futuro (P8.1):
 - Separar `policy attestation` vs `rotation verification`.
 - Evaluar integración con metadata real de secretos (GitHub/Supabase) para validar cambio efectivo y no solo `last_rotated_at`.
 
-### Punto 9: runbook + drills
+### Punto 9: runbook + drills (cerrado)
 
 Done means done:
-- [ ] Runbook de incidentes de evidencia/proyección.
-- [ ] Drill ejecutado con verificación post-incidente.
+- [x] Runbook de incidentes de evidencia/proyección.
+- [x] Drill ejecutado con verificación post-incidente.
+
+Evidencia ejecutable:
+- Runbook:
+  - `docs/beta/CANONICAL_INCIDENT_RUNBOOK.md`
+- Drill automatizable:
+  - `scripts/diagnostics/run-incident-recovery-drill.sh`
+  - `scripts/diagnostics/incident_recovery_projection_drill.sql`
+  - comando: `npm run diag:incident-recovery-drill`
+- Reporte de ejecución:
+  - `docs/beta/INCIDENT_RECOVERY_DRILL_2026-03-07.md`
+- Guard anti-regresión:
+  - `tests/authority/incident_runbook_drill_guard.test.ts`
 
 ### Punto 14: verificación contractual post-deploy (al final)
 

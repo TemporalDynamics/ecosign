@@ -40,6 +40,7 @@
     "diag:security-definer-exec-allowlist": "bash scripts/diagnostics/check-security-definer-exec-allowlist.sh",
     "diag:secret-rotation-policy": "bash scripts/diagnostics/check-secret-rotation-policy.sh",
     "diag:invariant-observability": "bash scripts/diagnostics/check-invariant-observability.sh",
+    "diag:incident-recovery-drill": "bash scripts/diagnostics/run-incident-recovery-drill.sh",
     "diag:schema-drift": "bash scripts/diagnostics/check-schema-drift.sh",
     "diag:schema-drift:update-baseline": "bash scripts/diagnostics/check-schema-drift.sh --update",
     "baseline:authority": "bash scripts/diagnostics/snapshot-authority-baseline.sh",

@@ -27,7 +27,7 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405)
   }
 
-  const authResult = requireInternalAuthLogged(req, 'record-custody-key-rotation')
+  const authResult = await requireInternalAuthLogged(req, 'record-custody-key-rotation')
   if (!authResult.ok) {
     return jsonResponse({ error: authResult.reason }, 401)
   }

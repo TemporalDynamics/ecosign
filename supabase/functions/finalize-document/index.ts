@@ -10,6 +10,9 @@ import { buildEpiBlockFromEvents, deriveContentAt } from '../_shared/epiCanvas.t
 type ClosureTrigger =
   | 'bitcoin_confirmed'
   | 'bitcoin_final_failed'
+  | 'polygon_confirmed'
+  | 'polygon_final_failed'
+  | 'tsa_confirmed'
   | 'manual'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -49,7 +52,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { status: 204 })
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
 
-  const auth = requireInternalAuthLogged(req, 'finalize-document', { allowCronSecret: true })
+  const auth = await requireInternalAuthLogged(req, 'finalize-document', { allowCronSecret: true })
   if (!auth.ok) return jsonResponse({ error: 'Forbidden' }, 403)
 
   const body = (await req.json().catch(() => ({}))) as {

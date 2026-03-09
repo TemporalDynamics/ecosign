@@ -45,7 +45,7 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const auth = requireInternalAuthLogged(req, 'build-artifact', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, 'build-artifact', { allowCronSecret: true });
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }
@@ -71,7 +71,7 @@ serve(async (req) => {
 
   const { data: entity, error: entityError } = await supabase
     .from('document_entities')
-    .select('id, source_name, source_hash, witness_hash, signed_hash, events, witness_current_storage_path, created_at')
+    .select('id, source_name, source_mime, source_hash, witness_hash, signed_hash, events, witness_current_storage_path, created_at')
     .eq('id', documentEntityId)
     .single();
 
@@ -182,6 +182,7 @@ serve(async (req) => {
     const ecoCertificate = buildCanonicalEcoCertificate({
       document_entity_id: documentEntityId,
       document_name: entity.source_name ?? null,
+      source_mime: entity.source_mime ?? null,
       source_hash: entity.source_hash ?? null,
       witness_hash: entity.witness_hash ?? null,
       signed_hash: entity.signed_hash ?? null,

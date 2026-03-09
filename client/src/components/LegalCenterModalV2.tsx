@@ -9,7 +9,7 @@ import { certifyFile, downloadEcox } from '../lib/basicCertificationWeb';
 import { persistSignedPdfToStorage, saveUserDocument } from '../utils/documentStorage';
 import { startSignatureWorkflow } from '../lib/signatureWorkflowService';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
-import { applySignatureToPDF, blobToFile, addSignatureSheet, applyOverlaySpecToPdf, appendSignaturePage, type SignaturePageMode } from '../utils/pdfSignature';
+import { applySignatureToPDF, blobToFile, addSignatureSheet, applyOverlaySpecToPdf, appendSignaturePage, rotatePdf, type SignaturePageMode } from '../utils/pdfSignature';
 import type { ForensicData } from '../utils/pdfSignature';
 import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
@@ -1103,11 +1103,13 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       };
     }
 
+    const normalizedRotation = ((previewRotation % 360) + 360) % 360;
     const key = [
       currentFile.name,
       currentFile.size,
       currentFile.lastModified,
-      workflowPageSizeMode
+      workflowPageSizeMode,
+      normalizedRotation
     ].join('|');
 
     if (workflowPreviewKeyRef.current === key && workflowPreviewUrl) {
@@ -1118,7 +1120,10 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     (async () => {
       try {
-        const signaturePage = await appendSignaturePage(currentFile, workflowPageSizeMode);
+        const fileForPreview = normalizedRotation !== 0
+          ? new Blob([await rotatePdf(currentFile, normalizedRotation)], { type: 'application/pdf' })
+          : currentFile;
+        const signaturePage = await appendSignaturePage(fileForPreview, workflowPageSizeMode);
         if (cancelled) return;
         const url = URL.createObjectURL(signaturePage.blob);
         const buffer = await signaturePage.blob.arrayBuffer();
@@ -1139,7 +1144,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     return () => {
       cancelled = true;
     };
-  }, [file, workflowEnabled, signatureFields.length, workflowPageSizeMode]);
+  }, [file, workflowEnabled, signatureFields.length, workflowPageSizeMode, previewRotation]);
 
   useEffect(() => {
     if (!previewContainerRef.current) return;
@@ -1650,7 +1655,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           const { error: updateError } = await supabase
             .from('document_entities')
             .update({
-              source_storage_path: storagePath
+              source_storage_path: storagePath,
+              custody_mode: 'encrypted_custody'
             })
             .eq('id', canonicalDocumentId);
 
@@ -1723,6 +1729,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         // Reusar pipeline de workflow para generar PDF con campos
         let fileToSend = file;
         try {
+          const rotDeg = ((previewRotation % 360) + 360) % 360;
+          if (rotDeg !== 0) fileToSend = new Blob([await rotatePdf(fileToSend, rotDeg)], { type: 'application/pdf' });
           const signaturePage = await appendSignaturePage(fileToSend, workflowPageSizeMode);
           fileToSend = new File([signaturePage.blob], file.name, { type: 'application/pdf' });
         } catch (err) {
@@ -1959,6 +1967,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         // SPRINT 6: Agregar página de firmas + estampar campos antes de enviar
         let fileToSend = file;
         try {
+          const rotDeg = ((previewRotation % 360) + 360) % 360;
+          if (rotDeg !== 0) fileToSend = new Blob([await rotatePdf(fileToSend, rotDeg)], { type: 'application/pdf' });
           const signaturePage = await appendSignaturePage(fileToSend, workflowPageSizeMode);
           fileToSend = new File([signaturePage.blob], file.name, { type: 'application/pdf' });
         } catch (err) {
@@ -4074,7 +4084,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                       <FileText className="w-12 h-12 text-gray-900 mx-auto mb-4" />
                                       {/* Texto de formatos */}
       <p className="text-xs text-gray-500 mt-2">
-        Solo PDF (máx 50MB)
+        PDF, imagen (PNG/JPG) o texto — máx 50MB
       </p>
                                       <div className="mt-6 pt-4 border-t border-gray-200">
                                         {/* Texto de privacidad */}

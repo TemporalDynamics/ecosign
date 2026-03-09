@@ -543,7 +543,7 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const auth = requireInternalAuthLogged(req, 'process-bitcoin-anchors', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, 'process-bitcoin-anchors', { allowCronSecret: true });
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }

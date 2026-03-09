@@ -99,7 +99,7 @@ serve(async (req) => {
     })
   }
 
-  const auth = requireInternalAuthLogged(req, 'anchor-polygon', { allowCronSecret: true })
+  const auth = await requireInternalAuthLogged(req, 'anchor-polygon', { allowCronSecret: true })
   if (!auth.ok) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), {
       status: 403,

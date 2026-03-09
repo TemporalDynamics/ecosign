@@ -160,6 +160,60 @@ async function emitAnchorTimeoutEvent(
   await emitAnchorFailedEvent(anchor, reason, attempts, true, timeoutBy === 'max_attempts' ? 'max_attempts' : 'timeout')
 }
 
+async function triggerFinalization(
+  documentEntityId: string,
+  closureTrigger: 'polygon_confirmed' | 'polygon_final_failed',
+): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey || !supabaseAdmin) {
+    console.warn('[triggerFinalization] Missing env vars, skipping.');
+    return;
+  }
+  try {
+    // Re-read events immediately after the triggering appendEvent committed.
+    // This is a fresh READ COMMITTED transaction — PostgreSQL guarantees it
+    // sees all committed data on any connection, regardless of PgBouncer pooling.
+    // No sleep needed: we're reading AFTER our own await, so our commit is done.
+    const { data: freshEntity, error: readError } = await supabaseAdmin
+      .from('document_entities')
+      .select('events')
+      .eq('id', documentEntityId)
+      .single();
+
+    if (readError || !freshEntity) {
+      console.warn(`[triggerFinalization] Could not re-read entity ${documentEntityId}:`, readError?.message);
+      return;
+    }
+
+    // Pass the fresh events snapshot to finalize-document.
+    // The function uses this directly — no DB re-read needed, no race condition.
+    const url = `${supabaseUrl}/functions/v1/finalize-document`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        document_entity_id: documentEntityId,
+        closure_trigger: closureTrigger,
+        events_snapshot: freshEntity.events,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.warn(`[triggerFinalization] finalize-document responded ${resp.status}: ${text}`);
+    } else {
+      console.log(`✅ finalize-document triggered for ${documentEntityId} (${closureTrigger})`);
+    }
+  } catch (err) {
+    // Best-effort: finalization failure is non-blocking for the anchor worker
+    console.warn('[triggerFinalization] non-critical error:', err);
+  }
+}
+
 async function resolveWorkflowId(anchor: any): Promise<string | null> {
   if (!supabaseAdmin || !anchor?.document_entity_id) return null;
   const { data, error } = await supabaseAdmin
@@ -215,7 +269,7 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const auth = requireInternalAuthLogged(req, 'process-polygon-anchors', { allowCronSecret: true })
+  const auth = await requireInternalAuthLogged(req, 'process-polygon-anchors', { allowCronSecret: true })
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403)
   }
@@ -274,6 +328,12 @@ serve(async (req) => {
           timeoutEvaluation.timeoutBy ?? 'elapsed',
         )
         await markFailed(anchor.id, reason, attempts)
+
+        // Trigger finalization when polygon anchor finally fails
+        if (anchor.document_entity_id) {
+          await triggerFinalization(anchor.document_entity_id, 'polygon_final_failed')
+        }
+
         failed++
         processed++
         continue
@@ -384,6 +444,11 @@ serve(async (req) => {
         }
 
         await insertNotification(anchor, txHash, receipt.blockNumber, receipt.blockHash, confirmedAt)
+
+        // Trigger finalization when polygon anchor is confirmed
+        if (anchor.document_entity_id) {
+          await triggerFinalization(anchor.document_entity_id, 'polygon_confirmed')
+        }
 
         confirmed++
         processed++

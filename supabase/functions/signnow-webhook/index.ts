@@ -166,7 +166,7 @@ serve(async (req) => {
 
   try {
     const rawBody = await req.text()
-    const auth = requireInternalAuthLogged(req, 'signnow-webhook', { allowCronSecret: true })
+    const auth = await requireInternalAuthLogged(req, 'signnow-webhook', { allowCronSecret: true })
     if (!auth.ok) {
       const signatureOk = await hasValidWebhookSignature(req, rawBody)
       if (!signatureOk) {

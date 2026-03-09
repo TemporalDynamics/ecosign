@@ -233,7 +233,7 @@ serve(async (req) => {
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405, corsHeaders)
   }
 
-  const auth = requireInternalAuthLogged(req, 'legal-timestamp', { allowCronSecret: true })
+  const auth = await requireInternalAuthLogged(req, 'legal-timestamp', { allowCronSecret: true })
   if (!auth.ok) {
     return jsonResponse({ success: false, error: 'Forbidden' }, 403, corsHeaders)
   }

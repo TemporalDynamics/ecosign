@@ -55,7 +55,9 @@ export default function DocumentStateInfo({ document }: DocumentStateInfoProps) 
         tone: 'gray' as const,
       }
     : probative.config;
-  const rekorConfirmed = events.some((event: any) => event?.kind === 'rekor.confirmed');
+  const rekorConfirmed = events.some((event: any) =>
+    event?.kind === 'rekor.confirmed' || event?.kind === 'signer.rekor.confirmed'
+  );
 
   const formatAnchorStatus = (network: keyof typeof probative.network) => {
     const info = probative.network[network];

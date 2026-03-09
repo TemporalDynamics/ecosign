@@ -43,7 +43,7 @@ serve(async (req) => {
 
   const { data: entity, error: entityError } = await supabase
     .from('document_entities')
-    .select('id, source_name, source_hash, witness_hash, signed_hash, events, owner_id, created_at')
+    .select('id, source_name, source_mime, source_hash, witness_hash, signed_hash, events, owner_id, created_at')
     .eq('id', documentEntityId)
     .single()
 
@@ -58,15 +58,28 @@ serve(async (req) => {
   const hasFinalizedEvent = events.some((e: any) => e?.kind === 'artifact.finalized')
   const snapshotKind = hasFinalizedEvent ? 'final_artifact' : 'protected_snapshot'
 
+  // Extract workflow_id from signature.completed event — no extra query needed.
+  const signingEvent = events.find((e: any) => e?.kind === 'signature.completed' && e?.workflow?.id)
+  const workflowId: string | null = signingEvent?.workflow?.id ?? null
+
+  // issued_at for accumulated_document_evidence must be the moment the ECO is generated,
+  // not a historical TSA timestamp. Otherwise a proof confirmed after TSA (e.g. Polygon at T+2min)
+  // would have attempted_at > issued_at — a temporal contradiction.
+  const generatedAt = new Date().toISOString()
+
   try {
     const ecoCertificate = buildCanonicalEcoCertificate({
       document_entity_id: documentEntityId,
       document_name: entity.source_name ?? null,
+      source_mime: entity.source_mime ?? null,
       source_hash: entity.source_hash ?? null,
       witness_hash: entity.witness_hash ?? null,
       signed_hash: entity.signed_hash ?? null,
       events,
+      workflow_id: workflowId,
       snapshot_kind: snapshotKind,
+      issued_at: generatedAt,
+      issued_at_source_override: 'eco.generated.at',
     })
 
     const contentAt = deriveContentAt(events, entity.created_at ?? null)

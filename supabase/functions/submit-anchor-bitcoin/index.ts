@@ -62,7 +62,7 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const auth = requireInternalAuthLogged(req, 'submit-anchor-bitcoin', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, 'submit-anchor-bitcoin', { allowCronSecret: true });
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }

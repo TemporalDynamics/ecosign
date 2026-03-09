@@ -29,7 +29,7 @@ Deno.serve(withRateLimit('feature-flags-status', async (req) => {
   }
 
   try {
-    const auth = requireInternalAuthLogged(req, 'feature-flags-status', { allowCronSecret: false });
+    const auth = await requireInternalAuthLogged(req, 'feature-flags-status', { allowCronSecret: false });
     if (!auth.ok) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

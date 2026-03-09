@@ -43,7 +43,7 @@ serve(async (req) => {
     });
   }
 
-  const auth = requireInternalAuthLogged(req, 'build-final-artifact', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, 'build-final-artifact', { allowCronSecret: true });
   if (!auth.ok) {
     return new Response('Forbidden', { status: 403, headers: corsHeaders });
   }

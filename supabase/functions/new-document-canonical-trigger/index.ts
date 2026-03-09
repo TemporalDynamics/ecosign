@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  const auth = requireInternalAuthLogged(req, 'new-document-canonical-trigger', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, 'new-document-canonical-trigger', { allowCronSecret: true });
   if (!auth.ok) {
     return new Response(
       JSON.stringify({ error: 'Forbidden' }),

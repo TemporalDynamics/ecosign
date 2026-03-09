@@ -471,7 +471,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const auth = requireInternalAuthLogged(req, 'fase1-executor', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, 'fase1-executor', { allowCronSecret: true });
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }

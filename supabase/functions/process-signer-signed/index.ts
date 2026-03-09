@@ -24,7 +24,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-  const auth = requireInternalAuthLogged(req, 'process-signer-signed', { allowCronSecret: true })
+  const auth = await requireInternalAuthLogged(req, 'process-signer-signed', { allowCronSecret: true })
   if (!auth.ok) return json({ error: 'Forbidden' }, 403)
 
   try {

@@ -2397,6 +2397,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@playwright/test@^1.58.2",
         "npm:@supabase/supabase-js@^2.81.0",
         "npm:@types/jsdom@27",
         "npm:@vercel/analytics@^1.5.0",

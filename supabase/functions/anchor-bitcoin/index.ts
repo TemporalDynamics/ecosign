@@ -117,7 +117,7 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders)
   }
 
-  const auth = requireInternalAuthLogged(req, 'anchor-bitcoin', { allowCronSecret: true })
+  const auth = await requireInternalAuthLogged(req, 'anchor-bitcoin', { allowCronSecret: true })
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403, corsHeaders)
   }

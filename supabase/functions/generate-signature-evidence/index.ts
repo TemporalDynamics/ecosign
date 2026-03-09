@@ -21,18 +21,11 @@ const jsonResponse = (data: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-const parseIso = (value: unknown) => {
-  if (typeof value !== 'string') return null;
-  const ts = new Date(value);
-  if (Number.isNaN(ts.getTime())) return null;
-  return ts;
-};
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { status: 204 });
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
-  const auth = requireInternalAuthLogged(req, 'generate-signature-evidence', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, 'generate-signature-evidence', { allowCronSecret: true });
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }
@@ -70,11 +63,17 @@ serve(async (req) => {
 
   const workflowId = String(body.workflow_id ?? signer.workflow_id ?? '');
 
-  const { data: entity, error: entityError } = await supabase
-    .from('document_entities')
-    .select('id, owner_id, source_name, source_hash, witness_hash, signed_hash, composite_hash, lifecycle_status, created_at, updated_at, metadata, events')
-    .eq('id', documentEntityId)
-    .single();
+  const [{ data: entity, error: entityError }, { count: signerCount }] = await Promise.all([
+    supabase
+      .from('document_entities')
+      .select('id, owner_id, source_name, source_hash, source_mime, witness_hash, signed_hash, composite_hash, lifecycle_status, created_at, updated_at, metadata, events')
+      .eq('id', documentEntityId)
+      .single(),
+    supabase
+      .from('workflow_signers')
+      .select('*', { count: 'exact', head: true })
+      .eq('workflow_id', workflowId),
+  ]);
 
   if (entityError || !entity) {
     return jsonResponse({ error: 'document_entity not found' }, 404);
@@ -90,28 +89,21 @@ serve(async (req) => {
     return jsonResponse({ error: 'tsa_not_confirmed', retryable: true }, 409);
   }
 
-  const tsaAt = parseIso(tsaEvent?.at);
-  const filteredEvents = tsaAt
-    ? events.filter((event: any) => {
-      const at = parseIso(event?.at);
-      if (!at) return false;
-      return at.getTime() <= tsaAt.getTime();
-    })
-    : events;
-
   const issuedAtRaw = signer.signed_at ?? tsaEvent?.at ?? null;
   const issuedAtSource = signer.signed_at ? 'workflow_signers.signed_at' : 'tsa.confirmed.at';
 
   const certificate = buildCanonicalEcoCertificate({
     document_entity_id: documentEntityId,
     document_name: entity.source_name ?? null,
+    source_mime: (entity as any).source_mime ?? null,
     source_hash: entity.source_hash ?? null,
     witness_hash: witnessHash,
     signed_hash: entity.signed_hash ?? null,
     issued_at: issuedAtRaw,
     issued_at_source_override: issuedAtSource,
-    events: filteredEvents,
+    events: events,
     workflow_id: workflowId || null,
+    evidence_scope: 'accumulated_document_evidence',
     snapshot_kind: 'signer_snapshot',
     witness_hash_for_snapshot: witnessHash,
     signer: {
@@ -119,7 +111,7 @@ serve(async (req) => {
       email: signer.email ?? null,
       name: signer.name ?? null,
       step_index: signer.signing_order ?? null,
-      step_total: null,
+      step_total: signerCount ?? null,
     },
   });
   const evidenceJson = JSON.stringify(certificate, null, 2);

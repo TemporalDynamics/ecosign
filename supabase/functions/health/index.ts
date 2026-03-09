@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const auth = requireInternalAuthLogged(req, 'health', { allowCronSecret: false });
+    const auth = await requireInternalAuthLogged(req, 'health', { allowCronSecret: false });
     if (!auth.ok) {
       return new Response(JSON.stringify({ error: 'Unauthorized - service_role required' }), {
         status: 401,

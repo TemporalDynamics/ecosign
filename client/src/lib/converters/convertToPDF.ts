@@ -110,12 +110,10 @@ export const convertToPDF = async (
   if (file.type === 'application/pdf') return file
 
   if (file.type.startsWith('image/')) {
-    if (mode === 'protection_only') return file
     return await imageToPdf(file)
   }
 
   if (file.type === 'text/plain') {
-    if (mode === 'protection_only') return file
     return await textToPdf(file)
   }
 

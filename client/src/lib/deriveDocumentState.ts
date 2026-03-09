@@ -93,6 +93,13 @@ export function deriveDocumentState(
           phase: 'gray'
         };
       }
+      // All signers signed but workflow hasn't transitioned to 'completed' yet (async race).
+      if (totalCount > 0 && signedCount >= totalCount) {
+        return {
+          label: 'Firmado',
+          phase: 'gray'
+        };
+      }
       if (totalCount > 0) {
         return {
           label: `Firmando ${signedCount}/${totalCount}`,

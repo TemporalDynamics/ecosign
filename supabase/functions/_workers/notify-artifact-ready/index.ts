@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const auth = requireInternalAuthLogged(req, '_workers/notify-artifact-ready', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, '_workers/notify-artifact-ready', { allowCronSecret: true });
   if (!auth.ok) {
     return new Response('Forbidden', { status: 403 });
   }

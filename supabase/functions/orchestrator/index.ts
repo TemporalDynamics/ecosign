@@ -522,7 +522,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const auth = requireInternalAuthLogged(req, 'orchestrator', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, 'orchestrator', { allowCronSecret: true });
   if (!auth.ok) {
     return new Response(
       JSON.stringify({ error: 'Forbidden' }),

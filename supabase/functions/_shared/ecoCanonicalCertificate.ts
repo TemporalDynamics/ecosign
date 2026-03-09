@@ -18,6 +18,7 @@ type CertificateSigner = {
 type BuildCanonicalEcoInput = {
   document_entity_id: string;
   document_name?: string | null;
+  source_mime?: string | null;
   source_hash?: string | null;
   witness_hash?: string | null;
   signed_hash?: string | null;
@@ -25,6 +26,14 @@ type BuildCanonicalEcoInput = {
   events?: CanonicalEvent[];
   signer?: CertificateSigner | null;
   workflow_id?: string | null;
+  /**
+   * evidence_scope declares what this ECO represents:
+   * - 'signature_act': snapshot of the signing act at the exact moment it occurred
+   * - 'accumulated_document_evidence': snapshot of all evidence accumulated for this document
+   *   at the time of generation (includes anchors that arrived after the signing act)
+   * - 'document_artifact': final consolidated artifact after all proofs confirmed
+   */
+  evidence_scope?: 'signature_act' | 'accumulated_document_evidence' | 'document_artifact' | null;
   identity?: {
     canonical_level?: string | null;
     ial_reference?: string | null;
@@ -176,6 +185,16 @@ export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
   const fields = input.fields ?? {};
   const signatureCapture = input.signature_capture ?? {};
 
+  // If no explicit signer but signature.completed events exist, this is a signing document.
+  const hasSigningEvents = events.some((e) => e.kind === 'signature.completed');
+  const profile = (hasSigner || hasSigningEvents) ? 'signing' : 'protection';
+
+  // evidence_scope: auto-derive when not explicitly passed.
+  // signature_act → passed explicitly by apply-signer-signature (immediate ECO).
+  // accumulated_document_evidence → auto-derived when signing events exist (get-eco, generate-signature-evidence without explicit scope).
+  const evidenceScope = input.evidence_scope ??
+    (hasSigningEvents ? 'accumulated_document_evidence' : null);
+
   const tsaEvent = findLatest(events, 'tsa.confirmed');
   const tsaProof = tsaEvent
     ? {
@@ -192,7 +211,10 @@ export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
   const polygonProof = findAnchorProof(events, 'polygon');
   const bitcoinProof = findAnchorProof(events, 'bitcoin');
 
-  const rekorEvent = findLatest(events, 'rekor.confirmed');
+  // rekor.confirmed: emitted by build-artifact / finalize-document (protection + full workflow).
+  // signer.rekor.confirmed: emitted by apply-signer-signature per signer act.
+  // Both count as Rekor confirmation for the proofs array.
+  const rekorEvent = findLatest(events, 'rekor.confirmed') ?? findLatest(events, 'signer.rekor.confirmed');
   const rekorProof = rekorEvent
     ? {
         kind: 'rekor',
@@ -209,6 +231,16 @@ export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
     : null;
 
   const proofs = [tsaProof, rekorProof, polygonProof, bitcoinProof].filter(Boolean);
+
+  const trustChecks: string[] = [
+    'Document integrity preserved',
+    profile === 'signing' ? 'Signature recorded' : 'Protection recorded',
+    ...(tsaProof ? ['RFC 3161 timestamp (TSA) confirmed'] : []),
+    ...(rekorProof ? ['Rekor transparency log confirmed'] : []),
+    ...(polygonProof ? ['Polygon blockchain anchor confirmed'] : []),
+    ...(bitcoinProof ? ['Bitcoin blockchain anchor confirmed'] : []),
+    'Evidence is self-contained',
+  ];
 
   // Per-signer workflow evidence: collect signature.completed + signer.rekor.confirmed
   // and join by step_index (primary) or witness_hash (fallback).
@@ -271,83 +303,120 @@ export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
       })
     : null;
 
+  const sameHash = input.source_hash != null &&
+    input.witness_hash != null &&
+    input.source_hash === input.witness_hash;
+
+  // artifact_stage: 'intermediate' if any required anchor was submitted but not yet confirmed.
+  // Covers both Polygon and Bitcoin — neither can be missing if they were requested.
+  const hasAnchorPending = (network: string): boolean => {
+    if (network === 'polygon' && polygonProof) return false;
+    if (network === 'bitcoin' && bitcoinProof) return false;
+    return events.some((e) => {
+      const anchorData = e?.anchor ?? e?.payload;
+      return e?.kind === 'anchor.submitted' && anchorData?.['network'] === network;
+    });
+  };
+  const artifactStage: 'final' | 'intermediate' =
+    (hasAnchorPending('bitcoin') || hasAnchorPending('polygon')) ? 'intermediate' : 'final';
+
+  // reader_intro: human-readable narrative for non-technical readers.
+  const proofLabels = [
+    tsaProof ? 'RFC 3161 timestamp (TSA)' : null,
+    rekorProof ? 'Rekor transparency log' : null,
+    polygonProof ? 'Polygon blockchain anchor' : null,
+    bitcoinProof ? 'Bitcoin blockchain anchor' : null,
+  ].filter((l): l is string => l !== null);
+  const proofSentence = proofLabels.length > 0
+    ? `Confirmed evidence: ${proofLabels.join(', ')}.`
+    : '';
+  const stageSentence = artifactStage === 'intermediate'
+    ? ' Bitcoin anchoring is in progress and will be confirmed within 4–24 hours.'
+    : '';
+  const docName = input.document_name ? `"${input.document_name}"` : 'this document';
+  const issuedDate = issuedAt.split('T')[0];
+  const readerIntro = profile === 'signing'
+    ? `This ECO certifies that ${docName} was signed and recorded by EcoSign on ${issuedDate}. The signature and document integrity can be independently verified. ${proofSentence}${stageSentence}`.trim()
+    : `This ECO certifies that ${docName} was protected by EcoSign on ${issuedDate}. The document's integrity can be independently verified at any time. ${proofSentence}${stageSentence}`.trim();
+
   return {
     format: 'eco',
-    format_version: '2.0',
-    version: 'eco.v2',
+    schema_version: 1,
+    profile,
+    artifact_stage: artifactStage,
+    evidence_scope: evidenceScope,
     issued_at: issuedAt,
+    reader_intro: readerIntro,
     evidence_declaration: {
-      type: hasSigner ? 'digital_signature_evidence' : 'digital_protection_evidence',
+      type: profile === 'signing' ? 'digital_signature_evidence' : 'digital_protection_evidence',
       document_name: input.document_name ?? null,
-      signer_email: signer?.email ?? null,
-      signer_name: signer?.name ?? null,
-      signing_step: signer?.step_index ?? null,
-      total_steps: signer?.step_total ?? null,
-      signed_at: issuedAt,
-      identity_assurance_level: identity.canonical_level ?? null,
-      summary: [
-        'Document integrity preserved',
-        hasSigner ? 'Signature recorded' : 'Protection recorded',
-        'Evidence is self-contained',
-        'Independent verification possible',
-      ],
+      ...(hasSigner ? {
+        signer_email: signer?.email ?? null,
+        signer_name: signer?.name ?? null,
+        signing_step: signer?.step_index ?? null,
+        total_steps: signer?.step_total ?? null,
+        signed_at: issuedAt,
+        identity_assurance_level: identity.canonical_level ?? null,
+      } : {}),
     },
     trust_summary: {
-      checks: [
-        'Document integrity preserved',
-        hasSigner ? 'Signature recorded' : 'Protection recorded',
-        'Timestamped (TSA) when available',
-        'Evidence is self-contained',
-      ],
+      checks: trustChecks,
     },
     document: {
       id: input.document_entity_id,
       name: input.document_name ?? null,
-      mime: 'application/pdf',
+      mime: input.source_mime ?? null,
+      // witness_mime: present when source was converted to PDF witness (e.g. TXT → PDF).
+      ...(input.source_mime && input.source_mime !== 'application/pdf'
+        ? { witness_mime: 'application/pdf' }
+        : {}),
       source_hash: input.source_hash ?? null,
       witness_hash: input.witness_hash ?? null,
+      ...(sameHash ? { witness_relationship: 'same_as_source' } : {}),
     },
-    signing_act: {
-      signer_id: signer?.id ?? null,
-      signer_email: signer?.email ?? null,
-      signer_display_name: signer?.name ?? null,
-      step_index: signer?.step_index ?? null,
-      step_total: signer?.step_total ?? null,
-      signed_at: issuedAt,
-    },
-    signer: {
-      id: signer?.id ?? null,
-      email: signer?.email ?? null,
-      name: signer?.name ?? null,
-    },
-    identity: {
-      canonical_level: identity.canonical_level ?? null,
-      ial_reference: identity.ial_reference ?? null,
-      operational_level: identity.operational_level ?? null,
-      level: identity.canonical_level ?? null,
-      owner_user_id: identity.owner_user_id ?? null,
-      owner_email: identity.owner_email ?? null,
-      email_verified: identity.email_verified ?? null,
-      auth_context: null,
-      identity_hash: null,
-    },
-    fields: {
-      schema_hash: fields.schema_hash ?? null,
-      schema_version: fields.schema_version ?? 1,
-      signer_state_hash: fields.signer_state_hash ?? null,
-      signer_state_version: fields.signer_state_version ?? 1,
-    },
-    signature_capture: {
-      present: signatureCapture.present ?? false,
-      stored: signatureCapture.stored ?? false,
-      consent: signatureCapture.consent ?? true,
-      capture_kind: signatureCapture.capture_kind ?? null,
-      store_encrypted_signature_opt_in: signatureCapture.store_encrypted_signature_opt_in ?? false,
-      store_signature_vectors_opt_in: signatureCapture.store_signature_vectors_opt_in ?? false,
-      render_hash: signatureCapture.render_hash ?? null,
-      strokes_hash: signatureCapture.strokes_hash ?? null,
-      ciphertext_hash: signatureCapture.ciphertext_hash ?? null,
-    },
+    ...(hasSigner ? {
+      signing_act: {
+        signer_id: signer?.id ?? null,
+        signer_email: signer?.email ?? null,
+        signer_display_name: signer?.name ?? null,
+        step_index: signer?.step_index ?? null,
+        step_total: signer?.step_total ?? null,
+        signed_at: issuedAt,
+      },
+      signer: {
+        id: signer?.id ?? null,
+        email: signer?.email ?? null,
+        name: signer?.name ?? null,
+      },
+      identity: {
+        canonical_level: identity.canonical_level ?? null,
+        ial_reference: identity.ial_reference ?? null,
+        operational_level: identity.operational_level ?? null,
+        level: identity.canonical_level ?? null,
+        owner_user_id: identity.owner_user_id ?? null,
+        owner_email: identity.owner_email ?? null,
+        email_verified: identity.email_verified ?? null,
+        auth_context: null,
+        identity_hash: null,
+      },
+      fields: {
+        schema_hash: fields.schema_hash ?? null,
+        schema_version: fields.schema_version ?? 1,
+        signer_state_hash: fields.signer_state_hash ?? null,
+        signer_state_version: fields.signer_state_version ?? 1,
+      },
+      signature_capture: {
+        present: signatureCapture.present ?? false,
+        stored: signatureCapture.stored ?? false,
+        consent: signatureCapture.consent ?? true,
+        capture_kind: signatureCapture.capture_kind ?? null,
+        store_encrypted_signature_opt_in: signatureCapture.store_encrypted_signature_opt_in ?? false,
+        store_signature_vectors_opt_in: signatureCapture.store_signature_vectors_opt_in ?? false,
+        render_hash: signatureCapture.render_hash ?? null,
+        strokes_hash: signatureCapture.strokes_hash ?? null,
+        ciphertext_hash: signatureCapture.ciphertext_hash ?? null,
+      },
+    } : {}),
     proofs,
     ...(signersEvidence !== null ? { signers_evidence: signersEvidence } : {}),
     ...(ndaEvidence !== null ? { nda_evidence: ndaEvidence } : {}),

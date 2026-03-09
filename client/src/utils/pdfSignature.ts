@@ -6,8 +6,8 @@
 
 // Lazy load pdf-lib para mejorar performance del landing
 const loadPdfLib = async () => {
-  const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
-  return { PDFDocument, rgb, StandardFonts };
+  const { PDFDocument, rgb, StandardFonts, degrees } = await import('pdf-lib');
+  return { PDFDocument, rgb, StandardFonts, degrees };
 };
 
 // --- Type Definitions ---
@@ -65,6 +65,38 @@ const embedDataUrlImage = async (
   }
   return pdfDoc.embedPng(bytes);
 };
+
+/**
+ * Rota todas las páginas de un PDF por los grados indicados.
+ * Acumula sobre la rotación existente de cada página.
+ * Soporta cualquier formato que haya sido previamente convertido a PDF.
+ */
+export async function rotatePdf(pdfData: File | Blob | Uint8Array, rotateDegrees: number): Promise<Uint8Array> {
+  const { PDFDocument, degrees } = await loadPdfLib();
+  
+  // Get bytes from File/Blob/Uint8Array
+  const pdfBytes: Uint8Array = await (async () => {
+    // Case 1: Already Uint8Array
+    if (pdfData instanceof Uint8Array) {
+      return pdfData;
+    }
+    // Case 2: File or Blob with arrayBuffer method
+    if (typeof (pdfData as any).arrayBuffer === 'function') {
+      return new Uint8Array(await (pdfData as any).arrayBuffer());
+    }
+    // Fallback: should not reach here
+    throw new Error('rotatePdf: invalid input type');
+  })();
+  
+  const pdfDoc = await PDFDocument.load(pdfBytes);
+  for (const page of pdfDoc.getPages()) {
+    const current = (page.getRotation() && page.getRotation().angle) || 0;
+    const next = ((current + rotateDegrees) % 360 + 360) % 360;
+    page.setRotation(degrees(next));
+  }
+  const rotated = await pdfDoc.save();
+  return rotated;
+}
 
 export async function appendSignaturePage(
   pdfFile: File,

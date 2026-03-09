@@ -16,6 +16,56 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const FUNCTIONS_URL = `${SUPABASE_URL.replace(/\/+$/, '')}/functions/v1`;
 
+async function triggerFinalization(
+  documentEntityId: string,
+  closureTrigger: 'tsa_confirmed',
+): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('[triggerFinalization] Missing env vars, skipping.');
+    return;
+  }
+  try {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    // Re-read events immediately after the triggering appendEvent committed.
+    const { data: freshEntity, error: readError } = await supabase
+      .from('document_entities')
+      .select('events')
+      .eq('id', documentEntityId)
+      .single();
+
+    if (readError || !freshEntity) {
+      console.warn(`[triggerFinalization] Could not re-read entity ${documentEntityId}:`, readError?.message);
+      return;
+    }
+
+    // Pass the fresh events snapshot to finalize-document.
+    const url = `${SUPABASE_URL}/functions/v1/finalize-document`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({
+        document_entity_id: documentEntityId,
+        closure_trigger: closureTrigger,
+        events_snapshot: freshEntity.events,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.warn(`[triggerFinalization] finalize-document responded ${resp.status}: ${text}`);
+    } else {
+      console.log(`✅ finalize-document triggered for ${documentEntityId} (${closureTrigger})`);
+    }
+  } catch (err) {
+    // Best-effort: finalization failure is non-blocking
+    console.warn('[triggerFinalization] non-critical error:', err);
+  }
+}
+
 const jsonResponse = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
@@ -105,7 +155,7 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const auth = requireInternalAuthLogged(req, 'run-tsa', { allowCronSecret: true });
+  const auth = await requireInternalAuthLogged(req, 'run-tsa', { allowCronSecret: true });
   if (!auth.ok) {
     return jsonResponse({ error: 'Forbidden' }, 403);
   }
@@ -197,6 +247,9 @@ serve(async (req) => {
     }
 
     await emitEvent(supabase, documentEntityId, tsaEvent, 'run-tsa');
+
+    // Trigger finalization when TSA is confirmed
+    await triggerFinalization(documentEntityId, 'tsa_confirmed')
 
     const requiredEvidence = getRequiredEvidence(events);
     const witnessHashForJobs = witnessHash;

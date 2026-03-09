@@ -93,6 +93,7 @@ type DocumentEntityRow = {
   updated_at?: string | null;
   events?: any[];
   witness_history?: any[];
+  metadata?: unknown;
 };
 
 type DraftRow = DraftMeta & {
@@ -174,10 +175,23 @@ const getEcoStoragePathFromEvents = (events?: any[]): string | null => {
   return finalized?.payload?.eco_storage_path ?? null;
 };
 
+const extractMetadataRuntime = (metadata: unknown): { encrypted_path: string | null; wrapped_key: string | null; wrap_iv: string | null } => {
+  const asObj = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v)) ? v as Record<string, unknown> : null;
+  const meta = asObj(metadata) ?? {};
+  const ecox = asObj(meta.ecox) ?? {};
+  const runtime = asObj(ecox.runtime) ?? {};
+  return {
+    encrypted_path: typeof runtime.encrypted_path === 'string' ? runtime.encrypted_path : null,
+    wrapped_key: typeof runtime.wrapped_key === 'string' ? runtime.wrapped_key : null,
+    wrap_iv: typeof runtime.wrap_iv === 'string' ? runtime.wrap_iv : null,
+  };
+};
+
 const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord => {
   const documentHash = entity.signed_hash || entity.witness_current_hash || entity.source_hash;
   const tsaInfo = getLatestTsaEvent(entity.events as any[]);
   const ecoStoragePath = getEcoStoragePathFromEvents(entity.events as any[]);
+  const runtime = extractMetadataRuntime(entity.metadata);
   return {
     id: entity.id,
     document_entity_id: entity.id,
@@ -194,6 +208,9 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     has_polygon_anchor: false,
     has_bitcoin_anchor: false,
     eco_storage_path: ecoStoragePath,
+    encrypted_path: runtime.encrypted_path,
+    wrapped_key: runtime.wrapped_key,
+    wrap_iv: runtime.wrap_iv,
     events: Array.isArray(entity.events) ? entity.events : [],
     witness_history: Array.isArray(entity.witness_history) ? entity.witness_history : [],
     signer_links: []
@@ -568,6 +585,7 @@ function DocumentsPage() {
   };
 
   const loadDocuments = useCallback(async (opts?: { silent?: boolean }) => {
+    let sessionPending = false;
     try {
       const supabase = getSupabase();
       if (!opts?.silent) {
@@ -584,46 +602,47 @@ function DocumentsPage() {
         return;
       }
 
-      if (userError || !user) {
+      if (userError) {
         console.error("Error getting user:", userError);
         setDocuments([]);
+        return;
+      }
+
+      if (!user) {
+        // Session not yet hydrated — keep loading spinner, onAuthStateChange will retry.
+        sessionPending = true;
         return;
       }
       disableGuestMode();
       setCurrentUserId(user.id);
 
-      const entityQuery = supabase
-        .from("document_entities")
-        .select(
-          `
-          id,
-          source_name,
-          source_hash,
-          source_captured_at,
-          source_storage_path,
-          witness_current_hash,
-          witness_current_storage_path,
-          signed_hash,
-          signed_authority,
-          composite_hash,
-          custody_mode,
-          created_at,
-          updated_at,
-          events,
-          witness_history
-        `
-        )
-        .eq("owner_id", user.id)
-        .order("created_at", { ascending: false });
+      // Run entity fetch and operation-assignment filter in parallel.
+      const [entityResult, assignedResult] = await Promise.all([
+        supabase
+          .from("document_entities")
+          .select(
+            `id, source_name, source_hash, source_captured_at,
+             source_storage_path, witness_current_hash,
+             witness_current_storage_path, signed_hash, signed_authority,
+             composite_hash, custody_mode, created_at, updated_at,
+             metadata, events, witness_history`
+          )
+          .eq("owner_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from('operation_documents')
+          .select('document_entity_id, operations!inner(owner_id, status)')
+          .eq('operations.owner_id', user.id)
+          .not('document_entity_id', 'is', null)
+          .neq('operations.status', 'archived'),
+      ]);
 
-      const { data: entityData, error } = await entityQuery;
-
-      if (error) {
-        console.error("Error loading document_entities:", error);
-        throw error;
+      if (entityResult.error) {
+        console.error("Error loading document_entities:", entityResult.error);
+        throw entityResult.error;
       }
 
-      const mapped = (entityData as DocumentEntityRow[] | null)?.map(mapDocumentEntityToRecord) || [];
+      const mapped = (entityResult.data as DocumentEntityRow[] | null)?.map(mapDocumentEntityToRecord) || [];
 
       // Enriquecer con workflows y firmantes (para estado "Firmando x/y")
       try {
@@ -697,99 +716,26 @@ function DocumentsPage() {
         console.warn('Skipping workflow enrichment:', workflowJoinErr);
       }
 
-      // Enriquecer con runtime canónico en document_entities.metadata.ecox.runtime
-      // para preview/descarga cifrada sin depender de user_documents.
-      try {
-        const entityIds = mapped
-          .map((doc) => doc.document_entity_id ?? doc.id)
-          .filter((id) => typeof id === 'string' && id.length > 0);
-
-        if (entityIds.length > 0) {
-          const { data: entities, error: entitiesError } = await supabase
-            .from('document_entities')
-            .select('id, metadata, source_storage_path, witness_current_storage_path')
-            .in('id', entityIds);
-
-          if (!entitiesError && entities) {
-            const byEntityId = new Map<string, any>();
-            for (const row of entities as any[]) {
-              const entityId = typeof row?.id === 'string' ? row.id : null;
-              if (!entityId) continue;
-              byEntityId.set(entityId, row);
-            }
-
-            const asObject = (value: unknown): Record<string, unknown> | null =>
-              value && typeof value === 'object' && !Array.isArray(value)
-                ? (value as Record<string, unknown>)
-                : null;
-
-            mapped.forEach((doc) => {
-              const entityId = doc.document_entity_id ?? doc.id;
-              const entity = byEntityId.get(entityId);
-              if (!entity) return;
-
-              const metadata = asObject(entity.metadata) ?? {};
-              const ecox = asObject(metadata.ecox) ?? {};
-              const runtime = asObject(ecox.runtime) ?? {};
-
-              doc.encrypted_path =
-                (typeof runtime.encrypted_path === 'string' && runtime.encrypted_path) ||
-                doc.encrypted_path ||
-                null;
-              doc.wrapped_key =
-                (typeof runtime.wrapped_key === 'string' && runtime.wrapped_key) ||
-                doc.wrapped_key ||
-                null;
-              doc.wrap_iv =
-                (typeof runtime.wrap_iv === 'string' && runtime.wrap_iv) ||
-                doc.wrap_iv ||
-                null;
-
-              if (!doc.pdf_storage_path) {
-                doc.pdf_storage_path =
-                  (typeof entity.witness_current_storage_path === 'string' && entity.witness_current_storage_path) ||
-                  (typeof entity.source_storage_path === 'string' && entity.source_storage_path) ||
-                  null;
-              }
-            });
-          }
-        }
-      } catch (runtimeJoinErr) {
-        console.warn('Skipping canonical runtime enrichment:', runtimeJoinErr);
-      }
-
       // UX rule: Documents list shows only documents not assigned to any operation.
-      // If a document is in an operation, it is accessed from that operation.
-      try {
-        const { data: assigned, error: assignedError } = await supabase
-          .from('operation_documents')
-          .select('document_entity_id, operations!inner(owner_id, status)')
-          .eq('operations.owner_id', user.id)
-          .not('document_entity_id', 'is', null)
-          .neq('operations.status', 'archived');
-
-        if (assignedError) {
-          console.warn('Skipping operation assignment filter:', assignedError);
-          setDocuments(mapped);
-          return;
-        }
-
-        const assignedIds = new Set(
-          (assigned || [])
-            .map((row: any) => row.document_entity_id)
-            .filter(Boolean)
-        );
-        setDocuments(mapped.filter((doc) => !assignedIds.has(doc.document_entity_id ?? doc.id)));
-      } catch (err) {
-        console.warn('Skipping operation assignment filter (exception):', err);
-        setDocuments(mapped);
+      const assignedIds = new Set(
+        (assignedResult.data || [])
+          .map((row: any) => row.document_entity_id)
+          .filter(Boolean)
+      );
+      if (assignedResult.error) {
+        console.warn('Skipping operation assignment filter:', assignedResult.error);
       }
+      setDocuments(
+        assignedResult.error
+          ? mapped
+          : mapped.filter((doc) => !assignedIds.has(doc.document_entity_id ?? doc.id))
+      );
       return;
     } catch (error) {
       console.error("Error in loadDocuments:", error);
       setDocuments([]);
     } finally {
-      if (!opts?.silent) {
+      if (!opts?.silent && !sessionPending) {
         setLoading(false);
       }
     }
@@ -970,6 +916,19 @@ function DocumentsPage() {
   useEffect(() => {
     loadDocuments();
     loadPlan();
+  }, [loadDocuments, loadPlan]);
+
+  // Retry document load when Supabase session finishes hydrating.
+  // Prevents the empty-state flash when getUser() returns null before session is ready.
+  useEffect(() => {
+    const supabase = getSupabase();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
+        loadDocuments();
+        loadPlan();
+      }
+    });
+    return () => subscription.unsubscribe();
   }, [loadDocuments, loadPlan]);
 
   // Deep-link from other flows (e.g. duplicate name warning)
@@ -1234,7 +1193,8 @@ function DocumentsPage() {
   ) => {
     const isLikelyCustodyPath =
       storagePath.includes('/encrypted_witness/') ||
-      storagePath.includes('/encrypted_source/');
+      storagePath.includes('/encrypted_source') // matches with or without trailing slash
+      ;
     const isLikelyArtifactPath =
       storagePath.startsWith('artifacts/') ||
       storagePath.endsWith('.eco') ||
@@ -1319,7 +1279,7 @@ function DocumentsPage() {
       if (!response.ok) {
         const body = await response.text().catch(() => '');
         console.error("Error descargando archivo:", response.status, response.statusText, body);
-        window.alert(mapStorageHttpError(response.status, 'download'));
+        toast.error(mapStorageHttpError(response.status, 'download'), { position: "top-right" });
         return false;
       }
 
@@ -1333,7 +1293,7 @@ function DocumentsPage() {
       // Verificar si el blob tiene contenido válido
       if (blob.size === 0) {
         console.error('[downloadFromPath] Downloaded blob is empty!');
-        window.alert("El archivo descargado está vacío.");
+        toast.error("El archivo descargado está vacío.", { position: "top-right" });
         return false;
       }
 
@@ -1352,7 +1312,7 @@ function DocumentsPage() {
       return true;
     } catch (err) {
       console.error("Error descargando:", err);
-      window.alert("No pudimos completar la descarga. Revisá tu conexión e intentá de nuevo.");
+      toast.error("No pudimos completar la descarga. Revisá tu conexión e intentá de nuevo.", { position: "top-right" });
       return false;
     }
   };
@@ -1469,10 +1429,6 @@ function DocumentsPage() {
     let objectUrl: string | null = null;
     const fileName = previewDoc.document_name || "";
     const extension = fileName.split(".").pop()?.toLowerCase() || "";
-    const isText = ["txt", "md", "csv"].includes(extension);
-    const isPdf = extension === "pdf";
-    const isImage = ["png", "jpg", "jpeg", "gif", "webp"].includes(extension);
-    const isPreviewable = isText || isImage || isPdf;
 
     setPreviewLoading(true);
     setPreviewError(null);
@@ -1482,22 +1438,39 @@ function DocumentsPage() {
 
     const loadPreview = async () => {
       try {
-        if (!isPreviewable) {
-          throw new Error("Este formato no tiene previsualización disponible.");
-        }
         let blob: Blob | null = null;
         const storagePath = getPdfStoragePath(previewDoc);
+
+        // Determine blob source and rendering type:
+        // - pdf_storage_path / encrypted_path → always a PDF witness (regardless of original filename extension)
+        // - no storage at all → use filename extension for text/image originals
+        let renderAs: 'pdf' | 'text' | 'image' | null = null;
+
+        console.log('[preview] doc:', previewDoc.id, {
+          pdf_storage_path: previewDoc.pdf_storage_path,
+          encrypted_path: previewDoc.encrypted_path,
+          source_storage_path: previewDoc.source_storage_path,
+          storagePath,
+        });
+
         if (storagePath) {
           blob = await fetchPreviewBlobFromPath(storagePath);
+          renderAs = 'pdf'; // pdf_storage_path always holds a PDF witness
         } else if (previewDoc.encrypted_path) {
           const hasUnwrapMetadata = Boolean(previewDoc.wrapped_key && previewDoc.wrap_iv);
-          if (hasUnwrapMetadata) {
-            blob = await fetchEncryptedPdfBlob(previewDoc);
-          } else {
-            // Legacy compatibility: some historical rows persisted the final PDF under
-            // encrypted_path (signed/...) without unwrap metadata.
-            blob = await fetchPreviewBlobFromPath(previewDoc.encrypted_path);
+          blob = hasUnwrapMetadata
+            ? await fetchEncryptedPdfBlob(previewDoc)
+            : await fetchPreviewBlobFromPath(previewDoc.encrypted_path);
+          renderAs = 'pdf'; // encrypted_path holds the protected/signed PDF witness
+        } else {
+          // No witness path — fall back to original file via extension
+          const isText = ["txt", "md", "csv"].includes(extension);
+          const isImage = ["png", "jpg", "jpeg", "gif", "webp"].includes(extension);
+          const isPdf = extension === "pdf";
+          if (!isText && !isImage && !isPdf) {
+            throw new Error("Este formato no tiene previsualización disponible.");
           }
+          renderAs = isPdf ? 'pdf' : isImage ? 'image' : 'text';
         }
 
         if (!blob) {
@@ -1506,12 +1479,12 @@ function DocumentsPage() {
 
         if (!active) return;
 
-        if (isText) {
+        if (renderAs === 'text') {
           const text = await blob.text();
           if (!active) return;
           setPreviewText(text);
           setPreviewPdfData(null);
-        } else if (isPdf) {
+        } else if (renderAs === 'pdf') {
           const buffer = await blob.arrayBuffer();
           if (!active) return;
           objectUrl = URL.createObjectURL(blob);
@@ -1628,13 +1601,13 @@ function DocumentsPage() {
       });
       if (error) {
         console.error("Error solicitando regeneración:", error);
-        window.alert("No pudimos solicitar la regeneración. Probá de nuevo en unos segundos.");
+        toast.error("No pudimos solicitar la regeneración. Probá de nuevo en unos segundos.", { position: "top-right" });
         return;
       }
-      window.alert("Listo: estamos regenerando el certificado. Te avisamos cuando esté.");
+      toast.success("Listo: estamos regenerando el certificado. Te avisamos cuando esté.", { position: "top-right" });
     } catch (err) {
       console.error("Error solicitando regeneración:", err);
-      window.alert("No pudimos solicitar la regeneración. Probá de nuevo en unos segundos.");
+      toast.error("No pudimos solicitar la regeneración. Probá de nuevo en unos segundos.", { position: "top-right" });
     } finally {
       toast.dismiss(loadingToastId);
     }
@@ -1644,11 +1617,11 @@ function DocumentsPage() {
     if (!doc) return;
     const entityId = doc.document_entity_id;
     if (!entityId) {
-      window.alert("Todavía no hay certificado .ECO para este documento.");
+      toast.error("Todavía no hay certificado .ECO para este documento.", { position: "top-right" });
       return;
     }
 
-    const ecoName = doc.document_name.replace(/\.pdf$/i, ".eco");
+    const ecoName = doc.document_name.replace(/\.[^.]+$/, ".eco");
 
     try {
       const supabase = getSupabase();
@@ -1662,12 +1635,12 @@ function DocumentsPage() {
 
       if (error) {
         console.error('get-eco error:', error);
-        window.alert("No se pudo generar el ECO. Reintentá en unos minutos.");
+        toast.error("No se pudo generar el ECO. Reintentá en unos minutos.", { position: "top-right" });
         return;
       }
 
       if (data?.error === 'eco_not_ready') {
-        window.alert("El ECO todavía no está listo: el proceso de certificación está en curso. Reintentá en unos minutos.");
+        toast("El ECO todavía no está listo: el proceso de certificación está en curso. Reintentá en unos minutos.", { position: "top-right", icon: "\u23f3" });
         return;
       }
 
@@ -1675,14 +1648,14 @@ function DocumentsPage() {
       triggerDownload(blob, ecoName);
     } catch (err) {
       console.error('get-eco failed:', err);
-      window.alert("Error al descargar el ECO. Reintentá en unos minutos.");
+      toast.error("Error al descargar el ECO. Reintentá en unos minutos.", { position: "top-right" });
     }
   };
 
   const performEcoxDownload = (doc: DocumentRecord | null) => {
     if (!doc) return;
     if (doc.ecox_storage_path) {
-      const ecoxName = doc.document_name.replace(/\.pdf$/i, ".ecox");
+      const ecoxName = doc.document_name.replace(/\.[^.]+$/, ".ecox");
       downloadFromPath(doc.ecox_storage_path, ecoxName);
       return;
     }
@@ -1731,12 +1704,12 @@ function DocumentsPage() {
         })
         .catch((err) => {
           console.error("Error descargando PDF cifrado:", err);
-          window.alert(err instanceof Error ? err.message : "No pudimos descargar el PDF.");
+          toast.error(err instanceof Error ? err.message : "No pudimos descargar el PDF.", { position: "top-right" });
         });
       return;
     }
     console.warn('[handlePdfDownload] No storage path available for document');
-    window.alert("Este documento no tiene copia guardada.");
+    toast.error("Este documento no tiene copia guardada.", { position: "top-right" });
   };
 
   const handleOriginalDownload = async (doc: DocumentRecord | null) => {
@@ -1744,7 +1717,7 @@ function DocumentsPage() {
 
     // Verificar que el documento tenga el original guardado
     if (!doc.source_storage_path) {
-      window.alert("Este documento no tiene el archivo original guardado.");
+      toast.error("Este documento no tiene el archivo original guardado.", { position: "top-right" });
       return;
     }
 
@@ -1753,7 +1726,7 @@ function DocumentsPage() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        window.alert("Necesitás iniciar sesión para descargar el original.");
+        toast.error("Necesitás iniciar sesión para descargar el original.", { position: "top-right" });
         return;
       }
 
@@ -1766,7 +1739,7 @@ function DocumentsPage() {
       if (!response.ok) {
         const body = await response.text().catch(() => '');
         console.error('[handleOriginalDownload] Fetch failed:', response.status, response.statusText, body);
-        window.alert(mapStorageHttpError(response.status, 'download'));
+        toast.error(mapStorageHttpError(response.status, 'download'), { position: "top-right" });
         return;
       }
 
@@ -1810,7 +1783,7 @@ function DocumentsPage() {
 
     } catch (err) {
       console.error("Error descargando original cifrado:", err);
-      window.alert(err instanceof Error ? err.message : "No pudimos descargar el original.");
+      toast.error(err instanceof Error ? err.message : "No pudimos descargar el original.", { position: "top-right" });
     }
   };
 
@@ -3028,7 +3001,7 @@ function DocumentsPage() {
                 )}
                 {!previewLoading && !previewError && previewUrl && (
                   <>
-                    {previewDoc.document_name.toLowerCase().endsWith(".pdf") ? (
+                    {previewPdfData ? (
                       <PdfEditViewer
                         src={previewUrl}
                         pdfData={previewPdfData}

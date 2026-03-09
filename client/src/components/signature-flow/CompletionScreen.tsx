@@ -8,6 +8,7 @@
 
 import { CheckCircle, Home, FileText } from 'lucide-react'
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 
 interface CompletionScreenProps {
   workflowTitle?: string | null
@@ -44,7 +45,7 @@ export default function CompletionScreen({
   const handleEcoClick = async () => {
     if (downloadingEco) return
     if (!onDownloadEco) {
-      window.alert('La evidencia ECO aún se está preparando. Reintentá en unos segundos.')
+      toast.error('La evidencia ECO aún se está preparando. Reintentá en unos segundos.')
       return
     }
     try {
@@ -57,11 +58,11 @@ export default function CompletionScreen({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-10 shadow-md">
-        <div className="mb-6 flex justify-center">
-          <CheckCircle className="h-16 w-16 text-emerald-500" />
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-md sm:p-10">
+        <div className="mb-4 flex justify-center sm:mb-6">
+          <CheckCircle className="h-12 w-12 text-emerald-500 sm:h-16 sm:w-16" />
         </div>
-        <h1 className="mb-2 text-center text-3xl font-bold text-gray-900">
+        <h1 className="mb-2 text-center text-2xl font-bold text-gray-900 sm:text-3xl">
           ¡Firma completada!
         </h1>
         <p className="mb-4 text-center text-gray-600">

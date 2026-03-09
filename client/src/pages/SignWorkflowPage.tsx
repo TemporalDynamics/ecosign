@@ -25,6 +25,7 @@ import { deriveKeyFromOTP, unwrapDocumentKey, decryptFile as decryptFileE2E, hex
 import { clearSignFlowContext, readSignFlowContext, type SignFlowContext } from '@/lib/signFlowContext'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { AlertTriangle, Loader2 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 // Step components
 import TokenValidator from '@/components/signature-flow/TokenValidator'
@@ -740,10 +741,16 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
     }
   }
 
-  const handleRetrySignNow = () => {
+  const handleRetrySignNow = async () => {
     setEmbedError(false)
-    // Reload the page to regenerate the embed URL
-    window.location.reload()
+    // Re-fetch signer data to get a fresh embed URL without losing page state
+    if (token) {
+      const refreshed = await fetchSignerData(token)
+      if (refreshed) {
+        setSignerData(refreshed as any)
+        setStep('signing')
+      }
+    }
   }
 
   const handleContinueWithoutSignNow = async () => {
@@ -898,7 +905,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       recordPdfDownload()
     } catch (err) {
       console.error('Error downloading signed PDF:', err)
-      window.alert('No se pudo descargar el PDF firmado. Intentá nuevamente.')
+      toast.error('No se pudo descargar el PDF firmado. Intentá nuevamente.')
     }
   }
 
@@ -946,7 +953,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       const message = err instanceof Error && err.message
         ? err.message
         : 'No se pudo descargar el ECO. Intentá nuevamente.'
-      window.alert(message)
+      toast.error(message)
     }
   }
 
@@ -1078,9 +1085,9 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
 
         {step === 'otp' && signerData && (
           <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-md">
-              <div className="mb-6 text-center">
-                <h1 className="text-2xl font-bold text-gray-900">Verifica tu email</h1>
+            <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-md sm:p-8">
+              <div className="mb-4 text-center sm:mb-6">
+                <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Verifica tu email</h1>
                 <p className="mt-2 text-sm text-gray-600">
                   Enviamos un código a {signerData.email}. Ingresa los 6 dígitos para acceder.
                 </p>
@@ -1165,10 +1172,10 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
 
         {step === 'signing' && signerData && (
           signerData.workflow.signature_type === 'SIGNNOW' ? (
-            <div className="min-h-screen bg-gray-50 px-4 py-8">
-              <div className="mx-auto max-w-4xl rounded-xl bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-semibold text-gray-900">Firma con SignNow</h2>
-                <p className="mb-4 text-sm text-gray-600">
+            <div className="min-h-screen bg-gray-50 px-3 py-4 sm:px-4 sm:py-8">
+              <div className="mx-auto max-w-4xl rounded-xl bg-white p-4 shadow-sm sm:p-6">
+                <h2 className="mb-3 text-lg font-semibold text-gray-900 sm:mb-4 sm:text-xl">Firma con SignNow</h2>
+                <p className="mb-3 text-sm text-gray-600 sm:mb-4">
                   Completa la firma en el formulario embebido. Al finalizar, validaremos el cierre del flujo.
                 </p>
 
@@ -1205,7 +1212,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
                   <iframe
                     src={signerData.workflow.signnow_embed_url || accessMeta?.signnow_embed_url || ''}
                     title="SignNow"
-                    className="h-[600px] w-full"
+                    className="h-[calc(100vh-16rem)] min-h-[400px] w-full sm:h-[600px]"
                     allow="clipboard-write"
                     onLoad={() => {
                       // Cancel timeout if iframe loads successfully

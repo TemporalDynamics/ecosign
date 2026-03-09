@@ -299,13 +299,20 @@ async function stampSignerOnPdf(params: {
 
   let signatureImage: any = null
   const signatureUrl = signatureData?.dataUrl
+  const hasSignatureFields = fields?.some((f: any) => f.field_type === 'signature') ?? false
   if (signatureUrl && typeof signatureUrl === 'string') {
     try {
       const { bytes, isPng } = decodeDataUrl(signatureUrl)
       signatureImage = isPng ? await pdfDoc.embedPng(bytes) : await pdfDoc.embedJpg(bytes)
     } catch (err) {
-      console.warn('apply-signer-signature: failed to decode signature image', err)
+      console.error('apply-signer-signature: failed to decode signature image', err)
+      if (hasSignatureFields) {
+        throw new Error('No se pudo procesar la imagen de firma. La firma no puede aplicarse sin imagen válida.')
+      }
     }
+  }
+  if (hasSignatureFields && !signatureImage) {
+    throw new Error('Se requiere imagen de firma para los campos de tipo firma, pero no se proporcionó una imagen válida.')
   }
 
   const drawOnPage = (pageIndex: number, field: any) => {
@@ -955,26 +962,10 @@ serve(async (req) => {
       witnessHashForEvent = hashHex
 
       // Always overwrite workflow.document_path so the next signer sees the latest witness PDF.
+      // Note: no post-upload hash verification here — this is a mutable shared path (upsert).
+      // CDN/storage eventual consistency after an overwrite makes re-downloading unreliable.
+      // EPI integrity is guaranteed by the immutable signedPdfPath below.
       await uploadWorkflowPdf(supabase, workflow.document_path, stampedBytes)
-      try {
-        await verifyUploadedPdfHash(
-          supabase,
-          workflow.document_path,
-          hashHex,
-          'workflow.document_path'
-        )
-      } catch (verifyErr) {
-        console.error('apply-signer-signature: workflow PDF hash mismatch after upload', verifyErr)
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error_code: 'EPI_STORAGE_HASH_MISMATCH',
-            message: 'El PDF subido no coincide con el hash esperado.',
-            retryable: true
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        )
-      }
 
       // Also store a per-signer witness PDF (immutable path) for delivery + audit.
       signedPdfPath = `signed/${workflow.id}/${signer.id}/${hashHex}.pdf`
@@ -1155,15 +1146,17 @@ serve(async (req) => {
       try {
         const witnessHash = witnessHashForEvent || null
         let sourceHash: string | null = null
+        let sourceMime: string | null = null
         let witnessCurrent: string | null = witnessHash
         let prevWitnessHash: string | null = null
         if (workflow.document_entity_id) {
           const { data: entityRow } = await supabase
             .from('document_entities')
-            .select('source_hash, witness_hash, witness_current_hash')
+            .select('source_hash, source_mime, witness_hash, witness_current_hash')
             .eq('id', workflow.document_entity_id)
             .single()
           sourceHash = (entityRow as any)?.source_hash ?? null
+          sourceMime = (entityRow as any)?.source_mime ?? null
           witnessCurrent = (entityRow as any)?.witness_current_hash ?? (entityRow as any)?.witness_hash ?? witnessHash
           prevWitnessHash = (entityRow as any)?.witness_hash ?? null
         }
@@ -1255,11 +1248,37 @@ serve(async (req) => {
           email_verified: ownerEmailVerified
         }))
 
+        // Build reader_intro from confirmed proofs
+        const proofKindLabel: Record<string, string> = {
+          tsa: 'RFC 3161 timestamp (TSA)',
+          rekor: 'Rekor transparency log',
+        }
+        const confirmedProofLabels = normalizedProofs
+          .filter((p: any) => p?.kind && p.status !== 'timeout' && p.status !== 'failed')
+          .map((p: any) => proofKindLabel[p.kind] ?? p.kind)
+        const signerDisplay = signer.name ?? signer.email ?? null
+        const issuedDate = issuedAt.split('T')[0]
+        const proofSentence = confirmedProofLabels.length > 0
+          ? `Confirmed evidence: ${confirmedProofLabels.join(', ')}.`
+          : ''
+        // reader_intro: only narrate what was actually confirmed. No blockchain promises —
+        // whether blockchain anchoring applies depends on the plan and flow, unknown here.
+        // The accumulated evidence ECO (generate-signature-evidence) handles that narrative.
+        const readerIntro = `This ECO records the signing act by ${signerDisplay ?? 'the signer'} on ${issuedDate}. ${proofSentence}`.trim()
+
+        // source_mime vs witness_mime: if the original was not PDF, the witness is the PDF conversion.
+        const witnessMime = 'application/pdf'
+        const sourceIsNotPdf = sourceMime != null && sourceMime !== 'application/pdf'
+
         const ecoSnapshot = {
           format: 'eco',
-          format_version: '2.0',
-          version: 'eco.v2',
+          schema_version: 1,
+          profile: 'signing',
+          evidence_scope: 'signature_act',
+          // artifact_stage intentionally omitted: it belongs to the accumulated/final ECO,
+          // not to the signature_act snapshot. See generate-signature-evidence for that.
           issued_at: issuedAt,
+          reader_intro: readerIntro,
           evidence_declaration: {
             type: 'digital_signature_evidence',
             document_name: workflow.original_filename || null,
@@ -1269,27 +1288,25 @@ serve(async (req) => {
             total_steps: stepTotal,
             signed_at: issuedAt,
             identity_assurance_level: identityLevel.canonical_level,
-            summary: [
-              'Document integrity preserved',
-              'Signature recorded',
-              'Evidence is self-contained',
-              'Independent verification possible'
-            ]
           },
           trust_summary: {
             checks: [
               'Document integrity preserved',
               'Signature recorded',
-              'Timestamped (TSA) when available',
-              'Evidence is self-contained'
+              ...confirmedProofLabels.map((l: string) => `${l} confirmed`),
+              'Evidence is self-contained',
             ]
           },
           document: {
             id: workflow.document_entity_id ?? null,
             name: workflow.original_filename || null,
-            mime: 'application/pdf',
+            mime: sourceMime ?? null,
+            ...(sourceIsNotPdf ? { witness_mime: witnessMime } : {}),
             source_hash: sourceHash,
-            witness_hash: canonicalWitnessHash
+            witness_hash: canonicalWitnessHash,
+            ...(sourceHash != null && sourceHash !== canonicalWitnessHash
+              ? {}
+              : { witness_relationship: 'same_as_source' }),
           },
           signing_act: {
             signer_id: signer.id,
@@ -1334,6 +1351,10 @@ serve(async (req) => {
           },
           proofs: normalizedProofs,
           system: {
+            schema: 'eco.canonical.certificate.v1',
+            workflow_id: signer.workflow_id ?? null,
+            source: 'apply_signer_signature',
+            issued_at_source: 'signing_act',
             signature_capture_hash: signatureCaptureHash
           }
         }

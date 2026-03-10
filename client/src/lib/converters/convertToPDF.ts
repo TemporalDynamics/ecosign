@@ -40,9 +40,44 @@ const wrapTextToLines = (text: string, font: any, fontSize: number, maxWidth: nu
   return lines
 }
 
+/**
+ * Normaliza la orientación de una imagen usando canvas del browser.
+ * Los browsers modernos auto-corrigen EXIF al cargar en <img>,
+ * así que dibujar a canvas bake-in la rotación correcta.
+ * Esto evita la complejidad de rotar coordenadas en pdf-lib.
+ */
+const normalizeImageViaCanvas = (imageFile: File): Promise<{ blob: Blob; width: number; height: number }> => {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(imageFile)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { reject(new Error('No canvas context')); return }
+      ctx.drawImage(img, 0, 0)
+      const outputType = imageFile.type === 'image/png' ? 'image/png' : 'image/jpeg'
+      canvas.toBlob(
+        (b) => {
+          if (!b) { reject(new Error('Canvas toBlob failed')); return }
+          resolve({ blob: b, width: canvas.width, height: canvas.height })
+        },
+        outputType,
+        0.95
+      )
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('No se pudo cargar la imagen'))
+    }
+    img.src = url
+  })
+}
+
 const imageToPdf = async (imageFile: File): Promise<File> => {
   const pdf = await PDFDocument.create()
-  const imageBytes = new Uint8Array(await imageFile.arrayBuffer())
   const isPng = imageFile.type === 'image/png'
   const isJpg = imageFile.type === 'image/jpeg' || imageFile.type === 'image/jpg'
 
@@ -50,8 +85,15 @@ const imageToPdf = async (imageFile: File): Promise<File> => {
     throw new Error('Formato de imagen no soportado. Usa PNG o JPG.')
   }
 
-  const embedded = isPng ? await pdf.embedPng(imageBytes) : await pdf.embedJpg(imageBytes)
-  const { width, height } = embedded
+  // Normalizar orientación EXIF via canvas (browser auto-corrige)
+  const { blob, width, height } = await normalizeImageViaCanvas(imageFile)
+  const normalizedBytes = new Uint8Array(await blob.arrayBuffer())
+
+  const embedded = isPng
+    ? await pdf.embedPng(normalizedBytes)
+    : await pdf.embedJpg(normalizedBytes)
+
+  // Página con las dimensiones ya corregidas, sin rotación
   const page = pdf.addPage([width, height])
   page.drawImage(embedded, { x: 0, y: 0, width, height })
 

@@ -122,11 +122,22 @@ function SignerFieldsWizardComponent({
     originH: number;
   } | null>(null);
   const [openSections, setOpenSections] = useState<Record<'signatures' | 'size' | 'preview', boolean>>({
-    signatures: true,
+    signatures: false,
     size: false,
-    preview: true
+    preview: false
   });
   const [personalizeBySigner, setPersonalizeBySigner] = useState(false);
+
+  // Colapsar todas las secciones al cerrar el modal
+  useEffect(() => {
+    if (!isOpen) {
+      setOpenSections({
+        signatures: false,
+        size: false,
+        preview: false
+      });
+    }
+  }, [isOpen]);
   const fullscreenScrollRef = useRef<HTMLDivElement | null>(null);
   const fullscreenViewportRef = useRef<HTMLDivElement | null>(null);
   const fullscreenContentRef = useRef<HTMLDivElement | null>(null);
@@ -797,28 +808,31 @@ function SignerFieldsWizardComponent({
         <div className="px-4 py-3 space-y-2 flex-1 overflow-y-auto">
           {/* Sección 1: Firmas del documento */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white border-b border-gray-200">
-              <button
-                type="button"
-                onClick={() => toggleSection('signatures')}
-                className="flex-1 min-w-0 flex items-center justify-between text-left"
-              >
-                <div className="text-left">
-                  <p className="text-xs font-semibold text-gray-700">1. Configuración de campos</p>
-                  <p className="text-[11px] text-gray-500">Firma final y firma en cada página</p>
-                </div>
+            <button
+              type="button"
+              onClick={() => toggleSection('signatures')}
+              className="w-full flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200"
+            >
+              <div className="text-left">
+                <p className="text-xs font-semibold text-gray-700">1. Configuración de campos</p>
+                <p className="text-[11px] text-gray-500">Firma final y firma en cada página</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {validSigners.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPersonalizeBySigner((prev) => !prev);
+                    }}
+                    className="h-5 px-1.5 rounded border border-gray-200 bg-gray-50 text-[10px] text-blue-600 hover:bg-blue-50 transition-colors flex-shrink-0"
+                  >
+                    {personalizeBySigner ? 'Todos' : 'Personalizar'}
+                  </button>
+                )}
                 {openSections.signatures ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
-              </button>
-              {validSigners.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setPersonalizeBySigner((prev) => !prev)}
-                  className="h-6 px-2 rounded border border-gray-200 bg-gray-50 text-[10px] text-blue-600 hover:bg-blue-50 transition-colors flex-shrink-0"
-                >
-                  {personalizeBySigner ? 'Todos' : 'Personalizar'}
-                </button>
-              )}
-            </div>
+              </div>
+            </button>
             {openSections.signatures && (
               <div className="p-2 space-y-2">
                 <p className="text-[11px] text-gray-500 px-1">¿Dónde querés que aparezca la firma? Podés activar una o las dos.</p>

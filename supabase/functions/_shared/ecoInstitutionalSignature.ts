@@ -97,6 +97,7 @@ export async function signFinalEcoInstitutionally(
 
   const unsignedEco = { ...ecoPayload };
   delete (unsignedEco as Record<string, unknown>)['ecosign_signature'];
+  delete (unsignedEco as Record<string, unknown>)['ecosign_signature_policy'];
   const canonicalJson = canonicalize(unsignedEco);
   const ecoHashHex = await sha256Hex(canonicalJson);
   const ecoHashBytes = hexToBytes(ecoHashHex);

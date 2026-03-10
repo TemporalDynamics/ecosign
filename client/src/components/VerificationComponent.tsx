@@ -74,56 +74,43 @@ const buildEvidenceItems = (
 ): string[] => {
   const items: string[] = [];
 
+  // --- Narrative layer ---
   if (result.valid) {
-    items.push('Integridad criptográfica verificada.');
+    items.push('Documento y evidencia coinciden. No detectamos cambios desde su protección.');
   }
 
   if (result.signatureValid) {
     if (result.signedAuthority === 'internal') {
-      items.push('Existe una firma registrada por una autoridad interna.');
+      items.push('Se registró una firma dentro del proceso documentado por EcoSign.');
     } else if (result.signedAuthority === 'external') {
-      items.push('Existe una firma registrada por una autoridad externa.');
+      items.push('Se registró una firma avalada por una autoridad externa.');
     } else {
-      items.push('Existe una firma registrada en el certificado.');
+      items.push('Se registró una firma en el certificado.');
     }
   }
 
-  if (result.epi?.level === 2) {
-    if (result.epi.status === 'valid') {
-      items.push('EPI Nivel 2 verificado (estado del canvas íntegro).');
-    } else if (result.epi.status === 'tampered') {
-      items.push('EPI Nivel 2 inconsistente (estado del canvas alterado).');
-    } else {
-      items.push('EPI Nivel 2 presente (estado del canvas no verificado).');
-    }
-  } else if (result.epi?.level === 1) {
-    items.push('EPI Nivel 1 (sin hash probatorio de estado).');
-  }
-
-  // TSA: read from events[] if eco data exists
+  // --- Proof summary ---
   if (result.eco?.events) {
     const tsa = getLatestTsaEvent(result.eco.events);
     if (tsa.present) {
       const formattedTime = formatTsaTimestamp(tsa);
       items.push(formattedTime
-        ? `Evidencia temporal presente: ${formattedTime}`
-        : 'Evidencia temporal presente en el certificado.'
+        ? `Se protegió el momento de la firma (sello de tiempo: ${formattedTime}).`
+        : 'Se protegió el momento de la firma con un sello de tiempo.'
       );
     }
   }
 
-  // ✅ CANONICAL: Read anchors from events[] with legacy fallback
+  // Canonical proofs from ECO, with fallbacks from legacy anchors
   const events = result.eco?.events || [];
   const anchors = result.anchors as { polygon?: { status?: string } | null; bitcoin?: { status?: string } | null } | undefined;
 
-  // Polygon: canonical from events[] with legacy fallback
   const polygonAnchor = getAnchorEvent(events, 'polygon');
   const polygonConfirmed =
     polygonAnchor !== null ||
     anchors?.polygon?.status === 'confirmed' ||
     result.probativeSignals?.polygonConfirmed;
 
-  // Bitcoin: canonical from events[] with legacy fallback
   const bitcoinAnchor = getAnchorEvent(events, 'bitcoin');
   const bitcoinConfirmed =
     bitcoinAnchor !== null ||
@@ -131,15 +118,29 @@ const buildEvidenceItems = (
     result.probativeSignals?.bitcoinConfirmed;
 
   if (polygonConfirmed) {
-    items.push('Existe un anclaje público confirmado (Polygon).');
+    items.push('Se agregó una capa adicional de resguardo en blockchain (Polygon).');
   }
 
   if (bitcoinConfirmed) {
-    items.push('Existe un anclaje público confirmado (Bitcoin).');
+    items.push('Se agregó una capa adicional de resguardo en blockchain (Bitcoin).');
   }
 
+  // --- EPI level ---
+  if (result.epi?.level === 2) {
+    if (result.epi.status === 'valid') {
+      items.push('Nivel probatorio: EPI 2 (estado del canvas verificado).');
+    } else if (result.epi.status === 'tampered') {
+      items.push('Nivel probatorio: EPI 2, pero el estado del canvas presenta inconsistencias.');
+    } else {
+      items.push('Nivel probatorio: EPI 2 (estado del canvas no verificado).');
+    }
+  } else if (result.epi?.level === 1) {
+    items.push('Nivel probatorio: EPI 1.');
+  }
+
+  // --- Presential evidence ---
   if (presenceSummary) {
-    items.push('Existe una sesión probatoria cerrada con acta registrada.');
+    items.push('Se registró una sesión probatoria cerrada con acta.');
     if (
       presenceSummary.confirmedStrands !== null &&
       presenceSummary.requiredStrands !== null
@@ -153,9 +154,9 @@ const buildEvidenceItems = (
     }
     if (presenceSummary.tsaStatus) {
       const provider = presenceSummary.tsaProvider
-        ? ` · proveedor ${presenceSummary.tsaProvider}`
+        ? ` (${presenceSummary.tsaProvider})`
         : '';
-      items.push(`Timestamp de acta (TSA): ${presenceSummary.tsaStatus}${provider}.`);
+      items.push(`Sello de tiempo del acta: ${presenceSummary.tsaStatus}${provider}.`);
     }
   }
 
@@ -234,7 +235,10 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
       }
       try {
         const parsed = JSON.parse(await ecoFile.text());
-        if (parsed && typeof parsed === 'object' && (parsed as { version?: string }).version === 'eco.v2') {
+        if (parsed && typeof parsed === 'object' && (
+          (parsed as { version?: string }).version === 'eco.v2' ||
+          ((parsed as { format?: string }).format === 'eco' && typeof (parsed as { document?: unknown }).document === 'object')
+        )) {
           setEcoData(parsed as EcoV2);
         } else {
           setEcoData(null);
@@ -341,6 +345,27 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
   const evidenceItems = verificationResult
     ? buildEvidenceItems(verificationResult, presenceCloseSummary)
     : [];
+
+  const ecoScopeLabel = useMemo(() => {
+    const raw = verificationResult?.eco;
+    if (!raw || typeof raw !== 'object') return null;
+    const eco = raw as Record<string, unknown>;
+    const scope = eco['evidence_scope'];
+    const stage = eco['artifact_stage'];
+    if (scope === 'signature_act') {
+      return 'Este certificado corresponde al acto de firma. Confirma la integridad del documento y la identidad del firmante en ese momento.';
+    }
+    if (scope === 'accumulated_document_evidence' || stage === 'final') {
+      return 'Este certificado corresponde a la evidencia consolidada final del documento. Resume la evidencia disponible y su estado probatorio actual.';
+    }
+    if (stage === 'intermediate') {
+      return 'Este certificado corresponde a una evidencia intermedia. Algunas confirmaciones adicionales pueden estar en proceso.';
+    }
+    if (eco['profile'] === 'protection') {
+      return 'Este certificado corresponde a la protección del documento. Confirma la integridad desde el momento en que fue registrado.';
+    }
+    return null;
+  }, [verificationResult]);
 
   useEffect(() => {
     let isActive = true;
@@ -473,7 +498,7 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
             <input
               id="pdf-upload"
               type="file"
-              accept="application/pdf"
+              accept="application/pdf,.pdf"
               onChange={handlePdfFileChange}
               className="hidden"
             />
@@ -536,12 +561,12 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
               )}
               <div>
                 <h3 className={`text-xl font-bold ${verificationResult.valid ? 'text-green-800' : 'text-red-800'}`}>
-                  {verificationResult.valid ? '✓ Verificación Válida' : '✗ Verificación Fallida'}
+                  {verificationResult.valid ? 'Documento y evidencia coinciden' : 'No pudimos validar esta evidencia'}
                 </h3>
                 <p className="text-sm text-gray-700 mt-1">
-                  {verificationResult.valid 
-                    ? 'La integridad del certificado y el documento son correctas.' 
-                    : 'El certificado no es válido o el documento ha sido modificado.'}
+                  {verificationResult.valid
+                    ? 'No detectamos cambios desde el momento en que fue protegido. La evidencia asociada respalda que este archivo se mantiene íntegro.'
+                    : 'El archivo .ECO parece haber sido modificado, está incompleto o fue generado con una versión no compatible.'}
                 </p>
               </div>
             </div>
@@ -552,10 +577,13 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
               <ShieldCheck className="w-5 h-5 text-[#0A66C2]" />
               Resumen Probatorio
             </h4>
+            {ecoScopeLabel && (
+              <p className="text-sm text-gray-600 italic mb-3">{ecoScopeLabel}</p>
+            )}
             <div className="space-y-2">
               {(evidenceItems.length > 0
                 ? evidenceItems
-                : ['No hay evidencia verificable en este certificado.']
+                : ['Este certificado no contiene evidencia suficiente para verificar.']
               ).map((item) => (
                 <p key={item} className="text-sm text-gray-700">
                   • {item}

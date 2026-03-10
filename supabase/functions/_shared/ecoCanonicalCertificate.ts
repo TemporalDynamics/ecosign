@@ -341,6 +341,7 @@ export function buildCanonicalEcoCertificate(input: BuildCanonicalEcoInput) {
 
   return {
     format: 'eco',
+    version: 'eco.v2',
     schema_version: 1,
     profile,
     artifact_stage: artifactStage,

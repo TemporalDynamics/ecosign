@@ -1683,12 +1683,17 @@ function DocumentsPage() {
       hasWrapIv: !!doc.wrap_iv,
     });
 
+    // Ensure the download filename always ends with .pdf (witness is always PDF)
+    const pdfFileName = doc.document_name && !doc.document_name.toLowerCase().endsWith('.pdf')
+      ? doc.document_name.replace(/\.[^.]+$/, '.pdf')
+      : (doc.document_name || 'documento.pdf');
+
     const storagePath = getPdfStoragePath(doc);
     console.log('[handlePdfDownload] getPdfStoragePath returned:', storagePath);
 
     if (storagePath) {
       console.log('[handlePdfDownload] Using plain storage path:', storagePath);
-      downloadFromPath(storagePath, doc.document_name);
+      downloadFromPath(storagePath, pdfFileName);
       return;
     }
     if (doc.encrypted_path) {
@@ -1700,7 +1705,7 @@ function DocumentsPage() {
       fetchBlob
         .then((blob) => {
           console.log('[handlePdfDownload] Got blob, size:', blob.size);
-          triggerDownload(blob, doc.document_name);
+          triggerDownload(blob, pdfFileName);
         })
         .catch((err) => {
           console.error("Error descargando PDF cifrado:", err);

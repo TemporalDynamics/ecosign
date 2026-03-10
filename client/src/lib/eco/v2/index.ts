@@ -628,6 +628,7 @@ const verifyInstitutionalSignature = (
 
   const unsigned = { ...raw };
   delete unsigned['ecosign_signature'];
+  delete unsigned['ecosign_signature_policy'];
   const computedEcoHash = bytesToHex(sha256(utf8ToBytes(canonicalStringify(unsigned))));
   const ecoHashMatch = computedEcoHash === ecoHash;
   if (!ecoHashMatch) {
@@ -920,10 +921,10 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
   const raw = eco as Record<string, unknown>;
 
   // Canonical certificate format (declarative):
-  // { format: 'eco', format_version: '2.0', version: 'eco.v2', document: {...}, proofs: [...] }
+  // { format: 'eco', version: 'eco.v2', document: {...}, proofs: [...] }
+  // Also matches canonical certificates that only have format: 'eco' without version field.
   const isCanonicalCertificate =
-    raw['version'] === 'eco.v2' &&
-    raw['format'] === 'eco' &&
+    (raw['version'] === 'eco.v2' || raw['format'] === 'eco') &&
     typeof raw['document'] === 'object' &&
     raw['document'] !== null &&
     !raw['hash_chain'];
@@ -984,7 +985,7 @@ export const verifyEcoV2 = (eco: unknown): VerificationResult => {
 
   const candidate = eco as EcoV2;
 
-  if (candidate.version !== 'eco.v2') {
+  if (candidate.version !== 'eco.v2' && (raw as Record<string, unknown>)['format'] !== 'eco') {
     return { status: 'unknown' };
   }
 

@@ -1568,7 +1568,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         error: 'La operación tardó demasiado. Por favor, reintentá.',
         workSaved: false
       });
-    }, 25000);
+    }, 45000);
 
     try {
       if (isGuestMode()) {
@@ -1605,7 +1605,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           hash: sourceHash,
           custody_mode: 'hash_only',
           storage_path: null
-        }), 20000, 'createSourceTruth');
+        }), 35000, 'createSourceTruth');
         canonicalDocumentId = tempCreated.id as string;
 
         if (!canonicalDocumentId) {
@@ -1623,7 +1623,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           setCertifyProgress({ stage: 'preparing', message: 'Cifrando archivo original...' });
           const storagePath = await withTimeout(
             storeEncryptedCustody(sourceTarget, canonicalDocumentId),
-            20000,
+            35000,
             'storeEncryptedCustody'
           );
 
@@ -1730,7 +1730,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             if (overlaySpec.length > 0) {
               const { validateOverlaySpec } = await import('../utils/overlaySpecConverter');
               if (validateOverlaySpec(overlaySpec)) {
-                const stampedBlob = await applyOverlaySpecToPdf(file, overlaySpec);
+                const stampedBlob = await applyOverlaySpecToPdf(fileToSend, overlaySpec);
                 fileToSend = new File([stampedBlob], file.name, { type: 'application/pdf' });
                 console.log('✅ Campos estampados en PDF para Mi firma');
               }
@@ -1770,7 +1770,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           supabase.storage
           .from('user-documents')
           .createSignedUrl(storagePath, 60 * 60 * 24 * 30),
-          20000,
+          35000,
           'createSignedUrl'
         );
 
@@ -1967,7 +1967,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             if (overlaySpec.length > 0) {
               const { validateOverlaySpec } = await import('../utils/overlaySpecConverter');
               if (validateOverlaySpec(overlaySpec)) {
-                const stampedBlob = await applyOverlaySpecToPdf(file, overlaySpec);
+                const stampedBlob = await applyOverlaySpecToPdf(fileToSend, overlaySpec);
                 fileToSend = new File([stampedBlob], file.name, { type: 'application/pdf' });
                 console.log('✅ Campos estampados en PDF para workflow');
               }
@@ -2245,7 +2245,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .replace(/[^a-zA-Z0-9.-]/g, '_')
-            .replace(/__+/g, '_');
+            .replace(/__+/g, '_')
+            // Ensure .pdf extension since witness is always PDF
+            .replace(/\.[^.]+$/, '.pdf');
 
           const downloadPath = `${currentUser.id}/${Date.now()}-${sanitizedWitnessFilename}`;
           const { error: uploadError } = await supabase.storage
@@ -2334,7 +2336,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           ...prev,
           message: 'puede tardar'
         }));
-      }, 5000); // Show warning after 5 seconds
+      }, 12000); // Show warning after 12 seconds
 
       if (signatureType === 'certified') {
         // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
@@ -3201,6 +3203,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const activePreviewPdfData = useSourceImagePreviewInCenter
     ? null
     : (workflowPreviewPdfData ?? documentPreviewPdfData);
+  // When workflowPreviewUrl is active, rotation is already baked into the PDF via rotatePdf(),
+  // so CSS rotation must be suppressed to avoid double-rotation.
+  const isWorkflowPreviewActive = !useSourceImagePreviewInCenter && !!workflowPreviewUrl;
   const isPdfPreview = !useSourceImagePreviewInCenter && file?.type === 'application/pdf';
   // Wizard usa el PDF (que ya tiene orientación EXIF aplicada) en lugar de la imagen original
   const useSourceImagePreviewInWizard = false;
@@ -4178,7 +4183,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                       <div
                         className="relative min-h-full"
                         style={{
-                          transform: `rotate(${previewRotation}deg)`,
+                          transform: `rotate(${isWorkflowPreviewActive ? 0 : previewRotation}deg)`,
                           transformOrigin: 'center center',
                           transition: 'transform 200ms ease'
                         }}

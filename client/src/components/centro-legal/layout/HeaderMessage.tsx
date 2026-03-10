@@ -39,7 +39,7 @@ export default function HeaderMessage({ message }: HeaderMessageProps) {
 
   return (
     <span
-      className={`text-[11px] leading-none text-blue-900 transition-opacity duration-300 line-clamp-2 ${
+      className={`text-[11px] leading-none text-blue-900 italic transition-opacity duration-300 line-clamp-2 ${
         visible ? 'opacity-100' : 'opacity-0'
       }`}
     >

@@ -32,6 +32,7 @@ type VerificationBaseResult = {
     algorithm?: string;
   };
   manifest?: unknown;
+  eco?: unknown;
   errors?: string[];
   warnings?: string[];
   error?: string;
@@ -174,76 +175,66 @@ const mapEcoV2Result = (
   fileName: string,
   signedAuthority?: 'internal' | 'external',
   signedAuthorityRef?: Record<string, unknown> | null,
-  onlineRevocation?: OnlineRevocationState
+  onlineRevocation?: OnlineRevocationState,
+  parsedEco?: unknown,
 ): VerificationBaseResult => {
   const valid = result.status === 'valid';
-  const errors =
-    result.status === 'tampered'
-      ? ['Archivo .ECO inconsistente.']
-      : result.status === 'unknown'
-      ? ['Formato .ECO inválido o versión no soportada.']
-      : [];
-  const warnings =
-    result.status === 'incomplete'
-      ? ['Evidencia incompleta: faltan testigos o firmas.']
-      : [];
-  if (result.authoritative === false) {
-    warnings.push('Verificación criptográfica: OK (hash consistente).');
-    warnings.push('Certificado oficial: NO. Es una vista/proyección no autoritativa.');
-    warnings.push('Para certificado oficial, descarga el ECO emitido por backend (artifact.finalized.eco_storage_path).');
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // --- Narrative layer (user-facing) ---
+  if (result.status === 'tampered') {
+    errors.push('No pudimos confirmar la integridad de esta evidencia. El archivo .ECO podría haber sido modificado, estar incompleto o no corresponder a un certificado válido de EcoSign.');
+  } else if (result.status === 'unknown') {
+    errors.push('No pudimos reconocer este archivo como un certificado EcoSign válido. Verificá que sea un archivo .ECO emitido por EcoSign.');
   }
+
+  if (result.status === 'incomplete') {
+    warnings.push('Este certificado tiene evidencia parcial. El proceso de protección puede no haber finalizado.');
+  }
+  if (result.authoritative === false) {
+    warnings.push('Este certificado es una vista previa, no el certificado oficial emitido por EcoSign.');
+  }
+
+  // Institutional signature: narrative first, technical detail in parentheses
   if (result.institutional_signature?.present) {
     if (result.institutional_signature.valid === true) {
       if (result.institutional_signature.trusted) {
-        warnings.push(
-          `Firma institucional válida (key_id=${result.institutional_signature.public_key_id ?? 'unknown'}).`
-        );
+        warnings.push('El certificado fue emitido y firmado por EcoSign. La firma institucional es válida.');
       } else {
-        warnings.push(
-          'Firma institucional criptográficamente válida, pero sin trust store configurado en este verificador.'
-        );
+        warnings.push('La firma institucional es criptográficamente correcta, pero este verificador no tiene configuradas las claves de confianza para confirmarla.');
       }
     } else {
       const reason = result.institutional_signature.reason ?? 'unknown';
       if (reason === 'institutional_signature_key_not_trusted') {
-        warnings.push(
-          `Firma institucional no confiable: key_id=${result.institutional_signature.public_key_id ?? 'unknown'} no está en claves confiables.`
-        );
+        warnings.push('La firma institucional no pudo ser confirmada porque la clave utilizada no está registrada como confiable en este verificador.');
       } else if (reason === 'institutional_signature_key_revoked') {
-        warnings.push(
-          `Firma institucional revocada: key_id=${result.institutional_signature.public_key_id ?? 'unknown'}.`
-        );
+        errors.push('La firma institucional fue emitida con una clave que ha sido revocada. Este certificado ya no es confiable.');
       } else {
-        errors.push(`Firma institucional inválida (${reason}).`);
+        errors.push(`La firma institucional del certificado no es válida (${reason}).`);
       }
     }
   }
 
   if (result.hash_chain_mismatch) {
-    errors.push(`Hash chain inconsistente (${result.hash_chain_mismatch}).`);
+    errors.push('La cadena de integridad interna del certificado es inconsistente. El documento o su evidencia fueron alterados.');
   }
 
   if (result.epi?.level === 1) {
-    warnings.push('EPI Nivel 1: sin hash probatorio de estado (canvas).');
+    warnings.push('Nivel probatorio: EPI 1 (evidencia básica sin hash de estado del canvas).');
   }
 
   let finalValid = valid;
   let finalSignatureValid = !!result.signed_hash;
   if (onlineRevocation?.checked) {
     if (onlineRevocation.error) {
-      warnings.push(
-        `Chequeo online de revocación no disponible (${onlineRevocation.error}). Verificación offline conservada.`
-      );
+      warnings.push('No se pudo verificar el estado de revocación en línea. La verificación offline se conserva.');
     } else if (onlineRevocation.revoked) {
-      errors.push(
-        `Clave institucional revocada en endpoint público (key_id=${onlineRevocation.keyId ?? 'unknown'}).`
-      );
+      errors.push('La clave institucional fue revocada públicamente. Este certificado ya no es confiable.');
       finalValid = false;
       finalSignatureValid = false;
     } else {
-      warnings.push(
-        `Chequeo online de revocación OK (key_id=${onlineRevocation.keyId ?? 'unknown'}; updated_at=${onlineRevocation.updatedAt ?? 'unknown'}).`
-      );
+      warnings.push('Verificación de revocación en línea: la clave institucional está vigente.');
     }
   }
 
@@ -266,6 +257,7 @@ const mapEcoV2Result = (
     legalTimestamp: { enabled: false },
     anchors: result.anchors,
     epi: result.epi,
+    eco: parsedEco ?? undefined,
     errors,
     warnings
   };
@@ -291,12 +283,16 @@ export async function verifyEcoFile(file: File): Promise<VerificationBaseResult>
 
   try {
     const parsed = await parseEcoJson(file);
-    if (parsed && typeof parsed === 'object' && (parsed as { version?: string }).version === 'eco.v2') {
+    const isEcoV2 = parsed && typeof parsed === 'object' && (
+      (parsed as { version?: string }).version === 'eco.v2' ||
+      ((parsed as { format?: string }).format === 'eco' && typeof (parsed as { document?: unknown }).document === 'object')
+    );
+    if (isEcoV2) {
       const signedAuthority = (parsed as { signed?: { authority?: 'internal' | 'external' } }).signed?.authority;
       const signedAuthorityRef = (parsed as { signed?: { authority_ref?: Record<string, unknown> } }).signed?.authority_ref ?? null;
       const result = verifyEcoV2(parsed);
       const onlineRevocation = await checkOnlineRevocationStatus(parsed, result);
-      return mapEcoV2Result(result, file.name, signedAuthority, signedAuthorityRef, onlineRevocation);
+      return mapEcoV2Result(result, file.name, signedAuthority, signedAuthorityRef, onlineRevocation, parsed);
     }
 
     // Crear FormData para enviar el archivo
@@ -377,12 +373,16 @@ export async function verifyEcoWithOriginal(ecoFile: File, originalFile?: File |
 
   try {
     const parsed = await parseEcoJson(ecoFile);
-    if (parsed && typeof parsed === 'object' && (parsed as { version?: string }).version === 'eco.v2') {
+    const isEcoV2 = parsed && typeof parsed === 'object' && (
+      (parsed as { version?: string }).version === 'eco.v2' ||
+      ((parsed as { format?: string }).format === 'eco' && typeof (parsed as { document?: unknown }).document === 'object')
+    );
+    if (isEcoV2) {
       const signedAuthority = (parsed as { signed?: { authority?: 'internal' | 'external' } }).signed?.authority;
       const signedAuthorityRef = (parsed as { signed?: { authority_ref?: Record<string, unknown> } }).signed?.authority_ref ?? null;
       const result = verifyEcoV2(parsed);
       const onlineRevocation = await checkOnlineRevocationStatus(parsed, result);
-      const mapped = mapEcoV2Result(result, ecoFile.name, signedAuthority, signedAuthorityRef, onlineRevocation);
+      const mapped = mapEcoV2Result(result, ecoFile.name, signedAuthority, signedAuthorityRef, onlineRevocation, parsed);
       return await enforceOriginalFileMatch(mapped, result, originalFile);
     }
 

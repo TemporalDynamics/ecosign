@@ -4263,7 +4263,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                             return (
                                               <div
                                                 key={field.id}
-                                                className="absolute pointer-events-auto border border-blue-300 bg-blue-50/80 rounded-md px-2 py-2 shadow-sm group"
+                                                className="absolute pointer-events-auto border border-blue-300 bg-blue-50/0 rounded-md px-1 py-0.5 group overflow-hidden flex items-center"
                                                 style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
                                                 onMouseDown={(event) => {
                                                   if (locked) return;
@@ -4349,7 +4349,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                                     className="w-full h-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-500"
                                                   />
                                                 ) : (
-                                                  <span className="text-xs text-blue-900/80 select-none" style={fieldLabelCounterRotationStyle}>
+                                                  <span className="text-[10px] leading-tight text-blue-900/80 select-none truncate" style={fieldLabelCounterRotationStyle}>
                                                     {field.metadata?.label ?? ''}
                                                   </span>
                                                 )}
@@ -4418,7 +4418,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                               {signatureFields.map((field) => (
                                 <div
                                   key={field.id}
-                                  className="absolute pointer-events-auto border border-blue-300 bg-blue-50/80 rounded-md px-2 py-2 shadow-sm group"
+                                  className="absolute pointer-events-auto border border-blue-300 bg-blue-50/0 rounded-md px-1 py-0.5 group overflow-hidden flex items-center"
                                   style={resolveFieldRect(field)}
                                   onMouseDown={(event) => {
                                     if (isCanvasLocked) return;
@@ -4485,7 +4485,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                       className="w-full h-full text-xs bg-transparent border-0 focus:ring-0 p-0 text-blue-900 placeholder:text-blue-500"
                                     />
                                   ) : (
-                                    <span className="text-xs text-blue-900/80 select-none" style={fieldLabelCounterRotationStyle}>
+                                    <span className="text-[10px] leading-tight text-blue-900/80 select-none truncate" style={fieldLabelCounterRotationStyle}>
                                       {field.metadata?.label ?? ''}
                                     </span>
                                   )}

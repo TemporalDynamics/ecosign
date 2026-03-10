@@ -16,7 +16,6 @@
  */
 
 import React from 'react';
-import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { PROTECTION_COPY } from './protection.copy';
 
@@ -42,21 +41,8 @@ export const ProtectionToggle: React.FC<ProtectionToggleProps> = ({
     // If onToggle is async (returns Promise), wait for it
     if (result instanceof Promise) {
       await result;
-      // Parent handles toast after validation
-    } else {
-      // Sync toggle - show toast immediately
-      if (newState) {
-        toast(PROTECTION_COPY.toastActivated, {
-          duration: 2000,
-          position: 'top-right',
-        });
-      } else {
-        toast(PROTECTION_COPY.toastDeactivated, {
-          duration: 2000,
-          position: 'top-right',
-        });
-      }
     }
+    // Parent handles messaging via guide system
   };
 
   return (

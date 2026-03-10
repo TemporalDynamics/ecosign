@@ -10,7 +10,6 @@
 
 import React from 'react';
 import { X, Shield } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { PROTECTION_COPY } from './protection.copy';
 
 interface ProtectionWarningModalProps {
@@ -31,10 +30,6 @@ export const ProtectionWarningModal: React.FC<ProtectionWarningModalProps> = ({
   const handleActivate = () => {
     onActivateProtection();
     onClose();
-    toast(PROTECTION_COPY.toastActivated, {
-      duration: 2000,
-      position: 'top-right',
-    });
   };
 
   return (

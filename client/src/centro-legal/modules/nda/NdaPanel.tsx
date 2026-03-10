@@ -19,6 +19,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { FileText, HelpCircle, Maximize2, X } from 'lucide-react';
 import { NDA_COPY } from './nda.copy';
 
@@ -87,7 +88,7 @@ Podés pegar tu texto directamente o seleccionar un tipo de documento desde el �
   const handleSave = () => {
     const trimmed = content.trim();
     if (!trimmed || trimmed === NDA_COPY.EMPTY_MESSAGE.trim()) {
-      alert('El NDA no puede estar vacío');
+      toast.error('El acuerdo no puede estar vacío. Escribí el texto o elegí un template.');
       return;
     }
 
@@ -105,14 +106,10 @@ Podés pegar tu texto directamente o seleccionar un tipo de documento desde el �
       {/* Panel izquierdo - width controlado por Stage CSS */}
       <div className="w-full bg-white border-r border-gray-200 rounded-l-2xl flex flex-col h-full overflow-hidden">
         {/* Header - COMPACTO */}
-        <div className="h-14 px-3 border-b border-gray-200">
-          <div className="h-full grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
-          <span aria-hidden="true" className="h-7 w-7" />
-          <h3 className="font-semibold text-sm leading-none text-gray-900 text-center truncate" title={NDA_COPY.PANEL_TITLE}>
+        <div className="h-14 px-3 border-b border-gray-200 flex items-center">
+          <h3 className="font-semibold text-sm leading-none text-gray-900 truncate pl-1.5" title={NDA_COPY.PANEL_TITLE}>
             {NDA_COPY.PANEL_TITLE}
           </h3>
-          <span aria-hidden="true" className="h-7 w-7" />
-          </div>
         </div>
 
         {/* Body */}

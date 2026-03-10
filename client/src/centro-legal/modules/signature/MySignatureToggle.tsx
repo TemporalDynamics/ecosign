@@ -12,7 +12,6 @@
  */
 
 import React from 'react';
-import toast from 'react-hot-toast';
 import { SIGNATURE_COPY } from './signature.copy';
 
 interface MySignatureToggleProps {
@@ -33,15 +32,6 @@ export const MySignatureToggle: React.FC<MySignatureToggleProps> = ({
 
     const newState = !enabled;
     onToggle(newState);
-
-    // Toast al activar
-    if (newState && hasFile) {
-      toast(SIGNATURE_COPY.toastActivated, {
-        icon: SIGNATURE_COPY.toastIcon,
-        position: 'top-right',
-        duration: 3000,
-      });
-    }
   };
 
   return (

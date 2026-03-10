@@ -45,15 +45,15 @@ const LegalCenterWelcomeModal: React.FC<LegalCenterWelcomeModalProps> = ({ isOpe
             Centro Legal
           </h3>
           <p className="text-sm text-gray-600 leading-relaxed">
-            <strong>Subí un documento para iniciar.</strong>
+            ¿Querés que te acompañemos mientras usás el Centro Legal?
             <br />
-            EcoSign te acompaña, pero no accede a tu contenido: como si fuera ciego.
+            Podemos explicarte cada paso con mensajes breves. Vas a poder desactivarlo cuando quieras.
           </p>
         </div>
 
         {/* Opciones de guía */}
         <div className="mb-4">
-          <p className="text-xs text-gray-500 mb-2">¿Querés guía?</p>
+          <p className="text-xs text-gray-500 mb-2">Elegí cómo preferís usarlo</p>
           <div className="flex gap-2">
             <button
               onClick={() => setGuideSelection('yes')}
@@ -63,7 +63,7 @@ const LegalCenterWelcomeModal: React.FC<LegalCenterWelcomeModalProps> = ({ isOpe
                   : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
               }`}
             >
-              Sí, acompañame
+              Acompañame
             </button>
             <button
               onClick={() => setGuideSelection('no')}
@@ -73,7 +73,7 @@ const LegalCenterWelcomeModal: React.FC<LegalCenterWelcomeModalProps> = ({ isOpe
                   : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
               }`}
             >
-              Sin guía
+              Prefiero usarlo sin guía
             </button>
           </div>
         </div>

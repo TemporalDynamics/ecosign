@@ -27,6 +27,7 @@ import {
 import { isGuestMode } from '../utils/guestMode';
 import InhackeableTooltip from './InhackeableTooltip';
 import { useLegalCenterGuide } from '../hooks/useLegalCenterGuide';
+import HeaderMessage from './centro-legal/layout/HeaderMessage';
 import LegalCenterWelcomeModal from './LegalCenterWelcomeModal';
 import { trackEvent } from '../lib/analytics';
 import { isPDFEncrypted } from '../lib/e2e/documentEncryption';
@@ -253,7 +254,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const [ownerEmail, setOwnerEmail] = useState<string | null>(null);
   
   // Confirmación de modo (aparece temporalmente en el header)
-  const [modeConfirmation, setModeConfirmation] = useState('');
+  const modeConfirmation = ''; // Kept for Shell prop compat; messages now go through guide.headerMessage
   
   // NDA editable (panel izquierdo)
   const [ndaText, setNdaText] = useState<string>(NDA_COPY.EMPTY_MESSAGE);
@@ -339,7 +340,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   // Ajustar configuración inicial según la acción con la que se abrió el modal
   useEffect(() => {
     if (!isOpen || !documentLoaded) {
-      setModeConfirmation('');
+      guide.clearMessage();
       return;
     }
     setMySignature(initialAction === 'sign');
@@ -348,7 +349,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     setPreviewMode('compact');
 
     // Mostrar modal de bienvenida (solo primera vez)
-    if (guide.showWelcomeModal()) {
+    if (guide.shouldShowWelcomeModal()) {
       setShowWelcomeModal(true);
     }
   }, [initialAction, isOpen]);
@@ -498,28 +499,26 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     guide.disableGuide(); // También deshabilita la guía de toasts
   };
 
-  // Mostrar confirmación de modo cuando cambian las acciones
+  // Guide: mensaje contextual cuando Mi firma activa sin campos
   useEffect(() => {
-    if (!isOpen) return;
-    
-    const modes = [];
-    if (ndaEnabled) modes.push('NDA');
-    if (mySignature) modes.push('Mi Firma');
-    if (workflowEnabled) modes.push('Flujo de Firmas');
-    
-    if (modes.length > 0) {
-      setModeConfirmation(`Modo seleccionado: ${modes.join(' + ')}`);
-      
-      // Desvanecer después de 3.5 segundos
-      const timer = setTimeout(() => {
-        setModeConfirmation('');
-      }, 3500);
-      
-      return () => clearTimeout(timer);
-    } else {
-      setModeConfirmation('');
+    if (!isOpen || !mySignature) return;
+    if (signatureFields.length === 0 && !showSignerFieldsWizard) {
+      guide.showGuideMessage('mi_firma_no_fields',
+        'Para continuar sin firmar, desactivá Mi firma. Para firmar, asigná al menos un campo.'
+      );
     }
-  }, [mySignature, workflowEnabled, ndaEnabled, isOpen, documentLoaded]);
+  }, [mySignature, signatureFields.length, showSignerFieldsWizard, isOpen]);
+
+  // Guide: mensaje #17 — firmantes cargados pero sin campos, guiar al wizard
+  useEffect(() => {
+    if (!isOpen || !workflowEnabled) return;
+    const hasSigners = emailInputs.some(e => e.email.trim().length > 0);
+    if (hasSigners && signatureFields.length === 0 && !showSignerFieldsWizard) {
+      guide.showGuideMessage('workflow_needs_fields',
+        'Asigná los campos de cada firmante. El wizard los crea en un paso.'
+      );
+    }
+  }, [workflowEnabled, emailInputs, signatureFields.length, showSignerFieldsWizard, isOpen]);
 
   // Firma legal (opcional)
   const [signatureMode, setSignatureMode] = useState<SignatureMode>('none'); // 'none', 'canvas', 'signnow'
@@ -722,14 +721,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   };
 
   const runPostFileSelectionEffects = useCallback((selectedFile: File, previewFile: File) => {
-    // BLOQUE 1: Toast inicial si protección está activa
-    if (forensicEnabled) {
-      toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
-        duration: 3000,
-        position: 'top-right'
-      });
-    }
-
     // Track analytics
     trackEvent('uploaded_doc', {
       fileType: selectedFile.type,
@@ -739,25 +730,17 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     updatePreviewForFile(previewFile);
 
-    // CONSTITUCIÓN: Toast unificado "Documento listo"
-    showToast('Documento listo.\nEcoSign no ve tu documento.\nLa certificación está activada por defecto.', {
-      icon: '✓',
-      position: 'top-right',
-      duration: 4000
-    });
+    // Guide: mensaje #3 — único mensaje post-upload
+    guide.showGuideMessage('doc_uploaded', 'Tu documento ya está protegido. EcoSign no accede a su contenido.', 5000);
 
-    // CONSTITUCIÓN: Abrir wizard de campos si corresponde (Mi firma)
+    // Abrir wizard de campos si corresponde (Mi firma)
     if (initialAction === 'sign' || mySignature) {
       setIsCanvasLocked(true);
       openMySignatureWizard();
-
-      showToast('Configurá los campos antes de firmar.', {
-        icon: '✍️',
-        position: 'top-right',
-        duration: 3000
-      });
+      // Guide: mensaje #6 — explica por qué se abrió el wizard
+      guide.showGuideMessage('wizard_open', 'Para firmar, elegí dónde van los campos.');
     }
-  }, [forensicEnabled, initialAction, mySignature, showToast, openMySignatureWizard, updatePreviewForFile]);
+  }, [initialAction, mySignature, openMySignatureWizard, updatePreviewForFile, guide]);
 
   // Defensive recovery: if a file exists but preview state was not restored,
   // rebuild preview from the current file to avoid empty canvas on draft resume.
@@ -1260,11 +1243,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     const validation = isValidEmail(email);
     if (validation.valid) {
-      showToast('Destinatario agregado correctamente.', {
-        type: 'success',
-        duration: 2000,
-        position: 'top-right'
-      });
+      guide.showConfirmation('Firmante agregado.');
     } else if (validation.error) {
       showToast(validation.error, {
         type: 'error',
@@ -1296,7 +1275,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     }
 
     if (unique.length === 0) {
-      showToast('Los emails pegados ya estaban cargados.', {
+      showToast('Los correos pegados ya estaban cargados.', {
         type: 'default',
         duration: 2500,
         position: 'top-right'
@@ -1311,11 +1290,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     }
     setEmailInputs(next);
 
-    showToast(`Se agregaron ${unique.length} firmante${unique.length > 1 ? 's' : ''}.`, {
-      type: 'success',
-      duration: 2000,
-      position: 'top-right'
-    });
+    guide.showConfirmation(`${unique.length} firmante${unique.length > 1 ? 's' : ''} agregado${unique.length > 1 ? 's' : ''} con Smart Paste.`);
   };
 
   const handleNameChange = (index: number, value: string) => {
@@ -2114,9 +2089,10 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           }), 60000, 'startSignatureWorkflow');
 
           console.log('✅ Workflow iniciado:', workflowResult);
-          showToast(`Invitaciones enviadas a ${validSigners.length} firmante(s). Revisá tu email para el seguimiento.`, {
+          showToast(`Invitaciones enviadas a ${validSigners.length} firmante(s).`, {
             type: 'success',
-            duration: 6000
+            duration: 3000,
+            position: 'top-right'
           });
         } catch (workflowError) {
           console.error('❌ Error al iniciar workflow:', workflowError);
@@ -2760,8 +2736,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     setCertifiedSubType(null);
     setUserHasSignature(false);
 
-    // Reset de confirmación de modo
-    setModeConfirmation('');
+    // Reset de mensajes de guía
+    guide.clearMessage();
 
     // Reset de tabs de firma
     setSignatureTab('draw');
@@ -3217,12 +3193,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   const isFocusMode = focusView !== null;
   const isDocumentFocus = focusView === 'document';
   const isViewerLocked = true;
-  const useSourceImagePreviewInCenter = Boolean(
-    sourceFile?.type.startsWith('image/') &&
-    file?.type === 'application/pdf' &&
-    signatureFields.length === 0 &&
-    !signaturePreview
-  );
+  // Usamos siempre el PDF (que ya tiene orientación EXIF aplicada) en lugar de la imagen original
+  const useSourceImagePreviewInCenter = false;
   const activePreviewUrl = useSourceImagePreviewInCenter
     ? (sourceImagePreviewUrl ?? documentPreview ?? workflowPreviewUrl)
     : (workflowPreviewUrl ?? documentPreview);
@@ -3230,11 +3202,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     ? null
     : (workflowPreviewPdfData ?? documentPreviewPdfData);
   const isPdfPreview = !useSourceImagePreviewInCenter && file?.type === 'application/pdf';
-  // Wizard de campos usa preview imagen original cuando el source fue JPG/PNG,
-  // para mantener orientación visual coherente respecto del canvas principal.
-  const useSourceImagePreviewInWizard = Boolean(
-    sourceFile?.type.startsWith('image/') && file?.type === 'application/pdf'
-  );
+  // Wizard usa el PDF (que ya tiene orientación EXIF aplicada) en lugar de la imagen original
+  const useSourceImagePreviewInWizard = false;
   const wizardPreviewUrl = useSourceImagePreviewInWizard
     ? sourceImagePreviewUrl
     : (documentPreview ?? workflowPreviewUrl);
@@ -3289,11 +3258,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     if (mySignature && signatureFields.length === 0) {
       setMySignature(false);
       setSignatureType(null);
-      showToast('Mi firma se desactivó porque no se asignaron campos.', {
-        type: 'warning',
-        duration: 2000,
-        position: 'top-right'
-      });
+      setSignaturePreview(null);
+      setIsCanvasLocked(false);
+      guide.showConfirmation('Mi firma desactivada.');
     }
   }, [mySignature, signatureFields.length, showToast]);
 
@@ -3314,7 +3281,12 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       setWorkflowAssignmentConfirmed(true);
       setExpandedSignerIndex(null);
       setShowSignerFieldsWizard(false);
-      showToast('Campos configurados correctamente.', { type: 'success', duration: 2000, position: 'top-right' });
+      // Guide: mensaje #8 — conecta con el siguiente paso
+      if (mySignature && !signatureType) {
+        guide.showGuideMessage('fields_done_choose_firma', 'Los campos están listos. Elegí qué tipo de firma querés usar.', 3000);
+      } else {
+        guide.showConfirmation('Campos configurados.');
+      }
     };
     if (signatureFields.length > 0) {
       setPendingWizardApply(() => doApply);
@@ -3367,7 +3339,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         draftState
       );
 
-      showToast('Borrador guardado.', { type: 'success', duration: 2000 });
+      showToast('Borrador guardado.', { type: 'success', duration: 2000, position: 'top-right' });
       window.dispatchEvent(new Event('ecosign:draft-saved'));
       resetAndClose();
     } catch (error) {
@@ -4024,9 +3996,11 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             /* Center Panel (Main Content) - SIN CLASES GRID */
             <div className="h-full w-full flex flex-col">
               {!isFocusMode && (
-                <div className="-mx-1.5 -mt-1.5 h-14 px-3 border-b border-gray-200 grid grid-cols-[28px_minmax(0,1fr)_28px] items-center bg-white">
-                  <span aria-hidden="true" className="h-7 w-7" />
-                  <div className="text-sm font-semibold leading-none text-gray-900 text-center">Centro Legal</div>
+                <div className="-mx-1.5 -mt-1.5 h-14 px-3 border-b border-gray-200 flex items-center bg-white">
+                  <div className="text-sm font-semibold leading-none text-gray-900 pl-1.5 shrink-0">Centro Legal</div>
+                  <div className="flex-1 min-w-0 px-2">
+                    <HeaderMessage message={guide.headerMessage} />
+                  </div>
                   <div className="relative mr-2">
                     <button
                       type="button"
@@ -4158,7 +4132,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             if (!canOpenCenterWizard) return;
                             if (workflowEnabled) {
                               openSignerFieldsWizard();
-                              showToast('Ajustá campos con el wizard.', { type: 'info', duration: 1800, position: 'top-right' });
+                              guide.showGuideMessage('wizard_adjust', 'Ajustá posición y tamaño de los campos.', 3000);
                               return;
                             }
                             openMySignatureWizard();
@@ -4705,12 +4679,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                       // Cerrar el modo firma
                                       setShowSignatureOnPreview(false);
 
-                                      // Toast simple de confirmación
-                                      showToast('Firma aplicada correctamente.', {
-                                        type: 'success',
-                                        duration: 2000,
-                                        icon: '✓'
-                                      });
+                                      guide.showConfirmation('Firma aplicada.');
                                     }}
                                     className="flex-1 py-2 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
                                     disabled={
@@ -4776,8 +4745,12 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         const hasSaved = ndaSavedText !== null && ndaSavedText === ndaText;
                         setNdaDefined(hasSaved);
                         setNdaDirty(!hasSaved);
+                        if (!hasSaved) {
+                          guide.showGuideMessage('nda_open', 'Elegí un template o escribí tu propio acuerdo para asociarlo al documento.', 4000);
+                        }
                       } else {
                         setNdaPanelOpen(false);
+                        guide.showConfirmation('Este documento ya no tiene un acuerdo asociado.', 3000);
                       }
                     }}
                     disabled={!file}
@@ -4787,19 +4760,11 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                     enabled={forensicEnabled}
                     onToggle={async (newState) => {
                       if (newState) {
-                        // UX: activar siempre la intención de protección.
-                        // La validación dura corre al ejecutar "Proteger".
                         setForensicEnabled(true);
-                        toast('🛡️ Protección activada — Este documento quedará respaldado por EcoSign.', {
-                          duration: 3000,
-                          position: 'top-right'
-                        });
+                        guide.showConfirmation('Protección activa.');
                       } else {
                         setForensicEnabled(false);
-                        toast('Protección desactivada', {
-                          duration: 2000,
-                          position: 'top-right'
-                        });
+                        guide.showGuideMessage('protection_off', 'Sin protección activa. Recomendamos mantenerla — no tiene costo.', 4000);
                       }
                     }}
                     disabled={!file}
@@ -4811,7 +4776,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                     onToggle={(newState) => {
                       if (newState && workflowEnabled) {
                         showToast(
-                          'Mi firma y Flujo de firmas son opciones excluyentes.\n\nSi querés firmar junto a otros, agregá tu correo dentro del flujo.',
+                          'Para firmar dentro de un flujo con otros firmantes, agregá tu correo en el flujo de firmas. Así tu firma tiene la misma validez legal que la del resto.',
                           { type: 'warning', duration: 5500, position: 'top-right' }
                         );
                         return;
@@ -4825,9 +4790,16 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         setMySignature(true);
                         setIsCanvasLocked(true);
                         openMySignatureWizard();
+                        guide.showGuideMessage('wizard_open', 'Para firmar, elegí dónde van los campos.');
                         return;
                       }
+                      // Al deseleccionar, limpiar todo el estado relacionado con Mi Firma
                       setMySignature(false);
+                      setSignatureFields([]);
+                      setSignatureType(null);
+                      setSignaturePreview(null);
+                      setIsCanvasLocked(false);
+                      guide.showConfirmation('Mi firma desactivada.');
                     }}
                     disabled={!file}
                     hasFile={!!file}
@@ -4838,7 +4810,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                     onToggle={(next) => {
                       if (next && mySignature) {
                         showToast(
-                          'Mi firma y Flujo de firmas son opciones excluyentes.\n\nSi querés firmar junto a otros, agregá tu correo dentro del flujo.',
+                          'Para firmar dentro de un flujo con otros firmantes, agregá tu correo en el flujo de firmas. Así tu firma tiene la misma validez legal que la del resto.',
                           { type: 'warning', duration: 5500, position: 'top-right' }
                         );
                         return;
@@ -4846,6 +4818,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                       setWorkflowEnabled(next);
                       if (next) {
                         setFlowPanelOpen(true);
+                        guide.showGuideMessage('smart_paste_hint', 'Si tenés varios firmantes, podés pegar todos los correos de una vez.', 4000);
                       } else {
                         setFlowPanelOpen(false);
                       }
@@ -4868,7 +4841,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         <span>NDA</span>
                         <span className="flex items-center gap-2 text-xs text-gray-500">
                           {!ndaAccordionOpen && ndaDefined && !ndaDirty && (
-                            <span className="text-green-700">NDA guardado ✓</span>
+                            <span className="text-green-700">Acuerdo asociado ✓</span>
                           )}
                           {ndaAccordionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </span>
@@ -4893,13 +4866,13 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                             onClick={() => {
                               const trimmed = ndaText.trim();
                               if (!trimmed || trimmed === NDA_COPY.EMPTY_MESSAGE.trim()) {
-                                showToast('El NDA no puede estar vacío.', { type: 'error' });
+                                showToast('El acuerdo no puede estar vacío. Escribí el texto o elegí un template.', { type: 'error' });
                                 return;
                               }
                               setNdaSavedText(ndaText);
                               setNdaDefined(true);
                               setNdaDirty(false);
-                              showToast('NDA guardado.', { type: 'success', duration: 2000 });
+                              guide.showConfirmation('Acuerdo asociado al documento.');
                             }}
                             disabled={!ndaDirty || !ndaText.trim() || ndaText.trim() === NDA_COPY.EMPTY_MESSAGE.trim()}
                             className={`mt-3 w-full py-2 px-3 rounded text-xs font-medium transition ${
@@ -4908,7 +4881,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                 : 'bg-gray-900 text-white hover:bg-gray-800'
                             }`}
                           >
-                            Guardar NDA
+                            {NDA_COPY.SAVE_BUTTON}
                           </button>
                         </div>
                       )}
@@ -5031,7 +5004,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                     type="button"
                     onClick={() => {
                       setSignatureType('legal');
-                      showToast('Firma legal seleccionada', { type: 'success', duration: 2000 });
+                      guide.showGuideMessage('firma_legal', 'Firma legal — no vemos tu documento. Válida para la mayoría de los acuerdos.', 4000);
                     }}
                     className={`h-11 px-4 rounded-lg border text-left transition ${
                       signatureType === 'legal'
@@ -5063,7 +5036,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                     onClick={() => {
                       setSignatureType('certified');
                       setShowCertifiedModal(true);
-                      showToast('Firma certificada seleccionada', { type: 'success', duration: 2000 });
+                      guide.showGuideMessage('firma_certificada', 'Firma certificada — requiere procesamiento externo.', 4000);
                     }}
                     className={`h-11 px-4 rounded-lg border text-left transition ${
                       signatureType === 'certified'
@@ -5160,12 +5133,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             !isMobile && documentLoaded && workflowEnabled && !isFocusMode ? (
               <div className="h-full flex flex-col bg-white">
                 {/* Header colapsable del panel */}
-            <div className="h-14 px-3 border-b border-gray-200 bg-white">
-              <div className="h-full grid grid-cols-[28px_minmax(0,1fr)_28px] items-center">
-                <span aria-hidden="true" className="h-7 w-7" />
-                <h3 className="text-sm font-semibold leading-none text-gray-900 text-center">Flujo de Firmas</h3>
-                <span aria-hidden="true" className="h-7 w-7" />
-              </div>
+            <div className="h-14 px-3 border-b border-gray-200 bg-white flex items-center">
+                <h3 className="text-sm font-semibold leading-none text-gray-900 pl-1.5">Flujo de Firmas</h3>
             </div>
 
             {/* Contenido del panel */}
@@ -5292,7 +5261,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                   onClick={() => {
                     if (!canAssignWorkflowFields) return;
                     openSignerFieldsWizard();
-                    showToast('Asignación automática lista: revisá y confirmá.', { type: 'info', duration: 2000, position: 'top-right' });
+                    guide.showConfirmation('Asignación automática lista — revisá y confirmá.');
                   }}
                   disabled={!canAssignWorkflowFields}
                   className={`w-full h-11 rounded-lg px-4 text-sm font-medium transition ${

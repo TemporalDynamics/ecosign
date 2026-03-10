@@ -11,7 +11,6 @@
  */
 
 import React from 'react';
-import toast from 'react-hot-toast';
 import { FLOW_COPY } from './flow.copy';
 
 interface SignatureFlowToggleProps {
@@ -30,14 +29,6 @@ export const SignatureFlowToggle: React.FC<SignatureFlowToggleProps> = ({
 
     const newState = !enabled;
     onToggle(newState);
-
-    // Toast al activar
-    if (newState) {
-      toast(FLOW_COPY.toastActivated, {
-        position: 'top-right',
-        duration: 3000,
-      });
-    }
   };
 
   return (

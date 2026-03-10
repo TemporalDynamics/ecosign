@@ -18,7 +18,7 @@ export const NDA_COPY = {
   editButton: 'Editar',
   uploadButton: 'Subir archivo',
   pasteButton: 'Pegar texto',
-  SAVE_BUTTON: 'Guardar NDA',
+  SAVE_BUTTON: 'Asociar acuerdo',
   cancelButton: 'Cancelar',
   clearButton: 'Limpiar',
   

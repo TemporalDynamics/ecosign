@@ -493,6 +493,15 @@ function DocumentsPage() {
       toast("Modo invitado: sesión probatoria reforzada disponible solo con cuenta.", { position: "top-right" });
       return;
     }
+
+    // Verificar que el usuario tenga sesión activa antes de invocar la función
+    const supabase = getSupabase();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (!session || sessionError) {
+      toast.error("Tu sesión expiró. Por favor iniciá sesión nuevamente.", { position: "top-right" });
+      return;
+    }
+
     if (startingPresentialOperationId) {
       toast("Ya estamos iniciando otra sesión probatoria. Esperá un momento.", { position: "top-right" });
       return;
@@ -3529,64 +3538,87 @@ function DocumentsPage() {
             </div>
 
             {closeResultForSession && (
-              <div className="mt-4 space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                <div className="font-semibold">Acta probatoria cerrada</div>
-                {closeResultClosedAt && (
-                  <div>
-                    Cerrada: <span className="font-medium">{formatDate(closeResultClosedAt)}</span>
+              <div className="mt-4 space-y-3">
+                {/* Estado de la sesión cerrada */}
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                  <div className="mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-emerald-600" />
+                    <span className="font-semibold">Acta probatoria generada</span>
                   </div>
-                )}
-                {closeResultForSession.actaHash && (
-                  <div className="break-all">
-                    Acta hash: <span className="font-mono">{closeResultForSession.actaHash}</span>
-                  </div>
-                )}
-                {closeResultForSession.trenza && (
-                  <div>
-                    Trenza:{" "}
-                    <span className="font-medium">
-                      {(closeResultForSession.trenza.confirmed_strands ?? 0)}/
-                      {(closeResultForSession.trenza.required_strands ?? 0)}
-                    </span>
-                    {" · "}
-                    Estado: <span className="font-medium">{closeResultForSession.trenza.status ?? "n/a"}</span>
-                  </div>
-                )}
-                {closeResultLocalTimestamp && (
-                  <div>
-                    Timestamp local:{" "}
-                    <span className="font-medium">{closeResultLocalTimestamp.status ?? "recorded"}</span>
-                  </div>
-                )}
-                {closeResultTsaTimestamp && (
-                  <div className="break-all">
-                    TSA: <span className="font-medium">{closeResultTsaTimestamp.status ?? "n/a"}</span>
-                    {" · "}
-                    Provider: <span className="font-medium">{closeResultTsaTimestamp.provider ?? "n/a"}</span>
-                    {closeResultTsaTimestamp.token_hash && (
-                      <>
-                        {" · "}
-                        Token hash: <span className="font-mono">{closeResultTsaTimestamp.token_hash}</span>
-                      </>
-                    )}
-                    {closeResultTsaTimestamp.error && (
-                      <>
-                        {" · "}
-                        Error: <span className="font-medium">{closeResultTsaTimestamp.error}</span>
-                      </>
-                    )}
-                  </div>
-                )}
-                <div className="pt-1">
+                  
+                  {closeResultClosedAt && (
+                    <div className="mb-1">
+                      Cerrada: <span className="font-medium">{formatDate(closeResultClosedAt)}</span>
+                    </div>
+                  )}
+                  
+                  {closeResultForSession.actaHash && (
+                    <div className="mb-1 break-all">
+                      Acta hash: <span className="font-mono text-xs">{closeResultForSession.actaHash}</span>
+                    </div>
+                  )}
+                  
+                  {closeResultForSession.trenza && (
+                    <div className="mb-1">
+                      Trenza:{" "}
+                      <span className="font-medium">
+                        {(closeResultForSession.trenza.confirmed_strands ?? 0)}/
+                        {(closeResultForSession.trenza.required_strands ?? 0)} confirmadas
+                      </span>
+                      {" · "}
+                      Estado: <span className="font-medium">{closeResultForSession.trenza.status ?? "n/a"}</span>
+                    </div>
+                  )}
+                  
+                  {closeResultForSession.timestamps && closeResultForSession.timestamps.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <div className="font-medium text-xs text-emerald-700">Timestamps registrados:</div>
+                      {closeResultForSession.timestamps.map((ts: any, idx: number) => (
+                        <div key={idx} className="text-xs">
+                          • {ts.kind ?? "unknown"}: {ts.status ?? "n/a"} 
+                          {ts.provider && ` (${ts.provider})`}
+                          {ts.at && ` - ${formatDate(ts.at)}`}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Acciones post-cierre */}
+                <div className="flex flex-wrap gap-2">
+                  {closeResultForSession.actaHash && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const verifyUrl = `/verify?acta_hash=${encodeURIComponent(closeResultForSession.actaHash!)}`;
+                          window.open(verifyUrl, "_blank", "noopener,noreferrer");
+                        }}
+                        className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Ver Acta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyToClipboard(closeResultForSession.actaHash!, "Acta hash")
+                        }
+                        className="rounded-lg border border-emerald-300 px-3 py-2 text-sm font-semibold text-emerald-900 hover:border-emerald-700"
+                      >
+                        Copiar acta hash
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
-                    onClick={() =>
-                      closeResultForSession.actaHash &&
-                      copyToClipboard(closeResultForSession.actaHash, "Acta hash")
-                    }
-                    className="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-900 hover:border-emerald-700"
+                    onClick={() => {
+                      setPresentialSessionSummary(null);
+                      setPresentialCloseResult(null);
+                    }}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
                   >
-                    Copiar acta hash
+                    Cerrar
                   </button>
                 </div>
               </div>

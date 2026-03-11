@@ -170,10 +170,18 @@ async function captureOperationSnapshot(
   operationId: string,
   witnessEmails: string[],
 ) {
+  console.log('[captureOperationSnapshot] Fetching operation_documents for:', operationId);
+  
   const { data: operationDocuments, error: docError } = await supabase
     .from('operation_documents')
     .select('id, document_entity_id')
     .eq('operation_id', operationId);
+
+  console.log('[captureOperationSnapshot] operation_documents result:', { 
+    count: operationDocuments?.length ?? 0, 
+    hasError: !!docError,
+    errorMessage: docError?.message 
+  });
 
   if (docError || !operationDocuments) {
     throw new Error('Failed to fetch operation documents');
@@ -187,10 +195,18 @@ async function captureOperationSnapshot(
     .map((doc: any) => String(doc.document_entity_id ?? ''))
     .filter((id: string) => id.length > 0);
 
+  console.log('[captureOperationSnapshot] Fetching document_entities:', { entityIdsCount: entityIds.length });
+
   const { data: entities, error: entError } = await supabase
     .from('document_entities')
     .select('id, source_name, events')
     .in('id', entityIds);
+
+  console.log('[captureOperationSnapshot] document_entities result:', {
+    count: entities?.length ?? 0,
+    hasError: !!entError,
+    errorMessage: entError?.message
+  });
 
   if (entError) {
     throw new Error(`Failed to fetch document entities: ${entError.message}`);
@@ -219,24 +235,71 @@ async function captureOperationSnapshot(
     })
     .sort((a, b) => String(a.entityId).localeCompare(String(b.entityId)));
 
-  const { data: signers, error: sigError } = await supabase
-    .from('operation_signers')
-    .select('id, email, role')
-    .eq('operation_id', operationId);
+  // Extract unique document entity IDs from operation for workflow lookup
+  const docEntityIds = Array.from(new Set(
+    documentSnapshots.map((d) => d.entityId).filter(Boolean)
+  ));
 
-  if (sigError) {
-    throw new Error(`Failed to fetch operation signers: ${sigError.message}`);
+  console.log('[captureOperationSnapshot] Fetching signature_workflows for entities:', docEntityIds);
+
+  // Fetch workflows that belong to these document entities
+  const { data: workflows, error: wfError } = await supabase
+    .from('signature_workflows')
+    .select('id, document_entity_id, owner_id')
+    .in('document_entity_id', entityIds);
+
+  console.log('[captureOperationSnapshot] signature_workflows result:', {
+    count: workflows?.length ?? 0,
+    hasError: !!wfError,
+    errorMessage: wfError?.message
+  });
+
+  if (wfError) {
+    throw new Error(`Failed to fetch signature workflows: ${wfError.message}`);
   }
 
+  if (!workflows || workflows.length === 0) {
+    throw new Error('Operation has no associated signature workflows');
+  }
+
+  // Extract unique workflow IDs
+  const workflowIds = Array.from(new Set(
+    workflows.map((w) => String(w.id)).filter(Boolean)
+  ));
+
+  console.log('[captureOperationSnapshot] Fetching workflow_signers for workflows:', workflowIds);
+
+  // Fetch signers from workflow_signers table
+  const { data: workflowSigners, error: signerError } = await supabase
+    .from('workflow_signers')
+    .select('id, email, signing_order, workflow_id')
+    .in('workflow_id', workflowIds);
+
+  console.log('[captureOperationSnapshot] workflow_signers result:', {
+    count: workflowSigners?.length ?? 0,
+    hasError: !!signerError,
+    errorMessage: signerError?.message
+  });
+
+  if (signerError) {
+    throw new Error(`Failed to fetch workflow signers: ${signerError.message}`);
+  }
+
+  let signers: SessionSigner[] = (workflowSigners || []).map((s: any) => ({
+    signerId: String(s.id ?? ''),
+    email: String(s.email ?? ''),
+    role: 'signer',
+    signing_order: s.signing_order ?? null,
+  }));
+
+  console.log('[captureOperationSnapshot] Final signers count before filter:', signers.length);
+
+  // Filter and deduplicate signers (same logic as original operation_signers code)
   const normalizedSigners = uniqueSignersByEmail(
-    (signers || [])
-      .map((s: any) => ({
-        signerId: String(s.id ?? ''),
-        email: String(s.email ?? ''),
-        role: s.role ?? null,
-      }))
-      .filter((s: SessionSigner) => Boolean(s.signerId) && Boolean(normalizeEmail(s.email))),
+    signers.filter((s: SessionSigner) => Boolean(s.signerId) && Boolean(normalizeEmail(s.email)))
   );
+
+  console.log('[captureOperationSnapshot] Normalized signers count:', normalizedSigners.length);
 
   if (normalizedSigners.length === 0) {
     throw new Error('Operation has no signers with valid emails');
@@ -261,6 +324,12 @@ async function captureOperationSnapshot(
 serve(async (req) => {
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
 
+  console.log('[presential-start] Request received', { 
+    method: req.method, 
+    origin: req.headers.get('origin'),
+    isAllowed 
+  });
+
   if (req.method === 'OPTIONS') {
     if (!isAllowed) {
       return new Response('Forbidden', { status: 403, headers: corsHeaders });
@@ -278,7 +347,10 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
+    console.log('[presential-start] Auth header present:', !!authHeader);
+    
     const authUser = await verifyAuthUser(authHeader);
+    console.log('[presential-start] Auth user:', authUser ? { id: authUser.id, email: authUser.email } : null);
 
     if (!authUser) {
       return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders);
@@ -288,20 +360,31 @@ serve(async (req) => {
     const operationId = String(body.operation_id ?? '');
     const witnessEmails = parseWitnessEmails(body);
 
+    console.log('[presential-start] Request body:', { operationId, witnessEmailsCount: witnessEmails.length });
+
     if (!operationId) {
       return jsonResponse({ error: 'operation_id required' }, 400, corsHeaders);
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    console.log('[presential-start] Supabase client created');
 
     let operation: Record<string, unknown> | null = null;
     let opError: any = null;
+
+    console.log('[presential-start] Fetching operation:', operationId);
 
     const ownerQuery = await supabase
       .from('operations')
       .select('id, owner_id')
       .eq('id', operationId)
       .single();
+    
+    console.log('[presential-start] Owner query result:', { 
+      hasData: !!ownerQuery.data, 
+      hasError: !!ownerQuery.error,
+      errorMessage: ownerQuery.error?.message 
+    });
     if (!ownerQuery.error && ownerQuery.data) {
       operation = ownerQuery.data as Record<string, unknown>;
     } else if (String(ownerQuery.error?.message ?? '').toLowerCase().includes('owner_id')) {
@@ -321,11 +404,23 @@ serve(async (req) => {
     }
 
     const operationOwnerId = (operation as any).owner_id ?? (operation as any).created_by ?? null;
+    console.log('[presential-start] Operation owner check:', { 
+      operationOwnerId, 
+      authUserId: authUser.id,
+      matches: operationOwnerId === authUser.id 
+    });
+    
     if (operationOwnerId !== authUser.id) {
       return jsonResponse({ error: 'Not authorized to manage this operation' }, 403, corsHeaders);
     }
 
+    console.log('[presential-start] Capturing operation snapshot...');
     const snapshot = await captureOperationSnapshot(supabase, operationId, witnessEmails);
+    console.log('[presential-start] Snapshot captured:', { 
+      hasDocuments: Array.isArray(snapshot.documents) && snapshot.documents.length > 0,
+      hasSigners: Array.isArray(snapshot.signers) && snapshot.signers.length > 0,
+      participantsCount: snapshot.participants?.length ?? 0
+    });
     const snapshotCanonical = canonicalize(snapshot);
     const snapshotHash = await hashData(snapshotCanonical);
 

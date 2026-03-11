@@ -1104,7 +1104,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     (async () => {
       try {
         const fileForPreview = normalizedRotation !== 0
-          ? new Blob([await rotatePdf(currentFile, normalizedRotation)], { type: 'application/pdf' })
+          ? new File([new Uint8Array(await rotatePdf(currentFile, normalizedRotation)).buffer as ArrayBuffer], currentFile.name, { type: 'application/pdf' })
           : currentFile;
         const signaturePage = await appendSignaturePage(fileForPreview, workflowPageSizeMode);
         if (cancelled) return;
@@ -1706,7 +1706,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         let fileToSend = file;
         try {
           const rotDeg = ((previewRotation % 360) + 360) % 360;
-          if (rotDeg !== 0) fileToSend = new Blob([await rotatePdf(fileToSend, rotDeg)], { type: 'application/pdf' });
+          if (rotDeg !== 0) fileToSend = new File([new Uint8Array(await rotatePdf(fileToSend, rotDeg)).buffer as ArrayBuffer], file.name, { type: 'application/pdf' });
           const signaturePage = await appendSignaturePage(fileToSend, workflowPageSizeMode);
           fileToSend = new File([signaturePage.blob], file.name, { type: 'application/pdf' });
         } catch (err) {
@@ -1944,7 +1944,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         let fileToSend = file;
         try {
           const rotDeg = ((previewRotation % 360) + 360) % 360;
-          if (rotDeg !== 0) fileToSend = new Blob([await rotatePdf(fileToSend, rotDeg)], { type: 'application/pdf' });
+          if (rotDeg !== 0) fileToSend = new File([new Uint8Array(await rotatePdf(fileToSend, rotDeg)).buffer as ArrayBuffer], file.name, { type: 'application/pdf' });
           const signaturePage = await appendSignaturePage(fileToSend, workflowPageSizeMode);
           fileToSend = new File([signaturePage.blob], file.name, { type: 'application/pdf' });
         } catch (err) {

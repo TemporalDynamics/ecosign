@@ -1,11 +1,24 @@
 # EPI Invariants (ECO / ECOx / EPI)
 **Estado:** Canónico
 **Alcance:** ECO snapshot, proofs rápidas, PDF witness, EPI readiness
-**Fecha:** 2026-02-09
+**Fecha:** 2026-02-09 (actualizado 2026-03-10)
 
 ## 0) Propósito
 Este documento fija las **leyes del sistema** que no pueden romperse sin invalidar evidencia.
 No es marketing. Son invariants técnicos y auditables.
+
+### Nota sobre los 4 Tipos de ECO
+
+El sistema genera **4 tipos de ECO** para 4 casos de uso distintos. Las invariantes de esta sección (INV-001 a INV-005) aplican principalmente a **ECO #1 (signature_act)**, que es el ECO inmediato del firmante.
+
+| Tipo | Nombre técnico | Función generadora | Aplicación de invariantes |
+|------|---------------|-------------------|--------------------------|
+| **#1** | `signature_act` | `apply-signer-signature` | INV-001, INV-002, INV-003, INV-005 |
+| **#2** | `signer_snapshot` | `generate-signature-evidence` | INV-001, INV-002 |
+| **#3** | `accumulated` (on-demand) | `get-eco` | INV-001, INV-002 |
+| **#4** | `final_artifact` | `build-artifact` | INV-001, INV-002 |
+
+**Documento completo:** `docs/ECO_TYPES_CANONICAL.md`
 
 ## 1) Invariantes de ECO (acto por firmante)
 

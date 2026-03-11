@@ -113,6 +113,9 @@ export async function startPresentialVerificationSession(
   const supabase = getSupabase();
   const witnessEmails = normalizeWitnessEmails(input.witnessEmails);
 
+  // Get current session to ensure we have a valid token
+  const { data: { session } } = await supabase.auth.getSession();
+  
   const { data, error } = await supabase.functions.invoke(
     'presential-verification-start-session',
     {
@@ -120,6 +123,8 @@ export async function startPresentialVerificationSession(
         operation_id: input.operationId,
         ...(witnessEmails.length > 0 ? { witness_emails: witnessEmails } : {}),
       },
+      // Explicitly pass the token if session exists
+      ...(session ? { headers: { Authorization: `Bearer ${session.access_token}` } } : {}),
     },
   );
 

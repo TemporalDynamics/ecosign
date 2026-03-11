@@ -1458,8 +1458,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
   const handleCustodyConfirmed = (custodyMode: CustodyMode) => {
     setCustodyModeChoice(custodyMode);
-    // Proceder con la protección
-    handleCertify();
+    // Pass custodyMode directly — state setter is async and won't be visible to handleCertify yet
+    handleCertify(custodyMode);
   };
 
   const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
@@ -1476,7 +1476,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     }
   };
 
-  const handleCertify = async () => {
+  const handleCertify = async (effectiveCustodyMode?: CustodyMode) => {
+    const custodyMode = effectiveCustodyMode ?? custodyModeChoice;
     if (!file) return;
     const requiresPdf = mySignature || workflowEnabled || signatureFields.length > 0 || Boolean(signatureType);
     if (requiresPdf && file.type !== 'application/pdf') {
@@ -1615,7 +1616,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         }
 
         // Solo cifrar y subir el original si el usuario eligió encrypted_custody
-        if (custodyModeChoice === 'encrypted_custody') {
+        if (custodyMode === 'encrypted_custody') {
           setCertifyProgress({
             stage: 'preparing',
             message: 'Cifrando archivo original...'
@@ -1645,7 +1646,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         }
       } catch (err) {
         // Solo es error fatal si el usuario QUERÍA guardar el original
-        if (custodyModeChoice === 'encrypted_custody') {
+        if (custodyMode === 'encrypted_custody') {
           console.error('Encrypted custody required but failed:', err);
           showToast('No se pudo cifrar y guardar el original. Intentá nuevamente.', { type: 'error' });
           setLoading(false);

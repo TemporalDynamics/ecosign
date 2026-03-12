@@ -17,6 +17,8 @@ import {
   getSessionUnwrapKey,
   decryptFile,
   isSessionInitialized,
+  generateDocumentKey,
+  encryptFile,
 } from '../e2e';
 import { SHARE_CONFIG } from '../e2e/constants';
 
@@ -88,36 +90,100 @@ export async function shareDocument(
       throw new Error('missing_document_entity_id');
     }
 
-    if (!doc.encrypted) {
-      throw new Error('Can only share encrypted documents with OTP');
-    }
-
     // Verify user owns the document (legacy-compatible):
     // if user_id is present it must match; if null (historical rows), rely on RLS + entity binding.
     if (doc.user_id && doc.user_id !== user.id) {
       throw new Error('Access denied');
     }
 
-    // Canonical runtime metadata already lives in document_entities.metadata.ecox.runtime.
-    // We avoid client-side PATCH on document_entities to prevent RLS/immutability errors
-    // during share generation. If runtime is missing, sharing will fail explicitly below.
+    let runtimeDoc = doc;
+    let bootstrapKey: CryptoKey | null = null;
+
+    // If runtime encryption metadata is missing, bootstrap an encrypted runtime from the current PDF.
+    if (!runtimeDoc.encrypted_path || !runtimeDoc.wrapped_key || !runtimeDoc.wrap_iv) {
+      if (!preferredPath) {
+        throw new Error('share_source_unavailable');
+      }
+
+      console.log('🔐 Bootstrapping encrypted runtime for share...');
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('user-documents')
+        .createSignedUrl(preferredPath, 60 * 60);
+
+      if (signedUrlError || !signedUrlData?.signedUrl) {
+        throw new Error(`No se pudo preparar el documento para compartir (${signedUrlError?.message || 'signed_url_failed'})`);
+      }
+
+      const sourceResp = await fetch(signedUrlData.signedUrl);
+      if (!sourceResp.ok) {
+        throw new Error('No se pudo descargar el documento para cifrarlo');
+      }
+
+      const sourceBlob = await sourceResp.blob();
+      const documentKey = await generateDocumentKey();
+      const encryptedBlob = await encryptFile(sourceBlob, documentKey);
+      const sessionUnwrapKey = getSessionUnwrapKey();
+      const { wrappedKey, wrapIv } = await wrapDocumentKey(documentKey, sessionUnwrapKey);
+
+      const encryptedPath = `${user.id}/encrypted/${crypto.randomUUID()}.enc`;
+      const { error: uploadError } = await supabase.storage
+        .from('user-documents')
+        .upload(encryptedPath, encryptedBlob, {
+          upsert: true,
+          contentType: 'application/octet-stream',
+        });
+
+      if (uploadError) {
+        throw new Error(`No se pudo subir la copia cifrada (${uploadError.message})`);
+      }
+
+      const runtimeUpdated = await upsertEntityEcoxRuntime(
+        supabase,
+        doc.document_entity_id,
+        {
+          encrypted_path: encryptedPath,
+          wrapped_key: wrappedKey,
+          wrap_iv: wrapIv,
+          storage_bucket: 'user-documents',
+        },
+        user.id,
+      );
+
+      if (!runtimeUpdated) {
+        throw new Error('No se pudo registrar la copia cifrada en la entidad canónica');
+      }
+
+      runtimeDoc = {
+        ...doc,
+        encrypted: true,
+        encrypted_path: encryptedPath,
+        wrapped_key: wrappedKey,
+        wrap_iv: wrapIv,
+      };
+      bootstrapKey = documentKey;
+      console.log('✅ Encrypted runtime bootstrapped');
+    }
+
+    if (!runtimeDoc.encrypted_path) {
+      throw new Error('Can only share encrypted documents with OTP');
+    }
 
     // 2. Unwrap document key with owner's session key
     console.log('🔓 Attempting to unwrap document key...');
     console.log('  - Document ID:', documentId);
-    console.log('  - Has wrapped_key:', !!doc.wrapped_key);
-    console.log('  - Has wrap_iv:', !!doc.wrap_iv);
+    console.log('  - Has wrapped_key:', !!runtimeDoc.wrapped_key);
+    console.log('  - Has wrap_iv:', !!runtimeDoc.wrap_iv);
 
-    if (!doc.wrapped_key || !doc.wrap_iv) {
+    if (!runtimeDoc.wrapped_key || !runtimeDoc.wrap_iv) {
       throw new Error('Este documento no tiene cifrado E2E. No se puede compartir con OTP.');
     }
 
     const sessionUnwrapKey = getSessionUnwrapKey();
     console.log('  - Session unwrap key obtained');
 
-    const documentKey = await unwrapDocumentKey(
-      doc.wrapped_key,
-      doc.wrap_iv,
+    const documentKey = bootstrapKey || await unwrapDocumentKey(
+      runtimeDoc.wrapped_key,
+      runtimeDoc.wrap_iv,
       sessionUnwrapKey
     );
     console.log('✅ Document key unwrapped successfully');
@@ -458,7 +524,7 @@ async function upsertEntityEcoxRuntime(
     storage_bucket: string;
   },
   ownerUserId: string,
-): Promise<void> {
+): Promise<boolean> {
   try {
     const { data: entity, error } = await supabase
       .from('document_entities')
@@ -467,11 +533,11 @@ async function upsertEntityEcoxRuntime(
       .single();
 
     if (error || !entity) {
-      return;
+      return false;
     }
 
     if ((entity as any).owner_id !== ownerUserId) {
-      return;
+      return false;
     }
 
     const root = asObject((entity as any).metadata) ?? {};
@@ -493,12 +559,20 @@ async function upsertEntityEcoxRuntime(
       },
     };
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('document_entities')
       .update({ metadata: nextMetadata })
       .eq('id', documentEntityId);
+
+    if (updateError) {
+      console.warn('Share: failed to update document_entities runtime metadata', updateError);
+      return false;
+    }
+
+    return true;
   } catch (error) {
     console.warn('Share: failed to upsert canonical ECOX runtime metadata', error);
+    return false;
   }
 }
 

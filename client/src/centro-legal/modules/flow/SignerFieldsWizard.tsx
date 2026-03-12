@@ -318,6 +318,11 @@ function SignerFieldsWizardComponent({
     applyPlacementToActiveSigner({ side });
   };
 
+  const toggleSigningMode = (mode: 'sequential' | 'parallel', checked: boolean) => {
+    if (!checked) return; // comportamiento exclusivo tipo radio manteniendo estética checkbox
+    onSigningModeChange?.(mode);
+  };
+
   const buildPerPageFields = () => {
     if (!includePerPageSignature || selectedPerPageSigners.length === 0) {
       return [] as SignatureField[];
@@ -1201,21 +1206,21 @@ function SignerFieldsWizardComponent({
                   <div className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">Orden de firma</div>
                   <label className="flex items-center gap-2 text-sm text-gray-800 mb-2">
                     <input
-                      type="radio"
+                      type="checkbox"
                       name="signing-mode"
                       checked={effectiveSigningMode === 'sequential'}
-                      onChange={() => onSigningModeChange?.('sequential')}
-                      className="eco-checkbox h-3.5 w-3.5 rounded border-gray-300"
+                      onChange={(e) => toggleSigningMode('sequential', e.target.checked)}
+                      className="eco-checkbox h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                     />
                     Secuencial (cada firmante espera su turno)
                   </label>
                   <label className="flex items-center gap-2 text-sm text-gray-800">
                     <input
-                      type="radio"
+                      type="checkbox"
                       name="signing-mode"
                       checked={effectiveSigningMode === 'parallel'}
-                      onChange={() => onSigningModeChange?.('parallel')}
-                      className="eco-checkbox h-3.5 w-3.5 rounded border-gray-300"
+                      onChange={(e) => toggleSigningMode('parallel', e.target.checked)}
+                      className="eco-checkbox h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                     />
                     Paralelo (todos pueden firmar desde el inicio)
                   </label>

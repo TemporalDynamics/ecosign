@@ -135,7 +135,7 @@ export default function CompletionScreen({
                 href={signupHref}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center rounded-lg border border-blue-500 px-4 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                className="flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-800 transition hover:border-blue-400 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200"
               >
                 Crear cuenta y guardar evidencia
               </a>
@@ -143,7 +143,7 @@ export default function CompletionScreen({
                 href={loginHref}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center rounded-lg border border-blue-500 px-4 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                className="flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-800 transition hover:border-blue-400 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200"
               >
                 Conservar en mi cuenta
               </a>

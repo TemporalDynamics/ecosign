@@ -118,8 +118,8 @@ const LandingPage = () => {
           </h2>
           <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-16 text-center leading-relaxed">
             EcoSign no accede al contenido del documento.<br />
-            En su lugar, genera una huella única —como una huella dactilar—<br />
-            que identifica el archivo sin revelar su contenido.
+            Genera una huella única que identifica el archivo<br />
+            sin revelar lo que contiene.
             <span className="text-sm text-gray-500 block mt-1">(A esto lo llamamos <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> o Sello de Integridad).</span>
           </p>
 
@@ -157,7 +157,7 @@ const LandingPage = () => {
             Todos ganan claridad
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 max-w-3xl mx-auto">
-            EcoSign ordena el proceso para vos, para quien firma y para quien tenga que verificar después.
+            Menos fricción durante el flujo. Más claridad cuando haga falta validar.
           </p>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="rounded-xl border border-gray-200 p-6">
@@ -195,7 +195,7 @@ const LandingPage = () => {
             Preparar un flujo no debería llevar media hora
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 leading-relaxed">
-            Pegás una lista o cadena de mails y EcoSign reconoce los datos para acelerar la carga.
+            Pegás una lista o cadena de mails y EcoSign completa lo repetitivo por vos.
           </p>
           
           <div className="mb-8 max-w-5xl mx-auto">
@@ -223,7 +223,7 @@ const LandingPage = () => {
             Protección individual o colaborativa.
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 leading-relaxed">
-            El mismo criterio de evidencia, incluso cuando participan varias personas.
+            El mismo respaldo verificable, incluso cuando participan varias personas.
           </p>
           
           <div className="mb-8 max-w-5xl mx-auto">
@@ -260,7 +260,7 @@ const LandingPage = () => {
             Protegé tu trabajo. Generá evidencia verificable.
           </h2>
           <p className="text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
-            Creá tu cuenta gratuita y empezá a proteger documentos en minutos.
+            Creá tu cuenta gratuita y empezá a proteger trabajo importante en minutos.
           </p>
           <Link
             to="/login?mode=signup"

@@ -10,10 +10,10 @@ export default function FooterPublic() {
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Producto</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo funciona</Link></li>
-              <li><Link to="/comparison" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal y Firma Certificada</Link></li>
+              <li><Link to="/how-it-works" className="hover:text-[#0E4B8B] hover:underline transition">Cómo protegés tu trabajo</Link></li>
+              <li><Link to="/comparison" className="hover:text-[#0E4B8B] hover:underline transition">Protección y evidencia verificable</Link></li>
               <li><Link to="/pricing" className="hover:text-[#0E4B8B] hover:underline transition">Precios</Link></li>
-              <li><Link to="/quick-guide" className="hover:text-[#0E4B8B] hover:underline transition">Guía rápida</Link></li>
+              <li><Link to="/quick-guide" className="hover:text-[#0E4B8B] hover:underline transition">Guía para empezar</Link></li>
               <li><Link to="/verify" className="hover:text-[#0E4B8B] hover:underline transition">Verificador</Link></li>
               <li><Link to="/videos" className="hover:text-[#0E4B8B] hover:underline transition">Videos</Link></li>
               <li><Link to="/login" className="hover:text-[#0E4B8B] hover:underline transition">Comenzar Gratis</Link></li>
@@ -24,9 +24,9 @@ export default function FooterPublic() {
           <div className="text-left">
             <h4 className="font-semibold text-white mb-3">Recursos</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link to="/realtors" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal para Inmuebles</Link></li>
-              <li><Link to="/abogados" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal para Abogados</Link></li>
-              <li><Link to="/business" className="hover:text-[#0E4B8B] hover:underline transition">Firma Legal para Empresas</Link></li>
+              <li><Link to="/realtors" className="hover:text-[#0E4B8B] hover:underline transition">Protección para Inmuebles</Link></li>
+              <li><Link to="/abogados" className="hover:text-[#0E4B8B] hover:underline transition">Protección para Abogados</Link></li>
+              <li><Link to="/business" className="hover:text-[#0E4B8B] hover:underline transition">Protección para Empresas</Link></li>
               <li><Link to="/documentation" className="hover:text-[#0E4B8B] hover:underline transition">Documentación técnica</Link></li>
               <li><Link to="/faq" className="hover:text-[#0E4B8B] hover:underline transition">Preguntas frecuentes</Link></li>
               <li><Link to="/use-cases" className="hover:text-[#0E4B8B] hover:underline transition">Casos de uso</Link></li>
@@ -58,8 +58,8 @@ export default function FooterPublic() {
         {/* Línea divisoria y texto legal centrado */}
         <div className="pt-8 border-t border-white/10 text-center">
           <p className="text-sm text-gray-400 mb-2">
-            EcoSign no actúa como autoridad certificante ni garantiza validez legal automática. 
-            Proporciona protección y evidencia técnica verificable que puede ser utilizada en contextos legales según corresponda.
+            EcoSign no reemplaza el análisis legal de cada caso ni garantiza validez legal automática.
+            Proporciona protección y evidencia técnica verificable para respaldar trabajo y acuerdos digitales.
           </p>
           <p className="text-sm text-gray-400 mb-2">
             El formato .ECO y los procesos asociados están en proceso de registro de propiedad intelectual.

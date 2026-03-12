@@ -18,14 +18,18 @@ El sistema opera con 5 categorías de autenticación, cada una con contrato expl
 
 **Patrón**: `supabase.auth.getUser()` desde `Authorization: Bearer <token>`
 
-**Endpoints** (22):
+**Endpoints** (27):
 - `cancel-workflow` — Cancelar workflow (owner)
+- `claim-signer-package` — Reclamar evidencia del firmante
 - `create-custody-upload-url` — Generar URL de custodia
 - `create-invite` — Crear invite (owner del documento)
 - `create-signer-link` — Crear link de firma (owner)
 - `generate-link` — Generar link de share (owner)
 - `get-eco` — Obtener ECO canónico (owner)
+- `get-signer-package-owner` — Obtener evidencia por firmante (owner)
 - `get-signed-url` — Obtener URL firmado de storage
+- `reissue-signer-recovery-token` — Reemitir link de recuperación (owner)
+- `list-signer-packages` — Listar evidencia reclamada
 - `load-draft` — Cargar draft (owner)
 - `log-event` — Loguear evento (owner)
 - `log-share-event` — Loguear evento de share
@@ -37,6 +41,7 @@ El sistema opera con 5 categorías de autenticación, cada una con contrato expl
 - `respond-to-changes` — Responder a cambios (owner)
 - `reissue-signer-token` — Reemitir token de firmante
 - `resume-signer-link` — Resumir link de firma
+- `claim-signer-package-recovery` — Guardar evidencia recuperada en cuenta
 - `save-draft` — Guardar draft (owner)
 - `start-signature-workflow` — Iniciar workflow de firma (owner)
 - `store-encrypted-custody` — Almacenar custodia encriptada
@@ -53,9 +58,13 @@ El sistema opera con 5 categorías de autenticación, cada una con contrato expl
 
 **Patrón**: Validación por `token_hash` usando `crypto.subtle.digest`.
 
-**Endpoints** (3):
+**Endpoints** (7):
 - `accept-nda` — Aceptación de NDA por recipient (token de link)
 - `accept-share-nda` — Aceptación de NDA por share (token de share)
+- `presential-verification-session-preview` — Preview de sesión presencial por token
+- `signer-recovery-access` — Acceso a recuperación por token
+- `send-signer-recovery-otp` — Envío OTP recuperación
+- `get-signer-recovery-url` — URL de descarga recuperación
 - `verify-access` — Verificar acceso a link (token de link)
 
 **Invariante**: Todos validan el token contra su tabla correspondiente antes de ejecutar.
@@ -174,6 +183,7 @@ En `supabase/config.toml`:
 - Las únicas excepciones en allowlist son:
   - `signing-keys`
   - `presential-verification-get-acta`
+  - `presential-verification-session-preview`
 
 ### Regla contractual
 

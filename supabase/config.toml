@@ -296,6 +296,33 @@ verify_jwt = true
 [functions.presential-verification-get-acta]
 verify_jwt = false
 
+[functions.presential-verification-session-preview]
+verify_jwt = false
+
+[functions.claim-signer-package]
+verify_jwt = true
+
+[functions.list-signer-packages]
+verify_jwt = true
+
+[functions.get-signer-package-owner]
+verify_jwt = true
+
+[functions.reissue-signer-recovery-token]
+verify_jwt = true
+
+[functions.signer-recovery-access]
+verify_jwt = false
+
+[functions.send-signer-recovery-otp]
+verify_jwt = false
+
+[functions.get-signer-recovery-url]
+verify_jwt = false
+
+[functions.claim-signer-package-recovery]
+verify_jwt = true
+
 # Configure MFA via WebAuthn
 # [auth.mfa.web_authn]
 # enroll_enabled = true

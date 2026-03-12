@@ -270,11 +270,36 @@ serve(withRateLimit('workflow', async (req) => {
     const needsCanvasFieldAtomicPersistence = Boolean(canvasSnapshot) || hasWorkflowFields
     const documentEntityIdForAtomicPersistence = documentEntityId ?? null
 
+    const validateCanvasSnapshot = (snapshot: Record<string, unknown> | null) => {
+      if (!snapshot) return { ok: false, reason: 'missing_canvas_snapshot' }
+      const pages = Array.isArray((snapshot as any).pages) ? (snapshot as any).pages : []
+      if (pages.length === 0) return { ok: false, reason: 'canvas_snapshot_missing_pages' }
+      const fieldsBySigner = (snapshot as any).fields_by_signer
+      const signerKeys = fieldsBySigner && typeof fieldsBySigner === 'object'
+        ? Object.keys(fieldsBySigner)
+        : []
+      const hasFields = signerKeys.some((key) =>
+        Array.isArray(fieldsBySigner?.[key]) && fieldsBySigner[key].length > 0
+      )
+      if (!hasFields) return { ok: false, reason: 'canvas_snapshot_missing_fields' }
+      return { ok: true }
+    }
+
     if (needsCanvasFieldAtomicPersistence && !documentEntityIdForAtomicPersistence) {
       return jsonResponse({
         error: 'missing_document_entity_id',
         message: 'No se puede persistir canvas/fields sin document_entity_id.'
       }, 409)
+    }
+
+    if (needsCanvasFieldAtomicPersistence && hasWorkflowFields) {
+      const snapshotCheck = validateCanvasSnapshot(canvasSnapshot)
+      if (!snapshotCheck.ok) {
+        return jsonResponse({
+          error: snapshotCheck.reason,
+          message: 'Canvas snapshot inválido o incompleto. Reintenta desde el wizard de firmas.'
+        }, 409)
+      }
     }
 
     let normalizedWorkflowFields: Record<string, unknown>[] = []

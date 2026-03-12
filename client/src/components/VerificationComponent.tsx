@@ -53,6 +53,7 @@ interface VerificationServiceResult {
   errors?: string[];
   warnings?: string[];
   error?: string;
+  originalFileMismatchReason?: 'signed_version' | 'other_witness' | 'source_version' | 'unknown';
   [key: string]: any; // Permite otros campos
 }
 
@@ -77,6 +78,14 @@ const buildEvidenceItems = (
   // --- Narrative layer ---
   if (result.valid) {
     items.push('Documento y evidencia coinciden. No detectamos cambios desde su protección.');
+  } else if (result.originalFileMatches === false) {
+    if (result.originalFileMismatchReason === 'signed_version') {
+      items.push('El PDF subido es una versión posterior (ya firmada). Este ECO valida el PDF entregado en su momento.');
+    } else if (result.originalFileMismatchReason === 'other_witness') {
+      items.push('El PDF subido coincide con otra etapa del proceso. Este ECO valida un snapshot específico del flujo.');
+    } else if (result.originalFileMismatchReason === 'source_version') {
+      items.push('El PDF subido es el original sin transformaciones. Este ECO valida el PDF testigo generado por el flujo.');
+    }
   }
 
   if (result.signatureValid) {
@@ -183,6 +192,19 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
   const [actaLoading, setActaLoading] = useState(false);
   const [actaError, setActaError] = useState<string | null>(null);
   const [showActaJson, setShowActaJson] = useState(false);
+  const mismatchNote = useMemo(() => {
+    if (!verificationResult || verificationResult.originalFileMatches !== false) return null;
+    switch (verificationResult.originalFileMismatchReason) {
+      case 'signed_version':
+        return 'El PDF subido es una versión posterior del flujo (con firmas adicionales). Este ECO valida una etapa anterior del mismo proceso.';
+      case 'other_witness':
+        return 'El PDF subido coincide con otra etapa del proceso. Este ECO valida una etapa específica del flujo.';
+      case 'source_version':
+        return 'El PDF subido es el original sin transformaciones. Este ECO valida la etapa del PDF testigo generado por el flujo.';
+      default:
+        return 'El PDF subido no coincide con la etapa registrada en este ECO.';
+    }
+  }, [verificationResult]);
 
   const handleEcoFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -566,7 +588,7 @@ const VerificationComponent: React.FC<VerificationComponentProps> = ({ initialFi
                 <p className="text-sm text-gray-700 mt-1">
                   {verificationResult.valid
                     ? 'No detectamos cambios desde el momento en que fue protegido. La evidencia asociada respalda que este archivo se mantiene íntegro.'
-                    : 'El archivo .ECO parece haber sido modificado, está incompleto o fue generado con una versión no compatible.'}
+                    : (mismatchNote || 'Este ECO corresponde a otra etapa del mismo proceso. Podés verificar la versión correcta del PDF para ver la coincidencia.') }
                 </p>
               </div>
             </div>

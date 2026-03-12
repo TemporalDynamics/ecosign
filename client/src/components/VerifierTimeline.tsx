@@ -121,6 +121,7 @@ const buildHumanTimeline = (events: TimelineEvent[]): TimelineSummary => {
   }
 
   if (firstSignature) {
+    const multipleSignatures = signatureEvents.length > 1;
     milestones.push({
       id: 'signature',
       title:
@@ -128,7 +129,9 @@ const buildHumanTimeline = (events: TimelineEvent[]): TimelineSummary => {
           ? `${signatureEvents.length} personas firmaron este documento`
           : 'Una persona firmó este documento',
       description:
-        'Se registró una firma sobre esta versión del archivo.',
+        multipleSignatures
+          ? 'Cada firma puede generar una nueva versión del PDF. Este certificado valida la versión correspondiente a ese momento.'
+          : 'Se registró una firma sobre esta versión del archivo.',
       at: firstSignature.at,
     });
   }
@@ -179,6 +182,16 @@ export default function VerifierTimeline({
 }: VerifierTimelineProps) {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const summary = useMemo(() => buildHumanTimeline(events), [events]);
+  const ndaAcceptances = useMemo(() => {
+    const items = events
+      .filter((evt) => (evt.kind || '').toLowerCase() === 'nda.accepted' || (evt.kind || '').toLowerCase() === 'nda_accepted')
+      .map((evt) => ({
+        id: evt.id,
+        at: evt.at,
+        detail: evt.details || 'NDA aceptado',
+      }));
+    return items;
+  }, [events]);
 
   if (loading) {
     return (
@@ -268,6 +281,23 @@ export default function VerifierTimeline({
                   : 'No registra firmas'}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {ndaAcceptances.length > 0 && (
+        <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+          <div className="text-xs font-semibold text-gray-700">Accesos con NDA</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {ndaAcceptances.map((entry) => (
+              <div
+                key={entry.id}
+                className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700"
+                title={new Date(entry.at).toLocaleString()}
+              >
+                {entry.detail}
+              </div>
+            ))}
           </div>
         </div>
       )}

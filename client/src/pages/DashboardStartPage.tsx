@@ -1,18 +1,76 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Shield, Pen, Users, FileText } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import Header from '../components/Header';
 import FooterInternal from '../components/FooterInternal';
 import { useLegalCenter } from '../contexts/LegalCenterContext';
+import { claimSignerPackage } from '../lib/signerPackagesService';
+import { getSupabase } from '../lib/supabaseClient';
 
 function DashboardStartPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { open: openLegalCenter } = useLegalCenter();
   const handleLogout = () => navigate('/');
+  const claimHandledRef = useRef(false);
+  const claimStorageKey = 'ecosign:claim-token';
+  const [claimNotice, setClaimNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (claimHandledRef.current) return;
+    const params = new URLSearchParams(location.search);
+    const claim = params.get('claim') || localStorage.getItem(claimStorageKey);
+    if (!claim) return;
+
+    const runClaim = async () => {
+      try {
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getUser();
+        if (!data.user) return;
+
+        claimHandledRef.current = true;
+        const result = await claimSignerPackage(claim);
+        const docName = result?.documentName ? `“${result.documentName}”` : 'tu evidencia';
+        const notice = `Evidencia guardada en tu cuenta: ${docName}. Ya la podés ver cuando quieras.`;
+        setClaimNotice(notice);
+        try {
+          localStorage.setItem('ecosign:claim-notice', notice);
+        } catch (err) {
+          console.warn('No se pudo guardar el aviso de evidencia:', err);
+        }
+        toast.success('Evidencia guardada en tu cuenta.', { position: 'top-right' });
+        localStorage.removeItem(claimStorageKey);
+      } catch (err) {
+        console.error('No se pudo reclamar evidencia:', err);
+        toast.error('No pudimos guardar la evidencia automaticamente.', { position: 'top-right' });
+      } finally {
+        if (params.get('claim')) {
+          navigate('/inicio', { replace: true });
+        }
+      }
+    };
+
+    const supabase = getSupabase();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && !claimHandledRef.current) {
+        runClaim();
+      }
+    });
+
+    runClaim();
+    return () => subscription.unsubscribe();
+  }, [location.search, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-cyan-50 to-blue-50 flex flex-col">
       <Header variant="private" onLogout={handleLogout} openLegalCenter={openLegalCenter} />
       <main className="flex-grow max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 pb-24 space-y-12">
+        {claimNotice && (
+          <div className="mx-auto max-w-4xl rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-4 text-sm text-emerald-800 shadow-sm">
+            {claimNotice}
+          </div>
+        )}
         <section className="text-center bg-white/80 rounded-3xl p-10 shadow-lg border border-black100">
           <p className="text-black font-semibold tracking-[0.2em] uppercase mb-4">workspace</p>
           <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6">Tu centro de firma y protección legal</h1>

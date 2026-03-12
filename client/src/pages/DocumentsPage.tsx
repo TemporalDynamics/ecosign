@@ -38,6 +38,7 @@ import { decryptFile, ensureCryptoSession, getSessionUnwrapKey, unwrapDocumentKe
 import { decryptFile as decryptCustodyFile } from "../lib/encryptionService";
 import { hashSigned, hashSource, hashWitness } from "../lib/canonicalHashing";
 import { listDrafts, type DraftMeta } from "../utils/draftStorage";
+import { listSignerPackages, type SignerPackageSummary } from "../lib/signerPackagesService";
 
 type DocumentRecord = {
   id: string;
@@ -47,6 +48,9 @@ type DocumentRecord = {
   eco_hash?: string | null;
   ecox_hash?: string | null;
   content_hash?: string | null;
+  source_hash?: string | null;
+  witness_current_hash?: string | null;
+  signed_hash?: string | null;
   created_at?: string;
   last_event_at?: string | null;
   has_legal_timestamp?: boolean;
@@ -112,6 +116,12 @@ type PresentialSessionSummary = {
   signersNotified: number;
   witnessesNotified: number;
   participantsNotified: number;
+  participants: Array<{
+    email: string;
+    role: string;
+    accessLink: string;
+    qrUrl: string;
+  }>;
 };
 
 type PlanTier = "guest" | "free" | "pro" | "business" | "enterprise" | null | string;
@@ -119,6 +129,8 @@ type VerificationResult = {
   matches: boolean | null;
   matchesDocument?: boolean | null;
   matchesContent?: boolean | null;
+  mismatchReason?: 'signed_version' | 'other_witness' | 'source_version' | 'unknown';
+  mismatchMessage?: string | null;
   hash?: string;
   source?: "upload" | "stored";
   extended?: string | null;
@@ -198,6 +210,9 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     document_name: entity.source_name,
     document_hash: documentHash,
     content_hash: entity.source_hash,
+    source_hash: entity.source_hash ?? null,
+    witness_current_hash: entity.witness_current_hash ?? null,
+    signed_hash: entity.signed_hash ?? null,
     created_at: entity.created_at || entity.source_captured_at,
     pdf_storage_path: entity.witness_current_storage_path ?? null,
     source_storage_path: entity.source_storage_path ?? null,
@@ -337,8 +352,28 @@ function DocumentsPage() {
   const [presentialSessionSummary, setPresentialSessionSummary] = useState<PresentialSessionSummary | null>(null);
   const [closingPresentialSessionId, setClosingPresentialSessionId] = useState<string | null>(null);
   const [presentialCloseResult, setPresentialCloseResult] = useState<ClosePresentialResult | null>(null);
+  const [claimedPackages, setClaimedPackages] = useState<SignerPackageSummary[]>([]);
+  const [claimedPackagesLoading, setClaimedPackagesLoading] = useState(false);
+  const [claimedPackagesError, setClaimedPackagesError] = useState<string | null>(null);
+  const [claimNotice, setClaimNotice] = useState<string | null>(null);
   const operationsSectionRef = useRef<HTMLDivElement>(null);
   const normalizedSearch = search.trim().toLowerCase();
+
+  const extractNdaIdentity = (events?: any[]) => {
+    if (!Array.isArray(events)) return null;
+    const ndaEvent = events.find((evt) => {
+      const kind = String(evt?.kind ?? evt?.event_type ?? '');
+      return kind === 'nda.accepted' || kind === 'nda_accepted';
+    });
+    if (!ndaEvent) return null;
+    const nda = (ndaEvent as any)?.nda || (ndaEvent as any)?.payload?.nda || {};
+    const name = typeof nda?.signer_name === 'string' ? nda.signer_name.trim() : '';
+    const email = typeof nda?.recipient_email === 'string' ? nda.recipient_email.trim() : '';
+    if (name && email) return `${name} (${email})`;
+    if (name) return name;
+    if (email) return email;
+    return null;
+  };
   const isSearchActive = normalizedSearch.length > 0;
   const hasDocuments = documents.length > 0;
 
@@ -537,6 +572,7 @@ function DocumentsPage() {
         signersNotified: result.signersNotified,
         witnessesNotified: result.witnessesNotified,
         participantsNotified: result.participantsNotified,
+        participants: result.participants ?? [],
       });
 
       toast.success(
@@ -922,10 +958,42 @@ function DocumentsPage() {
     }
   }, []);
 
+  const loadClaimedPackages = useCallback(async () => {
+    if (isGuestMode()) return;
+    if (!currentUserId) return;
+    setClaimedPackagesLoading(true);
+    setClaimedPackagesError(null);
+    try {
+      const packages = await listSignerPackages();
+      setClaimedPackages(packages);
+    } catch (err) {
+      console.error('No se pudieron cargar paquetes firmados:', err);
+      setClaimedPackagesError('No se pudo cargar la evidencia recibida.');
+    } finally {
+      setClaimedPackagesLoading(false);
+    }
+  }, [currentUserId]);
+
   useEffect(() => {
     loadDocuments();
     loadPlan();
   }, [loadDocuments, loadPlan]);
+
+  useEffect(() => {
+    try {
+      const notice = localStorage.getItem('ecosign:claim-notice');
+      if (notice) {
+        setClaimNotice(notice);
+        localStorage.removeItem('ecosign:claim-notice');
+      }
+    } catch (err) {
+      console.warn('No se pudo leer el aviso de evidencia:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadClaimedPackages();
+  }, [loadClaimedPackages]);
 
   // Retry document load when Supabase session finishes hydrating.
   // Prevents the empty-state flash when getUser() returns null before session is ready.
@@ -2108,25 +2176,48 @@ function DocumentsPage() {
     mode: VerificationMode
   ): VerificationResult => {
     const normalizedHash = hash.toLowerCase();
-    const expectedDocumentHash = doc.document_hash || doc.eco_hash;
-    const expectedContentHash = doc.content_hash;
+    const expectedSourceHash = (doc.content_hash || doc.source_hash || null)?.toLowerCase();
+    const expectedWitnessHash = (doc.witness_current_hash || doc.document_hash || doc.eco_hash || null)?.toLowerCase();
+    const expectedSignedHash = (doc.signed_hash || null)?.toLowerCase();
 
     const matchesDocument = mode === "source"
       ? null
-      : expectedDocumentHash
-        ? normalizedHash === expectedDocumentHash.toLowerCase()
-        : null;
+      : mode === "signed"
+        ? expectedSignedHash
+          ? normalizedHash === expectedSignedHash
+          : null
+        : expectedWitnessHash
+          ? normalizedHash === expectedWitnessHash
+          : null;
     const matchesContent = mode === "source"
-      ? expectedContentHash
-        ? normalizedHash === expectedContentHash.toLowerCase()
+      ? expectedSourceHash
+        ? normalizedHash === expectedSourceHash
         : null
       : null;
     const matches = matchesDocument ?? matchesContent ?? null;
 
+    let mismatchReason: VerificationResult["mismatchReason"] = undefined;
+    let mismatchMessage: string | null = null;
+    if (matches === false) {
+      if (expectedSignedHash && normalizedHash === expectedSignedHash && mode !== "signed") {
+        mismatchReason = "signed_version";
+        mismatchMessage = "El PDF subido es una versión posterior del flujo (con firmas adicionales). Este modo valida una etapa anterior del mismo proceso.";
+      } else if (expectedWitnessHash && normalizedHash === expectedWitnessHash && mode === "signed") {
+        mismatchReason = "other_witness";
+        mismatchMessage = "El PDF subido es una versión anterior del flujo. Este modo valida la etapa del PDF firmado final.";
+      } else if (expectedSourceHash && normalizedHash === expectedSourceHash && mode !== "source") {
+        mismatchReason = "source_version";
+        mismatchMessage = "El PDF subido es el original sin transformaciones. Este modo valida la etapa del PDF testigo generado por el flujo.";
+      } else {
+        mismatchReason = "unknown";
+        mismatchMessage = "El PDF subido no coincide con la etapa registrada en este certificado.";
+      }
+    }
+
     // Check protection level from canonical probative derivation.
     const derived = deriveAnchorProbativeState({
       events: doc.events || [],
-      hasPrimaryHash: Boolean(doc.content_hash || doc.eco_hash || doc.document_hash),
+      hasPrimaryHash: Boolean(doc.content_hash || doc.eco_hash || doc.document_hash || doc.witness_current_hash || doc.signed_hash),
     });
     const isTotal = derived.level === 'total';
 
@@ -2134,6 +2225,8 @@ function DocumentsPage() {
       matches,
       matchesDocument,
       matchesContent,
+      mismatchReason,
+      mismatchMessage,
       hash: normalizedHash,
       source,
       extended: isTotal ? "Protección máxima confirmada." : null
@@ -2205,6 +2298,12 @@ function DocumentsPage() {
             <h1 className="mt-0 text-3xl md:text-4xl font-semibold tracking-tight">Mis documentos</h1>
           </header>
 
+          {claimNotice && (
+            <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-4 text-sm text-emerald-800 shadow-sm">
+              {claimNotice}
+            </div>
+          )}
+
           <section className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="relative w-full md:w-72">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -2224,6 +2323,65 @@ function DocumentsPage() {
 
 
           </section>
+
+          {!isSearchActive && !isGuestMode() && (claimedPackagesLoading || claimedPackages.length > 0 || claimedPackagesError) && (
+            <section className="mb-8 border border-gray-200 rounded-2xl bg-white p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Evidencia recibida</h2>
+                  <p className="text-sm text-gray-500">Copias firmadas que guardaste en tu cuenta.</p>
+                </div>
+              </div>
+              {claimedPackagesLoading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
+                  Cargando evidencia...
+                </div>
+              ) : claimedPackagesError ? (
+                <p className="text-sm text-red-600">{claimedPackagesError}</p>
+              ) : (
+                <div className="space-y-3">
+                  {claimedPackages.map((pkg) => (
+                    <div
+                      key={pkg.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border border-gray-200 rounded-lg px-4 py-3"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{pkg.documentName}</p>
+                        <p className="text-xs text-gray-500">
+                          Guardado {pkg.claimedAt ? formatDate(pkg.claimedAt) : formatDate(pkg.createdAt || null)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {pkg.pdfUrl && (
+                          <a
+                            href={pkg.pdfUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:border-black hover:text-black transition"
+                          >
+                            <Download className="w-4 h-4" />
+                            PDF firmado
+                          </a>
+                        )}
+                        {pkg.ecoUrl && (
+                          <a
+                            href={pkg.ecoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:border-black hover:text-black transition"
+                          >
+                            <Download className="w-4 h-4" />
+                            Archivo ECO
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {loading ? (
             <div className="flex justify-center items-center py-20">
@@ -3486,6 +3644,83 @@ function DocumentsPage() {
               Se enviaron OTP y enlace seguro por email a cada participante de la sesión.
             </p>
 
+            {presentialSessionSummary.participants.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <div className="text-sm font-semibold text-gray-900">
+                  Acceso por participante
+                </div>
+                <div className="space-y-3">
+                  {presentialSessionSummary.participants.map((participant) => {
+                    const roleLabel =
+                      participant.role === "witness" ? "Testigo" : "Firmante";
+                    return (
+                      <div
+                        key={`${participant.email}-${participant.role}`}
+                        className="rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <div className="font-semibold text-gray-900">
+                              {participant.email}
+                            </div>
+                            <div className="text-xs text-gray-500">{roleLabel}</div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                copyToClipboard(
+                                  participant.accessLink,
+                                  "Link de acceso"
+                                )
+                              }
+                              className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:border-black hover:text-black"
+                            >
+                              Copiar link
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                window.open(
+                                  participant.accessLink,
+                                  "_blank",
+                                  "noopener,noreferrer"
+                                )
+                              }
+                              className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:border-black hover:text-black"
+                            >
+                              Abrir link
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          <img
+                            src={participant.qrUrl}
+                            alt={`QR ${participant.email}`}
+                            className="h-24 w-24 rounded border border-gray-200"
+                          />
+                          <div className="text-xs text-gray-500">
+                            Escanea para abrir el acceso seguro.
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                  <div className="font-semibold">Que es un testigo de sesion?</div>
+                  <div className="mt-1">
+                    Un testigo de sesion no firma el documento ni asume obligaciones. Confirma que
+                    la sesion ocurrio y que reconoce al participante indicado.
+                  </div>
+                  <div className="mt-2 text-[11px] text-amber-800">
+                    Este refuerzo mejora la atribucion de la firma, pero no sustituye formalidades
+                    especiales que puedan requerirse por ley.
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mt-5 flex flex-wrap gap-2">
               <button
                 type="button"
@@ -3683,10 +3918,13 @@ function DocumentsPage() {
                     }}
                     className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800"
                   >
-                    <option value="source">Archivo original</option>
-                    <option value="witness">PDF testigo</option>
-                    <option value="signed">PDF firmado</option>
+                    <option value="source">Archivo original (sin transformaciones)</option>
+                    <option value="witness">PDF testigo (entregado en el flujo)</option>
+                    <option value="signed">PDF firmado (versión final)</option>
                   </select>
+                  <p className="mt-2 text-xs text-gray-600">
+                    Elegí la versión que estás comparando para que el verificador use el hash correcto.
+                  </p>
                 </div>
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center">
                   <input
@@ -3707,14 +3945,24 @@ function DocumentsPage() {
               <div className="mt-4 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm space-y-2">
                 <p className={`font-semibold ${verifyResult.matches === false ? "text-red-700" : verifyResult.matches ? "text-[#0E4B8B]" : "text-gray-700"}`}>
                   {verifyResult.matches === false
-                    ? "❌ Documento alterado"
+                    ? "No pudimos validar esta evidencia"
                     : verifyResult.matches
-                      ? "✅ Documento y evidencia coinciden"
+                      ? "Documento y evidencia coinciden"
                       : verifyResult.error || "Comparación pendiente"}
                 </p>
                 {verifyResult.matches && (
                   <div className="rounded-lg border border-blue-100 bg-blue-50/40 px-3 py-2 text-xs text-[#0E4B8B]">
                     No detectamos cambios desde el momento en que fue protegido. La evidencia asociada respalda que este archivo se mantiene íntegro.
+                  </div>
+                )}
+                {verifyResult.matches && extractNdaIdentity(verifyDoc?.events) && (
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700">
+                    NDA aceptado por: {extractNdaIdentity(verifyDoc?.events)}
+                  </div>
+                )}
+                {verifyResult.matches === false && verifyResult.mismatchMessage && (
+                  <div className="rounded-lg border border-red-100 bg-red-50/40 px-3 py-2 text-xs text-red-700">
+                    {verifyResult.mismatchMessage}
                   </div>
                 )}
                 {verifyResult.extended && verifyResult.matches && (

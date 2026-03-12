@@ -165,18 +165,19 @@ serve(withRateLimit('accept', async (req) => {
       const ipHash = ipAddress ? await hashIP(ipAddress) : null;
       const browserFamily = getBrowserFamily(userAgent);
 
-      const eventResult = await appendEvent(
-        supabase,
-        documentEntityId,
-        {
-          kind: 'nda.accepted',
-          at: timestamp,
-          nda: {
-            share_id: share_id,
-            recipient_email: signer_email,
-            nda_hash: ndaHash,
-            nda_source: templateMeta.nda_source,
-            template_id: templateMeta.template_id,
+    const eventResult = await appendEvent(
+      supabase,
+      documentEntityId,
+      {
+        kind: 'nda.accepted',
+        at: timestamp,
+        nda: {
+          share_id: share_id,
+          signer_name: signer_name || signer_email.split('@')[0],
+          recipient_email: signer_email,
+          nda_hash: ndaHash,
+          nda_source: templateMeta.nda_source,
+          template_id: templateMeta.template_id,
             template_version: templateMeta.template_version,
             acceptance_method: 'checkbox'
           },

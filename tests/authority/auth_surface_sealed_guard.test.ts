@@ -17,12 +17,16 @@ const AUTH_CATEGORIES = {
   // Categoría 1: Usuario Logueado (auth.getUser)
   userLogged: [
     'cancel-workflow',
+    'claim-signer-package',
     'create-custody-upload-url',
     'create-invite',
     'create-signer-link',
     'generate-link',
     'get-eco',
+    'get-signer-package-owner',
     'get-signed-url',
+    'reissue-signer-recovery-token',
+    'list-signer-packages',
     'load-draft',
     'log-event',
     'log-share-event',
@@ -34,6 +38,7 @@ const AUTH_CATEGORIES = {
     'respond-to-changes',
     'reissue-signer-token',
     'resume-signer-link',
+    'claim-signer-package-recovery',
     'save-draft',
     'start-signature-workflow',
     'store-encrypted-custody',
@@ -45,6 +50,10 @@ const AUTH_CATEGORIES = {
   publicWithToken: [
     'accept-nda',
     'accept-share-nda',
+    'presential-verification-session-preview',
+    'signer-recovery-access',
+    'send-signer-recovery-otp',
+    'get-signer-recovery-url',
     'verify-access',
   ],
 

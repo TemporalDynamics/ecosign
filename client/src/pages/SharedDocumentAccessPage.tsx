@@ -52,8 +52,8 @@ export default function SharedDocumentAccessPage() {
 
         setNdaEnabled(Boolean(data.nda_enabled));
         setNdaText(data.nda_text || '');
-        // Capability share: identity is not enforced
-        setRecipientEmail('guest@ecosign.local');
+        // Capability share: identity is collected only when NDA is enabled
+        setRecipientEmail('');
         setDocumentName(data.document_name || 'Documento');
 
         // Canon (P1): registrar share.opened en events[] (best-effort)
@@ -125,7 +125,7 @@ export default function SharedDocumentAccessPage() {
         documentName={documentName}
         context="share-link"
         signerEmail={recipientEmail}
-        signerName={recipientEmail.split('@')[0]} // Usamos parte del email como nombre
+        signerName=""
         linkId={shareId}
         onAccept={() => setNdaAccepted(true)}
         onReject={() => window.location.href = '/'}

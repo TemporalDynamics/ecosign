@@ -17,13 +17,26 @@
           </tr>
           <tr>
             <td style="padding:24px;">
-              <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:#111111;">Codigo de acceso</h1>
+              <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:#111111;">Respaldo de Firma</h1>
               <p style="margin:0 0 12px;font-size:14px;color:#111111;">Hola {{display_name}},</p>
-              <p style="margin:0 0 12px;font-size:14px;color:#111111;">Usa este codigo para continuar:</p>
+              <p style="margin:0 0 12px;font-size:14px;color:#111111;">Usa este codigo para confirmar tu presencia:</p>
               <div style="margin:0 0 16px;font-size:28px;font-weight:700;color:#111111;letter-spacing:6px;">
                 {{otp_code}}
               </div>
               <p style="margin:0 0 12px;font-size:14px;color:#555555;">El codigo vence en unos minutos. Ingresalo donde lo solicitaste.</p>
+              <div style="margin:12px 0 16px;display:{{role_display}};padding:12px;border:1px solid #EAEAEA;background:#F9FAFB;border-radius:8px;">
+                <p style="margin:0 0 6px;font-size:13px;color:#111111;font-weight:600;">{{role_title}}</p>
+                <p style="margin:0 0 6px;font-size:12px;color:#555555;">{{role_copy}}</p>
+                <p style="margin:0;font-size:11px;color:#777777;">{{legal_copy}}</p>
+              </div>
+              <p style="margin:0 0 12px;font-size:12px;color:#555555;">Acceso directo:</p>
+              <p style="margin:0 0 12px;font-size:12px;color:#555555;word-break:break-word;">
+                <a href="{{access_link_url}}" style="color:#111111;">Abrir confirmacion segura</a>
+              </p>
+              <div style="margin:12px 0 16px;display:{{qr_display}};">
+                <p style="margin:0 0 8px;font-size:12px;color:#555555;">Escanea el QR para abrir el acceso seguro:</p>
+                <img src="{{qr_url}}" alt="QR de acceso" style="width:180px;height:180px;border:1px solid #EAEAEA;" />
+              </div>
               <p style="margin:0 0 12px;font-size:12px;color:#555555;word-break:break-word;">{{access_link_line}}</p>
               <p style="margin:0 0 8px;font-size:12px;color:#555555;">Si no solicitaste este codigo, podes ignorar este mensaje.</p>
             </td>

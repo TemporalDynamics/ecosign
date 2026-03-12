@@ -44,7 +44,7 @@ type WorkflowArtifact = {
 }
 
 // Set of signer IDs that downloaded at least once
-type DownloadedSet = Set<string>
+type DownloadedStatus = Record<string, { pdf: boolean; eco: boolean }>
 
 const statusStyles: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',
@@ -87,14 +87,18 @@ function StatusBadge({ status }: { status: string }) {
 
 function SignersList({
   signers,
-  downloadedSet,
+  downloadedStatus,
   documentEntityId,
-  onOwnerDownload,
+  onOwnerDownloadEco,
+  onOwnerDownloadPdf,
+  onOwnerResendRecovery,
 }: {
   signers: Signer[]
-  downloadedSet: DownloadedSet
+  downloadedStatus: DownloadedStatus
   documentEntityId: string | null
-  onOwnerDownload: (signerId: string) => void
+  onOwnerDownloadEco: (signerId: string) => void
+  onOwnerDownloadPdf: (signerId: string) => void
+  onOwnerResendRecovery: (signerId: string) => void
 }) {
   const ordered = [...signers].sort((a, b) => (a.signing_order ?? 999) - (b.signing_order ?? 999))
   const nextSigner = ordered.find((s) => !['signed', 'cancelled', 'rejected', 'expired', 'skipped'].includes(s.status))
@@ -103,7 +107,9 @@ function SignersList({
       {ordered.map((s) => {
         const isNext = nextSigner?.id === s.id
         const hasSigned = s.status === 'signed'
-        const hasDownloaded = downloadedSet.has(s.id)
+        const signerDownloads = downloadedStatus[s.id] ?? { pdf: false, eco: false }
+        const hasPdfDownloaded = signerDownloads.pdf
+        const hasEcoDownloaded = signerDownloads.eco
         let badgeLabel = signerStatusLabels[s.status] || s.status
         if (hasSigned) badgeLabel = 'Firmado'
         if (isNext && !hasSigned) badgeLabel = 'Siguiente en la lista'
@@ -136,23 +142,42 @@ function SignersList({
               </span>
               {/* Download status indicator */}
               {hasSigned && (
-                hasDownloaded ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Descargado
+                <div className="flex flex-col items-end gap-1 text-[11px] text-gray-600">
+                  <span className={`inline-flex items-center gap-1 ${hasPdfDownloaded ? 'text-green-700' : 'text-amber-600'}`}>
+                    {hasPdfDownloaded ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+                    PDF {hasPdfDownloaded ? 'descargado' : 'sin descargar'}
                   </span>
-                ) : (
-                  <span className="text-xs text-amber-600 font-medium">Sin descargar</span>
-                )
+                  <span className={`inline-flex items-center gap-1 ${hasEcoDownloaded ? 'text-green-700' : 'text-amber-600'}`}>
+                    {hasEcoDownloaded ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
+                    ECO {hasEcoDownloaded ? 'descargado' : 'sin descargar'}
+                  </span>
+                </div>
               )}
               {/* Owner: download signer's evidence */}
               {hasSigned && documentEntityId && (
-                <button
-                  onClick={() => onOwnerDownload(s.id)}
-                  title="Descargar evidencia de este firmante"
-                  className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  <Download className="h-3.5 w-3.5" /> ECO
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onOwnerResendRecovery(s.id)}
+                    title="Reenviar acceso seguro al firmante"
+                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Reenviar acceso
+                  </button>
+                  <button
+                    onClick={() => onOwnerDownloadPdf(s.id)}
+                    title="Descargar PDF de este firmante"
+                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <Download className="h-3.5 w-3.5" /> PDF
+                  </button>
+                  <button
+                    onClick={() => onOwnerDownloadEco(s.id)}
+                    title="Descargar ECO de este firmante"
+                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <Download className="h-3.5 w-3.5" /> ECO
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -195,7 +220,7 @@ export default function WorkflowDetailPage() {
   const [signers, setSigners] = useState<Signer[]>([])
   const [auditTrail, setAuditTrail] = useState<AuditEvent[]>([])
   const [artifact, setArtifact] = useState<WorkflowArtifact | null>(null)
-  const [downloadedSet, setDownloadedSet] = useState<DownloadedSet>(new Set())
+  const [downloadedStatus, setDownloadedStatus] = useState<DownloadedStatus>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -315,13 +340,18 @@ export default function WorkflowDetailPage() {
             .single()
 
           const events: any[] = Array.isArray(entityData?.events) ? entityData.events : []
-          const downloaded = new Set<string>()
+          const downloaded: DownloadedStatus = {}
           for (const ev of events) {
             if (ev?.kind === 'signature.evidence.downloaded' && ev?.payload?.signer_id) {
-              downloaded.add(ev.payload.signer_id as string)
+              const signerId = String(ev.payload.signer_id)
+              const resource = ev?.payload?.resource === 'pdf' ? 'pdf' : 'eco'
+              if (!downloaded[signerId]) {
+                downloaded[signerId] = { pdf: false, eco: false }
+              }
+              downloaded[signerId][resource] = true
             }
           }
-          setDownloadedSet(downloaded)
+          setDownloadedStatus(downloaded)
         } catch (evErr) {
           console.warn('Could not load entity events for download status:', evErr)
         }
@@ -411,7 +441,8 @@ export default function WorkflowDetailPage() {
       const link = document.createElement('a')
       link.href = blobUrl
       const signer = signers.find((s) => s.id === signerId)
-      link.download = `evidencia-${signer?.email ?? signerId}.eco.json`
+      const baseName = workflow.title || 'documento'
+      link.download = `${baseName} - ${signer?.email ?? signerId}.eco.json`
       link.target = '_self'
       document.body.appendChild(link)
       link.click()
@@ -419,6 +450,77 @@ export default function WorkflowDetailPage() {
       URL.revokeObjectURL(blobUrl)
     } catch (err: any) {
       alert(err?.message || 'No se pudo descargar la evidencia del firmante')
+      console.error(err)
+    }
+  }
+
+  const handleOwnerDownloadSignerPdf = async (signerId: string) => {
+    if (!workflow?.id) return
+    try {
+      const supabase = getSupabase()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        alert('Sesión no válida')
+        return
+      }
+
+      const { data, error } = await supabase.functions.invoke('get-signer-package-owner', {
+        body: { workflow_id: workflow.id, signer_id: signerId },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+
+      if (error || !data?.success || !data?.pdf_url) {
+        throw new Error(error?.message || data?.error || 'No se pudo generar la URL del PDF del firmante')
+      }
+
+      const resp = await fetch(String(data.pdf_url))
+      if (!resp.ok) throw new Error('No se pudo descargar el PDF del firmante')
+      const blob = await resp.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      const signer = signers.find((s) => s.id === signerId)
+      const baseName = workflow.title || 'documento'
+      link.download = `${baseName} - ${signer?.email ?? signerId}.pdf`
+      link.target = '_self'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+    } catch (err: any) {
+      alert(err?.message || 'No se pudo descargar el PDF del firmante')
+      console.error(err)
+    }
+  }
+
+  const handleOwnerResendRecovery = async (signerId: string) => {
+    if (!workflow?.id) return
+    try {
+      const supabase = getSupabase()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        alert('Sesión no válida')
+        return
+      }
+
+      const { data, error } = await supabase.functions.invoke('reissue-signer-recovery-token', {
+        body: { workflowId: workflow.id, signerId },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+
+      if (error || !data?.success || !data?.recoveryUrl) {
+        throw new Error(error?.message || data?.error || 'No se pudo generar el link de recuperación')
+      }
+
+      const recoveryUrl = String(data.recoveryUrl)
+      try {
+        await navigator.clipboard.writeText(recoveryUrl)
+        alert('Link de recuperación copiado al portapapeles.')
+      } catch {
+        window.prompt('Copiá el link de recuperación:', recoveryUrl)
+      }
+    } catch (err: any) {
+      alert(err?.message || 'No se pudo reenviar el acceso')
       console.error(err)
     }
   }
@@ -569,9 +671,11 @@ export default function WorkflowDetailPage() {
             </div>
             <SignersList
               signers={signers}
-              downloadedSet={downloadedSet}
+              downloadedStatus={downloadedStatus}
               documentEntityId={workflow.document_entity_id}
-              onOwnerDownload={handleOwnerDownloadSignerEvidence}
+              onOwnerDownloadEco={handleOwnerDownloadSignerEvidence}
+              onOwnerDownloadPdf={handleOwnerDownloadSignerPdf}
+              onOwnerResendRecovery={handleOwnerResendRecovery}
             />
           </div>
 

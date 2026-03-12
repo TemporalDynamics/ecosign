@@ -297,7 +297,7 @@ export async function listDocumentShares(documentId: string, pdfStoragePath?: st
 
   const { data, error } = await supabase
     .from('document_shares')
-    .select('id, recipient_email, status, expires_at, accessed_at, created_at, nda_enabled, nda_text')
+    .select('id, recipient_email, status, expires_at, accessed_at, created_at, nda_enabled, nda_text, nda_accepted_at, nda_acceptance_metadata')
     .eq('document_entity_id', resolvedDocumentEntityId)
     .order('created_at', { ascending: false });
 

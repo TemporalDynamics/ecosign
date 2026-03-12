@@ -111,6 +111,35 @@ const getPresenceDetails = (event: DocumentEventEntry): string | null => {
   return null;
 };
 
+const getNdaDetails = (event: DocumentEventEntry): string | null => {
+  const kind = typeof event.kind === 'string' ? event.kind : '';
+  if (kind !== 'nda.accepted' && kind !== 'nda_accepted') return null;
+
+  const root = asRecord(event);
+  const payload = asRecord(root?.payload);
+  const nda = asRecord(root?.nda) ?? asRecord(payload?.nda);
+
+  const signerName =
+    typeof nda?.signer_name === 'string' && nda.signer_name.trim().length > 0
+      ? nda.signer_name.trim()
+      : null;
+  const recipientEmail =
+    typeof nda?.recipient_email === 'string' && nda.recipient_email.trim().length > 0
+      ? nda.recipient_email.trim()
+      : null;
+
+  if (signerName && recipientEmail) {
+    return `Identidad declarada: ${signerName} (${recipientEmail})`;
+  }
+  if (signerName) {
+    return `Identidad declarada: ${signerName}`;
+  }
+  if (recipientEmail) {
+    return `Identidad declarada: ${recipientEmail}`;
+  }
+  return 'NDA aceptado';
+};
+
 export const extractOperationIds = (events: DocumentEventEntry[]): string[] => {
   const ids = new Set<string>();
   events.forEach((evt) => {
@@ -147,6 +176,7 @@ export const normalizeDocumentEvents = (
       const tsaLabel = getTsaLabel(evt);
       const anchorLabel = getAnchorLabel(evt);
       const presenceDetails = getPresenceDetails(evt);
+      const ndaDetails = getNdaDetails(evt);
       const label = tsaLabel || anchorLabel || DOCUMENT_LABELS[kind] || `Evento: ${kind}`;
       const id = `doc-${kind}-${evt.at}-${idx}`;
       return {
@@ -155,7 +185,7 @@ export const normalizeDocumentEvents = (
         at: evt.at as string,
         source: 'document' as const,
         label,
-        details: presenceDetails,
+        details: presenceDetails || ndaDetails,
       };
     });
 };

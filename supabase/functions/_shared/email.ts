@@ -137,6 +137,11 @@ export async function buildSignerOtpEmail({
   workflowTitle,
   otpCode,
   accessLinkLine,
+  accessLinkUrl,
+  qrUrl,
+  roleTitle,
+  roleCopy,
+  legalCopy,
   siteUrl,
 }: {
   signerEmail: string;
@@ -144,14 +149,21 @@ export async function buildSignerOtpEmail({
   workflowTitle: string;
   otpCode: string;
   accessLinkLine?: string | null;
+  accessLinkUrl?: string | null;
+  qrUrl?: string | null;
+  roleTitle?: string | null;
+  roleCopy?: string | null;
+  legalCopy?: string | null;
   siteUrl?: string | null;
 }) {
   const name = signerName || 'Hola';
   const resolvedSiteUrl = normalizeSiteUrl(siteUrl);
+  const hasQr = Boolean(qrUrl);
+  const hasRoleBlock = Boolean(roleTitle || roleCopy || legalCopy);
   return {
     from: DEFAULT_FROM,
     to: signerEmail,
-    subject: 'Tu codigo de acceso seguro a EcoSign',
+    subject: 'Respaldo de Firma: tu codigo de acceso seguro',
     html: await renderTemplateFromFile({
       templateName: 'firmante-otp.html',
       siteUrl: resolvedSiteUrl,
@@ -160,6 +172,13 @@ export async function buildSignerOtpEmail({
         otp_code: otpCode,
         workflow_title: workflowTitle,
         access_link_line: accessLinkLine ?? '',
+        access_link_url: accessLinkUrl ?? '',
+        qr_url: qrUrl ?? '',
+        qr_display: hasQr ? 'block' : 'none',
+        role_title: roleTitle ?? '',
+        role_copy: roleCopy ?? '',
+        legal_copy: legalCopy ?? '',
+        role_display: hasRoleBlock ? 'block' : 'none',
       },
     }),
   };
@@ -208,6 +227,8 @@ export async function buildSignerPackageEmail({
   documentName,
   downloadUrl,
   ecoUrl,
+  signupUrl,
+  loginUrl,
   siteUrl,
 }: {
   signerEmail: string;
@@ -215,10 +236,16 @@ export async function buildSignerPackageEmail({
   documentName: string;
   downloadUrl: string;
   ecoUrl?: string | null;
+  signupUrl?: string | null;
+  loginUrl?: string | null;
   siteUrl?: string | null;
 }) {
   const name = signerName || 'Hola';
   const resolvedSiteUrl = normalizeSiteUrl(siteUrl ?? deriveSiteUrlFromLink(downloadUrl));
+  const resolvedSignupUrl =
+    signupUrl ?? `${resolvedSiteUrl}/login?mode=signup&source=signer_package`;
+  const resolvedLoginUrl =
+    loginUrl ?? `${resolvedSiteUrl}/login?source=signer_package`;
   return {
     from: DEFAULT_FROM,
     to: signerEmail,
@@ -231,6 +258,8 @@ export async function buildSignerPackageEmail({
         document_name: documentName,
         pdf_url: downloadUrl,
         ecox_url: ecoUrl ?? '',
+        signup_url: resolvedSignupUrl,
+        login_url: resolvedLoginUrl,
       },
     }),
   };

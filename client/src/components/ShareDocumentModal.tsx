@@ -82,6 +82,29 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
   } | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  const getShareIdentity = (share: any) => {
+    const meta = share?.nda_acceptance_metadata || null;
+    const name =
+      typeof meta?.signer_name === 'string' && meta.signer_name.trim().length > 0
+        ? meta.signer_name.trim()
+        : null;
+    const email =
+      typeof meta?.signer_email === 'string' && meta.signer_email.trim().length > 0
+        ? meta.signer_email.trim()
+        : null;
+    if (name && email) return `${name} (${email})`;
+    if (name) return name;
+    if (email) return email;
+    return null;
+  };
+
+  const getNdaAcceptedAt = (share: any) => {
+    if (share?.nda_accepted_at) return share.nda_accepted_at;
+    const meta = share?.nda_acceptance_metadata || null;
+    if (meta?.acceptance_timestamp) return meta.acceptance_timestamp;
+    return null;
+  };
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     handleResize();
@@ -464,6 +487,27 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
                           </span>
                         )}
                       </div>
+                      {share.nda_enabled && (
+                        <div className="text-xs text-gray-600">
+                          {getShareIdentity(share)
+                            ? `Identidad declarada: ${getShareIdentity(share)}`
+                            : getNdaAcceptedAt(share)
+                              ? 'NDA aceptado'
+                              : 'NDA pendiente'}
+                          {getNdaAcceptedAt(share) && (
+                            <>
+                              {' · '}
+                              NDA: {new Date(getNdaAcceptedAt(share)).toLocaleDateString('es-AR', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </>
+                          )}
+                        </div>
+                      )}
                       <div className="text-xs text-gray-500">
                         Creado: {new Date(share.created_at).toLocaleDateString('es-AR', {
                           day: 'numeric',
@@ -509,6 +553,13 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
                           Acceso usado {share.nda_enabled && '· Con NDA'}
                         </span>
                       </div>
+                      {share.nda_enabled && (
+                        <div className="text-xs text-gray-600">
+                          {getShareIdentity(share)
+                            ? `Identidad declarada: ${getShareIdentity(share)}`
+                            : 'Identidad declarada no disponible'}
+                        </div>
+                      )}
                       <div className="text-xs text-gray-500">
                         Accedido: {new Date(share.accessed_at).toLocaleDateString('es-AR', {
                           day: 'numeric',
@@ -517,6 +568,18 @@ export default function ShareDocumentModal({ document, userId, onClose }: ShareD
                           hour: '2-digit',
                           minute: '2-digit'
                         })}
+                        {share.nda_enabled && getNdaAcceptedAt(share) && (
+                          <>
+                            {' · '}
+                            NDA: {new Date(getNdaAcceptedAt(share)).toLocaleDateString('es-AR', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

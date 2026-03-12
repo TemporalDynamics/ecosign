@@ -156,6 +156,7 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
   const [ecoPath, setEcoPath] = useState<string | null>(null)
   const [isLastSigner, setIsLastSigner] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [claimToken, setClaimToken] = useState<string | null>(null)
   const [rejecting, setRejecting] = useState(false)
   const [signFlowContext, setSignFlowContext] = useState<SignFlowContext | null>(null)
 
@@ -731,6 +732,9 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       if (typeof data?.is_last_signer === 'boolean') {
         setIsLastSigner(Boolean(data.is_last_signer))
       }
+      if (data?.claim_token) {
+        setClaimToken(String(data.claim_token))
+      }
 
       // Success: mark completed in UI
       setStep('completed')
@@ -794,6 +798,26 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
         workflow_id: signerData.workflow_id,
         access_token: token,
         resource: 'pdf',
+        witness_hash: witnessHash,
+      },
+    }).catch((err) => console.warn('record-evidence-download failed (best-effort):', err))
+  }
+
+  const recordEcoDownload = () => {
+    if (!signerData || !token) return
+    let witnessHash: string | null = null
+    if (ecoPath) {
+      const filename = ecoPath.split('/').pop() ?? ''
+      const extracted = filename.replace(/\.eco\.json$/, '')
+      if (extracted && extracted !== filename) witnessHash = extracted
+    }
+    const supabase = getSupabase()
+    supabase.functions.invoke('record-evidence-download', {
+      body: {
+        signer_id: signerData.signer_id,
+        workflow_id: signerData.workflow_id,
+        access_token: token,
+        resource: 'eco',
         witness_hash: witnessHash,
       },
     }).catch((err) => console.warn('record-evidence-download failed (best-effort):', err))
@@ -941,13 +965,15 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
       const blobUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = blobUrl
-      link.download = 'evidencia.ECO'
+      const baseName = signerData?.workflow?.original_filename || signerData?.workflow?.title || 'documento'
+      link.download = baseName.toLowerCase().endsWith('.eco') ? baseName : `${baseName}.eco`
       link.target = '_self'
       link.rel = 'noopener'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(blobUrl)
+      recordEcoDownload()
     } catch (err) {
       console.error('Error downloading ECO:', err)
       const message = err instanceof Error && err.message
@@ -1272,6 +1298,8 @@ export default function SignWorkflowPage({ mode = 'signer' }: SignWorkflowPagePr
             onClose={handleCompletionClose}
             showCloseAction={showReturnToOrigin}
             closeLabel="Volver al origen"
+            showClaimCta={signFlowContext?.flowType !== 'my_signature'}
+            claimToken={claimToken}
           />
         )}
       </div>

@@ -49,6 +49,7 @@ const UpdatesPage = lazy(() => import('./pages/UpdatesPage'));
 const InvitePage = lazy(() => import('./pages/InvitePage'));
 const PresentialConfirmPage = lazy(() => import('./pages/PresentialConfirmPage'));
 const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'));
+const SignerRecoveryPage = lazy(() => import('./pages/SignerRecoveryPage'));
 const WorkflowsPage = lazy(() => import('./pages/WorkflowsPage'));
 const WorkflowDetailPage = lazy(() => import('./pages/WorkflowDetailPage'));
 
@@ -102,6 +103,7 @@ function AppRoutes() {
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/nda/:token" element={<NdaAccessPage />} />
             <Route path="/sign/:token" element={<SignWorkflowPage />} />
+            <Route path="/recover/:token" element={<SignerRecoveryPage />} />
             <Route path="/invite/:token" element={<InvitePage />} />
             <Route path="/presential-confirm" element={<PresentialConfirmPage />} />
             <Route path="/videos" element={<VideosPage />} />

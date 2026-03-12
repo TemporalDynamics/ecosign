@@ -14,6 +14,14 @@ import { reconcileWitnessHistory } from '../_shared/witnessHistory.ts'
 import { computeStateHash } from '../_shared/epiCanvas.ts'
 import { normalizeEmail, normalizeEmailOrNull } from '../_shared/email.ts'
 
+function generateClaimToken(): string {
+  const bytes = new Uint8Array(24)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 async function triggerEmailDelivery(supabase: ReturnType<typeof createClient>) {
   try {
     const cronSecret = Deno.env.get('CRON_SECRET')
@@ -680,6 +688,13 @@ serve(async (req) => {
       (workflow as any)?.canvas_snapshot ?? null,
       { id: signer.id, email: signer.email }
     )
+    if (!epiStateHash) {
+      console.warn('apply-signer-signature: missing epi_state_hash (EPI2) for signature', {
+        workflowId,
+        signerId,
+        signerEmail: signer?.email ?? null
+      })
+    }
 
     if (signer.status === 'ready_to_sign') {
       const { data: lockData, error: lockErr } = await supabase.rpc('claim_signer_for_signing', {
@@ -1963,12 +1978,35 @@ serve(async (req) => {
       console.warn('apply-signer-signature: failed to create PDF signed url', pdfUrlErr)
     }
 
+    let claimToken: string | null = null
+    try {
+      const pdfPath = signedPdfPath || workflow.document_path
+      const documentName = workflow.original_filename || workflow.title || 'Documento'
+      if (pdfPath && signer.email) {
+        claimToken = generateClaimToken()
+        const claimTokenHash = await sha256Hex(claimToken)
+        await supabase.from('signer_package_claims').insert({
+          signer_id: signer.id,
+          workflow_id: signer.workflow_id,
+          signer_email: signer.email,
+          document_name: documentName,
+          pdf_path: pdfPath,
+          eco_path: ecoSnapshotPath,
+          claim_token_hash: claimTokenHash
+        })
+      }
+    } catch (claimErr) {
+      console.warn('apply-signer-signature: failed to create claim token', claimErr)
+      claimToken = null
+    }
+
     return json({
       success: true,
       pdf_url: pdfUrl,
       eco_url: ecoSnapshotUrl,
       eco_path: ecoSnapshotPath,
-      is_last_signer: isLastSigner
+      is_last_signer: isLastSigner,
+      claim_token: claimToken
     })
     } finally {
       if (signingLockClaimed) {

@@ -410,3 +410,44 @@ Error 401: ✅ RESUELTO (JWT habilitado + token automático)
    - ⏳ Pending: fix template warning + debug 500 post-email
 7. ✅ **Tests de custodia** - CERRADO (skippean graceful cuando DB no está disponible)
 8. ⏳ EPI Level 2 (postergado)
+
+---
+
+## Iteración 2026-03-11 — Verificador narrativo + EPI2 guardrails
+
+### Decisiones
+- Unificar narrativa del verificador público e interno: explicar “etapas del mismo proceso” en lugar de “no válido”.
+- Cuando el PDF no coincide, comunicarlo como versión anterior/posterior del flujo, sin alarmismo técnico.
+- Agregar guardrails EPI2:
+  - Validación de `canvas_snapshot` en creación de workflow (si hay fields).
+  - Alerta de logging si `epi_state_hash` no se genera.
+  - Script diagnóstico para cobertura EPI2 en `document_entities` recientes.
+
+### Implementado
+- Verificador público:
+  - Mensaje de mismatch ahora dice “otra etapa del mismo proceso”.
+  - Resumen probatorio y timeline con lenguaje no técnico.
+- Verificador interno (Documents):
+  - Mensajes de mismatch por etapa (`signed_version`, `other_witness`, `source_version`).
+  - Selector de versión más claro (original / testigo / firmado) + texto guía.
+- Timeline:
+  - Si hay múltiples firmas, se explica que cada firma puede generar una nueva versión del PDF.
+- EPI2:
+  - `start-signature-workflow` rechaza workflows sin `canvas_snapshot` válido cuando hay fields.
+  - `apply-signer-signature` loggea warn si falta `epi_state_hash`.
+  - Nuevo script: `scripts/diagnostics/check-epi2-coverage.js`.
+
+### Evidencia (archivos)
+- `client/src/components/VerificationComponent.tsx`
+- `client/src/pages/VerifyPage.tsx`
+- `client/src/pages/DashboardVerifyPage.tsx`
+- `client/src/pages/DocumentsPage.tsx`
+- `client/src/components/VerifierTimeline.tsx`
+- `supabase/functions/start-signature-workflow/index.ts`
+- `supabase/functions/apply-signer-signature/index.ts`
+- `scripts/diagnostics/check-epi2-coverage.js`
+
+### Resultado esperado
+- Usuarios no técnicos entienden que un ECO puede validar una etapa anterior/posterior del mismo proceso.
+- Verificador queda como puerta de entrada confiable (sin lenguaje técnico innecesario).
+- EPI2 no se pierde silenciosamente en flujos de firma.

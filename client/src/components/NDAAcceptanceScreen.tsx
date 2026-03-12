@@ -41,6 +41,13 @@ export function NDAAcceptanceScreen({
   const [showFullNDA, setShowFullNDA] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localName, setLocalName] = useState(signerName || '');
+  const [localEmail, setLocalEmail] = useState(signerEmail || '');
+
+  const needsIdentity = context === 'share-link';
+
+  const normalizeEmail = (value: string) => value.trim().toLowerCase();
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const handleAccept = async () => {
     if (!accepted) return;
@@ -49,14 +56,25 @@ export function NDAAcceptanceScreen({
     setError(null);
 
     try {
+      if (needsIdentity) {
+        const trimmedEmail = normalizeEmail(localEmail);
+        const trimmedName = localName.trim();
+        if (!trimmedName) {
+          throw new Error('Ingresá tu nombre para continuar.');
+        }
+        if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
+          throw new Error('Ingresá un email válido para continuar.');
+        }
+      }
+
       // FASE 2.1: Generar evento probatorio de aceptación
       const result = await acceptNda({
         token,
         signerId,
         context,
         ndaText,
-        signerName,
-        signerEmail,
+        signerName: needsIdentity ? localName.trim() : signerName,
+        signerEmail: needsIdentity ? normalizeEmail(localEmail) : signerEmail,
         linkId,
       });
 
@@ -111,8 +129,10 @@ export function NDAAcceptanceScreen({
           {/* Warning box */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-yellow-800">
-              ⚠️ <strong>Importante:</strong> Este documento está protegido por un acuerdo de confidencialidad. 
-              Debes aceptarlo antes de acceder al contenido.
+              ⚠️ <strong>Importante:</strong> Este documento está protegido por un acuerdo de confidencialidad.
+              {needsIdentity
+                ? ' Tu identidad declarada quedará registrada junto al NDA.'
+                : ' Debes aceptarlo antes de acceder al contenido.'}
             </p>
           </div>
 
@@ -148,6 +168,39 @@ export function NDAAcceptanceScreen({
             </div>
           )}
 
+          {needsIdentity && (
+            <div className="bg-white rounded-lg p-4 mb-6 border border-gray-200">
+              <div className="text-sm font-semibold text-gray-900 mb-2">
+                Datos para registrar el acceso
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Nombre y apellido</label>
+                  <input
+                    value={localName}
+                    onChange={(e) => setLocalName(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="Ej: Ana Pérez"
+                    autoComplete="name"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600">Email</label>
+                  <input
+                    value={localEmail}
+                    onChange={(e) => setLocalEmail(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    placeholder="ana@empresa.com"
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Esta identidad quedará registrada junto al NDA para auditoría de acceso.
+              </p>
+            </div>
+          )}
+
           {/* Acceptance checkbox */}
           <label className="flex items-start gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition">
             <input
@@ -157,15 +210,19 @@ export function NDAAcceptanceScreen({
               className="eco-checkbox mt-1 text-gray-900 border-gray-300 rounded focus:ring-2 focus:ring-gray-900"
             />
             <span className="text-sm text-gray-700">
-              <strong>Acepto el acuerdo de confidencialidad</strong> y me comprometo a mantener 
-              el contenido de este documento en confidencialidad, no divulgarlo a terceros 
+              <strong>Acepto el acuerdo de confidencialidad</strong> y me comprometo a mantener
+              el contenido de este documento en confidencialidad, no divulgarlo a terceros
               sin autorización, y cumplir con los términos establecidos.
+              {needsIdentity ? ' Mi identidad declarada quedará registrada.' : ''}
             </span>
           </label>
 
           {/* Legal notice */}
           <p className="text-xs text-gray-500 mt-4">
             ℹ️ Tu aceptación quedará registrada con fines de auditoría y validez legal.
+            {needsIdentity
+              ? ' La identidad declarada se asociará a este acceso.'
+              : ''}
             El timestamp y hash de este acuerdo formarán parte del registro criptográfico del acceso.
           </p>
 

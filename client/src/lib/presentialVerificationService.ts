@@ -13,6 +13,12 @@ export type StartPresentialSessionResult = {
   signersNotified: number;
   witnessesNotified: number;
   participantsNotified: number;
+  participants: Array<{
+    email: string;
+    role: string;
+    accessLink: string;
+    qrUrl: string;
+  }>;
 };
 
 type ConfirmPresentialInput = {
@@ -32,6 +38,29 @@ export type ConfirmPresentialResult = {
   signerId?: string | null;
   confirmedAt?: string;
   attestationHash?: string;
+};
+
+type PresentialSessionPreviewInput = {
+  sessionId: string;
+  snapshotHash: string;
+  participantToken: string;
+};
+
+export type PresentialSessionPreviewResult = {
+  success: boolean;
+  sessionId: string;
+  expiresAt: string | null;
+  operationId: string | null;
+  operationName: string | null;
+  participant: {
+    email: string;
+    role: string;
+  };
+  documents: Array<{
+    name: string;
+    hash: string;
+    entityId: string;
+  }>;
 };
 
 type ClosePresentialInput = {
@@ -138,6 +167,14 @@ export async function startPresentialVerificationSession(
     signersNotified: Number(payload.signersNotified ?? 0),
     witnessesNotified: Number(payload.witnessesNotified ?? 0),
     participantsNotified: Number(payload.participantsNotified ?? 0),
+    participants: Array.isArray(payload.participants)
+      ? (payload.participants as Array<{
+          email: string;
+          role: string;
+          accessLink: string;
+          qrUrl: string;
+        }>)
+      : [],
   };
 }
 
@@ -184,6 +221,44 @@ export async function confirmPresentialVerificationPresence(
       typeof payload.attestationHash === 'string'
         ? payload.attestationHash
         : undefined,
+  };
+}
+
+export async function getPresentialSessionPreview(
+  input: PresentialSessionPreviewInput,
+): Promise<PresentialSessionPreviewResult> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.functions.invoke(
+    'presential-verification-session-preview',
+    {
+      body: {
+        session_id: input.sessionId,
+        snapshot_hash: input.snapshotHash,
+        participant_token: input.participantToken,
+      },
+    },
+  );
+
+  const payload = (data ?? {}) as Record<string, unknown>;
+  if (error || payload.success !== true) {
+    throw new Error(
+      resolveFunctionErrorMessage(error, payload, 'No se pudo obtener el contexto de la sesion.'),
+    );
+  }
+
+  return {
+    success: true,
+    sessionId: String(payload.sessionId ?? input.sessionId),
+    expiresAt: typeof payload.expiresAt === 'string' ? payload.expiresAt : null,
+    operationId: typeof payload.operationId === 'string' ? payload.operationId : null,
+    operationName: typeof payload.operationName === 'string' ? payload.operationName : null,
+    participant:
+      payload.participant && typeof payload.participant === 'object'
+        ? (payload.participant as { email: string; role: string })
+        : { email: '', role: 'signer' },
+    documents: Array.isArray(payload.documents)
+      ? (payload.documents as Array<{ name: string; hash: string; entityId: string }>)
+      : [],
   };
 }
 

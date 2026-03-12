@@ -17,13 +17,24 @@ function LoginPage() {
   const [cryptoInitializing, setCryptoInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [claimToken, setClaimToken] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const claimStorageKey = 'ecosign:claim-token';
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const mode = params.get('mode');
+    const claim = params.get('claim');
     setIsLogin(mode !== 'signup');
+    setClaimToken(claim);
+    if (claim) {
+      try {
+        localStorage.setItem(claimStorageKey, claim);
+      } catch (err) {
+        console.warn('No se pudo guardar el token de reclamo:', err);
+      }
+    }
   }, [location.search]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,7 +73,8 @@ function LoginPage() {
         setSuccess('¡Bienvenido de nuevo!');
 
         // Redirigir a la página de inicio cuando crypto esté listo
-        navigate('/inicio');
+        const claimQuery = claimToken ? `?claim=${encodeURIComponent(claimToken)}` : '';
+        navigate(`/inicio${claimQuery}`);
       } else {
         // REGISTRO
         // Validar que las contraseñas coincidan
@@ -79,7 +91,7 @@ function LoginPage() {
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/inicio`,
+            emailRedirectTo: `${window.location.origin}/inicio${claimToken ? `?claim=${encodeURIComponent(claimToken)}` : ''}`,
           }
         });
 

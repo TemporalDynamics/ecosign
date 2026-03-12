@@ -5,10 +5,23 @@ const FALLBACK_TEMPLATES: Record<string, string> = {
     <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
       <h2 style="margin: 0 0 12px 0; color: #111;">Hola {{display_name}}</h2>
       <p style="margin: 0 0 16px 0; color: #444;">
-        Este es tu codigo de acceso para {{workflow_title}}.
+        Respaldo de Firma: este es tu codigo de acceso para {{workflow_title}}.
       </p>
       <div style="font-size: 28px; font-weight: 700; letter-spacing: 4px; padding: 12px 16px; background: #f2f4f7; border-radius: 8px; display: inline-block;">
         {{otp_code}}
+      </div>
+      <div style="margin: 12px 0 12px; display: {{role_display}}; padding: 12px; border: 1px solid #e5e7eb; background: #f9fafb; border-radius: 8px;">
+        <p style="margin: 0 0 6px 0; color: #111; font-size: 13px; font-weight: 600;">{{role_title}}</p>
+        <p style="margin: 0 0 6px 0; color: #555; font-size: 12px;">{{role_copy}}</p>
+        <p style="margin: 0; color: #777; font-size: 11px;">{{legal_copy}}</p>
+      </div>
+      <p style="margin: 16px 0 8px 0; color: #444; font-size: 12px;">Acceso directo:</p>
+      <p style="margin: 0 0 12px 0; color: #444; font-size: 12px;">
+        <a href="{{access_link_url}}" style="color:#111;">Abrir confirmacion segura</a>
+      </p>
+      <div style="margin: 12px 0 12px; display: {{qr_display}};">
+        <p style="margin: 0 0 8px 0; color: #444; font-size: 12px;">Escanea el QR para abrir el acceso seguro:</p>
+        <img src="{{qr_url}}" alt="QR de acceso" style="width:160px;height:160px;border:1px solid #e5e7eb;" />
       </div>
       <p style="margin: 16px 0 0 0; color: #666; font-size: 12px;">
         Si no solicitaste este codigo, ignora este mensaje.

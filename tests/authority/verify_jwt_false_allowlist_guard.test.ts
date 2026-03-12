@@ -9,7 +9,11 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const CONFIG = path.join(ROOT, 'supabase/config.toml');
 
 const ALLOWLIST = [
+  'get-signer-recovery-url',
   'presential-verification-get-acta',
+  'presential-verification-session-preview',
+  'send-signer-recovery-otp',
+  'signer-recovery-access',
   'signing-keys',
 ].sort();
 

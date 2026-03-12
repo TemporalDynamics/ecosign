@@ -98,6 +98,11 @@ function buildParticipantAccessLink(input: {
   return url.toString();
 }
 
+function buildQrUrl(link: string): string {
+  const encoded = encodeURIComponent(link);
+  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encoded}`;
+}
+
 function uniqueSignersByEmail(signers: SessionSigner[]): SessionSigner[] {
   const seen = new Set<string>();
   const unique: SessionSigner[] = [];
@@ -462,6 +467,13 @@ serve(async (req) => {
       ? (snapshot.participants as SessionParticipant[])
       : [];
 
+    const participantAccessEntries: {
+      email: string;
+      role: string;
+      accessLink: string;
+      qrUrl: string;
+    }[] = [];
+
     for (const participant of participants) {
       const otpCode = generateOtpCode();
       const otpHash = await hashData(otpCode);
@@ -473,6 +485,7 @@ serve(async (req) => {
         participantId: participant.participantId,
         participantToken,
       });
+      const qrUrl = buildQrUrl(participantAccessLink);
 
       const { error: otpError } = await supabase
         .from('presential_verification_otps')
@@ -505,10 +518,22 @@ serve(async (req) => {
         signerName: null,
         workflowTitle:
           participant.role === 'witness'
-            ? `Testigo de sesion probatoria (${sessionId})`
-            : `Verificacion presencial (${sessionId})`,
+            ? `Respaldo de firma - Testigo (${sessionId})`
+            : `Respaldo de firma (${sessionId})`,
         otpCode,
         accessLinkLine: `Acceso seguro de sesion: ${participantAccessLink}`,
+        accessLinkUrl: participantAccessLink,
+        qrUrl,
+        roleTitle:
+          participant.role === 'witness'
+            ? 'Tu rol: Testigo de sesion'
+            : 'Tu rol: Firmante',
+        roleCopy:
+          participant.role === 'witness'
+            ? 'No firmas el documento ni asumis obligaciones. Confirmas que reconoces al participante y que esta confirmacion corresponde a esta operacion.'
+            : 'Confirmas tu presencia en esta sesion. Este paso refuerza la atribucion de tu firma sin cambiar el contenido del documento.',
+        legalCopy:
+          'Este refuerzo mejora la atribucion de la firma, pero no sustituye formalidades especiales que puedan requerirse por ley.',
         siteUrl: Deno.env.get('SITE_URL'),
       });
 
@@ -518,6 +543,13 @@ serve(async (req) => {
         await supabase.from('presential_verification_otps').delete().eq('session_id', session.id);
         return jsonResponse({ error: `Failed to send OTP to ${participant.email}` }, 500, corsHeaders);
       }
+
+      participantAccessEntries.push({
+        email: participant.email,
+        role: participant.role,
+        accessLink: participantAccessLink,
+        qrUrl,
+      });
     }
 
     const participantsCount = participants.length;
@@ -533,6 +565,7 @@ serve(async (req) => {
       signersNotified: signerCount,
       witnessesNotified: witnessCount,
       participantsNotified: participantsCount,
+      participants: participantAccessEntries,
     }, 200, corsHeaders);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

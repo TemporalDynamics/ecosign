@@ -41,7 +41,7 @@ describe('anchorPlanPolicy', () => {
     expect(direct.protection).toEqual(['tsa', 'polygon', 'bitcoin']);
   });
 
-  it('SIGNATURE_FLOW pro: initial TSA+Polygon, intermediate TSA, final TSA+Polygon+Bitcoin', () => {
+  it('SIGNATURE_FLOW pro: initial TSA, intermediate TSA, final TSA+Polygon+Bitcoin', () => {
     const proCaps = normalizePlanCapabilities({
       tsa_enabled: true,
       polygon_anchor_enabled: true,
@@ -75,12 +75,12 @@ describe('anchorPlanPolicy', () => {
       policySource: 'workspace_plan',
     });
 
-    expect(initial.protection).toEqual(['tsa', 'polygon']);
+    expect(initial.protection).toEqual(['tsa']);
     expect(intermediate.protection).toEqual(['tsa']);
     expect(final.protection).toEqual(['tsa', 'polygon', 'bitcoin']);
   });
 
-  it('SIGNATURE_FLOW free: initial TSA, final Bitcoin, never Polygon', () => {
+  it('SIGNATURE_FLOW free: initial TSA, final TSA+Bitcoin, never Polygon', () => {
     const freeCaps = normalizePlanCapabilities({
       tsa_enabled: true,
       polygon_anchor_enabled: false,
@@ -106,7 +106,7 @@ describe('anchorPlanPolicy', () => {
     });
 
     expect(initial.protection).toEqual(['tsa']);
-    expect(final.protection).toEqual(['bitcoin']);
+    expect(final.protection).toEqual(['tsa', 'bitcoin']);
     expect(final.protection.includes('polygon')).toBe(false);
   });
 

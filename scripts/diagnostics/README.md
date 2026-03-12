@@ -193,6 +193,20 @@ Qué significa si falla:
 Acción manual:
 - Revisar colas de trabajo, logs del worker y la conexión a los servicios externos (Polygon/Bitcoin).
 
+## check-epi2-coverage.js
+
+Detecta:
+- Cobertura EPI2 en los últimos `document_entities` (content hash + signature.completed con `epi_state_hash`).
+
+Cuándo correr:
+- Antes de beta o después de cambios en wizard/canvas/firmas.
+
+Qué significa si falla:
+- Hay operaciones recientes sin EPI2 (falta snapshot, campos o firma sin hash de estado).
+
+Acción manual:
+- Revisar wizard/canvas snapshot y el flujo de firma; confirmar que `canvas_snapshot` y `epi_state_hash` se generan.
+
 ## check-pending-emails.sql
 
 Detecta:

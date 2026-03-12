@@ -94,9 +94,9 @@ export function decideAnchorPolicyByStage(params: {
   //    - Free: TSA + Bitcoin
   //    - Pro+/Business/Enterprise: TSA + Polygon + Bitcoin
   // 2) SIGNATURE_FLOW
-  //    - initial: TSA only (Bitcoin cierra el ciclo, no lo abre)
+  //    - initial: TSA only (anchors wait for final stage)
   //    - intermediate: TSA only
-  //    - final: Free => Bitcoin ; Pro+ => TSA + Polygon + Bitcoin
+  //    - final: Free => TSA + Bitcoin ; Pro+ => TSA + Polygon + Bitcoin
   const contractRequired = { tsa: false, polygon: false, bitcoin: false };
   if (flowType === 'DIRECT_PROTECTION') {
     contractRequired.tsa = true;
@@ -104,14 +104,13 @@ export function decideAnchorPolicyByStage(params: {
     contractRequired.polygon = isProPlusPlan;
   } else if (stage === 'initial') {
     contractRequired.tsa = true;
-    // Bitcoin NO va en initial - Bitcoin cierra el ciclo
-    contractRequired.polygon = isProPlusPlan;
+    // Anchors no van en initial - se resuelven en final
   } else if (stage === 'intermediate') {
     contractRequired.tsa = true;
   } else {
     // final stage
     contractRequired.bitcoin = true;
-    contractRequired.tsa = isProPlusPlan;
+    contractRequired.tsa = true;
     contractRequired.polygon = isProPlusPlan;
   }
 

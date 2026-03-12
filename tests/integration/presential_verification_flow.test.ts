@@ -26,6 +26,21 @@ describe('Presential Verification Flow (Integration)', () => {
   let testOperationId: string | null = null;
   let testSessionId: string | null = null;
   let testSnapshotHash: string | null = null;
+  const functionTimeoutMs = 6000;
+
+  const invokeWithTimeout = async <T,>(invokePromise: Promise<T>, label: string): Promise<T | null> => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timeoutId = setTimeout(() => {
+        console.warn(`SKIP: ${label} timed out after ${functionTimeoutMs}ms. Ensure Supabase functions are running.`);
+        resolve(null);
+      }, functionTimeoutMs);
+    });
+
+    const result = await Promise.race([invokePromise, timeoutPromise]);
+    if (timeoutId) clearTimeout(timeoutId);
+    return result as T | null;
+  };
 
   beforeAll(async () => {
     // Setup Supabase client
@@ -199,20 +214,30 @@ describe('Presential Verification Flow (Integration)', () => {
       process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY!
     );
 
-    const { data, error } = await publicClient.functions.invoke('presential-verification-get-acta', {
-      body: {
-        acta_hash: 'dummy-hash-for-testing',
-      },
-    });
+    const result = await invokeWithTimeout(
+      publicClient.functions.invoke('presential-verification-get-acta', {
+        body: {
+          acta_hash: 'dummy-hash-for-testing',
+        },
+      }),
+      'presential-verification-get-acta'
+    );
+
+    if (!result) {
+      return;
+    }
+
+    const { data, error } = result as any;
 
     // The endpoint should be callable without auth
     // It may return 404 for invalid hash, but should not return 401
-    if (error && (error as any).context?.statusCode === 401) {
-      console.warn('FAIL: get-acta endpoint requires auth but should be public');
+    const statusCode = (error as any)?.context?.statusCode ?? (error as any)?.status ?? null;
+    if (statusCode === 401) {
+      throw new Error('get-acta endpoint requires auth but should be public');
     }
 
     console.log('[presential-test] ✅ Public acta endpoint accessible');
-  });
+  }, functionTimeoutMs + 2000);
 
   test('4. Session expires after TTL (30 minutes)', async () => {
     // This is a placeholder test - actual expiration test would take 30+ minutes

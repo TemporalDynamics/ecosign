@@ -22,6 +22,7 @@ type VerificationBaseResult = {
   signatureValid?: boolean;
   timestampValid?: boolean;
   originalFileMatches?: boolean | null;
+  originalFileMismatchReason?: 'signed_version' | 'other_witness' | 'source_version' | 'unknown';
   legalTimestamp?: Record<string, unknown> | { enabled?: boolean };
   anchors?: unknown; // Derived from eco.v2 events
   epi?: {
@@ -39,10 +40,54 @@ type VerificationBaseResult = {
   originalFileProvided?: boolean | null;
 };
 
+const extractWitnessHashesFromEco = (eco: unknown): string[] => {
+  if (!eco || typeof eco !== 'object') return [];
+  const raw = eco as Record<string, unknown>;
+  const candidates: string[] = [];
+
+  const maybePush = (value: unknown) => {
+    if (typeof value === 'string' && value.length > 0) {
+      candidates.push(value);
+    }
+  };
+
+  const scanEvents = (events: unknown) => {
+    if (!Array.isArray(events)) return;
+    events.forEach((event) => {
+      if (!event || typeof event !== 'object') return;
+      const e = event as Record<string, unknown>;
+      maybePush(e['witness_hash']);
+      const payload = e['payload'];
+      if (payload && typeof payload === 'object') {
+        maybePush((payload as Record<string, unknown>)['witness_hash']);
+      }
+      const evidence = e['evidence'];
+      if (evidence && typeof evidence === 'object') {
+        maybePush((evidence as Record<string, unknown>)['witness_pdf_hash']);
+        maybePush((evidence as Record<string, unknown>)['witness_hash']);
+      }
+    });
+  };
+
+  scanEvents(raw['events']);
+  if (raw['document'] && typeof raw['document'] === 'object') {
+    scanEvents((raw['document'] as Record<string, unknown>)['events']);
+  }
+
+  const doc = raw['document'];
+  if (doc && typeof doc === 'object') {
+    maybePush((doc as Record<string, unknown>)['witness_hash']);
+    maybePush((doc as Record<string, unknown>)['source_hash']);
+  }
+
+  return Array.from(new Set(candidates));
+};
+
 const enforceOriginalFileMatch = async (
   base: VerificationBaseResult,
   result: VerificationResult,
-  originalFile?: File | null
+  originalFile?: File | null,
+  parsedEco?: unknown
 ): Promise<VerificationBaseResult> => {
   if (!originalFile) {
     return {
@@ -61,12 +106,35 @@ const enforceOriginalFileMatch = async (
   const errors = [...(base.errors ?? [])];
   const warnings = [...(base.warnings ?? [])];
 
+  let mismatchReason: VerificationBaseResult['originalFileMismatchReason'] = undefined;
+
   if (!expectedHash) {
     warnings.push('No hay hash esperado en el ECO para comparar contra el archivo subido.');
   } else if (!originalFileMatches) {
-    errors.push(
-      'El PDF subido no coincide con el snapshot ECO (hash esperado distinto).'
-    );
+    if (result.signed_hash && originalHash === result.signed_hash) {
+      mismatchReason = 'signed_version';
+        errors.push(
+          'El PDF subido corresponde a una versión posterior del flujo (con firmas adicionales). Este ECO valida una etapa anterior del mismo proceso.'
+        );
+    } else if (result.source_hash && originalHash === result.source_hash) {
+      mismatchReason = 'source_version';
+        errors.push(
+          'El PDF subido es el original sin transformaciones. Este ECO valida la etapa del PDF testigo generado por el flujo.'
+        );
+    } else {
+      const witnessHashes = extractWitnessHashesFromEco(parsedEco);
+      if (witnessHashes.includes(originalHash)) {
+        mismatchReason = 'other_witness';
+        errors.push(
+          'El PDF subido coincide con otra etapa del proceso. Este ECO valida una etapa específica del flujo.'
+        );
+      } else {
+        mismatchReason = 'unknown';
+        errors.push(
+          'El PDF subido no coincide con la etapa registrada en este ECO.'
+        );
+      }
+    }
   }
 
   return {
@@ -77,6 +145,7 @@ const enforceOriginalFileMatch = async (
     originalFileName: originalFile.name,
     originalHash,
     originalFileMatches,
+    originalFileMismatchReason: mismatchReason,
     errors,
     warnings
   };
@@ -383,7 +452,7 @@ export async function verifyEcoWithOriginal(ecoFile: File, originalFile?: File |
       const result = verifyEcoV2(parsed);
       const onlineRevocation = await checkOnlineRevocationStatus(parsed, result);
       const mapped = mapEcoV2Result(result, ecoFile.name, signedAuthority, signedAuthorityRef, onlineRevocation, parsed);
-      return await enforceOriginalFileMatch(mapped, result, originalFile);
+      return await enforceOriginalFileMatch(mapped, result, originalFile, parsed);
     }
 
     // Crear FormData con ambos archivos

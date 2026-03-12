@@ -18,6 +18,8 @@ interface CompletionScreenProps {
   onClose: () => void
   showCloseAction?: boolean
   closeLabel?: string
+  showClaimCta?: boolean
+  claimToken?: string | null
 }
 
 export default function CompletionScreen({
@@ -27,10 +29,15 @@ export default function CompletionScreen({
   isLastSigner,
   onClose,
   showCloseAction = true,
-  closeLabel = 'Volver al inicio'
+  closeLabel = 'Volver al inicio',
+  showClaimCta = false,
+  claimToken
 }: CompletionScreenProps) {
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [downloadingEco, setDownloadingEco] = useState(false)
+  const hasClaim = showClaimCta && Boolean(claimToken)
+  const signupHref = claimToken ? `/login?mode=signup&claim=${encodeURIComponent(claimToken)}` : '/login?mode=signup'
+  const loginHref = claimToken ? `/login?claim=${encodeURIComponent(claimToken)}` : '/login'
 
   const handlePdfClick = async () => {
     if (downloadingPdf) return
@@ -106,6 +113,33 @@ export default function CompletionScreen({
             Si no tenés una cuenta en EcoSign, descargalos ahora. Luego vas a necesitar pedírselos al creador del flujo.
           </span>
         </div>
+
+        {hasClaim && (
+          <div className="mt-6 rounded-lg border border-gray-200 bg-white px-4 py-4 text-sm text-gray-700">
+            <p className="mb-2 text-sm font-semibold text-gray-900">¿Querés conservar esta evidencia?</p>
+            <p className="mb-4 text-xs text-gray-600">
+              Creá una cuenta gratuita o vinculá la evidencia a tu cuenta actual para acceder siempre que la necesites.
+            </p>
+            <div className="flex flex-col gap-2">
+              <a
+                href={signupHref}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-gray-800"
+              >
+                Crear cuenta y guardar evidencia
+              </a>
+              <a
+                href={loginHref}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-800 transition hover:bg-gray-50"
+              >
+                Conservar en mi cuenta
+              </a>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

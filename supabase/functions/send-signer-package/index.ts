@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.182.0/http/server.ts'
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js'
 import { buildSignerPackageEmail, sendEmail } from '../_shared/email.ts'
+import { sha256Hex } from '../_shared/canonicalHash.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': (Deno.env.get('ALLOWED_ORIGIN') || Deno.env.get('SITE_URL') || Deno.env.get('FRONTEND_URL') || 'http://localhost:5173'),
@@ -17,6 +18,15 @@ const json = (data: unknown, status = 200) =>
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
+
+function generateClaimToken(): string {
+  const randomBytes = new Uint8Array(32)
+  crypto.getRandomValues(randomBytes)
+  return btoa(String.fromCharCode(...randomBytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '')
+}
 
 // AES-GCM helpers (same format as client: IV prepended to ciphertext)
 async function importKey(base64: string): Promise<CryptoKey> {
@@ -171,6 +181,7 @@ serve(async (req) => {
 
     const packagePath = `packages/${signer.workflow_id}/${signer.id}/signed.pdf`
     const ecoPath = `packages/${signer.workflow_id}/${signer.id}/certificate.eco.json`
+    const documentName = signer.workflow.title || 'Documento'
 
     // Upload PDF
     const { error: uploadErr } = await supabase.storage
@@ -215,13 +226,34 @@ serve(async (req) => {
     }
 
     // Send email to signer
+    const claimToken = generateClaimToken()
+    const claimTokenHash = await sha256Hex(claimToken)
+
+    await supabase
+      .from('signer_package_claims')
+      .insert({
+        signer_id: signer.id,
+        workflow_id: signer.workflow_id,
+        signer_email: signer.email,
+        document_name: documentName,
+        pdf_path: packagePath,
+        eco_path: ecoPath,
+        claim_token_hash: claimTokenHash,
+      })
+
+    const siteUrl = Deno.env.get('SITE_URL') ?? 'https://ecosign.app'
+    const signupUrl = `${siteUrl.replace(/\/$/, '')}/login?mode=signup&claim=${claimToken}`
+    const loginUrl = `${siteUrl.replace(/\/$/, '')}/login?claim=${claimToken}`
+
     const emailPayload = await buildSignerPackageEmail({
       signerEmail: signer.email,
       signerName: signer.name,
-      documentName: signer.workflow.title || 'Documento',
+      documentName,
       downloadUrl: pdfSigned.signedUrl,
       ecoUrl,
-      siteUrl: Deno.env.get('SITE_URL')
+      signupUrl,
+      loginUrl,
+      siteUrl
     })
     await sendEmail(emailPayload)
 

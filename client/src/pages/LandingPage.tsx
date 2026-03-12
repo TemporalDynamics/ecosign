@@ -35,7 +35,7 @@ const LandingPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            Protegé tu trabajo<br />antes de tener que defenderlo.
+            Protegé tu trabajo,<br />no solo documentos.
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed">
             EcoSign te ayuda a compartir, firmar y resguardar trabajo sensible con evidencia verificable, sin exponer el contenido.
@@ -188,15 +188,89 @@ const LandingPage = () => {
         </div>
       </section>
 
+      <section className="py-24 bg-white">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
+            No todas las firmas resuelven el mismo problema.
+          </h2>
+          <p className="text-xl text-gray-700 text-center mb-12 max-w-3xl mx-auto">
+            Entendé qué necesitás antes de elegir.
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="rounded-xl border border-gray-200 p-6">
+              <h3 className="text-xl font-semibold text-black mb-3">Plataformas de firma</h3>
+              <p className="text-gray-700 mb-4">Cierran firma y consentimiento.</p>
+              <ul className="space-y-2 text-gray-600 text-sm">
+                <li>• Validan quién firmó</li>
+                <li>• Registran cuándo</li>
+                <li>• Guardan el documento firmado</li>
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 p-6 bg-gray-50">
+              <h3 className="text-xl font-semibold text-black mb-3">Lo que muchas veces falta</h3>
+              <p className="text-gray-700 mb-4">
+                Continuidad de evidencia, trazabilidad y control post-firma.
+              </p>
+              <ul className="space-y-2 text-gray-600 text-sm">
+                <li>• ¿Qué pasó después de firmar?</li>
+                <li>• ¿Quién tuvo acceso?</li>
+                <li>• ¿Cómo verificás sin depender de relatos?</li>
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 p-6">
+              <h3 className="text-xl font-semibold text-black mb-3">EcoSign</h3>
+              <p className="text-gray-700 mb-4">
+                Además de firma, protege el trabajo con evidencia verificable.
+              </p>
+              <ul className="space-y-2 text-gray-600 text-sm">
+                <li>• Firma y consentimiento</li>
+                <li>• Trazabilidad de accesos</li>
+                <li>• Evidencia verificable después</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-10 text-center">
+            <p className="text-sm text-gray-600">
+              <strong>La firma confirma intención. La protección preserva respaldo.</strong>
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              EcoSign suma una capa de evidencia verificable sobre el flujo.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* 3. DEMO EN ACCIÓN - Smart paste */}
       <section className="py-24 bg-white">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
-            Preparar un flujo no debería llevar media hora
+            Pegás una lista de mails.<br />EcoSign hace el resto.
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 leading-relaxed">
-            Pegás una lista o cadena de mails y EcoSign completa lo repetitivo por vos.
+            Copiás de tu email o de tu chat. Pegás en el primer campo.
+            <strong className="text-black"> EcoSign separa, valida y ordena automáticamente.</strong>
           </p>
+
+          <div className="bg-gray-50 rounded-xl p-8 mb-8">
+            <div className="grid md:grid-cols-3 gap-6 text-left">
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Antes</p>
+                <p className="text-gray-700">15 minutos<br />creando campos uno por uno</p>
+              </div>
+              <div className="md:border-l md:border-gray-300 md:pl-6">
+                <p className="text-sm text-gray-500 mb-2">Ahora</p>
+                <p className="text-gray-700">15 segundos<br />pegás y listo</p>
+              </div>
+              <div className="md:border-l md:border-gray-300 md:pl-6">
+                <p className="text-sm text-gray-500 mb-2">Resultado</p>
+                <p className="text-green-700 font-semibold">15 minutos ahorrados</p>
+              </div>
+            </div>
+          </div>
           
           <div className="mb-8 max-w-5xl mx-auto">
             <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
@@ -208,11 +282,36 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <ul className="space-y-3 text-lg text-gray-700 max-w-2xl mx-auto">
-            <li>• Menos carga manual</li>
-            <li>• Menos errores</li>
-            <li>• Más velocidad para empezar</li>
-          </ul>
+          <p className="text-sm text-gray-600">
+            Funciona con comas, espacios y saltos de línea. EcoSign entiende.
+          </p>
+        </div>
+      </section>
+
+      <section className="py-24 bg-white">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
+            Un toque. Campos para todos.<br />Sin error humano.
+          </h2>
+          <p className="text-xl text-gray-700 mb-12 leading-relaxed">
+            El sistema detecta automáticamente dónde va cada firma, nombre y fecha.
+            <strong className="text-black"> Sin arrastrar. Sin configurar. Sin equivocarse.</strong>
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="rounded-xl border border-gray-200 p-6">
+              <p className="text-sm text-gray-500 mb-2">Sin EcoSign</p>
+              <p className="text-gray-700">Arrastrar campos<br />uno por uno</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 p-6 bg-gray-50">
+              <p className="text-sm text-gray-500 mb-2">Con EcoSign</p>
+              <p className="text-gray-700">Un toque<br />automático</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 p-6">
+              <p className="text-sm text-gray-500 mb-2">Resultado</p>
+              <p className="text-green-700 font-semibold">Cero errores de ubicación</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -257,19 +356,22 @@ const LandingPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
-            Protegé tu trabajo. Generá evidencia verificable.
+            Firmar es una parte.<br />Proteger tu trabajo es el objetivo.
           </h2>
           <p className="text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
-            Creá tu cuenta gratuita y empezá a proteger trabajo importante en minutos.
+            EcoSign ordena el proceso para vos, para quien participa y para quien verifica después.
           </p>
           <Link
             to="/login?mode=signup"
             className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg"
           >
-            Comenzar gratis
+            Proteger mi trabajo
           </Link>
           <p className="text-xs text-gray-500 mt-3">
-            Sin tarjeta · Plan gratuito · Creás tu cuenta al continuar
+            Sin tarjeta · Plan gratuito · Empezás en minutos
+          </p>
+          <p className="text-sm text-gray-600 mt-8 max-w-2xl mx-auto">
+            No vendemos solo firmas. Protegemos trabajo con evidencia verificable.
           </p>
         </div>
       </section>

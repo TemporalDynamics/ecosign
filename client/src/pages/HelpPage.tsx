@@ -2,23 +2,16 @@ import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
-import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
-import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
-import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
-import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
-import InhackeableTooltip from '../components/InhackeableTooltip';
-import PolygonTooltip from '../components/PolygonTooltip';
-import BitcoinTooltip from '../components/BitcoinTooltip';
 
 const HelpPage = () => {
   const faqs = [
     {
       question: '¿Mi archivo se sube?',
-      answer: <>No. Solo procesamos su <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> (<SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip>).</>
+      answer: 'EcoSign no necesita acceder al contenido del archivo para protegerlo.'
     },
     {
       question: '¿Qué es un archivo .ECO?',
-      answer: <>Es un certificado ligero que contiene la prueba de <SelloDeIntegridadTooltip>integridad</SelloDeIntegridadTooltip>, <SelloDeTiempoLegalTooltip>fecha</SelloDeTiempoLegalTooltip> y autenticidad.</>
+      answer: 'Es un respaldo portable con evidencia verificable de integridad, fecha y trazabilidad.'
     },
     {
       question: '¿Cómo verifico mi documento?',
@@ -26,7 +19,7 @@ const HelpPage = () => {
     },
     {
       question: '¿Qué diferencia hay entre Firma Legal y Firma Certificada?',
-      answer: <>Firma Legal → firma interna con Hoja de Auditoría. Firma Certificada (pago por uso) → firma con validez eIDAS/ESIGN/UETA.</>
+      answer: 'Firma Legal: agilidad para flujo diario con evidencia verificable. Firma Certificada (pago por uso): para casos que exigen certificación externa.'
     },
     {
       question: '¿Puedo usar Firma Legal para contratos formales?',

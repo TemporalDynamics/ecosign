@@ -31,8 +31,8 @@ const SecurityPage = () => {
                 </h2>
               </div>
               <div className="text-base text-gray-700 space-y-2 pl-9">
-                <p>El archivo nunca se expone ni se sube a ningún servidor.</p>
-                <p>Su integridad se representa mediante un hash SHA-256 (huella digital irreversible).</p>
+                <p>EcoSign no necesita acceder al contenido del archivo para protegerlo.</p>
+                <p>La integridad se representa mediante una huella digital unica y verificable.</p>
               </div>
             </div>
 
@@ -43,12 +43,13 @@ const SecurityPage = () => {
               </h2>
               <div className="text-lg text-gray-700 max-w-2xl mx-auto space-y-3">
                 <p>
-                  <InhackeableTooltip className="font-semibold" />: huella SHA-256 local, sello de tiempo legal (TSA) y anchoring en blockchain.
+                  <InhackeableTooltip className="font-semibold" />: huella digital, sello de tiempo verificable y registro inalterable.
                 </p>
-                <p className="font-semibold text-black">Blockchain hoy:</p>
+                <p className="font-semibold text-black">Capas de respaldo:</p>
                 <ul className="space-y-1">
-                  <li>Polygon (rápido, económico)</li>
-                  <li>Bitcoin (irreversible, nivel máximo)</li>
+                  <li>Identidad del archivo</li>
+                  <li>Fecha verificable</li>
+                  <li>Registro de evidencia</li>
                 </ul>
               </div>
             </div>

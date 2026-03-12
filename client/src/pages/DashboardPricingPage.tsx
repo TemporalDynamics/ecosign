@@ -360,7 +360,7 @@ function DashboardPricingPage() {
                               <span className="text-black ml-1">{feature.value}</span>
                             )}
                             <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden w-64 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-10 group-hover:block group-focus-within:block">
-                              Usamos la API de SignNow que cumple con los estándares eIDAS, ESIGN, UETA con aceptación en más de 90 países.
+                              Usamos proveedor externo acreditado para firma certificada, con soporte de normativas internacionales.
                               <div className="absolute left-1/2 -translate-x-1/2 h-2 w-2 bg-gray-800 rotate-45 -bottom-1"></div>
                             </div>
                           </div>

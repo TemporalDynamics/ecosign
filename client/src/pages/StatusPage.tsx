@@ -10,11 +10,11 @@ const StatusPage = () => {
     { label: 'Verificación', status: 'operational' },
     {
       label: <InhackeableTooltip className="font-semibold" />,
-      helper: 'SHA-256 + sello legal + anchoring (Polygon/Bitcoin, más redes en camino)',
+      helper: 'Huella digital unica + sello de tiempo verificable + registro inalterable',
       status: 'operational'
     },
-    { label: 'Blockchain Polygon', status: 'operational' },
-    { label: 'Blockchain Bitcoin', status: 'operational' },
+    { label: 'Red de registro verificable', status: 'operational' },
+    { label: 'Protección reforzada', status: 'operational' },
     { label: 'Firmas Legales', status: 'operational' }
   ];
 

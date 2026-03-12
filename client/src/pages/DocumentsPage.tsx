@@ -529,7 +529,7 @@ function DocumentsPage() {
 
   const handleStartPresentialSession = async (operation: Operation) => {
     if (isGuestMode()) {
-      toast("Modo invitado: sesión probatoria reforzada disponible solo con cuenta.", { position: "top-right" });
+      toast("Modo invitado: refuerzo de firma disponible solo con cuenta.", { position: "top-right" });
       return;
     }
 
@@ -1108,8 +1108,13 @@ function DocumentsPage() {
     const checkAutoRecovery = async () => {
       try {
         const serverDrafts = await loadDraftOperations();
-        const hasDrafts = serverDrafts.length > 0;
-        if (!hasDrafts) return;
+        const draftCount = serverDrafts.reduce((acc, draft) => acc + (draft.documents?.length ?? 0), 0);
+        const recoveryKey = `ecosign:draft-recovery:last-seen:${currentUserId ?? "guest"}`;
+
+        if (draftCount === 0) {
+          localStorage.setItem(recoveryKey, "0");
+          return;
+        }
 
         const lastDraftUpdateAtMs = serverDrafts.reduce((maxTimestamp, draft) => {
           const draftTimestamp = Date.parse(draft.updated_at || draft.created_at || "");
@@ -1119,7 +1124,6 @@ function DocumentsPage() {
           return Math.max(maxTimestamp, draftTimestamp);
         }, 0);
 
-        const recoveryKey = `ecosign:draft-recovery:last-seen:${currentUserId ?? "guest"}`;
         const previousTimestamp = Number(localStorage.getItem(recoveryKey) || "0");
         const hasNewDraftRecovery = lastDraftUpdateAtMs > previousTimestamp;
 
@@ -2404,8 +2408,10 @@ function DocumentsPage() {
           )}
 
           {loading ? (
-            <div className="flex justify-center items-center py-20">
+            <div className="flex flex-col justify-center items-center gap-3 py-20 text-sm text-gray-600">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+              Revisando evidencias recientes…
+              <span className="text-xs text-gray-500">Esto puede tardar unos segundos.</span>
             </div>
           ) : isSearchActive ? (
             <section className="space-y-6">
@@ -3525,7 +3531,7 @@ function DocumentsPage() {
                     onClick={() => handleStartPresentialSession(previewOperation)}
                     className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:border-black hover:text-black"
                   >
-                    {startingPresentialOperationId === previewOperation.id ? "Iniciando sesión..." : "Sesión probatoria reforzada"}
+                    {startingPresentialOperationId === previewOperation.id ? "Iniciando refuerzo..." : "Refuerzo de firma"}
                   </button>
                 </div>
 

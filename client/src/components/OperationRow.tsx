@@ -347,7 +347,7 @@ export default function OperationRow({
                       className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
                     >
                       <FolderOpen className="w-4 h-4 text-gray-600" />
-                      Sesión probatoria reforzada
+                      Refuerzo de firma
                     </button>
                   )}
 
@@ -649,7 +649,7 @@ export default function OperationRow({
                     className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
                   >
                     <FolderOpen className="w-4 h-4 text-gray-600" />
-                    Sesión probatoria reforzada
+                    Refuerzo de firma
                   </button>
                 )}
 

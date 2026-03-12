@@ -146,7 +146,7 @@ serve(async (req) => {
     }
 
     const pdfHash = await sha256Hex(pdfBytes);
-    const expectedWitnessHash = sourceEntity?.witness_current_hash || sourceEntity?.witness_hash || null;
+    const expectedWitnessHash = claimRow?.witness_hash || null;
     if (expectedWitnessHash && String(expectedWitnessHash).toLowerCase() !== pdfHash.toLowerCase()) {
       return jsonResponse({ success: false, error: 'claim_witness_hash_mismatch' }, 409, corsHeaders);
     }

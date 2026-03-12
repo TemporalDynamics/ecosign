@@ -503,7 +503,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   useEffect(() => {
     if (!isOpen || !mySignature) return;
     if (signatureFields.length === 0 && !showSignerFieldsWizard) {
-      guide.showGuideMessage('mi_firma_no_fields',
+      guide.showGuideMessage(
+        'mi_firma_no_fields',
         'Para continuar sin firmar, desactivá Mi firma. Para firmar, asigná al menos un campo.'
       );
     }
@@ -514,8 +515,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     if (!isOpen || !workflowEnabled) return;
     const hasSigners = emailInputs.some(e => e.email.trim().length > 0);
     if (hasSigners && signatureFields.length === 0 && !showSignerFieldsWizard) {
-      guide.showGuideMessage('workflow_needs_fields',
-        'Asigná los campos de cada firmante. El wizard los crea en un paso.'
+      guide.showGuideMessage(
+        'workflow_needs_fields',
+        'Antes de finalizar el flujo, asigná los campos de cada firmante. El wizard los crea en un paso.'
       );
     }
   }, [workflowEnabled, emailInputs, signatureFields.length, showSignerFieldsWizard, isOpen]);
@@ -731,7 +733,11 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     updatePreviewForFile(previewFile);
 
     // Guide: mensaje #3 — único mensaje post-upload
-    guide.showGuideMessage('doc_uploaded', 'Tu documento ya está protegido. EcoSign no accede a su contenido.', 5000);
+    guide.showGuideMessage(
+      'doc_uploaded',
+      'Protección activada. EcoSign no accede a su contenido. Al finalizar, el documento quedará protegido.',
+      5000
+    );
 
     // Abrir wizard de campos si corresponde (Mi firma)
     if (initialAction === 'sign' || mySignature) {
@@ -2616,8 +2622,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       // - UI refleja cambios vía realtime subscription (líneas 318-376)
       // - NO más triggers frontend - confiabilidad server-side garantizada
 
-      // 4. Enviar notificación por email (no bloqueante)
-      if ((canonicalDocumentId || savedDoc?.id) && !hasWorkflowIntent) {
+      // 4. Email de certificación (opt-in; desactivado por defecto)
+      const enableCertifiedEmails = String(import.meta.env.VITE_ENABLE_CERTIFIED_EMAILS ?? '').toLowerCase() === 'true';
+      if (enableCertifiedEmails && (canonicalDocumentId || savedDoc?.id) && !hasWorkflowIntent) {
         console.log('📧 Enviando notificación por email...');
         supabase.functions.invoke('notify-document-certified', {
           body: { documentEntityId: canonicalDocumentId || savedDoc.id }
@@ -2853,18 +2860,25 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     if (!isCTAEnabled()) {
       // Determinar qué falta y mostrar toast específico
       if (mySignature && !signatureType) {
+        guide.showGuideMessage('cta_missing_signature_type', 'Elegí el tipo de firma para continuar.', 4000);
         toast.error('Elegí el tipo de firma para continuar.', {
           position: 'bottom-right'
         });
         return;
       }
       if (workflowEnabled && !emailInputs.some(e => e.email.trim())) {
+        guide.showGuideMessage('cta_missing_signer_email', 'Agregá al menos un correo para continuar.', 4000);
         toast.error('Agregá al menos un correo para continuar.', {
           position: 'bottom-right'
         });
         return;
       }
       if (workflowEnabled && signatureFields.length === 0) {
+        guide.showGuideMessage(
+          'cta_missing_fields',
+          'Antes de finalizar el flujo, asigná los campos de cada firmante.',
+          5000
+        );
         toast.error('Asigná los campos a los firmantes antes de enviar.', {
           position: 'bottom-right'
         });
@@ -2872,6 +2886,11 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         return;
       }
       if (workflowEnabled && !workflowAssignmentConfirmed) {
+        guide.showGuideMessage(
+          'cta_assignment_not_confirmed',
+          'Confirmá la asignación de campos para poder finalizar el flujo.',
+          5000
+        );
         toast.error('Necesitás aceptar la asignación de campos. Tocá "Asignar campos".', {
           position: 'bottom-right'
         });
@@ -4142,7 +4161,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                         {/* Texto de privacidad */}
                                         <p className="text-sm text-gray-700 font-medium flex items-center justify-center gap-2">
                                           <Shield className="w-4 h-4 text-gray-700" />
-                                          Tu documento está protegido por defecto
+                                          La protección está activa por defecto
                                         </p>
                                         <p className="text-xs text-gray-500 mt-1">
                                           No lo vemos ni podemos acceder a su contenido.

@@ -42,6 +42,12 @@ const asNonEmptyString = (value: unknown): string | null => {
 };
 
 serve(async (req) => {
+  if ((Deno.env.get('ENABLE_SIGNED_EMAILS') ?? '').toLowerCase() !== 'true') {
+    return new Response(
+      JSON.stringify({ success: false, skipped: true, reason: 'disabled' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
   if (Deno.env.get('FASE') !== '1') {
     return new Response('disabled', { status: 204 });
   }

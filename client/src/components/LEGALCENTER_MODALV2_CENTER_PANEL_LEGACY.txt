@@ -26,7 +26,7 @@
             {/* Texto de privacidad */}
             <p className="text-sm text-gray-700 font-medium flex items-center justify-center gap-2">
               <Shield className="w-4 h-4 text-gray-700" />
-              Tu documento está protegido por defecto
+              La protección está activa por defecto
             </p>
             <p className="text-xs text-gray-500 mt-1">
               No lo vemos ni podemos acceder a su contenido.

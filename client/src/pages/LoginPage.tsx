@@ -280,8 +280,14 @@ function LoginPage() {
 
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
             <p className="text-gray-700 mb-2">¿Querés explorar EcoSign sin registrarte?</p>
+            <Link
+              to="/inicio?guest=true"
+              className="inline-block bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-2 px-6 rounded-lg transition duration-300 mb-3"
+            >
+              Entrar como invitado
+            </Link>
             <p className="text-sm text-gray-600 mb-4">
-              Entrá como invitado y probá el flujo completo con documentos educativos.
+              Probá el flujo completo con documentos educativos.
             </p>
             <div className="text-sm text-gray-700 mb-4">
               <p className="font-semibold mb-2">Como invitado podés:</p>
@@ -295,12 +301,6 @@ function LoginPage() {
                 Los documentos de prueba son material educativo, no tienen validez legal.
               </p>
             </div>
-            <Link
-              to="/inicio?guest=true"
-              className="inline-block bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-2 px-6 rounded-lg transition duration-300"
-            >
-              Entrar como invitado
-            </Link>
             <p className="mt-3 text-xs text-gray-500">
               Los documentos de prueba explican cómo funciona EcoSign.
             </p>

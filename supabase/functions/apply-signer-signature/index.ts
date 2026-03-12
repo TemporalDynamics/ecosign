@@ -1992,6 +1992,7 @@ serve(async (req) => {
           document_name: documentName,
           pdf_path: pdfPath,
           eco_path: ecoSnapshotPath,
+          witness_hash: witnessHashForEvent || null,
           claim_token_hash: claimTokenHash
         })
       }

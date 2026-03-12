@@ -1205,7 +1205,7 @@ function SignerFieldsWizardComponent({
                       name="signing-mode"
                       checked={effectiveSigningMode === 'sequential'}
                       onChange={() => onSigningModeChange?.('sequential')}
-                      className="eco-checkbox rounded-full border-gray-300"
+                      className="eco-checkbox h-3.5 w-3.5 rounded border-gray-300"
                     />
                     Secuencial (cada firmante espera su turno)
                   </label>
@@ -1215,7 +1215,7 @@ function SignerFieldsWizardComponent({
                       name="signing-mode"
                       checked={effectiveSigningMode === 'parallel'}
                       onChange={() => onSigningModeChange?.('parallel')}
-                      className="eco-checkbox rounded-full border-gray-300"
+                      className="eco-checkbox h-3.5 w-3.5 rounded border-gray-300"
                     />
                     Paralelo (todos pueden firmar desde el inicio)
                   </label>

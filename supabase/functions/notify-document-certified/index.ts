@@ -5,6 +5,12 @@ import { sendEmail, buildDocumentCertifiedEmail } from '../_shared/email.ts';
 
 
 serve(async (req: Request) => {
+  if ((Deno.env.get('ENABLE_CERTIFIED_EMAILS') ?? '').toLowerCase() !== 'true') {
+    return new Response(
+      JSON.stringify({ success: false, skipped: true, reason: 'disabled' }),
+      { status: 200, headers: { ...getCorsHeaders(req.headers.get('origin') ?? undefined).headers, 'Content-Type': 'application/json' } }
+    );
+  }
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
 
   if (Deno.env.get('FASE') !== '1') {

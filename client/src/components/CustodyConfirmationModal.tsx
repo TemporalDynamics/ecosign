@@ -41,10 +41,10 @@ export function CustodyConfirmationModal({
         {/* Header: Tranquilizador, no técnico */}
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-gray-900">
-            Documento protegido
+            Protección activada
           </h2>
           <p className="text-sm text-gray-600 mt-1">
-            Tu documento ya fue protegido de forma segura.
+            Al finalizar el proceso, este documento quedará protegido.
           </p>
         </div>
 

@@ -270,7 +270,6 @@ export async function applyOverlaySpecToPdf(
       height: boxHeight,
       borderColor: rgb(0.35, 0.45, 0.75),
       borderWidth: 1,
-      color: rgb(0.93, 0.95, 0.99),
     });
 
     page.drawText(label, {

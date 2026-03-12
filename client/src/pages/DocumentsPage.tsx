@@ -1892,6 +1892,108 @@ function DocumentsPage() {
     }
   };
 
+  const getPrimaryWorkflowId = (doc: DocumentRecord) =>
+    Array.isArray(doc.workflows) && doc.workflows.length > 0
+      ? String(doc.workflows[0]?.id ?? '')
+      : '';
+
+  const handleSignerRecovery = async (signerId: string, doc: DocumentRecord) => {
+    const workflowId = getPrimaryWorkflowId(doc);
+    if (!workflowId || !signerId) return;
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Sesión no válida', { position: 'top-right' });
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke('reissue-signer-recovery-token', {
+        body: { workflowId, signerId },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error || !data?.success || !data?.recoveryUrl) {
+        throw new Error(error?.message || data?.error || 'No se pudo generar el link de recuperación');
+      }
+      const recoveryUrl = String(data.recoveryUrl);
+      try {
+        await navigator.clipboard.writeText(recoveryUrl);
+        toast.success('Link de acceso copiado.', { position: 'top-right' });
+      } catch {
+        window.prompt('Copiá el link de recuperación:', recoveryUrl);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'No se pudo reenviar el acceso', { position: 'top-right' });
+    }
+  };
+
+  const handleSignerDownloadPdf = async (signerId: string, doc: DocumentRecord) => {
+    const workflowId = getPrimaryWorkflowId(doc);
+    if (!workflowId || !signerId) return;
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Sesión no válida', { position: 'top-right' });
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke('get-signer-package-owner', {
+        body: { workflow_id: workflowId, signer_id: signerId },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error || !data?.success || !data?.pdf_url) {
+        throw new Error(error?.message || data?.error || 'No se pudo generar la URL del PDF del firmante');
+      }
+      const resp = await fetch(String(data.pdf_url));
+      if (!resp.ok) throw new Error('No se pudo descargar el PDF del firmante');
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${doc.document_name || 'documento'} - ${signerId}.pdf`;
+      link.target = '_self';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      toast.error(err?.message || 'No se pudo descargar el PDF del firmante', { position: 'top-right' });
+    }
+  };
+
+  const handleSignerDownloadEco = async (signerId: string, doc: DocumentRecord) => {
+    const documentEntityId = String(doc.document_entity_id ?? doc.id);
+    if (!documentEntityId || !signerId) return;
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Sesión no válida', { position: 'top-right' });
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke('get-eco-url', {
+        body: { document_entity_id: documentEntityId, ownerForSignerId: signerId },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error || !data?.signed_url) {
+        throw new Error(error?.message || data?.error || 'No se pudo generar la URL de evidencia');
+      }
+      const resp = await fetch(data.signed_url as string);
+      if (!resp.ok) throw new Error('No se pudo descargar la evidencia');
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${doc.document_name || 'documento'} - ${signerId}.eco.json`;
+      link.target = '_self';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      toast.error(err?.message || 'No se pudo descargar la evidencia del firmante', { position: 'top-right' });
+    }
+  };
+
   const handleVerifyDoc = (doc: DocumentRecord | null) => {
     if (!doc) return;
     setVerifyDoc(doc);
@@ -3230,9 +3332,21 @@ function DocumentsPage() {
                   <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
                     <div className="font-semibold text-gray-800 mb-2">Firmantes</div>
                     <div className="space-y-2">
-                      {[...previewDoc.signers]
-                        .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
-                        .map((signer, idx) => {
+                      {(() => {
+                        const events = Array.isArray(previewDoc.events) ? previewDoc.events : [];
+                        const downloadedBySigner: Record<string, { pdf: boolean; eco: boolean }> = {};
+                        for (const ev of events) {
+                          if (ev?.kind === 'signature.evidence.downloaded' && ev?.payload?.signer_id) {
+                            const signerId = String(ev.payload.signer_id);
+                            const resource = ev?.payload?.resource === 'pdf' ? 'pdf' : 'eco';
+                            if (!downloadedBySigner[signerId]) downloadedBySigner[signerId] = { pdf: false, eco: false };
+                            downloadedBySigner[signerId][resource] = true;
+                          }
+                        }
+
+                        return [...previewDoc.signers]
+                          .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
+                          .map((signer, idx) => {
                           const signerStatusLabel =
                             signer.status === 'signed'
                               ? 'Firmado'
@@ -3244,6 +3358,8 @@ function DocumentsPage() {
                                     ? 'Expirado'
                                     : 'Pendiente';
 
+                          const isSigned = signer.status === 'signed';
+                          const downloadMap = downloadedBySigner[String(signer.id)] || { pdf: false, eco: false };
                           return (
                             <div key={signer.id || `${signer.email}-${idx}`} className="rounded-md border border-gray-100 px-2 py-2">
                               <div className="text-xs font-semibold text-gray-700">Firmante {idx + 1}</div>
@@ -3253,17 +3369,57 @@ function DocumentsPage() {
                               <div className="text-xs text-gray-600 mt-1">
                                 Estado: <span className="font-semibold text-gray-800">{signerStatusLabel}</span>
                               </div>
-                              <button
-                                type="button"
-                                disabled
-                                title="Próximamente"
-                                className="mt-1 text-xs text-gray-400 cursor-not-allowed"
-                              >
-                                Cambiar mail
-                              </button>
+                              {isSigned && (
+                                <div className="mt-1 text-[11px] text-gray-600 space-y-0.5">
+                                  <div>PDF {downloadMap.pdf ? 'descargado' : 'sin descargar'}</div>
+                                  <div>ECO {downloadMap.eco ? 'descargado' : 'sin descargar'}</div>
+                                </div>
+                              )}
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSignerRecovery(signer.id, previewDoc)}
+                                  disabled={!isSigned}
+                                  className={`text-[11px] px-2 py-1 rounded border ${
+                                    isSigned
+                                      ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
+                                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                  }`}
+                                  title={isSigned ? 'Generar nuevo acceso seguro para descarga' : 'Disponible al firmar'}
+                                >
+                                  Acceso de descarga
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSignerDownloadPdf(signer.id, previewDoc)}
+                                  disabled={!isSigned}
+                                  className={`text-[11px] px-2 py-1 rounded border ${
+                                    isSigned
+                                      ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
+                                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                  }`}
+                                  title={isSigned ? 'Descargar PDF de este firmante' : 'Disponible al firmar'}
+                                >
+                                  PDF
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSignerDownloadEco(signer.id, previewDoc)}
+                                  disabled={!isSigned}
+                                  className={`text-[11px] px-2 py-1 rounded border ${
+                                    isSigned
+                                      ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
+                                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                  }`}
+                                  title={isSigned ? 'Descargar ECO de este firmante' : 'Disponible al firmar'}
+                                >
+                                  ECO
+                                </button>
+                              </div>
                             </div>
                           );
-                        })}
+                        });
+                      })()}
                     </div>
                   </div>
                 )}

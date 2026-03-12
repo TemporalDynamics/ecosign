@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, Check, CheckCircle, ArrowLeft, X, Users, HardDrive, FileText, Shield, BarChart3, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, CheckCircle, X, FileText, Shield, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import FooterPublic from '../components/FooterPublic';
 import Header from '../components/Header';
 
@@ -17,33 +17,33 @@ function PricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            La diferencia principal es el volumen de Firmas Legales incluidas y el nivel de herramientas de Auditoría Avanzada.
+            La diferencia principal es la capacidad operativa: operaciones mensuales, participantes por operación, documentos por operación y nivel de supervisión.
           </p>
           <p className="text-gray-700 leading-relaxed mt-2">
-            El plan BUSINESS te ofrece Firmas Legales (Forense) Ilimitadas, mientras que el PRO está pensado para un uso profesional de bajo volumen.
+            El plan BUSINESS está pensado para equipos que necesitan mayor volumen y control. PRO es ideal para operación profesional diaria.
           </p>
         </>
       )
     },
     {
-      question: "¿Si tengo el plan FREE o agoto mi límite, puedo comprar firmas sin subir de plan?",
+      question: "¿Si agoto mis límites, puedo sumar capacidad sin subir de plan?",
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Sí. Podés comprar paquetes de Firmas Legales cuando los necesitás. No te forzamos a subir de plan.
+            Sí. Podés sumar capacidad puntual para operaciones o participantes cuando lo necesitás, sin quedar obligado a cambiar de plan.
           </p>
           <p className="text-gray-700 leading-relaxed mt-2">
-            El costo de la firma adicional depende de tu plan desde $0.99 USD a $2.50 USD por unidad.
+            El costo adicional depende de tu plan y siempre se muestra antes de confirmar.
           </p>
         </>
       )
     },
     {
-      question: "¿Qué pasa si un mes no uso todas mis firmas legales?",
+      question: "¿Qué pasa si un mes no uso toda mi capacidad?",
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Se acumulan automáticamente por 60 días para que puedas utilizarlas en los meses de mayor demanda.
+            Tu cuenta conserva el plan activo y podés ajustar capacidad cuando cambie tu volumen de trabajo.
           </p>
         </>
       )
@@ -85,14 +85,15 @@ function PricingPage() {
       price: '$0',
       period: '',
       subtitle: 'Muestra',
-      description: 'Probá la plataforma. Pagás solo lo que necesitás.',
+      description: 'Empezá gratis y creá hábito de protección.',
       features: [
         { text: 'Usuarios', value: '1' },
-        { text: 'Firmantes Invitados', value: 'Ilimitados' },
+        { text: 'Operaciones por mes', value: '5' },
+        { text: 'Participantes por operación', value: 'Hasta 2' },
+        { text: 'Documentos por operación', value: '1' },
         { text: 'Almacenamiento', value: '1 GB' },
-        { text: 'Firma Legal', value: '3 por mes' },
-        { text: 'Firma Certificada', value: 'Por uso' },
-        { text: 'Blindaje Forense', value: 'Básico' },
+        { text: 'Protección base', value: 'Incluida' },
+        { text: 'Protección reforzada', value: 'Estándar' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
       ],
@@ -108,11 +109,12 @@ function PricingPage() {
       description: 'Promoción de lanzamiento.',
       features: [
         { text: 'Usuarios', value: '2' },
-        { text: 'Firmantes Invitados', value: 'Ilimitados' },
+        { text: 'Operaciones por mes', value: '100' },
+        { text: 'Participantes por operación', value: 'Hasta 10' },
+        { text: 'Documentos por operación', value: 'Hasta 5' },
         { text: 'Almacenamiento', value: '5 GB' },
-        { text: 'Firma Legal', value: '100 por mes' },
-        { text: 'Firma Certificada', value: 'Por uso' },
-        { text: 'Blindaje Forense', value: 'Completo' },
+        { text: 'Protección base', value: 'Incluida' },
+        { text: 'Protección reforzada', value: 'Acelerada' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
       ],
@@ -121,19 +123,20 @@ function PricingPage() {
     },
     {
       name: 'BUSINESS',
-      subtitle: 'Alto Volumen/Equipos · Compliance, legales y operaciones',
+      subtitle: 'Alto Volumen/Equipos · Compliance y operaciones',
       price: '$49',
       period: ' USD',
       originalPrice: '$89',
       description: 'Promoción de lanzamiento.',
       features: [
         { text: 'Usuarios', value: '5' },
-        { text: 'Firmantes Invitados', value: 'Ilimitados' },
+        { text: 'Operaciones por mes', value: '300' },
+        { text: 'Participantes por operación', value: 'Hasta 20' },
+        { text: 'Documentos por operación', value: 'Hasta 10' },
         { text: 'Almacenamiento', value: '25 GB' },
-        { text: 'Firma Legal', value: 'ILIMITADAS' },
-        { text: 'Firma Certificada', value: 'Por uso' },
-        { text: 'Blindaje Forense', value: 'Completo' },
-        { text: 'Panel de Auditoría Avanzado', value: true },
+        { text: 'Protección base', value: 'Incluida' },
+        { text: 'Protección reforzada', value: 'Prioritaria' },
+        { text: 'Panel supervisor', value: true },
         { text: 'Acceso a API', value: 'Limitado' }
       ],
       buttonText: 'Comenzar BUSINESS',
@@ -146,11 +149,12 @@ function PricingPage() {
       description: 'Solución a medida',
       features: [
         { text: 'Usuarios', value: 'Ilimitados' },
-        { text: 'Firmantes Invitados', value: 'Ilimitados' },
+        { text: 'Operaciones por mes', value: 'Custom' },
+        { text: 'Participantes por operación', value: 'Custom' },
+        { text: 'Documentos por operación', value: 'Custom' },
         { text: 'Almacenamiento', value: 'Personalizado' },
-        { text: 'Firma Legal', value: 'ILIMITADAS' },
-        { text: 'Firma Certificada', value: 'Por uso' },
-        { text: 'Blindaje Forense', value: 'Completo' },
+        { text: 'Protección base', value: 'Incluida' },
+        { text: 'Protección reforzada', value: 'A medida' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Completo' }
       ],
@@ -166,7 +170,7 @@ function PricingPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 pt-32">
         <header className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Planes EcoSign: Evidencia que Crece Contigo</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">Fija tu seguridad, no tus costos. Elegí el plan que mejor se adapte a tus necesidades. Precios claros, sin excedentes sorpresa y con la máxima solidez forense.</p>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">Elegí la capacidad que necesitás para proteger trabajo real: operaciones, participantes y supervisión, sin costos sorpresa.</p>
           <p className="text-sm text-gray-600 mt-2">Probá sin tarjeta y podés cancelar cuando quieras.</p>
         </header>
 
@@ -215,27 +219,9 @@ function PricingPage() {
                         <Check className="w-4 h-4 text-black mr-2 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
                       )}
                       <div className="flex-1">
-                        {feature.text === 'Firma Legal' ? (
-                          <div className="relative inline-block"> {/* Tooltip trigger */}
-                            <span className="text-gray-700 font-medium cursor-pointer group-hover:text-[#0E4B8B]" tabIndex={0}>
-                              {feature.text}:
-                            </span>
-                            {feature.value !== true && feature.value !== false && (
-                              <span className="text-black ml-1">{feature.value}</span>
-                            )}
-                            {/* Tooltip content */}
-                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden w-64 p-3 bg-gray-800 text-white text-xs rounded-lg shadow-lg z-10 group-hover:block group-focus-within:block">
-                              Usamos la API de SignNow que cumple con los estándares eIDAS, ESIGN, UETA con aceptación en más de 90 países.
-                              <div className="absolute left-1/2 -translate-x-1/2 h-2 w-2 bg-gray-800 rotate-45 -bottom-1"></div> {/* Tooltip arrow */}
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <span className="text-gray-700 font-medium">{feature.text}:</span>
-                            {feature.value !== true && feature.value !== false && (
-                              <span className="text-black ml-1">{feature.value}</span>
-                            )}
-                          </>
+                        <span className="text-gray-700 font-medium">{feature.text}:</span>
+                        {feature.value !== true && feature.value !== false && (
+                          <span className="text-black ml-1">{feature.value}</span>
                         )}
                       </div>
                     </li>
@@ -265,36 +251,36 @@ function PricingPage() {
           </p>
         </div>
 
-        {/* Costo de Servicios Avanzados (Firmas Legales) */}
+        {/* Capacidad adicional */}
         <div className="max-w-4xl mx-auto px-4 py-24">
           <h2 className="text-4xl font-bold text-center mb-6 flex items-center justify-center">
             <FileText className="w-8 h-8 text-[#0E4B8B] mr-3" strokeWidth={1.5} />
-            Costo de Servicios Avanzados (Firmas Legales)
+            Capacidad adicional cuando la necesitás
           </h2>
           <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-6">
-            Cuando tu flujo requiere Firma Electrónica Avanzada o Cualificada (QES) a través de Firma Certificada, el costo por unidad es:
+            Si tu volumen crece, podés sumar capacidad para operaciones o participantes sin cambiar de plan.
           </p>
           <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-8">
-            <strong>Precio por Firma:</strong> Desde $0.99 USD hasta $2.50 USD por unidad, dependiendo de tu plan base.
+            <strong>Precio adicional orientativo por participante:</strong> desde $0.0027 (FREE) y $0.0047 (PRO), según el plan.
           </p>
           <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-12">
-            <strong>Pagás solo lo que usás.</strong> Tu panel de control siempre muestra tu saldo disponible de firmas. El sistema te notifica con antelación antes de alcanzar cualquier límite y nunca cobra un excedente sin tu autorización explícita.
+            <strong>Pagás solo lo que usás.</strong> Tu panel muestra capacidad y consumo antes de confirmar cualquier adicional.
           </p>
         </div>
 
-        {/* Acumulación Inteligente de Firmas */}
+        {/* Escalabilidad de operación */}
         <div className="max-w-4xl mx-auto px-4 py-24">
           <h2 className="text-4xl font-bold text-center mb-6 flex items-center justify-center">
             <Clock className="w-8 h-8 text-[#0E4B8B] mr-3" strokeWidth={1.5} />
-            Acumulación Inteligente de Firmas
+            Escalabilidad sin frenar tu flujo
           </h2>
           <p className="text-lg text-center text-gray-600 max-w-3xl mx-auto mb-6">
-            [SOLO aplica a Firmas Certificadas] Si las firmas legales incluidas en tu plan no son utilizadas en el mes, no se pierden. Se acumulan automáticamente en tu cuenta por 60 días, permitiéndote usarlas cuando más las necesites.
+            EcoSign está diseñado para crecer con tu operación: empezás simple, subís capacidad cuando lo necesitás y mantenés continuidad de trabajo.
           </p>
           <div className="bg-gray-50 p-6 rounded-lg max-w-3xl mx-auto mb-6 text-center">
             <p className="font-semibold text-black mb-2">Ejemplo:</p>
             <p className="text-base text-gray-700 leading-relaxed">
-              Si tu plan incluye 20 firmas y usaste 15, el mes siguiente inicias con 25 firmas disponibles. Las más antiguas caducan a los 60 días de su emisión inicial.
+              Si operás con mayor volumen en un mes puntual, podés ampliar capacidad y volver al plan base cuando estabilizás tu operación.
             </p>
           </div>
         </div>

@@ -3375,6 +3375,11 @@ function DocumentsPage() {
                                   <div>ECO {downloadMap.eco ? 'descargado' : 'sin descargar'}</div>
                                 </div>
                               )}
+                              {!isSigned && (
+                                <div className="mt-1 text-[11px] text-gray-500">
+                                  Descarga y acceso disponibles al firmar.
+                                </div>
+                              )}
                               <div className="mt-2 flex flex-wrap gap-2">
                                 <button
                                   type="button"

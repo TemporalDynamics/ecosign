@@ -279,13 +279,13 @@ function LoginPage() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-            <p className="text-gray-700 mb-2">¿Querés explorar EcoSign sin registrarte?</p>
             <Link
               to="/inicio?guest=true"
-              className="inline-block bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-2 px-6 rounded-lg transition duration-300 mb-3"
+              className="inline-block bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-2 px-6 rounded-lg transition duration-300 mb-4"
             >
               Entrar como invitado
             </Link>
+            <p className="text-gray-700 mb-2">¿Querés explorar EcoSign sin registrarte?</p>
             <p className="text-sm text-gray-600 mb-4">
               Probá el flujo completo con documentos educativos.
             </p>

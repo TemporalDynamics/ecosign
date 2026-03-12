@@ -3813,13 +3813,13 @@ function DocumentsPage() {
         </div>
       )}
 
-      {/* Modal Sesión Presencial */}
+      {/* Modal Refuerzo de firma */}
       {presentialSessionSummary && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
           <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">Sesión probatoria iniciada</h3>
+                <h3 className="text-xl font-semibold text-gray-900">Refuerzo de firma iniciado</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Operación: <span className="font-medium">{presentialSessionSummary.operationName}</span>
                 </p>

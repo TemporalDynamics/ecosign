@@ -98,20 +98,9 @@ export async function shareDocument(
       throw new Error('Access denied');
     }
 
-    // Canonical runtime metadata for share/OTP download path (best-effort).
-    if (doc.document_entity_id && doc.encrypted_path) {
-      await upsertEntityEcoxRuntime(
-        supabase,
-        doc.document_entity_id,
-        {
-          encrypted_path: doc.encrypted_path,
-          wrapped_key: doc.wrapped_key ?? null,
-          wrap_iv: doc.wrap_iv ?? null,
-          storage_bucket: 'user-documents',
-        },
-        user.id,
-      );
-    }
+    // Canonical runtime metadata already lives in document_entities.metadata.ecox.runtime.
+    // We avoid client-side PATCH on document_entities to prevent RLS/immutability errors
+    // during share generation. If runtime is missing, sharing will fail explicitly below.
 
     // 2. Unwrap document key with owner's session key
     console.log('🔓 Attempting to unwrap document key...');

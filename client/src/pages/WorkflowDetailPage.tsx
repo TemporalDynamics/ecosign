@@ -6,6 +6,7 @@ import Header from '@/components/Header'
 import FooterInternal from '@/components/FooterInternal'
 import { ArrowLeft, CheckCircle2, Clock, Download, FileText, RefreshCw, ShieldCheck, Users, XCircle } from 'lucide-react';
 import { deriveHumanState } from '@/lib/deriveHumanState'
+import toast from 'react-hot-toast'
 
 type Workflow = {
   id: string
@@ -385,7 +386,7 @@ export default function WorkflowDetailPage() {
       const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        alert('Sesión no válida')
+        toast.error('Sesión no válida')
         return
       }
 
@@ -400,7 +401,7 @@ export default function WorkflowDetailPage() {
 
       window.open(data.signedUrl as string, '_blank')
     } catch (err) {
-      alert('No se pudo descargar el PDF firmado')
+      toast.error('No se pudo descargar el PDF firmado')
       console.error(err)
     }
   }
@@ -421,7 +422,7 @@ export default function WorkflowDetailPage() {
       a.click()
       URL.revokeObjectURL(url)
     } catch (err) {
-      alert('No se pudo descargar el certificado ECOX')
+      toast.error('No se pudo descargar el certificado ECOX')
       console.error(err)
     }
   }
@@ -431,14 +432,14 @@ export default function WorkflowDetailPage() {
     if (!workflow?.document_entity_id) return
     const signer = signers.find((s) => s.id === signerId)
     if (!signer || signer.status !== 'signed') {
-      alert('La evidencia estará disponible cuando el firmante complete la firma.')
+      toast.error('La evidencia estará disponible cuando el firmante complete la firma.')
       return
     }
     try {
       const supabase = getSupabase()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        alert('Sesión no válida')
+        toast.error('Sesión no válida')
         return
       }
 
@@ -468,7 +469,7 @@ export default function WorkflowDetailPage() {
       document.body.removeChild(link)
       URL.revokeObjectURL(blobUrl)
     } catch (err: any) {
-      alert(err?.message || 'No se pudo descargar la evidencia del firmante')
+      toast.error(err?.message || 'No se pudo descargar la evidencia del firmante')
       console.error(err)
     }
   }
@@ -477,14 +478,14 @@ export default function WorkflowDetailPage() {
     if (!workflow?.id) return
     const signer = signers.find((s) => s.id === signerId)
     if (!signer || signer.status !== 'signed') {
-      alert('El PDF estará disponible cuando el firmante complete la firma.')
+      toast.error('El PDF estará disponible cuando el firmante complete la firma.')
       return
     }
     try {
       const supabase = getSupabase()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        alert('Sesión no válida')
+        toast.error('Sesión no válida')
         return
       }
 
@@ -511,7 +512,7 @@ export default function WorkflowDetailPage() {
       document.body.removeChild(link)
       URL.revokeObjectURL(blobUrl)
     } catch (err: any) {
-      alert(err?.message || 'No se pudo descargar el PDF del firmante')
+      toast.error(err?.message || 'No se pudo descargar el PDF del firmante')
       console.error(err)
     }
   }
@@ -520,14 +521,14 @@ export default function WorkflowDetailPage() {
     if (!workflow?.id) return
     const signer = signers.find((s) => s.id === signerId)
     if (!signer || signer.status !== 'signed') {
-      alert('Este acceso se habilita cuando el firmante completa la firma.')
+      toast.error('Este acceso se habilita cuando el firmante completa la firma.')
       return
     }
     try {
       const supabase = getSupabase()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        alert('Sesión no válida')
+        toast.error('Sesión no válida')
         return
       }
 
@@ -543,12 +544,12 @@ export default function WorkflowDetailPage() {
       const recoveryUrl = String(data.recoveryUrl)
       try {
         await navigator.clipboard.writeText(recoveryUrl)
-        alert('Link de recuperación copiado al portapapeles.')
+        toast.success('Link de recuperación copiado al portapapeles.')
       } catch {
         window.prompt('Copiá el link de recuperación:', recoveryUrl)
       }
     } catch (err: any) {
-      alert(err?.message || 'No se pudo reenviar el acceso')
+      toast.error(err?.message || 'No se pudo generar el acceso de descarga')
       console.error(err)
     }
   }
@@ -564,7 +565,7 @@ export default function WorkflowDetailPage() {
       if (error) throw error
       await loadData(workflow.id)
     } catch (err) {
-      alert('No se pudo cancelar el workflow')
+      toast.error('No se pudo cancelar el workflow')
       console.error(err)
     } finally {
       setActionLoading(false)

@@ -123,7 +123,7 @@ export default function DocumentRow({
                 {onMove && context !== 'operation' && (
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => onMove(document)}>Agregar a operación</button>
                 )}
-                {onCancelFlow && context !== 'operation' && (
+                {onCancelFlow && (
                   <button
                     className={`w-full text-left px-3 py-2 text-sm ${
                       canCancelWorkflow
@@ -141,7 +141,7 @@ export default function DocumentRow({
                     Cancelar flujo
                   </button>
                 )}
-                {onResumeFlow && context !== 'operation' && (
+                {onResumeFlow && (
                   <button
                     className={`w-full text-left px-3 py-2 text-sm ${
                       canResumeWorkflow
@@ -268,7 +268,7 @@ export default function DocumentRow({
                 </button>
               )}
 
-              {onCancelFlow && context !== 'operation' && (
+              {onCancelFlow && (
                 <button
                   className={`w-full text-left px-3 py-2 text-sm ${
                     canCancelWorkflow
@@ -286,7 +286,7 @@ export default function DocumentRow({
                   Cancelar flujo
                 </button>
               )}
-              {onResumeFlow && context !== 'operation' && (
+              {onResumeFlow && (
                 <button
                   className={`w-full text-left px-3 py-2 text-sm ${
                     canResumeWorkflow

@@ -76,7 +76,6 @@ serve(withRateLimit('verify', async (req) => {
       .select('id, document_entity_id, otp_hash, wrapped_key, wrap_iv, recipient_salt, nda_enabled, nda_accepted_at, expires_at, status')
       .eq('id', shareId)
       .eq('otp_hash', otpHash)
-      .eq('status', 'pending')
       .single()
 
     if (shareError || !share) {
@@ -85,6 +84,13 @@ serve(withRateLimit('verify', async (req) => {
     }
 
     if (share.expires_at && new Date(share.expires_at) < new Date()) {
+      return jsonResponse({ success: false, error: 'invalid_or_expired' }, 403, corsHeaders)
+    }
+
+    if (share.status !== 'pending') {
+      if (share.status === 'accessed') {
+        return jsonResponse({ success: false, error: 'already_used' }, 403, corsHeaders)
+      }
       return jsonResponse({ success: false, error: 'invalid_or_expired' }, 403, corsHeaders)
     }
 
@@ -144,7 +150,7 @@ serve(withRateLimit('verify', async (req) => {
     }
 
     if (!claimedRows || claimedRows.length === 0) {
-      return jsonResponse({ success: false, error: 'invalid_or_expired' }, 403, corsHeaders)
+      return jsonResponse({ success: false, error: 'already_used' }, 403, corsHeaders)
     }
 
     // Emit probatory event otp.verified (best-effort)

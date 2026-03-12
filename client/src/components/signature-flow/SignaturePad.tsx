@@ -62,9 +62,16 @@ export default function SignaturePad({
   const [storeEncryptedSignatureOptIn, setStoreEncryptedSignatureOptIn] = useState(false)
   const [storeSignatureVectorsOptIn, setStoreSignatureVectorsOptIn] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [submitMessageIndex, setSubmitMessageIndex] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const { logEvent } = useEcoxLogger()
   const validationError = validate?.() ?? null
+  const submitMessages = [
+    'Confirmando tu firma',
+    'Protegiendo la evidencia de este paso',
+    'Preparando tu comprobante',
+    'Finalizando el proceso'
+  ]
 
   // Log when the signer lands on the signature step
   useEffect(() => {
@@ -76,6 +83,19 @@ export default function SignaturePad({
       }).catch(console.error)
     }
   }, [logEvent, signerId, workflowId])
+
+  useEffect(() => {
+    if (!submitting) {
+      setSubmitMessageIndex(0)
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      setSubmitMessageIndex((prev) => (prev + 1) % submitMessages.length)
+    }, 1400)
+
+    return () => window.clearInterval(interval)
+  }, [submitting, submitMessages.length])
 
   const handleUploadSignature = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -392,7 +412,7 @@ export default function SignaturePad({
               )}
             </button>
             {submitting && (
-              <span className="text-xs text-gray-500">Estamos guardando tu firma.</span>
+              <span className="text-xs text-gray-500">{submitMessages[submitMessageIndex]}</span>
             )}
             {validationError && (
               <span className="text-xs text-gray-500">{validationError}</span>

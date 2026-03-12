@@ -20,6 +20,13 @@ interface OperationRowProps {
   onChangeStatus?: (status: OperationStatus) => void;
   onProtectAndSend?: () => void;
   onInPerson?: () => void;
+  onShareDocument?: (doc: any) => void;
+  onDownloadPdf?: (doc: any) => void;
+  onDownloadEco?: (doc: any) => void;
+  onDownloadOriginal?: (doc: any) => void;
+  onVerifyDocument?: (doc: any) => void;
+  onCancelFlow?: (doc: any) => void;
+  onResumeFlow?: (doc: any) => void;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (checked: boolean) => void;
@@ -45,11 +52,18 @@ export default function OperationRow({
   openSignal,
   autoOpen,
   onInPerson,
+  onShareDocument,
+  onDownloadPdf,
+  onDownloadEco,
+  onDownloadOriginal,
+  onVerifyDocument,
+  onCancelFlow,
+  onResumeFlow,
   selectable = false,
   selected = false,
   onSelect,
   tableLayout = false,
-}: OperationRowProps & { onOpenDocument?: (documentId: string) => void; tableLayout?: boolean }) {
+}: OperationRowProps & { onOpenDocument?: (document: any) => void; tableLayout?: boolean }) {
   const [showMenu, setShowMenu] = useState(false);
   const [open, setOpen] = useState(false);
   const [docs, setDocs] = useState<any[]>([]);
@@ -454,7 +468,14 @@ export default function OperationRow({
                         document={mapped}
                         asRow
                         context="operation"
-                        onOpen={() => onOpenDocument?.(mapped.id)}
+                        onOpen={() => onOpenDocument?.(mapped)}
+                        onShare={onShareDocument}
+                        onDownloadEco={onDownloadEco}
+                        onDownloadPdf={onDownloadPdf}
+                        onDownloadOriginal={onDownloadOriginal}
+                        onVerify={onVerifyDocument}
+                        onCancelFlow={onCancelFlow}
+                        onResumeFlow={onResumeFlow}
                         selectable={docSelectMode}
                         selected={selectedDocIds.has(mapped.id)}
                         onSelect={(checked) => toggleDocSelection(mapped.id, checked)}

@@ -99,7 +99,10 @@ export function OTPAccessModal({
       if (err instanceof Error) {
         const msg = err.message.toLowerCase();
         
-        if (msg.includes('invalid') || msg.includes('otp')) {
+        if (msg.includes('already_used') || msg.includes('already used') || msg.includes('already_accessed')) {
+          errorMessage = 'Este acceso ya fue utilizado';
+          errorDetails = 'Pedile a quien te compartió el documento que genere un nuevo acceso.';
+        } else if (msg.includes('invalid') || msg.includes('otp')) {
           errorMessage = 'Código incorrecto';
           errorDetails = 'Verificá que hayas copiado bien el código de 8 caracteres. No incluyas espacios ni guiones.';
         } else if (msg.includes('expired')) {

@@ -2780,12 +2780,16 @@ function DocumentsPage() {
                               toast.error(error.message || 'No se pudo proteger la operación', { position: 'top-right' });
                             }
                           }}
-                          onOpenDocument={async (docId: string) => {
+                          onOpenDocument={async (doc: any) => {
                             try {
+                              const docId = doc?.id;
                               const found = documents.find((d) => d.id === docId);
                               if (found) {
                                 setPreviewDoc(found);
                                 return;
+                              }
+                              if (!docId) {
+                                throw new Error('Documento inválido');
                               }
                               const docEntity = await getDocumentEntity(docId);
                               const mapped = mapDocumentEntityToRecord(docEntity as any);
@@ -2795,6 +2799,13 @@ function DocumentsPage() {
                               toast.error('No se pudo abrir el documento', { position: 'top-right' });
                             }
                           }}
+                          onShareDocument={(d) => handleShareDoc(d)}
+                          onDownloadEco={(d) => handleEcoDownload(d)}
+                          onDownloadPdf={(d) => handlePdfDownload(d)}
+                          onDownloadOriginal={(d) => handleOriginalDownload(d)}
+                          onVerifyDocument={(d) => handleVerifyDoc(d)}
+                          onCancelFlow={(d) => handleCancelFlow(d)}
+                          onResumeFlow={(d) => handleResumeFlow(d)}
                           onInPerson={() => handleStartPresentialSession(operation)}
                         />
                       ))}

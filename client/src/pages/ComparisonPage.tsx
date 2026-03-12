@@ -4,6 +4,7 @@ import { Shield, CheckCircle, Lock, Anchor } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import FooterPublic from '../components/FooterPublic';
 import Header from '../components/Header';
+import InhackeableTooltip from '../components/InhackeableTooltip';
 
 const ComparisonPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

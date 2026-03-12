@@ -120,7 +120,7 @@ const LandingPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">
-            Tu archivo nunca se expone.
+            Proteges sin exponer contenido.
           </h2>
           <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-16 text-center leading-relaxed">
             EcoSign no accede al contenido del documento.<br />
@@ -133,7 +133,7 @@ const LandingPage = () => {
             <div>
               <Lock className="w-10 h-10 text-[#0E4B8B] mx-auto mb-4" strokeWidth={1.5} />
               <h3 className="text-xl font-semibold text-black mb-3">Privacidad total</h3>
-              <p className="text-gray-600">No vemos tu archivo, no lo guardamos.</p>
+              <p className="text-gray-600">No accedemos al contenido para generar el respaldo verificable.</p>
             </div>
             
             <div>
@@ -253,7 +253,7 @@ const LandingPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
-            No se trata solo de firmar
+            Lo que ganas en la practica
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 max-w-3xl mx-auto">
             EcoSign agrega respaldo verificable antes, durante y despues de la firma.

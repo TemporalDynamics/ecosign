@@ -112,13 +112,13 @@ function HowItWorksPage() {
             <div className="rounded-xl border border-gray-200 p-6 bg-gray-50">
               <h3 className="text-lg font-semibold text-black mb-2">En GitHub tecnico</h3>
               <ul className="space-y-2 text-sm text-gray-700">
-                <li>• Codigo de cifrado y descifrado (como protegemos sin ver).</li>
-                <li>• Estructura completa de ECO y ECOX.</li>
-                <li>• Ejemplos de verificacion criptografica.</li>
-                <li>• Contratos publicos de integracion.</li>
+                <li>• Contratos publicos de verificacion e integracion.</li>
+                <li>• Comportamientos auditables de evidencia y estados.</li>
+                <li>• Formato publico de salida para verificacion externa.</li>
+                <li>• Referencias tecnicas para revisiones de seguridad.</li>
               </ul>
               <p className="text-xs text-gray-600 mt-4">
-                <strong>Para tecnicos:</strong> Mostramos todo el codigo necesario para auditar privacidad y verificacion.
+                <strong>Para tecnicos:</strong> Mostramos superficie publica suficiente para auditar privacidad y verificacion.
                 <br/>
                 <strong>Para no tecnicos:</strong> Podes copiar esta pagina y mostrarsela a tu asesor tecnico de confianza.
               </p>

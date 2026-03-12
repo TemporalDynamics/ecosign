@@ -1,57 +1,73 @@
 # EcoSign How It Works (Technical, Public Surface)
 
 Status: public-safe  
-Audience: engineers, security teams, auditors, integrators
+Audience: engineering, security, audit, integration teams
 
-This document describes the public technical behavior of EcoSign.
-It is intentionally focused on externally verifiable guarantees and public contracts.
+This document defines what can be verified externally today.
+Focus: observable behavior and public contracts.
 
-## 1) What can be independently validated today
+## 1) Public technical guarantees
 
-- File identity is handled through deterministic hashing.
-- Evidence progression is represented as observable states and events.
-- Verification is reproducible from public outputs (`.eco` / `.ecox` + verifier).
-- Signature validation uses explicit cryptographic verification.
-- Access links and expiry/revocation logic are verifiable at runtime behavior level.
-- Anchoring requests enforce strict input-shape validation before queueing.
+- File identity is deterministic for the same input bytes.
+- Evidence progression is append-oriented and observable through states/events.
+- Verification outputs are reproducible for the same artifact inputs.
+- Access capabilities enforce expiration/revocation semantics.
+- Evidence artifacts (`.eco` / `.ecox`) are designed for external validation workflows.
 
-## 2) File Identity Handling
+## 2) Observable contract surface
 
-The platform computes a deterministic identifier for each file.
-This identifier is used for evidence tracking without requiring content interpretation.
+### 2.1 File identity handling
 
-Technical note:
-- Implementation uses industry-standard cryptographic primitives.
-- Specific algorithm choices are implementation details and may evolve.
+What is verifiable:
+- Same file input -> same identity output.
+- Modified file input -> different identity output.
 
-## 3) Verifiability Model
+Public contract level:
+- Deterministic cryptographic fingerprinting is used.
+- Identity output is consumed by evidence progression and verification layers.
 
-Verification is designed to be reproducible for the same evidence inputs.
-Given the same artifact and public metadata, verifier outputs are deterministic.
+### 2.2 Evidence progression
 
-Technical note:
-- Public verification behavior is stable at contract level.
-- Internal optimization and assembly details are not part of the public contract.
+What is verifiable:
+- Progression is represented through explicit states/events.
+- Output artifacts preserve traceability for external review.
 
-## 4) Access and Control Surface
+Public contract level:
+- Evidence state transitions are externally observable at artifact/API level.
+- Progression is consistency-oriented, not opaque best-effort logging.
 
-Access capabilities are validated through deterministic token handling,
-with explicit checks for expiration, revocation and availability.
+### 2.3 Verification behavior
 
-Technical note:
-- Public behavior can be tested through API/runtime responses.
-- Internal secret handling and hardening controls are intentionally excluded.
+What is verifiable:
+- Same `.eco` / `.ecox` + same reference input -> same verification result.
+- Invalid/tampered evidence -> explicit negative result.
 
-## 5) Anchoring and Evidence Progression
+Public contract level:
+- Verification behavior is deterministic at output level.
+- Result schema is stable enough for audit automation.
 
-Anchoring is treated as part of evidence progression with explicit state transitions.
-Input constraints and progression outcomes are observable in public-facing outputs.
+### 2.4 Access control behavior
 
-Technical note:
-- Network/provider integration details are not required to validate public guarantees.
-- Public guarantees focus on consistency, traceability and verifiable outputs.
+What is verifiable:
+- Expired capability -> denied.
+- Revoked capability -> denied.
+- Active capability -> allowed according to policy.
 
-## 6) Public references
+Public contract level:
+- Access checks are capability-based and time/policy constrained.
+- Runtime responses can be audited through integration tests.
+
+## 3) External validation checklist
+
+A technical reviewer can validate all items below without private internals:
+
+- Deterministic identity behavior.
+- Evidence state consistency across generated artifacts.
+- Verification result reproducibility.
+- Access expiration/revocation enforcement.
+- Artifact portability for independent review flows.
+
+## 4) Public references
 
 - `docs/public/README.md`
 - `docs/public/EPI_PUBLIC_SPEC.md`
@@ -59,14 +75,14 @@ Technical note:
 - `docs/public/EPI_FALSE_NEGATIVE_PUBLIC_MODEL.md`
 - `packages/eco-packer-public/README.md`
 
-## 7) Scope boundaries
+## 5) Scope boundaries
 
-This public technical surface does not disclose:
+This public surface intentionally excludes:
 
 - Internal heuristics and private decision parameters.
-- Internal composition strategies beyond public contracts.
-- Security-sensitive implementation details that could reduce operational safety.
+- Implementation-level composition details beyond public contracts.
+- Security-sensitive internals that reduce operational safety if disclosed.
 
 Note:
-Some components are currently under intellectual-rights registration.
+Some components are in process of intellectual-rights registration.
 During this phase, EcoSign publishes the technical surface required for external audit and integration.

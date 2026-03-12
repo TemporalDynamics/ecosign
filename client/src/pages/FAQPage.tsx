@@ -3,13 +3,6 @@ import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
 import { ChevronUp, ChevronDown } from 'lucide-react';
-import InhackeableTooltip from '../components/InhackeableTooltip';
-import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
-import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
-import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
-import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
-import PolygonTooltip from '../components/PolygonTooltip';
-import BitcoinTooltip from '../components/BitcoinTooltip';
 
 type FAQ = {
   question: string;
@@ -18,36 +11,65 @@ type FAQ = {
 
 const faqs: FAQ[] = [
   {
-    question: "¿Mi documento se sube a los servidores de EcoSign?",
-    answer: <>No. EcoSign no accede al contenido del documento. El archivo nunca se sube ni se almacena en su forma legible.</>
-  },
-  {
-    question: "¿Qué es un archivo .ECO?",
-    answer: <>Es un contenedor de protección legal que contiene la evidencia del proceso: <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip>, sellos de tiempo criptográficos, <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> y la auditoría completa. No incluye tu documento.</>
-  },
-  {
-    question: "¿Qué diferencia hay entre los tipos de firma?",
-    answer: <>Firma técnica de integridad y autoría: <InhackeableTooltip>evidencia forense</InhackeableTooltip> + trazabilidad (uso interno). Firma legal regulada: disponible opcionalmente mediante proveedores externos certificados (eIDAS/ESIGN/UETA).</>
-  },
-  {
-    question: "¿Cómo aseguran la fecha cierta?",
+    question: 'Que protege EcoSign exactamente?',
     answer: (
-      <span>
-        Mediante evidencia técnica: <SelloDeIntegridadTooltip>Sello de Integridad</SelloDeIntegridadTooltip> local, sello de tiempo criptográfico verificable y <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip> (hoy <PolygonTooltip>Polygon</PolygonTooltip> / <BitcoinTooltip>Bitcoin</BitcoinTooltip>; más redes pronto). La validez legal depende del contexto y la jurisdicción.
-      </span>
-    )
+      <>
+        Protege el proceso completo: documento, participantes, acciones y respaldo final.
+        No se trata solo de cerrar una firma, sino de conservar evidencia verificable sobre lo que ocurrio.
+      </>
+    ),
   },
   {
-    question: "¿Qué pasa si cambian el documento después de firmarlo?",
-    answer: <>La <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> cambia automáticamente. El .ECO detecta la modificación al instante.</>
-  }
+    question: 'EcoSign puede leer mi documento?',
+    answer: (
+      <>
+        No. El producto esta disenado para proteger sin exponer contenido.
+        La plataforma no necesita abrir tu archivo para generar respaldo verificable.
+      </>
+    ),
+  },
+  {
+    question: 'Que recibe la persona que participa en el flujo?',
+    answer: (
+      <>
+        Recibe un acceso claro para revisar, firmar y descargar su respaldo.
+        El objetivo es reducir friccion durante el flujo y dejar claridad despues.
+      </>
+    ),
+  },
+  {
+    question: 'Que pasa si necesito verificar despues?',
+    answer: (
+      <>
+        EcoSign conserva un respaldo verificable para que puedas validar integridad y trazabilidad cuando haga falta.
+      </>
+    ),
+  },
+  {
+    question: 'Cual es la diferencia entre una plataforma de firma y EcoSign?',
+    answer: (
+      <>
+        Una plataforma de firma confirma consentimiento.
+        EcoSign, ademas, protege el trabajo con evidencia verificable y continuidad de proceso.
+      </>
+    ),
+  },
+  {
+    question: 'Tengo que empezar con un plan pago?',
+    answer: (
+      <>
+        No. Podes empezar gratis para crear habito y validar el flujo.
+        Cuando tu operacion crece, escalas capacidad por operaciones y participantes.
+      </>
+    ),
+  },
 ];
 
 function FAQItem({
   question,
   answer,
   isOpen,
-  onToggle
+  onToggle,
 }: {
   question: string;
   answer: React.ReactNode;
@@ -67,11 +89,7 @@ function FAQItem({
           <ChevronDown className="w-6 h-6 text-gray-400 flex-shrink-0" />
         )}
       </button>
-      {isOpen && (
-        <div className="px-6 pb-6 text-gray-700">
-          {answer}
-        </div>
-      )}
+      {isOpen && <div className="px-6 pb-6 text-gray-700">{answer}</div>}
     </div>
   );
 }
@@ -82,14 +100,13 @@ export default function FAQPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Header variant="public" />
-      
+
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
-          <PageTitle subtitle="Respuestas claras sobre privacidad, firmas legales y verificación.">
-            Preguntas Frecuentes
+          <PageTitle subtitle="Respuestas simples sobre proteccion, privacidad y verificacion.">
+            Preguntas frecuentes
           </PageTitle>
 
-          {/* FAQ List */}
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mt-8">
             {faqs.map((faq, index) => (
               <FAQItem
@@ -102,16 +119,13 @@ export default function FAQPage() {
             ))}
           </div>
 
-          {/* CTA */}
           <div className="text-center mt-16 pt-8 border-t border-gray-200">
-            <p className="text-lg text-gray-700 mb-6">
-              ¿No encontraste lo que buscabas?
-            </p>
+            <p className="text-lg text-gray-700 mb-6">No encontraste lo que buscabas?</p>
             <a
               href="/contact"
               className="inline-block bg-black text-white px-8 py-4 rounded-lg font-semibold hover:bg-gray-800 transition"
             >
-              Contactar Soporte
+              Contactar soporte
             </a>
           </div>
         </div>

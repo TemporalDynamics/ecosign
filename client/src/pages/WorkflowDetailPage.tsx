@@ -429,6 +429,11 @@ export default function WorkflowDetailPage() {
   // Owner downloads a specific signer's evidence ECO from entity events
   const handleOwnerDownloadSignerEvidence = async (signerId: string) => {
     if (!workflow?.document_entity_id) return
+    const signer = signers.find((s) => s.id === signerId)
+    if (!signer || signer.status !== 'signed') {
+      alert('La evidencia estará disponible cuando el firmante complete la firma.')
+      return
+    }
     try {
       const supabase = getSupabase()
       const { data: { session } } = await supabase.auth.getSession()
@@ -455,7 +460,6 @@ export default function WorkflowDetailPage() {
       const blobUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = blobUrl
-      const signer = signers.find((s) => s.id === signerId)
       const baseName = workflow.title || 'documento'
       link.download = `${baseName} - ${signer?.email ?? signerId}.eco.json`
       link.target = '_self'
@@ -471,6 +475,11 @@ export default function WorkflowDetailPage() {
 
   const handleOwnerDownloadSignerPdf = async (signerId: string) => {
     if (!workflow?.id) return
+    const signer = signers.find((s) => s.id === signerId)
+    if (!signer || signer.status !== 'signed') {
+      alert('El PDF estará disponible cuando el firmante complete la firma.')
+      return
+    }
     try {
       const supabase = getSupabase()
       const { data: { session } } = await supabase.auth.getSession()
@@ -494,7 +503,6 @@ export default function WorkflowDetailPage() {
       const blobUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = blobUrl
-      const signer = signers.find((s) => s.id === signerId)
       const baseName = workflow.title || 'documento'
       link.download = `${baseName} - ${signer?.email ?? signerId}.pdf`
       link.target = '_self'
@@ -510,6 +518,11 @@ export default function WorkflowDetailPage() {
 
   const handleOwnerResendRecovery = async (signerId: string) => {
     if (!workflow?.id) return
+    const signer = signers.find((s) => s.id === signerId)
+    if (!signer || signer.status !== 'signed') {
+      alert('Este acceso se habilita cuando el firmante completa la firma.')
+      return
+    }
     try {
       const supabase = getSupabase()
       const { data: { session } } = await supabase.auth.getSession()

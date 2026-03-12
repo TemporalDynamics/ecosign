@@ -1897,9 +1897,19 @@ function DocumentsPage() {
       ? String(doc.workflows[0]?.id ?? '')
       : '';
 
+  const isSignerSignedInDoc = (doc: DocumentRecord, signerId: string) => {
+    if (!Array.isArray(doc.signers)) return false;
+    const signer = doc.signers.find((s: any) => String(s?.id) === String(signerId));
+    return signer?.status === 'signed';
+  };
+
   const handleSignerRecovery = async (signerId: string, doc: DocumentRecord) => {
     const workflowId = getPrimaryWorkflowId(doc);
     if (!workflowId || !signerId) return;
+    if (!isSignerSignedInDoc(doc, signerId)) {
+      toast.error('Este acceso se habilita cuando el firmante completa la firma.', { position: 'top-right' });
+      return;
+    }
     try {
       const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession();
@@ -1929,6 +1939,10 @@ function DocumentsPage() {
   const handleSignerDownloadPdf = async (signerId: string, doc: DocumentRecord) => {
     const workflowId = getPrimaryWorkflowId(doc);
     if (!workflowId || !signerId) return;
+    if (!isSignerSignedInDoc(doc, signerId)) {
+      toast.error('El PDF estará disponible cuando el firmante complete la firma.', { position: 'top-right' });
+      return;
+    }
     try {
       const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession();
@@ -1963,6 +1977,10 @@ function DocumentsPage() {
   const handleSignerDownloadEco = async (signerId: string, doc: DocumentRecord) => {
     const documentEntityId = String(doc.document_entity_id ?? doc.id);
     if (!documentEntityId || !signerId) return;
+    if (!isSignerSignedInDoc(doc, signerId)) {
+      toast.error('La evidencia estará disponible cuando el firmante complete la firma.', { position: 'top-right' });
+      return;
+    }
     try {
       const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession();

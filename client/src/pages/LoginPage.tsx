@@ -45,6 +45,19 @@ function LoginPage() {
     setError(null); // Clear errors on input change
   };
 
+  const handleGuestEntry = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      const supabase = getSupabase();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('No se pudo limpiar la sesión antes de entrar como invitado', err);
+    } finally {
+      navigate('/inicio?guest=true');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -281,6 +294,7 @@ function LoginPage() {
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
             <Link
               to="/inicio?guest=true"
+              onClick={handleGuestEntry}
               className="inline-block bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-2 px-6 rounded-lg transition duration-300 mb-4"
             >
               Entrar como invitado

@@ -10,11 +10,7 @@ import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import VideoPlayer from '../components/VideoPlayer';
 import HuellaDigitalTooltip from '../components/HuellaDigitalTooltip';
-import SelloDeIntegridadTooltip from '../components/SelloDeIntegridadTooltip';
 import RegistroDigitalInalterableTooltip from '../components/RegistroDigitalInalterableTooltip';
-import PolygonTooltip from '../components/PolygonTooltip';
-import BitcoinTooltip from '../components/BitcoinTooltip';
-import InhackeableTooltip from '../components/InhackeableTooltip';
 import SelloDeTiempoLegalTooltip from '../components/SelloDeTiempoLegalTooltip';
 
 const LandingPage = () => {
@@ -39,18 +35,18 @@ const LandingPage = () => {
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            Protección legal para<br />documentos digitales.
+            Protegé tu trabajo<br />antes de tener que defenderlo.
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-4 leading-relaxed">
-            EcoSign protege documentos digitales mediante evidencia técnica verificable, sin acceder a su contenido.
+            EcoSign te ayuda a compartir, firmar y resguardar trabajo sensible con evidencia verificable, sin exponer el contenido.
           </p>
           <div className="text-lg md:text-xl text-gray-700 max-w-4xl mx-auto mb-8 leading-relaxed bg-blue-50 py-4 px-6 rounded-lg">
-            <p className="font-semibold">Firmá sin exponer tu archivo.</p>
-            <p className="mt-1">Cerrá acuerdos en minutos, no días.</p>
+            <p className="font-semibold">No exponés tu archivo.</p>
+            <p className="mt-1">Todo queda verificable cuando haga falta.</p>
           </div>
           
           <p className="text-[13px] text-gray-500 max-w-2xl mx-auto">
-            Evidencia técnica verificable, sin acceder al contenido.
+            Empezás gratis en minutos.
           </p>
         </div>
       </header>
@@ -62,7 +58,7 @@ const LandingPage = () => {
             Cómo protegés tu trabajo
           </h2>
           <p className="text-xl text-gray-600 mb-12">
-            Entendelo en minutos. Aplicalo en cada documento importante.
+            Entendelo una vez. Usalo cada vez que lo necesites.
           </p>
           <p className="text-sm text-gray-500 max-w-3xl mx-auto mb-8">
             Nota: En este video se utilizan conceptos generales para explicar el modelo de EcoSign.
@@ -107,7 +103,7 @@ const LandingPage = () => {
               to="/login?mode=signup"
               className="bg-black hover:bg-gray-800 text-white font-semibold py-4 px-10 rounded-lg transition duration-300 text-lg"
             >
-              Comenzar gratis
+              Proteger mi trabajo
             </Link>
             <p className="text-xs text-gray-500">Sin tarjeta · Plan gratuito · En minutos</p>
           </div>
@@ -155,14 +151,51 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* 3. DEMO EN ACCIÓN - Protección en flujo real */}
+      <section className="py-24 bg-white">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
+            Todos ganan claridad
+          </h2>
+          <p className="text-xl text-gray-700 text-center mb-12 max-w-3xl mx-auto">
+            EcoSign ordena el proceso para vos, para quien firma y para quien tenga que verificar después.
+          </p>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="rounded-xl border border-gray-200 p-6">
+              <h3 className="text-xl font-semibold text-black mb-3">Para vos</h3>
+              <ul className="space-y-2 text-gray-700">
+                <li>• Protegés trabajo sensible sin exponer contenido.</li>
+                <li>• Dejás respaldo verificable.</li>
+                <li>• Ordenás el proceso sin fricción.</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-gray-200 p-6">
+              <h3 className="text-xl font-semibold text-black mb-3">Para quien firma</h3>
+              <ul className="space-y-2 text-gray-700">
+                <li>• Recibe un flujo claro y profesional.</li>
+                <li>• Revisa y avanza sin vueltas técnicas.</li>
+                <li>• Descarga su respaldo al finalizar.</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-gray-200 p-6">
+              <h3 className="text-xl font-semibold text-black mb-3">Para verificar después</h3>
+              <ul className="space-y-2 text-gray-700">
+                <li>• Validación sin depender de relatos.</li>
+                <li>• Evidencia lista para revisar.</li>
+                <li>• Más claridad cuando más importa.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. DEMO EN ACCIÓN - Smart paste */}
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
-            Protección en acción
+            Preparar un flujo no debería llevar media hora
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 leading-relaxed">
-            Así se ve el flujo real de protección de EcoSign, sin atajos ni simulaciones.
+            Pegás una lista o cadena de mails y EcoSign reconoce los datos para acelerar la carga.
           </p>
           
           <div className="mb-8 max-w-5xl mx-auto">
@@ -176,9 +209,9 @@ const LandingPage = () => {
           </div>
 
           <ul className="space-y-3 text-lg text-gray-700 max-w-2xl mx-auto">
-            <li>• Tu documento se mantiene privado</li>
-            <li>• La evidencia se genera automáticamente</li>
-            <li>• El resultado se descarga y verifica cuando lo necesitás</li>
+            <li>• Menos carga manual</li>
+            <li>• Menos errores</li>
+            <li>• Más velocidad para empezar</li>
           </ul>
         </div>
       </section>
@@ -209,6 +242,17 @@ const LandingPage = () => {
         </div>
       </section>
 
+      <section className="py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">
+            No vendemos solo firmas.
+          </h2>
+          <p className="text-xl text-gray-700">
+            Protegemos trabajo con evidencia verificable.
+          </p>
+        </div>
+      </section>
+
       {/* 7. CTA FINAL - Cierre emocional */}
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
@@ -235,10 +279,10 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-black mb-4">
-              Planes diseñados para cada necesidad
+              Planes para proteger trabajo real
             </h2>
             <p className="text-xl text-gray-700 max-w-3xl mx-auto">
-              Desde prueba gratuita hasta soluciones empresariales
+              Desde profesionales independientes hasta equipos con supervisión
             </p>
             <p className="text-sm text-gray-600 mt-2">Probá sin tarjeta y podés cancelar cuando quieras.</p>
           </div>
@@ -247,15 +291,16 @@ const LandingPage = () => {
             {/* FREE */}
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 text-center">
               <h3 className="text-2xl font-bold text-black mb-1">FREE</h3>
-              <p className="text-sm text-gray-600 mb-1">Probá la plataforma</p>
-              <p className="text-xs text-gray-500 mb-4">Pagás solo lo que necesitás</p>
+              <p className="text-sm text-gray-600 mb-1">Empezá a proteger</p>
+              <p className="text-xs text-gray-500 mb-4">Ideal para crear hábito</p>
               <div className="text-4xl font-bold text-black mb-4">$0</div>
               <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
                 <li>✓ 1 Usuario</li>
-                <li>✓ Firmantes ilimitados</li>
+                <li>✓ 5 operaciones / mes</li>
+                <li>✓ Hasta 2 participantes / operación</li>
+                <li>✓ 1 documento / operación</li>
                 <li>✓ 1 GB almacenamiento</li>
-                <li>✓ 3 Firmas Legales/mes</li>
-                <li>✓ Firma Certificada (por uso)</li>
+                <li>✓ Protección incluida</li>
               </ul>
             </div>
 
@@ -265,7 +310,7 @@ const LandingPage = () => {
                 MÁS POPULAR
               </div>
               <h3 className="text-2xl font-bold text-black mb-1">PRO</h3>
-              <p className="text-sm text-gray-600 mb-2">Profesional/Pyme</p>
+              <p className="text-sm text-gray-600 mb-2">Profesional / PyME</p>
               <div className="flex items-baseline justify-center mb-1">
                 <span className="text-4xl font-bold text-black">$15</span>
                 <span className="text-lg text-gray-600"> USD</span>
@@ -273,10 +318,11 @@ const LandingPage = () => {
               <p className="text-xs text-gray-500 mb-4 line-through">Valor real: $40 USD</p>
               <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
                 <li>✓ 2 Usuarios</li>
-                <li>✓ Firmantes ilimitados</li>
+                <li>✓ 100 operaciones / mes</li>
+                <li>✓ Hasta 10 participantes / operación</li>
+                <li>✓ Hasta 5 documentos / operación</li>
                 <li>✓ 5 GB almacenamiento</li>
-                <li>✓ 100 Firmas Legales/mes</li>
-                <li>✓ Firma Certificada (por uso)</li>
+                <li>✓ Protección acelerada</li>
               </ul>
               <div className="text-center pt-4 mt-auto">
                 <div className="inline-block bg-[#0E4B8B]/[0.12] text-[#0E4B8B] font-medium text-xs px-3 py-1 rounded-md">
@@ -288,7 +334,7 @@ const LandingPage = () => {
             {/* BUSINESS */}
             <div className="bg-white border-2 border-gray-200 rounded-xl p-6 text-center">
               <h3 className="text-2xl font-bold text-black mb-1">BUSINESS</h3>
-              <p className="text-sm text-gray-600 mb-2">Alto Volumen</p>
+              <p className="text-sm text-gray-600 mb-2">Equipos con supervisión</p>
               <div className="flex items-baseline justify-center mb-1">
                 <span className="text-4xl font-bold text-black">$49</span>
                 <span className="text-lg text-gray-600"> USD</span>
@@ -296,11 +342,11 @@ const LandingPage = () => {
               <p className="text-xs text-gray-500 mb-4 line-through">Valor real: $89 USD</p>
               <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
                 <li>✓ 5 Usuarios</li>
-                <li>✓ Firmantes ilimitados</li>
+                <li>✓ 300 operaciones / mes</li>
+                <li>✓ Hasta 20 participantes / operación</li>
+                <li>✓ Hasta 10 documentos / operación</li>
                 <li>✓ 25 GB almacenamiento</li>
-                <li>✓ Firmas Legales ILIMITADAS</li>
-                <li>✓ Firma Certificada (por uso)</li>
-                <li>✓ Panel de Auditoría</li>
+                <li>✓ Panel supervisor</li>
                 <li>✓ API Limitado</li>
               </ul>
               <div className="text-center pt-2">
@@ -317,10 +363,9 @@ const LandingPage = () => {
               <div className="text-3xl font-bold text-black mb-4">Custom</div>
               <ul className="space-y-3 text-sm text-gray-600 mb-6 text-left">
                 <li>✓ Usuarios ilimitados</li>
-                <li>✓ Firmantes ilimitados</li>
+                <li>✓ Operaciones y participantes custom</li>
                 <li>✓ Almacenamiento custom</li>
-                <li>✓ Firmas Legales ILIMITADAS</li>
-                <li>✓ Firmas Certificadas (plan a medida)</li>
+                <li>✓ Flujos y políticas a medida</li>
                 <li>✓ Panel de Auditoría</li>
                 <li>✓ API Completo</li>
               </ul>

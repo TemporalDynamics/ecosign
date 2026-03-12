@@ -2180,11 +2180,12 @@ function DocumentsPage() {
     const expectedWitnessHash = (doc.witness_current_hash || doc.document_hash || doc.eco_hash || null)?.toLowerCase();
     const expectedSignedHash = (doc.signed_hash || null)?.toLowerCase();
 
+    const effectiveSignedHash = expectedSignedHash || expectedWitnessHash || null;
     const matchesDocument = mode === "source"
       ? null
       : mode === "signed"
-        ? expectedSignedHash
-          ? normalizedHash === expectedSignedHash
+        ? effectiveSignedHash
+          ? normalizedHash === effectiveSignedHash
           : null
         : expectedWitnessHash
           ? normalizedHash === expectedWitnessHash
@@ -2202,7 +2203,7 @@ function DocumentsPage() {
       if (expectedSignedHash && normalizedHash === expectedSignedHash && mode !== "signed") {
         mismatchReason = "signed_version";
         mismatchMessage = "El PDF subido es una versión posterior del flujo (con firmas adicionales). Este modo valida una etapa anterior del mismo proceso.";
-      } else if (expectedWitnessHash && normalizedHash === expectedWitnessHash && mode === "signed") {
+      } else if (expectedWitnessHash && normalizedHash === expectedWitnessHash && mode === "signed" && expectedSignedHash) {
         mismatchReason = "other_witness";
         mismatchMessage = "El PDF subido es una versión anterior del flujo. Este modo valida la etapa del PDF firmado final.";
       } else if (expectedSourceHash && normalizedHash === expectedSourceHash && mode !== "source") {

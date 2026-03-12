@@ -2479,7 +2479,7 @@ function DocumentsPage() {
               {claimedPackagesLoading ? (
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
-                  Cargando evidencia...
+                  Revisando evidencia reciente...
                 </div>
               ) : claimedPackagesError ? (
                 <p className="text-sm text-red-600">{claimedPackagesError}</p>
@@ -3570,7 +3570,7 @@ function DocumentsPage() {
                 <div className="border border-gray-200 rounded-xl p-4 bg-white">
                   <div className="text-sm font-semibold text-gray-900 mb-3">Documentos</div>
                   {previewOperationLoading ? (
-                    <div className="text-sm text-gray-500">Cargando documentos…</div>
+                    <div className="text-sm text-gray-500">Revisando documentos y evidencias recientes…</div>
                   ) : previewOperationDocs.length === 0 ? (
                     <div className="text-sm text-gray-500">No hay documentos en esta operación.</div>
                   ) : (

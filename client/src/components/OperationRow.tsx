@@ -406,7 +406,7 @@ export default function OperationRow({
         {open && (
           <div>
             {loadingDocs ? (
-              <div className="text-sm text-gray-500 px-6 py-3">Cargando documentos…</div>
+              <div className="text-sm text-gray-500 px-6 py-3">Revisando documentos y evidencias recientes…</div>
             ) : docs.length === 0 ? (
               <div className="text-sm text-gray-500 px-6 py-3">No hay documentos en esta operación</div>
             ) : (
@@ -718,7 +718,7 @@ export default function OperationRow({
       {open && (
         <div className="border-t border-sky-100 mt-2 px-4 py-3 bg-white">
           {loadingDocs ? (
-            <div className="text-sm text-gray-500">Cargando documentos…</div>
+            <div className="text-sm text-gray-500">Revisando documentos y evidencias recientes…</div>
           ) : docs.length === 0 ? (
             <div className="text-sm text-gray-500">No hay documentos en esta operación</div>
           ) : (

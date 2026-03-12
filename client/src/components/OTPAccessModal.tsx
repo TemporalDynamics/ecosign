@@ -93,7 +93,7 @@ export function OTPAccessModal({
       }
       
       // Mensajes de error humanos (no técnicos)
-      let errorMessage = 'No pudimos abrir el documento todavía';
+      let errorMessage = 'No pudimos abrir este enlace seguro';
       let errorDetails = '';
       
       if (err instanceof Error) {

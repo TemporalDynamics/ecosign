@@ -35,6 +35,8 @@ export default function CompletionScreen({
 }: CompletionScreenProps) {
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [downloadingEco, setDownloadingEco] = useState(false)
+  const [pdfDownloaded, setPdfDownloaded] = useState(false)
+  const [ecoDownloaded, setEcoDownloaded] = useState(false)
   const hasClaim = showClaimCta && Boolean(claimToken)
   const signupHref = claimToken ? `/login?mode=signup&claim=${encodeURIComponent(claimToken)}` : '/login?mode=signup'
   const loginHref = claimToken ? `/login?claim=${encodeURIComponent(claimToken)}` : '/login'
@@ -44,6 +46,7 @@ export default function CompletionScreen({
     try {
       setDownloadingPdf(true)
       await Promise.resolve(onDownloadPdf())
+      setPdfDownloaded(true)
     } finally {
       setTimeout(() => setDownloadingPdf(false), 700)
     }
@@ -58,6 +61,7 @@ export default function CompletionScreen({
     try {
       setDownloadingEco(true)
       await Promise.resolve(onDownloadEco())
+      setEcoDownloaded(true)
     } finally {
       setTimeout(() => setDownloadingEco(false), 700)
     }
@@ -88,6 +92,9 @@ export default function CompletionScreen({
             <FileText className="h-5 w-5" />
             {downloadingPdf ? 'Preparando descarga...' : 'Descargar copia fiel (PDF)'}
           </button>
+          <div className="text-[11px] text-gray-500">
+            {pdfDownloaded ? 'PDF descargado.' : 'Aún no descargaste el PDF.'}
+          </div>
           <button
             onClick={handleEcoClick}
             disabled={downloadingEco}
@@ -96,6 +103,9 @@ export default function CompletionScreen({
             <FileText className="h-5 w-5" />
             {downloadingEco ? 'Preparando descarga...' : 'Descargar evidencia (.ECO)'}
           </button>
+          <div className="text-[11px] text-gray-500">
+            {ecoDownloaded ? 'ECO descargado.' : 'Aún no descargaste la evidencia ECO.'}
+          </div>
           {showCloseAction && (
             <button
               onClick={onClose}

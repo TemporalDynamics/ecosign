@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { User, AuthError } from '@supabase/supabase-js';
 import { getSupabase } from '../lib/supabaseClient';
-import { disableGuestMode, isGuestMode } from '../utils/guestMode';
+import { isGuestMode } from '../utils/guestMode';
 
 interface UseAuthReturn {
   user: User | null;
@@ -30,6 +30,11 @@ export const useAuth = (): UseAuthReturn => {
     const supabase = getSupabase();
     // Obtener sesión inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (isGuestMode()) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -37,6 +42,11 @@ export const useAuth = (): UseAuthReturn => {
     // Escuchar cambios de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        if (isGuestMode()) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
         setUser(session?.user ?? null);
         setLoading(false);
       }
@@ -45,11 +55,8 @@ export const useAuth = (): UseAuthReturn => {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (user && isGuestMode()) {
-      disableGuestMode();
-    }
-  }, [user]);
+  // Guest mode is explicitly controlled by the entry route (login CTA).
+  // Do not auto-disable guest mode just because a prior session exists.
 
   /**
    * Sign In con email y password

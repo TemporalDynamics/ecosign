@@ -16,6 +16,7 @@ import { VideoPlayerProvider, useVideoPlayer } from './contexts/VideoPlayerConte
 import { LegalCenterProvider } from './contexts/LegalCenterContext'
 import LegalCenterRoot from './components/LegalCenterRoot'
 import { initGuestFromLocation } from './contexts/GuestContext'
+import { getSupabase } from './lib/supabaseClient'
 import { diagnoseCryptoSession, forceSaveSessionSecret } from './lib/e2e'
 
 // Lazy load all page components for code-splitting
@@ -67,7 +68,14 @@ function DashboardAppRoutes() {
   const location = useLocation()
 
   useEffect(() => {
-    initGuestFromLocation(location.search)
+    const activated = initGuestFromLocation(location.search)
+    if (activated) {
+      // Ensure guest mode never reuses an existing authenticated session.
+      const supabase = getSupabase()
+      supabase.auth.signOut().catch((err) => {
+        console.warn('Failed to sign out existing session for guest mode', err)
+      })
+    }
   }, [location.search])
 
   // Expose crypto diagnostics globally for debugging

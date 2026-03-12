@@ -1721,7 +1721,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             console.log('📋 Estampando campos preparados para Mi firma...');
 
             const overlaySpec = convertToOverlaySpec(
-              selfFields,
+              normalizeFieldsForExport(selfFields),
               null, // No incluir firma del owner en workflow
               workflowVirtualSize.width,
               workflowVirtualSize.height,
@@ -1958,7 +1958,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             console.log('📋 Estampando campos preparados para firmantes...');
 
             const overlaySpec = convertToOverlaySpec(
-              signatureFields,
+              normalizeFieldsForExport(signatureFields),
               null, // No incluir firma del owner en workflow
               workflowVirtualSize.width,
               workflowVirtualSize.height,
@@ -2153,7 +2153,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           : null;
 
       const overlaySpec = convertToOverlaySpec(
-        signatureFields,
+        normalizeFieldsForExport(signatureFields),
         signatureOverlay,
         VIRTUAL_PAGE_WIDTH,
         VIRTUAL_PAGE_HEIGHT
@@ -3329,7 +3329,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     try {
       const overlaySpec = signatureFields.length > 0
-        ? convertToOverlaySpec(signatureFields, null, VIRTUAL_PAGE_WIDTH, VIRTUAL_PAGE_HEIGHT, 'owner')
+        ? convertToOverlaySpec(normalizeFieldsForExport(signatureFields), null, VIRTUAL_PAGE_WIDTH, VIRTUAL_PAGE_HEIGHT, 'owner')
         : [];
       const signaturePreviewValue = signaturePreview?.value;
 
@@ -3367,6 +3367,65 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   };
 
   const getPageScale = () => ({ scaleX: virtualScale, scaleY: virtualScale });
+
+  const mapFieldFromRotatedToBase = useCallback(
+    (field: SignatureField, rotation: number, baseWidth: number, baseHeight: number): SignatureField => {
+      const normalized = ((rotation % 360) + 360) % 360;
+      if (normalized === 0) return field;
+
+      const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+      if (normalized === 180) {
+        const nextWidth = field.width;
+        const nextHeight = field.height;
+        const mappedX = baseWidth - field.x - nextWidth;
+        const mappedY = baseHeight - field.y - nextHeight;
+        return {
+          ...field,
+          x: clamp(mappedX, 0, Math.max(0, baseWidth - nextWidth)),
+          y: clamp(mappedY, 0, Math.max(0, baseHeight - nextHeight)),
+        };
+      }
+
+      if (normalized === 90) {
+        const nextWidth = field.height;
+        const nextHeight = field.width;
+        const mappedX = field.y;
+        const mappedY = baseHeight - field.x - field.width;
+        return {
+          ...field,
+          x: clamp(mappedX, 0, Math.max(0, baseWidth - nextWidth)),
+          y: clamp(mappedY, 0, Math.max(0, baseHeight - nextHeight)),
+          width: nextWidth,
+          height: nextHeight,
+        };
+      }
+
+      const nextWidth = field.height;
+      const nextHeight = field.width;
+      const mappedX = baseWidth - field.y - field.height;
+      const mappedY = field.x;
+      return {
+        ...field,
+        x: clamp(mappedX, 0, Math.max(0, baseWidth - nextWidth)),
+        y: clamp(mappedY, 0, Math.max(0, baseHeight - nextHeight)),
+        width: nextWidth,
+        height: nextHeight,
+      };
+    },
+    [],
+  );
+
+  const normalizeFieldsForExport = useCallback(
+    (fields: SignatureField[]) => {
+      const rotation = ((previewRotation % 360) + 360) % 360;
+      if (rotation === 0) return fields;
+      return fields.map((field) =>
+        mapFieldFromRotatedToBase(field, rotation, workflowVirtualSize.width, workflowVirtualSize.height)
+      );
+    },
+    [mapFieldFromRotatedToBase, previewRotation, workflowVirtualSize.height, workflowVirtualSize.width],
+  );
 
   const resolveFieldRect = (field: SignatureField) => {
     const { scaleX, scaleY } = getPageScale();
@@ -3687,6 +3746,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     fallbackSignerEmail?: string | null
   ): CanvasSnapshot | null => {
     if (!Array.isArray(fields)) return null;
+    const normalizedFields = normalizeFieldsForExport(fields);
     const pages: CanvasPageSnapshot[] = pdfPageMetrics.length > 0
       ? pdfPageMetrics.map((p) => ({
           page: p.pageNumber,
@@ -3700,7 +3760,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         }];
 
     const fieldsBySigner: Record<string, CanvasFieldSnapshot[]> = {};
-    fields.forEach((field) => {
+    normalizedFields.forEach((field) => {
       const signerEmailRaw = field.assignedTo || fallbackSignerEmail || '';
       const signerEmail = normalizeEmail(signerEmailRaw);
       if (!signerEmail) return;
@@ -3731,7 +3791,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     documentEntityId: string
   ): WorkflowField[] => {
     if (!documentEntityId) return [];
-    const normalized = fields.map((field) => ({
+    const normalized = normalizeFieldsForExport(fields).map((field) => ({
       ...field,
       batchId: field.batchId || field.id
     }));

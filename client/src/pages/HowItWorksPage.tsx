@@ -91,6 +91,60 @@ function HowItWorksPage() {
           </div>
         </section>
 
+        <section className="mb-20">
+          <h2 className="text-3xl md:text-4xl font-bold text-black mb-4 text-center">
+            Transparencia clara para todos
+          </h2>
+          <p className="text-lg text-gray-700 text-center max-w-3xl mx-auto mb-8">
+            Esta pagina cuenta el concepto en lenguaje simple.
+            Si queres el detalle tecnico con codigo y contratos publicos, tambien lo publicamos.
+          </p>
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className="rounded-xl border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-black mb-2">En esta pagina</h3>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li>• Que gana cada persona del flujo.</li>
+                <li>• Como proteger trabajo sin vueltas tecnicas.</li>
+                <li>• Como queda un respaldo verificable al final.</li>
+                <li>• Que diferencia a EcoSign de una firma comun.</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-gray-200 p-6 bg-gray-50">
+              <h3 className="text-lg font-semibold text-black mb-2">En GitHub tecnico</h3>
+              <ul className="space-y-2 text-sm text-gray-700">
+                <li>• Especificacion publica y contratos de verificacion.</li>
+                <li>• Ejemplos de codigo que respaldan claims tecnicos.</li>
+                <li>• Estructura publica de ECO y ECOX.</li>
+                <li>• Superficie de integracion para equipos tecnicos.</li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="https://github.com/TemporalDynamics/ecosign/blob/main/docs/public/HOW_IT_WORKS_TECHNICAL.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-lg bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              Ver How it works tecnico en GitHub
+            </a>
+            <Link
+              to="/documentation"
+              className="inline-block rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 hover:border-black hover:text-black"
+            >
+              Ver resumen tecnico publico
+            </Link>
+            <a
+              href="https://github.com/TemporalDynamics/ecosign/tree/main/docs/public"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 hover:border-black hover:text-black"
+            >
+              Abrir docs/public
+            </a>
+          </div>
+        </section>
+
         <section className="text-center pt-10">
           <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">
             Empeza gratis y protege trabajo real

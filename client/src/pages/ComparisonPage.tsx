@@ -111,11 +111,11 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Más que una Firma Simple:</strong> A diferencia de las firmas básicas del mercado, la firma técnica captura un rastro de auditoría completo (IP, dispositivo, geolocalización) y protege tu documento con registro en blockchain.</span>
+                    <span><strong>Más que una Firma Simple:</strong> A diferencia de las firmas básicas del mercado, la firma técnica captura un rastro de auditoría completo y protege tu documento con registro inalterable.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><InhackeableTooltip className="font-semibold" /> en cada documento: hash SHA-256, sello de tiempo criptográfico y registro blockchain verificables por peritos.</span>
+                    <span><InhackeableTooltip className="font-semibold" /> en cada documento: huella digital única, sello de tiempo verificable y registro inalterable.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -161,7 +161,7 @@ const ComparisonPage = () => {
                 <ul className="space-y-3">
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Firma Legal Regulada:</strong> Utilizamos la API de SignNow para firmas que cumplen con estándares eIDAS (UE), ESIGN y UETA (EE.UU.).</span>
+                    <span><strong>Firma Legal Regulada:</strong> Utilizamos proveedor externo acreditado para firmas con validez jurídica según normativas internacionales.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -169,11 +169,11 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Evidencia Técnica <InhackeableTooltip className="font-semibold" />:</strong> Encapsulamos la firma en nuestro contenedor de protección legal con hash, sello de tiempo criptográfico y registro (Bitcoin/Polygon) más los que se sumen.</span>
+                    <span><strong>Evidencia Técnica <InhackeableTooltip className="font-semibold" />:</strong> Encapsulamos la firma en nuestro contenedor de protección legal con huella digital, sello de tiempo verificable y registro inalterable.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Auditoría Completa:</strong> Entregamos un historial técnico donde se vincula la identidad regulada con el registro público en blockchain.</span>
+                    <span><strong>Auditoría Completa:</strong> Entregamos un historial técnico donde se vincula la identidad regulada con registro público verificable.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -289,7 +289,7 @@ const ComparisonPage = () => {
                 <strong>Privacidad:</strong> Absoluta. Con la firma técnica, EcoSign no accede al contenido del documento. Tu archivo jamás se carga a nuestros servidores.
               </p>
               <p className="text-gray-700 mb-2">
-                El proceso criptográfico que genera el hash (la huella digital) se realiza completamente en tu dispositivo.
+                El proceso que genera la huella digital se realiza completamente en tu dispositivo.
               </p>
               <p className="text-gray-700">
                 Esta es la opción ideal para secretos comerciales, patentes o cualquier documento donde la confidencialidad es la prioridad N° 1.
@@ -301,7 +301,7 @@ const ComparisonPage = () => {
                 <strong>Privacidad:</strong> Procesamiento Externo Necesario. Para utilizar firma legal regulada mediante proveedores externos acreditados, el documento debe ser procesado por el proveedor (SignNow).
               </p>
               <p className="text-gray-700 mb-2">
-                <strong>Nuestra evidencia adicional:</strong> Aunque el archivo sube a los servidores del proveedor, nosotros registramos su hash en blockchain antes de enviarlo.
+                <strong>Nuestra evidencia adicional:</strong> Aunque el archivo sube al proveedor, registramos su huella digital en un registro verificable antes de enviarlo.
               </p>
               <p className="text-gray-700">
                 <strong>Protección adicional:</strong> Si alguien (incluso el proveedor) intentara alterar el archivo, nuestro registro público lo detectaría inmediatamente. Este mecanismo proporciona una capa de verificación adicional.
@@ -345,15 +345,15 @@ const ComparisonPage = () => {
               <ul className="space-y-2 ml-6 text-gray-700">
                 <li className="flex items-start">
                   <span className="font-semibold mr-2">• Criptografía:</span>
-                  <span>Hash SHA-256 verificable.</span>
+                  <span>Huella digital única verificable.</span>
                 </li>
                 <li className="flex items-start">
                   <span className="font-semibold mr-2">• Tiempo:</span>
-                  <span>Sello de tiempo criptográfico verificable (TSA independiente).</span>
+                  <span>Sello de tiempo verificable independiente.</span>
                 </li>
                 <li className="flex items-start">
                   <span className="font-semibold mr-2">• Registro Público:</span>
-                  <span>Registro público en blockchain (hoy Polygon/Bitcoin; pronto más redes).</span>
+                  <span>Registro público inalterable verificable.</span>
                 </li>
               </ul>
               <p className="text-gray-700 mt-4">

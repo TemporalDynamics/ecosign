@@ -49,7 +49,6 @@ type DocumentRecord = {
   ecox_hash?: string | null;
   content_hash?: string | null;
   source_hash?: string | null;
-  source_mime?: string | null;
   witness_current_hash?: string | null;
   signed_hash?: string | null;
   created_at?: string;
@@ -87,6 +86,7 @@ type DocumentEntityRow = {
   id: string;
   source_name: string;
   source_hash: string;
+  source_mime?: string | null;
   source_captured_at: string;
   witness_current_hash?: string | null;
   witness_current_storage_path?: string | null;
@@ -212,7 +212,6 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     document_name: entity.source_name,
     document_hash: documentHash,
     content_hash: entity.source_hash,
-    source_mime: entity.source_mime ?? null,
     source_hash: entity.source_hash ?? null,
     witness_current_hash: entity.witness_current_hash ?? null,
     signed_hash: entity.signed_hash ?? null,
@@ -3345,11 +3344,20 @@ function DocumentsPage() {
               </div>
 
               <div className="space-y-4 overflow-y-auto pr-1">
-                <DocumentStateInfo document={previewDoc} />
+                <details className="bg-white border border-gray-200 rounded-lg p-3" open>
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800">
+                    Estado y resumen tecnico
+                  </summary>
+                  <div className="mt-3">
+                    <DocumentStateInfo document={previewDoc} />
+                  </div>
+                </details>
                 {Array.isArray(previewDoc.signers) && previewDoc.signers.length > 0 && (
-                  <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
-                    <div className="font-semibold text-gray-800 mb-2">Firmantes</div>
-                    <div className="space-y-2">
+                  <details className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700" open>
+                    <summary className="cursor-pointer font-semibold text-gray-800">
+                      Firmantes ({previewDoc.signers.length})
+                    </summary>
+                    <div className="space-y-2 mt-3">
                       {(() => {
                         const events = Array.isArray(previewDoc.events) ? previewDoc.events : [];
                         const downloadedBySigner: Record<string, { pdf: boolean; eco: boolean }> = {};
@@ -3365,86 +3373,86 @@ function DocumentsPage() {
                         return [...previewDoc.signers]
                           .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
                           .map((signer, idx) => {
-                          const signerStatusLabel =
-                            signer.status === 'signed'
-                              ? 'Firmado'
-                              : signer.status === 'cancelled'
-                                ? 'Cancelado'
-                                : signer.status === 'rejected'
-                                  ? 'Rechazado'
-                                  : signer.status === 'expired'
-                                    ? 'Expirado'
-                                    : 'Pendiente';
+                            const signerStatusLabel =
+                              signer.status === 'signed'
+                                ? 'Firmado'
+                                : signer.status === 'cancelled'
+                                  ? 'Cancelado'
+                                  : signer.status === 'rejected'
+                                    ? 'Rechazado'
+                                    : signer.status === 'expired'
+                                      ? 'Expirado'
+                                      : 'Pendiente';
 
-                          const isSigned = signer.status === 'signed';
-                          const downloadMap = downloadedBySigner[String(signer.id)] || { pdf: false, eco: false };
-                          return (
-                            <div key={signer.id || `${signer.email}-${idx}`} className="rounded-md border border-gray-100 px-2 py-2">
-                              <div className="text-xs font-semibold text-gray-700">Firmante {idx + 1}</div>
-                              <div className="text-xs text-gray-600 mt-0.5 truncate" title={signer.email}>
-                                {signer.email}
-                              </div>
-                              <div className="text-xs text-gray-600 mt-1">
-                                Estado: <span className="font-semibold text-gray-800">{signerStatusLabel}</span>
-                              </div>
-                              {isSigned && (
-                                <div className="mt-1 text-[11px] text-gray-600 space-y-0.5">
-                                  <div>PDF {downloadMap.pdf ? 'descargado' : 'sin descargar'}</div>
-                                  <div>ECO {downloadMap.eco ? 'descargado' : 'sin descargar'}</div>
+                            const isSigned = signer.status === 'signed';
+                            const downloadMap = downloadedBySigner[String(signer.id)] || { pdf: false, eco: false };
+                            return (
+                              <div key={signer.id || `${signer.email}-${idx}`} className="rounded-md border border-gray-100 px-2 py-2">
+                                <div className="text-xs font-semibold text-gray-700">Firmante {idx + 1}</div>
+                                <div className="text-xs text-gray-600 mt-0.5 truncate" title={signer.email}>
+                                  {signer.email}
                                 </div>
-                              )}
-                              {!isSigned && (
-                                <div className="mt-1 text-[11px] text-gray-500">
-                                  Descarga y acceso disponibles al firmar.
+                                <div className="text-xs text-gray-600 mt-1">
+                                  Estado: <span className="font-semibold text-gray-800">{signerStatusLabel}</span>
                                 </div>
-                              )}
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleSignerRecovery(signer.id, previewDoc)}
-                                  disabled={!isSigned}
-                                  className={`text-[11px] px-2 py-1 rounded border ${
-                                    isSigned
-                                      ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
-                                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                                  }`}
-                                  title={isSigned ? 'Generar nuevo acceso seguro para descarga' : 'Disponible al firmar'}
-                                >
-                                  Acceso de descarga
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSignerDownloadPdf(signer.id, previewDoc)}
-                                  disabled={!isSigned}
-                                  className={`text-[11px] px-2 py-1 rounded border ${
-                                    isSigned
-                                      ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
-                                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                                  }`}
-                                  title={isSigned ? 'Descargar PDF de este firmante' : 'Disponible al firmar'}
-                                >
-                                  PDF
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSignerDownloadEco(signer.id, previewDoc)}
-                                  disabled={!isSigned}
-                                  className={`text-[11px] px-2 py-1 rounded border ${
-                                    isSigned
-                                      ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
-                                      : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                                  }`}
-                                  title={isSigned ? 'Descargar ECO de este firmante' : 'Disponible al firmar'}
-                                >
-                                  ECO
-                                </button>
+                                {isSigned && (
+                                  <div className="mt-1 text-[11px] text-gray-600 space-y-0.5">
+                                    <div>PDF {downloadMap.pdf ? 'descargado' : 'sin descargar'}</div>
+                                    <div>ECO {downloadMap.eco ? 'descargado' : 'sin descargar'}</div>
+                                  </div>
+                                )}
+                                {!isSigned && (
+                                  <div className="mt-1 text-[11px] text-gray-500">
+                                    Descarga y acceso disponibles al firmar.
+                                  </div>
+                                )}
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSignerRecovery(signer.id, previewDoc)}
+                                    disabled={!isSigned}
+                                    className={`text-[11px] px-2 py-1 rounded border ${
+                                      isSigned
+                                        ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
+                                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                    }`}
+                                    title={isSigned ? 'Generar nuevo acceso seguro para descarga' : 'Disponible al firmar'}
+                                  >
+                                    Acceso de descarga
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSignerDownloadPdf(signer.id, previewDoc)}
+                                    disabled={!isSigned}
+                                    className={`text-[11px] px-2 py-1 rounded border ${
+                                      isSigned
+                                        ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
+                                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                    }`}
+                                    title={isSigned ? 'Descargar PDF de este firmante' : 'Disponible al firmar'}
+                                  >
+                                    PDF
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSignerDownloadEco(signer.id, previewDoc)}
+                                    disabled={!isSigned}
+                                    className={`text-[11px] px-2 py-1 rounded border ${
+                                      isSigned
+                                        ? 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
+                                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                    }`}
+                                    title={isSigned ? 'Descargar ECO de este firmante' : 'Disponible al firmar'}
+                                  >
+                                    ECO
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        });
+                            );
+                          });
                       })()}
                     </div>
-                  </div>
+                  </details>
                 )}
                 {(() => {
                   const ecoAvailable = Boolean(
@@ -3452,9 +3460,12 @@ function DocumentsPage() {
                   );
                   return (
                     <>
-
+                <details className="bg-white border border-gray-200 rounded-lg p-3" open>
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800">
+                    Acciones y descargas
+                  </summary>
                 {/* Evidencias del documento */}
-                <div className="grid gap-2">
+                <div className="grid gap-2 mt-3">
                   {/* ECO - Evidencia criptográfica (protagonista) */}
                   <button
                     type="button"
@@ -3521,6 +3532,7 @@ function DocumentsPage() {
                     Agregar a operación
                   </button>
                 </div>
+                </details>
                     </>
                   );
                 })()}
@@ -3567,8 +3579,11 @@ function DocumentsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
               <div className="space-y-4">
-                <div className="border border-gray-200 rounded-xl p-4 bg-white">
-                  <div className="text-sm font-semibold text-gray-900 mb-3">Documentos</div>
+                <details className="border border-gray-200 rounded-xl p-4 bg-white" open>
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-900">
+                    Documentos ({previewOperationDocs.length})
+                  </summary>
+                  <div className="mt-3">
                   {previewOperationLoading ? (
                     <div className="text-sm text-gray-500">Revisando documentos y evidencias recientes…</div>
                   ) : previewOperationDocs.length === 0 ? (
@@ -3584,14 +3599,25 @@ function DocumentsPage() {
                             setPreviewOperation(null);
                             setPreviewDoc(d);
                           }}
+                          onShare={(d) => handleShareDoc(d)}
+                          onDownloadEco={(d) => handleEcoDownload(d)}
+                          onDownloadPdf={(d) => handlePdfDownload(d)}
+                          onDownloadOriginal={(d) => handleOriginalDownload(d)}
+                          onVerify={(d) => handleVerifyDoc(d)}
+                          onCancelFlow={(d) => handleCancelFlow(d)}
+                          onResumeFlow={(d) => handleResumeFlow(d)}
                         />
                       ))}
                     </div>
                   )}
-                </div>
+                  </div>
+                </details>
 
-                <div className="border border-gray-200 rounded-xl p-4 bg-white">
-                  <div className="text-sm font-semibold text-gray-900 mb-3">Borradores</div>
+                <details className="border border-gray-200 rounded-xl p-4 bg-white">
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-900">
+                    Borradores ({previewOperationDrafts.length})
+                  </summary>
+                  <div className="mt-3">
                   {previewOperationLoading ? (
                     <div className="text-sm text-gray-500">Cargando borradores…</div>
                   ) : previewOperationDrafts.length === 0 ? (
@@ -3638,13 +3664,14 @@ function DocumentsPage() {
                       ))}
                     </div>
                   )}
-                </div>
+                  </div>
+                </details>
               </div>
 
               <div className="space-y-4">
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
-                  <div className="font-semibold text-gray-800">Estado global</div>
-                  <div className="text-xs text-gray-600 mt-1">
+                <details className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700" open>
+                  <summary className="cursor-pointer font-semibold text-gray-800">Estado global</summary>
+                  <div className="text-xs text-gray-600 mt-2">
                     {(() => {
                       const total = previewOperationDocs.length;
                       const completed = previewOperationDocs.filter((doc) => {
@@ -3657,9 +3684,11 @@ function DocumentsPage() {
                       return `Faltan completar ${pending} documento${pending === 1 ? "" : "s"}.`;
                     })()}
                   </div>
-                </div>
+                </details>
 
-                <div className="grid gap-2">
+                <details className="border border-gray-200 rounded-lg p-3 text-sm text-gray-700" open>
+                  <summary className="cursor-pointer font-semibold text-gray-800">Acciones de operación</summary>
+                <div className="grid gap-2 mt-3">
                   <button
                     type="button"
                     onClick={() => toast("Compartir operación próximamente", { position: "top-right" })}
@@ -3713,9 +3742,10 @@ function DocumentsPage() {
                     {startingPresentialOperationId === previewOperation.id ? "Iniciando refuerzo..." : "Refuerzo de firma"}
                   </button>
                 </div>
+                </details>
 
-                <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
-                  <div className="font-semibold text-gray-800">Timeline</div>
+                <details className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                  <summary className="cursor-pointer font-semibold text-gray-800">Timeline</summary>
                   <div className="text-xs text-gray-600 mt-2">
                     Operación creada · {formatDate(previewOperation.created_at)}
                   </div>
@@ -3728,7 +3758,7 @@ function DocumentsPage() {
                           ? "Archivada"
                           : "Borrador"}
                   </div>
-                </div>
+                </details>
               </div>
             </div>
           </div>

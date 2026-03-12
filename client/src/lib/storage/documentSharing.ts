@@ -120,8 +120,11 @@ export async function shareDocument(
       }
 
       const sourceBlob = await sourceResp.blob();
+      const sourceFile = new File([sourceBlob], 'share-source', {
+        type: sourceBlob.type || 'application/octet-stream',
+      });
       const documentKey = await generateDocumentKey();
-      const encryptedBlob = await encryptFile(sourceBlob, documentKey);
+      const encryptedBlob = await encryptFile(sourceFile, documentKey);
       const sessionUnwrapKey = getSessionUnwrapKey();
       const { wrappedKey, wrapIv } = await wrapDocumentKey(documentKey, sessionUnwrapKey);
 

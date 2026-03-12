@@ -105,6 +105,12 @@ const LandingPage = () => {
             >
               Proteger mi trabajo
             </Link>
+            <Link
+              to="/how-it-works"
+              className="text-sm font-semibold text-gray-700 hover:text-black underline underline-offset-4"
+            >
+              Ver como funciona (detalle tecnico publico)
+            </Link>
             <p className="text-xs text-gray-500">Sin tarjeta · Plan gratuito · En minutos</p>
           </div>
         </div>
@@ -239,6 +245,65 @@ const LandingPage = () => {
             </p>
             <p className="text-sm text-gray-600 mt-2">
               EcoSign suma una capa de evidencia verificable sobre el flujo.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-24 bg-white">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
+            No se trata solo de firmar
+          </h2>
+          <p className="text-xl text-gray-700 text-center mb-12 max-w-3xl mx-auto">
+            EcoSign agrega respaldo verificable antes, durante y despues de la firma.
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            <div className="rounded-xl border border-gray-200 p-6">
+              <p className="text-sm text-gray-500 mb-2">Riesgo comun</p>
+              <p className="text-black font-semibold mb-3">El archivo circula y se pierde control</p>
+              <p className="text-sm text-gray-600 mb-1">Cobertura EcoSign</p>
+              <p className="text-sm text-gray-700">Trazabilidad de accesos y continuidad de evidencia durante el flujo.</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 p-6">
+              <p className="text-sm text-gray-500 mb-2">Riesgo comun</p>
+              <p className="text-black font-semibold mb-3">Dudas sobre integridad del documento</p>
+              <p className="text-sm text-gray-600 mb-1">Cobertura EcoSign</p>
+              <p className="text-sm text-gray-700">Verificacion por huella para detectar cambios no validos.</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 p-6">
+              <p className="text-sm text-gray-500 mb-2">Riesgo comun</p>
+              <p className="text-black font-semibold mb-3">Post-firma sin respaldo claro</p>
+              <p className="text-sm text-gray-600 mb-1">Cobertura EcoSign</p>
+              <p className="text-sm text-gray-700">Evidencia verificable posterior, lista para auditoria y verificacion.</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-8">
+            <h3 className="text-2xl md:text-3xl font-bold text-black mb-6 text-center">
+              Cadena de respaldo visible
+            </h3>
+            <div className="grid md:grid-cols-4 gap-4 text-center">
+              <div className="rounded-lg bg-white border border-gray-200 p-4">
+                <p className="text-sm text-gray-500 mb-1">Paso 1</p>
+                <p className="text-sm font-semibold text-black">Huella del archivo</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-200 p-4">
+                <p className="text-sm text-gray-500 mb-1">Paso 2</p>
+                <p className="text-sm font-semibold text-black">Sello de tiempo</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-200 p-4">
+                <p className="text-sm text-gray-500 mb-1">Paso 3</p>
+                <p className="text-sm font-semibold text-black">Registro inalterable</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-200 p-4">
+                <p className="text-sm text-gray-500 mb-1">Paso 4</p>
+                <p className="text-sm font-semibold text-black">Verificacion publica</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 text-center mt-6">
+              Resultado: respaldo verificable sin exponer el contenido del documento.
             </p>
           </div>
         </div>

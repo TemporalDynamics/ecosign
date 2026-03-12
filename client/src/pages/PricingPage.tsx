@@ -114,7 +114,7 @@ function PricingPage() {
         { text: 'Documentos por operación', value: 'Hasta 5' },
         { text: 'Almacenamiento', value: '5 GB' },
         { text: 'Protección base', value: 'Incluida' },
-        { text: 'Protección reforzada', value: 'Acelerada' },
+        { text: 'Protección reforzada', value: 'Prioritaria' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
       ],

@@ -2,8 +2,7 @@ import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
-import { FileText, Database, Shield, CheckCircle } from 'lucide-react';
-import InhackeableTooltip from '../components/InhackeableTooltip';
+import { Shield, EyeOff, CheckCircle, FileCode2, Github } from 'lucide-react';
 
 export default function DocumentationPage() {
   return (
@@ -12,113 +11,145 @@ export default function DocumentationPage() {
       
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
-          <PageTitle subtitle="EcoSign no te pide que confíes: te da las herramientas para verificar por tu cuenta. Esta documentación está dirigida a desarrolladores, auditores, peritos forenses y equipos de seguridad que necesitan entender cómo funciona la evidencia en profundidad.">
-            Documentación Técnica de EcoSign
+          <PageTitle subtitle="Superficie tecnica publica para auditar privacidad, evidencia y verificacion. Mostramos lo necesario para validar el sistema sin exponer componentes internos sensibles.">
+            Whitepaper Tecnico Publico
           </PageTitle>
-          
-          {/* Contenedor Portable .ECO */}
+
           <section className="mt-8 mb-12">
             <div className="flex items-center gap-3 mb-4">
-              <FileText className="w-6 h-6 text-[#0A66C2]" />
-              <h2 className="text-2xl font-bold text-black">Contenedor Portable .ECO</h2>
+              <Shield className="w-6 h-6 text-[#0A66C2]" />
+              <h2 className="text-2xl font-bold text-black">Transparencia tecnica con limites claros</h2>
             </div>
             <p className="text-lg text-gray-700 mb-4">
-              El archivo .ECO es un contenedor portable que incluye:
+              Este espacio esta pensado para equipos tecnicos, auditores y seguridad.
+              El objetivo es simple: permitir verificacion independiente sin regalar
+              detalles internos que comprometan seguridad operativa.
             </p>
-            <ul className="space-y-3 text-gray-700 ml-6">
-              <li className="flex items-start gap-3">
-                <span className="text-[#0A66C2] mt-1">•</span>
-                <span>La huella digital (SHA-256)</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-[#0A66C2] mt-1">•</span>
-                <span>El Registro de Operaciones (ChainLog)</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-[#0A66C2] mt-1">•</span>
-                <span>Timestamps legales</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-[#0A66C2] mt-1">•</span>
-                <span>Sellos blockchain</span>
-              </li>
+            <div className="grid md:grid-cols-2 gap-6 mt-6">
+              <div className="rounded-xl border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-black mb-3">Lo que si publicamos</h3>
+                <ul className="space-y-2 text-gray-700">
+                  <li>• Estructura publica de ECO y ECOX.</li>
+                  <li>• Contratos de salida y estados observables.</li>
+                  <li>• Modelo publico de verificacion.</li>
+                  <li>• Integraciones publicas de referencia.</li>
+                </ul>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
+                <h3 className="text-lg font-semibold text-black mb-3">Lo que no publicamos</h3>
+                <ul className="space-y-2 text-gray-700">
+                  <li>• Algoritmos internos sensibles.</li>
+                  <li>• Heuristicas y parametros privados.</li>
+                  <li>• Componentes internos de seguridad en evolucion.</li>
+                  <li>• Detalles que afecten seguridad operativa.</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section className="mb-16">
+            <div className="flex items-center gap-3 mb-6">
+              <EyeOff className="w-8 h-8 text-[#0A66C2]" />
+              <h2 className="text-3xl font-bold text-black">Que puede validar un tecnico hoy</h2>
+            </div>
+            <ul className="space-y-3 text-gray-700">
+              <li>• Que el modelo trabaja sobre huella del documento y evidencia, no sobre lectura de contenido.</li>
+              <li>• Que la evidencia mantiene continuidad observable durante el flujo.</li>
+              <li>• Que el resultado puede verificarse de forma independiente.</li>
+              <li>• Que la estructura ECO/ECOX expone campos publicos auditables.</li>
+              <li>• Que existen rutas publicas para integracion y consumo de contratos.</li>
             </ul>
-            <p className="text-lg text-gray-700 mt-4">
-              No contiene el documento original. Es pequeño, robusto y verificable por cualquier tercero.
-            </p>
           </section>
 
-          {/* Registro de Operaciones */}
           <section className="mb-16">
             <div className="flex items-center gap-3 mb-6">
-              <Database className="w-8 h-8 text-[#0A66C2]" />
-              <h2 className="text-3xl font-bold text-black">Registro de Operaciones (ChainLog)</h2>
+              <FileCode2 className="w-8 h-8 text-[#0A66C2]" />
+              <h2 className="text-3xl font-bold text-black">Repositorio tecnico publico</h2>
             </div>
-            <p className="text-lg text-gray-700 mb-4">
-              Cada acción relevante (firma, envío, apertura, validación) se registra en un log append-only.
-            </p>
-            <p className="text-lg text-gray-700">
-              Esto garantiza una Cadena de Custodia clara y una trazabilidad imposible de modificar.
+            <div className="space-y-4">
+              <a
+                href="https://github.com/TemporalDynamics/ecosign/blob/main/docs/public/HOW_IT_WORKS_TECHNICAL.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-xl border border-gray-200 p-5 hover:border-gray-400 transition"
+              >
+                <p className="font-semibold text-black">How it works (technical)</p>
+                <p className="text-gray-700 text-sm mt-1">
+                  Narrativa tecnica completa con referencias de codigo publico.
+                </p>
+              </a>
+              <a
+                href="https://github.com/TemporalDynamics/ecosign/tree/main/docs/public"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-xl border border-gray-200 p-5 hover:border-gray-400 transition"
+              >
+                <p className="font-semibold text-black">docs/public</p>
+                <p className="text-gray-700 text-sm mt-1">
+                  Hub principal de documentacion tecnica publica y contratos no sensibles.
+                </p>
+              </a>
+              <a
+                href="https://github.com/TemporalDynamics/ecosign/blob/main/docs/public/EPI_PUBLIC_SPEC.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-xl border border-gray-200 p-5 hover:border-gray-400 transition"
+              >
+                <p className="font-semibold text-black">EPI Public Spec</p>
+                <p className="text-gray-700 text-sm mt-1">
+                  Garantias publicas de estados deterministas y consistencia verificable.
+                </p>
+              </a>
+              <a
+                href="https://github.com/TemporalDynamics/ecosign/tree/main/packages/eco-packer-public"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-xl border border-gray-200 p-5 hover:border-gray-400 transition"
+              >
+                <p className="font-semibold text-black">eco-packer-public</p>
+                <p className="text-gray-700 text-sm mt-1">
+                  Superficie publica para integracion: tipos, contratos y stubs auditables.
+                </p>
+              </a>
+            </div>
+          </section>
+
+          <section className="mb-8 rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="w-5 h-5 text-[#0A66C2]" />
+              <p className="font-semibold text-black">Resumen operativo</p>
+            </div>
+            <p className="text-gray-700">
+              EcoSign publica una superficie tecnica suficiente para auditar promesas de privacidad y verificacion.
+              La implementacion interna del motor permanece reservada por seguridad.
             </p>
           </section>
 
-          {/* Blindaje Inhackeable */}
-          <section className="mb-16">
-            <div className="flex items-center gap-3 mb-6">
-              <Shield className="w-8 h-8 text-[#0A66C2]" />
-              <h2 className="text-3xl font-bold text-black flex items-center gap-2">
-                Blindaje <InhackeableTooltip className="font-semibold" />
-              </h2>
-            </div>
-            <p className="text-lg text-gray-700 mb-4">
-              EcoSign combina tres capas para que tu evidencia quede inhackeable:
-            </p>
-            <ul className="space-y-3 text-gray-700 ml-6">
-              <li className="flex items-start gap-3">
-                <span className="text-[#0A66C2] mt-1">•</span>
-                <span>Huella SHA-256 (integridad del documento)</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-[#0A66C2] mt-1">•</span>
-                <span>Sello de tiempo verificable (TSA independiente)</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-[#0A66C2] mt-1">•</span>
-                <span>Anchoring en blockchain pública (hoy Polygon y Bitcoin; pronto más redes)</span>
-              </li>
-            </ul>
-            <p className="text-lg text-gray-700 mt-4">
-              Esta estructura asegura inmutabilidad y fecha cierta legal.
+          <section className="mb-8 rounded-xl border border-gray-200 bg-gray-50 p-6">
+            <p className="text-sm text-gray-700">
+              Nota: algunos componentes del sistema estan en proceso de registro de derechos intelectuales.
+              Durante ese proceso, publicamos solo la superficie tecnica necesaria para auditoria externa.
             </p>
           </section>
 
-          {/* Verificación Independiente */}
-          <section className="mb-16">
-            <div className="flex items-center gap-3 mb-6">
-              <CheckCircle className="w-8 h-8 text-[#0A66C2]" />
-              <h2 className="text-3xl font-bold text-black">Verificación Independiente</h2>
-            </div>
-            <p className="text-lg text-gray-700 mb-4">
-              Cualquier persona puede validar un archivo .ECO sin depender de EcoSign.
-            </p>
-            <p className="text-lg text-gray-700">
-              El verificador reproduce la evidencia y determina si el documento fue alterado.
-            </p>
-          </section>
-
-          {/* CTA */}
           <div className="text-center pt-8 border-t border-gray-200">
-            <p className="text-lg text-gray-700 mb-6">
-              Para profundizar en los detalles técnicos de implementación:
-            </p>
-            <a
-              href="https://github.com/TemporalDynamics/ecosign/blob/main/COMO%20LO%20HACEMOS.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block bg-black text-white px-8 py-4 rounded-lg font-semibold hover:bg-gray-800 transition"
-            >
-              Ver Documentación en GitHub
-            </a>
+            <div className="flex flex-wrap justify-center gap-3">
+              <a
+                href="https://github.com/TemporalDynamics/ecosign/tree/main/docs/public"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-black text-white px-8 py-4 rounded-lg font-semibold hover:bg-gray-800 transition"
+              >
+                <Github className="w-4 h-4" />
+                Abrir GitHub tecnico
+              </a>
+              <Link
+                to="/how-it-works"
+                className="inline-block border border-gray-300 text-gray-800 px-8 py-4 rounded-lg font-semibold hover:border-black hover:text-black transition"
+              >
+                Volver a Como funciona
+              </Link>
+            </div>
           </div>
         </div>
       </main>

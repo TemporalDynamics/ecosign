@@ -451,3 +451,35 @@ Error 401: ✅ RESUELTO (JWT habilitado + token automático)
 - Usuarios no técnicos entienden que un ECO puede validar una etapa anterior/posterior del mismo proceso.
 - Verificador queda como puerta de entrada confiable (sin lenguaje técnico innecesario).
 - EPI2 no se pierde silenciosamente en flujos de firma.
+
+---
+
+## Iteración 2026-03-12 — Security Advisor Hardening (post‑beta prep)
+
+### Contexto
+- Security Advisor pasó de errores críticos a warnings de hardening.
+- Objetivo: cerrar superficie real de exposición y dejar documentadas las decisiones intencionales.
+
+### Decisiones
+- **Activar leaked password protection** en Supabase Auth (defensa barata y efectiva).
+- **Aceptar warnings de service_role** en tablas internas (audit logs, ecox audit, integrations, notifications).
+- **Aceptar inserts públicos** en `contact_leads` y `conversion_events` como decisión de producto (formularios/eventos públicos).
+- **Mantener “RLS enabled, no policy”** en tablas internas como estrategia “deny-by-default”.
+
+### Implementado
+- Migraciones de hardening RLS + vistas `SECURITY DEFINER` → `security_invoker`.
+- Fix de `function_search_path_mutable` con `SET search_path = public, pg_catalog`.
+- Fix de policy permisiva en `signature_workflows` (signers update).
+- Eliminación de UPDATE abierto en `contact_leads`.
+
+### Evidencia (archivos)
+- `supabase/migrations/20260311153000_security_advisor_hardening.sql`
+- `supabase/migrations/20260311160000_fix_function_search_path.sql`
+- `supabase/migrations/20260311163000_fix_permissive_rls_policies.sql`
+
+### Pendiente (manual)
+- Activar leaked password protection en Dashboard (Auth → Passwords).
+
+### Resultado esperado
+- 0 errores críticos en Security Advisor.
+- Warnings restantes explícitamente aceptados por decisión de producto.

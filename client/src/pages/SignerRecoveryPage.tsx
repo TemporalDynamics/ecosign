@@ -21,6 +21,8 @@ const RecoveryPage: React.FC = () => {
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false);
+  const [ecoDownloaded, setEcoDownloaded] = useState(false);
   const [claimStatus, setClaimStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [claimMessage, setClaimMessage] = useState<string | null>(null);
   const [userReady, setUserReady] = useState(false);
@@ -139,6 +141,8 @@ const RecoveryPage: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(blobUrl);
+      if (resource === 'pdf') setPdfDownloaded(true);
+      if (resource === 'eco') setEcoDownloaded(true);
     } catch (err: any) {
       setDownloadError(err?.message || 'No se pudo descargar el archivo.');
     }
@@ -273,12 +277,14 @@ const RecoveryPage: React.FC = () => {
             >
               Descargar PDF de esta etapa
             </button>
+            <p className="text-[11px] text-gray-500">{pdfDownloaded ? 'PDF descargado.' : 'Aún no descargaste el PDF.'}</p>
             <button
               onClick={() => downloadResource('eco')}
               className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
             >
               Descargar evidencia ECO
             </button>
+            <p className="text-[11px] text-gray-500">{ecoDownloaded ? 'ECO descargado.' : 'Aún no descargaste la evidencia ECO.'}</p>
             {downloadError && <p className="text-xs text-red-600">{downloadError}</p>}
 
             <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
@@ -289,7 +295,7 @@ const RecoveryPage: React.FC = () => {
                   <button
                     onClick={claimToAccount}
                     disabled={claimStatus === 'saving' || claimStatus === 'saved'}
-                    className="mt-2 rounded-md bg-black text-white px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                    className="mt-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 hover:border-blue-400 hover:text-blue-700 disabled:opacity-50"
                   >
                     {claimStatus === 'saved' ? 'Guardado' : claimStatus === 'saving' ? 'Guardando…' : 'Guardar en mi cuenta'}
                   </button>
@@ -300,10 +306,10 @@ const RecoveryPage: React.FC = () => {
                   <div className="font-semibold">Guardar en tu cuenta</div>
                   <p className="mt-1">Iniciá sesión o creá una cuenta gratuita para conservar esta evidencia.</p>
                   <div className="mt-2 flex gap-2">
-                    <a href="/login?mode=login" className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                    <a href="/login?mode=login" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-blue-400 hover:text-blue-700">
                       Iniciar sesión
                     </a>
-                    <a href="/login?mode=signup" className="rounded-md bg-black px-3 py-1.5 text-xs font-semibold text-white">
+                    <a href="/login?mode=signup" className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-blue-400 hover:text-blue-700">
                       Crear cuenta
                     </a>
                   </div>

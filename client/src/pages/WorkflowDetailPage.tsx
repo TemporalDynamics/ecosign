@@ -549,9 +549,9 @@ export default function WorkflowDetailPage() {
       const recoveryUrl = String(data.recoveryUrl)
       try {
         await navigator.clipboard.writeText(recoveryUrl)
-        toast.success('Link de recuperación copiado al portapapeles.')
+        toast.success('Acceso de descarga copiado al portapapeles.')
       } catch {
-        window.prompt('Copiá el link de recuperación:', recoveryUrl)
+        window.prompt('Copiá el acceso de descarga:', recoveryUrl)
       }
     } catch (err: any) {
       toast.error(err?.message || 'No se pudo generar el acceso de descarga')

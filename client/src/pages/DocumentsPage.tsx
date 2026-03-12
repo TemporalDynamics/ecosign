@@ -1927,12 +1927,12 @@ function DocumentsPage() {
       const recoveryUrl = String(data.recoveryUrl);
       try {
         await navigator.clipboard.writeText(recoveryUrl);
-        toast.success('Link de acceso copiado.', { position: 'top-right' });
+        toast.success('Acceso de descarga copiado.', { position: 'top-right' });
       } catch {
-        window.prompt('Copiá el link de recuperación:', recoveryUrl);
+        window.prompt('Copiá el acceso de descarga:', recoveryUrl);
       }
     } catch (err: any) {
-      toast.error(err?.message || 'No se pudo reenviar el acceso', { position: 'top-right' });
+      toast.error(err?.message || 'No se pudo generar el acceso de descarga', { position: 'top-right' });
     }
   };
 

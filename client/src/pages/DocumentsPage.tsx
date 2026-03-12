@@ -49,6 +49,7 @@ type DocumentRecord = {
   ecox_hash?: string | null;
   content_hash?: string | null;
   source_hash?: string | null;
+  source_mime?: string | null;
   witness_current_hash?: string | null;
   signed_hash?: string | null;
   created_at?: string;
@@ -76,6 +77,7 @@ type DocumentRecord = {
   witness_history?: any[];
   signer_links?: any[];
   source_storage_path?: string | null;
+  source_mime?: string | null;
   custody_mode?: 'hash_only' | 'encrypted_custody' | null;
   workflows?: { id: string; status: 'draft' | 'ready' | 'active' | 'completed' | 'cancelled' | 'rejected' | 'archived' }[];
   signers?: { id: string; status: 'pending' | 'ready' | 'signed' | 'requested_changes' | 'skipped' | 'cancelled' | 'rejected' | 'expired'; order: number; name?: string | null; email: string }[];
@@ -210,12 +212,14 @@ const mapDocumentEntityToRecord = (entity: DocumentEntityRow): DocumentRecord =>
     document_name: entity.source_name,
     document_hash: documentHash,
     content_hash: entity.source_hash,
+    source_mime: entity.source_mime ?? null,
     source_hash: entity.source_hash ?? null,
     witness_current_hash: entity.witness_current_hash ?? null,
     signed_hash: entity.signed_hash ?? null,
     created_at: entity.created_at || entity.source_captured_at,
     pdf_storage_path: entity.witness_current_storage_path ?? null,
     source_storage_path: entity.source_storage_path ?? null,
+    source_mime: entity.source_mime ?? null,
     status: null,
     signed_authority: entity.signed_authority ?? null,
     custody_mode: entity.custody_mode ?? null,
@@ -667,7 +671,7 @@ function DocumentsPage() {
           .from("document_entities")
           .select(
             `id, source_name, source_hash, source_captured_at,
-             source_storage_path, witness_current_hash,
+             source_storage_path, source_mime, witness_current_hash,
              witness_current_storage_path, signed_hash, signed_authority,
              composite_hash, custody_mode, created_at, updated_at,
              metadata, events, witness_history`
@@ -1837,31 +1841,46 @@ function DocumentsPage() {
       // Descifrar usando la clave derivada del userId (custody cifrado)
       const encryptedData = await encryptedBlob.arrayBuffer();
 
-      // Determinar MIME type basado en la extensión del nombre original
-      const extension = doc.document_name.split('.').pop()?.toLowerCase() || '';
       const mimeTypes: Record<string, string> = {
-        'pdf': 'application/pdf',
-        'png': 'image/png',
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'gif': 'image/gif',
-        'webp': 'image/webp',
-        'txt': 'text/plain',
-        'md': 'text/markdown',
-        'doc': 'application/msword',
-        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        pdf: 'application/pdf',
+        png: 'image/png',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        gif: 'image/gif',
+        webp: 'image/webp',
+        txt: 'text/plain',
+        md: 'text/markdown',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       };
-      const originalMime = mimeTypes[extension] || 'application/octet-stream';
+
+      const extension = doc.document_name.split('.').pop()?.toLowerCase() || '';
+      const originalMime = doc.source_mime || mimeTypes[extension] || 'application/octet-stream';
+
+      const extensionByMime: Record<string, string> = {
+        'application/pdf': 'pdf',
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+        'image/gif': 'gif',
+        'image/webp': 'webp',
+        'text/plain': 'txt',
+        'text/markdown': 'md',
+        'application/msword': 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+      };
+      const targetExtension = extensionByMime[originalMime] || extension || 'bin';
+      const baseName = (doc.document_name || 'documento').replace(/\.[^.]+$/, '');
+      const downloadName = `${baseName}.${targetExtension}`;
 
       const decryptedFile = await decryptCustodyFile(
         encryptedData,
         user.id,
         originalMime,
-        doc.document_name
+        downloadName
       );
 
       console.log('[handleOriginalDownload] Decrypted file:', decryptedFile.size, 'bytes');
-      triggerDownload(decryptedFile, doc.document_name);
+      triggerDownload(decryptedFile, downloadName);
 
     } catch (err) {
       console.error("Error descargando original cifrado:", err);

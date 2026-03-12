@@ -55,14 +55,14 @@ const LandingPage = () => {
         </div>
       </header>
 
-      {/* 2. VIDEO - Cómo funciona */}
+      {/* 2. VIDEO - Protección del trabajo */}
       <section className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-4">
-            Cómo funciona
+            Cómo protegés tu trabajo
           </h2>
           <p className="text-xl text-gray-600 mb-12">
-            Entendelo con calma. Usalo cuando lo necesites.
+            Entendelo en minutos. Aplicalo en cada documento importante.
           </p>
           <p className="text-sm text-gray-500 max-w-3xl mx-auto mb-8">
             Nota: En este video se utilizan conceptos generales para explicar el modelo de EcoSign.
@@ -155,14 +155,14 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* 3. DEMO EN ACCIÓN - Video como evidencia */}
+      {/* 3. DEMO EN ACCIÓN - Protección en flujo real */}
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
-            Mirá EcoSign en acción
+            Protección en acción
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 leading-relaxed">
-            Así se ve el flujo real de EcoSign, sin atajos ni simulaciones.
+            Así se ve el flujo real de protección de EcoSign, sin atajos ni simulaciones.
           </p>
           
           <div className="mb-8 max-w-5xl mx-auto">
@@ -176,21 +176,21 @@ const LandingPage = () => {
           </div>
 
           <ul className="space-y-3 text-lg text-gray-700 max-w-2xl mx-auto">
-            <li>• Documento nunca expuesto</li>
-            <li>• Evidencia generada automáticamente</li>
-            <li>• Resultado descargable y verificable</li>
+            <li>• Tu documento se mantiene privado</li>
+            <li>• La evidencia se genera automáticamente</li>
+            <li>• El resultado se descarga y verifica cuando lo necesitás</li>
           </ul>
         </div>
       </section>
 
-      {/* 5. FIRMAS INDIVIDUALES/MÚLTIPLES - Video como evidencia */}
+      {/* 5. Protección individual y colaborativa */}
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
-            Firmas individuales, múltiples o en cadena.
+            Protección individual o colaborativa.
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 leading-relaxed">
-            El mismo proceso, incluso cuando intervienen múltiples firmantes.
+            El mismo criterio de evidencia, incluso cuando participan varias personas.
           </p>
           
           <div className="mb-8 max-w-5xl mx-auto">
@@ -204,7 +204,7 @@ const LandingPage = () => {
           </div>
 
           <p className="text-lg text-gray-700 text-center max-w-2xl mx-auto">
-            EcoSign gestiona el orden, el envío y el registro sin intervención manual.
+            EcoSign gestiona orden, acceso y registro para que puedas enfocarte en tu trabajo.
           </p>
         </div>
       </section>

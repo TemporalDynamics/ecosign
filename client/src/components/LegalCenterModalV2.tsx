@@ -2126,6 +2126,18 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       // ========================================
       // PASO 1: Convertir signatureFields + signaturePreview a overlay_spec
       let fileToProcess = file;
+      const normalizedRotation = ((previewRotation % 360) + 360) % 360;
+      if (normalizedRotation !== 0 && fileToProcess.type === 'application/pdf') {
+        try {
+          fileToProcess = new File(
+            [new Uint8Array(await rotatePdf(fileToProcess, normalizedRotation)).buffer as ArrayBuffer],
+            file.name,
+            { type: fileToProcess.type || 'application/pdf' }
+          );
+        } catch (err) {
+          console.warn('⚠️ No se pudo rotar el PDF antes del stamping. Continuando sin rotación:', err);
+        }
+      }
 
       const signatureOverlay =
         signaturePreview

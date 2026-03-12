@@ -153,27 +153,42 @@ function SignersList({
                   </span>
                 </div>
               )}
-              {/* Owner: download signer's evidence */}
-              {hasSigned && documentEntityId && (
+              {/* Owner: signer evidence actions (enabled only after signature) */}
+              {documentEntityId && (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => onOwnerResendRecovery(s.id)}
-                    title="Reenviar acceso seguro al firmante"
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    onClick={() => hasSigned && onOwnerResendRecovery(s.id)}
+                    disabled={!hasSigned}
+                    title={hasSigned ? 'Generar nuevo acceso seguro de descarga' : 'Disponible al firmar'}
+                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium ${
+                      hasSigned
+                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
                   >
-                    Reenviar acceso
+                    Acceso de descarga
                   </button>
                   <button
-                    onClick={() => onOwnerDownloadPdf(s.id)}
-                    title="Descargar PDF de este firmante"
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    onClick={() => hasSigned && onOwnerDownloadPdf(s.id)}
+                    disabled={!hasSigned}
+                    title={hasSigned ? 'Descargar PDF de este firmante' : 'Disponible al firmar'}
+                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium ${
+                      hasSigned
+                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
                   >
                     <Download className="h-3.5 w-3.5" /> PDF
                   </button>
                   <button
-                    onClick={() => onOwnerDownloadEco(s.id)}
-                    title="Descargar ECO de este firmante"
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    onClick={() => hasSigned && onOwnerDownloadEco(s.id)}
+                    disabled={!hasSigned}
+                    title={hasSigned ? 'Descargar ECO de este firmante' : 'Disponible al firmar'}
+                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium ${
+                      hasSigned
+                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
                   >
                     <Download className="h-3.5 w-3.5" /> ECO
                   </button>

@@ -154,6 +154,11 @@ function SignersList({
                   </span>
                 </div>
               )}
+              {!hasSigned && documentEntityId && (
+                <div className="text-[11px] text-gray-500">
+                  Descarga y acceso disponibles al firmar.
+                </div>
+              )}
               {/* Owner: signer evidence actions (enabled only after signature) */}
               {documentEntityId && (
                 <div className="flex items-center gap-2">

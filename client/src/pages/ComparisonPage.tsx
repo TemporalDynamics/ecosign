@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Shield, CheckCircle, Lock, Anchor } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import FooterPublic from '../components/FooterPublic';
-import InhackeableTooltip from '../components/InhackeableTooltip';
+import Header from '../components/Header';
 
 const ComparisonPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -11,66 +11,13 @@ const ComparisonPage = () => {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Navigation */}
-      <nav className="bg-white fixed w-full top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <span className="text-2xl font-bold text-[#0E4B8B]">EcoSign</span>
-            </Link>
-            <div className="hidden md:flex items-center space-x-8">
-              <Link to="/how-it-works" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Cómo funciona
-              </Link>
-              <Link to="/verify" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Verificador
-              </Link>
-              <Link to="/pricing" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Precios
-              </Link>
-              <Link to="/login" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200">
-                Iniciar Sesión
-              </Link>
-              <Link
-                to="/login"
-                className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2.5 rounded-lg transition duration-300"
-              >
-                Comenzar Gratis
-              </Link>
-            </div>
-            <button
-              className="md:hidden text-gray-600 hover:text-black"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-white">
-            <div className="px-4 pt-2 pb-4 space-y-2">
-              <Link to="/how-it-works" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Cómo funciona</Link>
-              <Link to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificador</Link>
-              <Link to="/pricing" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Precios</Link>
-              <Link to="/login" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Iniciar Sesión</Link>
-              <Link
-                to="/login"
-                className="block bg-black hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg text-center mt-2"
-              >
-                Comenzar Gratis
-              </Link>
-            </div>
-          </div>
-        )}
-      </nav>
+      <Header variant="public" />
 
       {/* Hero Section */}
       <header className="pt-32 pb-24 md:pt-40 md:pb-32 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
           <h1 className="text-[54px] sm:text-6xl lg:text-7xl font-bold leading-tight text-black mb-8">
-            Firma Técnica y Firma Legal Regulada
+            Firma Legal y Firma Certificada
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
             Dos niveles de protección. Una misma tecnología de evidencia verificable.
@@ -100,7 +47,7 @@ const ComparisonPage = () => {
                   Productividad Ilimitada con Evidencia Técnica
                 </h3>
                 <p className="text-gray-700 mb-6">
-                  La firma técnica de integridad diseñada para eliminar la fricción y los costos ocultos, sin sacrificar la seguridad técnica.
+                  La firma legal diseñada para eliminar la fricción y los costos ocultos, sin sacrificar la seguridad técnica.
                 </p>
 
                 <h4 className="font-semibold text-black mb-3">Por qué elegirla:</h4>
@@ -111,11 +58,11 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Más que una Firma Simple:</strong> A diferencia de las firmas básicas del mercado, la firma técnica captura un rastro de auditoría completo y protege tu documento con registro inalterable.</span>
+                    <span><strong>Más que una Firma Simple:</strong> A diferencia de las firmas básicas del mercado, la firma legal captura un rastro de auditoría completo y protege tu documento con registro inalterable.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><InhackeableTooltip className="font-semibold" /> en cada documento: huella digital única, sello de tiempo verificable y registro inalterable.</span>
+                    <span><strong>Verificable por peritos:</strong> huella digital única, sello de tiempo verificable y registro inalterable en cada documento.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -129,7 +76,7 @@ const ComparisonPage = () => {
               </div>
               <div className="flex items-center justify-center">
                 <div className="bg-white p-6 rounded-lg border-2 border-gray-200 text-center max-w-sm">
-                  <div className="text-4xl font-bold text-black mb-2">Firma Técnica</div>
+                  <div className="text-4xl font-bold text-black mb-2">Firma Legal</div>
                   <div className="text-gray-700 mb-4">Firma Electrónica Avanzada Reforzada</div>
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-700">Documentos privados • Evidencia verificable • Sin límites</p>
@@ -142,7 +89,7 @@ const ComparisonPage = () => {
           {/* LegalSign Section */}
           <div className="bg-blue-50 p-8 md:p-12 rounded-xl">
             <div className="text-center mb-8">
-              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">Firma Legal Regulada (El "Tanque Legal")</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-black mb-2">Firma Certificada (El "Tanque Legal")</h2>
               <p className="text-xl text-gray-700 mb-4">Ideal para: Contratos de Alto Valor, Disputas Legales Potenciales, Cumplimiento Normativo Estricto.</p>
               <div className="w-16 h-1 bg-black mx-auto"></div>
             </div>
@@ -151,17 +98,17 @@ const ComparisonPage = () => {
               <div>
                 <h3 className="text-xl font-semibold text-black mb-4 flex items-center">
                   <Shield className="w-5 h-5 text-[#0E4B8B] mr-3" />
-                  Proveedor Externo Acreditado + Evidencia Técnica <InhackeableTooltip className="font-semibold" />
+                  Proveedor Externo Acreditado + Evidencia Técnica Verificable
                 </h3>
                 <p className="text-gray-700 mb-6">
-                  Combinamos la firma legal regulada de SignNow (proveedor global acreditado) con nuestra tecnología de evidencia verificable para crear la protección más robusta del mercado.
+                  Combinamos la firma certificada de SignNow (proveedor global acreditado) con nuestra tecnología de evidencia verificable para crear la protección más robusta del mercado.
                 </p>
 
                 <h4 className="font-semibold text-black mb-3">Por qué elegirla:</h4>
                 <ul className="space-y-3">
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Firma Legal Regulada:</strong> Utilizamos proveedor externo acreditado para firmas con validez jurídica según normativas internacionales.</span>
+                    <span><strong>Firma Certificada:</strong> Utilizamos proveedor externo acreditado para firmas con validez jurídica según normativas internacionales.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -169,7 +116,7 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Evidencia Técnica <InhackeableTooltip className="font-semibold" />:</strong> Encapsulamos la firma en nuestro contenedor de protección legal con huella digital, sello de tiempo verificable y registro inalterable.</span>
+                    <span><strong>Evidencia Técnica Verificable:</strong> Encapsulamos la firma en nuestro contenedor de protección legal con huella digital, sello de tiempo verificable y registro inalterable.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -177,13 +124,13 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Especificación:</strong> Firma Legal Regulada (QES/AES vía Proveedor) + Evidencia Técnica Verificable. La máxima protección posible para transacciones donde el riesgo no es una opción.</span>
+                    <span><strong>Especificación:</strong> Firma Certificada (QES/AES vía Proveedor) + Evidencia Técnica Verificable. La máxima protección posible para transacciones donde el riesgo no es una opción.</span>
                   </li>
                 </ul>
               </div>
               <div className="flex items-center justify-center">
                 <div className="bg-white p-6 rounded-lg border-2 border-gray-200 text-center max-w-sm">
-                  <div className="text-4xl font-bold text-black mb-2">Firma Legal Regulada</div>
+                  <div className="text-4xl font-bold text-black mb-2">Firma Certificada</div>
                   <div className="text-gray-700 mb-4">Firma Regulada + Evidencia Técnica</div>
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <p className="text-sm text-gray-700">Proveedor acreditado • Presunción legal • Máxima protección</p>

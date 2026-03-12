@@ -89,7 +89,11 @@ export default function DocumentRow({
           <StatusBadge label={state.label} phase={state.phase} tooltip={tooltip} />
         </div>
 
-        <div className="flex items-center justify-end gap-3" data-row-actions>
+        <div
+          className="flex items-center justify-end gap-3"
+          data-row-actions
+          onClick={(e) => e.stopPropagation()}
+        >
           <button onClick={() => onOpen && onOpen(document)} className="text-black hover:text-gray-600" title="Ver detalle"><Eye className="h-5 w-5" /></button>
           <button onClick={() => onShare ? onShare(document) : toast('No disponible')} className="text-black hover:text-gray-600" title="Compartir"><Share2 className="h-5 w-5" /></button>
 

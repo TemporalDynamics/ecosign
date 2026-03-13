@@ -1,10 +1,52 @@
-# EcoSign — How It Works
+# EcoSign — How It Works (Technical)
 
-## A Public Explanation of the Philosophy, Technical Model, and Verifiable Guarantees Behind EcoSign
+**This document has been split into two specialized documents:**
 
-**Status:** public-safe  
-**Audience:** engineering, security, audit, integration teams, and anyone who believes digital work deserves better  
-**Last Updated:** 2026-03-11
+1. **[How EcoSign Works](./HOW_IT_WORKS.md)** — Philosophy and public model (for non-technical readers)
+2. **[Public Validation Contract](./PUBLIC_VALIDATION_CONTRACT.md)** — Technical assertions and verification methods (for engineers, auditors)
+
+---
+
+## Why Two Documents?
+
+The original document tried to serve two audiences with different needs:
+
+- **Non-technical readers** wanted to understand the philosophy and why EcoSign exists.
+- **Technical readers** wanted precise, auditable claims they could verify.
+
+We've separated these into two documents so each can serve its audience better.
+
+---
+
+## Which Document Should You Read?
+
+### Read [How EcoSign Works](./HOW_IT_WORKS.md) if you:
+- Want to understand the philosophy behind EcoSign
+- Are a founder, product manager, or non-technical user
+- Want a clear explanation without code
+- Want to understand what makes EcoSign different
+
+### Read [Public Validation Contract](./PUBLIC_VALIDATION_CONTRACT.md) if you:
+- Are an engineer, security auditor, or integration specialist
+- Want precise, verifiable technical claims
+- Need to audit EcoSign's public technical surface
+- Want to understand what can be validated independently
+
+---
+
+## Original Content
+
+The content from this document has been redistributed:
+
+- **Philosophy and principles** → [How EcoSign Works](./HOW_IT_WORKS.md)
+- **Technical specifications** → [Public Validation Contract](./PUBLIC_VALIDATION_CONTRACT.md)
+- **Educational sections (TSA, Anchoring, Encryption)** → Both documents (simplified in HOW_IT_WORKS, detailed in PUBLIC_VALIDATION_CONTRACT)
+
+---
+
+**Last Updated:** 2026-03-11  
+**Status:** Redirect to specialized documents  
+**Contact:** support@email.ecosign.app
 
 ---
 

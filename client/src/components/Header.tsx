@@ -24,7 +24,7 @@ const PublicNavDesktop = () => (
       to="/login"
       className="border border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold px-4 py-2 rounded-lg transition duration-200 flex items-center h-10"
     >
-      Iniciar Sesión
+      Ingresar
     </Link>
   </>
 );
@@ -36,7 +36,7 @@ const PrivateNavDesktop = ({ openLegalCenter }: { openLegalCenter: () => void; }
     { label: 'Centro Legal', onClick: openLegalCenter },
     { label: 'Documentos', to: '/documentos' },
     { label: 'Verificador', to: '/verificador' },
-    { label: 'Mi cuenta', to: '/planes' },
+    { label: 'Mis planes', to: '/planes' },
   ];
 
   return (
@@ -76,7 +76,7 @@ const PublicNavMobile = ({ setMobileMenuOpen }: { setMobileMenuOpen: (value: boo
           to="/login"
           className="block border border-[#0E4B8B] text-[#0E4B8B] hover:bg-[#0E4B8B] hover:text-white font-semibold px-3 py-2 rounded-lg text-center"
         >
-          Iniciar Sesión
+          Ingresar
         </Link>
     </div>
 );
@@ -88,7 +88,7 @@ const PrivateNavMobile = ({ openLegalCenter, setMobileMenuOpen }: { openLegalCen
         { label: 'Centro Legal', action: () => openLegalCenter() },
         { label: 'Documentos', to: '/documentos' },
         { label: 'Verificador', to: '/verificador' },
-        { label: 'Mi cuenta', to: '/planes' },
+        { label: 'Mis planes', to: '/planes' },
     ];
 
     return (

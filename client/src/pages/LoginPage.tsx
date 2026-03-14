@@ -76,14 +76,14 @@ function LoginPage() {
         if (error) throw error;
 
         console.log('✅ Login exitoso:', data.user.email);
-        
+
         // Inicializar sesión crypto inmediatamente después del login
         setCryptoInitializing(true);
         await initializeSessionCrypto(data.user.id);
         console.log('✅ Sesión crypto inicializada para:', data.user.id);
-        
+
         disableGuestMode();
-        setSuccess('¡Bienvenido de nuevo!');
+        setSuccess('Tu trabajo está protegido. Bienvenido.');
 
         // Redirigir a la página de inicio cuando crypto esté listo
         const claimQuery = claimToken ? `?claim=${encodeURIComponent(claimToken)}` : '';
@@ -111,7 +111,7 @@ function LoginPage() {
         if (error) throw error;
 
         console.log('✅ Registro exitoso:', data.user?.email);
-        setSuccess('¡Cuenta creada! Por favor revisa tu email para confirmar tu cuenta.');
+        setSuccess('¡Listo! Tu primer trabajo te espera. Revisá tu email para activar tu cuenta.');
 
         // Limpiar formulario
         setFormData({ email: '', password: '', confirmPassword: '' });
@@ -151,23 +151,23 @@ function LoginPage() {
                 <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" strokeLinecap="round" strokeLinejoin="round"></path>
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-black mb-2">EcoSign</h1>
-            <p className="text-gray-600">Certificación digital con privacidad total</p>
+            <h1 className="text-3xl font-bold text-black mb-2">Protegé tu trabajo</h1>
+            <p className="text-gray-600">Empezá acá. En minutos tenés evidencia verificable.</p>
           </div>
 
         <div className="bg-white p-8 rounded-xl border-2 border-gray-200">
           <h2 className="text-2xl font-bold text-center text-black mb-2">
-            {isLogin ? 'Iniciar Sesión' : 'Creá tu cuenta gratuita'}
+            {isLogin ? 'Ingresar' : 'Empezar a proteger'}
           </h2>
           <p className="text-gray-600 text-center mb-6">
             {isLogin
-              ? 'Accede a tu panel de control y gestiona tus documentos.'
-              : 'Accedé al plan gratuito de EcoSign. No pedimos tarjeta ni datos de pago.'}
+              ? 'Accedé a tu panel y gestioná tu trabajo protegido.'
+              : 'Creá tu cuenta gratis. Sin tarjeta. Protegé tu primer documento en minutos.'}
           </p>
           {!isLogin && (
             <div className="mb-6 text-sm text-gray-700">
               <ul className="list-disc list-inside space-y-1">
-                <li>Firmá y protegé documentos</li>
+                <li>Protegé trabajo sensible sin exponer contenido</li>
                 <li>Evidencia técnica verificable</li>
                 <li>Control total de tus archivos</li>
               </ul>
@@ -297,7 +297,7 @@ function LoginPage() {
               onClick={handleGuestEntry}
               className="inline-block bg-white border-2 border-black text-black hover:bg-black hover:text-white font-semibold py-2 px-6 rounded-lg transition duration-300 mb-4"
             >
-              Entrar como invitado
+              Probar sin cuenta
             </Link>
             <p className="text-gray-700 mb-2">¿Querés explorar EcoSign sin registrarte?</p>
             <p className="text-sm text-gray-600 mb-4">

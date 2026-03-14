@@ -116,7 +116,7 @@ export async function buildSignerInvitationEmail({
   return {
     from: DEFAULT_FROM,
     to: signerEmail,
-    subject: `Tenes un documento para firmar: ${documentName}`,
+    subject: `Tu firma y proteccion: ${documentName}`,
     html: await renderTemplateFromFile({
       templateName: 'firmante-invitacion.html',
       siteUrl: resolvedSiteUrl,
@@ -206,7 +206,7 @@ export async function buildDocumentSignedEmail({
   return {
     from: DEFAULT_FROM,
     to: ownerEmail,
-    subject: `Documento firmado: ${documentName}`,
+    subject: `Documento protegido y firmado: ${documentName}`,
     html: await renderTemplateFromFile({
       templateName: 'documento-firmado-resumen.html',
       siteUrl: resolvedSiteUrl,
@@ -291,7 +291,7 @@ export async function buildDocumentCertifiedEmail({
   return {
     from: DEFAULT_FROM,
     to: ownerEmail,
-    subject: `Certificado disponible: ${documentName}`,
+    subject: `Tu evidencia esta lista: ${documentName}`,
     html: await renderTemplateFromFile({
       templateName: 'documento-certificado-resumen.html',
       siteUrl: resolvedSiteUrl,
@@ -330,7 +330,7 @@ export async function buildFounderWelcomeEmail({
   return {
     from: DEFAULT_FROM,
     to: userEmail,
-    subject: 'Tu cuenta ya esta activa',
+    subject: 'Tu trabajo sensible ya tiene proteccion',
     html: await renderTemplateFromFile({
       templateName: 'founder-welcome.html',
       siteUrl,

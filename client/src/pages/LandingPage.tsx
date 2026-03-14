@@ -46,7 +46,7 @@ const LandingPage = () => {
           </div>
           
           <p className="text-[13px] text-gray-500 max-w-2xl mx-auto">
-            Empezás gratis en minutos.
+            Protegé tu primer documento en minutos.
           </p>
         </div>
       </header>
@@ -59,10 +59,6 @@ const LandingPage = () => {
           </h2>
           <p className="text-xl text-gray-600 mb-12">
             Entendelo una vez. Usalo cada vez que lo necesites.
-          </p>
-          <p className="text-sm text-gray-500 max-w-3xl mx-auto mb-8">
-            Nota: En este video se utilizan conceptos generales para explicar el modelo de EcoSign.
-            Algunos términos técnicos o denominaciones pueden variar según la configuración o evolución del producto.
           </p>
 
           <div className="max-w-4xl mx-auto">
@@ -138,8 +134,8 @@ const LandingPage = () => {
             
             <div>
               <Shield className="w-10 h-10 text-[#0E4B8B] mx-auto mb-4" strokeWidth={1.5} />
-              <h3 className="text-xl font-semibold text-black mb-3">Evidencia técnica verificable</h3>
-              <p className="text-gray-600">Generada automáticamente, verificable por cualquiera.</p>
+              <h3 className="text-xl font-semibold text-black mb-3">Evidencia verificable</h3>
+              <p className="text-gray-600">Generada automáticamente, cualquiera puede validarla.</p>
               <p className="text-xs text-gray-500 mt-2">
                 <HuellaDigitalTooltip>Huella Digital</HuellaDigitalTooltip> + <SelloDeTiempoLegalTooltip>Sello de tiempo verificable</SelloDeTiempoLegalTooltip> + <RegistroDigitalInalterableTooltip>Registro Digital Inalterable</RegistroDigitalInalterableTooltip>.
               </p>

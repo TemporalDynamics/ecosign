@@ -17,10 +17,10 @@ function PricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            La diferencia principal es la capacidad operativa: operaciones mensuales, participantes por operación, documentos por operación y nivel de supervisión.
+            La diferencia es la capacidad de protección: operaciones mensuales, participantes por operación y nivel de supervisión.
           </p>
           <p className="text-gray-700 leading-relaxed mt-2">
-            El plan BUSINESS está pensado para equipos que necesitan mayor volumen y control. PRO es ideal para operación profesional diaria.
+            FREE es para crear hábito. PRO es para operación profesional diaria. BUSINESS es para equipos que necesitan supervisión y mayor volumen.
           </p>
         </>
       )
@@ -30,10 +30,10 @@ function PricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Sí. Podés sumar capacidad puntual para operaciones o participantes cuando lo necesitás, sin quedar obligado a cambiar de plan.
+            Sí. Podés sumar capacidad puntual cuando lo necesitás, sin quedar obligado a cambiar de plan.
           </p>
           <p className="text-gray-700 leading-relaxed mt-2">
-            El costo adicional depende de tu plan y siempre se muestra antes de confirmar.
+            El sistema te muestra el costo antes de confirmar. Sin sorpresas.
           </p>
         </>
       )
@@ -43,7 +43,10 @@ function PricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Tu cuenta conserva el plan activo y podés ajustar capacidad cuando cambie tu volumen de trabajo.
+            Tu plan se mantiene activo. Cuando tu volumen de trabajo cambie, podés ajustar la capacidad.
+          </p>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            Tu tarifa queda protegida para siempre.
           </p>
         </>
       )
@@ -53,7 +56,10 @@ function PricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            No. Nuestra promesa de transparencia es total. El sistema requiere tu confirmación para procesar cualquier firma adicional fuera del límite del plan.
+            No. Nuestra promesa de transparencia es total.
+          </p>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            El sistema requiere tu confirmación para procesar cualquier operación adicional fuera del límite del plan.
           </p>
         </>
       )
@@ -65,6 +71,9 @@ function PricingPage() {
           <p className="text-gray-700 leading-relaxed">
             Sí. Podés subir, bajar o cancelar tu plan en cualquier momento desde el panel de usuario.
           </p>
+          <p className="text-gray-700 leading-relaxed mt-2">
+            Sin contratos. Sin letra chica.
+          </p>
         </>
       )
     },
@@ -73,7 +82,7 @@ function PricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Puedes contactarnos a support@email.ecosign.app
+            Escribinos a support@email.ecosign.app. Te respondemos en menos de 24 horas.
           </p>
         </>
       )
@@ -84,15 +93,15 @@ function PricingPage() {
       name: 'FREE',
       price: '$0',
       period: '',
-      subtitle: 'Muestra',
-      description: 'Empezá gratis y creá hábito de protección.',
+      subtitle: 'Para empezar',
+      description: 'Tu primer documento protegido en minutos.',
       features: [
         { text: 'Usuarios', value: '1' },
         { text: 'Operaciones por mes', value: '5' },
         { text: 'Participantes por operación', value: 'Hasta 2' },
         { text: 'Documentos por operación', value: '1' },
         { text: 'Almacenamiento', value: '1 GB' },
-        { text: 'Protección base', value: 'Incluida' },
+        { text: 'Tu trabajo protegido', value: 'Incluido' },
         { text: 'Protección reforzada', value: 'Estándar' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
@@ -102,44 +111,44 @@ function PricingPage() {
     },
     {
       name: 'PRO',
-      subtitle: 'Profesional/Pyme',
+      subtitle: 'Profesional / PyME',
       price: '$15',
       period: ' USD',
       originalPrice: '$40',
-      description: 'Promoción de lanzamiento.',
+      description: 'Precio fundador. Tu tarifa protegida para siempre.',
       features: [
         { text: 'Usuarios', value: '2' },
         { text: 'Operaciones por mes', value: '100' },
         { text: 'Participantes por operación', value: 'Hasta 10' },
         { text: 'Documentos por operación', value: 'Hasta 5' },
         { text: 'Almacenamiento', value: '5 GB' },
-        { text: 'Protección base', value: 'Incluida' },
+        { text: 'Tu trabajo protegido', value: 'Incluido' },
         { text: 'Protección reforzada', value: 'Prioritaria' },
         { text: 'Panel de Auditoría Avanzado', value: false },
         { text: 'Acceso a API', value: false }
       ],
-      buttonText: 'Comenzar PRO',
+      buttonText: 'Proteger mi trabajo',
       popular: true
     },
     {
       name: 'BUSINESS',
-      subtitle: 'Alto Volumen/Equipos · Compliance y operaciones',
+      subtitle: 'Equipos con supervisión',
       price: '$49',
       period: ' USD',
       originalPrice: '$89',
-      description: 'Promoción de lanzamiento.',
+      description: 'Precio fundador. Tu tarifa protegida para siempre.',
       features: [
         { text: 'Usuarios', value: '5' },
         { text: 'Operaciones por mes', value: '300' },
         { text: 'Participantes por operación', value: 'Hasta 20' },
         { text: 'Documentos por operación', value: 'Hasta 10' },
         { text: 'Almacenamiento', value: '25 GB' },
-        { text: 'Protección base', value: 'Incluida' },
+        { text: 'Tu trabajo protegido', value: 'Incluido' },
         { text: 'Protección reforzada', value: 'Prioritaria' },
         { text: 'Panel supervisor', value: true },
         { text: 'Acceso a API', value: 'Limitado' }
       ],
-      buttonText: 'Comenzar BUSINESS',
+      buttonText: 'Proteger equipo',
       popular: false
     },
     {
@@ -153,7 +162,7 @@ function PricingPage() {
         { text: 'Participantes por operación', value: 'Custom' },
         { text: 'Documentos por operación', value: 'Custom' },
         { text: 'Almacenamiento', value: 'Personalizado' },
-        { text: 'Protección base', value: 'Incluida' },
+        { text: 'Tu trabajo protegido', value: 'Incluido' },
         { text: 'Protección reforzada', value: 'A medida' },
         { text: 'Panel de Auditoría Avanzado', value: true },
         { text: 'Acceso a API', value: 'Completo' }
@@ -169,7 +178,7 @@ function PricingPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 pt-32">
         <header className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Planes EcoSign: Evidencia que Crece Contigo</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-black mb-4">Planes para proteger trabajo real</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">Elegí la capacidad que necesitás para proteger trabajo real: operaciones, participantes y supervisión, sin costos sorpresa.</p>
           <p className="text-sm text-gray-600 mt-2">Probá sin tarjeta y podés cancelar cuando quieras.</p>
         </header>

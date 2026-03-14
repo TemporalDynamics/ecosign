@@ -37,25 +37,31 @@ const ContactPage = () => {
 
       <main className="flex-grow">
         <div className="max-w-4xl mx-auto px-4 pt-16 pb-24">
-          <PageTitle subtitle="Estamos para ayudarte.">
-            Contacto
+          <PageTitle subtitle="Tu trabajo sensible merece protección. Si tenés dudas, estamos acá para ayudarte.">
+            ¿Necesitás ayuda con tu protección?
           </PageTitle>
 
           <div className="mt-12 space-y-6">
             {/* Contact Info */}
-            <div className="space-y-4 text-gray-700">
-              <p>
-                <strong>Email:</strong>{' '}
-                <a href="mailto:soporte@email.ecosign.app" className="text-[#0A66C2] hover:underline">
-                  soporte@email.ecosign.app
-                </a>
-              </p>
-              <p>
-                <strong>Horario:</strong> Lunes a viernes, 9:00 a 18:00
-              </p>
-              <p>
-                <strong>Tiempo de respuesta promedio:</strong> 24–48 h
-              </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-black mb-4">Te respondemos rápido</h3>
+              <div className="space-y-3 text-gray-700">
+                <p>
+                  <strong>Email:</strong>{' '}
+                  <a href="mailto:soporte@email.ecosign.app" className="text-[#0A66C2] hover:underline font-medium">
+                    soporte@email.ecosign.app
+                  </a>
+                </p>
+                <p>
+                  <strong>Horario:</strong> Lunes a viernes, 9:00 a 18:00
+                </p>
+                <p className="text-green-700 font-medium">
+                  <strong>Tiempo de respuesta:</strong> Generalmente en menos de 24 horas
+                </p>
+                <p className="text-sm text-gray-600 mt-4">
+                  ¿Es urgente? Escribinos igual. Si es crítico, te respondemos prioritariamente.
+                </p>
+              </div>
             </div>
 
             {/* Contact Form */}
@@ -92,7 +98,7 @@ const ContactPage = () => {
 
               <div>
                 <label htmlFor="reason" className="block text-sm font-medium text-gray-900 mb-2">
-                  Motivo de contacto
+                  ¿En qué podemos ayudarte?
                 </label>
                 <select
                   id="reason"
@@ -103,9 +109,10 @@ const ContactPage = () => {
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                 >
                   <option value="">Seleccionar...</option>
-                  <option value="soporte">Soporte técnico</option>
-                  <option value="facturacion">Facturación</option>
-                  <option value="ventas">Ventas</option>
+                  <option value="proteccion">Protección de documentos</option>
+                  <option value="evidencia">Evidencia y verificación</option>
+                  <option value="facturacion">Planes y facturación</option>
+                  <option value="integracion">Integración y API</option>
                   <option value="otro">Otro</option>
                 </select>
               </div>
@@ -129,9 +136,21 @@ const ContactPage = () => {
                 type="submit"
                 className="w-full py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
               >
-                Enviar mensaje
+                Enviar consulta
               </button>
             </form>
+
+            {/* Trust message */}
+            <div className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-6">
+              <h4 className="font-semibold text-black mb-2">Tu consulta es importante</h4>
+              <p className="text-sm text-gray-700">
+                Cada consulta nos ayuda a mejorar nuestra protección. Si algo no está claro, 
+                querés más información o necesitás ayuda con tu evidencia, escribinos.
+              </p>
+              <p className="text-sm text-gray-700 mt-2">
+                ¿Problema técnico? Te guiamos paso a paso hasta resolverlo.
+              </p>
+            </div>
           </div>
         </div>
       </main>

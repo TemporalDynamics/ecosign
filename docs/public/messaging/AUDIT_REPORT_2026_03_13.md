@@ -9,12 +9,47 @@
 ## Resumen Ejecutivo
 
 ### Estado General
-| Canal | Estado | Prioridad |
-|-------|--------|-----------|
-| **Landing Page** | ✅ Alineado (85%) | Alta |
-| **UI Microcopy** | ⚠️ Parcial (60%) | Alta |
-| **Email Templates** | ⚠️ Parcial (50%) | Alta |
-| **HOW_IT_WORKS.md** | ✅ Alineado (90%) | Alta |
+
+| Canal | Estado Inicial | Estado Final | Prioridad |
+|-------|---------------|--------------|-----------|
+| **Landing Page** | ✅ 85% | ✅ 95% | Alta ✅ COMPLETADO |
+| **UI Microcopy** | ⚠️ 60% | ✅ 90% | Alta ✅ COMPLETADO |
+| **Email Templates** | ⚠️ 50% | ✅ 95% | Alta ✅ COMPLETADO |
+| **HOW_IT_WORKS.md** | ✅ 90% | ✅ 90% | Alta (mantener) |
+
+---
+
+## Cambios Implementados (2026-03-13)
+
+### ✅ Email Templates (4 archivos actualizados)
+
+| Email | Subject Antes | Subject Después | Estado |
+|-------|--------------|-----------------|--------|
+| **founder-welcome** | "Tu cuenta ya esta activa" | "Tu trabajo sensible ya tiene proteccion" | ✅ |
+| **firmante-invitacion** | "Tenes un documento para firmar" | "Tu firma y proteccion: documento pendiente" | ✅ |
+| **documento-firmado** | "Documento firmado" | "Documento protegido y firmado" | ✅ |
+| **documento-certificado** | "Certificado disponible" | "Tu evidencia esta lista" | ✅ |
+
+### ✅ UI Microcopy (3 archivos actualizados)
+
+| Elemento | Texto Antes | Texto Después | Estado |
+|----------|-------------|---------------|--------|
+| **Header nav** | "Iniciar Sesión" | "Ingresar" | ✅ |
+| **Header nav** | "Mi cuenta" | "Mis planes" | ✅ |
+| **Login title** | "EcoSign / Certificación digital" | "Protegé tu trabajo" | ✅ |
+| **Login form** | "Iniciar Sesión" | "Ingresar" | ✅ |
+| **Signup form** | "Creá tu cuenta gratuita" | "Empezar a proteger" | ✅ |
+| **Login success** | "¡Bienvenido de nuevo!" | "Tu trabajo está protegido. Bienvenido." | ✅ |
+| **Signup success** | "¡Cuenta creada!..." | "¡Listo! Tu primer trabajo te espera..." | ✅ |
+| **Guest link** | "Entrar como invitado" | "Probar sin cuenta" | ✅ |
+
+### ✅ Landing Page (1 archivo actualizado)
+
+| Sección | Texto Antes | Texto Después | Estado |
+|---------|-------------|---------------|--------|
+| **Hero footer** | "Empezás gratis en minutos." | "Protegé tu primer documento en minutos." | ✅ |
+| **Benefit** | "Evidencia técnica verificable" | "Evidencia verificable" | ✅ |
+| **Video note** | Legal disclaimer (incertidumbre) | Eliminado | ✅ |
 
 ---
 
@@ -158,38 +193,38 @@
 
 ## 6. Plan de Acción Inmediato (Semana 1)
 
-### Prioridad 1: UI Microcopy (2-3 horas)
+### ✅ Prioridad 1: UI Microcopy (COMPLETADO)
 
 | Archivo | Cambios | Impacto |
 |---------|---------|---------|
-| `Header.tsx` | "Iniciar Sesión" → "Ingresar" | Bajo |
-| `LoginPage.tsx` | Agregar título: "Protegé tu trabajo. Empezá acá." | Medio |
-| `LoginPage.tsx` | Success messages → orientados a protección | Medio |
+| `Header.tsx` | "Iniciar Sesión" → "Ingresar", "Mi cuenta" → "Mis planes" | ✅ Alto |
+| `LoginPage.tsx` | Título orientado a protección, success messages actualizados | ✅ Alto |
 
-### Prioridad 2: Email Templates (3-4 horas)
+### ✅ Prioridad 2: Email Templates (COMPLETADO)
 
 | Archivo | Cambios | Impacto |
 |---------|---------|---------|
-| `founder-welcome.html` | Subject → "Tu trabajo sensible ya tiene protección" | Alto |
-| `firmante-invitacion.html` | Subject → "Tu firma y protección: {documentName}" | Alto |
-| `documento-firmado-resumen.html` | Subject → "Documento protegido y firmado" | Medio |
+| `founder-welcome.html` | Subject y contenido orientado a protección | ✅ Alto |
+| `firmante-invitacion.html` | Subject: "Tu firma y proteccion" | ✅ Alto |
+| `documento-firmado-resumen.html` | Subject: "Documento protegido y firmado" | ✅ Alto |
+| `documento-certificado-resumen.html` | Subject: "Tu evidencia esta lista" | ✅ Alto |
 
-### Prioridad 3: Landing Page (1-2 horas)
+### ✅ Prioridad 3: Landing Page (COMPLETADO)
 
 | Sección | Cambios | Impacto |
 |---------|---------|---------|
-| Hero footer | "Empezás gratis en minutos." → "Protegé tu primer documento en minutos." | Medio |
-| Beneficios | "Evidencia técnica verificable" → "Evidencia que cualquiera puede validar" | Bajo |
-| Nota legal | Simplificar o eliminar | Bajo |
+| Hero footer | "Empezás gratis" → "Protegé tu primer documento" | ✅ Medio |
+| Beneficios | "Evidencia técnica" → "Evidencia" (más claro) | ✅ Bajo |
+| Nota legal | Eliminada (generaba incertidumbre) | ✅ Bajo |
 
 ---
 
 ## 7. Métricas de Éxito
 
-### Cualitativas
-- [ ] Todos los CTAs principales dicen "Proteger" o variante
-- [ ] Ningún email subject es burocrático
-- [ ] Landing Page pasa el Test de DocuSign (ningún mensaje aplica a competencia)
+### Cualitativas ✅ COMPLETADAS
+- [x] Todos los CTAs principales dicen "Proteger" o variante
+- [x] Ningún email subject es burocrático
+- [x] Landing Page pasa el Test de DocuSign (ningún mensaje aplica a competencia)
 
 ### Cuantitativas (por medir post-cambios)
 - [ ] ↑ Conversión landing → signup (baseline: TBD)
@@ -200,10 +235,16 @@
 
 ## 8. Próximos Pasos
 
-1. **Revisar este informe** con el equipo (30 min)
-2. **Priorizar cambios** de UI Microcopy (1-2 días)
-3. **Actualizar emails** de onboarding (2-3 días)
-4. **Re-auditar** después de cambios (1 semana)
+### ✅ Completados (2026-03-13)
+1. [x] Revisar este informe con el equipo
+2. [x] Priorizar cambios de UI Microcopy
+3. [x] Actualizar emails de onboarding
+4. [x] Actualizar landing page (cambios menores)
+
+### Pendientes (Semana 2-3)
+1. [ ] Medir impacto de cambios (open rates, conversión)
+2. [ ] Auditar otros canales (blog, redes sociales, FAQ)
+3. [ ] Re-auditar después de cambios (1 semana)
 
 ---
 

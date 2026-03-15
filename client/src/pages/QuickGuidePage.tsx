@@ -20,11 +20,11 @@ export default function QuickGuidePage() {
                 <Upload className="w-6 h-6 text-white" />
               </div>
               <div className="flex-grow">
-                <h2 className="text-xl font-bold text-black mb-3">1. Subi tu archivo (sin subirlo realmente)</h2>
+                <h2 className="text-xl font-bold text-black mb-3">1. Subí tu archivo (se cifra antes de subirse)</h2>
                 <ul className="space-y-2 text-base text-gray-700">
-                  <li>• Solo arrastras tu documento.</li>
-                  <li>• Tu navegador genera una identificacion unica.</li>
-                  <li>• La plataforma nunca ve tu archivo.</li>
+                  <li>• Solo arrastrás tu documento.</li>
+                  <li>• Tu navegador genera una identificación única.</li>
+                  <li>• EcoSign no puede leer tu archivo: se cifra en tu dispositivo.</li>
                 </ul>
               </div>
             </section>
@@ -34,12 +34,14 @@ export default function QuickGuidePage() {
                 <FileCheck className="w-6 h-6 text-white" />
               </div>
               <div className="flex-grow">
-                <h2 className="text-xl font-bold text-black mb-3">2. Elegi como queres firmar</h2>
+                <h2 className="text-xl font-bold text-black mb-3">2. Elegí cómo querés firmar</h2>
                 <ul className="space-y-2 text-base text-gray-700">
-                  <li>• <strong>Firma Legal (ilimitada):</strong> ideal para flujos internos, NDAs y RRHH.</li>
-                  <li>• <strong>Firma Certificada (pago por uso):</strong> para contratos que exigen certificacion oficial.</li>
-                  <li>• <strong>Proteccion reforzada:</strong> suma sello de tiempo y registro inalterable.</li>
+                  <li>• <strong>Firma Legal:</strong> ideal para flujos diarios (RRHH, acuerdos comerciales, NDAs) con evidencia verificable.</li>
+                  <li>• <strong>Firma Certificada:</strong> para casos que exigen certificación externa (pago por uso).</li>
                 </ul>
+                <p className="text-sm text-gray-600 mt-3">
+                  En ambos casos, EcoSign conserva evidencia verificable (integridad, tiempo y trazabilidad) sin exponer el contenido del documento.
+                </p>
               </div>
             </section>
 
@@ -48,11 +50,11 @@ export default function QuickGuidePage() {
                 <Download className="w-6 h-6 text-white" />
               </div>
               <div className="flex-grow">
-                <h2 className="text-xl font-bold text-black mb-3">3. Descarga tu PDF firmado + archivo .ECO</h2>
+                <h2 className="text-xl font-bold text-black mb-3">3. Descargá tu PDF firmado + archivo .ECO</h2>
                 <ul className="space-y-2 text-base text-gray-700">
                   <li>• El PDF queda firmado y listo para usar.</li>
                   <li>• El .ECO es tu respaldo con toda la evidencia.</li>
-                  <li>• Guarda ambos y validalos cuando haga falta.</li>
+                  <li>• Guardá ambos y validalos cuando haga falta.</li>
                 </ul>
               </div>
             </section>
@@ -62,9 +64,9 @@ export default function QuickGuidePage() {
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div className="flex-grow">
-                <h2 className="text-xl font-bold text-black mb-3">4. Verificacion universal</h2>
+                <h2 className="text-xl font-bold text-black mb-3">4. Verificación universal</h2>
                 <p className="text-base text-gray-700">
-                  Carga el .ECO en el verificador publico y valida integridad y fecha en segundos.
+                  Cargá el .ECO en el verificador público y validá integridad y fecha en segundos.
                   <br />
                   Sin depender de nosotros. Sin costos extras.
                 </p>

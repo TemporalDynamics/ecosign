@@ -54,7 +54,7 @@ export default function UseCasesPage() {
                     Antes lo hacían por mail (riesgo total). Ahora suben un PDF interno a EcoSign, lo firman, queda auditado y verificado.
                   </p>
                   <p className="text-gray-700 font-semibold">
-                    Resultado: Cumple ISO/IEC 27037 (trazabilidad de evidencia digital) sin infraestructura costosa.
+                    Resultado: Aporta trazabilidad de evidencia digital (alineable a buenas prácticas como ISO/IEC 27037) sin infraestructura costosa.
                   </p>
                 </div>
 

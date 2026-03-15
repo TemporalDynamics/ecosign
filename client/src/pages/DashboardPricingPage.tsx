@@ -112,7 +112,7 @@ function DashboardPricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Puedes contactarnos a support@email.ecosign.app
+            Podés contactarnos en soporte@email.ecosign.app
           </p>
         </>
       )
@@ -503,7 +503,7 @@ function DashboardPricingPage() {
         </div>
 
         <div className="text-center text-gray-600 mb-8">
-          <p>¿Te quedaron dudas? Puedes contactarnos a <a href="mailto:support@email.ecosign.app" className="text-black hover:text-gray-700 font-semibold underline">support@email.ecosign.app</a></p>
+          <p>¿Te quedaron dudas? Podés contactarnos en <a href="mailto:soporte@email.ecosign.app" className="text-black hover:text-gray-700 font-semibold underline">soporte@email.ecosign.app</a></p>
         </div>
       </div>
 

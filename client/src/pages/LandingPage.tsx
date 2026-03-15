@@ -105,7 +105,7 @@ const LandingPage = () => {
               to="/how-it-works"
               className="text-sm font-semibold text-gray-700 hover:text-black underline underline-offset-4"
             >
-              Ver como funciona (detalle tecnico publico)
+              Ver cómo funciona (detalle técnico público)
             </Link>
             <p className="text-xs text-gray-500">Sin tarjeta · Plan gratuito · En minutos</p>
           </div>
@@ -116,7 +116,7 @@ const LandingPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-8 text-center">
-            Proteges sin exponer contenido.
+            Protegés sin exponer contenido.
           </h2>
           <p className="text-xl text-gray-700 max-w-3xl mx-auto mb-16 text-center leading-relaxed">
             EcoSign no accede al contenido del documento.<br />
@@ -249,10 +249,10 @@ const LandingPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
-            Lo que ganas en la practica
+            Lo que ganás en la práctica
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 max-w-3xl mx-auto">
-            EcoSign agrega respaldo verificable antes, durante y despues de la firma.
+            EcoSign agrega respaldo verificable antes, durante y después de la firma.
           </p>
 
           <div className="grid md:grid-cols-3 gap-8 mb-12">
@@ -266,13 +266,13 @@ const LandingPage = () => {
               <p className="text-sm text-gray-500 mb-2">Riesgo comun</p>
               <p className="text-black font-semibold mb-3">Dudas sobre integridad del documento</p>
               <p className="text-sm text-gray-600 mb-1">Cobertura EcoSign</p>
-              <p className="text-sm text-gray-700">Verificacion por huella para detectar cambios no validos.</p>
+              <p className="text-sm text-gray-700">Verificación por huella para detectar cambios no válidos.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
               <p className="text-sm text-gray-500 mb-2">Riesgo comun</p>
               <p className="text-black font-semibold mb-3">Post-firma sin respaldo claro</p>
               <p className="text-sm text-gray-600 mb-1">Cobertura EcoSign</p>
-              <p className="text-sm text-gray-700">Evidencia verificable posterior, lista para auditoria y verificacion.</p>
+              <p className="text-sm text-gray-700">Evidencia verificable posterior, lista para auditoría y verificación.</p>
             </div>
           </div>
 
@@ -537,10 +537,10 @@ const LandingPage = () => {
 
           <div className="text-center">
             <Link
-              to="/pricing"
+              to="/comparison"
               className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg transition duration-300"
             >
-              Ver Comparación Completa
+              Ver comparación completa
             </Link>
           </div>
         </div>

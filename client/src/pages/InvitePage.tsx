@@ -301,13 +301,13 @@ export default function InvitePage() {
                   Acceso Autorizado
                 </h1>
                 <p className="text-gray-600 mb-4">
-                  Has sido invitado como <strong>{invite.role === 'viewer' ? 'visualizador' : 'firmante'}</strong> de este documento.
+                  Fuiste invitado como <strong>{invite.role === 'viewer' ? 'visualizador' : 'firmante'}</strong> de este documento.
                 </p>
                 {invite.role === 'viewer' && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p className="text-sm text-blue-800">
                       <AlertCircle className="h-4 w-4 inline mr-2" />
-                      Tienes permiso de solo lectura. No puedes firmar este documento.
+                      Tenés permiso de solo lectura. No podés firmar este documento.
                     </p>
                   </div>
                 )}

@@ -7,9 +7,10 @@ interface HeaderProps {
   variant: 'public' | 'private';
   onLogout?: () => void;
   openLegalCenter?: () => void;
+  publicCta?: { to: string; label: string };
 }
 
-const PublicNavDesktop = () => (
+const PublicNavDesktop = ({ publicCta }: { publicCta?: { to: string; label: string } }) => (
   <>
     <Link to="/how-it-works" className="text-gray-600 hover:text-[#0E4B8B] font-medium text-[17px] transition duration-200 flex items-center h-10">
       Cómo funciona
@@ -26,6 +27,14 @@ const PublicNavDesktop = () => (
     >
       Ingresar
     </Link>
+    {publicCta && (
+      <Link
+        to={publicCta.to}
+        className="bg-black hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg transition duration-200 flex items-center h-10"
+      >
+        {publicCta.label}
+      </Link>
+    )}
   </>
 );
 
@@ -66,7 +75,13 @@ const PrivateNavDesktop = ({ openLegalCenter }: { openLegalCenter: () => void; }
   );
 };
 
-const PublicNavMobile = ({ setMobileMenuOpen }: { setMobileMenuOpen: (value: boolean) => void }) => (
+const PublicNavMobile = ({
+  setMobileMenuOpen,
+  publicCta,
+}: {
+  setMobileMenuOpen: (value: boolean) => void;
+  publicCta?: { to: string; label: string };
+}) => (
     <div className="px-4 pt-2 pb-4 space-y-2">
         <Link onClick={() => setMobileMenuOpen(false)} to="/how-it-works" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Cómo funciona</Link>
         <Link onClick={() => setMobileMenuOpen(false)} to="/verify" className="block text-gray-600 hover:text-black px-3 py-2 rounded-lg">Verificador</Link>
@@ -78,6 +93,15 @@ const PublicNavMobile = ({ setMobileMenuOpen }: { setMobileMenuOpen: (value: boo
         >
           Ingresar
         </Link>
+        {publicCta && (
+          <Link
+            onClick={() => setMobileMenuOpen(false)}
+            to={publicCta.to}
+            className="block bg-black hover:bg-gray-800 text-white font-semibold px-3 py-2 rounded-lg text-center"
+          >
+            {publicCta.label}
+          </Link>
+        )}
     </div>
 );
 
@@ -122,7 +146,7 @@ const PrivateNavMobile = ({ openLegalCenter, setMobileMenuOpen }: { openLegalCen
     );
 };
 
-const Header = ({ variant, openLegalCenter }: HeaderProps) => {
+const Header = ({ variant, openLegalCenter, publicCta }: HeaderProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { open: openLegalCenterFromContext } = useLegalCenter();
   const resolvedOpenLegalCenter = openLegalCenter ?? (() => openLegalCenterFromContext('certify'));
@@ -135,7 +159,7 @@ const Header = ({ variant, openLegalCenter }: HeaderProps) => {
             <Logo to={variant === 'public' ? '/' : '/inicio'} variant="option-c" />
           </div>
           <nav className="hidden md:flex items-center space-x-8 translate-y-[2px]">
-            {variant === 'public' ? <PublicNavDesktop /> : <PrivateNavDesktop openLegalCenter={resolvedOpenLegalCenter} />}
+            {variant === 'public' ? <PublicNavDesktop publicCta={publicCta} /> : <PrivateNavDesktop openLegalCenter={resolvedOpenLegalCenter} />}
           </nav>
           <div className="md:hidden">
             <button
@@ -151,7 +175,11 @@ const Header = ({ variant, openLegalCenter }: HeaderProps) => {
       </div>
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-gray-200 bg-white shadow-sm">
-            {variant === 'public' ? <PublicNavMobile setMobileMenuOpen={setMobileMenuOpen} /> : <PrivateNavMobile openLegalCenter={resolvedOpenLegalCenter} setMobileMenuOpen={setMobileMenuOpen} />}
+            {variant === 'public' ? (
+              <PublicNavMobile setMobileMenuOpen={setMobileMenuOpen} publicCta={publicCta} />
+            ) : (
+              <PrivateNavMobile openLegalCenter={resolvedOpenLegalCenter} setMobileMenuOpen={setMobileMenuOpen} />
+            )}
         </div>
       )}
     </header>

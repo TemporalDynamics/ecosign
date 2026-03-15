@@ -15,15 +15,15 @@ const HelpPage = () => {
     },
     {
       question: '¿Cómo verifico mi documento?',
-      answer: 'Subís el PDF o el archivo .ECO en la sección "Verificar" y nuestro sistema confirma su validez.'
+      answer: 'Entrá al Verificador, cargá el PDF y/o el .ECO, y validá integridad, fecha y trazabilidad. En el Verificador, el archivo se procesa localmente (no se sube). En el flujo de firma, el documento puede subirse y almacenarse cifrado.'
     },
     {
       question: '¿Qué diferencia hay entre Firma Legal y Firma Certificada?',
-      answer: 'Firma Legal: agilidad para flujo diario con evidencia verificable. Firma Certificada (pago por uso): para casos que exigen certificación externa.'
+      answer: 'Firma Legal: para el flujo diario con evidencia verificable. Firma Certificada (pago por uso): para los casos que exigen certificación externa.'
     },
     {
       question: '¿Puedo usar Firma Legal para contratos formales?',
-      answer: 'Sí, usando la opción de Firma Certificada.'
+      answer: 'Depende del caso y la jurisdicción. Si el proceso exige certificación externa, usá Firma Certificada. Para el resto (RRHH, acuerdos comerciales, NDAs), Firma Legal suele ser la opción práctica.'
     },
     {
       question: 'Perdí mi archivo .ECO, ¿qué hago?',

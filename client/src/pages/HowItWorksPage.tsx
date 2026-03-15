@@ -22,7 +22,7 @@ function HowItWorksPage() {
       <main className="max-w-6xl mx-auto px-6 lg:px-8 pb-24">
         <section className="mb-20">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
-            Como funciona en la practica
+            Cómo funciona en la práctica
           </h2>
           <p className="text-lg text-gray-700 mb-12 text-center max-w-3xl mx-auto">
             Cuatro pasos simples para proteger trabajo importante sin exponer el contenido.
@@ -30,23 +30,23 @@ function HowItWorksPage() {
           <div className="grid md:grid-cols-4 gap-6">
             <div className="rounded-xl border border-gray-200 p-6">
               <p className="text-sm text-gray-500 mb-2">Paso 1</p>
-              <h3 className="text-lg font-semibold text-black mb-2">Crea una operacion</h3>
-              <p className="text-sm text-gray-700">Organiza el contexto antes de empezar: acuerdo, presupuesto, entrega o proceso.</p>
+              <h3 className="text-lg font-semibold text-black mb-2">Creá una operación</h3>
+              <p className="text-sm text-gray-700">Organizá el contexto antes de empezar: acuerdo, presupuesto, entrega o proceso.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
               <p className="text-sm text-gray-500 mb-2">Paso 2</p>
               <h3 className="text-lg font-semibold text-black mb-2">Carga documentos y participantes</h3>
-              <p className="text-sm text-gray-700">Subis lo necesario, pegas la lista de mails y EcoSign completa lo repetitivo.</p>
+              <p className="text-sm text-gray-700">Subís lo necesario, pegás la lista de mails y EcoSign completa lo repetitivo.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
               <p className="text-sm text-gray-500 mb-2">Paso 3</p>
-              <h3 className="text-lg font-semibold text-black mb-2">Envia el flujo</h3>
-              <p className="text-sm text-gray-700">Cada persona recibe un acceso claro para revisar, firmar y continuar sin friccion.</p>
+              <h3 className="text-lg font-semibold text-black mb-2">Enviá el flujo</h3>
+              <p className="text-sm text-gray-700">Cada persona recibe un acceso claro para revisar, firmar y continuar sin fricción.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
               <p className="text-sm text-gray-500 mb-2">Paso 4</p>
-              <h3 className="text-lg font-semibold text-black mb-2">Conserva respaldo verificable</h3>
-              <p className="text-sm text-gray-700">Al terminar, tenes evidencia lista para validar cuando haga falta.</p>
+              <h3 className="text-lg font-semibold text-black mb-2">Conservá respaldo verificable</h3>
+              <p className="text-sm text-gray-700">Al terminar, tenés evidencia lista para validar cuando haga falta.</p>
             </div>
           </div>
         </section>
@@ -56,20 +56,20 @@ function HowItWorksPage() {
             Tu archivo no se expone
           </h2>
           <p className="text-lg text-gray-700 text-center max-w-3xl mx-auto mb-10">
-            EcoSign esta disenado para proteger sin abrir contenido. La plataforma no necesita leer tu documento para generar respaldo verificable.
+            EcoSign está diseñado para proteger sin abrir contenido. La plataforma no necesita leer tu documento para generar respaldo verificable.
           </p>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-black mb-2">Privacidad real</h3>
-              <p className="text-sm text-gray-700">No mostramos ni usamos el contenido como parte del modelo de proteccion.</p>
+              <p className="text-sm text-gray-700">No mostramos ni usamos el contenido como parte del modelo de protección.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-black mb-2">Control del proceso</h3>
-              <p className="text-sm text-gray-700">Definis participantes, accesos y flujo desde una sola operacion.</p>
+              <p className="text-sm text-gray-700">Definís participantes, accesos y flujo desde una sola operación.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-black mb-2">Verificacion posterior</h3>
-              <p className="text-sm text-gray-700">Cuando necesites demostrar lo ocurrido, el respaldo ya esta preparado.</p>
+              <h3 className="text-lg font-semibold text-black mb-2">Verificación posterior</h3>
+              <p className="text-sm text-gray-700">Cuando necesites demostrar lo ocurrido, el respaldo ya está preparado.</p>
             </div>
           </div>
         </section>
@@ -79,14 +79,14 @@ function HowItWorksPage() {
             No todas las firmas resuelven el mismo problema
           </h2>
           <p className="text-lg text-gray-700 text-center max-w-3xl mx-auto mb-6">
-            Algunas soluciones cierran firma. EcoSign suma proteccion del trabajo con evidencia verificable.
+            Algunas soluciones cierran firma. EcoSign suma protección del trabajo con evidencia verificable.
           </p>
           <div className="text-center">
             <Link
               to="/comparison"
               className="inline-block rounded-lg border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-800 hover:border-black hover:text-black"
             >
-              Ver comparacion completa
+              Ver comparación completa
             </Link>
           </div>
         </section>
@@ -96,31 +96,31 @@ function HowItWorksPage() {
             Transparencia clara para todos
           </h2>
           <p className="text-lg text-gray-700 text-center max-w-3xl mx-auto mb-8">
-            Esta pagina cuenta el concepto en lenguaje simple.
-            Si queres el detalle tecnico con codigo y contratos publicos, tambien lo publicamos.
+            Esta página cuenta el concepto en lenguaje simple.
+            Si querés el detalle técnico con código y contratos públicos, también lo publicamos.
           </p>
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-black mb-2">En esta pagina</h3>
               <ul className="space-y-2 text-sm text-gray-700">
-                <li>• Que gana cada persona del flujo.</li>
-                <li>• Como proteger trabajo sin vueltas tecnicas.</li>
-                <li>• Como queda un respaldo verificable al final.</li>
-                <li>• Que diferencia a EcoSign de una firma comun.</li>
+                <li>• Qué gana cada persona del flujo.</li>
+                <li>• Cómo proteger trabajo sin vueltas técnicas.</li>
+                <li>• Cómo queda un respaldo verificable al final.</li>
+                <li>• Qué diferencia a EcoSign de una firma común.</li>
               </ul>
             </div>
             <div className="rounded-xl border border-gray-200 p-6 bg-gray-50">
               <h3 className="text-lg font-semibold text-black mb-2">En GitHub tecnico</h3>
               <ul className="space-y-2 text-sm text-gray-700">
-                <li>• Contratos publicos de verificacion e integracion.</li>
+                <li>• Contratos públicos de verificación e integración.</li>
                 <li>• Comportamientos auditables de evidencia y estados.</li>
-                <li>• Formato publico de salida para verificacion externa.</li>
-                <li>• Referencias tecnicas para revisiones de seguridad.</li>
+                <li>• Formato público de salida para verificación externa.</li>
+                <li>• Referencias técnicas para revisiones de seguridad.</li>
               </ul>
               <p className="text-xs text-gray-600 mt-4">
-                <strong>Para tecnicos:</strong> Mostramos superficie publica suficiente para auditar privacidad y verificacion.
+                <strong>Para técnicos:</strong> Mostramos superficie pública suficiente para auditar privacidad y verificación.
                 <br/>
-                <strong>Para no tecnicos:</strong> Podes copiar esta pagina y mostrarsela a tu asesor tecnico de confianza.
+                <strong>Para no técnicos:</strong> Podés copiar esta página y mostrársela a tu asesor técnico de confianza.
               </p>
             </div>
           </div>
@@ -166,10 +166,10 @@ function HowItWorksPage() {
 
         <section className="text-center pt-10">
           <h2 className="text-3xl md:text-4xl font-bold text-black mb-4">
-            Empeza gratis y protege trabajo real
+            Empezá gratis y protegé trabajo real
           </h2>
           <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto">
-            Sin tarjeta, sin friccion inicial y con un flujo listo para usar en minutos.
+            Sin tarjeta, sin fricción inicial y con un flujo listo para usar en minutos.
           </p>
           <Link
             to="/login?mode=signup"

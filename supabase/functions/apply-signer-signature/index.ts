@@ -689,10 +689,11 @@ serve(async (req) => {
       { id: signer.id, email: signer.email }
     )
     if (!epiStateHash) {
+      const hasSignerEmail = Boolean(signer?.email)
       console.warn('apply-signer-signature: missing epi_state_hash (EPI2) for signature', {
         workflowId,
         signerId,
-        signerEmail: signer?.email ?? null
+        hasSignerEmail
       })
     }
 

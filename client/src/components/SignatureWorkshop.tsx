@@ -432,7 +432,7 @@ const SignatureWorkshop: React.FC<SignatureWorkshopProps> = ({
           {hasSavedSignature && signatureImage && (
             <div className="text-center">
               <img src={signatureImage} alt="Tu firma" className="mx-auto max-h-24" />
-              <p className="text-xs text-gray-500 mt-2">Puedes redibujarla cuando quieras.</p>
+              <p className="text-xs text-gray-500 mt-2">Podés redibujarla cuando quieras.</p>
             </div>
           )}
         </div>
@@ -553,7 +553,7 @@ const SignatureWorkshop: React.FC<SignatureWorkshopProps> = ({
 
       {showSkipHint && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-          Puedes saltar este paso, pero recomendamos firmar antes de certificar para máxima validez legal.
+          Podés saltear este paso, pero recomendamos firmar antes de certificar para máxima validez legal.
         </div>
       )}
 

@@ -35,7 +35,7 @@ function DashboardVerifyPage() {
             Comprobá la autenticidad de tu documento y asegurate de que no fue alterado.
           </p>
           <p className="text-gray-600">
-            Toda la verificación ocurre en tu ordenador: tus archivos nunca se suben ni se almacenan.
+            Toda la verificación ocurre en tu ordenador: en el Verificador, el archivo se procesa localmente en tu navegador.
           </p>
         </div>
 
@@ -51,9 +51,9 @@ function DashboardVerifyPage() {
                 Esta herramienta analiza tu documento y su certificado asociado para confirmar su integridad y la evidencia disponible en el .ECO.
                 La verificación se realiza de forma local, sin exponer tus archivos.
           </p>
-              <p className="text-sm text-gray-900 font-semibold">
-                EcoSign nunca ve tu documento. Nunca se sube. Todo ocurre en tu navegador.
-              </p>
+	              <p className="text-sm text-gray-900 font-semibold">
+	                En esta página, tu documento no se sube: se procesa localmente. En el flujo de firma, el documento puede subirse y almacenarse cifrado.
+	              </p>
             </div>
           </div>
         </div>

@@ -82,7 +82,7 @@ function PricingPage() {
       answer: (
         <>
           <p className="text-gray-700 leading-relaxed">
-            Escribinos a support@email.ecosign.app. Te respondemos en menos de 24 horas.
+            Escribinos a soporte@email.ecosign.app. Te respondemos en menos de 24 horas.
           </p>
         </>
       )
@@ -329,7 +329,7 @@ function PricingPage() {
                 </tr>
                 <tr className="bg-gray-50">
                   <td className="py-4 px-4 text-sm font-medium text-gray-900">Privacidad Total</td>
-                  <td className="py-4 px-4 text-sm text-gray-700">No almacenamos tu archivo. Nuestro sistema está diseñado para trabajar con el hash de tu documento, no con el contenido.</td>
+                  <td className="py-4 px-4 text-sm text-gray-700">Tu archivo se almacena cifrado. EcoSign no accede al contenido: operamos con evidencia (huella/hash) y metadatos mínimos para el flujo.</td>
                 </tr>
                 <tr>
                   <td className="py-4 px-4 text-sm font-medium text-gray-900">Control Absoluto</td>
@@ -371,7 +371,7 @@ function PricingPage() {
         </div>
 
         <div className="text-center text-gray-600 mb-8">
-          <p>¿Te quedaron dudas? Puedes contactarnos a <a href="mailto:support@email.ecosign.app" className="text-black hover:text-gray-700 font-semibold underline">support@email.ecosign.app</a></p>
+          <p>¿Te quedaron dudas? Podés contactarnos en <a href="mailto:soporte@email.ecosign.app" className="text-black hover:text-gray-700 font-semibold underline">soporte@email.ecosign.app</a></p>
         </div>
       </div>
 

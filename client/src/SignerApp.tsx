@@ -68,7 +68,7 @@ export function SignerApp() {
                         ¿Necesitás ayuda?
                       </p>
                       <p className="mt-1 text-sm text-blue-700">
-                        Escribinos a <a href="mailto:support@email.ecosign.app" className="underline">support@email.ecosign.app</a>
+                        Escribinos a <a href="mailto:soporte@email.ecosign.app" className="underline">soporte@email.ecosign.app</a>
                       </p>
                     </div>
                   </div>

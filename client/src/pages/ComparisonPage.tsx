@@ -71,7 +71,7 @@ const ComparisonPage = () => {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                    <span><strong>Privacidad total:</strong> Tu documento nunca sale de tu dispositivo. Solo se genera la huella digital. Ideal para secretos comerciales y patentes.</span>
+                    <span><strong>Privacidad total:</strong> Tu documento se cifra en tu dispositivo antes de subirse y almacenarse. EcoSign no puede leer el contenido. Ideal para secretos comerciales y patentes.</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -231,7 +231,7 @@ const ComparisonPage = () => {
             <div className="mt-4">
               <h4 className="font-semibold text-black mb-2">🛡️ Firma Legal: Tu documento es solo tuyo</h4>
               <p className="text-gray-700 mb-2">
-                <strong>Privacidad absoluta:</strong> EcoSign no accede al contenido de tu documento. Tu archivo jamás se carga a nuestros servidores.
+                <strong>Privacidad real:</strong> EcoSign no accede al contenido de tu documento. El archivo se sube y se almacena cifrado, de forma que EcoSign no puede leerlo.
               </p>
               <p className="text-gray-700">
                 Ideal para secretos comerciales, patentes o cualquier documento donde la confidencialidad es la prioridad.

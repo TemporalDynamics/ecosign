@@ -33,12 +33,12 @@ const MAX_VERIFY_ATTEMPTS = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
 })();
 const BITCOIN_TIMEOUT_HOURS = (() => {
-  const parsed = Number.parseInt(String(Deno.env.get('BITCOIN_TIMEOUT_HOURS') ?? '24'), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
+  const parsed = Number.parseInt(String(Deno.env.get('BITCOIN_TIMEOUT_HOURS') ?? '72'), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 72;
 })();
 const ALERT_THRESHOLD_HOURS = (() => {
-  const parsed = Number.parseInt(String(Deno.env.get('BITCOIN_ALERT_THRESHOLD_HOURS') ?? '20'), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
+  const parsed = Number.parseInt(String(Deno.env.get('BITCOIN_ALERT_THRESHOLD_HOURS') ?? '24'), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
 })();
 const BITCOIN_RETRY_SCHEDULE_MINUTES = parseRetryScheduleMinutes(
   Deno.env.get('BITCOIN_RETRY_SCHEDULE_MINUTES'),

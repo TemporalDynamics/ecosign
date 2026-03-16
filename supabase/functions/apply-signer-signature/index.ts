@@ -1719,25 +1719,15 @@ serve(async (req) => {
       try {
         const deliveryMode = (workflow as any)?.delivery_mode || 'email'
         if (deliveryMode === 'email') {
-        const { data: nextSigner } = await supabase
-          .from('workflow_signers')
-          .select('id, email, name, signing_order, access_token_hash, access_token_ciphertext, access_token_nonce, status')
-          .eq('workflow_id', signer.workflow_id)
-          .eq('status', 'ready_to_sign')
-          .single()
-
-        if (nextSigner) {
-          nextSignerRecord = nextSigner
-          const { data: existingNotif } = await supabase
-            .from('workflow_notifications')
-            .select('id')
+          const { data: nextSigner } = await supabase
+            .from('workflow_signers')
+            .select('id, email, name, signing_order, access_token_hash, access_token_ciphertext, access_token_nonce, status')
             .eq('workflow_id', signer.workflow_id)
-            .eq('signer_id', nextSigner.id)
-            .eq('notification_type', 'your_turn_to_sign')
-            .limit(1)
-            .maybeSingle()
+            .eq('status', 'ready_to_sign')
+            .single()
 
-          if (!existingNotif) {
+          if (nextSigner) {
+            nextSignerRecord = nextSigner
             const appUrl = Deno.env.get('APP_URL') || 'https://app.ecosign.app'
             let tokenOrHash: string | null = nextSigner.access_token_hash
             if (nextSigner.access_token_ciphertext && nextSigner.access_token_nonce) {
@@ -1755,30 +1745,35 @@ serve(async (req) => {
             const displayName = (nextSigner.name || nextSigner.email || '').split('@')[0]
 
             if (nextSignerUrl) {
-              await supabase
-                .from('workflow_notifications')
-                .insert({
+              await supabase.from('workflow_notifications').upsert(
+                {
                   workflow_id: signer.workflow_id,
                   recipient_email: nextSigner.email,
                   recipient_type: 'signer',
                   signer_id: nextSigner.id,
                   notification_type: 'your_turn_to_sign',
-                  subject: `Tenés un documento para firmar — ${originalFilename}`,
+                  step: 'primary',
+                  subject: `EcoSign — Acceso seguro: ${originalFilename}`,
                   body_html: `<html><body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; color: #0f172a;">
   <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
     <p style="margin:0 0 12px;color:#0f172a;">Hola ${displayName},</p>
-    <p style="margin:0 0 12px;color:#334155;">Es tu turno de firmar:</p>
+    <p style="margin:0 0 12px;color:#334155;">Ya tenés acceso seguro al documento:</p>
     <p style="margin:0 0 16px;font-weight:600;color:#0f172a;">${originalFilename}</p>
     <p style="margin:16px 0;">
-      <a href="${nextSignerUrl}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Ver Documento</a>
+      <a href="${nextSignerUrl}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Abrir acceso seguro</a>
     </p>
-    <p style="margin:8px 0 0;color:#64748b;font-size:12px;">Al ingresar podés elegir firmar o rechazar el documento.</p>
-    <p style="margin:16px 0 0;color:#0f172a;font-weight:600;">EcoSign. Transparencia que acompaña.</p>
+    <p style="margin:8px 0 0;color:#64748b;font-size:12px;">Al ingresar podés revisar, firmar o rechazar. Todas las acciones quedan registradas por seguridad.</p>
+    <p style="margin:16px 0 0;color:#0f172a;font-weight:600;">EcoSign protege tu trabajo con evidencia verificable.</p>
     <p style="margin:8px 0 0;color:#94a3b8;font-size:12px;">Este enlace es personal e intransferible.</p>
   </div>
 </body></html>`,
-                  delivery_status: 'pending'
-                })
+                  delivery_status: 'pending',
+                },
+                {
+                  onConflict: 'workflow_id,signer_id,notification_type,step',
+                  ignoreDuplicates: true,
+                }
+              )
             } else {
               console.warn('apply-signer-signature: next signer has no access_token_hash; skipping notification', {
                 workflowId: signer.workflow_id,
@@ -1786,7 +1781,6 @@ serve(async (req) => {
               })
             }
           }
-        }
         }
       } catch (notifErr) {
         console.warn('apply-signer-signature: next signer notification failed (best-effort)', notifErr)
@@ -1936,13 +1930,13 @@ serve(async (req) => {
           signer_id: r.signer_id ?? null,
           notification_type: 'workflow_completed_simple',
           step: 'completion_notice',
-          subject: '✅ Proceso de firmas completado',
+          subject: `EcoSign — Flujo completado: ${workflowTitle}`,
           body_html: `
-            <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Proceso completado</h2>
+            <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Flujo completado</h2>
             <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
-              El documento <strong>${workflowTitle}</strong> ha sido firmado por todos los participantes.
+              El flujo del documento <strong>${workflowTitle}</strong> se completó. Tu respaldo con evidencia verificable ya está disponible en EcoSign.
             </p>
-            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
+            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign protege tu trabajo con evidencia verificable.</p>
           `,
           delivery_status: 'pending'
         }))

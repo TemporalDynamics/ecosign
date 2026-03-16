@@ -116,7 +116,7 @@ export async function buildSignerInvitationEmail({
   return {
     from: DEFAULT_FROM,
     to: signerEmail,
-    subject: `Tu firma y proteccion: ${documentName}`,
+    subject: `EcoSign — Acceso seguro: ${documentName}`,
     html: await renderTemplateFromFile({
       templateName: 'firmante-invitacion.html',
       siteUrl: resolvedSiteUrl,
@@ -163,7 +163,7 @@ export async function buildSignerOtpEmail({
   return {
     from: DEFAULT_FROM,
     to: signerEmail,
-    subject: 'Respaldo de Firma: tu codigo de acceso seguro',
+    subject: 'EcoSign — Código de acceso seguro',
     html: await renderTemplateFromFile({
       templateName: 'firmante-otp.html',
       siteUrl: resolvedSiteUrl,
@@ -206,7 +206,7 @@ export async function buildDocumentSignedEmail({
   return {
     from: DEFAULT_FROM,
     to: ownerEmail,
-    subject: `Documento protegido y firmado: ${documentName}`,
+    subject: `EcoSign — Flujo completado: ${documentName}`,
     html: await renderTemplateFromFile({
       templateName: 'documento-firmado-resumen.html',
       siteUrl: resolvedSiteUrl,
@@ -249,7 +249,7 @@ export async function buildSignerPackageEmail({
   return {
     from: DEFAULT_FROM,
     to: signerEmail,
-    subject: `Tu copia firmada: ${documentName}`,
+    subject: `EcoSign — Tu respaldo verificable: ${documentName}`,
     html: await renderTemplateFromFile({
       templateName: 'firmante-confirmacion.html',
       siteUrl: resolvedSiteUrl,

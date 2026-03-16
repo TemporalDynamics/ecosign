@@ -350,19 +350,22 @@ serve(async (req) => {
         signer_id: r.signer_id ?? null,
         notification_type: 'workflow_completed_simple',
         step: 'completion_notice',
-        subject: '✅ Proceso de firmas completado',
+        subject: `EcoSign — Flujo completado: ${workflowTitle}`,
         body_html: `
-          <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Proceso completado</h2>
+          <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Flujo completado</h2>
           <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
-            El documento <strong>${workflowTitle}</strong> ha sido firmado por todos los participantes.
+            El flujo del documento <strong>${workflowTitle}</strong> se completó. Tu respaldo con evidencia verificable ya está disponible en EcoSign.
           </p>
-          <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign. Transparencia que acompaña.</p>
+          <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign protege tu trabajo con evidencia verificable.</p>
         `,
         delivery_status: 'pending'
       }))
 
       if (notifications.length > 0) {
-        await supabase.from('workflow_notifications').insert(notifications)
+        await supabase.from('workflow_notifications').upsert(notifications, {
+          onConflict: 'workflow_id,recipient_email,notification_type,step',
+          ignoreDuplicates: true,
+        })
       }
     }
 

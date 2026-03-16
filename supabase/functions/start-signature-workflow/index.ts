@@ -705,19 +705,20 @@ serve(withRateLimit('workflow', async (req) => {
           recipient_type: 'signer',
           signer_id: insertedSigner.id,
           notification_type: 'your_turn_to_sign',
-          subject: `Tenés un documento para firmar — ${originalFilename}`,
+          step: 'primary',
+          subject: `EcoSign — Acceso seguro: ${originalFilename}`,
           body_html: `<html><body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; color: #0f172a;">
             <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
               <p style="margin:0 0 12px;color:#0f172a;">Hola ${displayName},</p>
-              <p style="margin:0 0 12px;color:#334155;">Te enviaron un documento para firmar:</p>
+              <p style="margin:0 0 12px;color:#334155;">Te enviaron un documento con acceso seguro:</p>
               <p style="margin:0 0 16px;font-weight:600;color:#0f172a;">${originalFilename}</p>
-              <p style="margin:0 0 16px;color:#334155;">EcoSign certifica tu firma con trazabilidad completa y te entrega una copia segura, para que siempre tengas tu propia evidencia.</p>
+              <p style="margin:0 0 16px;color:#334155;">EcoSign protege el flujo con trazabilidad completa y te deja un respaldo con evidencia verificable.</p>
               <p style="margin:16px 0;">
-                <a href="${signLink}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Ver Documento</a>
+                <a href="${signLink}" style="display:inline-block;padding:14px 22px;background:#0ea5e9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;">Abrir acceso seguro</a>
               </p>
-              <p style="margin:8px 0 0;color:#64748b;font-size:12px;">Al ingresar podés elegir firmar o rechazar el documento.</p>
+              <p style="margin:8px 0 0;color:#64748b;font-size:12px;">Al ingresar podés revisar, firmar o rechazar. Todas las acciones quedan registradas por seguridad.</p>
               <p style="margin:0 0 12px;color:#64748b;font-size:12px;">Link válido hasta: ${expiresDate.toLocaleDateString('es-AR')}</p>
-              <p style="margin:16px 0 0;color:#0f172a;font-weight:600;">EcoSign. Transparencia que acompaña.</p>
+              <p style="margin:16px 0 0;color:#0f172a;font-weight:600;">EcoSign protege tu trabajo con evidencia verificable.</p>
               <p style="margin:8px 0 0;color:#94a3b8;font-size:12px;">Este enlace es personal e intransferible. Todas las acciones quedan registradas por seguridad.</p>
             </div>
           </body></html>`,
@@ -727,9 +728,10 @@ serve(withRateLimit('workflow', async (req) => {
     }
 
     if (notifications.length > 0) {
-      const { error: notifError } = await supabase
-        .from('workflow_notifications')
-        .insert(notifications)
+      const { error: notifError } = await supabase.from('workflow_notifications').upsert(notifications, {
+        onConflict: 'workflow_id,signer_id,notification_type,step',
+        ignoreDuplicates: true,
+      })
 
       if (notifError) {
         console.error('Failed to create notifications:', notifError)

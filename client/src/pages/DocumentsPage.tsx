@@ -1598,6 +1598,77 @@ function DocumentsPage() {
     };
   }, [previewDoc]);
 
+  // Ensure firmantes/workflow info is available even when the document is opened from Operaciones
+  // (some list/query paths may provide only the base document_entities record).
+  useEffect(() => {
+    if (!previewDoc) return;
+    const hasWorkflows = Array.isArray(previewDoc.workflows) && previewDoc.workflows.length > 0;
+    const hasSigners = Array.isArray(previewDoc.signers) && previewDoc.signers.length > 0;
+    if (hasWorkflows && hasSigners) return;
+
+    let active = true;
+    (async () => {
+      try {
+        const supabase = getSupabase();
+        const entityId = String(previewDoc.document_entity_id ?? previewDoc.id ?? '');
+        if (!entityId) return;
+
+        const { data: wfRows, error: wfError } = await supabase
+          .from('signature_workflows')
+          .select('id, document_entity_id, status, created_at')
+          .eq('document_entity_id', entityId);
+        if (!active) return;
+        if (wfError || !wfRows || wfRows.length === 0) return;
+
+        const sortedWorkflows = [...(wfRows as any[])].sort((a, b) => {
+          const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+          if (aTime !== bTime) return bTime - aTime;
+          if (a.status === b.status) return 0;
+          if (a.status === 'active') return -1;
+          if (b.status === 'active') return 1;
+          return 0;
+        });
+        const primaryWorkflowId = sortedWorkflows[0]?.id ? String(sortedWorkflows[0].id) : null;
+
+        let nextSigners: any[] | null = null;
+        if (primaryWorkflowId) {
+          const { data: signerRows, error: signerError } = await supabase
+            .from('workflow_signers')
+            .select('id, workflow_id, status, signing_order, name, email')
+            .eq('workflow_id', primaryWorkflowId);
+          if (!active) return;
+          if (!signerError && signerRows) {
+            nextSigners = (signerRows as any[]).map((s) => ({
+              id: s.id,
+              status: s.status,
+              order: s.signing_order ?? 0,
+              name: s.name,
+              email: s.email,
+            }));
+          }
+        }
+
+        setPreviewDoc((prev) => {
+          if (!prev) return prev;
+          const prevEntityId = String(prev.document_entity_id ?? prev.id ?? '');
+          if (prevEntityId !== entityId) return prev;
+          return {
+            ...prev,
+            workflows: hasWorkflows ? prev.workflows : (sortedWorkflows as any),
+            signers: hasSigners ? prev.signers : (nextSigners ?? prev.signers),
+          };
+        });
+      } catch (err) {
+        console.warn('Skipping preview workflow/signer enrichment:', err);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [previewDoc?.id]);
+
   useEffect(() => {
     if (!previewDraft) {
       setPreviewDraftUrl(null);
@@ -3344,14 +3415,6 @@ function DocumentsPage() {
               </div>
 
               <div className="space-y-4 overflow-y-auto pr-1">
-                <details className="bg-white border border-gray-200 rounded-lg p-3" open>
-                  <summary className="cursor-pointer text-sm font-semibold text-gray-800">
-                    Estado y resumen tecnico
-                  </summary>
-                  <div className="mt-3">
-                    <DocumentStateInfo document={previewDoc} />
-                  </div>
-                </details>
                 {Array.isArray(previewDoc.signers) && previewDoc.signers.length > 0 && (
                   <details className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700" open>
                     <summary className="cursor-pointer font-semibold text-gray-800">
@@ -3536,6 +3599,15 @@ function DocumentsPage() {
                     </>
                   );
                 })()}
+
+                <details className="bg-white border border-gray-200 rounded-lg p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800">
+                    Estado (detalle)
+                  </summary>
+                  <div className="mt-3">
+                    <DocumentStateInfo document={previewDoc} />
+                  </div>
+                </details>
               </div>
             </div>
           </div>

@@ -327,47 +327,7 @@ serve(async (req) => {
       }
     }
 
-    // Notifications
-    const workflowTitle = workflow.original_filename || 'Documento'
-    const ownerEmail = ownerUserEmail
-
-    if (ownerEmail || (signers && signers.length > 0)) {
-      const recipients = new Map<string, { email: string; signer_id?: string | null; recipient_type: 'owner' | 'signer' }>()
-      if (ownerEmail) {
-        recipients.set(ownerEmail, { email: ownerEmail, recipient_type: 'owner' })
-      }
-      for (const s of signers ?? []) {
-        if (!s?.email) continue
-        if (!recipients.has(s.email)) {
-          recipients.set(s.email, { email: s.email, recipient_type: 'signer', signer_id: s.id })
-        }
-      }
-
-      const notifications = Array.from(recipients.values()).map((r) => ({
-        workflow_id: workflow.id,
-        recipient_email: r.email,
-        recipient_type: r.recipient_type,
-        signer_id: r.signer_id ?? null,
-        notification_type: 'workflow_completed_simple',
-        step: 'completion_notice',
-        subject: `EcoSign — Flujo completado: ${workflowTitle}`,
-        body_html: `
-          <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Flujo completado</h2>
-          <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
-            El flujo del documento <strong>${workflowTitle}</strong> se completó. Tu respaldo con evidencia verificable ya está disponible en EcoSign.
-          </p>
-          <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign protege tu trabajo con evidencia verificable.</p>
-        `,
-        delivery_status: 'pending'
-      }))
-
-      if (notifications.length > 0) {
-        await supabase.from('workflow_notifications').upsert(notifications, {
-          onConflict: 'workflow_id,recipient_email,notification_type,step',
-          ignoreDuplicates: true,
-        })
-      }
-    }
+    // Notifications: workflow_completed_simple is disabled (dispatcher cancels it).
 
     console.log('✅ SignNow webhook processed for workflow', workflow.id)
     return json({ success: true, workflow_id: workflow.id, signed_path: signedPath })

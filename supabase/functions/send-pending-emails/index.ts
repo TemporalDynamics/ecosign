@@ -47,13 +47,11 @@ serve(async (req: Request) => {
 
   const NOTIFICATION_PRIORITY: Record<string, number> = {
     your_turn_to_sign: 0,
-    workflow_completed_simple: 5,
     creator_detailed_notification: 20,
   };
 
   const ALLOWED_TYPES = new Set([
     "your_turn_to_sign",
-    "workflow_completed_simple",
   ]);
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
@@ -352,6 +350,15 @@ serve(async (req: Request) => {
             continue;
           }
 
+          // Disabled: do not send "flujo completado" emails.
+          if (r.notification_type === "workflow_completed_simple") {
+            await cancelWorkflowNotification(
+              r.id,
+              "workflow_completed_simple_disabled",
+            );
+            continue;
+          }
+
           if (!ALLOWED_TYPES.has(r.notification_type)) {
             console.info("Cancelling non-canonical notification type", {
               id: r.id,
@@ -403,29 +410,13 @@ serve(async (req: Request) => {
             continue;
           }
 
-          if (r.notification_type === "workflow_completed_simple") {
-            if (workflow.status !== "completed") {
-              console.info("Cancelling: workflow no completado", {
-                workflow_id: r.workflow_id,
-                status: workflow.status,
-                notification_id: r.id,
-              });
-              await cancelWorkflowNotification(r.id, "workflow_not_completed", {
-                workflow_status: workflow.status,
-              });
-              continue;
-            }
-          }
-
           // Per-workflow throttle to avoid 429 bursts.
-          if (r.notification_type !== "workflow_completed_simple") {
-            if ((r as any).workflow_id && await isWorkflowThrottled((r as any).workflow_id)) {
-              console.info("⏳ workflow throttled, skipping", {
-                workflow_id: (r as any).workflow_id,
-                notification_id: r.id,
-              });
-              continue;
-            }
+          if ((r as any).workflow_id && await isWorkflowThrottled((r as any).workflow_id)) {
+            console.info("⏳ workflow throttled, skipping", {
+              workflow_id: (r as any).workflow_id,
+              notification_id: r.id,
+            });
+            continue;
           }
 
           if (r.notification_type === "your_turn_to_sign" && r.signer_id) {
@@ -460,76 +451,6 @@ serve(async (req: Request) => {
           let subject = r.subject || "Notificación EcoSign";
           let html = r.body_html || "<p>Notificación</p>";
           let attachments: Array<{ filename: string; content: string; contentType?: string }> | undefined;
-
-          if (r.notification_type === "workflow_completed_simple") {
-            const { data: pendingAll } = await supabase
-              .from("workflow_notifications")
-              .select("*")
-              .eq("workflow_id", r.workflow_id)
-              .eq("notification_type", "workflow_completed_simple")
-              .eq("delivery_status", "pending")
-              .order("created_at", { ascending: true });
-
-            for (const item of pendingAll ?? []) {
-              const result = await sendResendEmail({
-                from,
-                to: item.recipient_email,
-                subject: item.subject || subject,
-                html: item.body_html || html,
-              });
-
-              console.log("workflow_completed_simple send", {
-                id: item.id,
-                workflow_id: item.workflow_id,
-                ok: result.ok,
-                status: result.statusCode ?? null,
-              });
-
-              if (result.ok) {
-                await supabase
-                  .from("workflow_notifications")
-                  .update({
-                    delivery_status: "sent",
-                    sent_at: new Date().toISOString(),
-                    error_message: null,
-                    resend_email_id: result.id ?? null,
-                  })
-                  .eq("id", item.id);
-              } else if (result.statusCode === 429) {
-                const payload = rateLimitPayload({
-                  source: "workflow_notifications",
-                  error: result.error,
-                });
-
-                const batchIds = (pendingAll ?? [])
-                  .map((row: any) => row.id)
-                  .filter(Boolean);
-                await supabase
-                  .from("workflow_notifications")
-                  .update({
-                    delivery_status: "pending",
-                    error_message: payload,
-                  })
-                  .in("id", batchIds);
-                break;
-              } else {
-                const retry = (item.retry_count ?? 0) + 1;
-                const new_status = retry >= MAX_RETRIES ? "failed" : "pending";
-                await supabase
-                  .from("workflow_notifications")
-                  .update({
-                    delivery_status: new_status,
-                    error_message: JSON.stringify(
-                      result.error ?? result.body ?? "Unknown error",
-                    ),
-                    retry_count: retry,
-                  })
-                  .eq("id", item.id);
-              }
-            }
-
-            continue;
-          }
 
           const result = await sendResendEmail({ from, to, subject, html, attachments });
 

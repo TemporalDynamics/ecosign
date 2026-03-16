@@ -1787,8 +1787,7 @@ serve(async (req) => {
       }
     }
 
-    // If this was the last signer, force terminal workflow status (defensive)
-    // and enqueue workflow_completed_simple for owner + signers.
+    // If this was the last signer, force terminal workflow status (defensive).
     if (isLastSigner) {
       const completedAt = new Date().toISOString()
       const workflowForensicConfig = (workflow as any)?.forensic_config ?? {}
@@ -1899,56 +1898,6 @@ serve(async (req) => {
         }
       } catch (completionStatusErr) {
         console.warn('apply-signer-signature: completion status/event hardening failed (best-effort)', completionStatusErr)
-      }
-
-      try {
-        const workflowTitle = workflow.original_filename || 'Documento'
-        const { data: ownerResult } = await supabase.auth.admin.getUserById(workflow.owner_id)
-
-        const { data: allSigners } = await supabase
-          .from('workflow_signers')
-          .select('id, email')
-          .eq('workflow_id', signer.workflow_id)
-
-        const recipients = new Map<string, { email: string; signer_id?: string | null; recipient_type: 'owner' | 'signer' }>()
-        const ownerEmailNormalized = normalizeEmail(ownerResult?.user?.email ?? null)
-        if (ownerEmailNormalized) {
-          recipients.set(ownerEmailNormalized, { email: ownerEmailNormalized, recipient_type: 'owner' })
-        }
-        for (const s of allSigners ?? []) {
-          const signerEmail = normalizeEmail(s?.email ?? null)
-          if (!signerEmail) continue
-          if (!recipients.has(signerEmail)) {
-            recipients.set(signerEmail, { email: signerEmail, recipient_type: 'signer', signer_id: s.id })
-          }
-        }
-
-        const notifications = Array.from(recipients.values()).map((r) => ({
-          workflow_id: signer.workflow_id,
-          recipient_email: r.email,
-          recipient_type: r.recipient_type,
-          signer_id: r.signer_id ?? null,
-          notification_type: 'workflow_completed_simple',
-          step: 'completion_notice',
-          subject: `EcoSign — Flujo completado: ${workflowTitle}`,
-          body_html: `
-            <h2 style="font-family:Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Flujo completado</h2>
-            <p style="font-family:Arial,sans-serif;color:#334155;margin:0 0 12px;">
-              El flujo del documento <strong>${workflowTitle}</strong> se completó. Tu respaldo con evidencia verificable ya está disponible en EcoSign.
-            </p>
-            <p style="font-family:Arial,sans-serif;color:#0f172a;font-weight:600;margin:16px 0 0;">EcoSign protege tu trabajo con evidencia verificable.</p>
-          `,
-          delivery_status: 'pending'
-        }))
-
-        if (notifications.length > 0) {
-          await supabase.from('workflow_notifications').upsert(notifications, {
-            onConflict: 'workflow_id,recipient_email,notification_type,step',
-            ignoreDuplicates: true,
-          })
-        }
-      } catch (completionErr) {
-        console.warn('apply-signer-signature: workflow_completed_simple enqueue failed (best-effort)', completionErr)
       }
     }
 

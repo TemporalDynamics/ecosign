@@ -580,13 +580,30 @@ serve(async (req) => {
 
           if (result.success) {
             const nowIso = new Date().toISOString();
-            const submittedProjection = projectSubmitted(anchor, BITCOIN_RETRY_POLICY, nowIso);
+            // IMPORTANT:
+            // `created_at` never changes, so re-queued anchors would inherit an old "submittedAt"
+            // and immediately hit evaluateTimeout() again. Force a fresh submittedAt at the moment
+            // we successfully submit to OpenTimestamps.
+            const submittedProjection = projectSubmitted(
+              {
+                ...anchor,
+                metadata: {
+                  ...(anchor?.metadata ?? {}),
+                  submittedAt: nowIso,
+                },
+              },
+              BITCOIN_RETRY_POLICY,
+              nowIso,
+            );
             const { error: updateSubmittedError } = await supabaseAdmin
               .from('anchors')
               .update({
                 anchor_status: 'pending',
                 ots_proof: result.otsProof,
                 ots_calendar_url: result.calendarUrl,
+                bitcoin_attempts: 0,
+                bitcoin_error_message: null,
+                error_message: null,
                 metadata: submittedProjection.metadata,
                 updated_at: nowIso,
               })
@@ -602,6 +619,7 @@ serve(async (req) => {
               .from('anchors')
               .update({
                 anchor_status: 'failed',
+                bitcoin_error_message: result.error,
                 error_message: result.error,
                 updated_at: new Date().toISOString()
               })
@@ -621,6 +639,7 @@ serve(async (req) => {
               .from('anchors')
               .update({
                 anchor_status: 'failed',
+                bitcoin_error_message: reason,
                 error_message: reason,
                 updated_at: new Date().toISOString(),
               })

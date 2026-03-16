@@ -103,10 +103,20 @@ serve(async (req: Request) => {
       at: nowIso(),
       ...extra,
     });
-    await supabase
+    const cancelAttempt = await supabase
       .from("workflow_notifications")
       .update({ delivery_status: "cancelled", error_message: payload })
       .eq("id", id);
+    if (cancelAttempt.error) {
+      // Backwards-compatible fallback:
+      // Some environments may not have the migration that adds 'cancelled' to the
+      // delivery_status CHECK constraint yet. In that case, mark as failed to
+      // prevent re-sending loops.
+      await supabase
+        .from("workflow_notifications")
+        .update({ delivery_status: "failed", error_message: payload })
+        .eq("id", id);
+    }
   };
 
   try {

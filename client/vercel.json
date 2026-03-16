@@ -1,12 +1,13 @@
 {
-  "rewrites": [
+  "routes": [
     {
-      "source": "/.well-known/ecosign-keys.json",
-      "destination": "https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/signing-keys"
+      "src": "^/\\.well-known/ecosign-keys\\.json$",
+      "dest": "https://uiyojopjbhooxrmamaiw.supabase.co/functions/v1/signing-keys"
     },
+    { "handle": "filesystem" },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "^/(?!assets/)(?!.*\\.[^/]+$).*$",
+      "dest": "/index.html"
     }
   ],
   "headers": [

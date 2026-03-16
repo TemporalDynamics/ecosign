@@ -61,6 +61,46 @@ const isSignerHost = hostname === 'app.ecosign.app'
 
 const AppToRender = isSignerHost ? SignerApp : DashboardApp
 
+// ============================================
+// Robustness: auto-recover from stale chunk loads
+// ============================================
+// If a user has an old tab open, a new deploy may invalidate hashed chunks.
+// This catches dynamic-import failures and forces a single hard reload.
+const CHUNK_RECOVERY_KEY = 'ecosign:chunk-recovery:reloaded'
+function maybeRecoverFromStaleChunk(errorLike) {
+  try {
+    const message =
+      typeof errorLike === 'string'
+        ? errorLike
+        : (errorLike?.message || errorLike?.toString?.() || '')
+
+    const looksLikeChunkFailure =
+      message.includes('Failed to fetch dynamically imported module') ||
+      message.includes('Importing a module script failed') ||
+      message.includes('MIME') ||
+      message.includes('text/html') ||
+      message.includes('/assets/') && message.includes('.js')
+
+    if (!looksLikeChunkFailure) return
+
+    const alreadyReloaded = sessionStorage.getItem(CHUNK_RECOVERY_KEY)
+    if (alreadyReloaded) return
+
+    sessionStorage.setItem(CHUNK_RECOVERY_KEY, String(Date.now()))
+    window.location.reload()
+  } catch {
+    // no-op
+  }
+}
+
+window.addEventListener('unhandledrejection', (event) => {
+  maybeRecoverFromStaleChunk(event?.reason)
+})
+
+window.addEventListener('error', (event) => {
+  maybeRecoverFromStaleChunk(event?.error || event?.message)
+})
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

@@ -251,6 +251,12 @@ async function callFunction(functionName: string, body: Record<string, unknown>)
       body: JSON.stringify(body),
     });
 
+    // 204 No Content means the downstream function silently dropped the request
+    // (e.g. feature gate like FASE). Treat as retryable error.
+    if (response.status === 204) {
+      throw new Error(`${functionName} returned 204 (no-op) — request was not processed`);
+    }
+
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const message = (data as { error?: string }).error || `HTTP ${response.status}`;

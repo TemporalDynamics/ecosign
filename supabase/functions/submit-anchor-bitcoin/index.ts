@@ -32,6 +32,12 @@ async function callFunction(name: string, body: Record<string, unknown>) {
     body: JSON.stringify(body),
   });
 
+  // 204 No Content means the function silently dropped the request (e.g. feature gate).
+  // Treat as retryable error so the pipeline doesn't record a false anchor.submitted.
+  if (response.status === 204) {
+    throw new Error(`${name} returned 204 (no-op) — request was not processed`);
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = (data as { error?: string }).error || `HTTP ${response.status}`;
@@ -124,7 +130,17 @@ serve(async (req) => {
     });
 
     const anchorId = (anchorResponse as { anchorId?: string }).anchorId;
+    const anchorStatus = (anchorResponse as { status?: string }).status;
     const estimatedTime = (anchorResponse as { estimatedTime?: string }).estimatedTime;
+
+    // Validate that anchor-bitcoin actually created/found an anchor record.
+    // Without anchorId the cron worker has nothing to process — fail explicitly.
+    if (!anchorId) {
+      throw new Error(
+        `anchor-bitcoin did not return anchorId (status=${anchorStatus ?? 'unknown'}). ` +
+        'The anchor record was not created — retryable.',
+      );
+    }
 
     await emitEvent(
       supabase,
@@ -139,7 +155,7 @@ serve(async (req) => {
           anchor_stage: body.anchor_stage ?? 'initial',
           step_index: body.step_index ?? 0,
           ots_request: true,
-          anchor_id: anchorId ?? null,
+          anchor_id: anchorId,
           provider: 'opentimestamps',
           estimated_confirm_time: estimatedTime ?? null,
         }

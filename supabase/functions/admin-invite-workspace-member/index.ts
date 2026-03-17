@@ -82,6 +82,26 @@ async function generateInviteLink(supabase: any, email: string, redirectTo: stri
   return { actionLink: String(actionLink), userId: String(userId) }
 }
 
+function randomWrapSaltHex(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function ensureProfileActiveWorkspace(supabase: any, userId: string, workspaceId: string) {
+  const wrapSalt = randomWrapSaltHex()
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({
+      user_id: userId,
+      wrap_salt: wrapSalt,
+      active_workspace_id: workspaceId,
+    }, { onConflict: 'user_id' })
+  if (error) {
+    console.warn('ensureProfileActiveWorkspace failed', { userId, message: error.message })
+  }
+}
+
 async function updateUserMetadataWorkspace(supabase: any, userId: string, patch: Record<string, unknown>) {
   const { data: userRes, error: getErr } = await supabase.auth.admin.getUserById(userId)
   if (getErr || !userRes?.user) return
@@ -156,6 +176,8 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'workspace_id,user_id' })
     if (memberErr) throw new Error(`failed_upsert_member:${memberErr.message}`)
+
+    await ensureProfileActiveWorkspace(supabase, invite.userId, workspaceId)
 
     await updateUserMetadataWorkspace(supabase, invite.userId, {
       workspace_id: workspaceId,

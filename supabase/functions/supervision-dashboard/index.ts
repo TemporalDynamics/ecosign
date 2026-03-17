@@ -53,6 +53,8 @@ async function getPlanAndTrialInfo(supabase: any, workspaceId: string) {
     plan_key: effective?.plan_key ?? null,
     agent_seats_limit: effective?.agent_seats_limit ?? effective?.seats_limit ?? null,
     supervisor_seats_limit: effective?.supervisor_seats_limit ?? null,
+    operations_monthly_limit: effective?.operations_monthly_limit ?? null,
+    invitations_monthly_limit: effective?.invitations_monthly_limit ?? null,
   }
 }
 
@@ -75,16 +77,16 @@ async function listMembers(supabase: any, workspaceId: string) {
   }))
 }
 
-async function listRecentDocuments(supabase: any, ownerIds: string[]) {
-  if (ownerIds.length === 0) return []
+async function listRecentDocuments(supabase: any, workspaceId: string) {
   const { data } = await supabase
     .from('document_entities')
-    .select('id,owner_id,source_name,created_at,lifecycle_status')
-    .in('owner_id', ownerIds)
+    .select('id,workspace_id,owner_id,source_name,created_at,lifecycle_status')
+    .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
     .limit(8)
   return (data ?? []).map((row: any) => ({
     id: String(row.id),
+    workspace_id: String(row.workspace_id),
     owner_id: String(row.owner_id),
     source_name: row.source_name,
     created_at: row.created_at,
@@ -109,14 +111,31 @@ function sortByAtDesc(items: ActivityItem[]) {
   return items.sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
 }
 
-async function countActiveOperations(supabase: any, ownerIds: string[]) {
-  if (ownerIds.length === 0) return 0
+async function countActiveOperations(supabase: any, workspaceId: string) {
   const { count } = await supabase
     .from('signature_workflows')
     .select('id', { count: 'exact', head: true })
-    .in('owner_id', ownerIds)
+    .eq('workspace_id', workspaceId)
     .in('status', ['draft', 'active', 'paused'])
   return count ?? 0
+}
+
+async function computeWorkspaceUsage(supabase: any, workspaceId: string, periodStartIso: string, periodEndIso: string) {
+  const { data, error } = await supabase.rpc('compute_workspace_usage', {
+    p_workspace_id: workspaceId,
+    p_period_start: periodStartIso,
+    p_period_end: periodEndIso,
+  })
+  if (error || !Array.isArray(data) || data.length === 0) {
+    return { operations_active: 0, operations_created: 0, documents_created: 0, signer_invitations_sent: 0 }
+  }
+  const row = data[0] as any
+  return {
+    operations_active: Number(row.operations_active ?? 0),
+    operations_created: Number(row.operations_created ?? 0),
+    documents_created: Number(row.documents_created ?? 0),
+    signer_invitations_sent: Number(row.signer_invitations_sent ?? 0),
+  }
 }
 
 serve(async (req) => {
@@ -167,19 +186,30 @@ serve(async (req) => {
       invited_at: string | null
     }>
 
+    // Seat reservation policy (frozen for now):
+    // active + invited + suspended consume a place; removed does not.
     const reservedAgents = members.filter((m) =>
-      m.role === 'agent' && (m.status === 'active' || m.status === 'invited')
+      m.role === 'agent' && (m.status === 'active' || m.status === 'invited' || m.status === 'suspended')
     ).length
     const reservedSupervisors = members.filter((m) =>
-      (m.role === 'owner_supervisor' || m.role === 'supervisor_admin') && (m.status === 'active' || m.status === 'invited')
+      (m.role === 'owner_supervisor' || m.role === 'supervisor_admin')
+      && (m.status === 'active' || m.status === 'invited' || m.status === 'suspended')
     ).length
 
     const activeUsers = members.filter((m) => m.status === 'active').length
     const pendingInvites = members.filter((m) => m.status === 'invited').length
 
     const ownerIds: string[] = Array.from(new Set(members.map((m) => m.user_id)))
-    const operationsActive = await countActiveOperations(supabase, ownerIds)
-    const recentDocuments = await listRecentDocuments(supabase, ownerIds)
+
+    // Workspace truth
+    const operationsActive = await countActiveOperations(supabase, membership.workspaceId)
+    const recentDocuments = await listRecentDocuments(supabase, membership.workspaceId)
+
+    const now = new Date()
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0)).toISOString()
+    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0)).toISOString()
+    const usage = await computeWorkspaceUsage(supabase, membership.workspaceId, periodStart, periodEnd)
+    usage.operations_active = operationsActive
 
     const nextCycle = plan.plan_status === 'trialing' ? plan.trial_ends_at : null
 
@@ -234,10 +264,18 @@ serve(async (req) => {
         created_at: ws.created_at ?? null,
       },
       plan,
+      usage: {
+        period_start: periodStart,
+        period_end: periodEnd,
+        operations_active: usage.operations_active,
+        operations_created: usage.operations_created,
+        documents_created: usage.documents_created,
+        signer_invitations_sent: usage.signer_invitations_sent,
+      },
       summary: {
         active_users: activeUsers,
         pending_invites: pendingInvites,
-        operations_active: operationsActive,
+        operations_active: usage.operations_active,
         documents_recent: recentDocuments.length,
         next_cycle_at: nextCycle,
       },

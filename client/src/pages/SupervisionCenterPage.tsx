@@ -39,6 +39,31 @@ function ProgressBar({ used, limit }: { used: number; limit: number | null }) {
   );
 }
 
+function CountBar({
+  used,
+  limit,
+  label,
+}: {
+  used: number;
+  limit: number | null;
+  label: string;
+}) {
+  const pct = limit === null || limit <= 0 ? null : Math.min(100, Math.round((used / limit) * 100));
+  return (
+    <div className="w-full">
+      <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+        <span>{label}</span>
+        <span className="font-semibold text-gray-900">
+          {used}{limit === null ? '' : ` / ${limit}`}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-gray-100 border border-gray-200 overflow-hidden">
+        <div className="h-2 bg-gray-900" style={{ width: `${pct === null ? 15 : pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function SupervisionCenterPage() {
   const [nav, setNav] = useState<NavKey>('summary');
   const [loading, setLoading] = useState(false);
@@ -105,6 +130,13 @@ export default function SupervisionCenterPage() {
   const isEnterprise = planKey.startsWith('enterprise');
   const trialEndsAt = data?.plan?.trial_ends_at ?? null;
   const actorRole = String(data?.actor?.role ?? '');
+  const operationsMonthlyLimit = (data?.plan?.operations_monthly_limit ?? null) as number | null;
+  const invitationsMonthlyLimit = (data?.plan?.invitations_monthly_limit ?? null) as number | null;
+
+  const usage = data?.usage ?? null;
+  const operationsCreated = Number(usage?.operations_created ?? 0);
+  const documentsCreated = Number(usage?.documents_created ?? 0);
+  const signerInvitesSent = Number(usage?.signer_invitations_sent ?? 0);
 
   const filteredMembers = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -184,7 +216,7 @@ export default function SupervisionCenterPage() {
     { key: 'team', label: 'Equipo' },
     { key: 'limits', label: 'Uso y límites' },
     { key: 'billing', label: 'Plan y facturación' },
-    { key: 'settings', label: 'Configuración' },
+    ...(isEnterprise ? [{ key: 'settings' as const, label: 'Configuración' }] : []),
   ];
 
   return (
@@ -371,6 +403,17 @@ export default function SupervisionCenterPage() {
                     <div>
                       <div className="text-xs text-gray-600 mb-1">Agentes</div>
                       <ProgressBar used={data.limits?.agents?.used ?? 0} limit={data.limits?.agents?.limit ?? null} />
+                    </div>
+                  </div>
+                  <div className="mt-6 pt-5 border-t border-gray-200">
+                    <div className="text-sm font-semibold text-gray-900">Uso del plan (este mes)</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Consumo agregado de esta cuenta (no por persona).
+                    </div>
+                    <div className="mt-4 space-y-4">
+                      <CountBar used={operationsCreated} limit={operationsMonthlyLimit} label="Operaciones creadas" />
+                      <CountBar used={documentsCreated} limit={null} label="Documentos creados" />
+                      <CountBar used={signerInvitesSent} limit={invitationsMonthlyLimit} label="Invitaciones enviadas" />
                     </div>
                   </div>
                 </div>
@@ -608,8 +651,16 @@ export default function SupervisionCenterPage() {
                     <ProgressBar used={data.limits?.agents?.used ?? 0} limit={data.limits?.agents?.limit ?? null} />
                   </div>
                 </div>
-                <div className="mt-6 text-sm text-gray-700">
-                  Próximo: agregar “Operaciones este mes” y “Firmantes invitados” (cuando lo conectemos a workspace de forma completa).
+                <div className="mt-6 pt-5 border-t border-gray-200">
+                  <div className="text-sm font-semibold text-gray-900">Uso del plan (este mes)</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Ventana: {formatMaybeDate(usage?.period_start ?? null)} → {formatMaybeDate(usage?.period_end ?? null)}
+                  </div>
+                  <div className="mt-4 space-y-4">
+                    <CountBar used={operationsCreated} limit={operationsMonthlyLimit} label="Operaciones creadas" />
+                    <CountBar used={documentsCreated} limit={null} label="Documentos creados" />
+                    <CountBar used={signerInvitesSent} limit={invitationsMonthlyLimit} label="Invitaciones enviadas" />
+                  </div>
                 </div>
               </div>
             )}

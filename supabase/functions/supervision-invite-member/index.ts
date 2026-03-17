@@ -71,6 +71,27 @@ async function generateInviteLink(supabase: any, email: string, redirectTo: stri
   return { actionLink: String(actionLink), userId: String(userId) }
 }
 
+function randomWrapSaltHex(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function ensureProfileActiveWorkspace(supabase: any, userId: string, workspaceId: string) {
+  const wrapSalt = randomWrapSaltHex()
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({
+      user_id: userId,
+      wrap_salt: wrapSalt,
+      active_workspace_id: workspaceId,
+    }, { onConflict: 'user_id' })
+  if (error) {
+    // best-effort; handle_new_user trigger should create the profile anyway
+    console.warn('ensureProfileActiveWorkspace failed', { userId, message: error.message })
+  }
+}
+
 serve(async (req) => {
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
 
@@ -141,6 +162,8 @@ serve(async (req) => {
       }, { onConflict: 'workspace_id,user_id' })
     if (upsertErr) throw new Error(`member_upsert_failed:${upsertErr.message}`)
 
+    await ensureProfileActiveWorkspace(supabase, invite.userId, workspaceId)
+
     const emailPayload = await buildWorkspaceMemberInviteEmail({
       recipientEmail: recipientEmail,
       workspaceName: String(ws.name ?? 'Equipo EcoSign'),
@@ -174,4 +197,3 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: 'internal_error', message }, 500, corsHeaders)
   }
 })
-

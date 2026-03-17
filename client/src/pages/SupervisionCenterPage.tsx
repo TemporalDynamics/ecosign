@@ -99,18 +99,6 @@ export default function SupervisionCenterPage() {
         throw new Error(json?.error || json?.message || `HTTP ${resp.status}`);
       }
       setData(json);
-
-      // Best-effort: record access for last_seen_at.
-      if (json?.workspace?.id) {
-        fetch(`${functionsUrl}/supervision-record-access`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ workspace_id: json.workspace.id }),
-        }).catch(() => {});
-      }
     } catch (err: any) {
       setError(err?.message || 'Error desconocido');
       setData(null);

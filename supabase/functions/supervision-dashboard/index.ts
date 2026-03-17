@@ -33,6 +33,16 @@ async function resolveSupervisorWorkspace(supabase: any, userId: string, workspa
   return { workspaceId: String(data.workspace_id), role: String(data.role) as 'owner_supervisor' | 'supervisor_admin' }
 }
 
+async function recordMemberAccess(supabase: any, userId: string, workspaceId: string) {
+  const nowIso = new Date().toISOString()
+  await supabase
+    .from('workspace_members')
+    .update({ last_seen_at: nowIso, updated_at: nowIso })
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', userId)
+    .neq('status', 'removed')
+}
+
 async function getMonthlyLimits(supabase: any, workspaceId: string, planId: string | null) {
   if (!planId) return { operations_monthly_limit: null, invitations_monthly_limit: null }
 
@@ -199,6 +209,9 @@ serve(async (req) => {
       .eq('id', membership.workspaceId)
       .maybeSingle()
     if (!ws?.id) return jsonResponse({ ok: false, error: 'workspace_not_found' }, 404, corsHeaders)
+
+    // Best-effort: update last_seen_at for supervisor members.
+    await recordMemberAccess(supabase, authUser.id, membership.workspaceId).catch(() => {})
 
     const plan = await getPlanAndTrialInfo(supabase, membership.workspaceId)
     const members = await listMembers(supabase, membership.workspaceId) as Array<{

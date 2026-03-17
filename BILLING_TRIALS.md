@@ -156,6 +156,23 @@ supabase functions deploy admin-expire-workspace-trials
 
 - `admin-expire-workspace-trials` cada 5–15 minutos.
 
+### Cron automático (GitHub Actions)
+
+Ya está incluido un workflow:
+
+- `.github/workflows/cron-expire-workspace-trials.yml`
+
+Requisitos:
+
+- GitHub Secret `SUPABASE_PROJECT_REF`
+- GitHub Secret `SUPABASE_CRON_SECRET`
+- En Supabase Functions/Secrets, definir `CRON_SECRET` con **el mismo valor** que `SUPABASE_CRON_SECRET`.
+
+Notas:
+
+- El job llama a `admin-expire-workspace-trials` con header `x-cron-secret`.
+- También se puede correr manualmente con `workflow_dispatch` (inputs `limit` y `dry_run`).
+
 ## Limitaciones / Próximos pasos
 
 - `owner_email` se resuelve paginando `listUsers`. Para producción a escala conviene:
@@ -165,4 +182,3 @@ supabase functions deploy admin-expire-workspace-trials
 - Ideal a futuro:
   - Trigger para crear `workspace + free plan` al registrar usuario nuevo.
   - Panel de administración / supervisión para asignar trials/seats sin usar cURL.
-

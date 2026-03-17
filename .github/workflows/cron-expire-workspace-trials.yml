@@ -1,0 +1,55 @@
+name: Cron - Expire Workspace Trials
+
+on:
+  schedule:
+    # Every 15 minutes
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max trials to process"
+        required: false
+        default: "200"
+      dry_run:
+        description: "If true, does not write changes"
+        required: false
+        default: "false"
+
+concurrency:
+  group: cron-expire-workspace-trials
+  cancel-in-progress: false
+
+jobs:
+  expire-trials:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_CRON_SECRET: ${{ secrets.SUPABASE_CRON_SECRET }}
+      LIMIT: ${{ github.event.inputs.limit || '200' }}
+      DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+    steps:
+      - name: Validate secrets
+        run: |
+          if [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "Missing SUPABASE_PROJECT_REF secret" >&2
+            exit 1
+          fi
+          if [ -z "$SUPABASE_CRON_SECRET" ]; then
+            echo "Missing SUPABASE_CRON_SECRET secret" >&2
+            exit 1
+          fi
+
+      - name: Call admin-expire-workspace-trials
+        run: |
+          set -euo pipefail
+          SUPABASE_URL="https://${SUPABASE_PROJECT_REF}.supabase.co"
+          ENDPOINT="${SUPABASE_URL}/functions/v1/admin-expire-workspace-trials"
+          echo "Calling: $ENDPOINT (limit=${LIMIT}, dry_run=${DRY_RUN})"
+          curl -sS -f \
+            -X POST "$ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${SUPABASE_CRON_SECRET}" \
+            --data "{\"limit\": ${LIMIT}, \"dry_run\": ${DRY_RUN}}"
+          echo ""
+

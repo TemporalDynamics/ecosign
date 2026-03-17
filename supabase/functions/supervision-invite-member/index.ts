@@ -31,7 +31,7 @@ async function resolveSupervisorMembership(supabase: any, userId: string, worksp
 }
 
 async function getPlanEffectiveLimits(supabase: any, workspaceId: string) {
-  const { data } = await supabase.rpc('compute_workspace_effective_limits', { p_workspace_id: workspaceId })
+  const { data } = await supabase.rpc('compute_workspace_effective_limits_v2', { p_workspace_id: workspaceId })
   const row = Array.isArray(data) && data.length > 0 ? data[0] as any : null
   return {
     agent_seats_limit: row?.agent_seats_limit ?? row?.seats_limit ?? null,

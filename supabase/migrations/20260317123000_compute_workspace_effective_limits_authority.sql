@@ -1,6 +1,10 @@
--- Extend compute_workspace_effective_limits with supervisor/agent separation
+-- Extend effective workspace limits with supervisor/agent separation.
+-- NOTE: PostgreSQL cannot change the return type of an existing function via
+-- CREATE OR REPLACE when OUT columns differ. The production DB already has
+-- public.compute_workspace_effective_limits(uuid) from an earlier migration.
+-- Keep that legacy function intact and introduce a v2 RPC for the new schema.
 
-CREATE OR REPLACE FUNCTION public.compute_workspace_effective_limits(
+CREATE OR REPLACE FUNCTION public.compute_workspace_effective_limits_v2(
   p_workspace_id uuid
 )
 RETURNS TABLE (
@@ -134,3 +138,9 @@ LEFT JOIN addons a ON a.workspace_id = cp.workspace_id
 LEFT JOIN overrides o ON o.workspace_id = cp.workspace_id;
 $$;
 
+ALTER FUNCTION public.compute_workspace_effective_limits_v2(uuid)
+  SET search_path = public, pg_catalog;
+
+REVOKE EXECUTE ON FUNCTION public.compute_workspace_effective_limits_v2(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.compute_workspace_effective_limits_v2(uuid) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.compute_workspace_effective_limits_v2(uuid) TO service_role;

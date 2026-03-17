@@ -33,6 +33,31 @@ async function resolveSupervisorWorkspace(supabase: any, userId: string, workspa
   return { workspaceId: String(data.workspace_id), role: String(data.role) as 'owner_supervisor' | 'supervisor_admin' }
 }
 
+async function getMonthlyLimits(supabase: any, workspaceId: string, planId: string | null) {
+  if (!planId) return { operations_monthly_limit: null, invitations_monthly_limit: null }
+
+  const { data: plan, error: planErr } = await supabase
+    .from('plans')
+    .select('operations_monthly_limit,invitations_monthly_limit')
+    .eq('id', planId)
+    .maybeSingle()
+
+  const { data: override, error: overrideErr } = await supabase
+    .from('workspace_limits')
+    .select('operations_monthly_limit,invitations_monthly_limit,source')
+    .eq('workspace_id', workspaceId)
+    .in('source', ['override', 'enterprise'])
+    .limit(1)
+    .maybeSingle()
+
+  // If columns don't exist yet (partial deploy), fail closed with nulls.
+  if (planErr || overrideErr) return { operations_monthly_limit: null, invitations_monthly_limit: null }
+
+  const operations = (override?.operations_monthly_limit ?? plan?.operations_monthly_limit ?? null) as number | null
+  const invitations = (override?.invitations_monthly_limit ?? plan?.invitations_monthly_limit ?? null) as number | null
+  return { operations_monthly_limit: operations, invitations_monthly_limit: invitations }
+}
+
 async function getPlanAndTrialInfo(supabase: any, workspaceId: string) {
   const { data: planRow } = await supabase
     .from('workspace_plan')
@@ -43,8 +68,9 @@ async function getPlanAndTrialInfo(supabase: any, workspaceId: string) {
     .limit(1)
     .maybeSingle()
 
-  const { data: effectiveRows } = await supabase.rpc('compute_workspace_effective_limits', { p_workspace_id: workspaceId })
+  const { data: effectiveRows } = await supabase.rpc('compute_workspace_effective_limits_v2', { p_workspace_id: workspaceId })
   const effective = Array.isArray(effectiveRows) && effectiveRows.length > 0 ? effectiveRows[0] as any : null
+  const monthly = await getMonthlyLimits(supabase, workspaceId, (planRow?.plan_id ?? effective?.plan_id ?? null) as string | null)
 
   return {
     plan_status: planRow?.status ?? null,
@@ -53,8 +79,8 @@ async function getPlanAndTrialInfo(supabase: any, workspaceId: string) {
     plan_key: effective?.plan_key ?? null,
     agent_seats_limit: effective?.agent_seats_limit ?? effective?.seats_limit ?? null,
     supervisor_seats_limit: effective?.supervisor_seats_limit ?? null,
-    operations_monthly_limit: effective?.operations_monthly_limit ?? null,
-    invitations_monthly_limit: effective?.invitations_monthly_limit ?? null,
+    operations_monthly_limit: monthly.operations_monthly_limit,
+    invitations_monthly_limit: monthly.invitations_monthly_limit,
   }
 }
 

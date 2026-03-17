@@ -36,7 +36,7 @@ async function resolveAuthUser(supabase: any, authHeader: string | null) {
 }
 
 async function getPlanEffectiveLimits(supabase: any, workspaceId: string) {
-  const { data, error } = await supabase.rpc('compute_workspace_effective_limits', {
+  const { data, error } = await supabase.rpc('compute_workspace_effective_limits_v2', {
     p_workspace_id: workspaceId,
   })
   if (error || !Array.isArray(data) || data.length === 0) {

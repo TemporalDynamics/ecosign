@@ -45,6 +45,7 @@ const PrivateNavDesktop = ({ openLegalCenter }: { openLegalCenter: () => void; }
     { label: 'Centro Legal', onClick: openLegalCenter },
     { label: 'Documentos', to: '/documentos' },
     { label: 'Verificador', to: '/verificador' },
+    { label: 'Administración', to: '/dashboard/supervision' },
     { label: 'Mis planes', to: '/planes' },
   ];
 
@@ -112,6 +113,7 @@ const PrivateNavMobile = ({ openLegalCenter, setMobileMenuOpen }: { openLegalCen
         { label: 'Centro Legal', action: () => openLegalCenter() },
         { label: 'Documentos', to: '/documentos' },
         { label: 'Verificador', to: '/verificador' },
+        { label: 'Administración', to: '/dashboard/supervision' },
         { label: 'Mis planes', to: '/planes' },
     ];
 

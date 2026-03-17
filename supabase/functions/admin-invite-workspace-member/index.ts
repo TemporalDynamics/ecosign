@@ -149,7 +149,10 @@ serve(async (req) => {
         workspace_id: workspaceId,
         user_id: invite.userId,
         role,
-        status: 'active',
+        status: 'invited',
+        member_email: email,
+        invited_at: new Date().toISOString(),
+        invited_by: authUser.id,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'workspace_id,user_id' })
     if (memberErr) throw new Error(`failed_upsert_member:${memberErr.message}`)
@@ -199,4 +202,3 @@ serve(async (req) => {
     return jsonResponse({ error: 'internal_error', message }, 500)
   }
 })
-

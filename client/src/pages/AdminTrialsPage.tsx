@@ -79,7 +79,7 @@ export default function AdminTrialsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <Header variant="private" />
       <main className="max-w-3xl mx-auto px-4 py-10">
         <h1 className="text-2xl font-bold text-gray-900">Regalar Free Trial</h1>
         <p className="text-sm text-gray-600 mt-2">
@@ -219,4 +219,3 @@ export default function AdminTrialsPage() {
     </div>
   );
 }
-

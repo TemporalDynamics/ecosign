@@ -46,6 +46,10 @@ const AUTH_CATEGORIES = {
     'store-encrypted-custody',
     'verify-invite-access',
     'workflow-fields',
+    'supervision-dashboard',
+    'supervision-invite-member',
+    'supervision-member-action',
+    'supervision-record-access',
   ],
 
   // Categoría 1b: Público con Token (validación por token de link/recipient)

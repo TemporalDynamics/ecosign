@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invitación a tu equipo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.5;
+      background-color: #ffffff;
+      color: #111111;
+    }
+    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { padding: 24px 32px; border-bottom: 1px solid #EAEAEA; }
+    .logo { display: block; width: 32px; height: 32px; }
+    .content { padding: 32px; }
+    .content h1 { font-size: 22px; font-weight: 650; margin-bottom: 12px; }
+    .content p { font-size: 14px; color: #111111; margin-bottom: 14px; }
+    .secondary { color: #555555; }
+    .card {
+      margin: 16px 0 18px;
+      padding: 14px 16px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      border-radius: 10px;
+    }
+    .cta {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #111111;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-weight: 650;
+      font-size: 14px;
+    }
+    .footer { padding: 24px 32px 32px; border-top: 1px solid #EAEAEA; }
+    .footer p { font-size: 12px; color: #555555; margin: 6px 0; }
+    .footer a { color: #111111; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="{{siteUrl}}/assets/icons/icon-128x128.png" alt="EcoSign" class="logo" />
+    </div>
+    <div class="content">
+      <h1>Invitación al equipo</h1>
+      <p>Hola, {{recipient_email}}.</p>
+      <p class="secondary">
+        Te agregamos a un equipo en EcoSign con el rol <strong>{{role_name}}</strong>.
+      </p>
+
+      <div class="card">
+        <p><strong>Qué podés hacer</strong></p>
+        <p class="secondary">{{role_copy}}</p>
+        <p class="secondary">Equipo: <strong>{{workspace_name}}</strong></p>
+      </div>
+
+      <p>
+        <a href="{{action_link}}" class="cta">Aceptar invitación</a>
+      </p>
+
+      <p class="secondary" style="margin-top: 12px;">
+        Si no esperabas este acceso, podés ignorar este email.
+      </p>
+    </div>
+    <div class="footer">
+      <p>No vendemos firmas. Vendemos certeza.</p>
+      <p>Soporte: <a href="{{siteUrl}}/support">{{siteUrl}}/support</a></p>
+    </div>
+  </div>
+</body>
+</html>
+

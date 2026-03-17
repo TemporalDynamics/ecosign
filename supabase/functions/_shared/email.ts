@@ -189,6 +189,43 @@ export async function buildTrialOfferInviteEmail({
   };
 }
 
+export async function buildWorkspaceMemberInviteEmail({
+  recipientEmail,
+  workspaceName,
+  role,
+  actionLink,
+  siteUrl,
+}: {
+  recipientEmail: string;
+  workspaceName: string;
+  role: 'supervisor_admin' | 'agent';
+  actionLink: string;
+  siteUrl?: string | null;
+}) {
+  const resolvedSiteUrl = normalizeSiteUrl(siteUrl ?? deriveSiteUrlFromLink(actionLink));
+  const roleName = role === 'supervisor_admin' ? 'Supervisor (Admin)' : 'Agente';
+  const roleCopy = role === 'supervisor_admin'
+    ? 'Podés gestionar agentes, ver operaciones del equipo y mantener control interno (sin tocar el billing).'
+    : 'Podés operar casos/documentos del equipo según permisos, y dejar evidencia auditable de cada acción.';
+
+  return {
+    from: DEFAULT_FROM,
+    to: recipientEmail,
+    subject: `EcoSign — Invitación al equipo (${roleName})`,
+    html: await renderTemplateFromFile({
+      templateName: 'workspace-member-invite.html',
+      variables: {
+        recipient_email: recipientEmail,
+        workspace_name: workspaceName,
+        role_name: roleName,
+        role_copy: roleCopy,
+        action_link: actionLink,
+      },
+      siteUrl: resolvedSiteUrl,
+    }),
+  };
+}
+
 export async function buildSignerOtpEmail({
   signerEmail,
   signerName,

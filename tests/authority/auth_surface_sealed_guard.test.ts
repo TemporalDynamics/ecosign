@@ -17,6 +17,7 @@ const AUTH_CATEGORIES = {
   // Categoría 1: Usuario Logueado (auth.getUser)
   userLogged: [
     'admin-issue-trial-offer',
+    'admin-invite-workspace-member',
     'cancel-workflow',
     'claim-signer-package',
     'create-custody-upload-url',

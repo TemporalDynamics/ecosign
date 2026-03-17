@@ -22,6 +22,35 @@
 
 ---
 
+## Actualización 2026-03-13: Verificación de Duplicaciones
+
+### ✅ Funciones verificadas como NO DUPLICADAS
+
+#### Health Checks (4 funciones distintas)
+
+| Función | Propósito | ¿Duplicada? | Acción |
+|---------|-----------|-------------|--------|
+| `anchor-health` | Monitoreo de anchors (pending, confirmed, stalled, workers_alive) | ❌ NO | ✅ Mantener |
+| `anchoring-health-check` | Health de infraestructura (RPC, calendars, database, mempool) | ❌ NO | ✅ Mantener |
+| `health` | Monitoreo de executor_jobs (queued, processing, stuck, dead) | ❌ NO | ✅ Mantener |
+| `health-check` | Health de crons de anchoring (cron status, pending, recent_anchors) | ❌ NO | ✅ Mantener |
+
+**Conclusión:** Las 4 funciones son válidas. Cada una monitorea aspectos diferentes del sistema.
+
+#### Logging (5 funciones distintas)
+
+| Función | Propósito | Tabla | ¿Duplicada? | Acción |
+|---------|-----------|-------|-------------|--------|
+| `log-ecox-event` | Eventos de auditoría ECOX (firma, geolocalización, forensic) | `ecox_events` | ❌ NO | ✅ Mantener |
+| `log-event` | Eventos legacy de documentos | `document_events` | ❌ NO | ✅ Mantener |
+| `log-share-event` | Eventos de sharing (share.created, share.opened, otp.verified) | `document_events` | ❌ NO | ✅ Mantener |
+| `log-workflow-event` | Eventos de workflow (document.decrypted) | `canonical_events` | ❌ NO | ✅ Mantener |
+| `record-protection-event` | Evento de protección inicial (document.protected.requested) | `document_events` | ❌ NO | ✅ Mantener |
+
+**Conclusión:** Las 5 funciones son válidas. Cada una tiene un contexto y tabla diferentes.
+
+---
+
 ## Inventario Completo
 
 ### ✅ CORE ACTIVO (Uso confirmado)
@@ -161,18 +190,24 @@
 
 ## Duplicaciones Detectadas
 
-### Posibles duplicaciones por intención:
+### ✅ Verificadas como NO DUPLICADAS (2026-03-13)
 
-| Función A | Función B | ¿Hacen lo mismo? | Acción |
-|-----------|-----------|------------------|--------|
-| `anchor-health` | `anchoring-health-check` | Sí (health check) | ❌ Borrar `anchor-health` |
-| `health` | `health-check` | Sí (health check) | ⚠️ Verificar si ambas se usan |
-| `log-event` | `log-ecox-event` | Similar (logging) | ⚠️ Verificar migración |
-| `log-share-event` | `log-ecox-event` | Similar (logging) | ⚠️ Verificar migración |
-| `log-workflow-event` | `log-ecox-event` | Similar (logging) | ⚠️ Verificar migración |
-| `record-protection-event` | `log-ecox-event` | Similar (logging) | ⚠️ Verificar migración |
-| `notify-document-certified` | ¿? | Notification | ⚠️ Verificar uso |
-| `notify-document-signed` | ¿? | Notification | ⚠️ Verificar uso |
+| Función A | Función B | ¿Hacen lo mismo? | Verificación | Acción |
+|-----------|-----------|------------------|--------------|--------|
+| `anchor-health` | `anchoring-health-check` | ❌ NO | Verificado: propósitos diferentes | ✅ Mantener ambas |
+| `health` | `health-check` | ❌ NO | Verificado: propósitos diferentes | ✅ Mantener ambas |
+| `log-event` | `log-ecox-event` | ❌ NO | Verificado: tablas y contextos diferentes | ✅ Mantener ambas |
+| `log-share-event` | `log-ecox-event` | ❌ NO | Verificado: contextos diferentes | ✅ Mantener ambas |
+| `log-workflow-event` | `log-ecox-event` | ❌ NO | Verificado: contextos diferentes | ✅ Mantener ambas |
+| `record-protection-event` | `log-ecox-event` | ❌ NO | Verificado: evento específico diferente | ✅ Mantener ambas |
+
+### ⚠️ Sin Verificar
+
+| Función | Observación | Acción |
+|---------|-------------|--------|
+| `notify-document-certified` | Verificar uso real | ⚠️ Verificar métricas |
+| `notify-document-signed` | Verificar uso real | ⚠️ Verificar métricas |
+| `get-eco` vs `get-eco-url` | Verificar si ambas se usan | ⚠️ Verificar referencias |
 
 ---
 
@@ -193,62 +228,69 @@ Estas funciones son de administración de trials y workspace. Si no hay uso acti
 
 ## Resumen de Acciones Propuestas
 
-### ✅ Mantener (CORE ACTIVO)
-**78 funciones** - Uso confirmado o happy path real
-
-### ⚠️ Mantener (ACTIVO RARO)
-**20 funciones** - Uso esporádico pero vigente (monitoring, anchoring, admin)
+### ✅ Mantener (CORE ACTIVO + ACTIVO RARO)
+**98 funciones** - Uso confirmado O happy path real O verificado como no duplicado
 
 ### 🚫 NO TOCAR (SIGNNOW)
 **2 funciones** - Excepción explícita
 
-### ❌ Candidatas a Deprecated/Borrar
-**~13 funciones** - Requieren verificación adicional
+### ⚠️ VERIFICAR (Únicas pendientes)
+**~3 funciones** - Requieren verificación de métricas
+
+| Función | Verificar | Criterio |
+|---------|-----------|----------|
+| `notify-document-certified` | Métricas 60+ días | Si tiene uso → mantener |
+| `notify-document-signed` | Métricas 60+ días | Si tiene uso → mantener |
+| `get-eco` | Referencias en código | Si se usa → mantener |
+
+---
+
+## Conclusión de la Auditoría
+
+**Funciones totales:** 99
+
+**Duplicaciones confirmadas:** 0 (cero)
+
+**Funciones para borrar:** 0 (cero) - por ahora
+
+**Recomendación:** No borrar ninguna función hasta:
+1. Verificar métricas de invocación (60+ días) para las 3 pendientes
+2. Confirmar que no hay referencias en código para esas 3
+3. Confirmar que no son parte de ningún happy path
+
+**Principio aplicado:** "Si falla UNA de las 3 condiciones → NO SE TOCA"
 
 ---
 
 ## Próximos Pasos
 
-### Paso 1: Verificar en Supabase Dashboard
-Revisar métricas de invocaciones (30/60/90 días) para:
-- Funciones marcadas como "¿?" en la tabla
-- Funciones de administración de trials
-- Funciones de logging duplicadas
+### ✅ Completado (2026-03-13)
 
-### Paso 2: Confirmar referencias en código
-Para cada candidata, buscar:
-- Referencias en client/src
-- Referencias en otras functions
-- Referencias en triggers/database
+1. [x] Inventario completo de 99 funciones
+2. [x] Clasificación por estado (CORE ACTIVO, ACTIVO RARO, SIGNNOW)
+3. [x] Verificación de duplicaciones (health, logging)
+4. [x] Confirmación: trials NO se tocan (parte de happy path broker + agentes)
+5. [x] Conclusión: 0 duplicaciones confirmadas, 0 funciones para borrar
 
-### Paso 3: Marcar como deprecated
-Para las confirmadas como sin uso:
-- Mover código a `supabase/functions/_deprecated/`
-- Mantener en repo por historia
-- Borrar remoto de Supabase
+### ⏳ Pendiente (Verificación de Métricas)
 
-### Paso 4: Borrar remoto
-Solo las que cumplen las 3 condiciones:
+Revisar en Supabase Dashboard (invocaciones 60+ días):
+
+| Función | Acción |
+|---------|--------|
+| `notify-document-certified` | Si tiene uso → mantener. Si no → deprecated. |
+| `notify-document-signed` | Si tiene uso → mantener. Si no → deprecated. |
+| `get-eco` | Buscar referencias en código. Si se usa → mantener. |
+
+### 📋 Criterio para Borrado (3 condiciones)
+
+Solo borrar remoto si se cumplen **LAS 3**:
+
 1. ❌ No tuvo invocaciones en 60+ días
-2. ❌ No aparece referenciada
-3. ❌ No forma parte de happy path
+2. ❌ No aparece referenciada en cliente ni en otras functions
+3. ❌ No forma parte de un happy path que se sigue probando
 
----
-
-## Funciones Críticas (NUNCA borrar sin reemplazo confirmado)
-
-- `apply-signer-signature` - Core signature flow
-- `start-signature-workflow` - Workflow initiation
-- `build-final-artifact` - Artifact generation
-- `verify-signer-otp` - Security
-- `signer-access` - Access control
-- `create-signer-link` - Link generation
-- `send-signer-package` - Package delivery
-- `claim-signer-package` - Package claim
-- `store-encrypted-custody` - Custody storage
-- `run-tsa` / `legal-timestamp` - Timestamping
-- `anchor-polygon` / `anchor-bitcoin` - Anchoring
-- `presential-*` - Presential verification flow
+**Si falla UNA → NO SE TOCA**
 
 ---
 

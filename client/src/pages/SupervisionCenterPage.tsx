@@ -27,7 +27,9 @@ function ProgressBar({ used, limit }: { used: number; limit: number | null }) {
   return (
     <div className="w-full">
       <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-        <span>{used} / {limit === null ? '∞' : limit}</span>
+        <span>
+          {used} usados · {limit === null ? 'sin límite' : `${limit} disponibles`}
+        </span>
         {limit !== null && <span>{pct}%</span>}
       </div>
       <div className="h-2 rounded-full bg-gray-100 border border-gray-200 overflow-hidden">
@@ -97,7 +99,12 @@ export default function SupervisionCenterPage() {
   }, []);
 
   const members = Array.isArray(data?.members) ? data.members : [];
+  const activity = Array.isArray(data?.activity) ? data.activity : [];
   const workspaceId = data?.workspace?.id ?? null;
+  const planKey = String(data?.plan?.plan_key ?? '').toLowerCase();
+  const isEnterprise = planKey.startsWith('enterprise');
+  const trialEndsAt = data?.plan?.trial_ends_at ?? null;
+  const actorRole = String(data?.actor?.role ?? '');
 
   const filteredMembers = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -191,6 +198,14 @@ export default function SupervisionCenterPage() {
               <div className="text-xs text-gray-500 mt-1">
                 {data?.workspace?.name ? data.workspace.name : '—'}
               </div>
+              <div className="mt-2 text-xs text-gray-600">
+                Plan: <span className="font-semibold text-gray-900">{planKey ? planKey.toUpperCase() : '—'}</span>
+                {trialEndsAt && (
+                  <>
+                    {' '}· Trial vence: <span className="font-semibold text-gray-900">{formatMaybeDate(trialEndsAt)}</span>
+                  </>
+                )}
+              </div>
               <nav className="mt-4 flex md:flex-col gap-2 flex-wrap">
                 {navItems.map((item) => (
                   <button
@@ -237,13 +252,40 @@ export default function SupervisionCenterPage() {
 
             {data && nav === 'summary' && (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                {/* Zona 1: estado de cuenta + CTA */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-gray-900">Supervisor Home</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Estado de cuenta: <span className="font-semibold text-gray-900">{String(data.plan?.plan_status ?? '—')}</span>
+                        {' '}· Plan: <span className="font-semibold text-gray-900">{planKey ? planKey.toUpperCase() : '—'}</span>
+                        {trialEndsAt && (
+                          <>
+                            {' '}· Vence: <span className="font-semibold text-gray-900">{formatMaybeDate(trialEndsAt)}</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-700 mt-3">
+                        Entrás para gestionar <span className="font-semibold">personas</span> y <span className="font-semibold">capacidad</span>. Lo demás queda abajo.
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setInviteOpen(true)}
+                      className="px-4 py-2 rounded-lg bg-black text-white font-semibold hover:bg-gray-900 w-full md:w-auto"
+                    >
+                      Enviar invitación
+                    </button>
+                  </div>
+                </div>
+
+                {/* Zona 2: métricas cortas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
                   {[
                     { label: 'Usuarios activos', value: data.summary?.active_users ?? 0 },
                     { label: 'Invitaciones pendientes', value: data.summary?.pending_invites ?? 0 },
                     { label: 'Operaciones activas', value: data.summary?.operations_active ?? 0 },
                     { label: 'Documentos recientes', value: data.summary?.documents_recent ?? 0 },
-                    { label: 'Próximo vencimiento', value: formatMaybeDate(data.summary?.next_cycle_at ?? null) },
                   ].map((c) => (
                     <div key={c.label} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
                       <div className="text-xs text-gray-500">{c.label}</div>
@@ -252,54 +294,127 @@ export default function SupervisionCenterPage() {
                   ))}
                 </div>
 
+                {/* Zona 3: equipo (vista compacta) */}
                 <div className="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <div className="text-sm font-semibold text-gray-900">Resumen operacional</div>
+                      <div className="text-sm font-semibold text-gray-900">Equipo</div>
                       <div className="text-xs text-gray-500 mt-1">
-                        Plan: <span className="font-semibold text-gray-800">{String(data.plan?.plan_key ?? '—').toUpperCase()}</span>
-                        {' '}· Estado: <span className="font-semibold text-gray-800">{String(data.plan?.plan_status ?? '—')}</span>
-                        {data.plan?.trial_ends_at && (
-                          <>
-                            {' '}· Trial vence: <span className="font-semibold text-gray-800">{formatMaybeDate(data.plan.trial_ends_at)}</span>
-                          </>
-                        )}
+                        “Invitar” envía un email. No crea usuarios automáticamente.
                       </div>
                     </div>
+                    <button
+                      onClick={() => setNav('team')}
+                      className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      Ver equipo
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900 mb-2">Capacidad y límites</div>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="text-xs text-gray-600 mb-1">Supervisores</div>
-                          <ProgressBar used={data.limits?.supervisors?.used ?? 0} limit={data.limits?.supervisors?.limit ?? null} />
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-600 mb-1">Agentes</div>
-                          <ProgressBar used={data.limits?.agents?.used ?? 0} limit={data.limits?.agents?.limit ?? null} />
-                        </div>
+                  {members.filter((m: any) => m.role === 'agent' && (m.status === 'active' || m.status === 'invited')).length === 0 ? (
+                    <div className="mt-5 p-4 rounded-lg border border-gray-200 bg-gray-50">
+                      <div className="text-sm font-semibold text-gray-900">Tu equipo aún no tiene agentes invitados.</div>
+                      <div className="text-sm text-gray-700 mt-1">
+                        Invitá tu primer agente para que pueda operar dentro de esta cuenta según el plan activo.
                       </div>
+                      <button
+                        onClick={() => {
+                          setInviteRole('agent');
+                          setInviteOpen(true);
+                        }}
+                        className="mt-3 px-4 py-2 rounded-lg bg-black text-white font-semibold hover:bg-gray-900"
+                      >
+                        Invitar primer agente
+                      </button>
                     </div>
+                  ) : (
+                    <div className="mt-5 overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-xs text-gray-500 border-b">
+                            <th className="py-2 pr-3">Nombre</th>
+                            <th className="py-2 pr-3">Email</th>
+                            <th className="py-2 pr-3">Rol</th>
+                            <th className="py-2 pr-3">Estado</th>
+                            <th className="py-2 pr-3">Último acceso</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {members.slice(0, 8).map((m: any) => (
+                            <tr key={m.id} className="border-b last:border-b-0">
+                              <td className="py-3 pr-3 font-semibold text-gray-900">{m.name ?? '—'}</td>
+                              <td className="py-3 pr-3 text-gray-700">{m.email ?? '—'}</td>
+                              <td className="py-3 pr-3 text-gray-700">{m.role}</td>
+                              <td className="py-3 pr-3 text-gray-700">
+                                {m.status === 'invited' ? 'Invitación pendiente' : m.status === 'suspended' ? 'Suspendido' : m.status}
+                              </td>
+                              <td className="py-3 pr-3 text-gray-700">{formatMaybeDate(m.last_seen_at)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
 
+                {/* Zona 4: capacidad y límites */}
+                <div className="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                  <div className="text-sm font-semibold text-gray-900">Capacidad y lugares disponibles</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Separado por gobernanza (supervisores) vs operación (agentes).
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-5">
                     <div>
-                      <div className="text-sm font-semibold text-gray-900 mb-2">Documentos recientes</div>
-                      <div className="space-y-2">
-                        {(data.recent_documents ?? []).slice(0, 6).map((d: any) => (
-                          <div key={d.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-gray-900 truncate">{d.source_name}</div>
-                              <div className="text-xs text-gray-500">{formatMaybeDate(d.created_at)}</div>
-                            </div>
-                            <div className="text-xs text-gray-600">{d.lifecycle_status}</div>
-                          </div>
-                        ))}
-                        {(data.recent_documents ?? []).length === 0 && (
-                          <div className="text-sm text-gray-600">Todavía no hay documentos recientes.</div>
-                        )}
-                      </div>
+                      <div className="text-xs text-gray-600 mb-1">Supervisores</div>
+                      <ProgressBar used={data.limits?.supervisors?.used ?? 0} limit={data.limits?.supervisors?.limit ?? null} />
                     </div>
+                    <div>
+                      <div className="text-xs text-gray-600 mb-1">Agentes</div>
+                      <ProgressBar used={data.limits?.agents?.used ?? 0} limit={data.limits?.agents?.limit ?? null} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mini actividad reciente */}
+                <div className="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                  <div className="text-sm font-semibold text-gray-900">Actividad reciente</div>
+                  <div className="text-xs text-gray-500 mt-1">Lo mínimo para dar confianza (sin log infinito).</div>
+                  <div className="mt-4 space-y-2">
+                    {activity.slice(0, 6).map((a: any, idx: number) => (
+                      <div key={`${a.type}-${idx}`} className="flex items-start justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                        <div className="text-sm text-gray-900">{a.message}</div>
+                        <div className="text-xs text-gray-500 whitespace-nowrap">{formatMaybeDate(a.at)}</div>
+                      </div>
+                    ))}
+                    {activity.length === 0 && (
+                      <div className="text-sm text-gray-600">Todavía no hay actividad registrada.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Zona 5: plan/billing abajo */}
+                <div className="mt-4 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                  <div className="text-sm font-semibold text-gray-900">Plan (abajo a propósito)</div>
+                  <div className="text-sm text-gray-700 mt-2">
+                    Esto no es lo primero que mirás, pero no lo escondemos.
+                  </div>
+                  {trialEndsAt && (
+                    <div className="mt-3 text-sm text-gray-700">
+                      Trial vence: <span className="font-semibold">{formatMaybeDate(trialEndsAt)}</span>
+                    </div>
+                  )}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setNav('billing')}
+                      className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      Ver plan y facturación
+                    </button>
+                    {isEnterprise && (
+                      <div className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-500 bg-gray-50">
+                        Enterprise: permisos / grupos (pronto)
+                      </div>
+                    )}
                   </div>
                 </div>
               </>
@@ -311,12 +426,17 @@ export default function SupervisionCenterPage() {
                   <div>
                     <div className="text-sm font-semibold text-gray-900">Equipo</div>
                     <div className="text-xs text-gray-500 mt-1">Gestioná accesos y estado operativo del equipo.</div>
+                    {actorRole && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Tu rol: <span className="font-semibold text-gray-900">{actorRole}</span>
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => setInviteOpen(true)}
                     className="px-4 py-2 rounded-lg bg-black text-white font-semibold hover:bg-gray-900"
                   >
-                    Invitar usuario
+                    Enviar invitación
                   </button>
                 </div>
 
@@ -378,7 +498,7 @@ export default function SupervisionCenterPage() {
                                   onClick={() => memberAction(m.id, 'resend_invite')}
                                   className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold hover:bg-gray-50"
                                 >
-                                  Reenviar
+                                  Reenviar invitación
                                 </button>
                               )}
                               {m.status === 'invited' && (
@@ -394,7 +514,7 @@ export default function SupervisionCenterPage() {
                                   onClick={() => memberAction(m.id, 'suspend')}
                                   className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold hover:bg-gray-50"
                                 >
-                                  Desactivar
+                                  Suspender
                                 </button>
                               )}
                               {m.status === 'suspended' && (
@@ -402,7 +522,7 @@ export default function SupervisionCenterPage() {
                                   onClick={() => memberAction(m.id, 'activate')}
                                   className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold hover:bg-gray-50"
                                 >
-                                  Reactivar
+                                  Activar
                                 </button>
                               )}
                               <select
@@ -433,7 +553,7 @@ export default function SupervisionCenterPage() {
                   <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-xl border border-gray-200 shadow-lg w-full max-w-md p-5">
                       <div className="text-sm font-semibold text-gray-900">Invitar usuario</div>
-                      <div className="text-xs text-gray-500 mt-1">Se envía un email con un link para aceptar la invitación.</div>
+                      <div className="text-xs text-gray-500 mt-1">Esto envía un email con un link para aceptar. No “crea” el usuario.</div>
 
                       <div className="mt-4 space-y-3">
                         <input
@@ -465,7 +585,7 @@ export default function SupervisionCenterPage() {
                           disabled={inviteBusy || !inviteEmail}
                           className="px-4 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:bg-gray-900 disabled:opacity-60"
                         >
-                          {inviteBusy ? 'Enviando…' : 'Enviar'}
+                          {inviteBusy ? 'Enviando invitación…' : 'Enviar invitación'}
                         </button>
                       </div>
                     </div>

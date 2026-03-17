@@ -49,6 +49,7 @@ async function getPlanAndTrialInfo(supabase: any, workspaceId: string) {
   return {
     plan_status: planRow?.status ?? null,
     trial_ends_at: planRow?.trial_ends_at ?? null,
+    plan_started_at: planRow?.started_at ?? null,
     plan_key: effective?.plan_key ?? null,
     agent_seats_limit: effective?.agent_seats_limit ?? effective?.seats_limit ?? null,
     supervisor_seats_limit: effective?.supervisor_seats_limit ?? null,
@@ -89,6 +90,23 @@ async function listRecentDocuments(supabase: any, ownerIds: string[]) {
     created_at: row.created_at,
     lifecycle_status: row.lifecycle_status,
   }))
+}
+
+type ActivityItem = {
+  type: string
+  message: string
+  at: string
+}
+
+function asIso(value: unknown): string | null {
+  if (typeof value !== 'string' || !value) return null
+  const t = Date.parse(value)
+  if (Number.isNaN(t)) return null
+  return new Date(t).toISOString()
+}
+
+function sortByAtDesc(items: ActivityItem[]) {
+  return items.sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
 }
 
 async function countActiveOperations(supabase: any, ownerIds: string[]) {
@@ -165,8 +183,50 @@ serve(async (req) => {
 
     const nextCycle = plan.plan_status === 'trialing' ? plan.trial_ends_at : null
 
+    const activity: ActivityItem[] = []
+    if (plan.plan_status === 'trialing' && plan.plan_started_at) {
+      const at = asIso(plan.plan_started_at)
+      if (at) activity.push({ type: 'trial_started', message: 'Trial activado', at })
+    }
+
+    for (const m of members) {
+      const invitedAt = asIso(m.invited_at)
+      if (m.status === 'invited' && invitedAt) {
+        activity.push({
+          type: 'invite_sent',
+          message: `Invitación enviada a ${m.email ?? 'un usuario'}`,
+          at: invitedAt,
+        })
+      }
+      const lastSeenAt = asIso(m.last_seen_at)
+      if (m.status === 'active' && lastSeenAt) {
+        activity.push({
+          type: 'member_seen',
+          message: `Acceso reciente: ${m.email ?? 'un usuario'}`,
+          at: lastSeenAt,
+        })
+      }
+    }
+
+    for (const d of recentDocuments.slice(0, 5)) {
+      const at = asIso(d.created_at)
+      if (at) {
+        activity.push({
+          type: 'document_created',
+          message: `Documento reciente: ${d.source_name}`,
+          at,
+        })
+      }
+    }
+
+    const activityTop = sortByAtDesc(activity).slice(0, 8)
+
     return jsonResponse({
       ok: true,
+      actor: {
+        user_id: String(authUser.id),
+        role: membership.role,
+      },
       workspace: {
         id: String(ws.id),
         name: String(ws.name),
@@ -187,6 +247,7 @@ serve(async (req) => {
       },
       members,
       recent_documents: recentDocuments,
+      activity: activityTop,
     }, 200, corsHeaders)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

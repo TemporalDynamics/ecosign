@@ -43,6 +43,19 @@ async function getPlanIdByKey(supabase: any, planKey: string): Promise<string> {
   return data.id
 }
 
+async function getActiveOfferForWorkspace(supabase: any, workspaceId: string) {
+  const { data, error } = await supabase
+    .from('workspace_trial_offers')
+    .select('id,next_plan_key,discount_percent,discount_months')
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) return null
+  return data ?? null
+}
+
 async function transitionWorkspaceFromExpiredTrial(supabase: any, workspaceId: string, expiredTrialRowId: string, nextPlanId: string) {
   const nowIso = new Date().toISOString()
 
@@ -96,7 +109,8 @@ serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     })
 
-    const nextPlanId = await getPlanIdByKey(supabase, nextPlanKey)
+    const planIdCache = new Map<string, string>()
+    planIdCache.set(nextPlanKey, await getPlanIdByKey(supabase, nextPlanKey))
     const nowIso = new Date().toISOString()
 
     const { data: expiredTrials, error } = await supabase
@@ -121,7 +135,21 @@ serve(async (req) => {
       }
 
       try {
-        await transitionWorkspaceFromExpiredTrial(supabase, workspaceId, trialRowId, nextPlanId)
+        const offer = await getActiveOfferForWorkspace(supabase, workspaceId)
+        const effectiveNextPlanKey = String(offer?.next_plan_key ?? nextPlanKey).trim().toLowerCase()
+        if (!planIdCache.has(effectiveNextPlanKey)) {
+          planIdCache.set(effectiveNextPlanKey, await getPlanIdByKey(supabase, effectiveNextPlanKey))
+        }
+        const effectiveNextPlanId = planIdCache.get(effectiveNextPlanKey) as string
+
+        await transitionWorkspaceFromExpiredTrial(supabase, workspaceId, trialRowId, effectiveNextPlanId)
+
+        if (offer?.id) {
+          await supabase
+            .from('workspace_trial_offers')
+            .update({ status: 'consumed', updated_at: new Date().toISOString() })
+            .eq('id', String(offer.id))
+        }
 
         const { data: ws } = await supabase
           .from('workspaces')
@@ -130,10 +158,13 @@ serve(async (req) => {
           .maybeSingle()
         if (ws?.owner_id) {
           await updateUserMetadataPlan(supabase, String(ws.owner_id), {
-            plan: nextPlanKey,
+            plan: effectiveNextPlanKey,
             plan_status: 'active',
             trial_ends_at: null,
             workspace_id: workspaceId,
+            discount_percent: offer?.discount_percent ?? null,
+            discount_months: offer?.discount_months ?? null,
+            next_plan_key: effectiveNextPlanKey,
           })
         }
 
@@ -165,4 +196,3 @@ serve(async (req) => {
     return jsonResponse({ error: 'internal_error', message }, 500)
   }
 })
-

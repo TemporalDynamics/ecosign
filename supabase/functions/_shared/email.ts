@@ -131,6 +131,64 @@ export async function buildSignerInvitationEmail({
   };
 }
 
+export async function buildTrialOfferInviteEmail({
+  recipientEmail,
+  planKey,
+  trialMonths,
+  trialEndsAt,
+  nextPlanKey,
+  discountPercent,
+  discountMonths,
+  actionLink,
+  notes,
+  siteUrl,
+}: {
+  recipientEmail: string;
+  planKey: string;
+  trialMonths: number;
+  trialEndsAt: string;
+  nextPlanKey: string;
+  discountPercent: number | null;
+  discountMonths: number | null;
+  actionLink: string;
+  notes?: string | null;
+  siteUrl?: string | null;
+}) {
+  const resolvedSiteUrl = normalizeSiteUrl(siteUrl ?? deriveSiteUrlFromLink(actionLink));
+  const planName = String(planKey).trim().toUpperCase();
+  const nextPlanName = String(nextPlanKey).trim().toUpperCase();
+  const endsAtHuman = new Date(trialEndsAt).toLocaleString('es-AR');
+
+  const hasDiscount = typeof discountPercent === 'number' && Number.isFinite(discountPercent) && discountPercent > 0;
+  const discountCopy = hasDiscount
+    ? `${discountPercent}% por ${discountMonths ?? 1} mes(es)`
+    : '';
+
+  const cleanedNotes = (notes ?? '').trim();
+
+  return {
+    from: DEFAULT_FROM,
+    to: recipientEmail,
+    subject: `EcoSign — Prueba ${planName} activa`,
+    html: await renderTemplateFromFile({
+      templateName: 'trial-offer-invite.html',
+      variables: {
+        recipient_email: recipientEmail,
+        plan_name: planName,
+        trial_months: String(trialMonths),
+        trial_ends_at: endsAtHuman,
+        next_plan_name: nextPlanName,
+        discount_copy: discountCopy,
+        discount_display: hasDiscount ? 'block' : 'none',
+        notes: cleanedNotes,
+        notes_display: cleanedNotes ? 'block' : 'none',
+        action_link: actionLink,
+      },
+      siteUrl: resolvedSiteUrl,
+    }),
+  };
+}
+
 export async function buildSignerOtpEmail({
   signerEmail,
   signerName,

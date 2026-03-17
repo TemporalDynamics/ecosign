@@ -16,6 +16,7 @@ const FUNCTIONS_ROOT = path.join(ROOT, 'supabase/functions');
 const AUTH_CATEGORIES = {
   // Categoría 1: Usuario Logueado (auth.getUser)
   userLogged: [
+    'admin-issue-trial-offer',
     'cancel-workflow',
     'claim-signer-package',
     'create-custody-upload-url',
@@ -71,6 +72,8 @@ const AUTH_CATEGORIES = {
 
   // Categoría 3: Cron Interno (requireCronSecret o requireInternalAuth)
   cronInternal: [
+    'admin-expire-workspace-trials',
+    'admin-grant-workspace-trial',
     'anchor-bitcoin',
     'anchor-polygon',
     'finalize-document',

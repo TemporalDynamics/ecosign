@@ -52,6 +52,7 @@ const ComparisonPage = lazy(() => import('./pages/ComparisonPage'))
 const VideosPage = lazy(() => import('./pages/VideosPage'))
 const RoadmapPage = lazy(() => import('./pages/RoadmapPage'))
 const UpdatesPage = lazy(() => import('./pages/UpdatesPage'))
+const AdminTrialsPage = lazy(() => import('./pages/AdminTrialsPage'))
 const InvitePage = lazy(() => import('./pages/InvitePage'))
 const PresentialConfirmPage = lazy(() => import('./pages/PresentialConfirmPage'))
 const SignWorkflowPage = lazy(() => import('./pages/SignWorkflowPage'))
@@ -244,6 +245,14 @@ function DashboardAppRoutes() {
               element={
                 <ProtectedRoute>
                   <UpdatesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/admin/trials"
+              element={
+                <ProtectedRoute>
+                  <AdminTrialsPage />
                 </ProtectedRoute>
               }
             />

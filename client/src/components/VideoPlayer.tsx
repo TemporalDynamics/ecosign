@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface VideoPlayerProps {
   src: string;
@@ -8,15 +8,24 @@ interface VideoPlayerProps {
 
 const VideoPlayer = ({ src, poster, className = '' }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isActivated, setIsActivated] = useState(false);
+  const [playRequested, setPlayRequested] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
+  useEffect(() => {
+    if (!isActivated || !playRequested) return;
+    const v = videoRef.current;
+    if (!v) return;
+    setPlayRequested(false);
+    v.play().catch(() => {});
+    setIsPlaying(true);
+    setShowControls(true);
+  }, [isActivated, playRequested]);
+
   const handlePlay = () => {
-    if (videoRef.current) {
-      videoRef.current.play();
-      setIsPlaying(true);
-      setShowControls(true);
-    }
+    setPlayRequested(true);
+    setIsActivated(true);
   };
 
   const handleVideoClick = () => {
@@ -31,7 +40,7 @@ const VideoPlayer = ({ src, poster, className = '' }: VideoPlayerProps) => {
         ref={videoRef}
         className="w-full h-auto cursor-pointer"
         playsInline
-        preload="metadata"
+        preload="none"
         poster={poster}
         controls={showControls}
         style={{ backgroundColor: '#ffffff', display: 'block' }}
@@ -43,7 +52,7 @@ const VideoPlayer = ({ src, poster, className = '' }: VideoPlayerProps) => {
           setShowControls(false);
         }}
       >
-        <source src={src} type="video/mp4" />
+        {isActivated ? <source src={src} type="video/mp4" /> : null}
         Tu navegador no soporta video HTML5.
       </video>
       

@@ -103,19 +103,21 @@ serve(async (req) => {
     const polygonLastRun = polygonCron.last_run ? { start_time: polygonCron.last_run, status: 'unknown' } : null;
     const bitcoinLastRun = bitcoinCron.last_run ? { start_time: bitcoinCron.last_run, status: 'unknown' } : null;
 
-    // Query real failure counts from executor_jobs (last 10 of each type)
+    // Query real failure counts from executor_jobs (last 24h)
+    // Column is "type", values are "submit_anchor_polygon" / "submit_anchor_bitcoin"
+    const recentCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const { count: polygonFailCount } = await supabase
       .from('executor_jobs')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'failed')
-      .like('job_type', '%polygon%')
-      .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .eq('type', 'submit_anchor_polygon')
+      .gte('updated_at', recentCutoff)
     const { count: bitcoinFailCount } = await supabase
       .from('executor_jobs')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'failed')
-      .like('job_type', '%bitcoin%')
-      .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .eq('type', 'submit_anchor_bitcoin')
+      .gte('updated_at', recentCutoff)
     const polygonFailures = polygonFailCount ?? 0;
     const bitcoinFailures = bitcoinFailCount ?? 0;
 

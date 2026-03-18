@@ -48,7 +48,7 @@ export default function FooterPublic() {
             <h4 className="font-semibold text-white mb-3">Soporte</h4>
             <ul className="space-y-2 text-sm text-gray-400">
               <li><Link to="/help" className="hover:text-[#0E4B8B] hover:underline transition">Centro de ayuda</Link></li>
-              <li><a href="mailto:soporte@ecosign.app" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</a></li>
+              <li><a href="mailto:soporte@email.ecosign.app" className="hover:text-[#0E4B8B] hover:underline transition">Contacto</a></li>
               <li><Link to="/status" className="hover:text-[#0E4B8B] hover:underline transition">Estado del servicio</Link></li>
               <li><Link to="/report-issue" className="hover:text-[#0E4B8B] hover:underline transition">Reportar un problema</Link></li>
             </ul>

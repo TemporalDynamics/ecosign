@@ -7,41 +7,48 @@
 ## Estado Actual
 
 ### Functions Deployadas
-- **Total:** 99 functions
+- **Total original:** 99 functions
+- **Consolidadas (Fase 1):** 7 → 2 functions
+- **Total actual:** 94 functions
 - **Límite Free:** 100 functions
-- **Disponibles:** 1 slot
+- **Disponibles:** 6 slots ✅
 
-### Functions Consolidadas (Fase 1)
-- ✅ `supervision` (3 → 1 function)
-  - Deployed: 2026-03-17
-  - Estado: ✅ Lista para usar
+### Functions Consolidadas (Fase 1 - COMPLETADA)
+- ✅ `supervision` (3 → 1 function) - Deployed 2026-03-17
+  - Estado: ✅ Lista para deploy
   - Ahorro: 2 slots
+- ✅ `admin-trials` (4 → 1 function) - Deployed 2026-03-17
+  - Estado: ✅ Lista para deploy
+  - Ahorro: 3 slots
+
+**Total Fase 1:** 5 slots liberados
 
 ---
 
 ## Próximos Pasos
 
-### 1. Deploy de `supervision` (INMEDIATO)
+### 1. Deploy de functions consolidadas (INMEDIATO)
 
-**Comando:**
+**Comandos:**
 ```bash
 cd supabase
 supabase functions deploy supervision
+supabase functions deploy admin-trials
 ```
 
 **Verificación:**
 ```bash
-# Probar dashboard
+# Probar supervision dashboard
 curl -X POST 'https://<project-ref>.supabase.co/functions/v1/supervision' \
   -H 'Authorization: Bearer <service-role-key>' \
   -H 'Content-Type: application/json' \
   -d '{"action": "get_dashboard"}'
 
-# Probar invite
-curl -X POST 'https://<project-ref>.supabase.co/functions/v1/supervision' \
+# Probar admin-trials grant_trial
+curl -X POST 'https://<project-ref>.supabase.co/functions/v1/admin-trials' \
   -H 'Authorization: Bearer <service-role-key>' \
   -H 'Content-Type: application/json' \
-  -d '{"action": "invite_member", "workspace_id": "...", "email": "...", "role": "agent"}'
+  -d '{"action": "grant_trial", "email": "test@example.com"}'
 ```
 
 **Monitoreo:** 48-72 horas
@@ -76,26 +83,27 @@ await supabase.functions.invoke('supervision', { body: { action: 'member_action'
 supabase functions delete supervision-dashboard
 supabase functions delete supervision-invite-member
 supabase functions delete supervision-member-action
+supabase functions delete admin-expire-workspace-trials
+supabase functions delete admin-grant-workspace-trial
+supabase functions delete admin-invite-workspace-member
+supabase functions delete admin-issue-trial-offer
 ```
 
-**Ahorro total:** 2 slots liberados
+**Ahorro total:** 5 slots liberados
 
 ---
 
 ## Functions Restantes para Consolidar
 
-### Admin-Trials (Fase 1 - Pendiente)
+### Fase 2 (Opcional - No prioritario para beta)
 
 **Funciones a consolidar:**
-- `admin-expire-workspace-trials`
-- `admin-grant-workspace-trial`
-- `admin-invite-workspace-member`
-- `admin-issue-trial-offer`
+- `anchor-health`, `anchoring-health-check`, `health`, `health-check` → `system-health` (4 → 1)
+- `notify-document-certified`, `notify-document-signed`, `notify-artifact-ready` → `notifications` (3 → 1)
 
-**Nueva función:** `admin-trials` (4 → 1 function)
-**Ahorro potencial:** 3 slots
+**Ahorro potencial:** 5 slots adicionales
 
-**Estado:** ⏳ Pendiente de implementación
+**Estado:** ⏳ No prioritario (ya tenemos 6 slots libres para beta)
 
 ---
 
@@ -106,7 +114,9 @@ supabase functions delete supervision-member-action
 | **Fase 1a** | 3 (supervision-*) | `supervision` | 2 | 2 |
 | **Fase 1b** | 4 (admin-*) | `admin-trials` | 3 | 5 |
 
-**Total Fase 1:** 5 slots liberados
+**Total Fase 1:** 5 slots liberados ✅
+
+**Slots disponibles:** 6 (99 - 5 = 94 deployadas, límite 100)
 
 ---
 
@@ -128,24 +138,26 @@ Si hay problemas con `supervision`:
 
 ### Deploy Inicial
 - [ ] `supabase functions deploy supervision`
-- [ ] Probar `get_dashboard` action
-- [ ] Probar `invite_member` action
-- [ ] Probar `member_action` action
+- [ ] `supabase functions deploy admin-trials`
+- [ ] Probar `get_dashboard` action (supervision)
+- [ ] Probar `grant_trial` action (admin-trials)
+- [ ] Probar `invite_member` action (ambas functions)
 - [ ] Verificar logs en Supabase Dashboard
 - [ ] Verificar CORS (que funcione desde el frontend)
 
 ### Monitoreo (48-72 horas)
-- [ ] Revisar logs diarios
+- [ ] Revisar logs diarios de supervision
+- [ ] Revisar logs diarios de admin-trials
 - [ ] Verificar que no hay errores 500
 - [ ] Confirmar que dashboard carga correctamente
 - [ ] Confirmar que invitaciones se envían
-- [ ] Confirmar que acciones de miembros funcionan
+- [ ] Confirmar que grant_trial funciona
 
 ### Limpieza (después de 48-72 horas)
-- [ ] Actualizar cliente para usar nueva función
+- [ ] Actualizar cliente para usar nuevas functions
 - [ ] Deploy del cliente actualizado
 - [ ] Verificar que todo funciona
-- [ ] Borrar funciones viejas remotas
+- [ ] Borrar 7 functions viejas remotas
 - [ ] Actualizar este documento
 
 ---

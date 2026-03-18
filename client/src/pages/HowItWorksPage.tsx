@@ -2,10 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
+import SEO from '../components/SEO';
 
 function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      <SEO title="Cómo Funciona" description="Protegé tu trabajo en 3 pasos: subí tu archivo, firmá digitalmente y obtené evidencia verificable con blockchain." path="/how-it-works" />
       <Header variant="public" />
 
       <header className="pt-32 pb-20 md:pt-40 md:pb-24 bg-white">
@@ -101,7 +103,7 @@ function HowItWorksPage() {
           </p>
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <div className="rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-black mb-2">En esta pagina</h3>
+              <h3 className="text-lg font-semibold text-black mb-2">En esta página</h3>
               <ul className="space-y-2 text-sm text-gray-700">
                 <li>• Qué gana cada persona del flujo.</li>
                 <li>• Cómo proteger trabajo sin vueltas técnicas.</li>
@@ -110,7 +112,7 @@ function HowItWorksPage() {
               </ul>
             </div>
             <div className="rounded-xl border border-gray-200 p-6 bg-gray-50">
-              <h3 className="text-lg font-semibold text-black mb-2">En GitHub tecnico</h3>
+              <h3 className="text-lg font-semibold text-black mb-2">En GitHub técnico</h3>
               <ul className="space-y-2 text-sm text-gray-700">
                 <li>• Contratos públicos de verificación e integración.</li>
                 <li>• Comportamientos auditables de evidencia y estados.</li>

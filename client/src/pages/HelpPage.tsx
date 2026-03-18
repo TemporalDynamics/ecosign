@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
+import SEO from '../components/SEO';
 
 const HelpPage = () => {
   const faqs = [
@@ -33,6 +34,7 @@ const HelpPage = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Centro de Ayuda" description="Guías y respuestas para usar EcoSign. Protección, firma digital, verificación y más." path="/help" />
       <Header variant="public" />
 
       {/* Content */}

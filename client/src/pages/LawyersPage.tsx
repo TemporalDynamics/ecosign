@@ -2,10 +2,12 @@ import { Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import FooterPublic from '../components/FooterPublic';
 import Header from '../components/Header';
+import SEO from '../components/SEO';
 
 const LawyersPage = () => {
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      <SEO title="Protección para Abogados" description="Certifica contratos, acuerdos y documentos legales con evidencia verificable y timestamp RFC 3161." path="/abogados" />
       <Header
         variant="public"
         publicCta={{ to: '/login?mode=signup', label: 'Proteger mis documentos' }}
@@ -17,7 +19,7 @@ const LawyersPage = () => {
             Tu cliente protegido.<br />Tu estudio blindado.
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Evidencia tecnica verificable que resiste impugnacion.
+            Evidencia técnica verificable que resiste impugnación.
             <br />
             Sin depender de relatos o plataformas externas.
           </p>
@@ -51,16 +53,19 @@ const LawyersPage = () => {
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
             No todos los documentos necesitan la misma protección
           </h2>
+          <p className="text-xl text-gray-700 text-center mb-10 max-w-3xl mx-auto">
+            En la mayoría de las operaciones, la firma legal es suficiente. La firma certificada se reserva para casos donde la evidencia puede ser impugnada.
+          </p>
           <div className="grid md:grid-cols-2 gap-6 mt-10">
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-xl font-semibold text-black mb-3">Firma Legal (80% del flujo)</h3>
-              <p className="text-gray-700 mb-2"><strong>Cuándo:</strong> acuerdos privados, NDAs, autorizaciones y documentación de gestión.</p>
-              <p className="text-gray-700"><strong>Por qué:</strong> rápida, económica y con evidencia verificable.</p>
+              <p className="text-gray-700 mb-2"><strong>Cuándo:</strong> acuerdos privados, NDAs, autorizaciones, cartas documento y documentación de gestión.</p>
+              <p className="text-gray-700"><strong>Por qué:</strong> rápida, económica y con evidencia verificable. Suficiente para la mayoría de los casos.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-xl font-semibold text-black mb-3">Firma Certificada (20% crítico)</h3>
-              <p className="text-gray-700 mb-2"><strong>Cuándo:</strong> contratos de alto valor o documentos que exigen certificación externa.</p>
-              <p className="text-gray-700"><strong>Por qué:</strong> subís el nivel en los casos de mayor exposición.</p>
+              <p className="text-gray-700 mb-2"><strong>Cuándo:</strong> contratos de alto valor, escrituras, o documentos que exigen certificación externa por normativa.</p>
+              <p className="text-gray-700"><strong>Por qué:</strong> subís el nivel en los casos de mayor exposición con un proveedor acreditado.</p>
             </div>
           </div>
           <p className="text-sm text-gray-600 mt-6 text-center">
@@ -89,7 +94,7 @@ const LawyersPage = () => {
             </li>
             <li className="flex items-start gap-3">
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-              <span><strong>Trazabilidad:</strong> quien accedio y cuando en cada etapa.</span>
+              <span><strong>Trazabilidad:</strong> quién accedió y cuándo en cada etapa.</span>
             </li>
           </ul>
         </div>
@@ -98,9 +103,9 @@ const LawyersPage = () => {
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
-            Protege cada caso con evidencia verificable.
+            Protegé cada caso con evidencia verificable.
           </h2>
-          <Link to="/login" className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg">
+          <Link to="/login?mode=signup" className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg">
             Proteger mis documentos
           </Link>
         </div>

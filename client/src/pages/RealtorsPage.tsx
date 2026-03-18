@@ -2,10 +2,12 @@ import { Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import FooterPublic from '../components/FooterPublic';
 import Header from '../components/Header';
+import SEO from '../components/SEO';
 
 const RealtorsPage = () => {
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      <SEO title="Protección para Inmobiliarias" description="Protegé reservas, boletos y documentación inmobiliaria con firma digital y evidencia blockchain." path="/realtors" />
       <Header
         variant="public"
         publicCta={{ to: '/login?mode=signup', label: 'Proteger mi próxima operación' }}
@@ -32,15 +34,15 @@ const RealtorsPage = () => {
           <div className="space-y-6">
             <div className="p-6 bg-red-50 rounded-xl border border-red-200">
               <h3 className="text-xl font-semibold text-black mb-3">Fricción de cierre</h3>
-              <p className="text-gray-700">Firmas que tardan días justo cuando el cliente está listo para avanzar.</p>
+              <p className="text-gray-700">Tu comprador quiere firmar a las 11pm. Con firma papel, esperás al día siguiente. Con EcoSign, la reserva queda firmada en 15 minutos.</p>
             </div>
             <div className="p-6 bg-red-50 rounded-xl border border-red-200">
               <h3 className="text-xl font-semibold text-black mb-3">Riesgo y exposición</h3>
-              <p className="text-gray-700">Precios, comisiones y datos sensibles en sistemas donde no controlás todo el flujo.</p>
+              <p className="text-gray-700">Precios, comisiones y datos sensibles en sistemas donde no controlás todo el flujo. EcoSign nunca lee el contenido del documento.</p>
             </div>
             <div className="p-6 bg-red-50 rounded-xl border border-red-200">
               <h3 className="text-xl font-semibold text-black mb-3">Costo impredecible</h3>
-              <p className="text-gray-700">Límites por sobres o créditos que impactan justo en operaciones clave.</p>
+              <p className="text-gray-700">Límites por sobres o créditos que impactan justo en operaciones clave. Con EcoSign, operaciones ilimitadas desde $15 USD/mes.</p>
             </div>
           </div>
         </div>
@@ -78,12 +80,12 @@ const RealtorsPage = () => {
             Qué documentos protegés con EcoSign
           </h2>
           <p className="text-xl text-gray-700 text-center mb-12 max-w-3xl mx-auto">
-            Casos reales del día a día inmobiliario.
+            Casos reales del día a día inmobiliario. Diseñado con corredores de Buenos Aires.
           </p>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-xl font-semibold text-black mb-3">Reservas y señas</h3>
-              <p className="text-gray-700">Acuerdos rápidos que necesitan agilidad. El cliente firma en el acto.</p>
+              <p className="text-gray-700">Acuerdos rápidos que necesitan agilidad. El cliente firma en el acto desde el celular.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-xl font-semibold text-black mb-3">Boletos de compraventa</h3>
@@ -126,7 +128,7 @@ const RealtorsPage = () => {
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
             Protegé tu próxima operación desde hoy.
           </h2>
-          <Link to="/login" className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg">
+          <Link to="/login?mode=signup" className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg">
             Proteger mi próxima operación
           </Link>
         </div>

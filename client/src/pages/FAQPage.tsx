@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
+import SEO from '../components/SEO';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 
 type FAQ = {
@@ -11,34 +12,34 @@ type FAQ = {
 
 const faqs: FAQ[] = [
   {
-    question: 'Que protege EcoSign exactamente?',
+    question: '¿Qué protege EcoSign exactamente?',
     answer: (
       <>
         Protege el proceso completo: documento, participantes, acciones y respaldo final.
-        No se trata solo de cerrar una firma, sino de conservar evidencia verificable sobre lo que ocurrio.
+        No se trata solo de cerrar una firma, sino de conservar evidencia verificable sobre lo que ocurrió.
       </>
     ),
   },
   {
-    question: 'EcoSign puede leer mi documento?',
+    question: '¿EcoSign puede leer mi documento?',
     answer: (
       <>
-        No. El producto esta disenado para proteger sin exponer contenido.
+        No. El producto está diseñado para proteger sin exponer contenido.
         La plataforma no necesita abrir tu archivo para generar respaldo verificable.
       </>
     ),
   },
   {
-    question: 'Que recibe la persona que participa en el flujo?',
+    question: '¿Qué recibe la persona que participa en el flujo?',
     answer: (
       <>
         Recibe un acceso claro para revisar, firmar y descargar su respaldo.
-        El objetivo es reducir friccion durante el flujo y dejar claridad despues.
+        El objetivo es reducir fricción durante el flujo y dejar claridad después.
       </>
     ),
   },
   {
-    question: 'Que pasa si necesito verificar despues?',
+    question: '¿Qué pasa si necesito verificar después?',
     answer: (
       <>
         EcoSign conserva un respaldo verificable para que puedas validar integridad y trazabilidad cuando haga falta.
@@ -46,20 +47,20 @@ const faqs: FAQ[] = [
     ),
   },
   {
-    question: 'Cual es la diferencia entre una plataforma de firma y EcoSign?',
+    question: '¿Cuál es la diferencia entre una plataforma de firma y EcoSign?',
     answer: (
       <>
         Una plataforma de firma confirma consentimiento.
-        EcoSign, ademas, protege el trabajo con evidencia verificable y continuidad de proceso.
+        EcoSign, además, protege el trabajo con evidencia verificable y continuidad de proceso.
       </>
     ),
   },
   {
-    question: 'Tengo que empezar con un plan pago?',
+    question: '¿Tengo que empezar con un plan pago?',
     answer: (
       <>
-        No. Podes empezar gratis para crear habito y validar el flujo.
-        Cuando tu operacion crece, escalas capacidad por operaciones y participantes.
+        No. Podés empezar gratis para crear hábito y validar el flujo.
+        Cuando tu operación crece, escalás capacidad por operaciones y participantes.
       </>
     ),
   },
@@ -99,11 +100,12 @@ export default function FAQPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Preguntas Frecuentes" description="Respuestas a las preguntas más comunes sobre firma digital, protección y verificación en EcoSign." path="/faq" />
       <Header variant="public" />
 
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
-          <PageTitle subtitle="Respuestas simples sobre proteccion, privacidad y verificacion.">
+          <PageTitle subtitle="Respuestas simples sobre protección, privacidad y verificación.">
             Preguntas frecuentes
           </PageTitle>
 
@@ -120,7 +122,7 @@ export default function FAQPage() {
           </div>
 
           <div className="text-center mt-16 pt-8 border-t border-gray-200">
-            <p className="text-lg text-gray-700 mb-6">No encontraste lo que buscabas?</p>
+            <p className="text-lg text-gray-700 mb-6">¿No encontraste lo que buscabas?</p>
             <a
               href="/contact"
               className="inline-block bg-black text-white px-8 py-4 rounded-lg font-semibold hover:bg-gray-800 transition"

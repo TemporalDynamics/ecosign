@@ -5,6 +5,7 @@ import FooterPublic from '../components/FooterPublic';
 import FooterInternal from '../components/FooterInternal';
 import PageTitle from '../components/PageTitle';
 import InhackeableTooltip from '../components/InhackeableTooltip';
+import SEO from '../components/SEO';
 
 const SecurityPage = () => {
   const location = useLocation();
@@ -13,6 +14,7 @@ const SecurityPage = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Seguridad" description="Arquitectura de seguridad de EcoSign. Cifrado AES-256-GCM, hash SHA-256 y zero-knowledge." path="/security" />
       <Header variant={isDashboard ? 'private' : 'public'} />
 
       {/* Content */}
@@ -32,7 +34,7 @@ const SecurityPage = () => {
               </div>
               <div className="text-base text-gray-700 space-y-2 pl-9">
                 <p>EcoSign no necesita acceder al contenido del archivo para protegerlo.</p>
-                <p>La integridad se representa mediante una huella digital unica y verificable.</p>
+                <p>La integridad se representa mediante una huella digital única y verificable.</p>
               </div>
             </div>
 

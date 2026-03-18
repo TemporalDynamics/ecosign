@@ -1,16 +1,18 @@
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import PageTitle from '../components/PageTitle';
+import SEO from '../components/SEO';
 import { Upload, FileCheck, Download, Shield } from 'lucide-react';
 
 export default function QuickGuidePage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Guía Rápida" description="Empezá a proteger documentos en minutos. Guía paso a paso para usar EcoSign." path="/quick-guide" />
       <Header variant="public" />
 
       <main className="flex-grow pt-16">
         <div className="max-w-3xl mx-auto px-4 pb-24">
-          <PageTitle subtitle="Cuatro pasos simples, sin vueltas tecnicas. Tu archivo nunca se expone.">
+          <PageTitle subtitle="Cuatro pasos simples, sin vueltas técnicas. Tu archivo nunca se expone.">
             Protege tu primer documento en 2 minutos
           </PageTitle>
 

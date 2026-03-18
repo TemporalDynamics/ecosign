@@ -1,11 +1,13 @@
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
+import SEO from '../components/SEO';
 import PageTitle from '../components/PageTitle';
 import { Briefcase, FlaskConical, Palette, Building2 } from 'lucide-react';
 
 export default function UseCasesPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Casos de Uso" description="Descubrí cómo empresas, abogados e inmobiliarias protegen sus documentos con EcoSign." path="/use-cases" />
       <Header variant="public" />
       
       <main className="flex-grow pt-16">

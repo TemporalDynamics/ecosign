@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getSupabase } from '../lib/supabaseClient';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
+import SEO from '../components/SEO';
 import { disableGuestMode } from '../utils/guestMode';
 import { initializeSessionCrypto } from '../lib/e2e/sessionCrypto';
 
@@ -141,6 +142,7 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Iniciar Sesión" description="Accedé a tu cuenta EcoSign. Protegé, firmá y verificá documentos digitales." path="/login" />
       <Header variant="public" />
 
       <div className="flex-grow flex items-center justify-center p-4 pt-24">

@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import FooterPublic from '../components/FooterPublic';
 import Header from '../components/Header';
+import SEO from '../components/SEO';
 
 const BusinessPage = () => {
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      <SEO title="Protección para Empresas" description="Firma digital empresarial con custodia zero-knowledge, workflows de firma y evidencia blockchain." path="/business" />
       <Header
         variant="public"
         publicCta={{ to: '/login?mode=signup', label: 'Proteger mis procesos' }}
@@ -16,7 +18,7 @@ const BusinessPage = () => {
             Tus procesos internos,<br />blindados para siempre.
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto mb-12 leading-relaxed">
-            Ordenes de compra, autorizaciones y acuerdos B2B.
+            Órdenes de compra, autorizaciones y acuerdos B2B.
             <br />
             Cada documento protegido con evidencia verificable.
           </p>
@@ -53,15 +55,18 @@ const BusinessPage = () => {
           <div className="grid md:grid-cols-3 gap-6 mt-12">
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-xl font-semibold text-black mb-3">Recursos Humanos</h3>
-              <p className="text-gray-700">Contratos, adendas y confidencialidad. Firma en minutos, no días.</p>
+              <p className="text-gray-700 mb-2">Contratos, adendas y acuerdos de confidencialidad.</p>
+              <p className="text-sm text-gray-600">Un empleado nuevo necesita firmar 5 documentos. Sin EcoSign: 3 días de ida y vuelta. Con EcoSign: firmado el mismo día.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-xl font-semibold text-black mb-3">Compras y proveedores</h3>
-              <p className="text-gray-700">Órdenes de compra y cotizaciones con versionado y respaldo.</p>
+              <p className="text-gray-700 mb-2">Órdenes de compra, cotizaciones y contratos de servicio.</p>
+              <p className="text-sm text-gray-600">Cada orden de compra queda protegida con evidencia de quién la aprobó, cuándo y qué versión se envió al proveedor.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
               <h3 className="text-xl font-semibold text-black mb-3">Legal y Compliance</h3>
-              <p className="text-gray-700">Acuerdos, actas y resoluciones con evidencia lista para auditoría.</p>
+              <p className="text-gray-700 mb-2">Acuerdos, actas de directorio y resoluciones.</p>
+              <p className="text-sm text-gray-600">En una auditoría, podés demostrar el historial completo de cada documento en minutos, no horas.</p>
             </div>
           </div>
         </div>
@@ -73,23 +78,29 @@ const BusinessPage = () => {
             <h2 className="text-4xl md:text-5xl font-bold text-black mb-6 text-center">
               Cuánto ahorrás con EcoSign
             </h2>
+            <p className="text-sm text-gray-600 text-center mb-8">
+              Una empresa que procesa 100 documentos/mes (8-10 por semana)
+            </p>
             <div className="grid md:grid-cols-3 gap-6 text-center">
               <div>
                 <p className="text-sm text-gray-600">Sin EcoSign</p>
                 <p className="text-3xl font-bold text-black">$2,400 / año</p>
-                <p className="text-xs text-gray-600">100 documentos x $2 c/u</p>
+                <p className="text-xs text-gray-600">100 documentos x $2 c/u (plataformas tradicionales)</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Con EcoSign</p>
                 <p className="text-3xl font-bold text-black">$180 / año</p>
-                <p className="text-xs text-gray-600">Plan BUSINESS (ejemplo)</p>
+                <p className="text-xs text-gray-600">Plan BUSINESS ($15/mes)</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Ahorro estimado</p>
                 <p className="text-3xl font-bold text-green-600">$2,220 / año</p>
-                <p className="text-xs text-gray-600">Hasta 92% menos</p>
+                <p className="text-xs text-gray-600">92% menos</p>
               </div>
             </div>
+            <p className="text-xs text-gray-500 mt-6 text-center">
+              Las plataformas de firma tradicionales cobran entre $1.50 y $3 por documento enviado. EcoSign incluye operaciones ilimitadas desde $15 USD/mes.
+            </p>
           </div>
         </div>
       </section>
@@ -99,7 +110,7 @@ const BusinessPage = () => {
           <h2 className="text-4xl md:text-5xl font-bold text-black mb-6">
             Protegé los procesos que sostienen tu negocio.
           </h2>
-          <Link to="/login" className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg">
+          <Link to="/login?mode=signup" className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-12 py-4 rounded-lg transition duration-300 text-lg">
             Proteger mis procesos
           </Link>
         </div>

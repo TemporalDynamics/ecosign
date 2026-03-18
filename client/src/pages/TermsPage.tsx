@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import FooterInternal from '../components/FooterInternal';
 import PageTitle from '../components/PageTitle';
+import SEO from '../components/SEO';
 
 const TermsPage = () => {
   const location = useLocation();
@@ -11,6 +12,7 @@ const TermsPage = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Términos de Servicio" description="Términos y condiciones de uso de EcoSign. Protección de documentos y firma digital." path="/terms" />
       <Header variant={isDashboard ? 'private' : 'public'} />
 
       <main className="flex-grow pt-16">

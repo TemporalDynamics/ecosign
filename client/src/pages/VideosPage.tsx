@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import FooterPublic from "../components/FooterPublic";
+import SEO from "../components/SEO";
 import VideoPlayer from "../components/VideoPlayer";
 import { videoLibrary } from "../contexts/VideoPlayerContext";
 
@@ -76,6 +77,7 @@ const videos = [
 export default function VideosPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Videos" description="Tutoriales y demos de EcoSign. Aprendé a proteger, firmar y verificar documentos." path="/videos" />
       <Header variant="public" />
       
       <main className="flex-grow">

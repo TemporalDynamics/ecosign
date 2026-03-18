@@ -4,6 +4,7 @@ import { Shield, CheckCircle, Lock, Anchor } from 'lucide-react';
 import { useVideoPlayer } from '../contexts/VideoPlayerContext';
 import FooterPublic from '../components/FooterPublic';
 import Header from '../components/Header';
+import SEO from '../components/SEO';
 import InhackeableTooltip from '../components/InhackeableTooltip';
 
 const ComparisonPage = () => {
@@ -12,6 +13,7 @@ const ComparisonPage = () => {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      <SEO title="Comparativa" description="EcoSign vs firma electrónica tradicional. Compará protección, evidencia y privacidad." path="/comparison" />
       <Header variant="public" />
 
       {/* Hero Section */}

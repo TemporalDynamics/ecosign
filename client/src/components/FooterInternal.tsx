@@ -15,14 +15,6 @@ export default function FooterInternal() {
             <ul className="space-y-3">
               <li>
                 <Link
-                  to="/status"
-                  className="text-gray-700 hover:text-black transition-colors text-sm"
-                >
-                  Estado del Servicio
-                </Link>
-              </li>
-              <li>
-                <Link
                   to="/videos"
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
@@ -118,14 +110,6 @@ export default function FooterInternal() {
                   className="text-gray-700 hover:text-black transition-colors text-sm"
                 >
                   Contacto
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/report-issue"
-                  className="text-gray-700 hover:text-black transition-colors text-sm"
-                >
-                  Reportar un Problema
                 </Link>
               </li>
             </ul>

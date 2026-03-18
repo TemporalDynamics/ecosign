@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import FooterInternal from '../components/FooterInternal';
 import PageTitle from '../components/PageTitle';
+import SEO from '../components/SEO';
 
 const PrivacyPage = () => {
   const location = useLocation();
@@ -11,6 +12,7 @@ const PrivacyPage = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Política de Privacidad" description="Cómo EcoSign protege tus datos. Zero-knowledge, cifrado end-to-end y privacidad por diseño." path="/privacy" />
       <Header variant={isDashboard ? 'private' : 'public'} />
 
       {/* Content */}

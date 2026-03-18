@@ -7,6 +7,7 @@
 
 import React, { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { HelmetProvider } from 'react-helmet-async'
 import { Toaster } from 'react-hot-toast'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -28,7 +29,6 @@ const DashboardVerifyPage = lazy(() => import('./pages/DashboardVerifyPage'))
 const DashboardPricingPage = lazy(() => import('./pages/DashboardPricingPage'))
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'))
 const PricingPage = lazy(() => import('./pages/PricingPage'))
-const NdaPage = lazy(() => import('./pages/NdaPage'))
 const VerifyPage = lazy(() => import('./pages/VerifyPage'))
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'))
 const NdaAccessPage = lazy(() => import('./pages/NdaAccessPage'))
@@ -37,9 +37,6 @@ const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
 const SecurityPage = lazy(() => import('./pages/SecurityPage'))
 const HelpPage = lazy(() => import('./pages/HelpPage'))
 const ContactPage = lazy(() => import('./pages/ContactPage'))
-const StatusPage = lazy(() => import('./pages/StatusPage'))
-const ReportPage = lazy(() => import('./pages/ReportPage'))
-const ReportIssuePage = lazy(() => import('./pages/ReportIssuePage'))
 const DocumentationPage = lazy(() => import('./pages/DocumentationPage'))
 const QuickGuidePage = lazy(() => import('./pages/QuickGuidePage'))
 const FAQPage = lazy(() => import('./pages/FAQPage'))
@@ -112,7 +109,6 @@ function DashboardAppRoutes() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/verify" element={<VerifyPage />} />
-            <Route path="/nda" element={<NdaPage />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/nda/:token" element={<NdaAccessPage />} />
             <Route path="/sign/:token" element={<SignWorkflowPage mode="dashboard" />} />
@@ -133,9 +129,6 @@ function DashboardAppRoutes() {
             <Route path="/security" element={<SecurityPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/contact" element={<ContactPage />} />
-            <Route path="/status" element={<StatusPage />} />
-            <Route path="/report" element={<ReportPage />} />
-            <Route path="/report-issue" element={<ReportIssuePage />} />
 
             {/* Resources routes */}
             <Route path="/documentation" element={<DocumentationPage />} />
@@ -317,14 +310,16 @@ function DashboardAppRoutes() {
 export function DashboardApp() {
   return (
     <ErrorBoundary>
-      <VideoPlayerProvider>
-        <LegalCenterProvider>
-          <div className="DashboardApp">
-            <DashboardAppRoutes />
-            <LegalCenterRoot />
-          </div>
-        </LegalCenterProvider>
-      </VideoPlayerProvider>
+      <HelmetProvider>
+        <VideoPlayerProvider>
+          <LegalCenterProvider>
+            <div className="DashboardApp">
+              <DashboardAppRoutes />
+              <LegalCenterRoot />
+            </div>
+          </LegalCenterProvider>
+        </VideoPlayerProvider>
+      </HelmetProvider>
     </ErrorBoundary>
   )
 }

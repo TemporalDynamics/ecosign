@@ -6,6 +6,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { useVideoPlayer, videoLibrary } from '../contexts/VideoPlayerContext';
+import SEO from '../components/SEO';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import VideoPlayer from '../components/VideoPlayer';
@@ -29,6 +30,7 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      <SEO title="Certificación y Firma Digital Privada" description="Protegé tus documentos sin exponerlos. Firma digital con blockchain y timestamp RFC 3161." path="/" />
       <Header variant="public" />
 
       {/* 1. HERO PRINCIPAL - Directo, minimalista, blanco y negro */}
@@ -257,19 +259,19 @@ const LandingPage = () => {
 
           <div className="grid md:grid-cols-3 gap-8 mb-12">
             <div className="rounded-xl border border-gray-200 p-6">
-              <p className="text-sm text-gray-500 mb-2">Riesgo comun</p>
+              <p className="text-sm text-gray-500 mb-2">Riesgo común</p>
               <p className="text-black font-semibold mb-3">El archivo circula y se pierde control</p>
               <p className="text-sm text-gray-600 mb-1">Cobertura EcoSign</p>
               <p className="text-sm text-gray-700">Trazabilidad de accesos y continuidad de evidencia durante el flujo.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
-              <p className="text-sm text-gray-500 mb-2">Riesgo comun</p>
+              <p className="text-sm text-gray-500 mb-2">Riesgo común</p>
               <p className="text-black font-semibold mb-3">Dudas sobre integridad del documento</p>
               <p className="text-sm text-gray-600 mb-1">Cobertura EcoSign</p>
               <p className="text-sm text-gray-700">Verificación por huella para detectar cambios no válidos.</p>
             </div>
             <div className="rounded-xl border border-gray-200 p-6">
-              <p className="text-sm text-gray-500 mb-2">Riesgo comun</p>
+              <p className="text-sm text-gray-500 mb-2">Riesgo común</p>
               <p className="text-black font-semibold mb-3">Post-firma sin respaldo claro</p>
               <p className="text-sm text-gray-600 mb-1">Cobertura EcoSign</p>
               <p className="text-sm text-gray-700">Evidencia verificable posterior, lista para auditoría y verificación.</p>
@@ -295,7 +297,7 @@ const LandingPage = () => {
               </div>
               <div className="rounded-lg bg-white border border-gray-200 p-4">
                 <p className="text-sm text-gray-500 mb-1">Paso 4</p>
-                <p className="text-sm font-semibold text-black">Verificacion publica</p>
+                <p className="text-sm font-semibold text-black">Verificación pública</p>
               </div>
             </div>
             <p className="text-sm text-gray-600 text-center mt-6">

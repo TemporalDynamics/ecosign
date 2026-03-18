@@ -4,10 +4,12 @@ import { ArrowLeft, Info } from 'lucide-react';
 import Header from '../components/Header';
 import FooterPublic from '../components/FooterPublic';
 import VerificationComponent from '../components/VerificationComponent';
+import SEO from '../components/SEO';
 
 function VerifyPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-cyan-50">
+      <SEO title="Verificador" description="Verificá la autenticidad de cualquier documento protegido con EcoSign. Verificación pública y gratuita." path="/verify" />
       <Header variant="public" />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

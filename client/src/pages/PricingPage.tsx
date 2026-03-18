@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, CheckCircle, X, FileText, Shield, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import FooterPublic from '../components/FooterPublic';
 import Header from '../components/Header';
+import SEO from '../components/SEO';
 
 function PricingPage() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
@@ -174,6 +175,7 @@ function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO title="Precios" description="Planes de protección digital. Desde gratis hasta empresas. Firma, certifica y verifica documentos." path="/pricing" />
       <Header variant="public" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 pt-32">

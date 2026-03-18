@@ -16,6 +16,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/v135/@supabase/supabase-js@2.39.0/dist/module/index.js';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { appendEvent } from '../_shared/eventHelper.ts';
+import { withRateLimit } from '../_shared/ratelimit.ts';
 
 
 const LEGACY_TO_CANONICAL_KIND: Record<string, string> = {
@@ -46,7 +47,7 @@ interface LogEventRequest {
   metadata?: Record<string, any>;
 }
 
-serve(async (req: Request) => {
+serve(withRateLimit('record', async (req: Request) => {
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined);
 
   if (Deno.env.get('FASE') !== '1') {
@@ -203,4 +204,4 @@ serve(async (req: Request) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

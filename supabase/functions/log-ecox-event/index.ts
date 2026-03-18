@@ -19,6 +19,7 @@ import {
   formatLocation
 } from '../_shared/geolocation.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { withRateLimit } from '../_shared/ratelimit.ts'
 
 interface LogEventRequest {
   workflow_id: string
@@ -36,7 +37,7 @@ interface LogEventRequest {
   document_hash_snapshot?: string
 }
 
-serve(async (req) => {
+serve(withRateLimit('record', async (req) => {
   const { isAllowed, headers: corsHeaders } = getCorsHeaders(req.headers.get('origin') ?? undefined)
   if (Deno.env.get('FASE') !== '1') {
     return new Response('disabled', { status: 204 });
@@ -229,4 +230,4 @@ serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
-})
+}))

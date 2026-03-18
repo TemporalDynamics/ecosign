@@ -102,8 +102,22 @@ serve(async (req) => {
 
     const polygonLastRun = polygonCron.last_run ? { start_time: polygonCron.last_run, status: 'unknown' } : null;
     const bitcoinLastRun = bitcoinCron.last_run ? { start_time: bitcoinCron.last_run, status: 'unknown' } : null;
-    const polygonFailures = 0;
-    const bitcoinFailures = 0;
+
+    // Query real failure counts from executor_jobs (last 10 of each type)
+    const { count: polygonFailCount } = await supabase
+      .from('executor_jobs')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'failed')
+      .like('job_type', '%polygon%')
+      .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    const { count: bitcoinFailCount } = await supabase
+      .from('executor_jobs')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'failed')
+      .like('job_type', '%bitcoin%')
+      .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    const polygonFailures = polygonFailCount ?? 0;
+    const bitcoinFailures = bitcoinFailCount ?? 0;
 
     if (cronRuntimeError) {
       issues.push(`Unable to read cron runtime status: ${cronRuntimeError.message}`);

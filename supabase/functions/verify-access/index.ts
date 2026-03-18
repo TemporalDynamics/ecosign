@@ -387,7 +387,7 @@ serve(withRateLimit('verify', async (req) => {
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
+        status: 500
       }
     )
   }

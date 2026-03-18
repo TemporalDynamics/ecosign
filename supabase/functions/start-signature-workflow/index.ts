@@ -454,22 +454,15 @@ serve(withRateLimit('workflow', async (req) => {
       accessTokens[signer.email] = { token, tokenHash }
     }
 
-    // HYPOTHESIS DEBUGGING: Log the exact payload before the insert.
-    // NOTE: Avoid logging signer PII in production.
-
     const { data: insertedSigners, error: signersError } = await supabase
       .from('workflow_signers')
       .insert(signersToInsert)
       .select('id, email, status, signing_order')
 
     if (signersError) {
-      // HYPOTHESIS DEBUGGING: Log insert failure.
-    console.error('Failed to insert signers.', signersError);
+      console.error('Failed to insert signers:', signersError.message);
       return jsonResponse({ error: 'Failed to create signers', details: signersError?.message }, 500)
     }
-
-    // HYPOTHESIS DEBUGGING: Log insert success.
-    console.log(`Successfully inserted ${insertedSigners?.length || 0} signers.`);
     
     // ... (Canonical event logging remains the same)
 

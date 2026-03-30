@@ -51,7 +51,7 @@
     "@types/node": "^22.0.0",
     "eslint": "^8.20.0",
     "ts-node": "^10.9.1",
-    "typescript": "^5.6.0",
+    "typescript": "^6.0.2",
     "vitest": "^3.2.4"
   },
   "files": [

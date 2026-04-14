@@ -11,7 +11,6 @@ import { startSignatureWorkflow } from '../lib/signatureWorkflowService';
 import { useSignatureCanvas } from '../hooks/useSignatureCanvas';
 import { applySignatureToPDF, blobToFile, addSignatureSheet, applyOverlaySpecToPdf, appendSignaturePage, rotatePdf, type SignaturePageMode } from '../utils/pdfSignature';
 import type { ForensicData } from '../utils/pdfSignature';
-import { signWithSignNow } from '../lib/signNowService';
 import { EventHelpers } from '../utils/eventLogger';
 import { getSupabase } from '../lib/supabaseClient';
 import { hashSource, hashSigned, hashWitness } from '../lib/canonicalHashing';
@@ -78,7 +77,7 @@ const USE_NEW_STAGE = true;      // FASE 2: Stage (canvas invariante - modelo de
 // The client must not call append-tsa-event.
 
 type InitialAction = 'sign' | 'workflow' | 'nda' | 'certify';
-type SignatureType = 'legal' | 'certified' | null;
+type SignatureType = 'legal' | null;
 type SignatureMode = 'none' | 'canvas' | 'signnow';
 type SignatureTab = 'draw' | 'type' | 'upload';
 type PreviewMode = 'compact' | 'expanded' | 'fullscreen';
@@ -302,9 +301,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   }, []);
 
   // Firma digital
-  const [signatureType, setSignatureType] = useState<SignatureType>(null); // 'legal' | 'certified' | null
-  const [showCertifiedModal, setShowCertifiedModal] = useState(false);
-  const [certifiedSubType, setCertifiedSubType] = useState<'qes' | 'mifiel' | 'international' | null>(null); // 'qes' | 'mifiel' | 'international' | null
+  const [signatureType, setSignatureType] = useState<SignatureType>(null); // 'legal' | null
 
   // MIGRACIÓN: Opciones de descarga/guardado (del legacy)
   const [savePdfChecked, setSavePdfChecked] = useState(true); // Guardar en Supabase
@@ -313,8 +310,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   // Saldos de firma (mock data - en producción viene de la DB)
   const [ecosignUsed, setEcosignUsed] = useState(30); // Firmas usadas
   const [ecosignTotal, setEcosignTotal] = useState(50); // Total del plan
-  const [signnowUsed, setSignnowUsed] = useState(5); // Firmas usadas
-  const [signnowTotal, setSignnowTotal] = useState(15); // Total del plan
   const [isEnterprisePlan, setIsEnterprisePlan] = useState(false); // Plan enterprise tiene ilimitadas
 
   // Sistema de guía "Mentor Ciego"
@@ -561,17 +556,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   // TODO: FEATURE PARCIAL - UI de anotaciones existe pero no hay lógica de escritura sobre el PDF
   const [annotationMode, setAnnotationMode] = useState<AnnotationKind | null>(null); // 'signature', 'highlight', 'text'
   const [annotations, setAnnotations] = useState<Annotation[]>([]); // Lista de anotaciones (highlights y textos)
-
-  // Helper: Convertir base64 a Blob
-  const base64ToBlob = (base64: string) => {
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    return new Blob([byteArray], { type: 'application/pdf' });
-  };
 
   // Helper para mostrar toasts con X (solo si están habilitados)
   const showToast = (message: string, options: ToastConfig = {}) => {
@@ -936,7 +920,12 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
           if (typeof restoredDraftState.forensicEnabled === 'boolean') setForensicEnabled(restoredDraftState.forensicEnabled);
           if (restoredDraftState.forensicConfig) setForensicConfig(restoredDraftState.forensicConfig as any);
           if (typeof restoredDraftState.mySignature === 'boolean') setMySignature(restoredDraftState.mySignature);
-          if (restoredDraftState.signatureType) setSignatureType(restoredDraftState.signatureType as any);
+          if (restoredDraftState.signatureType === 'legal') {
+            setSignatureType('legal');
+          } else if (restoredDraftState.signatureType) {
+            // Beta: certified signature is disabled until automatic billing/integration is ready.
+            setSignatureType(null);
+          }
           setWorkflowAssignmentConfirmed(false);
         }
 
@@ -1821,7 +1810,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             documentEntityId: canonicalDocumentId || undefined,
             canvasSnapshot: buildCanvasSnapshot(selfFields, ownerEmailValue),
             workflowFields: buildWorkflowFieldsPayload(selfFields, canonicalDocumentId),
-            signatureType: signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN',
+            signatureType: signatureType ? 'ECOSIGN' : undefined,
             deliveryMode: 'link',
             ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
             ndaEnabled,
@@ -1865,6 +1854,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               ? workflowError
               : 'No se pudo iniciar la firma. Verificá los datos e intentá de nuevo.';
           showToast(errorMessage, { type: 'error' });
+          setIsCanvasLocked(false);
         }
 
         setLoading(false);
@@ -2078,9 +2068,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
             documentHash,
             originalFilename: sourceFile?.name ?? file.name,
             documentEntityId: canonicalDocumentId || undefined,
-            signatureType: signatureType
-              ? (signatureType === 'certified' ? 'SIGNNOW' : 'ECOSIGN')
-              : undefined,
+            signatureType: signatureType ? 'ECOSIGN' : undefined,
             canvasSnapshot: buildCanvasSnapshot(signatureFields, null),
             workflowFields: buildWorkflowFieldsPayload(signatureFields, canonicalDocumentId),
             ndaText: ndaEnabled ? (ndaSavedText ?? ndaText) : null,
@@ -2110,6 +2098,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
               ? workflowError
               : 'No se pudo enviar las invitaciones. Verificá los datos e intentá de nuevo.';
           showToast(errorMessage, { type: 'error' });
+          setIsCanvasLocked(false);
           setLoading(false);
           return;
         }
@@ -2324,14 +2313,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         return;
       }
 
-      // 1. Certificar con o sin SignNow según tipo de firma seleccionado
-      type SignNowResult = {
-        signed_pdf_base64?: string;
-        signnow_document_id?: string;
-        status?: string;
-        [key: string]: unknown;
-      };
-
+      // 1. Certificar con motor interno (beta sin firma certificada externa)
       type CertifyResult = {
         ecoxBuffer?: ArrayBuffer | Uint8Array | null;
         ecoData?: unknown;
@@ -2340,8 +2322,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       };
 
       let certResult: CertifyResult;
-      let signedPdfFromSignNow: File | null = null;
-      let signNowResult: SignNowResult | null = null;
 
       // FASE 3.A: Update progress to timestamping (P0.5)
       setCertifyProgress({
@@ -2357,92 +2337,15 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         }));
       }, 12000); // Show warning after 12 seconds
 
-      if (signatureType === 'certified') {
-        // ✅ Usar SignNow API para firma legalizada (eIDAS, ESIGN, UETA)
-        console.log('🔐 Usando SignNow API para firma legalizada');
-
-        try {
-          // Llamar a SignNow con la firma ya embebida
-          // Obtener usuario autenticado
-          const { data: { user } } = await supabase.auth.getUser();
-
-          signNowResult = await signWithSignNow(fileToProcess, {
-            documentName: fileToProcess.name,
-            action: 'esignature',
-            userEmail: user?.email || 'unknown@example.example.com',
-            userName: user?.user_metadata?.full_name || user?.email || 'Usuario',
-            signature: signatureData ? {
-              image: signatureData,
-              placement: {
-                page: 1, // Última página (ya está en Hoja de Firmas)
-                xPercent: 0.1,
-                yPercent: 0.8,
-                widthPercent: 0.3,
-                heightPercent: 0.1
-              }
-            } : null,
-            requireNdaEmbed: false,
-            metadata: {
-              forensicEnabled: forensicEnabled,
-              useLegalTimestamp: forensicEnabled && forensicConfig.useLegalTimestamp,
-              usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
-              useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor
-            }
-          });
-
-          console.log('✅ SignNow completado:', signNowResult);
-
-          // Obtener el PDF firmado desde SignNow
-          if (signNowResult?.signed_pdf_base64) {
-            // Convertir base64 a File
-            const signedBlob = base64ToBlob(signNowResult.signed_pdf_base64);
-            signedPdfFromSignNow = blobToFile(signedBlob, fileToProcess.name);
-          }
-
-          // Usar el archivo firmado por SignNow para certificar
-          certResult = await certifyFile(signedPdfFromSignNow || fileToProcess, {
-            // TSA runs server-side via jobs (run-tsa)
-            useLegalTimestamp: false,
-            usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
-            useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
-            signatureData: null, // Ya está firmado por SignNow
-            signNowDocumentId: signNowResult?.signnow_document_id
-          });
-
-        } catch (signNowError) {
-          console.error('❌ Error con SignNow:', signNowError);
-          const signNowMsg =
-            signNowError instanceof Error
-              ? signNowError.message
-              : typeof signNowError === 'string'
-              ? signNowError
-              : 'Error desconocido con SignNow';
-
-          showToast(`Error al procesar firma legal con SignNow: ${signNowMsg}. Se usará firma estándar.`, {
-            type: 'error',
-            duration: 6000
-          });
-
-          // Fallback a firma estándar
-          certResult = await certifyFile(fileToProcess, {
-            // TSA runs server-side via jobs (run-tsa)
-            useLegalTimestamp: false,
-            usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
-            useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
-            signatureData: signatureData
-          });
-        }
-      } else {
-        // ✅ Usar motor interno (Firma Legal)
-        console.log('📝 Usando motor interno de Firma Legal');
-        certResult = await certifyFile(fileToProcess, {
-          // TSA runs server-side via jobs (run-tsa)
-          useLegalTimestamp: false,
-          usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
-          useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
-          signatureData: signatureData
-        });
-      }
+      // ✅ Usar motor interno (Firma Legal)
+      console.log('📝 Usando motor interno de Firma Legal');
+      certResult = await certifyFile(fileToProcess, {
+        // TSA runs server-side via jobs (run-tsa)
+        useLegalTimestamp: false,
+        usePolygonAnchor: forensicEnabled && forensicConfig.usePolygonAnchor,
+        useBitcoinAnchor: forensicEnabled && forensicConfig.useBitcoinAnchor,
+        signatureData: signatureData
+      });
 
       // FASE 3.C: Clear timeout warning (P0.6)
       clearTimeout(timeoutWarning);
@@ -2451,14 +2354,13 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
       // 2. Guardar en Supabase (guardar el PDF procesado, no el original)
       // Status inicial: 'signed' si ya se firmó, 'draft' si no hay firmantes
-      const initialStatus = (signatureType === 'legal' || signatureType === 'certified') ? 'signed' : 'draft';
+      const initialStatus = signatureType === 'legal' ? 'signed' : 'draft';
       const overallStatus = initialStatus === 'signed' ? 'certified' : initialStatus;
 
       let signedStoragePath: string | null = null;
       let signedHash: string | null = null;
       try {
-        const signedFileForCanon = signedPdfFromSignNow || fileToProcess;
-        const signedBytes = await signedFileForCanon.arrayBuffer();
+        const signedBytes = await fileToProcess.arrayBuffer();
         signedHash = await hashSigned(signedBytes);
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
         if (authError || !authUser) {
@@ -2519,19 +2421,17 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         ecoBuffer: ecoPayloadBuffer,
         ecoFileData: ecoPayloadFileData, // ✅ Guardar buffer ECO para deferred download
         ecoFileName: ecoPayloadFileName,
-        signNowDocumentId: signNowResult?.signnow_document_id || null,
-        signNowStatus: signNowResult?.status || null,
-        signedAt: signNowResult ? new Date().toISOString() : null,
+        signNowDocumentId: null,
+        signNowStatus: null,
+        signedAt: null,
         storePdf: true, // ✅ Guardar PDF cifrado para permitir compartir
         zeroKnowledgeOptOut: false // ✅ E2E encryption: guardar cifrado, no plaintext
       });
 
       if (canonicalDocumentId && signedHash && witnessHash) {
         try {
-          const signedAuthority = signNowResult ? 'external' : 'internal';
-          const signedAuthorityRef = signNowResult
-            ? { id: 'signnow', type: 'provider' }
-            : null;
+          const signedAuthority = 'internal';
+          const signedAuthorityRef = null;
 
           await appendTransform(canonicalDocumentId, {
             from_mime: 'application/pdf',
@@ -2663,7 +2563,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       });
 
       // CONSTITUCIÓN: Toast de finalización exitosa (líneas 499-521)
-      const hasFirma = signatureType === 'legal' || signatureType === 'certified';
+      const hasFirma = signatureType === 'legal';
       let successMessage = 'Documento protegido correctamente.';
 
       if (hasFirma) {
@@ -2754,8 +2654,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
 
     // Reset de firma digital
     setSignatureType(null);
-    setShowCertifiedModal(false);
-    setCertifiedSubType(null);
     setUserHasSignature(false);
 
     // Reset de mensajes de guía
@@ -3618,16 +3516,21 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
   };
 
   const startGlobalDragListeners = () => {
+    window.addEventListener('pointermove', handleGlobalMouseMove);
+    window.addEventListener('pointerup', handleGlobalMouseUp);
+    // Fallback mouse para navegadores sin pointer events
     window.addEventListener('mousemove', handleGlobalMouseMove);
     window.addEventListener('mouseup', handleGlobalMouseUp);
   };
 
   const stopGlobalDragListeners = () => {
+    window.removeEventListener('pointermove', handleGlobalMouseMove);
+    window.removeEventListener('pointerup', handleGlobalMouseUp);
     window.removeEventListener('mousemove', handleGlobalMouseMove);
     window.removeEventListener('mouseup', handleGlobalMouseUp);
   };
 
-  const handleGlobalMouseMove = (event: MouseEvent) => {
+  const handleGlobalMouseMove = (event: MouseEvent | PointerEvent) => {
     if (fieldResizeRef.current) {
       updateFieldResize(event.clientX, event.clientY);
       return;
@@ -3946,7 +3849,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     setSignatureFields((prev) => prev.filter((field) => field.id !== id));
   };
 
-  const startFieldResize = (e: React.MouseEvent, id: string) => {
+  const startFieldResize = (e: React.MouseEvent | React.PointerEvent, id: string) => {
     if (isCanvasLocked) return;
     e.preventDefault();
     e.stopPropagation();
@@ -3963,7 +3866,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     startGlobalDragListeners();
   };
 
-  const startGroupDrag = (e: React.MouseEvent, batchId: string) => {
+  const startGroupDrag = (e: React.MouseEvent | React.PointerEvent, batchId: string) => {
     if (isCanvasLocked) return;
     e.preventDefault();
     e.stopPropagation();
@@ -3993,7 +3896,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     startGlobalDragListeners();
   };
 
-  const startFieldDrag = (e: React.MouseEvent, id: string) => {
+  const startFieldDrag = (e: React.MouseEvent | React.PointerEvent, id: string) => {
     if (isCanvasLocked) return;
     e.preventDefault();
     e.stopPropagation();
@@ -4023,7 +3926,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
     startGlobalDragListeners();
   };
 
-  const startSignatureDrag = (e: React.MouseEvent) => {
+  const startSignatureDrag = (e: React.MouseEvent | React.PointerEvent) => {
     if (isCanvasLocked) return;
     e.preventDefault();
     e.stopPropagation();
@@ -4091,9 +3994,9 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
         <LegalCenterStage
           canvas={
             /* Center Panel (Main Content) - SIN CLASES GRID */
-            <div className="h-full w-full flex flex-col">
+            <div className="w-full flex flex-col">
               {!isFocusMode && (
-                <div className="-mx-1.5 -mt-1.5 h-14 px-3 border-b border-gray-200 flex items-center bg-white">
+                <div className="-mx-1.5 -mt-1.5 h-14 px-3 border-b border-gray-200 flex items-center bg-white shrink-0">
                   <div className="text-sm font-semibold leading-none text-gray-900 pl-1.5 shrink-0">Centro Legal</div>
                   <div className="flex-1 min-w-0 px-2">
                     <HeaderMessage message={guide.headerMessage} />
@@ -4133,7 +4036,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                   </div>
                 </div>
               )}
-              <div className="h-full w-full px-6 pt-3 pb-0 overflow-y-auto overflow-x-hidden">
+              <div className="w-full px-6 pt-3 pb-0 overflow-y-auto overflow-x-hidden">
             {/* PASO 1: ELEGIR ARCHIVO */}
             {step === 1 && (
               <div className={`space-y-2 ${isMobile ? 'pb-24' : ''}`}>
@@ -4241,16 +4144,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                         >
                           <Wand2 className="w-3.5 h-3.5" />
                         </button>
-                        {hasPreview && (
-                          <button
-                            onClick={() => {
-                              setFocusView((prev) => (prev === 'document' ? null : 'document'));
-                            }}
-                            className="md:hidden text-xs font-semibold text-gray-900 px-2 py-1 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
-                          >
-                            {isDocumentFocus ? 'Volver al Centro Legal' : 'Ver documento completo'}
-                          </button>
-                        )}
                         <label className="h-6 w-6 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer" title="Cambiar documento">
                           <input
                             type="file"
@@ -4317,8 +4210,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                         {pageNumber === 1 && mySignature && signaturePreview && (
                                           <div
                                             className="absolute pointer-events-auto group"
-                                            style={resolveSignatureRect()}
-                                            onMouseDown={startSignatureDrag}
+                                            style={{ ...resolveSignatureRect(), touchAction: 'none' }}
+                                            onPointerDown={startSignatureDrag}
                                           >
                                             {signaturePreview.type === 'image' ? (
                                               <img
@@ -4361,8 +4254,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                               <div
                                                 key={field.id}
                                                 className="absolute pointer-events-auto border border-blue-300 bg-blue-50/0 rounded-md px-1 py-0.5 group overflow-hidden flex items-center"
-                                                style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
-                                                onMouseDown={(event) => {
+                                                style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height, touchAction: 'none' }}
+                                                onPointerDown={(event) => {
                                                   if (locked) return;
                                                   const target = event.target as HTMLElement;
                                                   if (target.tagName === 'INPUT') return;
@@ -4387,7 +4280,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                                 {!locked && (
                                                 <button
                                                   type="button"
-                                                  onMouseDown={(event) => startFieldDrag(event, field.id)}
+                                                  onPointerDown={(event) => startFieldDrag(event, field.id)}
                                                   className="absolute -top-6 left-1/2 -translate-x-1/2 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-move"
                                                   title="Mover campo"
                                                 >
@@ -4411,7 +4304,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                                 {!locked && (
                                                 <button
                                                   type="button"
-                                                  onMouseDown={(event) => startFieldResize(event, field.id)}
+                                                  onPointerDown={(event) => startFieldResize(event, field.id)}
                                                   className="absolute -bottom-3 -right-3 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-se-resize"
                                                   title="Cambiar tamaño"
                                                 >
@@ -4478,8 +4371,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                               {mySignature && signaturePreview && (
                                 <div
                                   className="absolute pointer-events-auto group"
-                                  style={resolveSignatureRect()}
-                                  onMouseDown={startSignatureDrag}
+                                  style={{ ...resolveSignatureRect(), touchAction: 'none' }}
+                                  onPointerDown={startSignatureDrag}
                                 >
                                   {signaturePreview.type === 'image' ? (
                                     <img
@@ -4516,8 +4409,8 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                 <div
                                   key={field.id}
                                   className="absolute pointer-events-auto border border-blue-300 bg-blue-50/0 rounded-md px-1 py-0.5 group overflow-hidden flex items-center"
-                                  style={resolveFieldRect(field)}
-                                  onMouseDown={(event) => {
+                                  style={{ ...resolveFieldRect(field), touchAction: 'none' }}
+                                  onPointerDown={(event) => {
                                     if (isCanvasLocked) return;
                                     const target = event.target as HTMLElement;
                                     if (target.tagName === 'INPUT') return;
@@ -4539,7 +4432,7 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                                   </button>
                                   <button
                                     type="button"
-                                    onMouseDown={(event) => startFieldDrag(event, field.id)}
+                                    onPointerDown={(event) => startFieldDrag(event, field.id)}
                                     className="absolute -top-6 left-1/2 -translate-x-1/2 h-5 w-5 text-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-move"
                                     title="Mover campo"
                                   >
@@ -5085,6 +4978,23 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                               </div>
                             </div>
                           </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!canAssignWorkflowFields) return;
+                              openSignerFieldsWizard();
+                              guide.showConfirmation('Asignación automática lista — revisá y confirmá.');
+                            }}
+                            disabled={!canAssignWorkflowFields}
+                            className={`w-full mt-3 h-11 rounded-lg px-4 text-sm font-medium transition ${
+                              canAssignWorkflowFields
+                                ? 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            }`}
+                          >
+                            {workflowAssignmentConfirmed ? 'Campos asignados' : 'Asignar campos'}
+                          </button>
                         </div>
                       )}
                     </div>
@@ -5130,27 +5040,16 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
                   {/* Firma Certificada */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setSignatureType('certified');
-                      setShowCertifiedModal(true);
-                      guide.showGuideMessage('firma_certificada', 'Firma certificada — requiere procesamiento externo.', 4000);
-                    }}
-                    className={`h-11 px-4 rounded-lg border text-left transition ${
-                      signatureType === 'certified'
-                        ? 'border-blue-900 text-blue-900 bg-transparent'
-                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}
+                    disabled
+                    className="h-11 px-4 rounded-lg border text-left transition border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">
                         Firma Certificada
                       </p>
-                      <div className="group relative">
-                        <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />
-                        <div className="invisible group-hover:visible absolute right-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50">
-                          Para contratos que exigen certificación oficial según tu país.
-                        </div>
-                      </div>
+                      <span className="text-xs font-medium rounded-full px-2 py-0.5 bg-gray-200 text-gray-600">
+                        Próximamente
+                      </span>
                     </div>
                   </button>
                 </div>
@@ -5445,94 +5344,6 @@ const LegalCenterModalV2: React.FC<LegalCenterModalProps> = ({ isOpen, onClose, 
       onFinalDocumentVisibilityChange={setWorkflowFinalVisibility}
       onApply={handleSignerWizardApply}
     />
-
-    {/* Modal secundario: Selector de tipo de firma certificada */}
-    {showCertifiedModal && (
-        <div className="fixed inset-0 bg-white md:bg-black md:bg-opacity-60 flex items-center justify-center z-[60] animate-fadeIn p-0 md:p-6">
-          <div className="bg-white rounded-none md:rounded-2xl w-full h-full md:h-auto max-w-md p-6 shadow-2xl animate-fadeScaleIn overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Elegí el tipo de firma certificada
-              </h3>
-              <button
-                onClick={() => setShowCertifiedModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-sm text-gray-600 mb-6">
-              Seleccioná el tipo de firma según los requisitos legales de tu jurisdicción.
-            </p>
-
-            <div className="space-y-3">
-              {/* QES - Firma Cualificada */}
-              <button
-                type="button"
-                onClick={() => {
-                  setCertifiedSubType('qes');
-                  setShowCertifiedModal(false);
-                }}
-                className={`w-full p-4 rounded-lg border-2 text-left transition ${
-                  certifiedSubType === 'qes'
-                    ? 'border-gray-900 bg-gray-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <p className="text-sm font-semibold text-gray-900 mb-1">
-                  Firma Cualificada (QES)
-                </p>
-                <p className="text-xs text-gray-500">
-                  Máxima validez legal (UE / LATAM). Ideal para contratos formales y auditorías.
-                </p>
-              </button>
-
-              {/* Mifiel */}
-              <button
-                type="button"
-                onClick={() => {
-                  setCertifiedSubType('mifiel');
-                  setShowCertifiedModal(false);
-                }}
-                className={`w-full p-4 rounded-lg border-2 text-left transition ${
-                  certifiedSubType === 'mifiel'
-                    ? 'border-gray-900 bg-gray-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <p className="text-sm font-semibold text-gray-900 mb-1">
-                  Mifiel
-                </p>
-                <p className="text-xs text-gray-500">
-                  Cumplimiento legal en México y LATAM. Firma electrónica avanzada (FIEL).
-                </p>
-              </button>
-
-              {/* Internacional */}
-              <button
-                type="button"
-                onClick={() => {
-                  setCertifiedSubType('international');
-                  setShowCertifiedModal(false);
-                }}
-                className={`w-full p-4 rounded-lg border-2 text-left transition ${
-                  certifiedSubType === 'international'
-                    ? 'border-gray-900 bg-gray-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <p className="text-sm font-semibold text-gray-900 mb-1">
-                  Internacional
-                </p>
-                <p className="text-xs text-gray-500">
-                  Cumplimiento multi-jurisdicción (eIDAS, eSign, UETA). Para operaciones globales.
-                </p>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* PASO 3: Modal de Protección - Componente refactorizado */}
       <ProtectionInfoModal
